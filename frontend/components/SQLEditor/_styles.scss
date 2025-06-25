@@ -35,7 +35,6 @@
   .ace_placeholder {
     font-family: "SourceCodePro", $monospace;
     margin: initial;
-    font-size: 15px;
   }
 
   &__help-text {
@@ -58,5 +57,8 @@
 .sql-editor * {
   letter-spacing: normal !important;
   word-spacing: normal !important;
-  font-family: 'SourceCodePro', monospace !important;
+}
+
+.sql-editor .ace_editor {
+  font-family: "SourceCodePro", monospace !important;
 }

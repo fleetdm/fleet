@@ -11,6 +11,31 @@
 #     Add markdown content to this field.
 ################################################
 
+- jobTitle: 🚀 Customer Support Engineer
+  department: Sales
+  hiringManagerName: Zay Hanlon
+  hiringManagerGithubUsername: zayhanlon
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+  responsibilities: |
+      - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop an understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo. 
+      - 🚀 Deploy Fleet on your own to better understand the customer experience and how the product works. 
+      - ⏫ Work hand-in-hand with the customer success team by participating in calls with customers to discuss any support issues they may have.
+      - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
+      - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
+      - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
+      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+  experience: |
+      - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, or MacOS devices and MDM solutions like Jamf, Kandji, InTune, WS1, etc. Experience with AWS, SQL, Redis, Terraform, and osquery. 
+      - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
+      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+      - 💭 Required: IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
+      - 💖 An excellent understanding of macOS, Windows, Linux core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
+      - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus. 
+      - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
+
+
+
+
 - jobTitle: 🚀 Software Engineer
   department: Engineering
   hiringManagerName: Luke Heath
@@ -40,32 +65,6 @@
       - ➕ Bonus: Cybersecurity or IT background.
 
 
-- jobTitle: 🌦️ Customer Solutions Architect
-  department: Customers
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  responsibilities: |
-      - ⏫ Own post-sales technical relationships with Fleet customers, managing multiple customer environments and technical escalations with confidence and clarity.
-      - 🌡️ Partner closely with customers and internal teams to define onboarding plans, set success criteria, and guide deployments from kickoff through adoption.
-      - 🪴 Champion product adoption, technical health, and customer advocacy by building strong relationships with key stakeholders.
-      - 🕴️ Use data and tooling to track deployment progress, customer health, and engagement, keeping everything organized and visible for the broader team.
-      - 🚀 Work cross-functionally with product and engineering to represent customer needs and help prioritize the roadmap with real-world feedback.
-      - 📈 Proactively identify blockers and risk indicators that could impact customer success or retention, and work quickly to address them. 
-      - 💡 Communicate clearly and confidently, with both internal stakeholders and customer executives, engineers, or technical admins.
-      - 🧪 Comfort navigating Slack, Salesforce, Google Suite, and GitHub to stay in sync and get work done.
-  experience: |
-      - 💭 Extensive background in device management working with, deploying, and supporting tools (like Fleet, Intune, Jamf Pro, Workspace One, etc).
-      - 💖 Skilled at balancing technical escalations, renewals, and day-to-day priorities without losing sight of what matters most for the customer.
-      - ✍🏽 Able to influence technical stakeholders—from hands-on engineers to executives—and build alignment around Fleet's value.
-      - 🧬 You genuinely care about delivering a fantastic customer experience and ensuring their voice is heard inside Fleet.
-      - 🧑‍🔬 Experience working with enterprise customers on complex technical challenges, acting as the main technical point of contact throughout their journey.
-      - 🤝 Collaboration: You thrive in a team setting, know when to lead and when to listen, and are equally comfortable strategizing or rolling up your sleeves.
-      - 🦉 5+ years of experience supporting enterprise customers in the device management space, while working on custom scripts and 'solutioning' of workflows that don't exist in the current toolkit.
-      - 🛠️ You’re a natural communicator, enjoy being customer-facing, and bring a problem-solving mindset to every interaction.
-      - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
-
-
 - jobTitle: 🎐 Solutions Consultant
   department: Sales
   hiringManagerName: Allen Houchins
@@ -93,7 +92,6 @@
       - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
 
 
-
 - jobTitle: 🫧 Head of Marketing
   department: Marketing
   hiringManagerName: Mike McNeil
@@ -116,33 +114,6 @@
       - 🧩 Think like an engineer: System-oriented. Iterative.
       - 🧑‍🔧 You have low ego and will get your hands dirty. 
 
-
-- jobTitle: 🚀 Quality Assurance Engineer
-  department: Engineering
-  hiringManagerName: Luke Heath
-  hiringManagerGithubUsername: lukeheath
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/lukeheath/
-  responsibilities: |
-      - ⏫ Work closely with CTO to continually improve overall quality assurance efficiency and effectiveness throughout the product design and engineering process.
-      - 🤝 Collaborate with the engineering managers and quality assurance engineers in the [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups), actively participating in some engineering scrum meetings, sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
-      - 🌟 Contribute to the overall success of all [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features that work as intended.
-      - 🧪 Develop and execute testing plans based on feature specifications, outlining step-by-step actions for each user role to confirm that features function as intended.
-      - 🚀 Perform manual testing of newly developed features on all supported devices, platforms, and browsers, ensuring a seamless user experience.
-      - 🐞 Identify, document, and report any bugs or unusual behavior, creating and assigning bug tickets to the appropriate engineering manager for resolution.
-      - 🔧 Verify that bugs have been resolved after engineers have addressed them, repeating the testing process as needed.
-  experience: |
-      - 💭 3-5 years' of experience in a product quality, QA, or testing role.
-      - 💖 Proficient in creating comprehensive testing plans.
-      - ✍️ Experience working with engineering and product teams in an agile environment.
-      - 🎯 Strong attention to detail and ability to identify inconsistencies or deviations from specifications.
-      - 💡 Excellent communication and collaboration skills, with the ability to work closely with engineering and product teams.
-      - 🌐 Experience in manual testing across various devices, platforms, and browsers.
-      - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
-      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
-      - 🤝 Collaboration: You work best in a participatory, team-based environment.
-      - 🛠️ Technical: You understand the software development processes.
-      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-      - ➕ Bonus: Cybersecurity or IT background.
 
 
 - jobTitle: 🐋 Account Executive
@@ -175,4 +146,30 @@
       - ✍ You have a strong understanding of the enterprise procurement process and the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and discuss the potential ROI of using Fleet to solve real problems in their organization.
       - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
       - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
+
+- jobTitle: 🦢 Product Designer
+  department: Product Design
+  hiringManagerName: Noah Talerman
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/noah-talerman/
+  hiringManagerGithubUsername: noahtalerman
+  responsibilities: |
+    - 🧭 Prioritize work across competing customer needs, business goals, and technical constraints.
+    - 🎯 Own the full product development lifecycle for your product group—from identifying problems to defining scope, designing solutions, and writing specs.
+    - 📣 Design consistent interactions across the Fleet user experience, including API, CLI, and YAML.
+    - 🔎 Break down large ideas into shippable iterations and clearly communicate tradeoffs.
+    - 👥 Collaborate with engineers and stakeholders to unblock work and ensure delivery.
+  experience: |
+    - 💭 3 - 5 years of experience as a Product Designer, Product Manager, or Software Engineer.
+    - 🧠 Strong product sense—you’re comfortable saying no, scoping down, and sequencing work for impact.
+    - 🦉 Comfortable owning both the "why" and the "how"—from defining the problem to scoping and designing the solution.
+    - 💖 Proficient in visual design and wireframing tools (we use Figma).
+    - ✍️ Experienced in writing clear, concise product specs for engineering teams.
+    - 🧑‍🔬 Understand developer-first automation workflows, including API, CLI, and Git experiences.
+    - 📖 Maintain a design system that enables speed for designers and engineers.
+    - 🤝 Collaboration: You work best in a participatory, team-based environment.
+    - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high-fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
+    - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
+    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+    - ✍️ Experience designing API/CLI experiences for developers or willingness to learn.
+    - ➕ Bonus: YB2B SaaS background
 

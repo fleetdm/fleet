@@ -1,6 +1,24 @@
 .software-details-modal {
+  // Same as AddHostModal
+  &__content {
+    max-height: 581px;
+    overflow-y: auto;
+  }
+
   &__software-details {
-    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    .data-set dd {
+      white-space: initial;
+    }
+  }
+
+  &__version-details {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
   }
 
   &__details-info {
@@ -25,27 +43,21 @@
     gap: $pad-xxlarge;
   }
 
-  &__file-path-data-set,
-  &__hash-sha256-data-set {
-    // These following 100% widths are to make sure the text does not
-    // overflow from the modal. TODO: Need to look at DataSet component to see why
-    // it overflows.
-    width: 100%;
-    min-width: auto;
-  }
-
-  &__file-path-values,
-  &__hash-sha256-value {
+  &__sig-info {
     display: flex;
     flex-direction: column;
-    gap: $pad-small;
-    width: 100%;
 
-    > span {
-      width: 100%;
-      white-space: initial;
-      overflow-wrap: anywhere;
+    dt {
+      min-width: 40px;
     }
+  }
+
+  &__file-path,
+  &__hash {
+    width: 100%;
+    white-space: initial;
+    text-wrap: wrap;
+    overflow-wrap: anywhere;
   }
 
   .modal__content {
@@ -53,6 +65,8 @@
   }
 
   .react-tabs__tab-panel {
-    margin-top: $pad-large;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
   }
 }

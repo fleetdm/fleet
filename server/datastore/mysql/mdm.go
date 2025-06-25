@@ -157,6 +157,7 @@ SELECT
 	profile_uuid,
 	team_id,
 	name,
+	scope,
 	platform,
 	identifier,
 	checksum,
@@ -167,6 +168,7 @@ FROM (
 		profile_uuid,
 		team_id,
 		name,
+		scope,
 		'darwin' as platform,
 		identifier,
 		checksum,
@@ -184,6 +186,7 @@ FROM (
 		profile_uuid,
 		team_id,
 		name,
+		'' as scope,
 		'windows' as platform,
 		'' as identifier,
 		'' as checksum,
@@ -201,6 +204,7 @@ FROM (
 		declaration_uuid AS profile_uuid,
 		team_id,
 		name,
+		scope,
 		'darwin' AS platform,
 		identifier,
 		token AS checksum,
@@ -587,6 +591,8 @@ SET
 WHERE
 	host_uuid = ?
 	AND operation_type = ?
+	-- do not increment retry unnecessarily if the status is already null, no MDM command was sent
+	AND status IS NOT NULL
 	AND %s IN(?)`
 
 	args := []interface{}{
@@ -777,7 +783,7 @@ SELECT
 FROM
 	mdm_windows_configuration_profiles mwcp
 	JOIN mdm_configuration_profile_labels mcpl
-		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0
+		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 1
 	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
@@ -815,9 +821,34 @@ HAVING
 	count_profile_labels > 0 AND
 	count_profile_labels = count_non_broken_labels AND
 	count_host_labels = 0
+
+UNION
+
+-- label-based profiles where the host is a member of at least one of the labels (include-any)
+SELECT
+	mwcp.profile_uuid AS profile_uuid,
+	name,
+	syncml AS raw_profile,
+	min(mwcp.uploaded_at) AS earliest_install_date,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) as count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels
+FROM
+	mdm_windows_configuration_profiles mwcp
+	JOIN mdm_configuration_profile_labels mcpl
+		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 0
+	LEFT OUTER JOIN label_membership lm
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	mwcp.team_id = ?
+GROUP BY
+	profile_uuid, name, syncml
+HAVING
+	count_profile_labels > 0 AND
+	count_host_labels > 0
 `
 	var profiles []*fleet.ExpectedMDMProfile
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID, hostID, teamID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID, hostID, teamID, hostID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running query for windows profiles")
 	}
@@ -831,10 +862,11 @@ HAVING
 }
 
 func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID uint, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
+	// TODO This will need to be updated to support scopes
 	stmt := `
 -- profiles without labels
 SELECT
-    macp.profile_uuid AS profile_uuid,
+	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
 	0 AS count_profile_labels,
 	0 AS count_non_broken_labels,
@@ -884,7 +916,7 @@ FROM
 		GROUP BY checksum
 	) cs ON macp.checksum = cs.checksum
 	JOIN mdm_configuration_profile_labels mcpl
-		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0
+		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 1
 	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
@@ -929,10 +961,42 @@ HAVING
 	count_profile_labels > 0 AND
 	count_profile_labels = count_non_broken_labels AND
 	count_host_labels = 0
+
+UNION
+
+-- label-based profiles where the host is a member of at least one of the labels (include-any)
+SELECT
+	macp.profile_uuid AS profile_uuid,
+	macp.identifier AS identifier,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) AS count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels,
+	min(earliest_install_date) AS earliest_install_date
+FROM
+	mdm_apple_configuration_profiles macp
+	JOIN (
+		SELECT
+			checksum,
+			min(uploaded_at) AS earliest_install_date
+		FROM
+			mdm_apple_configuration_profiles
+		GROUP BY checksum
+	) cs ON macp.checksum = cs.checksum
+	JOIN mdm_configuration_profile_labels mcpl
+		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 0
+	LEFT OUTER JOIN label_membership lm
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	macp.team_id = ?
+GROUP BY
+	profile_uuid, identifier
+HAVING
+	count_profile_labels > 0 AND
+	count_host_labels > 0
 `
 
 	var rows []*fleet.ExpectedMDMProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, host.ID, teamID, host.ID, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, host.ID, teamID, host.ID, teamID, host.ID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 
@@ -1491,7 +1555,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 
 	// NOTE: if you change any of the conditions in this query, please
 	// update the `hostMDMSelect` constant too, which has a
-	// `connected_to_fleet` condition, and any relevant filters.
+	// `connected_to_fleet` condition, any relevant filters, and the
+	// query used in isAppleHostConnectedToFleetMDM.
 	const appleStmt = `
 	  SELECT ne.id
 	  FROM nano_enrollments ne
@@ -1508,7 +1573,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 
 	// NOTE: if you change any of the conditions in this query, please
 	// update the `hostMDMSelect` constant too, which has a
-	// `connected_to_fleet` condition, and any relevant filters.
+	// `connected_to_fleet` condition, and any relevant filters, and the
+	// query used in isWindowsHostConnectedToFleetMDM.
 	const winStmt = `
 	  SELECT mwe.host_uuid
 	  FROM mdm_windows_enrollments mwe
@@ -1526,11 +1592,13 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 }
 
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
-	mp, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{host})
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
+	if host.Platform == "windows" {
+		return isWindowsHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
+	} else if host.Platform == "darwin" || host.Platform == "ipados" || host.Platform == "ios" {
+		return isAppleHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
 	}
-	return mp[host.UUID], nil
+
+	return false, nil
 }
 
 func batchSetProfileVariableAssociationsDB(
@@ -1696,7 +1764,7 @@ SELECT
 			'verified'
 		ELSE
 			''
-	END AS status,
+	END AS final_status,
 	SUM(1) AS count
 FROM
 	hosts h
@@ -1710,7 +1778,7 @@ WHERE
 	hmdm.enrolled = 1 AND
 	hmwp.profile_uuid = :profile_uuid
 GROUP BY
-	status`
+	final_status`
 
 	stmt, args, err := sqlx.Named(stmt, map[string]any{
 		"status_failed":         fleet.MDMDeliveryFailed,

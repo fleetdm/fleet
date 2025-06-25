@@ -74,7 +74,7 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
 
 const lastSeenTime = (status: string, seenTime: string): string => {
   if (status !== "online") {
-    return `Last Seen: ${humanHostLastSeen(seenTime)} UTC`;
+    return `Last seen: ${humanHostLastSeen(seenTime)}`;
   }
   return "Online";
 };

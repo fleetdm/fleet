@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -910,10 +911,18 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 	}
 
 	var baseMetricV2 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV2
-	for _, cvssMetricV2 := range cve.Metrics.CVSSMetricV2 {
-		if cvssMetricV2.Type != "Primary" {
-			continue
-		}
+
+	if len(cve.Metrics.CVSSMetricV2) > 0 {
+		slices.SortFunc(cve.Metrics.CVSSMetricV2, func(a nvdapi.CVSSMetricV2, b nvdapi.CVSSMetricV2) int {
+			if a.Type == "Primary" && b.Type != "Primary" {
+				return -1
+			} else if a.Type != "Primary" && b.Type == "Primary" {
+				return 1
+			}
+
+			return 0
+		})
+		cvssMetricV2 := cve.Metrics.CVSSMetricV2[0]
 		baseMetricV2 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV2{
 			AcInsufInfo: *cvssMetricV2.ACInsufInfo,
 			CVSSV2: &schema.CVSSV20{
@@ -948,9 +957,21 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 	}
 
 	var baseMetricV3 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV3
-	for _, cvssMetricV30 := range cve.Metrics.CVSSMetricV30 {
-		if cvssMetricV30.Type != "Primary" {
-			continue
+	var hasPrimaryCVSSv3 bool
+	if len(cve.Metrics.CVSSMetricV30) > 0 {
+		slices.SortFunc(cve.Metrics.CVSSMetricV30, func(a nvdapi.CVSSMetricV30, b nvdapi.CVSSMetricV30) int {
+			if a.Type == "Primary" && b.Type != "Primary" {
+				return -1
+			} else if a.Type != "Primary" && b.Type == "Primary" {
+				return 1
+			}
+
+			return 0
+		})
+
+		cvssMetricV30 := cve.Metrics.CVSSMetricV30[0]
+		if cvssMetricV30.Type == "Primary" {
+			hasPrimaryCVSSv3 = true
 		}
 		baseMetricV3 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV3{
 			CVSSV3: &schema.CVSSV30{
@@ -989,46 +1010,56 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 			ImpactScore:         derefPtr((*float64)(cvssMetricV30.ImpactScore)),
 		}
 	}
-	// Use CVSSMetricV31 if available (override CVSSMetricV30)
-	for _, cvssMetricV31 := range cve.Metrics.CVSSMetricV31 {
-		if cvssMetricV31.Type != "Primary" {
-			continue
-		}
-		baseMetricV3 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV3{
-			CVSSV3: &schema.CVSSV30{
-				AttackComplexity:              derefPtr(cvssMetricV31.CVSSData.AttackComplexity),
-				AttackVector:                  derefPtr(cvssMetricV31.CVSSData.AttackVector),
-				AvailabilityImpact:            derefPtr(cvssMetricV31.CVSSData.AvailabilityImpact),
-				AvailabilityRequirement:       derefPtr(cvssMetricV31.CVSSData.AvailabilityRequirement),
-				BaseScore:                     cvssMetricV31.CVSSData.BaseScore,
-				BaseSeverity:                  cvssMetricV31.CVSSData.BaseSeverity,
-				ConfidentialityImpact:         derefPtr(cvssMetricV31.CVSSData.ConfidentialityImpact),
-				ConfidentialityRequirement:    derefPtr(cvssMetricV31.CVSSData.ConfidentialityRequirement),
-				EnvironmentalScore:            derefPtr(cvssMetricV31.CVSSData.EnvironmentalScore),
-				EnvironmentalSeverity:         derefPtr(cvssMetricV31.CVSSData.EnvironmentalSeverity),
-				ExploitCodeMaturity:           derefPtr(cvssMetricV31.CVSSData.ExploitCodeMaturity),
-				IntegrityImpact:               derefPtr(cvssMetricV31.CVSSData.IntegrityImpact),
-				IntegrityRequirement:          derefPtr(cvssMetricV31.CVSSData.IntegrityRequirement),
-				ModifiedAttackComplexity:      derefPtr(cvssMetricV31.CVSSData.ModifiedAttackComplexity),
-				ModifiedAttackVector:          derefPtr(cvssMetricV31.CVSSData.ModifiedAttackVector),
-				ModifiedAvailabilityImpact:    derefPtr(cvssMetricV31.CVSSData.ModifiedAvailabilityImpact),
-				ModifiedConfidentialityImpact: derefPtr(cvssMetricV31.CVSSData.ModifiedConfidentialityImpact),
-				ModifiedIntegrityImpact:       derefPtr(cvssMetricV31.CVSSData.ModifiedIntegrityImpact),
-				ModifiedPrivilegesRequired:    derefPtr(cvssMetricV31.CVSSData.ModifiedPrivilegesRequired),
-				ModifiedScope:                 derefPtr(cvssMetricV31.CVSSData.ModifiedScope),
-				ModifiedUserInteraction:       derefPtr(cvssMetricV31.CVSSData.ModifiedUserInteraction),
-				PrivilegesRequired:            derefPtr(cvssMetricV31.CVSSData.PrivilegesRequired),
-				RemediationLevel:              derefPtr(cvssMetricV31.CVSSData.RemediationLevel),
-				ReportConfidence:              derefPtr(cvssMetricV31.CVSSData.ReportConfidence),
-				Scope:                         derefPtr(cvssMetricV31.CVSSData.Scope),
-				TemporalScore:                 derefPtr(cvssMetricV31.CVSSData.TemporalScore),
-				TemporalSeverity:              derefPtr(cvssMetricV31.CVSSData.TemporalSeverity),
-				UserInteraction:               derefPtr(cvssMetricV31.CVSSData.UserInteraction),
-				VectorString:                  cvssMetricV31.CVSSData.VectorString,
-				Version:                       cvssMetricV31.CVSSData.Version,
-			},
-			ExploitabilityScore: derefPtr((*float64)(cvssMetricV31.ExploitabilityScore)),
-			ImpactScore:         derefPtr((*float64)(cvssMetricV31.ImpactScore)),
+	// Use CVSSMetricV31 if available (override CVSSMetricV30 unless 3.0 is primary and 3.1 is not)
+	if len(cve.Metrics.CVSSMetricV31) > 0 {
+		slices.SortFunc(cve.Metrics.CVSSMetricV31, func(a nvdapi.CVSSMetricV31, b nvdapi.CVSSMetricV31) int {
+			if a.Type == "Primary" && b.Type != "Primary" {
+				return -1
+			} else if a.Type != "Primary" && b.Type == "Primary" {
+				return 1
+			}
+
+			return 0
+		})
+
+		cvssMetricV31 := cve.Metrics.CVSSMetricV31[0]
+		if cvssMetricV31.Type == "Primary" || !hasPrimaryCVSSv3 {
+			baseMetricV3 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV3{
+				CVSSV3: &schema.CVSSV30{
+					AttackComplexity:              derefPtr(cvssMetricV31.CVSSData.AttackComplexity),
+					AttackVector:                  derefPtr(cvssMetricV31.CVSSData.AttackVector),
+					AvailabilityImpact:            derefPtr(cvssMetricV31.CVSSData.AvailabilityImpact),
+					AvailabilityRequirement:       derefPtr(cvssMetricV31.CVSSData.AvailabilityRequirement),
+					BaseScore:                     cvssMetricV31.CVSSData.BaseScore,
+					BaseSeverity:                  cvssMetricV31.CVSSData.BaseSeverity,
+					ConfidentialityImpact:         derefPtr(cvssMetricV31.CVSSData.ConfidentialityImpact),
+					ConfidentialityRequirement:    derefPtr(cvssMetricV31.CVSSData.ConfidentialityRequirement),
+					EnvironmentalScore:            derefPtr(cvssMetricV31.CVSSData.EnvironmentalScore),
+					EnvironmentalSeverity:         derefPtr(cvssMetricV31.CVSSData.EnvironmentalSeverity),
+					ExploitCodeMaturity:           derefPtr(cvssMetricV31.CVSSData.ExploitCodeMaturity),
+					IntegrityImpact:               derefPtr(cvssMetricV31.CVSSData.IntegrityImpact),
+					IntegrityRequirement:          derefPtr(cvssMetricV31.CVSSData.IntegrityRequirement),
+					ModifiedAttackComplexity:      derefPtr(cvssMetricV31.CVSSData.ModifiedAttackComplexity),
+					ModifiedAttackVector:          derefPtr(cvssMetricV31.CVSSData.ModifiedAttackVector),
+					ModifiedAvailabilityImpact:    derefPtr(cvssMetricV31.CVSSData.ModifiedAvailabilityImpact),
+					ModifiedConfidentialityImpact: derefPtr(cvssMetricV31.CVSSData.ModifiedConfidentialityImpact),
+					ModifiedIntegrityImpact:       derefPtr(cvssMetricV31.CVSSData.ModifiedIntegrityImpact),
+					ModifiedPrivilegesRequired:    derefPtr(cvssMetricV31.CVSSData.ModifiedPrivilegesRequired),
+					ModifiedScope:                 derefPtr(cvssMetricV31.CVSSData.ModifiedScope),
+					ModifiedUserInteraction:       derefPtr(cvssMetricV31.CVSSData.ModifiedUserInteraction),
+					PrivilegesRequired:            derefPtr(cvssMetricV31.CVSSData.PrivilegesRequired),
+					RemediationLevel:              derefPtr(cvssMetricV31.CVSSData.RemediationLevel),
+					ReportConfidence:              derefPtr(cvssMetricV31.CVSSData.ReportConfidence),
+					Scope:                         derefPtr(cvssMetricV31.CVSSData.Scope),
+					TemporalScore:                 derefPtr(cvssMetricV31.CVSSData.TemporalScore),
+					TemporalSeverity:              derefPtr(cvssMetricV31.CVSSData.TemporalSeverity),
+					UserInteraction:               derefPtr(cvssMetricV31.CVSSData.UserInteraction),
+					VectorString:                  cvssMetricV31.CVSSData.VectorString,
+					Version:                       cvssMetricV31.CVSSData.Version,
+				},
+				ExploitabilityScore: derefPtr((*float64)(cvssMetricV31.ExploitabilityScore)),
+				ImpactScore:         derefPtr((*float64)(cvssMetricV31.ImpactScore)),
+			}
 		}
 	}
 

@@ -85,8 +85,6 @@ export interface ISoftwareAppStoreAppStatus {
 export interface ISoftwarePackage {
   name: string;
   title_id: number;
-  last_install: string | null;
-  last_uninstall: string | null;
   url: string;
   version: string;
   uploaded_at: string;
@@ -124,11 +122,7 @@ export interface IAppStoreApp {
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   automatic_install?: boolean;
-  last_install?: {
-    install_uuid: string;
-    command_uuid: string;
-    installed_at: string;
-  } | null;
+  last_install?: IAppLastInstall | null;
   last_uninstall?: {
     script_execution_id: string;
     uninstalled_at: string;
@@ -367,6 +361,10 @@ interface SignatureInformation {
   team_identifier: string;
   hash_sha256: string | null;
 }
+export interface ISoftwareLastUninstall {
+  install_uuid: string;
+  installed_at: string;
+}
 
 export interface ISoftwareInstallVersion {
   version: string;
@@ -374,7 +372,7 @@ export interface ISoftwareInstallVersion {
   last_opened_at: string | null;
   vulnerabilities: string[] | null;
   installed_paths: string[];
-  signature_information: SignatureInformation[];
+  signature_information?: SignatureInformation[];
 }
 
 export interface IHostSoftwarePackage {
@@ -383,7 +381,9 @@ export interface IHostSoftwarePackage {
   icon_url: string | null;
   version: string;
   last_install: ISoftwareLastInstall | null;
+  last_uninstall: ISoftwareLastUninstall | null;
   categories?: SoftwareCategory[];
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
 }
 
 export interface IHostAppStoreApp {
@@ -393,6 +393,7 @@ export interface IHostAppStoreApp {
   version: string;
   last_install: IAppLastInstall | null;
   categories?: SoftwareCategory[];
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
 }
 
 export interface IHostSoftware {

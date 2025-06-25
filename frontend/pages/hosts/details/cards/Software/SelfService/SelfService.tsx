@@ -36,11 +36,9 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
-import {
-  InstallOrCommandUuid,
-  generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig,
-} from "./SelfServiceTableConfig";
+import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
+import { InstallOrCommandUuid } from "../InstallStatusCell/InstallStatusCell";
 
 import {
   CATEGORIES_NAV_ITEMS,
@@ -67,7 +65,8 @@ export interface ISoftwareSelfServiceProps {
   pathname: string;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
-  onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
+  onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
+  onShowUninstallDetails: (scriptExecutionId?: string) => void;
 }
 
 const SoftwareSelfService = ({
@@ -77,7 +76,8 @@ const SoftwareSelfService = ({
   pathname,
   queryParams,
   router,
-  onShowInstallerDetails,
+  onShowInstallDetails,
+  onShowUninstallDetails,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -303,7 +303,8 @@ const SoftwareSelfService = ({
     return generateDeviceSoftwareTableConfig({
       deviceToken,
       onInstall: onInstallOrUninstall,
-      onShowInstallerDetails,
+      onShowInstallDetails,
+      onShowUninstallDetails,
       onClickUninstallAction: (software) => {
         selectedSoftware.current = {
           softwareId: software.id,
@@ -316,7 +317,7 @@ const SoftwareSelfService = ({
         setShowUninstallSoftwareModal(true);
       },
     });
-  }, [deviceToken, onInstallOrUninstall, onShowInstallerDetails]);
+  }, [deviceToken, onInstallOrUninstall, onShowInstallDetails]);
 
   const renderSelfServiceCard = () => {
     const renderHeaderFilters = () => (
@@ -354,51 +355,15 @@ const SoftwareSelfService = ({
       return <DeviceUserError />; // Only shown on DeviceUserPage not HostDetailsPage
     }
 
-    if (isEmpty || !selfServiceData) {
+    // No self-service software available hides categories menu and header filters
+    if ((isEmpty || !selfServiceData) && !isFetching) {
       return (
         <>
-          {renderHeaderFilters()}
-          <div className={`${baseClass}__table`}>
-            {renderCategoriesMenu()}
-            <EmptyTable
-              graphicName="empty-software"
-              header="No self-service software available yet"
-              info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
-            />
-          </div>
-        </>
-      );
-    }
-
-    if (isFetching) {
-      return (
-        <>
-          {renderHeaderFilters()}
-          <div className={`${baseClass}__table`}>
-            {renderCategoriesMenu()}
-            <Spinner />
-          </div>
-        </>
-      );
-    }
-
-    if (isEmptySearch) {
-      return (
-        <>
-          {renderHeaderFilters()}
-          <div className={`${baseClass}__table`}>
-            {renderCategoriesMenu()}
-            <EmptyTable
-              graphicName="empty-search-question"
-              header="No items match the current search criteria"
-              info={
-                <>
-                  Not finding what you&apos;re looking for?{" "}
-                  <CustomLink url={contactUrl} text="reach out to IT" newTab />
-                </>
-              }
-            />
-          </div>
+          <EmptyTable
+            graphicName="empty-software"
+            header="No self-service software available yet"
+            info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
+          />
         </>
       );
     }
@@ -414,7 +379,7 @@ const SoftwareSelfService = ({
               selfServiceData?.software || [],
               queryParams.category_id
             )}
-            isLoading={isLoading}
+            isLoading={isFetching}
             defaultSortHeader={DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_key}
             defaultSortDirection={
               DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_direction
@@ -422,9 +387,26 @@ const SoftwareSelfService = ({
             pageIndex={0}
             disableNextPage={selfServiceData?.meta.has_next_results === false}
             pageSize={DEFAULT_SELF_SERVICE_QUERY_PARAMS.per_page}
-            emptyComponent={() => (
-              <EmptySoftwareTable noSearchQuery={isEmptySearch} />
-            )}
+            emptyComponent={() => {
+              return isEmptySearch ? (
+                <EmptyTable
+                  graphicName="empty-search-question"
+                  header="No items match the current search criteria"
+                  info={
+                    <>
+                      Not finding what you&apos;re looking for?{" "}
+                      <CustomLink
+                        url={contactUrl}
+                        text="Reach out to IT"
+                        newTab
+                      />
+                    </>
+                  }
+                />
+              ) : (
+                <EmptySoftwareTable />
+              );
+            }}
             showMarkAllPages={false}
             isAllPagesSelected={false}
             searchable={false}
@@ -434,11 +416,11 @@ const SoftwareSelfService = ({
         </div>
 
         <Pagination
-          disableNext={selfServiceData.meta.has_next_results === false}
-          disablePrev={selfServiceData.meta.has_previous_results === false}
+          disableNext={selfServiceData?.meta.has_next_results === false}
+          disablePrev={selfServiceData?.meta.has_previous_results === false}
           hidePagination={
-            selfServiceData.meta.has_next_results === false &&
-            selfServiceData.meta.has_previous_results === false
+            selfServiceData?.meta.has_next_results === false &&
+            selfServiceData?.meta.has_previous_results === false
           }
           onNextPage={onNextPage}
           onPrevPage={onPrevPage}

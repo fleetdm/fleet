@@ -299,8 +299,6 @@ export const getDropdownOptionTooltipContent = (
     wipe: "wipe",
     lock: "lock",
     unlock: "unlock",
-    installSoftware: "install software on", // Host software dropdown option
-    uninstallSoftware: "uninstall software on", // Host software dropdown option
   };
   if (tooltipAction[value]) {
     return (

@@ -160,6 +160,7 @@ const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
     install_uuid: "123-abc",
     installed_at: "2022-01-01T12:00:00Z",
   },
+  last_uninstall: null,
 };
 
 export const createMockHostSoftwarePackage = (
@@ -182,6 +183,20 @@ export const createMockHostAppStoreApp = (
   return { ...DEFAULT_HOST_APP_STORE_APP_MOCK, ...overrides };
 };
 
+export const DEFAULT_INSTALLED_VERSION = {
+  version: "1.0.0",
+  last_opened_at: "2022-01-01T12:00:00Z",
+  vulnerabilities: ["CVE-2020-0001"],
+  installed_paths: ["/Applications/mock.app"],
+  bundle_identifier: "com.mock.software",
+  signature_information: [
+    {
+      installed_path: "/Applications/mock.app",
+      team_identifier: "12345TEAMIDENT",
+      hash_sha256: "mockhashhere",
+    },
+  ],
+};
 const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
@@ -190,22 +205,7 @@ const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   source: "apps",
   bundle_identifier: "com.test.mock",
   status: "installed",
-  installed_versions: [
-    {
-      version: "1.0.0",
-      last_opened_at: "2022-01-01T12:00:00Z",
-      vulnerabilities: ["CVE-2020-0001"],
-      installed_paths: ["/Applications/mock.app"],
-      bundle_identifier: "com.mock.software",
-      signature_information: [
-        {
-          installed_path: "/Applications/mock.app",
-          team_identifier: "12345TEAMIDENT",
-          hash_sha256: "mockhashhere",
-        },
-      ],
-    },
-  ],
+  installed_versions: [DEFAULT_INSTALLED_VERSION],
 };
 
 export const createMockHostSoftware = (

@@ -166,6 +166,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		windowsUpdatesUpdated         bool
 		macOSDiskEncryptionUpdated    bool
 		macOSEnableEndUserAuthUpdated bool
+		conditionalAccessUpdated      bool
 	)
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
@@ -254,7 +255,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			team.Config.Integrations.Jira = payload.Integrations.Jira
 			team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
 		}
-		// Only update the calendar integration if it's not nil
+
+		// Only update the calendar integration if it's not nil.
 		if payload.Integrations.GoogleCalendar != nil {
 			invalid := &fleet.InvalidArgumentError{}
 			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, false, invalid)
@@ -262,6 +264,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, ctxerr.Wrap(ctx, invalid)
 			}
 			team.Config.Integrations.GoogleCalendar = payload.Integrations.GoogleCalendar
+		}
+
+		// Only update conditional_access_enabled if it's not nil.
+		if payload.Integrations.ConditionalAccessEnabled.Set {
+			if err := fleet.ValidateConditionalAccessIntegration(ctx,
+				svc,
+				team.Config.Integrations.ConditionalAccessEnabled.Value,
+				payload.Integrations.ConditionalAccessEnabled.Value,
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err)
+			}
+			conditionalAccessUpdated = team.Config.Integrations.ConditionalAccessEnabled.Value != payload.Integrations.ConditionalAccessEnabled.Value
+			team.Config.Integrations.ConditionalAccessEnabled = payload.Integrations.ConditionalAccessEnabled
 		}
 	}
 
@@ -397,6 +412,32 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if macOSEnableEndUserAuthUpdated {
 		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable end user auth")
+		}
+	}
+	// Create activity if conditional access was enabled or disabled for the team.
+	if conditionalAccessUpdated {
+		if team.Config.Integrations.ConditionalAccessEnabled.Value {
+			if err := svc.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeEnabledConditionalAccessAutomations{
+					TeamID:   &team.ID,
+					TeamName: team.Name,
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
+			}
+		} else {
+			if err := svc.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeDisabledConditionalAccessAutomations{
+					TeamID:   &team.ID,
+					TeamName: team.Name,
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for disabling conditional access")
+			}
 		}
 	}
 	return team, err
@@ -1078,6 +1119,18 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
+	var conditionalAccessEnabled optjson.Bool
+	if spec.Integrations.ConditionalAccessEnabled != nil {
+		if err := fleet.ValidateConditionalAccessIntegration(ctx,
+			svc,
+			false,
+			*spec.Integrations.ConditionalAccessEnabled,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		conditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
+	}
+
 	if dryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, true, nil)
@@ -1118,7 +1171,8 @@ func (svc *Service) createTeamFromSpec(
 				HostStatusWebhook: hostStatusWebhook,
 			},
 			Integrations: fleet.TeamIntegrations{
-				GoogleCalendar: spec.Integrations.GoogleCalendar,
+				GoogleCalendar:           spec.Integrations.GoogleCalendar,
+				ConditionalAccessEnabled: conditionalAccessEnabled,
 			},
 			Software: spec.Software,
 		},
@@ -1126,6 +1180,19 @@ func (svc *Service) createTeamFromSpec(
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if conditionalAccessEnabled.Set && conditionalAccessEnabled.Value {
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEnabledConditionalAccessAutomations{
+				TeamID:   &tm.ID,
+				TeamName: tm.Name,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for conditional access")
+		}
 	}
 
 	if enableDiskEncryption && appCfg.MDM.EnabledAndConfigured {
@@ -1336,6 +1403,18 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
 	}
 
+	oldConditionalAccessEnabled := team.Config.Integrations.ConditionalAccessEnabled.Value
+	if spec.Integrations.ConditionalAccessEnabled != nil {
+		if err := fleet.ValidateConditionalAccessIntegration(ctx,
+			svc,
+			team.Config.Integrations.ConditionalAccessEnabled.Value,
+			*spec.Integrations.ConditionalAccessEnabled,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		team.Config.Integrations.ConditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
+	}
+
 	if opts.DryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, false, &team.ID)
@@ -1399,7 +1478,7 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.MacOSSetup.BootstrapPackage.Set &&
 		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
 		oldMacOSSetup.BootstrapPackage.Value != "" {
-		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID); err != nil {
+		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID, opts.DryRun); err != nil {
 			return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
 		}
 	}
@@ -1434,6 +1513,37 @@ func (svc *Service) editTeamFromSpec(
 	if mdmIPadOSUpdatesEdited {
 		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IPadOS, team.Config.MDM.IPadOSUpdates); err != nil {
 			return err
+		}
+	}
+
+	// Create activity if conditional access was enabled or disabled for the team.
+	if spec.Integrations.ConditionalAccessEnabled != nil {
+		if *spec.Integrations.ConditionalAccessEnabled {
+			if !oldConditionalAccessEnabled {
+				if err := svc.NewActivity(
+					ctx,
+					authz.UserFromContext(ctx),
+					fleet.ActivityTypeEnabledConditionalAccessAutomations{
+						TeamID:   &team.ID,
+						TeamName: team.Name,
+					},
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
+				}
+			}
+		} else {
+			if oldConditionalAccessEnabled {
+				if err := svc.NewActivity(
+					ctx,
+					authz.UserFromContext(ctx),
+					fleet.ActivityTypeDisabledConditionalAccessAutomations{
+						TeamID:   &team.ID,
+						TeamName: team.Name,
+					},
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "create activity for disabling conditional access")
+				}
+			}
 		}
 	}
 

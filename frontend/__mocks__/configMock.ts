@@ -68,7 +68,6 @@ export const DEFAULT_LICENSE_MOCK: ILicense = {
 };
 
 const DEFAULT_CONFIG_MOCK: IConfig = {
-  android_enabled: false, // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: "fleet",
     org_logo_url: "",
@@ -210,7 +209,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
 };
 
-const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {
+export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {
   return { ...DEFAULT_CONFIG_MOCK, ...overrides };
 };
 

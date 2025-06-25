@@ -351,7 +351,7 @@ const QueryDetailsPage = ({
                       destination on a schedule. When automations are <b>
                         on
                       </b>, <br />
-                      data is sent according to a query&apos;s frequency.
+                      data is sent according to a query&apos;s interval.
                     </>
                   }
                 >
@@ -366,6 +366,9 @@ const QueryDetailsPage = ({
                 <strong>Log destination:</strong>{" "}
                 <LogDestinationIndicator
                   logDestination={config?.logging.result.plugin || ""}
+                  filesystemDestination={
+                    config?.logging.result.config?.result_log_file
+                  }
                 />
               </div>
             </div>

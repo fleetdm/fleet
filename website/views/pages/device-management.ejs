@@ -3,15 +3,15 @@
     <div purpose="page-content" class="mx-auto">
       <div purpose="hero">
         <div purpose="page-headline">
-          <h4>Device management (MDM)</h4>
-          <h1>Manage everything in one place</h1>
+          <h4>Open device management</h4>
+          <h1>Manage devices your way</h1>
         </div>
         <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
         <%if(['security-misc','security-vm'].includes(primaryBuyingSituation)) { %>
           <div purpose="testimonial-quote">
             <div purpose="quote">
               <img alt="Deloitte logo" purpose="quote-logo" src="/images/social-proof-logo-deloitte-130x32@2x.png">
-              <p>“Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.”</p>
+              <p>Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.</p>
             </div>
             <a href="https://www.linkedin.com/in/cmajumdar/" class="d-inline-block" target="_blank" no-icon>
             <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
@@ -27,7 +27,7 @@
           <div purpose="testimonial-quote">
             <div purpose="quote">
               <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-              <p>“We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.”</p>
+              <p>We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.</p>
             </div>
             <a href="https://www.linkedin.com/in/kennybotelho/" class="d-inline-block" target="_blank" no-icon>
             <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
@@ -160,7 +160,7 @@
               <div purpose="fleet-column">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
-              <div purpose="comparison-column" v-if="['tanium', 'chef', 'sccm'].includes(comparisonMode)">
+              <div purpose="comparison-column" v-if="['tanium', 'chef', 'sccm', 'ansible'].includes(comparisonMode)">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
               <div purpose="comparison-column" v-else-if="comparisonMode === 'puppet'">
@@ -721,9 +721,9 @@
             <h2>Shorten the feedback loop</h2>
             <p>Spend less time debugging whether changes actually happened.</p>
             <div purpose="checklist" class="flex-column d-flex">
-              <p>Use a single, open platform for {{ bowser.windows ? 'Windows, Apple' : 'Apple, Windows'}}, and Linux.</p>
-              <p>Auto-verify patches and settings on users’ devices. Avoid unnecessary tickets.</p>
-              <p>Every change to a policy or security control is tracked and auditable in Fleet’s UI, or in your logs.</p>
+              <p>Get near-instant visibility into your Apple, Linux, and Windows devices from a single, open platform.</p>
+              <p>Verify security changes in seconds — every action is tracked in Fleet’s UI or your logs.</p>
+              <p>Avoid tickets with real-time confirmation of patch and config changes.</p>
             </div>
           </div>
           <div purpose="feature-image">
@@ -780,8 +780,8 @@
   <div purpose="bottom-gradient">
     <div purpose="page-container" class="container">
       <div purpose="section-headline" class="text-center">
-        <h4>Device management (MDM)</h4>
-        <h1>Your easiest MDM migration</h1>
+        <h4>Open device management</h4>
+        <h1>Your last MDM migration</h1>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/contact">Talk to an engineer</a>
           <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>

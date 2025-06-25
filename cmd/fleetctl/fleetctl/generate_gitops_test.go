@@ -255,6 +255,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}, {
 						LabelName: "Label B",
 					}},
+					ConditionalAccessEnabled: true,
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
@@ -265,12 +266,13 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	return []*fleet.Policy{
 		{
 			PolicyData: fleet.PolicyData{
-				ID:          1,
-				Name:        "Team Policy",
-				Query:       "SELECT * FROM team_policy WHERE id = 1",
-				Resolution:  ptr.String("Do a team thing"),
-				Description: "This is a team policy",
-				Platform:    "linux,windows",
+				ID:                       1,
+				Name:                     "Team Policy",
+				Query:                    "SELECT * FROM team_policy WHERE id = 1",
+				Resolution:               ptr.String("Do a team thing"),
+				Description:              "This is a team policy",
+				Platform:                 "linux,windows",
+				ConditionalAccessEnabled: true,
 			},
 			RunScript: &fleet.PolicyScript{
 				ID: 1,
@@ -338,6 +340,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				UninstallScript:   "baz",
 				SelfService:       true,
 				Platform:          "darwin",
+				URL:               "https://example.com/download/my-software.pkg",
 			},
 		}, nil
 	case 2:

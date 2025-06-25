@@ -97,8 +97,12 @@ jobs:
           sudo sysctl -w net.core.rmem_max=2500000
 
           # Install cloudflared
-          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          #
+          # We pin to version 2025.5.0 because something broke with 2025.6.1.
+          # 2025.6.1 fails with "failed to create tunnel: Unknown output format 'default'"
+          wget https://github.com/cloudflare/cloudflared/releases/download/2025.5.0/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared-linux-amd64.deb
+
           # Add secret
           echo "$CERT_PEM" | base64 -d > cert.pem
           # Start tunnel
@@ -310,9 +314,9 @@ jobs:
       - name: Upload DEB installer
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
-          name: fleet-osquery_42.0.0_amd64.deb
+          name: fleet-osquery_amd64.deb
           path: |
-            fleet-osquery_42.0.0_amd64.deb
+            fleet-osquery_*_amd64.deb
 
       - name: Upload MSI installer
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
@@ -397,7 +401,7 @@ jobs:
         id: download
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: fleet-osquery_42.0.0_amd64.deb
+          name: fleet-osquery_amd64.deb
 
       - name: Wait until fleet address is reachable and fleet responds
         run: |
@@ -410,7 +414,7 @@ jobs:
       - name: Install deb
         run: |
           sudo hostname orbit-ubuntu
-          sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_42.0.0_amd64.deb
+          sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_*_amd64.deb
 
       - name: Wait enroll
         run: |

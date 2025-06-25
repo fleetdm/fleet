@@ -16,13 +16,13 @@ When communicating with future or current customers, hand offs [between departme
 
 | GTM group                            | Goal |
 |:-------------------------------------|:------------------------------------|
-| [🦄Unicorns](https://fleetdm.com/handbook/company/go-to-market-groups#unicorns)             | Provide the best possible customer experience for organizations with 300+ hosts. 
-| [🌐Buy online](https://fleetdm.com/handbook/company/go-to-market-groups#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 300 hosts that prefer a more self-service experience.
+| [🦄Unicorns](https://fleetdm.com/handbook/company/go-to-market-groups#unicorns)             | Provide the best possible customer experience for organizations with 700+ hosts. 
+| [🌐Buy online](https://fleetdm.com/handbook/company/go-to-market-groups#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
 
 
 ### 🦄 Unicorns
 
-The goal of the 🦄 Unicorns group is to provide the best possible customer experience for organizations with 300+ hosts.
+The goal of the 🦄 Unicorns group is to provide the best possible customer experience for organizations with 700+ hosts.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -33,14 +33,14 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 | Account Development Rep (ADR)     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_  <br> [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Customer Success Manager (CSM)    | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ <br> [Raiven Williams](https://www.linkedin.com/in/raivenwilliams/) _([@bettapizza](https://github.com/bettapizza))_
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_  <br> [Jake Stenger](https://www.linkedin.com/in/jakestenger/) _([@jakestenger](https://github.com/jakestenger))_
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_  <br> [Jake Stenger](https://www.linkedin.com/in/jakestenger/) _([@jakestenger](https://github.com/jakestenger))_ <br> [Matt Rebelo](https://www.linkedin.com/in/matt-rebelo/) _([@reeblybeebly](https://github.com/reeblybeebly))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR), [kanban release board](https://github.com/fleetdm/confidential/issues#workspaces/g-unicorns-67b0e98321bc780010a6e78e/board), and [GitHub label](https://github.com/fleetdm/confidential/labels/%23g-unicorns) for this GTM group is `#g-unicorns`.
 
 
 ### 🌐 Buy online
 
-The goal of the 🌐 Buy online group is to provide the best possible customer experience for organizations and contributors with less than 300 hosts that prefer a more self-service experience.
+The goal of the 🌐 Buy online group is to provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -49,7 +49,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | Customer Success DRI              | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_
 | Customer Support Engineer (CSE)   |[Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://github.com/orgs/fleetdm/projects/65), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
 
 
 ## Customer support service level agreements (SLAs)
@@ -151,18 +151,24 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
+##### Creating contacts in the wild
 
-##### Event follow-up
+Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM ASAP. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person [added to Fleet's CRM quickly](https://fleetdm.com/handbook/marketing#monitor-the-help-create-contact-channel). To do this:
+1. Locate the [help-create-contact](https://fleetdm.slack.com/archives/C091MLXQKQV) channel in Fleet Slack.
+2. Add the person's full name and any other details that can help the team identify the correct person. E.g.:
+  - LinkedIn profile URL (this is the best option)
+  - Company name
+  - Company website
+  - email
 
-Event-goers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/marketing#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
-
-1. Once a list of badge scans is available, fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
-2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
+> Please use the following guidelines when posting in the channel:
+>   - Use only one top-level message per contact. Don't batch contacts inside one message, and don't create multiple messages for a single person. Use thread replies to add context.
+>   - Add as much context as possible to help the team find the right info. At least a full name + one other piece of information is required, but more is preferred.
 
 
 #### Podcast
 
-Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
+Fleet has created a [podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
 
 
 #### Video
@@ -203,7 +209,7 @@ When the prospect is ready to "kick the tires/do a POC", the opportunity is move
 
 ### Spin up a POV
 
-You can set up a Fleet Managed Cloud environment for a prospect with >300 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
+You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
 
 - **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key).  Then, once the environment is set up, you'll get a notification and you can let the user know.
 - **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/start, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
@@ -236,7 +242,7 @@ Then, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/d
 The following contract is ready to sign and has been routed to the CEO for signature: CONTRACT_DOC_URL_FROM_GOOGLE_DRIVE
 ```
 
-Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, please remove them before routing the agreement to the CEO for signature.
+Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, remove them before routing the agreement to the CEO for signature.
 
 
 ### Vendor questionnaires 

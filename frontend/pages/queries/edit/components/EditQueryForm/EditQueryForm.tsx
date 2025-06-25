@@ -844,7 +844,7 @@ const EditQueryForm = ({
                 onChange={onChangeSelectFrequency}
                 placeholder="Every day"
                 value={lastEditedQueryFrequency}
-                label="Frequency"
+                label="Interval"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
                 helpText="This is how often your query collects data."
               />
@@ -863,7 +863,7 @@ const EditQueryForm = ({
                         tipContent={
                           <>
                             Automations and reporting will be paused <br />
-                            for this query until a frequency is set.
+                            for this query until an interval is set.
                           </>
                         }
                         position="right"
@@ -885,6 +885,9 @@ const EditQueryForm = ({
                     <b>
                       <LogDestinationIndicator
                         logDestination={config?.logging.result.plugin || ""}
+                        filesystemDestination={
+                          config?.logging.result.config?.result_log_file
+                        }
                         excludeTooltip
                       />
                     </b>

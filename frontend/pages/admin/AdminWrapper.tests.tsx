@@ -1,6 +1,6 @@
 import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import AdminWrapper from "./AdminWrapper";
 
@@ -8,18 +8,7 @@ const urlLocation = {
   pathname: "settings/organization/info",
 };
 
-// TODO: figure out how to mock the router properly.
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  goBack: jest.fn(),
-  goForward: jest.fn(),
-  go: jest.fn(),
-  setRouteLeaveHook: jest.fn(),
-  isActive: jest.fn(),
-  createHref: jest.fn(),
-  createPath: jest.fn(),
-};
+const mockRouter = createMockRouter();
 
 describe("AdminWrapper - component", () => {
   it("renders correct navigation for free global admin", async () => {

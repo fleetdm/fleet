@@ -18,6 +18,31 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
+	var unused string
+
+	// safe to use with interpolation rather than prepared statements because we're using a numeric ID here
+	err := sqlx.GetContext(ctx, q, &unused, fmt.Sprintf(`
+	  SELECT mwe.host_uuid
+	  FROM mdm_windows_enrollments mwe
+	    JOIN hosts h ON h.uuid = mwe.host_uuid
+	    JOIN host_mdm hm ON hm.host_id = h.id
+	  WHERE h.id = %d
+	    AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
+	    AND hm.enrolled = 1 LIMIT 1
+	`, h.ID))
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
 // returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -952,7 +977,7 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 }
 
 type statusCounts struct {
-	Status string `db:"status"`
+	Status string `db:"final_status"`
 	Count  uint   `db:"count"`
 }
 
@@ -998,7 +1023,7 @@ SELECT
             'verified'
         ELSE
             ''
-    END AS status,
+    END AS final_status,
     SUM(1) AS count
 FROM
     hosts h
@@ -1011,7 +1036,7 @@ WHERE
     hmdm.enrolled = 1 AND
     %s
 GROUP BY
-    status`,
+    final_status`,
 		subqueryFailed,
 		subqueryPending,
 		subqueryVerifying,
@@ -1130,7 +1155,7 @@ SELECT
         END)
     ELSE
         REPLACE((%s), 'bitlocker_', '')
-    END as status,
+    END as final_status,
     SUM(1) as count
 FROM
     hosts h
@@ -1144,7 +1169,7 @@ WHERE
     hmdm.enrolled = 1 AND
     %s
 GROUP BY
-    status`,
+    final_status`,
 		profilesStatus,
 		bitlockerStatus,
 		bitlockerStatus,
@@ -1886,7 +1911,7 @@ WHERE
 `
 
 	const loadToBeDeletedProfiles = `
-SELECT 
+SELECT
 	profile_uuid
 FROM
 	mdm_windows_configuration_profiles

@@ -1,6 +1,6 @@
-import React, { ReactNode } from "react";
+import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 import userEvent from "@testing-library/user-event";
@@ -40,17 +40,7 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
 });
 
 const mockQuery = createMockQuery();
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  goBack: jest.fn(),
-  goForward: jest.fn(),
-  go: jest.fn(),
-  setRouteLeaveHook: jest.fn(),
-  isActive: jest.fn(),
-  createHref: jest.fn(),
-  createPath: jest.fn(),
-};
+const mockRouter = createMockRouter();
 
 describe("EditQueryForm - component", () => {
   it("disables save button for missing query name", async () => {
@@ -250,15 +240,15 @@ describe("EditQueryForm - component", () => {
       />
     );
 
-    // Find the frequency dropdown
-    const frequencyDropdown = screen
-      .getByText("Frequency")
+    // Find the interval dropdown
+    const intervalDropdown = screen
+      .getByText("Interval")
       .closest(".form-field--dropdown") as HTMLElement;
-    expect(frequencyDropdown).toBeInTheDocument();
+    expect(intervalDropdown).toBeInTheDocument();
 
-    // Check if the frequency is set to "Never"
-    const selectedFrequency = within(frequencyDropdown).getByText("Never");
-    expect(selectedFrequency).toBeInTheDocument();
+    // Check if the interval is set to "Never"
+    const selectedInterval = within(intervalDropdown).getByText("Never");
+    expect(selectedInterval).toBeInTheDocument();
 
     // Find the automations slider
     const automationsSlider = screen
@@ -267,7 +257,7 @@ describe("EditQueryForm - component", () => {
     expect(automationsSlider).toBeInTheDocument();
 
     // Check if the automations are enabled
-    const automationsButton = within(automationsSlider).getByRole("button");
+    const automationsButton = within(automationsSlider).getByRole("switch");
     expect(automationsButton).toHaveClass("fleet-slider--active");
 
     // Check if the warning icon is present

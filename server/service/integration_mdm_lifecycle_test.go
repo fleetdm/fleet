@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
@@ -119,7 +120,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 					"DELETE",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID),
 					nil,
-					http.StatusOK,
+					http.StatusNoContent,
 				)
 
 				require.NoError(t, device.Enroll())
@@ -289,7 +290,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				s.Do(
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
-					nil,
+					json.RawMessage(`{ "windows": {"wipe_type": "doWipe"}}`),
 					http.StatusOK,
 				)
 
@@ -305,7 +306,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				require.NotNil(t, wipeCmd)
 				require.Equal(t, wipeCmd.Verb, fleet.CmdExec)
 				require.Len(t, wipeCmd.Cmd.Items, 1)
-				require.EqualValues(t, "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected", *wipeCmd.Cmd.Items[0].Target)
+				require.EqualValues(t, "./Device/Vendor/MSFT/RemoteWipe/doWipe", *wipeCmd.Cmd.Items[0].Target)
 
 				msgID, err := device.GetCurrentMsgID()
 				require.NoError(t, err)
@@ -950,4 +951,136 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		`, migratedDevice.UUID)
 	})
 	require.True(t, stillMigrated)
+}
+
+func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
+	t := s.T()
+
+	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
+		foundInstallFleetdCommand := false
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
+				foundInstallFleetdCommand = true
+				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.Equal(t, wantCommand, foundInstallFleetdCommand)
+	}
+
+	triggerRefetchCron := func(hostID uint, expectCmds int) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, hostID)
+			return err
+		})
+		trigger := triggerRequest{
+			Name: string(fleet.CronAppleMDMIPhoneIPadRefetcher),
+		}
+		s.Do("POST", "/api/latest/fleet/trigger", trigger, http.StatusOK)
+
+		// Wait until MDM commands are set up
+		done := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+			for range ticker.C {
+				commands, err := s.ds.GetHostMDMCommands(context.Background(), hostID)
+				require.NoError(t, err)
+				if len(commands) >= expectCmds {
+					done <- struct{}{}
+					return
+				}
+			}
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			t.Error("Timeout: MDM commands not queued up")
+		}
+	}
+
+	// create a global enroll secret
+	globalSecret := "global_secret"
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: globalSecret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	hwModel := "iPad13,16"
+	mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+		s.server.URL,
+		"global_secret",
+		hwModel,
+	)
+	// enrollTime := time.Now().UTC().Truncate(time.Second)
+	require.NoError(t, mdmDevice.Enroll())
+	s.runWorker()
+	checkInstallFleetdCommandSent(mdmDevice, false)
+
+	hostByIdentifierResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
+	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
+	require.False(t, hostByIdentifierResp.Host.RefetchRequested)
+	hostID := hostByIdentifierResp.Host.ID
+
+	triggerRefetchCron(hostID, 3)
+
+	hostByIdentifierResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
+	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
+	require.False(t, hostByIdentifierResp.Host.RefetchRequested)
+
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{})
+			require.NoError(t, err)
+		case "CertificateList":
+			cmd, err = mdmDevice.AcknowledgeCertificateList(mdmDevice.UUID, cmd.CommandUUID, []*x509.Certificate{})
+			require.NoError(t, err)
+		case "DeviceInformation":
+			cmd, err = mdmDevice.AcknowledgeDeviceInformation(mdmDevice.UUID, cmd.CommandUUID, "Test Name", "iPhone 16")
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected command", cmd.Command.RequestType)
+		}
+	}
+
+	commands, err := s.ds.GetHostMDMCommands(context.Background(), hostID)
+	require.NoError(t, err)
+	require.Len(t, commands, 0)
+
+	triggerRefetchCron(hostID, 3)
+
+	commands, err = s.ds.GetHostMDMCommands(context.Background(), hostID)
+	require.NoError(t, err)
+	require.Len(t, commands, 3)
+	cmdTypes := make([]string, 0, len(commands))
+	for _, cmd := range commands {
+		cmdTypes = append(cmdTypes, cmd.CommandType)
+	}
+	require.ElementsMatch(t, []string{fleet.RefetchDeviceCommandUUIDPrefix, fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix}, cmdTypes)
+
+	// re-enroll the device
+	require.NoError(t, mdmDevice.Enroll())
+
+	commands, err = s.ds.GetHostMDMCommands(context.Background(), hostID)
+	require.NoError(t, err)
+	require.Len(t, commands, 0)
+
+	triggerRefetchCron(hostID, 3)
+
+	// TODO: Do we care about manually triggered host refetch (where refetch_requested=true)?
 }

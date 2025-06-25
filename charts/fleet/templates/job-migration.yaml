@@ -131,9 +131,15 @@ spec:
             {{- end }}
           privileged: false
           readOnlyRootFilesystem: true
+          {{- if .Values.fleet.securityContext.runAsGroup }}
           runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
-          runAsNonRoot: true
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsNonRoot }}
+          runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+          {{- end }}
         volumeMounts:
           {{- if .Values.database.tls.enabled }}
           - name: mysql-tls
@@ -160,9 +166,15 @@ spec:
             drop: [ALL]
           privileged: false
           readOnlyRootFilesystem: true
+          {{- if .Values.fleet.securityContext.runAsGroup }}
           runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
-          runAsNonRoot: true
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsNonRoot }}
+          runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+          {{- end }}
       {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

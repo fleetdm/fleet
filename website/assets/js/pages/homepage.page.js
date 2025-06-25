@@ -19,8 +19,10 @@ parasails.registerPage('homepage', {
     cloudError: '',
     cloudSuccess: false,
 
+    comparisonTableMode: 'it',
     // For MDM comparison table
-    comparisonMode: 'sccm',
+    comparisonModeForIt: 'sccm',
+    comparisonModeForSecurity: 'rapid',
     comparisonModeFriendlyNames: {
       jamf: 'Jamf Pro',
       sccm: 'SCCM',
@@ -29,7 +31,12 @@ parasails.registerPage('homepage', {
       tanium: 'Tanium',
       ansible: 'Ansible',
       puppet: 'Puppet',
-      chef: 'Chef'
+      chef: 'Chef',
+      rapid: 'Rapid 7',
+      crowdstrike: 'Crowdstrike',
+      qualys: 'Qualys',
+      tenable: 'Tenable',
+      defender: 'Defender',
     }
   },
 
@@ -108,7 +115,15 @@ parasails.registerPage('homepage', {
     clickOpenVideoModal: function(modalName) {
       this.modal = modalName;
     },
-
+    clickSwitchComparisonMode: async function(mode) {
+      this.comparisonTableMode = mode;
+      await setTimeout(()=>{
+        $('[data-toggle="tooltip"]').tooltip({
+          container: '#homepage',
+          trigger: 'hover',
+        });
+      }, 250);
+    },
     closeModal: function() {
       this.modal = undefined;
     },
