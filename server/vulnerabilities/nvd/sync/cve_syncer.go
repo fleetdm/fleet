@@ -433,7 +433,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 				return "", err
 			}
 			vulnerabilitiesReceived++
-			cvesByYear[year] = append(cvesByYear[year], vuln)
+			cvesByYear[year] = append(cvesByYear[year], transformVuln(vuln))
 		}
 
 		// Dump vulnerabilities to the year files to reduce memory footprint.
@@ -479,6 +479,16 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 	}
 
 	return newLastModStartDate, nil
+}
+
+// cleans up vulnerability feed entries that are incorrect from NVD, allowing fixing bugged NVD rules without needing
+// to update Fleet server
+func transformVuln(item nvdapi.CVEItem) nvdapi.CVEItem {
+	if item.CVE.ID != nil && *item.CVE.ID == "CVE-2024-54559" {
+		item.CVE.Configurations[0].Nodes[0].CPEMatch = item.CVE.Configurations[0].Nodes[0].CPEMatch[0:1]
+	}
+
+	return item
 }
 
 func (s *CVE) DoVulnCheck(ctx context.Context) error {
