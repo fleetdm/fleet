@@ -1,0 +1,269 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"mime"
+	"net/http"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
+
+	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
+
+// memoized directory path
+var (
+	tmpDir string
+	env    []string
+)
+
+func main() {
+	operatingSystem := strings.ToLower(os.Getenv("GOOS"))
+	if operatingSystem == "" {
+		operatingSystem = runtime.GOOS
+		fmt.Printf("GOOS environment variable is not set. Using system detected: '%s'\n", operatingSystem)
+	}
+	if operatingSystem != "darwin" && operatingSystem != "windows" {
+		fmt.Fprintln(os.Stderr, "Unsupported operating system:", operatingSystem)
+		os.Exit(1)
+	}
+
+	apps, err := getListOfApps()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+
+	// Create a temporary directory to store downloaded apps
+	tmpDir, err = os.MkdirTemp("", "fma-validate-")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "creating temporary directory: %v", err)
+		os.Exit(1)
+	}
+	defer func() error {
+		err := os.RemoveAll(tmpDir)
+		if err != nil {
+			return fmt.Errorf("removing temporary directory: %w", err)
+		}
+		return nil
+	}()
+
+	var errors []error
+	for _, app := range apps {
+		if app.Platform != operatingSystem {
+			continue
+		}
+		fmt.Print("Validating app: ", app.Name, " (", app.Slug, ")\n")
+		appJson, err := getAppJson(app.Slug)
+		if err != nil {
+			errors = append(errors, err)
+			continue
+		}
+
+		maintainedApp := appFromJson(appJson)
+
+		err = DownloadMaintainedApp(maintainedApp)
+		if err != nil {
+			errors = append(errors, err)
+			continue
+		}
+
+		fmt.Print("Executing install script...\n")
+		err = executeScript(maintainedApp.InstallScript)
+		if err != nil {
+			errors = append(errors, err)
+			continue
+		}
+
+		existance, err := doesAppExists(maintainedApp.Name, maintainedApp.Version)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("checking if app exists: %w", err))
+			continue
+		}
+		if !existance {
+			errors = append(errors, fmt.Errorf("app '%s' version '%s' was not found by osquery", maintainedApp.Name, maintainedApp.Version))
+			continue
+		}
+
+		fmt.Print("Executing uninstall script...\n")
+		err = executeScript(maintainedApp.UninstallScript)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("uninstalling app '%s': %w", maintainedApp.Name, err))
+			continue
+		}
+
+		existance, err = doesAppExists(maintainedApp.Name, maintainedApp.Version)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("checking if app exists after uninstall: %w", err))
+			continue
+		}
+		if existance {
+			errors = append(errors, fmt.Errorf("app '%s' version '%s' was found after uninstall", maintainedApp.Name, maintainedApp.Version))
+			continue
+		}
+
+		fmt.Print("All checks passed for app: ", maintainedApp.Name, "\n")
+	}
+}
+
+func getListOfApps() ([]maintained_apps.FMAListFileApp, error) {
+	appListFilePath := path.Join(maintained_apps.OutputPath, "apps.json")
+	inputJson, err := os.ReadFile(appListFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("reading output apps list file: %w", err)
+	}
+	var outputAppsFile maintained_apps.FMAListFile
+	if err := json.Unmarshal(inputJson, &outputAppsFile); err != nil {
+		return nil, fmt.Errorf("unmarshaling output apps list file: %w", err)
+	}
+	return outputAppsFile.Apps, nil
+}
+
+func getAppJson(slug string) (*maintained_apps.FMAManifestFile, error) {
+	appJsonFilePath := path.Join(maintained_apps.OutputPath, fmt.Sprintf("%s.json", slug))
+	inputJson, err := os.ReadFile(appJsonFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("reading app '%s' json manifest: %w", slug, err)
+	}
+
+	var manifest maintained_apps.FMAManifestFile
+	if err := json.Unmarshal(inputJson, &manifest); err != nil {
+		return nil, fmt.Errorf("unmarshaling app '%s' json manifest: %w", err)
+	}
+
+	return &manifest, nil
+}
+
+func appFromJson(manifest *maintained_apps.FMAManifestFile) fleet.MaintainedApp {
+	var app fleet.MaintainedApp
+	app.Version = manifest.Versions[0].Version
+	app.Platform = manifest.Versions[0].Platform()
+	app.InstallerURL = manifest.Versions[0].InstallerURL
+	app.SHA256 = manifest.Versions[0].SHA256
+	app.InstallScript = manifest.Refs[manifest.Versions[0].InstallScriptRef]
+	app.UninstallScript = manifest.Refs[manifest.Versions[0].UninstallScriptRef]
+	app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
+	app.Categories = manifest.Versions[0].DefaultCategories
+
+	return app
+}
+
+func getFilename(resp *http.Response, url string) string {
+	cd := resp.Header.Get("Content-Disposition")
+	if cd != "" {
+		_, params, err := mime.ParseMediaType(cd)
+		if err == nil && params["filename"] != "" {
+			return params["filename"]
+		}
+	}
+	// fallback: get the last part of the URL path
+	parts := strings.Split(url, "/")
+	return parts[len(parts)-1]
+}
+
+func DownloadMaintainedApp(app fleet.MaintainedApp) error {
+	// Similar to code in:
+	// server/service/orbit_client.go:DownloadSoftwareInstallerFromURL
+	// server/service/orbit_client.go:requestWithExternal
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	request, err := http.NewRequestWithContext(ctx, "GET", app.InstallerURL, nil)
+	if err != nil {
+		return err
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("GET %s: %w", app.InstallerURL, err)
+	}
+	defer response.Body.Close()
+	// server/service/base_client.go:parseResponse
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("GET %s returned status %d", app.InstallerURL, response.StatusCode)
+	}
+
+	filePath := filepath.Join(tmpDir, getFilename(response, app.InstallerURL))
+	out, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("creating file: %w", err)
+	}
+	defer out.Close()
+
+	fmt.Print("Downloading...\n")
+	_, err = io.Copy(out, response.Body)
+	if err != nil {
+		return fmt.Errorf("failed to save file: %w", err)
+	}
+
+	env = os.Environ()
+	installerPathEnv := fmt.Sprintf("INSTALLER_PATH=%s", filePath)
+	env = append(env, installerPathEnv)
+
+	return nil
+}
+
+func executeScript(scriptContents string) error {
+	// Similar code in:
+	// orbit/pkg/installer/installer.go:runInstallerScript
+	scriptExtension := ".sh"
+	if runtime.GOOS == "windows" {
+		scriptExtension = ".ps1"
+	}
+
+	scriptPath := filepath.Join(tmpDir, "script"+scriptExtension)
+	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("writing script: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, env)
+	if err != nil {
+		return err
+	}
+	if exitCode != 0 {
+		return fmt.Errorf("script execution failed with exit code %d: %s", exitCode, string(output))
+	}
+	return nil
+}
+
+func doesAppExists(appName, appVersion string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "osqueryi", "--json", `
+    SELECT name, path 
+    FROM apps
+    WHERE name LIKE '%`+appName+`%'
+    AND (
+      bundle_short_version LIKE '%`+appVersion+`%'
+      OR bundle_version LIKE '%`+appVersion+`%'
+    )
+  `)
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("executing osquery command: %w", err)
+	}
+
+	type AppResult struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}
+	var results []AppResult
+	if err := json.Unmarshal(output, &results); err != nil {
+		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
+	}
+
+	return len(results) > 0, nil
+}
