@@ -30,7 +30,7 @@ jobs:
       - name: Install osquery
         run: |
           curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.17.0/osquery-5.17.0_1.macos_arm64.tar.gz"
-          sudo tar -xzf osquery.tar.gz -C / --no-same-owner
+          sudo tar -xzf osquery.tar.gz -C / --no-same-owner --no-same-permissions
 
       - name: Verify Fleet Maintained Apps
         run: |
