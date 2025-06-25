@@ -201,9 +201,9 @@ const getDefaultTeam = ({
       } else if (includeAllTeams) {
         defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
       } else {
-        // this case should never be reached, there are no pages that support neither "All teams"
-        // nor "No team"
-        return undefined;
+        // neither All teams nor No team included on the page, as is the case for a few settings
+        // pages. Default to "All teams"
+        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
       }
     } else {
       // normally "All teams" takes precedence
@@ -268,7 +268,9 @@ const isValidTeamId = ({
     if (includeAllTeams) {
       return teamId === APP_CONTEXT_ALL_TEAMS_ID;
     }
-    // neither included - this is the case in a number of settings pages
+    // neither included - this is the case in a number of settings pages. Consider valid to allow
+    // editing teams
+    return true;
   }
   if (
     (teamId === APP_CONTEXT_ALL_TEAMS_ID && !includeAllTeams) ||
