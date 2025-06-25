@@ -103,6 +103,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /articles/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
   'GET /success-stories': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
