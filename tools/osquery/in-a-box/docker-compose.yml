@@ -8,7 +8,7 @@ networks:
 
 services:
   mysql01:
-    image: mysql:8.0.36
+    image: mysql:8.0.40
     platform: linux/x86_64
     volumes:
       - .:/data

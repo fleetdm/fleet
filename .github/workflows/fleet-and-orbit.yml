@@ -62,7 +62,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        mysql: ["mysql:8.0.36"]
+        mysql: ["mysql:8.0.40"]
     runs-on: ubuntu-latest
     needs: gen
     steps:

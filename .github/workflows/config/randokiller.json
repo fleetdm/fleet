@@ -1,6 +1,6 @@
 {
   "mysql_matrix": [
-    "mysql:8.0.36"
+    "mysql:8.0.40"
   ],
   "pkg_to_test": "server/service",
   "tests_to_run": "^TestIntegrationsMDM\\$$",

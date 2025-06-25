@@ -2,7 +2,7 @@
 version: "2"
 services:
   mysql_main:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.40}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
       - mysql-persistent-volume-replica-main:/tmp
@@ -27,7 +27,7 @@ services:
       - "3308:3306"
 
   mysql_read_replica:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.40}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
       - mysql-persistent-volume-replica-read:/tmp
