@@ -3861,12 +3861,14 @@ func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fl
 			BundleIdentifier: truncateString(app["Identifier"], fleet.SoftwareBundleIdentifierMaxLength),
 			Source:           source,
 		}
-		installing, ok := app["Installing"].(bool)
-		if !ok {
-			return nil, ctxerr.New(ctx, "parsing Installing key")
-		}
+		if val, ok := app["Installing"]; ok {
+			installing, ok := val.(bool)
+			if !ok {
+				return nil, ctxerr.New(ctx, "parsing Installing key")
+			}
 
-		sw.Installed = !installing
+			sw.Installed = !installing
+		}
 		software = append(software, sw)
 	}
 

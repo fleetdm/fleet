@@ -2,7 +2,7 @@ package tables
 
 import "testing"
 
-func TestUp_20250616140757(t *testing.T) {
+func TestUp_20250624140757(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	//
