@@ -11593,6 +11593,24 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Len(t, listCmdResp.Results, commandsSent)
 }
 
+func checkInstallFleetdCommandSent(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
+	foundInstallFleetdCommand := false
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
+			foundInstallFleetdCommand = true
+			require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+			require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
+		}
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.Equal(t, wantCommand, foundInstallFleetdCommand)
+}
+
 func (s *integrationMDMTestSuite) TestVPPApps() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
@@ -12203,34 +12221,16 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Installation flow
 
-	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
-		foundInstallFleetdCommand := false
-		cmd, err := mdmDevice.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
-				foundInstallFleetdCommand = true
-				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
-			}
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
-		}
-		require.Equal(t, wantCommand, foundInstallFleetdCommand)
-	}
-
 	// Create a couple of hosts
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
 	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, true)
+	checkInstallFleetdCommandSent(t, mdmDevice, true)
 	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, selfServiceHost, s.ds)
 	s.runWorker()
-	checkInstallFleetdCommandSent(selfServiceDevice, true)
+	checkInstallFleetdCommandSent(t, selfServiceDevice, true)
 	selfServiceToken := "selfservicetoken"
 	updateDeviceTokenForHost(t, s.ds, selfServiceHost.ID, selfServiceToken)
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, selfServiceDevice.SerialNumber)
@@ -12806,7 +12806,11 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.runWorker()
+	checkInstallFleetdCommandSent(t, mdmDevice, true)
 	mdmHost2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.runWorker()
+	checkInstallFleetdCommandSent(t, mdmDevice2, true)
 	key := setOrbitEnrollment(t, mdmHost2, s.ds)
 	mdmHost2.OrbitNodeKey = &key
 	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -13331,6 +13335,22 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 
+	s.runWorker()
+
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{{Name: addedApp.Name, BundleIdentifier: addedApp.BundleIdentifier, Version: addedApp.LatestVersion}})
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected command type", cmd.Command.RequestType)
+		}
+	}
+
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(
@@ -13421,6 +13441,22 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
+
+	s.runWorker()
+
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{{Name: addedApp.Name, BundleIdentifier: addedApp.BundleIdentifier, Version: addedApp.LatestVersion}})
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected command type", cmd.Command.RequestType)
+		}
+	}
 
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
@@ -16435,6 +16471,9 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	key := setOrbitEnrollment(t, mdmHost, s.ds)
 	mdmHost.OrbitNodeKey = &key
 
+	s.runWorker()
+	checkInstallFleetdCommandSent(t, mdmDevice, true)
+
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
 
@@ -16500,6 +16539,22 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
+		}
+	}
+
+	s.runWorker()
+
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{{Name: addedApp.Name, BundleIdentifier: addedApp.BundleIdentifier, Version: addedApp.LatestVersion}})
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected command type", cmd.Command.RequestType)
 		}
 	}
 

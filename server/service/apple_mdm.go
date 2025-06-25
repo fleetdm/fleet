@@ -3553,10 +3553,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, ctxerr.Wrap(r.Context, err, "new installed application list result")
 		}
 
-		fmt.Printf("svc.commandHandlers: %v\n", svc.commandHandlers)
-
 		for _, f := range svc.commandHandlers["InstalledApplicationList"] {
-			fmt.Printf("f: %v\n", f)
 			if err := f(r.Context, res); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "InstalledApplicationList handler failed")
 			}
@@ -3770,12 +3767,10 @@ func NewInstalledApplicationListResultsHandler(
 	verifyTimeout, verifyRequestDelay time.Duration,
 ) func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
-		fmt.Printf("commandResults: %v\n", commandResults)
 		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
 		if !ok {
 			return ctxerr.New(ctx, "unexpected results type")
 		}
-		fmt.Printf("installedAppResult: %v\n", installedAppResult)
 
 		// Then it's not a command sent by Fleet, so skip it
 		if !strings.HasPrefix(installedAppResult.UUID(), fleet.RefetchVPPAppInstallsCommandUUIDPrefix) {
