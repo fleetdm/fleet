@@ -489,16 +489,18 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
 	}
 
-	fmt.Println("in MDMCreateEULA, dryRun:", dryRun)
-
 	if dryRun {
 		return nil
 	}
 
+	hash := sha256.New()
+	_, _ = hash.Write(bytes)
+
 	eula := &fleet.MDMEULA{
-		Name:  name,
-		Token: uuid.New().String(),
-		Bytes: bytes,
+		Name:   name,
+		Token:  uuid.New().String(),
+		Sha256: hash.Sum(nil),
+		Bytes:  bytes,
 	}
 
 	if err := svc.ds.MDMInsertEULA(ctx, eula); err != nil {
@@ -516,9 +518,13 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 	return svc.ds.MDMGetEULABytes(ctx, token)
 }
 
-func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
+func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	if err := svc.ds.MDMDeleteEULA(ctx, token); err != nil {

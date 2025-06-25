@@ -115,7 +115,6 @@ func WithCustomHeaders(headers map[string]string) ClientOption {
 }
 
 func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, rawQuery string, bodyBytes []byte, headers map[string]string) (*http.Response, error) {
-	fmt.Println("in doContextWithBodyAndHeaders, rawQuery:", rawQuery)
 	request, err := http.NewRequestWithContext(
 		ctx,
 		verb,
@@ -1629,13 +1628,12 @@ func (c *Client) DoGitOps(
 
 	var postOps []func() error
 
-	var eulaPath string
-
 	if config.TeamName == nil {
 		group.AppConfig = config.OrgSettings
 		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
 		group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
 		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
+		var eulaPath string
 
 		// Labels
 		if config.Labels == nil || len(config.Labels) > 0 {
@@ -1824,6 +1822,12 @@ func (c *Client) DoGitOps(
 		// PrettyPrint(group.AppConfig)
 		// fmt.Println("mdmAppConfig in DoGitOps:")
 		// PrettyPrint(mdmAppConfig)
+
+		// we want to apply the EULA only for the global settings
+		err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
+		if err != nil {
+			return nil, nil, err
+		}
 
 	} else if !config.IsNoTeam() {
 		team = make(map[string]interface{})
@@ -2053,13 +2057,6 @@ func (c *Client) DoGitOps(
 	// we just do GitOps for queries for global and team files.
 	if !config.IsNoTeam() {
 		err = c.doGitOpsQueries(config, logFn, dryRun)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	if eulaPath != "" {
-		err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2473,9 +2470,17 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 }
 
 func (c *Client) doGitOpsEULA(eulaPath string, logFn func(format string, args ...interface{}), dryRun bool) error {
-	err := c.UploadEULA(eulaPath, dryRun)
-	if err != nil {
-		return fmt.Errorf("error uploading EULA: %w", err)
+	if eulaPath == "" {
+		fmt.Println("Deleting EULA if it exists")
+		err := c.DeleteEULAIfNeeded(dryRun)
+		if err != nil {
+			return fmt.Errorf("error deleting EULA: %w", err)
+		}
+	} else {
+		err := c.UploadEULAIfNeeded(eulaPath, dryRun)
+		if err != nil {
+			return fmt.Errorf("error uploading EULA: %w", err)
+		}
 	}
 
 	if dryRun {

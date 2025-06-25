@@ -286,8 +286,6 @@ func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 	defer ff.Close()
 
-	fmt.Println("In createMDMEULAEndpoint, dryRun:", req.DryRun)
-
 	if err := svc.MDMCreateEULA(ctx, req.EULA.Filename, ff, req.DryRun); err != nil {
 		return createMDMEULAResponse{Err: err}, nil
 	}
@@ -388,7 +386,8 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, err
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMEULARequest struct {
-	Token string `url:"token"`
+	Token  string `url:"token"`
+	DryRun bool   `query:"dry_run,optional"` // if true, apply validation but do not delete
 }
 
 type deleteMDMEULAResponse struct {
@@ -399,13 +398,13 @@ func (r deleteMDMEULAResponse) Error() error { return r.Err }
 
 func deleteMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteMDMEULARequest)
-	if err := svc.MDMDeleteEULA(ctx, req.Token); err != nil {
+	if err := svc.MDMDeleteEULA(ctx, req.Token, req.DryRun); err != nil {
 		return deleteMDMEULAResponse{Err: err}, nil
 	}
 	return deleteMDMEULAResponse{}, nil
 }
 
-func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
+func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

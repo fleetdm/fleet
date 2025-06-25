@@ -411,6 +411,87 @@ func (c *Client) MDMWipeHost(hostID uint) error {
 	return nil
 }
 
+func (c *Client) GetEULAMetadata() (*fleet.MDMEULA, error) {
+	verb, path := "GET", "/api/latest/fleet/setup_experience/eula/metadata"
+	request := getMDMEULAMetadataRequest{}
+	var responseBody getMDMEULAMetadataResponse
+	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	return responseBody.MDMEULA, err
+}
+
+func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
+	eula, err := c.GetEULAMetadata()
+	switch {
+	case errors.As(err, &notFoundErr{}):
+		// not found is OK, it means there is nothing to delete
+		return nil
+	case err != nil:
+		return fmt.Errorf("getting eula metadata: %w", err)
+	}
+
+	fmt.Println("Need to delete EULA:", eula.Token)
+
+	err = c.DeleteEULA(eula.Token, dryRun)
+	if err != nil {
+		return fmt.Errorf("deleting bootstrap package: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) DeleteEULA(token string, dryRun bool) error {
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", token)
+	request := deleteMDMEULARequest{}
+	var responseBody deleteMDMEULAResponse
+	err := c.authenticatedRequestWithQuery(request, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
+	return err
+}
+
+func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
+	isFirstTime := false
+	oldMeta, err := c.GetEULAMetadata()
+	PrettyPrint(oldMeta)
+	if err != nil {
+		// not found is OK, it means this is our first time uploading a eula
+		if !errors.As(err, &notFoundErr{}) {
+			return fmt.Errorf("getting eula metadata: %w", err)
+		}
+		isFirstTime = true
+	}
+
+	// read file to get the new file bytes
+	file, err := os.Open(eulaPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	eulaBytes, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("reading eula file: %w", err)
+	}
+
+	if !isFirstTime {
+		fmt.Println("is not first time")
+		newChecksum := sha256.Sum256(eulaBytes)
+
+		// compare checksums, if they're equal then we can skip the eula upload
+		if bytes.Equal(oldMeta.Sha256, newChecksum[:]) && oldMeta.Name == filepath.Base(eulaPath) {
+			return nil
+		}
+
+		// similar to the expected UI experience, delete the old eula first
+		err = c.DeleteEULA(oldMeta.Token, dryRun)
+		if err != nil {
+			return fmt.Errorf("deleting old eula: %w", err)
+		}
+	}
+
+	if err := c.UploadEULA(eulaPath, dryRun); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
 	verb, path := "POST", "/api/latest/fleet/setup_experience/eula"
 
@@ -434,7 +515,6 @@ func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
 	}
 	w.Close()
 
-	fmt.Println("in UploadEULA, dryRun:", dryRun)
 	resp, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
 		b.Bytes(),
 		map[string]string{
