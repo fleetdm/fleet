@@ -2250,6 +2250,9 @@ type ProfileVerificationStore interface {
 	// ExpandEmbeddedSecrets expands the fleet secrets in a
 	// document using the secrets stored in the datastore.
 	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
+	// GetHostMDMWindowsProfiles returns the current MDM profile status for the given
+	// Windows host
+	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
 }
 
 var _ ProfileVerificationStore = (Datastore)(nil)
