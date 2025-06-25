@@ -240,7 +240,8 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMEULARequest struct {
-	EULA *multipart.FileHeader
+	EULA   *multipart.FileHeader
+	DryRun bool `query:"dry_run,optional"` // if true, apply validation but do not save changes
 }
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
@@ -261,8 +262,13 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
+	dryRun := false
+	if v := r.URL.Query().Get("dry_run"); v != "" {
+		dryRun, _ = strconv.ParseBool(v)
+	}
 	return &createMDMEULARequest{
-		EULA: r.MultipartForm.File["eula"][0],
+		EULA:   r.MultipartForm.File["eula"][0],
+		DryRun: dryRun,
 	}, nil
 }
 
@@ -280,14 +286,16 @@ func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 	defer ff.Close()
 
-	if err := svc.MDMCreateEULA(ctx, req.EULA.Filename, ff); err != nil {
+	fmt.Println("In createMDMEULAEndpoint, dryRun:", req.DryRun)
+
+	if err := svc.MDMCreateEULA(ctx, req.EULA.Filename, ff, req.DryRun); err != nil {
 		return createMDMEULAResponse{Err: err}, nil
 	}
 
 	return createMDMEULAResponse{}, nil
 }
 
-func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error {
+func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

@@ -462,7 +462,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	return summary, nil
 }
 
-func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
+func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSeeker, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -487,6 +487,12 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 	bytes, err := io.ReadAll(f)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
+	}
+
+	fmt.Println("in MDMCreateEULA, dryRun:", dryRun)
+
+	if dryRun {
+		return nil
 	}
 
 	eula := &fleet.MDMEULA{

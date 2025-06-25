@@ -26,6 +26,16 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 )
 
+// PrettyPrint prints a Go struct as pretty-formatted JSON.
+func PrettyPrint(v interface{}) {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		fmt.Printf("error marshaling to JSON: %v\n", err)
+		return
+	}
+	fmt.Printf("%s\n", b)
+}
+
 const batchSize = 100
 
 // Client is used to consume Fleet APIs from Go code
@@ -105,6 +115,7 @@ func WithCustomHeaders(headers map[string]string) ClientOption {
 }
 
 func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, rawQuery string, bodyBytes []byte, headers map[string]string) (*http.Response, error) {
+	fmt.Println("in doContextWithBodyAndHeaders, rawQuery:", rawQuery)
 	request, err := http.NewRequestWithContext(
 		ctx,
 		verb,
@@ -1618,6 +1629,8 @@ func (c *Client) DoGitOps(
 
 	var postOps []func() error
 
+	var eulaPath string
+
 	if config.TeamName == nil {
 		group.AppConfig = config.OrgSettings
 		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
@@ -1796,7 +1809,22 @@ func (c *Client) DoGitOps(
 				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
 			}
 		}
+		// check for the eula in the mdmAppConfig. If it exists we want to delete it
+		// from the app config so it will not be applied to the group/team though the
+		// ApplyGroup method. It will be applied separately.
+		if endUserLicenseAgreement, ok := mdmAppConfig["end_user_license_agreement"].(string); ok && len(endUserLicenseAgreement) > 0 {
+			eulaPath = endUserLicenseAgreement
+			delete(mdmAppConfig, "end_user_license_agreement")
+		}
+		fmt.Println("eula in DoGitOps:", eulaPath)
+
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
+
+		// fmt.Println("group.AppConfig in DoGitOps:")
+		// PrettyPrint(group.AppConfig)
+		// fmt.Println("mdmAppConfig in DoGitOps:")
+		// PrettyPrint(mdmAppConfig)
+
 	} else if !config.IsNoTeam() {
 		team = make(map[string]interface{})
 		team["name"] = *config.TeamName
@@ -2025,6 +2053,13 @@ func (c *Client) DoGitOps(
 	// we just do GitOps for queries for global and team files.
 	if !config.IsNoTeam() {
 		err = c.doGitOpsQueries(config, logFn, dryRun)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if eulaPath != "" {
+		err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2434,6 +2469,21 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 			}
 		}
 	}
+	return nil
+}
+
+func (c *Client) doGitOpsEULA(eulaPath string, logFn func(format string, args ...interface{}), dryRun bool) error {
+	err := c.UploadEULA(eulaPath, dryRun)
+	if err != nil {
+		return fmt.Errorf("error uploading EULA: %w", err)
+	}
+
+	if dryRun {
+		logFn("[+] would've applied EULA\n")
+	} else {
+		logFn("[+] applying EULA\n")
+	}
+
 	return nil
 }
 

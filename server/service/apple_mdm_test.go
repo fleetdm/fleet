@@ -296,7 +296,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		// check EULA routes
 		_, err = svc.MDMGetEULAMetadata(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.MDMCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")))
+		err = svc.MDMCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")), false)
 		checkAuthErr(t, err, shouldFailWithAuth)
 		err = svc.MDMDeleteEULA(ctx, "foo")
 		checkAuthErr(t, err, shouldFailWithAuth)

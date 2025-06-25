@@ -410,3 +410,50 @@ func (c *Client) MDMWipeHost(hostID uint) error {
 	}
 	return nil
 }
+
+func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
+	verb, path := "POST", "/api/latest/fleet/setup_experience/eula"
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the eula field
+	fw, err := w.CreateFormFile("eula", filepath.Base(eulaPath))
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Open(eulaPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if _, err := io.Copy(fw, file); err != nil {
+		return err
+	}
+	w.Close()
+
+	fmt.Println("in UploadEULA, dryRun:", dryRun)
+	resp, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
+		b.Bytes(),
+		map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", c.token),
+		})
+	if err != nil {
+		return fmt.Errorf("do multipart request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var eulaResponse createMDMEULAResponse
+	if err := c.parseResponse(verb, path, resp, &eulaResponse); err != nil {
+		return fmt.Errorf("parse response: %w", err)
+	}
+
+	fmt.Println("eula response:")
+	PrettyPrint(eulaResponse)
+
+	return nil
+}
