@@ -49,6 +49,75 @@ fleetd is the Fleet agent that includes orbit (the main agent process), osquery,
 1. **SCEP server interface** - Certificate Authority (CA) with dedicated keys for issuing device identity certificates
 2. **HTTP signature verification** - Server-side verification of TPM-signed HTTP requests and associated certificates
 
+### Architecture diagrams
+
+```mermaid
+---
+title: TPM-backed HTTP signing (high level)
+---
+flowchart TD
+    subgraph Host
+        TPM[TPM 2.0 hardware]
+        Cert[Device identity certificate]
+        fleetd[fleetd agent]
+    end
+
+    subgraph Fleet server
+        Server[Fleet server]
+        Validate[Validate signed request]
+        CA
+    end
+
+    TPM --> Cert
+    Cert --> fleetd
+    fleetd -->|Signs HTTP request| Server
+    Server --> Validate
+
+    subgraph CA
+       SCEP[SCEP endpoint]
+    end
+
+    fleetd -->|Request cert via SCEP| SCEP
+    SCEP -->|Issues cert| Cert
+```
+
+```mermaid
+---
+title: TPM-backed HTTP signing
+---
+sequenceDiagram
+    autonumber
+    participant orbit
+    participant tpm as TPM 2.0
+    participant osquery
+    participant server as Fleet server
+    orbit->>orbit: Load cert if exists
+    alt no cert
+       orbit->>+tpm: Create private key
+       tpm-->>-orbit: Private key handle
+       orbit->>+tpm: Sign CSR
+       tpm-->>-orbit: Signature
+       orbit->>+server: Get cert using SCEP
+       server-->>-orbit: Cert singed by CA
+       orbit->>orbit: Save cert and TPM keys
+    end
+    par orbit requests
+       orbit->>+tpm: Sign HTTP request
+       tpm-->>-orbit: Signature
+       orbit->>+server: Signed HTTP request
+       server->>server: Verify signature using CA pub key
+       server-->>-orbit: Response (unsigned)
+    and osquery requests
+       osquery->>+orbit: HTTP request to proxy
+       orbit->>+tpm: Sign HTTP request
+       tpm-->>-orbit: Signature
+       orbit->>+server: Signed HTTP request
+       server->>server: Verify signature using CA pub key
+       server-->>-orbit: Response (unsigned)
+       orbit-->>-osquery: Response from proxy
+    end
+```
+
 ## TPM 2.0 implementation
 
 ### Hardware requirements
@@ -76,13 +145,13 @@ Keys are saved as to the filesystem using [TPM 2.0 Key Files](https://www.hansen
 
 Filename used is `httpsig_tpm.pem`
 
-## SCEP Certificate Enrollment
+## SCEP certificate enrollment
 
 ### Overview
 
 The SCEP (Simple Certificate Enrollment Protocol) client enables fleetd to obtain device identity certificates from a Certificate Authority. The certificates are used to establish device identity and can be used in conjunction with HTTP signing for enhanced authentication.
 
-### Certificate Enrollment Process
+### Certificate enrollment process
 
 The SCEP enrollment process follows these steps:
 
@@ -95,7 +164,7 @@ The SCEP enrollment process follows these steps:
 6. **Certificate Retrieval**: Decrypt and parse the issued certificate
 7. **Certificate Storage**: Save the certificate as `httpsig.crt` in the specified directory
 
-#### Key Usage Separation
+#### Key usage separation
 
 The SCEP implementation uses a hybrid approach for cryptographic operations:
 
@@ -108,9 +177,9 @@ This separation is necessary because:
 - The TPM-generated ECC key provides the actual device identity
 - The temporary RSA key is only used for SCEP protocol compliance
 
-## HTTP Signature Integration
+## HTTP signature
 
-### Architecture Overview
+### Architecture overview
 
 The TPM-backed HTTP signing operates at two levels within fleetd:
 
@@ -121,7 +190,7 @@ This proxy approach allows osquery (which doesn't natively support HTTP signatur
 
 The TPM implementation produces RFC 9421-compatible ECDSA signatures.
 
-### HTTP Signature Fields
+### HTTP signature fields
 
 Both direct and proxy signing use the same HTTP signature fields:
 
@@ -131,8 +200,10 @@ Both direct and proxy signing use the same HTTP signature fields:
 - **`@query`**: Query params (i.e., foo=bar)
 - **`content-digest`**: SHA-256 digest of request body
 
+> **Note**: We did not include the scheme (e.g., http, https) as part of the signature to prevent potential hard-to-debug issues with proxies and HTTP forwarding. We did not include Content-Type header because not all requests have this header.
+
 Additional metadata included:
-- **`keyid`**: Identifier for the signing key, which maps to identity certificate serial number
+- **`keyid`**: Identifier for the signing key, which maps to identity certificate's serial number
 - **`created`**: Timestamp of signature creation
 - **`nonce`**: Random value for replay protection
 
@@ -140,9 +211,9 @@ The `created` and `nonce` fields can be used in the future to prevent replay att
 - server checks that `created` is within 10 minutes of current server time (since these fields are included in the signature, we know they have not been tampered with)
 - server checks that `nonce` value has not been used within the last 10 minutes
 
-We did not include the scheme (e.g., http, https) as part of the signature to prevent potential hard-to-debug issues with proxies and HTTP forwarding.
+> **Note**: Apple MDM prevents most (but not all) replay attacks by using a unique CommandUUID.
 
-### Traffic Flow
+### Traffic flow
 
 ```
 ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
@@ -174,7 +245,7 @@ New configuration option for `fleetctl package`: `--fleet-managed-client-certifi
 
 Server configuration option: TBD.
 
-## Future Enhancements
+## Future enhancements
 
 As this an initial implementation, future features may include:
 
@@ -188,7 +259,7 @@ As this an initial implementation, future features may include:
 
 ## Troubleshooting
 
-### Common Issues
+### Common issues
 
 1. **TPM Device Not Found**
    - Verify TPM is enabled in BIOS/UEFI
@@ -204,11 +275,11 @@ As this an initial implementation, future features may include:
    - Clear TPM if necessary (will lose existing keys)
    - Check available TPM resources
 
-### Debug Logging
+### Debug logging
 
 Enable fleetd/server debug logging to troubleshoot issues.
 
-### SCEP-Specific Troubleshooting
+### SCEP-specific troubleshooting
 
 1. **SCEP Server Connection Issues**
    - Verify SCEP server URL is accessible (and your Fleet server has this feature)
