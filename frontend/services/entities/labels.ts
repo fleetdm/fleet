@@ -32,7 +32,9 @@ const isManualLabelFormData = (
   return "targetedHosts" in formData;
 };
 
-const generateCreateLabelBody = (formData: INewLabelFormData) => {
+const generateUpdateLabelBody = (
+  formData: IDynamicLabelFormData | IManualLabelFormData
+) => {
   // TODO - handle all of this in a switch case inside the create API method
   // we need to prepare the post body for only manual labels.
   if (isManualLabelFormData(formData)) {
@@ -44,8 +46,6 @@ const generateCreateLabelBody = (formData: INewLabelFormData) => {
   }
   return formData;
 };
-
-const generateUpdateLabelBody = generateCreateLabelBody;
 
 /** gets the custom label and returns them in case-insensitive alphabetical
  * ascending order by label name. (e.g. [A, B, C, a, b, c] => [A, a, B, b, C, c])
@@ -72,7 +72,9 @@ export const getCustomLabels = <T extends { label_type: string; name: string }>(
 export default {
   create: (formData: INewLabelFormData): Promise<ICreateLabelResponse> => {
     const { LABELS } = endpoints;
-    const postBody = generateCreateLabelBody(formData);
+    // TODO - enure post data formatted
+    // const postBody = generateCreateLabelBody(formData);
+    const postBody = formData;
     return sendRequest("POST", LABELS, postBody);
   },
 

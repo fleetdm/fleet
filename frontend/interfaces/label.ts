@@ -16,24 +16,27 @@ export default PropTypes.shape({
 
 export type LabelType = "regular" | "builtin";
 export type LabelMembershipType = "dynamic" | "manual" | "host-vitals";
+export type LabelHostVitalsCriterion =
+  | "end_user_idp_group"
+  | "end_user_idp_department"; // for now, may expand to be configurable
 
-type LeafCriterion = {
-  vital: "end_user_idp_group" | "end_user_idp_department"; // for now, may expand to be configurable
+export type LabelLeafCriterion = {
+  vital: LabelHostVitalsCriterion;
   value: string; // from user input
 };
 
-type AndCriterion = {
+type LabelAndCriterion = {
   and: LabelHostVitalsCriteria[];
 };
 
-type OrCriterion = {
+type LabelOrCriterion = {
   or: LabelHostVitalsCriteria[];
 };
 
 export type LabelHostVitalsCriteria =
-  | LeafCriterion
-  | AndCriterion
-  | OrCriterion;
+  | LabelLeafCriterion
+  | LabelAndCriterion
+  | LabelOrCriterion;
 
 export interface ILabelSummary {
   id: number;
@@ -75,6 +78,7 @@ export interface ILabel extends ILabelSummary {
   platform: string; // does return '""' for other types
   // host-vitals-specific
   criteria: LabelHostVitalsCriteria | null;
+
   // manual-specific
   host_ids: number[] | null;
 }

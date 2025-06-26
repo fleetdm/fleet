@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import { useQuery } from "react-query";
 import { useDebouncedCallback } from "use-debounce";
@@ -22,17 +22,31 @@ import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 
 import { RouteComponentProps } from "react-router";
-import { LabelHostVitalsCriteria, LabelMembershipType } from "interfaces/label";
+import {
+  LabelHostVitalsCriterion,
+  LabelMembershipType,
+} from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { IFormField } from "interfaces/form_field";
 import SQLEditor from "components/SQLEditor";
 import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
+import Radio from "components/forms/fields/Radio";
 
 import PlatformField from "../components/PlatformField";
+
+const availableCriteria: {
+  label: string;
+  value: LabelHostVitalsCriterion;
+}[] = [
+  { label: "Identity provider (IdP) group", value: "end_user_idp_group" },
+  { label: "IdP department", value: "end_user_idp_department" },
+];
 
 const baseClass = "new-label-page";
 
@@ -60,8 +74,11 @@ export interface INewLabelFormData {
   // dynamic
   labelQuery: string;
   platform: string;
-  // host-vitals
-  criteria?: LabelHostVitalsCriteria;
+
+  // host vitals
+  vital: LabelHostVitalsCriterion; // TODO - make use of recursive `LabelHostVitalsCriteria` type in future iterations to support logical combinations of different criteria
+  vitalValue: string;
+
   // manual
   targetedHosts: IHost[];
 }
@@ -69,6 +86,7 @@ export interface INewLabelFormData {
 interface INewLabelFormErrors {
   name?: string | null;
   query?: string | null;
+  value?: string | null;
 }
 
 const NewLabelPage = ({
@@ -107,7 +125,8 @@ const NewLabelPage = ({
     labelQuery: "",
     platform: "",
     // host-vitals-specific
-    criteria: undefined,
+    vital: "end_user_idp_group",
+    vitalValue: "",
     // manual-specific
     targetedHosts: [],
   });
@@ -117,7 +136,8 @@ const NewLabelPage = ({
     type,
     labelQuery,
     platform,
-    criteria,
+    vital,
+    vitalValue,
     targetedHosts,
   } = formData;
 
@@ -189,6 +209,13 @@ const NewLabelPage = ({
       }
     });
     setFormErrors(errsToSet);
+  };
+
+  const onTypeChange = (value: string): void => {
+    setFormData({
+      ...formData,
+      type: value as LabelMembershipType, // reconcile type differences between form data and radio component handler
+    });
   };
 
   const onInputBlur = () => {
@@ -303,7 +330,30 @@ const NewLabelPage = ({
         );
 
       case "host-vitals":
-        return <>TODO</>;
+        return (
+          <div className={`${baseClass}__host-vitals-fields`}>
+            <Dropdown
+              label="Label criteria"
+              name="criteria"
+              onChange={onInputChange}
+              value={vital}
+              options={availableCriteria}
+              classname={`${baseClass}__criteria-dropdown`}
+              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
+              helptText="Currently, label criteria can be IdP group or department."
+            />
+            is equal to
+            <InputField
+              error={formErrors.value}
+              name="value"
+              onChange={onInputChange}
+              value={vitalValue}
+              inputClassName={`${baseClass}__vital-value`}
+              placeholder="IT admins"
+              onBlur={onInputBlur}
+            />
+          </div>
+        );
 
       case "manual":
         return (
@@ -348,6 +398,36 @@ const NewLabelPage = ({
         type="textarea"
         placeholder="Label description (optional)"
       />
+      <div className="form-field type-field">
+        <div className="form-field__label">Type</div>
+        <Radio
+          className={`${baseClass}__radio-input`}
+          label="Dynamic"
+          id="dynamic"
+          checked={type === "dynamic"}
+          value="dynamic"
+          name="label-type"
+          onChange={onTypeChange}
+        />
+        <Radio
+          className={`${baseClass}__radio-input`}
+          label="Host vitals"
+          id="host-vitals"
+          checked={type === "host-vitals"}
+          value="host-vitals"
+          name="label-type"
+          onChange={onTypeChange}
+        />
+        <Radio
+          className={`${baseClass}__radio-input`}
+          label="Manual"
+          id="manual"
+          checked={type === "manual"}
+          value="manual"
+          name="label-type"
+          onChange={onTypeChange}
+        />
+      </div>
       {renderVariableFields()}
       <div className="button-wrap">
         <Button
@@ -371,7 +451,7 @@ const NewLabelPage = ({
       <MainContent className={baseClass}>
         <h1>New label</h1>
         <p className={`${baseClass}__page-description`}>
-          Create a newwwalbel for targeting and filtering hosts.
+          Create a new label for targeting and filtering hosts.
         </p>
         {renderLabelForm()}
       </MainContent>

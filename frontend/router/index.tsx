@@ -229,9 +229,9 @@ const routes = (
             <Route path="new" component={NewLabelPage}>
               <IndexRedirect to="dynamic" />
               {/* maintaining all 3 sub-routes for "backward-compatibility" of URL routes. NewLabelPage sets is initial label type by checking the URL */}
-              <Route path="dynamic" component={NewLabelPage}>
-              <Route path="manual" component={NewLabelPage}>
-              <Route path="idp" component={NewLabelPage}>
+              <Route path="dynamic" component={NewLabelPage} />
+              <Route path="manual" component={NewLabelPage} />
+              <Route path="idp" component={NewLabelPage} />
             </Route>
             <Route path=":label_id" component={EditLabelPage} />
           </Route>

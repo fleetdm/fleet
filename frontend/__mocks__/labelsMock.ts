@@ -14,6 +14,10 @@ const DEFAULT_LABEL_MOCK: ILabel = {
   display_text: "test macsss",
   count: 0,
   host_ids: null,
+  criteria: {
+    vital: "end_user_idp_department",
+    value: " IT admins",
+  },
 };
 
 export const createMockLabel = (overrides?: Partial<ILabel>): ILabel => {
