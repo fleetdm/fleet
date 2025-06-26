@@ -120,6 +120,7 @@ services:
     depends_on:
       - mysql01
       - redis01
+      - minio
     volumes:
       - ./config:/config
     ports:
