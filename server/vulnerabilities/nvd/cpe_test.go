@@ -504,14 +504,14 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 					cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
 				},
 		*/{
-			software: fleet.Software{
-				Name:             "Adobe Lightroom.app",
-				Source:           "apps",
-				Version:          "5.5",
-				Vendor:           "",
-				BundleIdentifier: "com.adobe.mas.lightroomCC",
-			}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:*:macos:*:*",
-		},
+		software: fleet.Software{
+			Name:             "Adobe Lightroom.app",
+			Source:           "apps",
+			Version:          "5.5",
+			Vendor:           "",
+			BundleIdentifier: "com.adobe.mas.lightroomCC",
+		}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:*:macos:*:*",
+	},
 		{
 			software: fleet.Software{
 				Name:             "Finder.app",
@@ -1742,6 +1742,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "",
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "vault",
+				Source:           "homebrew_packages",
+				Version:          "1.4.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:hashicorp:vault:1.4.0:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
