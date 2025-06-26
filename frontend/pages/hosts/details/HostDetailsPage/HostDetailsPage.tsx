@@ -226,6 +226,9 @@ const HostDetailsPage = ({
     selectedSoftwareDetails,
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
+  const [selectedScriptExecutionId, setSelectedScriptExecutionId] = useState<
+    string | undefined
+  >(undefined);
   const [
     selectedCancelActivity,
     setSelectedCancelActivity,
@@ -694,6 +697,15 @@ const HostDetailsPage = ({
     [setSelectedSoftwareDetails]
   );
 
+  const onShowUninstallDetails = useCallback(
+    (uninstallScriptExecutionId?: string) => {
+      if (uninstallScriptExecutionId) {
+        setSelectedScriptExecutionId(uninstallScriptExecutionId);
+      }
+    },
+    [setSelectedScriptExecutionId]
+  );
+
   const onCancelRunScriptDetailsModal = useCallback(() => {
     setScriptExecutiontId("");
     // refetch activities to make sure they up-to-date with what was displayed in the modal
@@ -983,6 +995,7 @@ const HostDetailsPage = ({
                 }}
                 pathname={location.pathname}
                 onShowSoftwareDetails={onShowSoftwareDetails}
+                onShowUninstallDetails={onShowUninstallDetails}
                 hostTeamId={host.team_id || 0}
                 hostMDMEnrolled={host.mdm.connected_to_fleet}
                 isHostOnline={host.status === "online"}
@@ -1343,6 +1356,16 @@ const HostDetailsPage = ({
             hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
+          />
+        )}
+        {selectedScriptExecutionId && !!host && (
+          <SoftwareUninstallDetailsModal
+            details={{
+              host_display_name: host.display_name,
+              script_execution_id: selectedScriptExecutionId,
+              status: "failed_uninstall",
+            }}
+            onCancel={() => setSelectedScriptExecutionId(undefined)}
           />
         )}
         {selectedCancelActivity && (

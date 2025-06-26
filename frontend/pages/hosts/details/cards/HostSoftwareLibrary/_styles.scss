@@ -1,4 +1,14 @@
 .host-software-library-card {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-small;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   .table-container {
     .stackable-header {
       min-width: initial; // Fix card overflow on low widths
