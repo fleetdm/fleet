@@ -72,6 +72,7 @@ var (
 	fleetVarHostEndUserEmailIDPRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserEmailIDP))
 	fleetVarHostHardwareSerialRegexp              = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostHardwareSerial))
 	fleetVarHostEndUserIDPUsernameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPUsername))
+	fleetVarHostEndUserIDPDepartmentRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPDepartment))
 	fleetVarHostEndUserIDPUsernameLocalPartRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPUsernameLocalPart))
 	fleetVarHostEndUserIDPGroupsRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPGroups))
 	fleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarSCEPRenewalID))
@@ -79,7 +80,7 @@ var (
 	fleetVarsSupportedInConfigProfiles = []string{
 		fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
 		fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-		fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarSCEPRenewalID,
+		fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarSCEPRenewalID,
 	}
 )
 
@@ -4394,7 +4395,7 @@ func preprocessProfileContents(
 
 			case fleetVar == fleet.FleetVarHostEndUserEmailIDP || fleetVar == fleet.FleetVarHostHardwareSerial ||
 				fleetVar == fleet.FleetVarHostEndUserIDPUsername || fleetVar == fleet.FleetVarHostEndUserIDPUsernameLocalPart ||
-				fleetVar == fleet.FleetVarHostEndUserIDPGroups || fleetVar == fleet.FleetVarSCEPRenewalID:
+				fleetVar == fleet.FleetVarHostEndUserIDPGroups || fleetVar == fleet.FleetVarHostEndUserIDPDepartment || fleetVar == fleet.FleetVarSCEPRenewalID:
 				// No extra validation needed for these variables
 
 			case strings.HasPrefix(fleetVar, fleet.FleetVarDigiCertPasswordPrefix) || strings.HasPrefix(fleetVar, fleet.FleetVarDigiCertDataPrefix):
@@ -4618,7 +4619,7 @@ func preprocessProfileContents(
 					hostContents = replaceFleetVariableInXML(fleetVarHostHardwareSerialRegexp, hostContents, hardwareSerial)
 
 				case fleetVar == fleet.FleetVarHostEndUserIDPUsername || fleetVar == fleet.FleetVarHostEndUserIDPUsernameLocalPart ||
-					fleetVar == fleet.FleetVarHostEndUserIDPGroups:
+					fleetVar == fleet.FleetVarHostEndUserIDPGroups || fleetVar == fleet.FleetVarHostEndUserIDPDepartment:
 					user, ok, err := getHostEndUserIDPUser(ctx, ds, target, hostUUID, fleetVar, hostIDForUUIDCache)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting host end user IDP username")
@@ -4640,6 +4641,9 @@ func preprocessProfileContents(
 					case fleet.FleetVarHostEndUserIDPGroups:
 						rx = fleetVarHostEndUserIDPGroupsRegexp
 						value = strings.Join(user.IdpGroups, ",")
+					case fleet.FleetVarHostEndUserIDPDepartment:
+						rx = fleetVarHostEndUserIDPDepartmentRegexp
+						value = user.Department
 					}
 					hostContents = replaceFleetVariableInXML(rx, hostContents, value)
 
