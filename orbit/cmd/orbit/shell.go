@@ -108,9 +108,11 @@ var shellCommand = &cli.Command{
 		certPath := getCertPath(c)
 		if exists, err := file.Exists(certPath); err == nil && exists {
 			if _, err := certificate.LoadPEM(certPath); err != nil {
-				return fmt.Errorf("load %s: %w", certPath, err)
+				return fmt.Errorf("failed to load PEM %s: %w", certPath, err)
 			}
 			opts = append(opts, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
+		} else if err != nil {
+			return fmt.Errorf("failed to read file %s: %w", certPath, err)
 		}
 
 		// Detect if the additional arguments have a positional argument.
