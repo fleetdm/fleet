@@ -8,11 +8,26 @@ Fleet 4.71.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- Highlight 1
+- Expand identity provider (IdP) foreign vitals
+- Labels based on IdP groups and departments
+- Verify App Store (VPP) app installation
+- Deploy user certificates to macOS login Keychain
 
-### Highlight 1
+### Expand identity provider (IdP) foreign vitals
 
-TODO
+Fleet now supports using end users’ IdP department info in [configuration profile variables](TODO). This allows IT admins to deploy a [property list](https://en.wikipedia.org/wiki/Property_list) (via configuration profile) so that third-party tools (i.e. Munki) can automate actions based on department data.
+
+### Expand identity provider (IdP) foreign vitals
+
+Fleet now supports using end users’ IdP department info in [configuration profile variables](TODO). This allows IT admins to deploy a [property list](https://en.wikipedia.org/wiki/Property_list) (via configuration profile) so that third-party tools (i.e. Munki) can automate actions based on department data.
+
+### Expand identity provider (IdP) foreign vitals
+
+Fleet now supports using end users’ IdP department info in [configuration profile variables](TODO). This allows IT admins to deploy a [property list](https://en.wikipedia.org/wiki/Property_list) (via configuration profile) so that third-party tools (i.e. Munki) can automate actions based on department data.
+
+### Expand identity provider (IdP) foreign vitals
+
+Fleet now supports using end users’ IdP department info in [configuration profile variables](TODO). This allows IT admins to deploy a [property list](https://en.wikipedia.org/wiki/Property_list) (via configuration profile) so that third-party tools (i.e. Munki) can automate actions based on department data.
 
 ## Changes
 
