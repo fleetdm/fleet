@@ -1,12 +1,15 @@
 .new-label-page {
-  h1 {
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-smedium;
     margin-bottom: $pad-large;
   }
-
   &__page-description {
     margin: 0;
     color: $ui-fleet-black-75;
     font-size: $xx-small;
+    font-style: italic;
   }
   &__label-name,
   &__label-description {

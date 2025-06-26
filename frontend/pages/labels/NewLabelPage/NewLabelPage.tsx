@@ -544,10 +544,12 @@ const NewLabelPage = ({
   return (
     <>
       <MainContent className={baseClass}>
-        <h1>New label</h1>
-        <p className={`${baseClass}__page-description`}>
-          Create a new label for targeting and filtering hosts.
-        </p>
+        <div className={`${baseClass}__header`}>
+          <h1>New label</h1>
+          <p className={`${baseClass}__page-description`}>
+            Create a new label for targeting and filtering hosts.
+          </p>
+        </div>
         {renderLabelForm()}
       </MainContent>
       {type === "dynamic" && isSidePanelOpen && (
