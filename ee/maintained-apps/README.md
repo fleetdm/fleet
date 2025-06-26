@@ -82,7 +82,7 @@ Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updat
 
 1. When a pull request (PR) is opened in `inputs/`, the [#g-software Product Designer (PD)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer.
 2. The PD is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the PD will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
-- Find the app in [homebrew's github cask library](https://github.com/Homebrew/homebrew-cask/tree/09b9335e105bcd31dfde1eb46a89026c6091bb2e/Casks) and download it directly using `cask.url`
+- Find the app in [Homebrew's GitHub casks](https://github.com/Homebrew/homebrew-cask/tree/699414cb220dde2b93af764cea7f24f4018e49ac/Casks) and download it locally using `cask.url`.
 - Install it on a host and run a live query on the host: `SELECT * FROM apps WHERE name LIKE '%App Name%';` Ensure the name you get back from the query matches the `name` provided in the PR.
 
 3. Then, the PD builds the app's `outputs/` and updates `outputs/apps.json` on the same PR by running the following command:
