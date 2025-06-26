@@ -40,7 +40,7 @@ var shellCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:    "fleet-certificate",
-			Hidden:  true,
+			Usage:   "Path to the Fleet server certificate chain",
 			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
 		},
 	},
@@ -105,17 +105,12 @@ var shellCommand = &cli.Command{
 			osquery.WithFlags([]string{"--database_path", osqueryDB}),
 		}
 
-		// If fleetd is built with the --fleet-certificate flag then orbit already starts osqueryd with
-		// the proper --tls_server_certs flag so we only want to default to 'certs.pem' if
-		// --fleet-certificate is not set.
-		if c.String("fleet-certificate") == "" {
-			certPath := filepath.Join(c.String("root-dir"), "certs.pem")
-			if exists, err := file.Exists(certPath); err == nil && exists {
-				if _, err := certificate.LoadPEM(certPath); err != nil {
-					return fmt.Errorf("load certs.pem: %w", err)
-				}
-				opts = append(opts, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
+		certPath := getCertPath(c)
+		if exists, err := file.Exists(certPath); err == nil && exists {
+			if _, err := certificate.LoadPEM(certPath); err != nil {
+				return fmt.Errorf("load %s: %w", certPath, err)
 			}
+			opts = append(opts, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
 		}
 
 		// Detect if the additional arguments have a positional argument.
@@ -159,4 +154,11 @@ var shellCommand = &cli.Command{
 
 		return nil
 	},
+}
+
+func getCertPath(c *cli.Context) string {
+	if certPath := c.String("fleet-certificate"); certPath != "" {
+		return certPath
+	}
+	return filepath.Join(c.String("root-dir"), "certs.pem")
 }
