@@ -743,10 +743,19 @@ var extraDetailQueries = map[string]DetailQuery{
 // configured
 var mdmQueries = map[string]DetailQuery{
 	"mdm_config_profiles_darwin": {
-		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";`,
+		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles WHERE type = "Configuration";`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestMacOSProfiles,
-		Discovery:        discoveryTable("macos_profiles"),
+		Discovery:        fmt.Sprintf(`SELECT 1 WHERE EXISTS (%s) AND NOT EXISTS (%s);`, discoveryTable("macos_profiles"), discoveryTable("macos_user_profiles")),
+	},
+	"mdm_config_profiles_darwin_with_user": {
+		QueryFunc:        buildConfigProfilesMacOSQuery,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestMacOSProfiles,
+		Discovery: generateSQLForAllExists(
+			discoveryTable("macos_profiles"),
+			discoveryTable("macos_user_profiles"),
+		),
 	},
 	"mdm_config_profiles_windows": {
 		QueryFunc:        buildConfigProfilesWindowsQuery,
@@ -2059,6 +2068,41 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	}
 
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
+}
+
+func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
+	query := `
+		SELECT
+			display_name,
+			identifier,
+			install_date
+		FROM
+			macos_profiles
+		WHERE
+			type = "Configuration"`
+
+	username, err := ds.GetNanoMDMUserEnrollmentUsername(ctx, host.UUID)
+	if err != nil {
+		logger.Log("component", "service",
+			"method", "QueryFunc - macos config profiles", "err", err)
+		return "", false
+	}
+
+	if username != "" {
+		query += fmt.Sprintf(`
+			UNION
+
+			SELECT
+				display_name,
+				identifier,
+				install_date
+			FROM
+				macos_user_profiles
+			WHERE
+				username = %q AND
+				type = "Configuration"`, username)
+	}
+	return query, true
 }
 
 func directIngestMacOSProfiles(

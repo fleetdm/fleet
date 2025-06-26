@@ -91,6 +91,9 @@ type Software struct {
 	NameSource string `json:"-" db:"name_source"`
 	// Checksum is the unique checksum generated for this Software.
 	Checksum string `json:"-" db:"checksum"`
+	// TODO: should we create a separate type? Feels like this field shouldn't be here since it's
+	// just used for VPP install verification.
+	Installed bool `json:"-"`
 }
 
 func (Software) AuthzType() string {

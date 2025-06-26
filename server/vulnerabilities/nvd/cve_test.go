@@ -229,6 +229,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:apple:garageband:10.4.11:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-54559"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:o:apple:macos:15.1.1:*:*:*:*:*:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2024-54559", resolvedInVersion: "15.2"}},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:avira:password_manager:2.18.4.38471:*:*:*:*:firefox:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2022-28795"},
