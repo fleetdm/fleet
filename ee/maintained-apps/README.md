@@ -82,6 +82,9 @@ Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updat
 
 1. When a pull request (PR) is opened in `inputs/`, the [#g-software Product Designer (PD)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer.
 2. The PD is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the PD will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
+- Find the app in [homebrew's github cask library](https://github.com/Homebrew/homebrew-cask/tree/09b9335e105bcd31dfde1eb46a89026c6091bb2e/Casks) and download it directly using `cask.url`
+- Install it on a supported device and query the installed app on the supported device using a live query `SELECT * FROM apps WHERE name LIKE '%App Name%';` ensuring the results of the name matches the `name` provided in the PR
+
 3. Then, the PD builds the app's `outputs/` and updates `outputs/apps.json` on the same PR by running the following command:
 
 ```
@@ -89,7 +92,7 @@ go run cmd/maintained-apps/main.go
 ```
 
 4. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
-5. Add an icon for the app to the PR. To add the icon, add an SVG to `frontend/pages/SoftwarePage/components/icons/` and update the `frontend/pages/SoftwarePage/components/icons/index.ts` file. Also add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671).
+5. Add an icon for the app to the PR. To add the icon, add an SVG to `frontend/pages/SoftwarePage/components/icons/` and update the `frontend/pages/SoftwarePage/components/icons/index.ts` file. Also add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671) and Publish the icon as a part of the Software icon component.
 6. Then, the PD adds [Quality Assurance (QA)](https://fleetdm.com/handbook/company/product-groups#software-group) as a reviewer. QA is responsible for testing the app. 
 7. When testing, update the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
 
