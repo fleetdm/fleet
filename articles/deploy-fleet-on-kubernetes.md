@@ -24,7 +24,7 @@ Additionally, ensure a namespace is created or already exists for your Fleet dep
 kubectl create ns <namespace>
 ```
 
-## Installing Infrastructure Dependencies with Helm
+## Install Infrastructure Dependencies with Helm
 
 ### MySQL
 
