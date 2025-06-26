@@ -1678,7 +1678,9 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	}
 
 	payload.URL = app.InstallerURL
-	payload.SHA256 = app.SHA256
+	if app.SHA256 != noCheckHash {
+		payload.SHA256 = app.SHA256
+	}
 	payload.InstallScript = app.InstallScript
 	payload.UninstallScript = app.UninstallScript
 	payload.FleetMaintained = true
@@ -1958,7 +1960,7 @@ func (svc *Service) softwareBatchUpload(
 				installer.Source = p.MaintainedApp.Source()
 				installer.Extension = extension
 				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
-				installer.StorageID = p.MaintainedApp.SHA256
+				installer.StorageID = p.MaintainedApp.SHA256 // TODO don't trust this
 				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
 				installer.AutomaticInstall = p.AutomaticInstall != nil && *p.AutomaticInstall
 				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
