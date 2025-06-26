@@ -504,14 +504,14 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 					cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
 				},
 		*/{
-		software: fleet.Software{
-			Name:             "Adobe Lightroom.app",
-			Source:           "apps",
-			Version:          "5.5",
-			Vendor:           "",
-			BundleIdentifier: "com.adobe.mas.lightroomCC",
-		}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:*:macos:*:*",
-	},
+			software: fleet.Software{
+				Name:             "Adobe Lightroom.app",
+				Source:           "apps",
+				Version:          "5.5",
+				Vendor:           "",
+				BundleIdentifier: "com.adobe.mas.lightroomCC",
+			}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:*:macos:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "Finder.app",
