@@ -266,9 +266,13 @@ You can then look for `orbit` or `osquery` to narrow down results.
 
 `Applies only to Fleet Premium`
 
-Fleetd supports using TLS client certificates for authentication to the Fleet server and [TUF](https://theupdateframework.io/) server.
+Fleet's agent (fleetd) and the fleetd Chrome browser extension support mTLS.
 
-When generating the packages, use the following flags:
+#### Fleetd agent
+
+The fleetd agent supports using TLS client certificates for authentication to the Fleet server and [TUF](https://theupdateframework.io/) server.
+
+When generating fleetd, use the following flags:
 ```sh
 fleetctl package \
   [...]
@@ -302,6 +306,10 @@ fleetctl package
   [...]
 ```
 If this setting is not used, you will need to configure client TLS certificates on devices' browsers.
+
+#### fleetd Chrome browswer extension
+
+To use mTLS use the [AutoSelectCertificateForUrls policy](https://chromeenterprise.google/policies/?policy=AutoSelectCertificateForUrls) to point Chrome to your client certificates
 
 ### Specifying update channels
 
