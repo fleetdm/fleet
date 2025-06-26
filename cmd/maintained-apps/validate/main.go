@@ -228,6 +228,9 @@ func executeScript(scriptContents string) error {
 	defer cancel()
 
 	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, env)
+	fmt.Print("--------------------\n")
+	fmt.Printf("Script output:\n%s\n", string(output))
+	fmt.Print("--------------------\n")
 	if err != nil {
 		return err
 	}
