@@ -2,7 +2,7 @@
 
 ## Overview
 
-TPM-backed HTTP signing is a security feature that uses the device’s TPM 2.0 hardware to securely generate and store cryptographic keys for signing HTTP requests. By ensuring that private keys never leave the TPM's secure boundary, this feature provides hardware-backed assurance that requests to the Fleet server originate from the same physical device that initially enrolled.
+TPM-backed HTTP signing is a security feature that uses the device’s TPM 2.0 (Trusted Platform Module) hardware to securely generate and store cryptographic keys for signing HTTP requests. By ensuring that private keys never leave the TPM's secure boundary, this feature provides hardware-backed assurance that requests to the Fleet server originate from the same physical device that initially enrolled.
 
 A **device identity certificate** is an X.509 certificate whose private key is bound to the TPM, enabling cryptographic proof of device identity.
 
@@ -29,7 +29,7 @@ Together, these mechanisms establish a strong trust foundation for authenticated
 - [TPM 2.0 Library specification](https://trustedcomputinggroup.org/resource/tpm-library-specification/)
 - [TPM 2.0 Key Files](https://www.hansenpartnership.com/draft-bottomley-tpm2-keys.html) - de facto standard used by OpenConnect VPN and other tools
 - [RFC 9421 - HTTP Message Signatures](https://datatracker.ietf.org/doc/html/rfc9421)
-- [RFC 8894 - Siimple Certificate Enrolment Protocol](https://datatracker.ietf.org/doc/html/rfc8894) - SCEP
+- [RFC 8894 - Siimple Certificate Enrolment Protocol](https://datatracker.ietf.org/doc/html/rfc8894) (SCEP)
 
 ### Components
 
@@ -113,7 +113,8 @@ sequenceDiagram
        orbit->>+tpm: Sign HTTP request
        tpm-->>-orbit: Signature
        orbit->>+server: Signed HTTP request
-       server->>server: Verify signature using CA pub key
+       server->>server: Verify cert is valid and not expired
+       server->>server: Verify signature using cert pub key
        server-->>-orbit: Response (unsigned)
        orbit-->>-osquery: Response from proxy
     end
