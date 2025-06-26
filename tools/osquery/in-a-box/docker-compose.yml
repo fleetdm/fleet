@@ -130,6 +130,7 @@ services:
 
   minio:
     image: quay.io/minio/minio
+    entrypoint: sh
     command: -c 'mkdir -p /data && /usr/bin/minio server /data --console-address ":9001"'
     ports:
       - "9000:9000"
