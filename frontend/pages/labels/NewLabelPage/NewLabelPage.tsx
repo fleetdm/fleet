@@ -63,12 +63,6 @@ const LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER =
   "Search name, hostname, or serial number";
 const DEBOUNCE_DELAY = 500;
 
-const validate = (newData: INewLabelFormData) => {
-  const errors: INewLabelFormErrors = {};
-  // TODO - validation logic
-  return errors;
-};
-
 interface ITargetsQueryKey {
   scope: string;
   query?: string | null;
@@ -93,9 +87,27 @@ export interface INewLabelFormData {
 
 interface INewLabelFormErrors {
   name?: string | null;
-  query?: string | null;
-  value?: string | null;
+  labelQuery?: string | null;
+  vitalValue?: string | null;
 }
+
+const validate = (newData: INewLabelFormData) => {
+  const errors: INewLabelFormErrors = {};
+  const { name, type, labelQuery, vitalValue } = newData;
+  if (!name) {
+    errors.name = "Label name must be present";
+  }
+  if (type === "dynamic") {
+    if (!labelQuery) {
+      errors.labelQuery = "Query text must be present";
+    }
+  } else if (type === "host-vitals") {
+    if (!vitalValue) {
+      errors.vitalValue = "Label criteria must be completed";
+    }
+  }
+  return errors;
+};
 
 const NewLabelPage = ({
   router,
@@ -262,10 +274,21 @@ const NewLabelPage = ({
   };
 
   const onTypeChange = (value: string): void => {
-    setFormData({
+    const newFormData = {
       ...formData,
       type: value as LabelMembershipType, // reconcile type differences between form data and radio component handler
+    };
+    setFormData(newFormData);
+
+    const errsToSet: Record<string, string> = {};
+    Object.keys(formErrors).forEach((k) => {
+      // @ts-ignore
+      if (newErrs[k]) {
+        // @ts-ignore
+        errsToSet[k] = newErrs[k];
+      }
     });
+    setFormErrors(errsToSet);
   };
 
   const onInputBlur = () => {
@@ -350,9 +373,10 @@ const NewLabelPage = ({
         return (
           <>
             <SQLEditor
-              error={formErrors.query}
+              error={formErrors.labelQuery}
               name="query"
               onChange={onQueryChange}
+              onBlur={onInputBlur}
               value={labelQuery}
               label="Query"
               labelActionComponent={
@@ -401,15 +425,15 @@ const NewLabelPage = ({
             />
             is equal to
             <InputField
-              error={formErrors.value}
+              error={formErrors.vitalValue}
               name="vitalValue"
               onChange={onInputChange}
+              onBlur={onInputBlur}
               value={vitalValue}
               inputClassName={`${baseClass}__vital-value`}
               placeholder={
                 vital === "end_user_idp_group" ? "IT admins" : "Engineering"
               }
-              onBlur={onInputBlur}
               parseTarget
             />
           </div>
@@ -444,6 +468,7 @@ const NewLabelPage = ({
         error={formErrors.name}
         name="name"
         onChange={onInputChange}
+        onBlur={onInputBlur}
         value={name}
         inputClassName={`${baseClass}__label-name`}
         label="Name"
@@ -453,6 +478,7 @@ const NewLabelPage = ({
       <InputField
         name="description"
         onChange={onInputChange}
+        onBlur={onInputBlur}
         value={description}
         inputClassName={`${baseClass}__label-description`}
         label="Description"
