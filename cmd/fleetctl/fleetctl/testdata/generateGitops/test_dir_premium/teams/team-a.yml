@@ -64,7 +64,7 @@ software:
     - Label C
     - Label D
   packages:
-  - hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 1.0.0, 2.0.0
+  - hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 13.37
     install_script:
       path: ../lib/team-a/scripts/my-software-package-darwin-install
     labels_include_any:
