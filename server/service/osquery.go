@@ -958,7 +958,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(host, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+	preProcessSoftwareResults(host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -1246,9 +1246,9 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
 	host *fleet.Host,
-	results *fleet.OsqueryDistributedQueryResults,
-	statuses *map[string]fleet.OsqueryStatus,
-	messages *map[string]string,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
 	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
@@ -1257,8 +1257,8 @@ func preProcessSoftwareResults(
 
 	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
 	preProcessSoftwareExtraResults(pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-	pythonPakcagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
-	preProcessSoftwareExtraResults(pythonPakcagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
+	preProcessSoftwareExtraResults(pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
@@ -1271,7 +1271,7 @@ func preProcessSoftwareResults(
 
 // pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.
 // python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
-func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
+func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus) {
 	const pythonPrefix = "python3-"
 	const pythonSource = "python_packages"
 	const debSource = "deb_packages"
@@ -1284,11 +1284,11 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	}
 
 	// Check the 'software_linux' result and status
-	sw, ok := (*results)[linuxSoftware]
+	sw, ok := results[linuxSoftware]
 	if !ok {
 		return
 	}
-	if status, ok := (*statuses)[linuxSoftware]; !ok || status != fleet.StatusOK {
+	if status, ok := statuses[linuxSoftware]; !ok || status != fleet.StatusOK {
 		return
 	}
 
@@ -1342,23 +1342,23 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	}
 
 	// Store the updated software result back in the results map
-	(*results)[linuxSoftware] = sw
+	results[linuxSoftware] = sw
 }
 
 func preProcessSoftwareExtraResults(
 	softwareExtraQuery string,
 	hostID uint,
-	results *fleet.OsqueryDistributedQueryResults,
-	statuses *map[string]fleet.OsqueryStatus,
-	messages *map[string]string,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
 	override osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
 	// We always remove the extra query and its results
 	// in case the main or extra software query failed to execute.
-	defer delete(*results, softwareExtraQuery)
+	defer delete(results, softwareExtraQuery)
 
-	status, ok := (*statuses)[softwareExtraQuery]
+	status, ok := statuses[softwareExtraQuery]
 	if !ok {
 		return // query did not execute, e.g. the table does not exist.
 	}
@@ -1367,14 +1367,14 @@ func preProcessSoftwareExtraResults(
 		// extra query executed but with errors, so we return without changing anything.
 		level.Error(logger).Log(
 			"query", softwareExtraQuery,
-			"message", (*messages)[softwareExtraQuery],
+			"message", messages[softwareExtraQuery],
 			"hostID", hostID,
 		)
 		return
 	}
 
 	// Extract the results of the extra query.
-	softwareExtraRows := (*results)[softwareExtraQuery]
+	softwareExtraRows := results[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
 		return
 	}
@@ -1386,18 +1386,18 @@ func preProcessSoftwareExtraResults(
 		hostDetailQueryPrefix + "software_windows",
 		hostDetailQueryPrefix + "software_linux",
 	} {
-		if _, ok := (*results)[query]; !ok {
+		if _, ok := results[query]; !ok {
 			continue
 		}
-		if status, ok := (*statuses)[query]; ok && status != fleet.StatusOK {
+		if status, ok := statuses[query]; ok && status != fleet.StatusOK {
 			// Do not append results if the main query failed to run.
 			continue
 		}
 		if override.SoftwareProcessResults != nil {
-			(*results)[query] = override.SoftwareProcessResults((*results)[query], softwareExtraRows)
+			results[query] = override.SoftwareProcessResults(results[query], softwareExtraRows)
 		} else {
-			(*results)[query] = removeOverrides((*results)[query], override)
-			(*results)[query] = append((*results)[query], softwareExtraRows...)
+			results[query] = removeOverrides(results[query], override)
+			results[query] = append(results[query], softwareExtraRows...)
 		}
 		return
 	}

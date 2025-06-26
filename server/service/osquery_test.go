@@ -4321,7 +4321,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			if tc.host != nil {
 				host = tc.host
 			}
-			preProcessSoftwareResults(host, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, tc.overrides, log.NewNopLogger())
+			preProcessSoftwareResults(host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, log.NewNopLogger())
 			require.Equal(t, tc.resultsOut, tc.resultsIn)
 		})
 	}
@@ -4364,8 +4364,8 @@ func BenchmarkFindPackDelimiterStringTeamPack(b *testing.B) {
 	}
 }
 
-func mockUbuntuResults() *fleet.OsqueryDistributedQueryResults {
-	results := &fleet.OsqueryDistributedQueryResults{
+func mockUbuntuResults() fleet.OsqueryDistributedQueryResults {
+	results := fleet.OsqueryDistributedQueryResults{
 		hostDetailQueryPrefix + "software_linux": make([]map[string]string, 0),
 	}
 
@@ -4373,7 +4373,7 @@ func mockUbuntuResults() *fleet.OsqueryDistributedQueryResults {
 	// Adding 2 python packages without matching deb packages
 	for i := 1; i <= 42; i++ {
 		pythonPkg := fmt.Sprintf("package%d", i)
-		(*results)[hostDetailQueryPrefix+"software_linux"] = append((*results)[hostDetailQueryPrefix+"software_linux"], map[string]string{
+		results[hostDetailQueryPrefix+"software_linux"] = append(results[hostDetailQueryPrefix+"software_linux"], map[string]string{
 			"source": "python_packages",
 			"name":   pythonPkg,
 		})
@@ -4387,7 +4387,7 @@ func mockUbuntuResults() *fleet.OsqueryDistributedQueryResults {
 		} else { // Non-python packages
 			debPkg = fmt.Sprintf("unrelated_package%d", i)
 		}
-		(*results)[hostDetailQueryPrefix+"software_linux"] = append((*results)[hostDetailQueryPrefix+"software_linux"], map[string]string{
+		results[hostDetailQueryPrefix+"software_linux"] = append(results[hostDetailQueryPrefix+"software_linux"], map[string]string{
 			"source": "deb_packages",
 			"name":   debPkg,
 		})
@@ -4399,7 +4399,7 @@ func mockUbuntuResults() *fleet.OsqueryDistributedQueryResults {
 func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
 	platform := "ubuntu"
 	results := mockUbuntuResults()
-	statuses := &map[string]fleet.OsqueryStatus{
+	statuses := map[string]fleet.OsqueryStatus{
 		hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
 	}
 
