@@ -5,7 +5,7 @@ import type { SVGProps } from "react";
 const IntuneCompanyPortal = (props: SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
     <g clipPath="url(#a)">
-      <path fill="#0277D6" d="M32 0H0v32h32V0Z" />
+      <path fill="#fff" d="M32 0H0v32h32V0Z" />
       <mask
         id="b"
         width="26"
