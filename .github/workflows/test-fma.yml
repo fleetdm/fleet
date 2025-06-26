@@ -39,4 +39,4 @@ jobs:
       - name: Verify Fleet Maintained Apps
         run: |
           cd fleet
-          go run cmd/maintained-apps/validate/main.go
+          sudo -E go run cmd/maintained-apps/validate/main.go
