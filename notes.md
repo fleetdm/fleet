@@ -62,3 +62,10 @@ UI suggestions:
     *assuming* we'll apply this to the edit query page as well, I'll leave the abstraction work for
     when that is specced and prioritized.
   - organize NewLabelPage states by function instead of all together
+
+
+  Misc TODO:
+  - finalize URL routes
+  - update API call
+  - clean up styling
+  - tests

@@ -334,8 +334,9 @@ const NewLabelPage = ({
           <div className={`${baseClass}__host-vitals-fields`}>
             <Dropdown
               label="Label criteria"
-              name="criteria"
+              name="vital"
               onChange={onInputChange}
+              parseTarget
               value={vital}
               options={availableCriteria}
               classname={`${baseClass}__criteria-dropdown`}
@@ -349,7 +350,9 @@ const NewLabelPage = ({
               onChange={onInputChange}
               value={vitalValue}
               inputClassName={`${baseClass}__vital-value`}
-              placeholder="IT admins"
+              placeholder={
+                vital === "end_user_idp_group" ? "IT admins" : "Engineering"
+              }
               onBlur={onInputBlur}
             />
           </div>
