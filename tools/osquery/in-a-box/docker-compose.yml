@@ -36,10 +36,13 @@ services:
     platform: linux/x86_64
     command: sh -c "/usr/bin/fleet prepare db --no-prompt && /usr/bin/fleet serve"
     environment:
-      FLEET_S3_SOFTWARE_INSTALLERS_BUCKET: software-installers
+      FLEET_S3_SOFTWARE_INSTALLERS_BUCKET: software-installers-preview
       FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID: minio
       FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY: minio123!
       FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL: http://minio:9000
+      FLEET_S3_SOFTWARE_INSTALLERS_REGION: minio
+      FLEET_S3_SOFTWARE_INSTALLERS_DISABLE_SSL: true
+      FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE: true
       FLEET_MYSQL_ADDRESS: mysql01:3306
       FLEET_MYSQL_DATABASE: fleet
       FLEET_MYSQL_USERNAME: fleet
@@ -67,6 +70,7 @@ services:
     depends_on:
       - mysql01
       - redis01
+      - minio
     volumes:
       - .:/fleet/
       - ./logs:/logs
@@ -94,10 +98,13 @@ services:
     platform: linux/x86_64
     command: sh -c "/usr/bin/fleet prepare db --no-prompt && /usr/bin/fleet serve"
     environment:
-      FLEET_S3_SOFTWARE_INSTALLERS_BUCKET: software-installers
+      FLEET_S3_SOFTWARE_INSTALLERS_BUCKET: software-installers-preview
       FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID: minio
       FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY: minio123!
       FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL: http://minio:9000
+      FLEET_S3_SOFTWARE_INSTALLERS_REGION: minio
+      FLEET_S3_SOFTWARE_INSTALLERS_DISABLE_SSL: true
+      FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE: true
       FLEET_MYSQL_ADDRESS: mysql01:3306
       FLEET_MYSQL_DATABASE: fleet
       FLEET_MYSQL_USERNAME: fleet
@@ -131,7 +138,7 @@ services:
   minio:
     image: quay.io/minio/minio
     entrypoint: sh
-    command: -c 'mkdir -p /data && /usr/bin/minio server /data --console-address ":9001"'
+    command: -c 'mkdir -p /data/software-installers-preview && /usr/bin/minio server /data --console-address ":9001"'
     ports:
       - "9000:9000"
       - "9001:9001"
