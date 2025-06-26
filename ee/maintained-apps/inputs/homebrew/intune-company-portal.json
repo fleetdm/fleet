@@ -1,5 +1,5 @@
 {
-  "name": "Company Portal",
+  "name": "Intune Company Portal",
   "unique_identifier": "com.microsoft.CompanyPortalMac",
   "token": "intune-company-portal",
   "installer_format": "pkg",
