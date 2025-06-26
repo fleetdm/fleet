@@ -77,11 +77,28 @@ func main() {
 			continue
 		}
 
+		appListPre, err := listDirectoryContents("/Applications")
+		if err != nil {
+			fmt.Printf("Error listing /Applications directory: %v\n", err)
+		}
+
 		fmt.Print("Executing install script...\n")
 		err = executeScript(maintainedApp.InstallScript)
 		if err != nil {
 			fmt.Printf("Error executing install script: %v\n", err)
 			continue
+		}
+
+		appListPost, err := listDirectoryContents("/Applications")
+		if err != nil {
+			fmt.Printf("Error listing /Applications directory: %v\n", err)
+		}
+
+		err = removeAppQuarentine(
+			detectNewApplication(appListPre, appListPost),
+		)
+		if err != nil {
+			fmt.Printf("Error removing app quarantine: %v. Attempting to continue.\n", err)
 		}
 
 		existance, err := doesAppExists(app.Name, maintainedApp.Version)
@@ -91,12 +108,6 @@ func main() {
 		}
 		if !existance {
 			fmt.Printf("App version '%s' was not found by osquery\n", maintainedApp.Version)
-			cmd := exec.CommandContext(context.Background(), "ls", "-la", "/Applications")
-			output, err := cmd.Output()
-			if err != nil {
-				fmt.Printf("Error listing /Applications: %v\n", err)
-			}
-			fmt.Printf("Contents of /Applications:\n%s\n", output)
 			continue
 		}
 
@@ -282,4 +293,58 @@ func doesAppExists(appName, appVersion string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func listDirectoryContents(dir string) (map[string]struct{}, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("reading directory %s: %w", dir, err)
+	}
+	contents := make(map[string]struct{})
+	for _, entry := range entries {
+		if entry.IsDir() && entry.Type()&os.ModeSymlink == 0 {
+			contents[entry.Name()] = struct{}{}
+		}
+	}
+	return contents, nil
+}
+
+func detectNewApplication(appListPre, appListPost map[string]struct{}) string {
+	for app := range appListPost {
+		if _, exists := appListPre[app]; !exists {
+			return path.Join("/Applications", app)
+		}
+	}
+	return ""
+}
+
+func removeAppQuarentine(appPath string) error {
+	if appPath == "" {
+		return nil
+	}
+	fmt.Printf("Attempting to remove quarantine for: '%s'\n", appPath)
+	cmd := exec.Command("xattr", "-p", "com.apple.quarantine", appPath)
+	output, err := cmd.Output()
+	if err != nil {
+		fmt.Printf("checking quarantine status: %v\n", err)
+	}
+	fmt.Printf("Quarantine status: %s\n", strings.TrimSpace(string(output)))
+	cmd = exec.Command("spctl", "-a", "-v", appPath)
+	output, err = cmd.Output()
+	if err != nil {
+		fmt.Printf("checking spctl status: %v\n", err)
+	}
+	fmt.Printf("spctl status: %s\n", strings.TrimSpace(string(output)))
+
+	cmd = exec.Command("sudo", "spctl", "--add", appPath)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("adding app to quarantine exceptions: %w", err)
+	}
+
+	cmd = exec.Command("sudo", "xattr", "-r", "-d", "com.apple.quarantine", appPath)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("removing quarantine attribute: %w", err)
+	}
+
+	return nil
 }
