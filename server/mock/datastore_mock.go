@@ -486,6 +486,18 @@ type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uin
 
 type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
+type UpdateVPPInstallVerificationCommandFunc func(ctx context.Context, installUUID string, verifyCommandUUID string) error
+
+type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installUUID string) error
+
+type UpdateVPPInstallVerificationCommandByVerifyUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
+
+type GetAcknowledgedMDMCommandsByHostFunc func(ctx context.Context, hostUUID string, commandType string) ([]string, error)
+
+type GetVPPInstallsByVerificationUUIDFunc func(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error)
+
+type SetVPPInstallAsFailedFunc func(ctx context.Context, hostID uint, installUUID string) error
+
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
 type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
@@ -2090,6 +2102,24 @@ type DataStore struct {
 
 	GetCategoriesForSoftwareTitlesFunc        GetCategoriesForSoftwareTitlesFunc
 	GetCategoriesForSoftwareTitlesFuncInvoked bool
+
+	UpdateVPPInstallVerificationCommandFunc        UpdateVPPInstallVerificationCommandFunc
+	UpdateVPPInstallVerificationCommandFuncInvoked bool
+
+	SetVPPInstallAsVerifiedFunc        SetVPPInstallAsVerifiedFunc
+	SetVPPInstallAsVerifiedFuncInvoked bool
+
+	UpdateVPPInstallVerificationCommandByVerifyUUIDFunc        UpdateVPPInstallVerificationCommandByVerifyUUIDFunc
+	UpdateVPPInstallVerificationCommandByVerifyUUIDFuncInvoked bool
+
+	GetAcknowledgedMDMCommandsByHostFunc        GetAcknowledgedMDMCommandsByHostFunc
+	GetAcknowledgedMDMCommandsByHostFuncInvoked bool
+
+	GetVPPInstallsByVerificationUUIDFunc        GetVPPInstallsByVerificationUUIDFunc
+	GetVPPInstallsByVerificationUUIDFuncInvoked bool
+
+	SetVPPInstallAsFailedFunc        SetVPPInstallAsFailedFunc
+	SetVPPInstallAsFailedFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -5078,6 +5108,48 @@ func (s *DataStore) GetCategoriesForSoftwareTitles(ctx context.Context, software
 	s.GetCategoriesForSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCategoriesForSoftwareTitlesFunc(ctx, softwareTitleIDs, team_id)
+}
+
+func (s *DataStore) UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID string, verifyCommandUUID string) error {
+	s.mu.Lock()
+	s.UpdateVPPInstallVerificationCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPInstallVerificationCommandFunc(ctx, installUUID, verifyCommandUUID)
+}
+
+func (s *DataStore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error {
+	s.mu.Lock()
+	s.SetVPPInstallAsVerifiedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetVPPInstallAsVerifiedFunc(ctx, hostID, installUUID)
+}
+
+func (s *DataStore) UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error {
+	s.mu.Lock()
+	s.UpdateVPPInstallVerificationCommandByVerifyUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPInstallVerificationCommandByVerifyUUIDFunc(ctx, oldVerifyUUID, verifyCommandUUID)
+}
+
+func (s *DataStore) GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID string, commandType string) ([]string, error) {
+	s.mu.Lock()
+	s.GetAcknowledgedMDMCommandsByHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAcknowledgedMDMCommandsByHostFunc(ctx, hostUUID, commandType)
+}
+
+func (s *DataStore) GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
+	s.mu.Lock()
+	s.GetVPPInstallsByVerificationUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPInstallsByVerificationUUIDFunc(ctx, verificationUUID)
+}
+
+func (s *DataStore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error {
+	s.mu.Lock()
+	s.SetVPPInstallAsFailedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetVPPInstallAsFailedFunc(ctx, hostID, installUUID)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {

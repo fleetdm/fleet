@@ -651,6 +651,24 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
+	// UpdateVPPInstallVerificationCommand updates the verification command UUID associated with the
+	// given install attempt (InstallApplication command)
+	UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID, verifyCommandUUID string) error
+	// SetVPPInstallAsVerified marks the VPP app install attempt as "verified" (Fleet has validated
+	// that it's installed on the device).
+	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error
+	// UpdateVPPInstallVerificationCommandByVerifyUUID updates the verification command UUID for all
+	// VPP app install attempts were related to oldVerifyUUID.
+	UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+	// GetAcknowledgedMDMCommandsByHost gets all commands of the given type that are in the
+	// "Acknowledged" state.
+	GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error)
+	// GetVPPInstallsByVerificationUUID gets a HostVPPSoftwareInstall by verification command UUID.
+	GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
+	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
+	// it was installed on the host).
+	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
