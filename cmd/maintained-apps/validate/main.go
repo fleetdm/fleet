@@ -174,7 +174,7 @@ func DownloadMaintainedApp(app fleet.MaintainedApp) error {
 	// Similar to code in:
 	// server/service/orbit_client.go:DownloadSoftwareInstallerFromURL
 	// server/service/orbit_client.go:requestWithExternal
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	request, err := http.NewRequestWithContext(ctx, "GET", app.InstallerURL, nil)
@@ -224,7 +224,7 @@ func executeScript(scriptContents string) error {
 		return fmt.Errorf("writing script: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, env)
