@@ -38,13 +38,17 @@
   &__host-vitals-fields {
     width: auto;
     display: flex;
-    align-items: last baseline;
+    align-items: end;
     gap: $pad-medium;
     .Select {
       width: 300px;
     }
     p {
       white-space: nowrap;
+      margin-bottom: 10px;
+    }
+    dropdown__select--error.Select {
+      border: initial;
     }
   }
 }

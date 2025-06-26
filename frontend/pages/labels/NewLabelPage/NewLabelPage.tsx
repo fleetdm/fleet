@@ -88,7 +88,7 @@ export interface INewLabelFormData {
 interface INewLabelFormErrors {
   name?: string | null;
   labelQuery?: string | null;
-  vitalValue?: string | null;
+  criteria?: string | null;
 }
 
 const validate = (newData: INewLabelFormData) => {
@@ -103,7 +103,7 @@ const validate = (newData: INewLabelFormData) => {
     }
   } else if (type === "host-vitals") {
     if (!vitalValue) {
-      errors.vitalValue = "Label criteria must be completed";
+      errors.criteria = "Label criteria must be completed";
     }
   }
   return errors;
@@ -418,6 +418,7 @@ const NewLabelPage = ({
               onChange={onInputChange}
               parseTarget
               value={vital}
+              error={formErrors.criteria}
               options={availableCriteria}
               classname={`${baseClass}__criteria-dropdown`}
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
@@ -425,7 +426,7 @@ const NewLabelPage = ({
             />
             <p>is equal to</p>
             <InputField
-              error={formErrors.vitalValue}
+              error={formErrors.criteria}
               name="vitalValue"
               onChange={onInputChange}
               onBlur={onInputBlur}
@@ -529,7 +530,11 @@ const NewLabelPage = ({
         >
           Cancel
         </Button>
-        <Button type="submit" isLoading={isUpdating} disabled={isUpdating}>
+        <Button
+          type="submit"
+          isLoading={isUpdating}
+          disabled={isUpdating || !!Object.entries(formErrors).length}
+        >
           Save
         </Button>
       </div>
