@@ -38,6 +38,10 @@ var shellCommand = &cli.Command{
 			Usage:   "Enable debug logging",
 			EnvVars: []string{"ORBIT_DEBUG"},
 		},
+		&cli.StringFlag{
+			Name:   "fleet-certificate",
+			Hidden: true,
+		},
 	},
 	Action: func(c *cli.Context) error {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
@@ -100,15 +104,17 @@ var shellCommand = &cli.Command{
 			osquery.WithFlags([]string{"--database_path", osqueryDB}),
 		}
 
-		certPath := filepath.Join(c.String("root-dir"), "certs.pem")
-		if exists, err := file.Exists(certPath); err == nil && exists {
-			_, err = certificate.LoadPEM(certPath)
-			if err != nil {
-				return fmt.Errorf("load certs.pem: %w", err)
+		// If fleetd is built with the --fleet-certificate flag then orbit already starts osqueryd with
+		// the proper --tls_server_certs flag so we only want to default to 'certs.pem' if
+		// --fleet-certificate is not set.
+		if c.String("fleet-certificate") == "" {
+			certPath := filepath.Join(c.String("root-dir"), "certs.pem")
+			if exists, err := file.Exists(certPath); err == nil && exists {
+				if _, err := certificate.LoadPEM(certPath); err != nil {
+					return fmt.Errorf("load certs.pem: %w", err)
+				}
+				opts = append(opts, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
 			}
-			opts = append(opts, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
-		} else {
-			log.Info().Msg("No cert chain available. Relying on system store.")
 		}
 
 		// Detect if the additional arguments have a positional argument.
