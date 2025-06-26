@@ -105,7 +105,8 @@ sequenceDiagram
        orbit->>+tpm: Sign HTTP request
        tpm-->>-orbit: Signature
        orbit->>+server: Signed HTTP request
-       server->>server: Verify signature using CA pub key
+       server->>server: Verify cert is valid and not expired
+       server->>server: Verify signature using cert pub key
        server-->>-orbit: Response (unsigned)
     and osquery requests
        osquery->>+orbit: HTTP request to proxy
@@ -249,13 +250,14 @@ Server configuration option: TBD.
 
 As this an initial implementation, future features may include:
 
-1. **Key Rotation/Renewal**: Automatic key rotation policies and certificate renewal
-2. **Multiple Key Support**: Support for multiple signing keys and certificates, like a separate key for WiFi/VPN.
-3. **Hardware Attestation**: TPM-based device attestation and platform integrity
-4. **Windows Support**: TPM support for Windows platforms using TBS (TPM Base Services)
-5. **Apple Secure Enclave**: Integration with Apple's Secure Enclave for macOS devices
-6. **SCEP Extensions**: Support for additional SCEP features and external CA integrations
-7. **ACME**: Use ACME protocol instead of SCEP to get a certificate.
+1. **One-time enrollment secret**: This provides additional security to make sure an unauthorized device cannot get an identity certificate and enroll in Fleet.
+2. **Key Rotation/Renewal**: Automatic key rotation policies and certificate renewal
+3. **Multiple Key Support**: Support for multiple signing keys and certificates, like a separate key for WiFi/VPN.
+4. **Hardware Attestation**: TPM-based device attestation and platform integrity
+5. **Windows Support**: TPM support for Windows platforms using TBS (TPM Base Services)
+6. **Apple Secure Enclave**: Integration with Apple's Secure Enclave for macOS devices
+7. **SCEP Extensions**: Support for additional SCEP features and external CA integrations
+8. **ACME**: Use ACME protocol instead of SCEP to get a certificate.
 
 ## Troubleshooting
 
