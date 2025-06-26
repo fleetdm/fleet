@@ -26,16 +26,6 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 )
 
-// PrettyPrint prints a Go struct as pretty-formatted JSON.
-func PrettyPrint(v interface{}) {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		fmt.Printf("error marshaling to JSON: %v\n", err)
-		return
-	}
-	fmt.Printf("%s\n", b)
-}
-
 const batchSize = 100
 
 // Client is used to consume Fleet APIs from Go code
@@ -1818,11 +1808,6 @@ func (c *Client) DoGitOps(
 
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 
-		// fmt.Println("group.AppConfig in DoGitOps:")
-		// PrettyPrint(group.AppConfig)
-		// fmt.Println("mdmAppConfig in DoGitOps:")
-		// PrettyPrint(mdmAppConfig)
-
 		// we want to apply the EULA only for the global settings
 		err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
 		if err != nil {
@@ -2471,7 +2456,6 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 
 func (c *Client) doGitOpsEULA(eulaPath string, logFn func(format string, args ...interface{}), dryRun bool) error {
 	if eulaPath == "" {
-		fmt.Println("Deleting EULA if it exists")
 		err := c.DeleteEULAIfNeeded(dryRun)
 		if err != nil {
 			return fmt.Errorf("error deleting EULA: %w", err)

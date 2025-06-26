@@ -429,8 +429,6 @@ func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
 		return fmt.Errorf("getting eula metadata: %w", err)
 	}
 
-	fmt.Println("Need to delete EULA:", eula.Token)
-
 	err = c.DeleteEULA(eula.Token, dryRun)
 	if err != nil {
 		return fmt.Errorf("deleting bootstrap package: %w", err)
@@ -449,7 +447,6 @@ func (c *Client) DeleteEULA(token string, dryRun bool) error {
 func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
 	isFirstTime := false
 	oldMeta, err := c.GetEULAMetadata()
-	PrettyPrint(oldMeta)
 	if err != nil {
 		// not found is OK, it means this is our first time uploading a eula
 		if !errors.As(err, &notFoundErr{}) {
@@ -470,7 +467,6 @@ func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
 	}
 
 	if !isFirstTime {
-		fmt.Println("is not first time")
 		newChecksum := sha256.Sum256(eulaBytes)
 
 		// compare checksums, if they're equal then we can skip the eula upload
@@ -531,9 +527,6 @@ func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
 	if err := c.parseResponse(verb, path, resp, &eulaResponse); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
-
-	fmt.Println("eula response:")
-	PrettyPrint(eulaResponse)
 
 	return nil
 }

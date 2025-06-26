@@ -1,7 +1,6 @@
 package fleetctl
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -24,16 +23,6 @@ const (
 type LabelUsage struct {
 	Name string
 	Type string
-}
-
-// PrettyPrint prints a Go struct as pretty-formatted JSON.
-func PrettyPrint(v interface{}) {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		fmt.Printf("error marshaling to JSON: %v\n", err)
-		return
-	}
-	fmt.Printf("%s\n", b)
 }
 
 func gitopsCommand() *cli.Command {
@@ -150,8 +139,6 @@ func gitopsCommand() *cli.Command {
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
-				// fmt.Println("print config")
-				// PrettyPrint(config)
 				if err != nil {
 					return err
 				}
