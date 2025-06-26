@@ -37,6 +37,32 @@ import (
 // addHostMDMCommandsBatchSize is the number of host MDM commands to add in a single batch. This is a var so that it can be modified in tests.
 var addHostMDMCommandsBatchSize = 10000
 
+func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
+	var uuid string
+
+	// safe to use with interpolation rather than prepared statements because we're using a numeric ID here
+	err := sqlx.GetContext(ctx, q, &uuid, fmt.Sprintf(`
+	  SELECT ne.id
+	  FROM nano_enrollments ne
+	    JOIN hosts h ON h.uuid = ne.id
+	    JOIN host_mdm hm ON hm.host_id = h.id
+	  WHERE h.id = %d
+	    AND ne.enabled = 1
+	    AND ne.type = 'Device'
+	    AND hm.enrolled = 1 LIMIT 1
+	`, h.ID))
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
 	stmt := `
@@ -2048,6 +2074,29 @@ func (ds *Datastore) GetNanoMDMUserEnrollment(ctx context.Context, deviceId stri
 	}
 
 	return &nanoEnroll, nil
+}
+
+func (ds *Datastore) GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error) {
+	var username string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &username, `
+		SELECT
+			COALESCE(nu.user_short_name, '') as user_short_name
+		FROM
+			nano_enrollments ne
+			INNER JOIN nano_users nu ON ne.user_id = nu.id
+		WHERE
+			ne.type = 'User' AND
+			ne.enabled = 1 AND
+			ne.device_id = ?
+		LIMIT 1`, deviceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", ctxerr.Wrapf(ctx, err, "getting username from nano_users for device id %s", deviceID)
+	}
+
+	return username, nil
 }
 
 // NOTE: this is only called from a deprecated endpoint that does not support

@@ -10,7 +10,8 @@ import Icon from "components/Icon/Icon";
 import EnrollSecretTable from "../EnrollSecretTable";
 
 interface IEnrollSecretModal {
-  selectedTeam: number;
+  selectedTeamId: number;
+  primoMode: boolean;
   onReturnToApp: () => void;
   teams: ITeam[];
   toggleSecretEditorModal: () => void;
@@ -25,29 +26,23 @@ const baseClass = "enroll-secret-modal";
 
 const EnrollSecretModal = ({
   onReturnToApp,
-  selectedTeam,
+  selectedTeamId,
+  primoMode,
   teams,
   toggleSecretEditorModal,
   toggleDeleteSecretModal,
   setSelectedSecret,
   globalSecrets,
 }: IEnrollSecretModal): JSX.Element => {
-  const renderTeam = () => {
-    if (typeof selectedTeam === "string") {
-      selectedTeam = parseInt(selectedTeam, 10);
-    }
-
-    if (selectedTeam <= 0) {
-      return { name: "No team", secrets: globalSecrets }; // TODO: Should "No team" be "Fleet" for free tier?
-    }
-    return teams.find((team) => team.id === selectedTeam);
-  };
+  const teamInfo =
+    selectedTeamId <= 0
+      ? { name: "No team", secrets: globalSecrets }
+      : teams.find((team) => team.id === selectedTeamId);
 
   const addNewSecretClick = () => {
     setSelectedSecret(undefined);
     toggleSecretEditorModal();
   };
-  const team = renderTeam();
   return (
     <Modal
       onExit={onReturnToApp}
@@ -56,14 +51,22 @@ const EnrollSecretModal = ({
       className={baseClass}
     >
       <div className={`${baseClass} form`}>
-        {team?.secrets?.length ? (
+        {teamInfo?.secrets?.length ? (
           <>
             <div className={`${baseClass}__description`}>
-              Use these secret(s) to enroll hosts to <b>{renderTeam()?.name}</b>
+              Use these secret(s) to enroll hosts
+              {primoMode ? (
+                ""
+              ) : (
+                <>
+                  {" "}
+                  to <b>{teamInfo?.name}</b>
+                </>
+              )}
               :
             </div>
             <EnrollSecretTable
-              secrets={team?.secrets}
+              secrets={teamInfo?.secrets}
               toggleSecretEditorModal={toggleSecretEditorModal}
               toggleDeleteSecretModal={toggleDeleteSecretModal}
               setSelectedSecret={setSelectedSecret}
@@ -76,7 +79,16 @@ const EnrollSecretModal = ({
                 <b>You have no enroll secrets.</b>
               </p>
               <p>
-                Add secret(s) to enroll hosts to <b>{renderTeam()?.name}</b>.
+                Add secret(s) to enroll hosts
+                {primoMode ? (
+                  ""
+                ) : (
+                  <>
+                    {" "}
+                    to <b>{teamInfo?.name}</b>
+                  </>
+                )}
+                .
               </p>
             </div>
           </>

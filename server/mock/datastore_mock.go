@@ -856,6 +856,8 @@ type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoE
 
 type GetNanoMDMUserEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
 
+type GetNanoMDMUserEnrollmentUsernameFunc func(ctx context.Context, deviceID string) (string, error)
+
 type GetNanoMDMEnrollmentTimesFunc func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
@@ -2643,6 +2645,9 @@ type DataStore struct {
 
 	GetNanoMDMUserEnrollmentFunc        GetNanoMDMUserEnrollmentFunc
 	GetNanoMDMUserEnrollmentFuncInvoked bool
+
+	GetNanoMDMUserEnrollmentUsernameFunc        GetNanoMDMUserEnrollmentUsernameFunc
+	GetNanoMDMUserEnrollmentUsernameFuncInvoked bool
 
 	GetNanoMDMEnrollmentTimesFunc        GetNanoMDMEnrollmentTimesFunc
 	GetNanoMDMEnrollmentTimesFuncInvoked bool
@@ -6368,6 +6373,13 @@ func (s *DataStore) GetNanoMDMUserEnrollment(ctx context.Context, id string) (*f
 	s.GetNanoMDMUserEnrollmentFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetNanoMDMUserEnrollmentFunc(ctx, id)
+}
+
+func (s *DataStore) GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error) {
+	s.mu.Lock()
+	s.GetNanoMDMUserEnrollmentUsernameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetNanoMDMUserEnrollmentUsernameFunc(ctx, deviceID)
 }
 
 func (s *DataStore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {

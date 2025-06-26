@@ -340,6 +340,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				UninstallScript:   "baz",
 				SelfService:       true,
 				Platform:          "darwin",
+				URL:               "https://example.com/download/my-software.pkg",
 			},
 		}, nil
 	case 2:

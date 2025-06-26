@@ -42,6 +42,7 @@ module.exports.policies = {
   'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist': true,
   'create-or-update-one-newsletter-subscription': true,
   'unsubscribe-from-all-newsletters': true,
+  'unsubscribe-from-marketing-emails': true,
   'view-osquery-table-details': true,
   'view-connect-vanta': true,
   'view-vanta-authorization': true,

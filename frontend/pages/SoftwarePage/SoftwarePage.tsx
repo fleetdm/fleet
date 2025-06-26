@@ -353,7 +353,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   );
 
   const renderPageActions = () => {
-    const canManageAutomations = isGlobalAdmin && isPremiumTier;
+    const canManageAutomations =
+      isGlobalAdmin &&
+      isPremiumTier &&
+      !globalConfig?.partnerships?.enable_primo; // Primo mode defaults to No team to allow adding software - if they also want to manage software automations we will need to consider more broadly how to go about this, since SW automations are managed from "All teams". For now, hiding this button which matches Free tier behavior.
 
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -408,10 +411,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   const renderHeaderDescription = () => {
+    let suffix;
+    if (!globalConfig?.partnerships?.enable_primo) {
+      suffix = isAllTeamsSelected ? "for all hosts" : "on this team";
+    }
     return (
       <p>
         Manage software and search for installed software, OS, and
-        vulnerabilities {isAllTeamsSelected ? "for all hosts" : "on this team"}.
+        vulnerabilities{suffix}.
       </p>
     );
   };
