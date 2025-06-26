@@ -3,6 +3,8 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func init() {
@@ -26,8 +28,8 @@ UPDATE
 	INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 SET
 	hvsi.verification_at = IF(ncr.status = 'Acknowledged', CURRENT_TIMESTAMP(6), NULL),
-	hvsi.verification_failed_at = IF(ncr.status != 'Acknowledged', CURRENT_TIMESTAMP(6), NULL);
-	`)
+	hvsi.verification_failed_at = IF(ncr.status = ? OR ncr.status = ?, CURRENT_TIMESTAMP(6), NULL);
+	`, fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError)
 	if err != nil {
 		return fmt.Errorf("failed to set existing vpp install verification statuses: %w", err)
 	}
