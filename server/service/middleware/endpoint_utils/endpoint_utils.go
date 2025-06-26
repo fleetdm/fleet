@@ -254,12 +254,40 @@ func ExtractIP(r *http.Request) string {
 		ip = tcip
 	} else if xrip := r.Header.Get(xRealIP); xrip != "" {
 		ip = xrip
-	} else if xff := r.Header.Get(xForwardedFor); xff != "" {
-		i := strings.Index(xff, ",")
-		if i == -1 {
-			i = len(xff)
+	} else if xffs := r.Header.Values(xForwardedFor); len(xffs) > 0 {
+		// We try to find the first X-Forwarded-For IP that is not localhost.
+
+		// Helper function to check if an IP is localhost
+		isLocalhost := func(ipAddr string) bool {
+			return ipAddr == "127.0.0.1" || ipAddr == "::1"
 		}
-		ip = xff[:i]
+
+		var (
+			foundIP bool
+			firstIP string
+		)
+		for _, xff := range xffs {
+			// For X-Forwarded-For, check each IP in the comma-separated list
+			ips := strings.Split(xff, ",")
+			for _, candidateIP := range ips {
+				candidateIP = strings.TrimSpace(candidateIP)
+				if candidateIP != "" && !isLocalhost(candidateIP) {
+					ip = candidateIP
+					foundIP = true
+					break
+				}
+				if firstIP == "" {
+					firstIP = candidateIP
+				}
+			}
+			if foundIP {
+				break
+			}
+		}
+		// If no non-localhost IPs found, just use the first one found
+		if !foundIP && firstIP != "" {
+			ip = firstIP
+		}
 	}
 
 	return ip
