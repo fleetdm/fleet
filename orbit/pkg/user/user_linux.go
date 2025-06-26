@@ -34,7 +34,7 @@ func UserLoggedInViaGui() (*string, error) {
 	return &user.Name, nil
 }
 
-// getLoginUser returns the name and uid of the first login user
+// GetLoginUser returns the name and uid of the first login user
 // as reported by the `users' command.
 //
 // NOTE(lucas): It is always picking first login user as returned
