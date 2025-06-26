@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 type User struct {
@@ -28,9 +30,15 @@ func UserLoggedInViaGui() (*string, error) {
 	}
 	// Check if the user has a GUI session.
 	displaySessionType, err := GetUserDisplaySessionType(strconv.FormatInt(user.ID, 10))
-	if err != nil || displaySessionType == GuiSessionTypeTty {
+	if err != nil {
+		log.Debug().Err(err).Msgf("failed to get user display session type for user %s", user.Name)
 		return nil, nil
 	}
+	if displaySessionType == GuiSessionTypeTty {
+		log.Debug().Msgf("user %s is logged in via TTY, not GUI", user.Name)
+		return nil, nil
+	}
+
 	return &user.Name, nil
 }
 
