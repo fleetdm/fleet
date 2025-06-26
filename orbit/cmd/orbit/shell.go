@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -96,6 +98,17 @@ var shellCommand = &cli.Command{
 			osquery.WithShell(),
 			osquery.WithDataPath(dataPath, extensionPathPostfix),
 			osquery.WithFlags([]string{"--database_path", osqueryDB}),
+		}
+
+		certPath := filepath.Join(c.String("root-dir"), "certs.pem")
+		if exists, err := file.Exists(certPath); err == nil && exists {
+			_, err = certificate.LoadPEM(certPath)
+			if err != nil {
+				return fmt.Errorf("load certs.pem: %w", err)
+			}
+			opts = append(opts, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
+		} else {
+			log.Info().Msg("No cert chain available. Relying on system store.")
 		}
 
 		// Detect if the additional arguments have a positional argument.
