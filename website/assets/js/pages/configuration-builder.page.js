@@ -848,9 +848,213 @@ parasails.registerPage('configuration-builder', {
                 },
               },
             ],
-          }
+          },
         ]
       },
+      {
+        categoryName: 'Software & updates',
+        categorySlug: 'windows-software-and-updates',
+        subcategories: [
+          {
+            subcategoryName: 'Applications',
+            subcategorySlug: 'windows-applications',
+            description: 'Settings related to applications and the Windows store.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-applicationmanagement',
+            payloads: [
+              {
+                name: 'Allow all trusted apps',
+                tooltip: `This policy setting allows you to manage the installation of trusted line-of-business (LOB) or developer-signed packaged Microsoft Store apps.
+                If you enable this policy setting, you can install any LOB or developer-signed packaged Microsoft Store app (which must be signed with a certificate chain that can be successfully validated by the local computer).
+
+                If you disable or don't configure this policy setting, you can't install LOB or developer-signed packaged Microsoft Store apps.`,
+                uniqueSlug: 'windows-allow-all-trusted-apps',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAllTrustedApps',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow automatic updates for Microsoft store apps',
+                tooltip: 'Specifies whether automatic update of apps from Microsoft Store are allowed.',
+                uniqueSlug: 'windows-allow-app-store-auto-updates',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAppStoreAutoUpdate',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow automatic app archiving',
+                tooltip: `This policy setting controls whether the system can archive infrequently used apps.
+
+                If you enable this policy setting, then the system will periodically check for and archive infrequently used apps.
+
+                If you disable this policy setting, then the system won't archive any apps.
+
+                If you don't configure this policy setting (default), then the system will follow default behavior, which is to periodically check for and archive infrequently used apps, and the user will be able to configure this setting themselves.`,
+                uniqueSlug: 'windows-allow-automatic-app-archiving',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAutomaticAppArchiving',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow developer unlock',
+                tooltip: `Allows or denies development of Microsoft Store applications and installing them directly from an IDE. If you enable this setting and enable the "Allow all trusted apps to install" Group Policy, you can develop Microsoft Store apps and install them directly from an IDE. If you disable or don't configure this setting, you can't develop Microsoft Store apps or install them directly from an IDE. `,
+                uniqueSlug: 'windows-allow-developer-unlock',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowDeveloperUnlock',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow shared user app data',
+                tooltip: `Manages a Windows app's ability to share data between users who have installed the app.
+                If you enable this policy, a Windows app can share app data with other instances of that app. Data is shared through the SharedLocal folder. This folder is available through the Windows.Storage API.
+
+                If you disable this policy, a Windows app can't share app data with other instances of that app. If this policy was previously enabled, any previously shared app data will remain in the SharedLocal folder.`,
+                uniqueSlug: 'windows-allow-shared-user-app-data',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowSharedUserAppData',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Block app installation for non-admin users',
+                tooltip: `Manages non-Administrator users' ability to install Windows app packages.
+                If enabled, non-Administrators will be unable to initiate installation of Windows app packages. Administrators who wish to install an app will need to do so from an Administrator context
+                If disabled or not confgiured, all users will be able to initiate installation of Windows app packages.`,
+                uniqueSlug: 'windows-block-non-admin-user-install',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/BlockNonAdminUserInstall',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Disable Microsoft store originated applications',
+                tooltip: `Disable turns off the launch of all apps from the Microsoft Store that came pre-installed or were downloaded. The Microsoft Store will also be disabled.`,
+                uniqueSlug: 'windows-disabled-store-originated-apps',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/DisableStoreOriginatedApps',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow user control of installation options',
+                tooltip: 'This policy setting permits users to change installation options that typically are available only to system administrators.',
+                uniqueSlug: 'windows-allow-user-control-over-install',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/MSIAllowUserControlOverInstall',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Always install with elevated privleges',
+                tooltip: 'This policy setting directs Windows Installer to use elevated permissions when it installs any program on the system.',
+                uniqueSlug: 'windows-always-install-with-elevated-permissions',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/MSIAlwaysInstallWithElevatedPrivileges',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Restrict application data to system volume',
+                tooltip: `Prevent users' app data from moving to another location when an app is moved or installed on another location.`,
+                uniqueSlug: 'windows-restrict-app-data-to-system-volume',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/RestrictAppDataToSystemVolume',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Restrict applications to system volume',
+                tooltip: 'This policy setting allows you to manage installing Windows apps on additional volumes such as secondary partitions, USB drives, or SD cards.',
+                uniqueSlug: 'windows-restrict-apps-to-system-volume',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/RestrictAppToSystemVolume',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+            ]
+          }
+        ],
+      }
     ],
   },
 
