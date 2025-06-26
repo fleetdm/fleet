@@ -29,6 +29,10 @@ type Key interface {
 	// The returned Signer is safe for concurrent use.
 	Signer() (crypto.Signer, error)
 
+	// HTTPSigner returns a crypto.Signer configured for RFC 9421-compatible HTTP signatures.
+	// The returned Signer produces fixed-width r||s format signatures.
+	HTTPSigner() (crypto.Signer, error)
+
 	// Public returns the public key associated with this TEE key.
 	Public() (crypto.PublicKey, error)
 

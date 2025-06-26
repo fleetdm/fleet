@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	fleethttpsig "github.com/fleetdm/fleet/v4/ee/or
+	fleethttpsig "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/tee"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
@@ -991,7 +991,7 @@ func main() {
 		var signerWrapper func(*http.Client) *http.Client
 		if key != nil {
 			// TODO: move this section to httpsig package
-			cryptoSigner, err := key.Signer()
+			cryptoSigner, err := key.HTTPSigner()
 			if err != nil {
 				return fmt.Errorf("error getting TPM-backed signer: %w", err)
 			}

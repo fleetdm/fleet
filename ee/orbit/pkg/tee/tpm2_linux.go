@@ -7,6 +7,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"io"
@@ -442,6 +443,14 @@ type tpm2Key struct {
 }
 
 func (k *tpm2Key) Signer() (crypto.Signer, error) {
+	return k.createSigner(false)
+}
+
+func (k *tpm2Key) HTTPSigner() (crypto.Signer, error) {
+	return k.createSigner(true)
+}
+
+func (k *tpm2Key) createSigner(httpsign bool) (crypto.Signer, error) {
 	// Parse public key
 	pub, err := k.public.Contents()
 	if err != nil {
@@ -485,6 +494,7 @@ func (k *tpm2Key) Signer() (crypto.Signer, error) {
 		tpm:       k.tpm,
 		handle:    k.handle,
 		publicKey: publicKey,
+		httpsign:  httpsign,
 	}, nil
 }
 
@@ -513,6 +523,7 @@ type tpm2Signer struct {
 	tpm       transport.TPMCloser
 	handle    tpm2.NamedHandle
 	publicKey *ecdsa.PublicKey
+	httpsign  bool // true for RFC 9421-compatible HTTP signatures, false for standard ECDSA
 }
 
 // _ ensures tpm2Signer satisfies the crypto.Signer interface at compile time.
@@ -571,27 +582,40 @@ func (s *tpm2Signer) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) ([
 		return nil, fmt.Errorf("get ECDSA signature: %w", err)
 	}
 
-	// Choose the correct curve based on the key
-	curveBits := s.publicKey.Curve.Params().BitSize
-	coordSize := (curveBits + 7) / 8 // bytes per coordinate
+	if s.httpsign {
+		// RFC 9421-compatible HTTP signature format: fixed-width r||s
+		curveBits := s.publicKey.Curve.Params().BitSize
+		coordSize := (curveBits + 7) / 8 // bytes per coordinate
 
-	// Allocate the output buffer
-	sig := make([]byte, 2*coordSize)
+		// Allocate the output buffer
+		sig := make([]byte, 2*coordSize)
 
-	// Copy R, left-padded
-	sigR := ecdsaSig.SignatureR.Buffer
-	if len(sigR) > coordSize {
-		return nil, fmt.Errorf("TPM ECDSA signature R too long: got %d bytes, expected max %d", len(sigR), coordSize)
+		// Copy R, left-padded
+		sigR := ecdsaSig.SignatureR.Buffer
+		if len(sigR) > coordSize {
+			return nil, fmt.Errorf("TPM ECDSA signature R too long: got %d bytes, expected max %d", len(sigR), coordSize)
+		}
+		copy(sig[coordSize-len(sigR):coordSize], sigR)
+
+		// Copy S, left-padded
+		sigS := ecdsaSig.SignatureS.Buffer
+		if len(sigS) > coordSize {
+			return nil, fmt.Errorf("TPM ECDSA signature S too long: got %d bytes, expected max %d", len(sigS), coordSize)
+		}
+		copy(sig[2*coordSize-len(sigS):], sigS)
+
+		// The final signature contains r||s, fixed-width, RFC 9421–compatible
+		return sig, nil
 	}
-	copy(sig[coordSize-len(sigR):coordSize], sigR)
 
-	// Copy S, left-padded
-	sigS := ecdsaSig.SignatureS.Buffer
-	if len(sigS) > coordSize {
-		return nil, fmt.Errorf("TPM ECDSA signature S too long: got %d bytes, expected max %d", len(sigS), coordSize)
+	// Standard ECDSA signature format for certificate signing requests
+	// Convert TPM signature components to ASN.1 DER format
+	sigR := new(big.Int).SetBytes(ecdsaSig.SignatureR.Buffer)
+	sigS := new(big.Int).SetBytes(ecdsaSig.SignatureS.Buffer)
+
+	// Encode as ASN.1 DER sequence manually
+	type ecdsaSignature struct {
+		R, S *big.Int
 	}
-	copy(sig[2*coordSize-len(sigS):], sigS)
-
-	// The final signature now contains r||s, fixed-width, RFC 9421–compatible
-	return sig, nil
+	return asn1.Marshal(ecdsaSignature{R: sigR, S: sigS})
 }
