@@ -35,4 +35,16 @@
       padding-top: $pad-small;
     }
   }
+  &__host-vitals-fields {
+    width: auto;
+    display: flex;
+    align-items: last baseline;
+    gap: $pad-medium;
+    .Select {
+      width: 300px;
+    }
+    p {
+      white-space: nowrap;
+    }
+  }
 }

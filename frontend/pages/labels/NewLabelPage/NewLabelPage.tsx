@@ -423,7 +423,7 @@ const NewLabelPage = ({
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
               helptText="Currently, label criteria can be IdP group or department."
             />
-            is equal to
+            <p>is equal to</p>
             <InputField
               error={formErrors.vitalValue}
               name="vitalValue"
