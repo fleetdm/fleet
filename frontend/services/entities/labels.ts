@@ -47,6 +47,35 @@ const generateUpdateLabelBody = (
   return formData;
 };
 
+const generateCreateLabelBody = (formData: INewLabelFormData) => {
+  switch (formData.type) {
+    case "manual":
+      return {
+        name: formData.name,
+        description: formData.description,
+        host_ids: formData.targetedHosts.map((host) => host.id),
+      };
+    case "dynamic":
+      return {
+        name: formData.name,
+        description: formData.description,
+        query: formData.labelQuery,
+        platform: formData.platform,
+      };
+    case "host-vitals":
+      return {
+        name: formData.name,
+        description: formData.description,
+        criteria: {
+          vital: formData.vital,
+          value: formData.vitalValue,
+        },
+      };
+    default:
+      throw new Error(`Unknown label type: ${formData.type}`);
+  }
+};
+
 /** gets the custom label and returns them in case-insensitive alphabetical
  * ascending order by label name. (e.g. [A, B, C, a, b, c] => [A, a, B, b, C, c])
  */
@@ -72,10 +101,7 @@ export const getCustomLabels = <T extends { label_type: string; name: string }>(
 export default {
   create: (formData: INewLabelFormData): Promise<ICreateLabelResponse> => {
     const { LABELS } = endpoints;
-    // TODO - enure post data formatted
-    // const postBody = generateCreateLabelBody(formData);
-    const postBody = formData;
-    return sendRequest("POST", LABELS, postBody);
+    return sendRequest("POST", LABELS, generateCreateLabelBody(formData));
   },
 
   destroy: (label: ILabel) => {
