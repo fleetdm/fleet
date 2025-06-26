@@ -3504,8 +3504,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 
 		// create an activity for installing only if we're in a terminal state
-		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
-			cmdResult.Status == fleet.MDMAppleStatusError ||
+		if cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
@@ -3792,23 +3791,55 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
 			}
 
-			if a.Installed {
+			var terminal bool
+			switch {
+			case a.Installed:
 				if err := ds.SetVPPInstallAsVerified(ctx, install.HostID, install.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
-				continue
-			}
-
-			if install.InstallCommandAckAt != nil && time.Since(*install.InstallCommandAckAt) > verifyTimeout {
+				terminal = true
+			case install.InstallCommandAckAt != nil && time.Since(*install.InstallCommandAckAt) > verifyTimeout:
 				if err := ds.SetVPPInstallAsFailed(ctx, install.HostID, install.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
 
+				terminal = true
+			}
+
+			if !terminal {
+				poll = true
 				continue
 			}
 
-			poll = true
+			// this might be a setup experience VPP install, so we'll try to update setup experience status
+			// TODO: consider limiting this to only macOS hosts
+			if updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, fleet.SetupExperienceVPPInstallResult{
+				HostUUID:      installedAppResult.HostUUID(),
+				CommandUUID:   install.InstallCommandUUID,
+				CommandStatus: install.InstallCommandStatus,
+			}, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
+			} else if updated {
+				// TODO: call next step of setup experience?
+				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", install.InstallCommandUUID)
+			}
+
+			// create an activity for installing only if we're in a terminal state
+			user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: install.InstallCommandUUID, Status: install.InstallCommandStatus})
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					// Then this isn't a VPP install, so no activity generated
+					return nil
+				}
+
+				return ctxerr.Wrap(ctx, err, "fetching data for installed app store app activity")
+			}
+
+			if err := newActivity(ctx, user, act, ds, logger); err != nil {
+				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
+			}
+
 		}
 
 		if poll {

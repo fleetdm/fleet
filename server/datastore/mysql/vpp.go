@@ -1729,7 +1729,8 @@ func (ds *Datastore) GetVPPInstallByVerificationUUID(ctx context.Context, verifi
 SELECT
 	hvsi.command_uuid AS command_uuid,
 	hvsi.host_id AS host_id,
-	ncr.updated_at AS ack_at
+	ncr.updated_at AS ack_at,
+	ncr.status AS install_command_status
 FROM nano_command_results ncr
 JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
 WHERE hvsi.verification_command_uuid = ?

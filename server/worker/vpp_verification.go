@@ -59,7 +59,7 @@ func (v *VPPVerification) verifyVPPInstalls(ctx context.Context, hostUUID, verif
 	// Only send a new list command if none are in flight. If there's one in
 	// flight, the install will be verified by that one.
 	if len(pendingCmds) == 0 {
-		newListCmdUUID := uuid.NewString()
+		newListCmdUUID := fleet.RefetchVPPAppInstallsCommandUUIDPrefix + uuid.NewString()
 		if err := v.Datastore.UpdateVPPInstallVerificationCommandByVerifyUUID(ctx, verificationCommandUUID, newListCmdUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "update install record")
 		}

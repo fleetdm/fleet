@@ -124,7 +124,8 @@ func (e ErrVPPTokenTeamConstraint) Error() string {
 }
 
 type HostVPPSoftwareInstall struct {
-	InstallCommandUUID  string     `db:"command_uuid"`
-	InstallCommandAckAt *time.Time `db:"ack_at"`
-	HostID              uint       `db:"host_id"`
+	InstallCommandUUID   string     `db:"command_uuid"`
+	InstallCommandAckAt  *time.Time `db:"ack_at"`
+	HostID               uint       `db:"host_id"`
+	InstallCommandStatus string     `db:"install_command_status"`
 }
