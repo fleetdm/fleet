@@ -116,7 +116,7 @@ func GetUserDisplaySessionType(uid string) (guiSessionType, error) {
 	case "wayland":
 		return GuiSessionTypeWayland, nil
 	case "tty":
-		return 0, fmt.Errorf("user is logged in via TTY, not GUI")
+		return 0, errors.New("user is logged in via TTY, not GUI")
 	default:
 		return 0, fmt.Errorf("unknown GUI session type: %q", guiSessionType)
 	}

@@ -213,20 +213,6 @@ func argsForSudo(u *userpkg.User, opts eopts) []string {
 
 var whoLineRegexp = regexp.MustCompile(`(\w+)\s+(:\d+)\s+`)
 
-type guiSessionType int
-
-const (
-	guiSessionTypeX11 guiSessionType = iota + 1
-	guiSessionTypeWayland
-)
-
-func (s guiSessionType) String() string {
-	if s == guiSessionTypeX11 {
-		return "x11"
-	}
-	return "wayland"
-}
-
 // getUserWaylandDisplay returns the value to set on WAYLAND_DISPLAY for the given user.
 func getUserWaylandDisplay(uid string) (string, error) {
 	matches, err := filepath.Glob("/run/user/" + uid + "/wayland-*")
