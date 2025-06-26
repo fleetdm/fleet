@@ -46,5 +46,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2025-06-27">
-<meta name="articleTitle" value="Fleet 4.70.0 | TODO">
+<meta name="articleTitle" value="Fleet 4.70.0 | Entra ID conditional access, Android work profiles, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.70.0-1600x900@2x.png">
