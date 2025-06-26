@@ -27,8 +27,8 @@ func UserLoggedInViaGui() (*string, error) {
 		return nil, nil
 	}
 	// Check if the user has a GUI session.
-	_, err = GetUserDisplaySessionType(strconv.FormatInt(user.ID, 10))
-	if err != nil {
+	displaySessionType, err := GetUserDisplaySessionType(strconv.FormatInt(user.ID, 10))
+	if err != nil || displaySessionType == GuiSessionTypeTty {
 		return nil, nil
 	}
 	return &user.Name, nil
@@ -116,7 +116,7 @@ func GetUserDisplaySessionType(uid string) (guiSessionType, error) {
 	case "wayland":
 		return GuiSessionTypeWayland, nil
 	case "tty":
-		return 0, errors.New("user is logged in via TTY, not GUI")
+		return GuiSessionTypeTty, nil
 	default:
 		return 0, fmt.Errorf("unknown GUI session type: %q", guiSessionType)
 	}
