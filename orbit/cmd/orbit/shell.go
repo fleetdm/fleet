@@ -39,8 +39,9 @@ var shellCommand = &cli.Command{
 			EnvVars: []string{"ORBIT_DEBUG"},
 		},
 		&cli.StringFlag{
-			Name:   "fleet-certificate",
-			Hidden: true,
+			Name:    "fleet-certificate",
+			Hidden:  true,
+			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
 		},
 	},
 	Action: func(c *cli.Context) error {
