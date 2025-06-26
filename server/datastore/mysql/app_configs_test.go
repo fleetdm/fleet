@@ -85,7 +85,6 @@ func testAppConfigOrgInfo(t *testing.T, ds *Datastore) {
 	info2.SSOSettings.EnableSSO = true
 	info2.SSOSettings.EntityID = "test"
 	info2.SSOSettings.MetadataURL = "https://idp.com/metadata.xml"
-	info2.SSOSettings.IssuerURI = "https://idp.issuer.com"
 	info2.SSOSettings.IDPName = "My IDP"
 	info2.Features.EnableSoftwareInventory = true
 
