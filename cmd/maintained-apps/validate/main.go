@@ -94,14 +94,17 @@ func main() {
 			fmt.Printf("Error listing /Applications directory: %v\n", err)
 		}
 
-		err = removeAppQuarentine(
-			detectNewApplication(appListPre, appListPost),
-		)
+		appPath := detectNewApplication(appListPre, appListPost)
+		err = forceLaunchServicesRefresh(appPath)
+		if err != nil {
+			fmt.Printf("Error forcing LaunchServices refresh: %v. Attempting to continue.\n", err)
+		}
+		err = removeAppQuarentine(appPath)
 		if err != nil {
 			fmt.Printf("Error removing app quarantine: %v. Attempting to continue.\n", err)
 		}
 
-		existance, err := doesAppExists(app.Name, maintainedApp.Version)
+		existance, err := doesAppExists(app.Name, app.UniqueIdentifier, maintainedApp.Version)
 		if err != nil {
 			fmt.Printf("Error checking if app exists: %v\n", err)
 			continue
@@ -118,7 +121,7 @@ func main() {
 			continue
 		}
 
-		existance, err = doesAppExists(app.Name, maintainedApp.Version)
+		existance, err = doesAppExists(app.Name, app.UniqueIdentifier, maintainedApp.Version)
 		if err != nil {
 			fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
 			continue
@@ -257,7 +260,7 @@ func executeScript(scriptContents string) error {
 	return nil
 }
 
-func doesAppExists(appName, appVersion string) (bool, error) {
+func doesAppExists(appName, uniqueAppIdentifier, appVersion string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -265,7 +268,9 @@ func doesAppExists(appName, appVersion string) (bool, error) {
 	cmd := exec.CommandContext(ctx, "osqueryi", "--json", `
     SELECT name, path, bundle_short_version, bundle_version 
     FROM apps
-    WHERE name LIKE '%`+appName+`%'
+    WHERE 
+    bundle_identifier LIKE '%`+uniqueAppIdentifier+`%' OR
+    name LIKE '%`+appName+`%'
   `)
 	output, err := cmd.Output()
 	if err != nil {
@@ -346,5 +351,18 @@ func removeAppQuarentine(appPath string) error {
 		return fmt.Errorf("removing quarantine attribute: %w", err)
 	}
 
+	return nil
+}
+
+func forceLaunchServicesRefresh(appPath string) error {
+	if appPath == "" {
+		return nil
+	}
+	fmt.Printf("Forcing LaunchServices refresh for: '%s'\n", appPath)
+	cmd := exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appPath)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("forcing LaunchServices refresh: %w", err)
+	}
+	time.Sleep(2 * time.Second)
 	return nil
 }
