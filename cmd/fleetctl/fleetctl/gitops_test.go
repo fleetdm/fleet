@@ -3079,3 +3079,30 @@ func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
 	require.True(t, appConfig.Integrations.ConditionalAccessEnabled.Set)
 	require.False(t, appConfig.Integrations.ConditionalAccessEnabled.Value)
 }
+
+func TestGitOpsEULASetting(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{
+		EULASettings: &fleet.EULASettings{
+			Enabled: true,
+			URL:     "https://example.com/eula",
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with no EULA settings.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+
+	require.Nil(t, appConfig.EULASettings)
+}
