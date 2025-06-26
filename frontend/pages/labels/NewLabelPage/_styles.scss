@@ -41,14 +41,19 @@
   &__host-vitals-fields {
     width: auto;
     display: flex;
-    align-items: end;
+    align-items: center;
     gap: $pad-medium;
-    .Select {
-      width: 300px;
+    .form-field--dropdown {
+      margin-right: -14px;
+      .form-field__help-text {
+        white-space: nowrap;
+      }
+      .Select {
+        width: 300px;
+      }
     }
     p {
       white-space: nowrap;
-      margin-bottom: 10px;
     }
     dropdown__select--error.Select {
       border: initial;
