@@ -80,7 +80,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   postman: Postman,
   "1password": OnePassword,
   "amazon dcv": AmazonDCV,
-  "intune company portal": IntuneCompanyPortal,
+  "company portal": IntuneCompanyPortal,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
