@@ -100,6 +100,13 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "Company Portal",
+      "slug": "intune-company-portal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.CompanyPortalMac",
+      "description": ""
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
