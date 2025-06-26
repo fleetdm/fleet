@@ -66,13 +66,5 @@ UI suggestions:
 
   Misc TODO:
   - finalize URL routes
-  - update API call √
-  - clean up styling
   - tests
-  - validation, incl. √
-    - conditions: √
-      - name required - error message "Label name must be present" √
-      - Dynamic.query required: "Query text must be present" √
-      - HostVitals.value: "Label criteria must be completed" 
-        - error message over dropdown
   - disallow edit

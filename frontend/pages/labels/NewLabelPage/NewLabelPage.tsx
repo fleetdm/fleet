@@ -280,6 +280,7 @@ const NewLabelPage = ({
     };
     setFormData(newFormData);
 
+    const newErrs = validate(newFormData);
     const errsToSet: Record<string, string> = {};
     Object.keys(formErrors).forEach((k) => {
       // @ts-ignore
