@@ -431,7 +431,7 @@ func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
 
 	err = c.DeleteEULA(eula.Token, dryRun)
 	if err != nil {
-		return fmt.Errorf("deleting bootstrap package: %w", err)
+		return fmt.Errorf("deleting eula: %w", err)
 	}
 	return nil
 }

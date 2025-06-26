@@ -2470,7 +2470,7 @@ func (c *Client) doGitOpsEULA(eulaPath string, logFn func(format string, args ..
 	if dryRun {
 		logFn("[+] would've applied EULA\n")
 	} else {
-		logFn("[+] applying EULA\n")
+		logFn("[+] applied EULA\n")
 	}
 
 	return nil
