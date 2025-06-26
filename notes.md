@@ -65,6 +65,4 @@ UI suggestions:
 
 
   Misc TODO:
-  - finalize URL routes
   - tests
-  - disallow edit
