@@ -88,7 +88,7 @@ Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updat
 3. Then, the PD builds the app's `outputs/` and updates `outputs/apps.json` on the same PR by running the following command:
 
 ```
-go run cmd/maintained-apps/main.go
+go run cmd/maintained-apps/main.go -slug="<slug from inputs/type/app-name.json>" -debug
 ```
 
 4. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
