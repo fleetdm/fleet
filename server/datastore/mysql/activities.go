@@ -140,7 +140,6 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			a.user_id,
 			a.created_at,
 			a.activity_type,
-			a.api_only,
 			a.user_name as name,
 			a.streamed,
 			a.user_email,
@@ -207,7 +206,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 
 	if len(lookup) != 0 {
 		usersQ := `
-			SELECT u.id, u.name, u.gravatar_url, u.email
+			SELECT u.id, u.name, u.gravatar_url, u.email, u.api_only
 			FROM users u
 			WHERE id IN (?)
 		`
@@ -226,6 +225,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			Name        string `db:"name"`
 			GravatarUrl string `db:"gravatar_url"`
 			Email       string `db:"email"`
+			APIOnly     bool   `db:"api_only"`
 		}
 
 		err = sqlx.SelectContext(ctx, ds.reader(ctx), &usersR, usersQ, usersArgs...)
@@ -242,11 +242,13 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			email := r.Email
 			gravatar := r.GravatarUrl
 			name := r.Name
+			apiOnly := r.APIOnly
 
 			for _, idx := range entries {
 				activities[idx].ActorEmail = &email
 				activities[idx].ActorGravatar = &gravatar
 				activities[idx].ActorFullName = &name
+				activities[idx].ActorAPIOnly = &apiOnly
 			}
 		}
 	}
