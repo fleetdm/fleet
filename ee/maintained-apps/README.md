@@ -92,7 +92,7 @@ go run cmd/maintained-apps/main.go -slug="<slug from inputs/type/app-name.json>"
 ```
 
 4. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
-5. Add an icon for the app to the PR. To add the icon, add an SVG to `frontend/pages/SoftwarePage/components/icons/` and update the `frontend/pages/SoftwarePage/components/icons/index.ts` file. Also add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671) and Publish the icon as a part of the Software icon component.
+5. Add an icon for the app to the PR. To add the icon, add an SVG to `frontend/pages/SoftwarePage/components/icons/` and update the `frontend/pages/SoftwarePage/components/icons/index.ts` file. Also add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671) and publish the icon as a part of the Software icon Figma component.
 6. Then, the PD adds [Quality Assurance (QA)](https://fleetdm.com/handbook/company/product-groups#software-group) as a reviewer. QA is responsible for testing the app. 
 7. When testing, update the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
 
