@@ -225,13 +225,11 @@ const routes = (
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
-            <IndexRedirect to="new/dynamic" />
+            <IndexRedirect to="new" />
             <Route path="new" component={NewLabelPage}>
-              <IndexRedirect to="dynamic" />
-              {/* maintaining all 3 sub-routes for "backward-compatibility" of URL routes. NewLabelPage sets is initial label type by checking the URL */}
+              {/* maintaining all 3 sub-routes for "backward-compatibility" of URL routes. NewLabelPage correspondingly sets the label type */}
               <Route path="dynamic" component={NewLabelPage} />
               <Route path="manual" component={NewLabelPage} />
-              <Route path="idp" component={NewLabelPage} />
             </Route>
             <Route path=":label_id" component={EditLabelPage} />
           </Route>

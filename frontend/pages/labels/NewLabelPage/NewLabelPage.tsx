@@ -254,6 +254,20 @@ const NewLabelPage = ({
     );
   }
 
+  useEffect(() => {
+    if (location.pathname.includes("dynamic")) {
+      router.replace(PATHS.NEW_LABEL);
+    }
+    if (location.pathname.includes("manual")) {
+      setFormData((prevData) => ({
+        ...prevData,
+        type: "manual",
+      }));
+
+      router.replace(PATHS.NEW_LABEL);
+    }
+  }, [location.pathname, router]);
+
   // form handlers
 
   const onInputChange = ({ name: fieldName, value }: IFormField) => {

@@ -90,8 +90,11 @@ export default {
   SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
 
   // Label pages
+  NEW_LABEL: `${URL_PREFIX}/labels/new`,
+  // deprecated - both handled by `/new` route
   LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,
   LABEL_NEW_MANUAL: `${URL_PREFIX}/labels/new/manual`,
+
   LABEL_EDIT: (labelId: number) => `${URL_PREFIX}/labels/${labelId}`,
 
   EDIT_PACK: (packId: number): string => {
@@ -185,7 +188,6 @@ export default {
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
   MANAGE_SCHEDULE: `${URL_PREFIX}/schedule/manage`,
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
-  NEW_LABEL: `${URL_PREFIX}/labels/new`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
