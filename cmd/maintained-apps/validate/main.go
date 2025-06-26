@@ -91,6 +91,12 @@ func main() {
 		}
 		if !existance {
 			fmt.Printf("App version '%s' was not found by osquery\n", maintainedApp.Version)
+			cmd := exec.CommandContext(context.Background(), "ls", "-la", "/Applications")
+			output, err := cmd.Output()
+			if err != nil {
+				fmt.Printf("Error listing /Applications: %v\n", err)
+			}
+			fmt.Printf("Contents of /Applications:\n%s\n", output)
 			continue
 		}
 
