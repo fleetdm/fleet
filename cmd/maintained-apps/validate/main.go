@@ -58,6 +58,9 @@ func main() {
 		return nil
 	}()
 
+	totalApps := len(apps)
+	successfulApps := 0
+	appWithError := []string{}
 	for _, app := range apps {
 		if app.Platform != operatingSystem {
 			continue
@@ -66,6 +69,7 @@ func main() {
 		appJson, err := getAppJson(app.Slug)
 		if err != nil {
 			fmt.Printf("Error getting app json manifest: %v\n", err)
+			appWithError = append(appWithError, app.Name)
 			continue
 		}
 
@@ -74,6 +78,7 @@ func main() {
 		err = DownloadMaintainedApp(maintainedApp)
 		if err != nil {
 			fmt.Printf("Error downloading maintained app: %v\n", err)
+			appWithError = append(appWithError, app.Name)
 			continue
 		}
 
@@ -86,6 +91,7 @@ func main() {
 		err = executeScript(maintainedApp.InstallScript)
 		if err != nil {
 			fmt.Printf("Error executing install script: %v\n", err)
+			appWithError = append(appWithError, app.Name)
 			continue
 		}
 
@@ -107,10 +113,12 @@ func main() {
 		existance, err := doesAppExists(app.Name, app.UniqueIdentifier, maintainedApp.Version)
 		if err != nil {
 			fmt.Printf("Error checking if app exists: %v\n", err)
+			appWithError = append(appWithError, app.Name)
 			continue
 		}
 		if !existance {
 			fmt.Printf("App version '%s' was not found by osquery\n", maintainedApp.Version)
+			appWithError = append(appWithError, app.Name)
 			continue
 		}
 
@@ -118,20 +126,33 @@ func main() {
 		err = executeScript(maintainedApp.UninstallScript)
 		if err != nil {
 			fmt.Printf("Error uninstalling app: %v\n", err)
+			appWithError = append(appWithError, app.Name)
 			continue
 		}
 
 		existance, err = doesAppExists(app.Name, app.UniqueIdentifier, maintainedApp.Version)
 		if err != nil {
 			fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
+			appWithError = append(appWithError, app.Name)
 			continue
 		}
 		if existance {
 			fmt.Printf("App version '%s' was found after uninstall\n", maintainedApp.Version)
+			appWithError = append(appWithError, app.Name)
 			continue
 		}
 
 		fmt.Print("All checks passed for app: ", app.Name, "\n")
+		successfulApps++
+	}
+
+	if successfulApps == totalApps {
+		fmt.Printf("All %d apps were successfully validated.\n", totalApps)
+		os.Exit(0)
+	} else {
+		fmt.Printf("Validated %d out of %d apps successfully.\n", successfulApps, totalApps)
+		fmt.Printf("Apps with errors: %v\n", appWithError)
+		os.Exit(1)
 	}
 }
 
