@@ -48,6 +48,12 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (data) => data.label,
+      onSuccess: (data) => {
+        // can't edit host-vitals labels yet
+        if (data.label_membership_type === "host-vitals") {
+          router.replace(PATHS.MANAGE_HOSTS_LABEL(data.id));
+        }
+      },
     }
   );
 

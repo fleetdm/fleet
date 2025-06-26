@@ -169,7 +169,12 @@ const HostsFilterBlock = ({
 
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
-      const { description, display_text, label_type } = selectedLabel;
+      const {
+        description,
+        display_text,
+        label_type,
+        label_membership_type,
+      } = selectedLabel;
       const pillLabel =
         (isPlatformLabelNameFromAPI(display_text) &&
           PLATFORM_LABEL_DISPLAY_NAMES[display_text]) ||
@@ -193,6 +198,8 @@ const HostsFilterBlock = ({
             onClear={handleClearRouteParam}
           />
           {label_type !== "builtin" &&
+            // TODO - remove condition if/when can edit host-vitals labels
+            label_membership_type !== "host-vitals" &&
             !isOnlyObserver &&
             (isOnGlobalTeam || currentUser?.id === selectedLabel.author_id) && (
               <>
