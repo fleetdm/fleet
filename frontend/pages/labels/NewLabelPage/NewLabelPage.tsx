@@ -6,7 +6,9 @@ import { IAceEditor } from "react-ace/lib/types";
 import { Row } from "react-table";
 
 import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
+import idpAPI from "services/entities/idp";
 
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 // TODO - move this table config near here once expanded this logic to encompass editing and
 // therefore not longer needed anywhere else
 import { generateTableHeaders } from "pages/labels/components/ManualLabelForm/LabelHostTargetTableConfig";
@@ -15,6 +17,7 @@ import { generateTableHeaders } from "pages/labels/components/ManualLabelForm/La
 import validateQuery from "components/forms/validators/validate_query";
 
 import { QueryContext } from "context/query";
+import { AppContext } from "context/app";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import MainContent from "components/MainContent";
@@ -97,6 +100,8 @@ const NewLabelPage = ({
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
+  const { isPremiumTier } = useContext(AppContext);
+
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
   const [showOpenSidebarButton, setShowOpenSidebarButton] = useState(false);
 
@@ -191,6 +196,43 @@ const NewLabelPage = ({
       enabled: type === "manual" && !!targetsSearchQuery,
     }
   );
+
+  const { data: scimIdPDetails } = useQuery(
+    ["scim_details"],
+    () => idpAPI.getSCIMDetails(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+    }
+  );
+  const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
+
+  let hostVitalsTooltipContent: React.ReactNode;
+  if (!isPremiumTier) {
+    hostVitalsTooltipContent = (
+      <>
+        Currently, host vitals labels are based on
+        <br />
+        identity provider (IdP) groups or departments.
+        <br />
+        IdP integration available in Fleet Premium.
+      </>
+    );
+  } else if (!idpConfigured) {
+    hostVitalsTooltipContent = (
+      <>
+        Currently, host vitals labels are based on
+        <br />
+        identity provider (IdP) groups or departments.
+        <br />
+        Configure IdP in{" "}
+        <a href="/settings/integrations/identity-provider">
+          integration settings
+        </a>
+        .
+      </>
+    );
+  }
 
   // form handlers
 
@@ -420,6 +462,8 @@ const NewLabelPage = ({
           value="host-vitals"
           name="label-type"
           onChange={onTypeChange}
+          tooltip={hostVitalsTooltipContent}
+          disabled={!!hostVitalsTooltipContent}
         />
         <Radio
           className={`${baseClass}__radio-input`}
