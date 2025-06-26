@@ -1,4 +1,4 @@
-# Fleet 4.70.0 | TODO
+# Fleet 4.70.0 | Entra ID conditional access, Android work profiles, and more...
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/HxBQvlV14Lc?si=VLYS7QxPuP3TLbjG" frameborder="0" allowfullscreen></iframe>
@@ -8,11 +8,31 @@ Fleet 4.70.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- Highlight 1
+- Entra ID conditional access
+- One-time code for custom SCEP certificate authorities (CAs)
+- Work profiles for personal (BYOD) Android
+- Script reports
+- Teams search
 
-### Highlight 1
+### Entra ID conditional access
 
-TODO
+Fleet now supports [Microsoft Entra ID for conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). This allows IT and Security teams to block third-party app logins when a host is failing one or more policies.
+
+### One-time code for custom SCEP certificate authorities (CAs)
+
+Fleet now supports one-time code verification when requesting certificates from a custom SCEP certificate authority (CA). This adds a layer of security to ensure only hosts enrolled to Fleet can request certificates that [grant access to corporate resouces (Wi-Fi or VPNs)](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate).
+
+### Work profiles for personal (BYOD) Android
+
+Fleet has removed the Android MDM feature flag. IT admins can now [enroll BYOD Android hosts](https://fleetdm.com/guides/android-mdm-setup#basic-article) and see host vitals. Support for OS updates, configuration profiles, and more coming soon.
+
+### Script reports
+
+Fleet users can now see which hosts successfully ran a script, which errored, and which are still pending. This helps with troubleshooting and ensures scripts reach all intended hosts. Learn more about running scripts in Fleet in the [scripts guide](https://fleetdm.com/guides/scripts).
+
+### Teams search
+
+Users managing many [teams in Fleet](https://fleetdm.com/guides/teams) can now search in the teams dropdown. This makes it faster to navigate and switch between teams in Fleet's UI.
 
 ## Changes
 
