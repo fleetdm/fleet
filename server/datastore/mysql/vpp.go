@@ -1724,24 +1724,29 @@ FROM vpp_apps`
 	return apps, nil
 }
 
-func (ds *Datastore) GetVPPInstallByVerificationUUID(ctx context.Context, verificationUUID string) (*fleet.HostVPPSoftwareInstall, error) {
+func (ds *Datastore) GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
 	stmt := `
 SELECT
 	hvsi.command_uuid AS command_uuid,
 	hvsi.host_id AS host_id,
 	ncr.updated_at AS ack_at,
-	ncr.status AS install_command_status
+	ncr.status AS install_command_status,
+	va.bundle_identifier AS bundle_identifier
 FROM nano_command_results ncr
 JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
+JOIN vpp_apps va ON va.adam_id = hvsi.adam_id AND va.platform = hvsi.platform
 WHERE hvsi.verification_command_uuid = ?
 	`
 
-	var result fleet.HostVPPSoftwareInstall
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, verificationUUID); err != nil {
+	var result []*fleet.HostVPPSoftwareInstall
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, verificationUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("HostVPPSoftwareInstall")
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get vpp install ack time by verification uuid")
 	}
 
-	return &result, nil
+	return result, nil
 }
 
 func (ds *Datastore) UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID, verifyCommandUUID string) error {
@@ -1775,7 +1780,7 @@ WHERE verification_command_uuid = ?
 func (ds *Datastore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
-SET verification_at = CURRENT_TIMESTAMP()
+SET verification_at = CURRENT_TIMESTAMP(6)
 WHERE command_uuid = ?
 	`
 
@@ -1795,13 +1800,13 @@ WHERE command_uuid = ?
 func (ds *Datastore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
-SET verification_failed_at = CURRENT_TIMESTAMP()
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
 WHERE command_uuid = ?
 	`
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, stmt, installUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "set vpp install as verified")
+			return ctxerr.Wrap(ctx, err, "set vpp install as failed")
 		}
 
 		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {

@@ -128,4 +128,5 @@ type HostVPPSoftwareInstall struct {
 	InstallCommandAckAt  *time.Time `db:"ack_at"`
 	HostID               uint       `db:"host_id"`
 	InstallCommandStatus string     `db:"install_command_status"`
+	BundleIdentifier     string     `db:"bundle_identifier"`
 }

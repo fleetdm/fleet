@@ -494,7 +494,7 @@ type UpdateVPPInstallVerificationCommandByVerifyUUIDFunc func(ctx context.Contex
 
 type GetAcknowledgedMDMCommandsByHostFunc func(ctx context.Context, hostUUID string, commandType string) ([]string, error)
 
-type GetVPPInstallByVerificationUUIDFunc func(ctx context.Context, verificationUUID string) (*fleet.HostVPPSoftwareInstall, error)
+type GetVPPInstallsByVerificationUUIDFunc func(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error)
 
 type SetVPPInstallAsFailedFunc func(ctx context.Context, hostID uint, installUUID string) error
 
@@ -2113,8 +2113,8 @@ type DataStore struct {
 	GetAcknowledgedMDMCommandsByHostFunc        GetAcknowledgedMDMCommandsByHostFunc
 	GetAcknowledgedMDMCommandsByHostFuncInvoked bool
 
-	GetVPPInstallByVerificationUUIDFunc        GetVPPInstallByVerificationUUIDFunc
-	GetVPPInstallByVerificationUUIDFuncInvoked bool
+	GetVPPInstallsByVerificationUUIDFunc        GetVPPInstallsByVerificationUUIDFunc
+	GetVPPInstallsByVerificationUUIDFuncInvoked bool
 
 	SetVPPInstallAsFailedFunc        SetVPPInstallAsFailedFunc
 	SetVPPInstallAsFailedFuncInvoked bool
@@ -5133,11 +5133,11 @@ func (s *DataStore) GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUU
 	return s.GetAcknowledgedMDMCommandsByHostFunc(ctx, hostUUID, commandType)
 }
 
-func (s *DataStore) GetVPPInstallByVerificationUUID(ctx context.Context, verificationUUID string) (*fleet.HostVPPSoftwareInstall, error) {
+func (s *DataStore) GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
 	s.mu.Lock()
-	s.GetVPPInstallByVerificationUUIDFuncInvoked = true
+	s.GetVPPInstallsByVerificationUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPInstallByVerificationUUIDFunc(ctx, verificationUUID)
+	return s.GetVPPInstallsByVerificationUUIDFunc(ctx, verificationUUID)
 }
 
 func (s *DataStore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error {

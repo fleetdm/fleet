@@ -3730,12 +3730,12 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 
 type InstalledApplicationListResult interface {
 	fleet.MDMCommandResults
-	InstalledApps() []fleet.Software
+	AvailableApps() []fleet.Software
 }
 
 type installedApplicationListResult struct {
 	raw           []byte
-	installedApps []fleet.Software
+	availableApps []fleet.Software
 	uuid          string
 	hostUUID      string
 }
@@ -3743,7 +3743,7 @@ type installedApplicationListResult struct {
 func (i *installedApplicationListResult) Raw() []byte                     { return i.raw }
 func (i *installedApplicationListResult) UUID() string                    { return i.uuid }
 func (i *installedApplicationListResult) HostUUID() string                { return i.hostUUID }
-func (i *installedApplicationListResult) InstalledApps() []fleet.Software { return i.installedApps }
+func (i *installedApplicationListResult) AvailableApps() []fleet.Software { return i.availableApps }
 
 func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uuid, hostUUID string) (InstalledApplicationListResult, error) {
 	list, err := unmarshalAppList(ctx, rawResult, "apps")
@@ -3754,7 +3754,7 @@ func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uu
 	return &installedApplicationListResult{
 		raw:           rawResult,
 		uuid:          uuid,
-		installedApps: list,
+		availableApps: list,
 		hostUUID:      hostUUID,
 	}, nil
 }
@@ -3776,19 +3776,29 @@ func NewInstalledApplicationListResultsHandler(
 			return nil
 		}
 
-		installedApps := installedAppResult.InstalledApps()
+		installedApps := installedAppResult.AvailableApps()
 
 		if len(installedApps) == 0 {
 			// Nothing to do
 			return nil
 		}
 
+		// Get installs that should be verified by this InstalledApplicationList command
+		installs, err := ds.GetVPPInstallsByVerificationUUID(ctx, installedAppResult.UUID())
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
+		}
+
+		installsByBundleID := map[string]*fleet.HostVPPSoftwareInstall{}
+		for _, install := range installs {
+			installsByBundleID[install.BundleIdentifier] = install
+		}
+
 		var poll bool
 		for _, a := range installedApps {
-			// TODO(JVE): should only pull if it's not verified/failed already
-			install, err := ds.GetVPPInstallByVerificationUUID(ctx, installedAppResult.UUID())
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
+			install, ok := installsByBundleID[a.BundleIdentifier]
+			if !ok {
+				continue
 			}
 
 			var terminal bool
@@ -3813,7 +3823,6 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
-			// TODO: consider limiting this to only macOS hosts
 			if updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, fleet.SetupExperienceVPPInstallResult{
 				HostUUID:      installedAppResult.HostUUID(),
 				CommandUUID:   install.InstallCommandUUID,
@@ -3821,7 +3830,6 @@ func NewInstalledApplicationListResultsHandler(
 			}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
-				// TODO: call next step of setup experience?
 				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", install.InstallCommandUUID)
 			}
 

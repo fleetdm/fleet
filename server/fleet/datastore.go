@@ -663,8 +663,8 @@ type Datastore interface {
 	// GetAcknowledgedMDMCommandsByHost gets all commands of the given type that are in the
 	// "Acknowledged" state.
 	GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error)
-	// GetVPPInstallByVerificationUUID gets a HostVPPSoftwareInstall by verification command UUID.
-	GetVPPInstallByVerificationUUID(ctx context.Context, verificationUUID string) (*HostVPPSoftwareInstall, error)
+	// GetVPPInstallsByVerificationUUID gets a HostVPPSoftwareInstall by verification command UUID.
+	GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
 	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
 	// it was installed on the host).
 	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error
