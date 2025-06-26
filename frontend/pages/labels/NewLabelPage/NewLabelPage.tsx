@@ -5,8 +5,11 @@ import { useDebouncedCallback } from "use-debounce";
 import { IAceEditor } from "react-ace/lib/types";
 import { Row } from "react-table";
 
+import PATHS from "router/paths";
+
 import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
 import idpAPI from "services/entities/idp";
+import labelsAPI from "services/entities/labels";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 // TODO - move this table config near here once expanded this logic to encompass editing and
@@ -18,6 +21,8 @@ import validateQuery from "components/forms/validators/validate_query";
 
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import MainContent from "components/MainContent";
@@ -101,6 +106,7 @@ const NewLabelPage = ({
     QueryContext
   );
   const { isPremiumTier } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
   const [showOpenSidebarButton, setShowOpenSidebarButton] = useState(false);
@@ -205,7 +211,9 @@ const NewLabelPage = ({
       enabled: isPremiumTier,
     }
   );
-  const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
+  // TODO - restore
+  // const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
+  const idpConfigured = true;
 
   let hostVitalsTooltipContent: React.ReactNode;
   if (!isPremiumTier) {
@@ -264,7 +272,7 @@ const NewLabelPage = ({
     setFormErrors(validate(formData));
   };
 
-  const onSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const errs = validate(formData);
@@ -273,7 +281,13 @@ const NewLabelPage = ({
       return;
     }
     setIsUpdating(true);
-    // TODO - create label
+    try {
+      const res = await labelsAPI.create(formData);
+      router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
+      renderFlash("success", "Label added successfully.");
+    } catch {
+      renderFlash("error", "Couldn't add label. Please try again.");
+    }
     setIsUpdating(false);
   };
 
@@ -388,7 +402,7 @@ const NewLabelPage = ({
             is equal to
             <InputField
               error={formErrors.value}
-              name="value"
+              name="vitalValue"
               onChange={onInputChange}
               value={vitalValue}
               inputClassName={`${baseClass}__vital-value`}
@@ -396,6 +410,7 @@ const NewLabelPage = ({
                 vital === "end_user_idp_group" ? "IT admins" : "Engineering"
               }
               onBlur={onInputBlur}
+              parseTarget
             />
           </div>
         );
@@ -433,6 +448,7 @@ const NewLabelPage = ({
         inputClassName={`${baseClass}__label-name`}
         label="Name"
         placeholder="Label name"
+        parseTarget
       />
       <InputField
         name="description"
@@ -442,6 +458,7 @@ const NewLabelPage = ({
         label="Description"
         type="textarea"
         placeholder="Label description (optional)"
+        parseTarget
       />
       <div className="form-field type-field">
         <div className="form-field__label">Type</div>
