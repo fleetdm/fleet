@@ -368,6 +368,127 @@ parasails.registerPage('configuration-builder', {
           },
 
         ]
+      },
+      {
+        categoryName: 'Network',
+        categorySlug: 'macos-network',
+        subcategories: [
+          {
+            subcategoryName: 'Firewall',
+            subcategorySlug: 'macos-firewall',
+            description: 'Settings related to the built-in firewall on macOS',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/firewall',
+            payloads: [
+              {
+                name: 'Enable firewall',
+                uniqueSlug: 'macos-enable-firewall',
+                tooltip: 'If true, the system enables the firewall.',
+                category: 'Firewall',
+                payload: 'Firewall',
+                payloadType: 'com.apple.security.firewall',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableFirewall',
+                  trueValue: '<true/>',
+                  falseValue: '<false/>',
+                },
+              },
+              {
+                name: 'Allow built-in applications',
+                uniqueSlug: 'macos-firewall-allow-signed',
+                tooltip: 'If true, the system allows built-in software to receive incoming connections. Available in macOS 12.3 and later.',
+                category: 'Firewall',
+                payload: 'Firewall',
+                payloadType: 'com.apple.security.firewall',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'AllowSigned',
+                  trueValue: '<true/>',
+                  falseValue: '<false/>',
+                },
+              },
+              {
+                name: 'Allow signed applications',
+                uniqueSlug: 'macos-firewall-allow-signed-apps',
+                tooltip: 'If true, the system allows downloaded signed software to receive incoming connections. Available in macOS 12.3 and later.',
+                category: 'Firewall',
+                payload: 'Firewall',
+                payloadType: 'com.apple.security.firewall',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'AllowSignedApp',
+                  trueValue: '<true/>',
+                  falseValue: '<false/>',
+                },
+              },
+              {
+                name: 'Block all incoming connections',
+                uniqueSlug: 'macos-firewall-block-incoming',
+                tooltip: 'If true, the system enables blocking all incoming connections.',
+                category: 'Firewall',
+                payload: 'Firewall',
+                payloadType: 'com.apple.security.firewall',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'AllowSignedApp',
+                  trueValue: '<true/>',
+                  falseValue: '<false/>',
+                },
+              },
+              {
+                name: 'Enable stealth mode',
+                uniqueSlug: 'macos-firewall-enable-stealth-mode',
+                tooltip: 'If true, the system enables stealth mode.',
+                category: 'Firewall',
+                payload: 'Firewall',
+                payloadType: 'com.apple.security.firewall',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableStealthMode',
+                  trueValue: '<true/>',
+                  falseValue: '<false/>',
+                },
+              },
+              // { TODO: add support for specifying arrays of objects.
+              //   name: 'Allow/block specified applications',
+              //   uniqueSlug: 'macos-firewall-application-list',
+              //   tooltip: 'If true, the system enables stealth mode.',
+              //   category: 'Firewall',
+              //   payload: 'Firewall',
+              //   payloadType: 'com.apple.security.firewall',
+              //   formInput: {
+              //     type: 'array',
+              //     unitLabel: 'Bundle identifier'
+              //   },
+              //   formOutput: {
+              //     settingFormat: 'list',
+              //     settingKey: 'Applications',
+              //     trueValue: '<true/>',
+              //     falseValue: '<false/>',
+              //   },
+              // },
+            ]
+          }
+        ]
       }
     ],
     // windows payloads
