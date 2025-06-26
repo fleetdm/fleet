@@ -1027,9 +1027,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 		}
 	}
 
-	// we're going to modify this mock, make sure we restore its default
-	originalPushMock := s.pushProvider.PushFunc
-	defer func() { s.pushProvider.PushFunc = originalPushMock }()
+	// // we're going to modify this mock, make sure we restore its default
+	// originalPushMock := s.pushProvider.PushFunc
+	// defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
 	// // FIXME: Figure out the best way to test pushes in the test suite. Can we make this more
 	// // user-friendly and reusable?
