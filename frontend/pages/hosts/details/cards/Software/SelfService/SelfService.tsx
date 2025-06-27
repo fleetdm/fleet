@@ -20,6 +20,7 @@ import deviceApi, {
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
+import { ISoftwareLastUninstall } from "interfaces/software";
 
 import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -35,6 +36,7 @@ import SearchField from "components/forms/fields/SearchField";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
+import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
@@ -66,7 +68,7 @@ export interface ISoftwareSelfServiceProps {
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
   onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (scriptExecutionId?: string) => void;
+  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
 }
 
 const SoftwareSelfService = ({

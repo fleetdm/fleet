@@ -15,7 +15,11 @@ import hostAPI, {
   IHostSoftwareQueryKey,
 } from "services/entities/hosts";
 import PATHS from "router/paths";
-import { IHostSoftware, ISoftware } from "interfaces/software";
+import {
+  IHostSoftware,
+  ISoftware,
+  ISoftwareLastUninstall,
+} from "interfaces/software";
 import { HostPlatform, isAndroid } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -29,6 +33,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
@@ -49,8 +54,9 @@ interface IHostInstallersProps {
   queryParams: ReturnType<typeof parseHostSoftwareLibraryQueryParams>;
   pathname: string;
   hostTeamId: number;
+  hostName: string;
   onShowSoftwareDetails: (software?: IHostSoftware) => void;
-  onShowUninstallDetails: (scriptExecutionId?: string) => void;
+  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   hostMDMEnrolled?: boolean;
@@ -99,6 +105,7 @@ const HostSoftwareLibrary = ({
   queryParams,
   pathname,
   hostTeamId = 0,
+  hostName,
   onShowSoftwareDetails,
   onShowUninstallDetails,
   isSoftwareEnabled = false,
@@ -352,6 +359,7 @@ const HostSoftwareLibrary = ({
       hostMDMEnrolled,
       router,
       teamId: hostTeamId,
+      hostName,
       baseClass,
       onShowSoftwareDetails,
       onShowUninstallDetails,
@@ -364,6 +372,7 @@ const HostSoftwareLibrary = ({
     userHasSWWritePermission,
     hostScriptsEnabled,
     hostTeamId,
+    hostName,
     hostMDMEnrolled,
     onShowSoftwareDetails,
     onShowUninstallDetails,

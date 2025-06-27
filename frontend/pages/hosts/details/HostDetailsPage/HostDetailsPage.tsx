@@ -66,7 +66,9 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
-import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISoftwareUninstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -205,7 +207,7 @@ const HostDetailsPage = ({
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
-  ] = useState<IPackageInstallDetails | null>(null);
+  ] = useState<ISoftwareUninstallDetails | null>(null);
   const [
     appInstallDetails,
     setAppInstallDetails,
@@ -226,9 +228,6 @@ const HostDetailsPage = ({
     selectedSoftwareDetails,
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
-  const [selectedScriptExecutionId, setSelectedScriptExecutionId] = useState<
-    string | undefined
-  >(undefined);
   const [
     selectedCancelActivity,
     setSelectedCancelActivity,
@@ -698,12 +697,13 @@ const HostDetailsPage = ({
   );
 
   const onShowUninstallDetails = useCallback(
-    (uninstallScriptExecutionId?: string) => {
-      if (uninstallScriptExecutionId) {
-        setSelectedScriptExecutionId(uninstallScriptExecutionId);
-      }
+    (details?: ISoftwareUninstallDetails) => {
+      setPackageUninstallDetails({
+        ...details,
+        host_display_name: host?.display_name || "",
+      });
     },
-    [setSelectedScriptExecutionId]
+    [setPackageUninstallDetails]
   );
 
   const onCancelRunScriptDetailsModal = useCallback(() => {
@@ -997,6 +997,7 @@ const HostDetailsPage = ({
                 onShowSoftwareDetails={onShowSoftwareDetails}
                 onShowUninstallDetails={onShowUninstallDetails}
                 hostTeamId={host.team_id || 0}
+                hostName={host.display_name}
                 hostMDMEnrolled={host.mdm.connected_to_fleet}
                 isHostOnline={host.status === "online"}
               />
@@ -1356,16 +1357,6 @@ const HostDetailsPage = ({
             hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
-          />
-        )}
-        {selectedScriptExecutionId && !!host && (
-          <SoftwareUninstallDetailsModal
-            details={{
-              host_display_name: host.display_name,
-              script_execution_id: selectedScriptExecutionId,
-              status: "failed_uninstall",
-            }}
-            onCancel={() => setSelectedScriptExecutionId(undefined)}
           />
         )}
         {selectedCancelActivity && (

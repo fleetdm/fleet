@@ -22,7 +22,7 @@ import {
 
 const baseClass = "software-uninstall-details-modal";
 
-type ISoftwareUninstallDetails = Pick<
+export type ISoftwareUninstallDetails = Pick<
   IActivityDetails,
   "script_execution_id" | "host_display_name" | "software_title" | "status"
 > & { deviceAuthToken?: string };

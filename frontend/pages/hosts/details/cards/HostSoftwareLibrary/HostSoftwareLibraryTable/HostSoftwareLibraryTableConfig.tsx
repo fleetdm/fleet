@@ -4,6 +4,7 @@ import { CellProps, Column } from "react-table";
 
 import { IHostAppStoreApp, IHostSoftware } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
@@ -37,10 +38,11 @@ interface IHostSWLibraryTableHeaders {
   hostMDMEnrolled?: boolean;
   baseClass: string;
   onShowSoftwareDetails?: (software?: IHostSoftware) => void;
-  onShowUninstallDetails?: (scriptExecutionId?: string) => void;
+  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (softwareId: number) => void;
   isHostOnline: boolean;
+  hostName: string;
 }
 
 // NOTE: cellProps come from react-table
@@ -57,6 +59,7 @@ export const generateHostSWLibraryTableHeaders = ({
   onClickInstallAction,
   onClickUninstallAction,
   isHostOnline,
+  hostName,
 }: IHostSWLibraryTableHeaders): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {

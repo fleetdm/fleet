@@ -78,6 +78,7 @@ import {
 import HostHeader from "../cards/HostHeader/HostHeader";
 import { InstallOrCommandUuid } from "../cards/Software/InstallStatusCell/InstallStatusCell";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
+import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 const baseClass = "device-user";
 
@@ -138,9 +139,9 @@ const DeviceUserPage = ({
     InstallOrCommandUuid | undefined
   >(undefined);
   const [
-    selectedSelfServiceScriptExecutionId,
-    setSelectedSelfServiceScriptExecutionId,
-  ] = useState<string | undefined>(undefined);
+    selectedSelfServiceScriptDetails,
+    setSelectedSelfServiceScriptDetails,
+  ] = useState<ISoftwareUninstallDetails | undefined>(undefined);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
@@ -348,10 +349,10 @@ const DeviceUserPage = ({
   );
 
   const onShowUninstallDetails = useCallback(
-    (scriptExecutionId?: string) => {
-      setSelectedSelfServiceScriptExecutionId(scriptExecutionId);
+    (details?: ISoftwareUninstallDetails) => {
+      setSelectedSelfServiceScriptDetails(details);
     },
-    [setSelectedSelfServiceScriptExecutionId]
+    [setSelectedSelfServiceScriptDetails]
   );
 
   const onCancelPolicyDetailsModal = useCallback(() => {
@@ -669,14 +670,14 @@ const DeviceUserPage = ({
               deviceAuthToken={deviceAuthToken}
             />
           )}
-        {selectedSelfServiceScriptExecutionId && !!host && (
+        {selectedSelfServiceScriptDetails && !!host && (
           <SoftwareUninstallDetailsModal
             details={{
+              ...selectedSelfServiceScriptDetails,
               host_display_name: host.display_name,
-              script_execution_id: selectedSelfServiceScriptExecutionId,
-              status: "failed_uninstall",
+              status: "failed_uninstall", // FIX
             }}
-            onCancel={() => setSelectedSelfServiceScriptExecutionId(undefined)}
+            onCancel={() => setSelectedSelfServiceScriptDetails(undefined)}
             deviceAuthToken={deviceAuthToken}
           />
         )}

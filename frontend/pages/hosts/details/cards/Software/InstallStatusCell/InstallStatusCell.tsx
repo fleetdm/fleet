@@ -8,6 +8,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
+import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 const baseClass = "install-status-cell";
 
@@ -122,9 +123,10 @@ type IInstallStatusCellProps = {
   software: IHostSoftware;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
   onShowInstallDetails?: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails?: (scriptExecutionId?: string) => void;
+  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   isSelfService?: boolean;
   isHostOnline?: boolean;
+  hostName?: string;
 };
 
 const getLastInstall = (software: IHostSoftware) =>
@@ -168,6 +170,7 @@ const InstallStatusCell = ({
   onShowUninstallDetails,
   isSelfService = false,
   isHostOnline = false,
+  hostName,
 }: IInstallStatusCellProps) => {
   const hasAppStoreApp = !!software.app_store_app;
   const lastInstall = getLastInstall(software);
@@ -208,9 +211,12 @@ const InstallStatusCell = ({
   const onClickUninstallStatus = () => {
     if (onShowUninstallDetails && lastUninstall) {
       if ("script_execution_id" in lastUninstall) {
-        onShowUninstallDetails(
-          (lastUninstall as { script_execution_id: string }).script_execution_id
-        );
+        onShowUninstallDetails({
+          ...lastUninstall,
+          status: software.status || undefined,
+          software_title: software.name,
+          host_display_name: hostName,
+        });
       } else {
         onShowUninstallDetails(undefined);
       }
@@ -226,6 +232,8 @@ const InstallStatusCell = ({
       isHostOnline
     );
 
+    console.log("lastInstall", lastInstall);
+    console.log("resolvedDisplayText", resolvedDisplayText);
     if (
       lastInstall &&
       (resolvedDisplayText === "Failed" ||
