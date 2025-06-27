@@ -245,11 +245,7 @@ const NewLabelPage = ({
         <br />
         identity provider (IdP) groups or departments.
         <br />
-        Configure IdP in{" "}
-        <a href="/settings/integrations/identity-provider">
-          integration settings
-        </a>
-        .
+        IdP has not been configured in integration settings.
       </>
     );
   }
