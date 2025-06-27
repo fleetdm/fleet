@@ -2125,8 +2125,9 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 func (ds *Datastore) GetNanoMDMUserEnrollment(ctx context.Context, deviceId string) (*fleet.NanoEnrollment, error) {
 	var nanoEnroll fleet.NanoEnrollment
 	// use writer as it is used just after creation in some cases
+	// Note that we only ever return the first active user enrollment from the device
 	err := sqlx.GetContext(ctx, ds.writer(ctx), &nanoEnroll, `SELECT id, device_id, type, enabled, token_update_tally
-		FROM nano_enrollments WHERE type = 'User' AND enabled = 1 AND device_id = ? LIMIT 1`, deviceId)
+		FROM nano_enrollments WHERE type = 'User' AND enabled = 1 AND device_id = ? ORDER BY created_at ASC LIMIT 1`, deviceId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -2139,6 +2140,7 @@ func (ds *Datastore) GetNanoMDMUserEnrollment(ctx context.Context, deviceId stri
 
 func (ds *Datastore) GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error) {
 	var username string
+	// Note that we only ever return the first active user enrollment from the device
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &username, `
 		SELECT
 			COALESCE(nu.user_short_name, '') as user_short_name
@@ -2149,6 +2151,7 @@ func (ds *Datastore) GetNanoMDMUserEnrollmentUsername(ctx context.Context, devic
 			ne.type = 'User' AND
 			ne.enabled = 1 AND
 			ne.device_id = ?
+		ORDER BY ne.created_at ASC
 		LIMIT 1`, deviceID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

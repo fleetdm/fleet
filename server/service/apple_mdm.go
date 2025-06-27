@@ -3942,6 +3942,7 @@ func getNanoMDMUserEnrollment(ctx context.Context, ds fleet.Datastore, userEnrol
 			userEnrollmentMap[hostUUID] = "" // no user enrollment for this host
 		}
 	}
+
 	return userEnrollment, nil
 }
 
@@ -4026,38 +4027,6 @@ func ReconcileAppleProfiles(
 	hostProfilesToInstallMap := make(map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(toInstall))
 
 	installTargets, removeTargets := make(map[string]*cmdTarget), make(map[string]*cmdTarget)
-	// TODO EJM REMOVE
-	for _, p := range toInstall {
-		fmt.Printf("Profile to Install: %s, %s, %s, %s %v\n", p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.Scope, p.Checksum)
-		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
-			status := "nil"
-			if pp.Status != nil {
-				status = string(*pp.Status)
-			}
-			fmt.Printf("  => matching profile in current state: %s, %s, %s %v\n", status, pp.CommandUUID, pp.Scope, pp.Checksum)
-		} else {
-			fmt.Printf("  => no matching profile in current state\n")
-		}
-	}
-	if len(toInstall) == 0 {
-		fmt.Println("No profiles to install")
-	}
-	// TODO EJM REMOVE
-	for _, p := range toRemove {
-		fmt.Printf("Profile to Remove: %s, %s, %s, %s %v\n", p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.Scope, p.Checksum)
-		if pp, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
-			status := "nil"
-			if pp.Status != nil {
-				status = string(*pp.Status)
-			}
-			fmt.Printf("  => matching profile in desired state: %s, %s, %s %v\n", status, pp.CommandUUID, pp.Scope, pp.Checksum)
-		} else {
-			fmt.Printf("  => no matching profile in desired state\n")
-		}
-	}
-	if len(toRemove) == 0 {
-		fmt.Println("No profiles to remove")
-	}
 
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
@@ -4109,7 +4078,7 @@ func ReconcileAppleProfiles(
 					OperationType:     fleet.MDMOperationTypeInstall,
 					Status:            &fleet.MDMDeliveryFailed,
 					Detail:            "Host does not have a user enrollment",
-					CommandUUID:       target.cmdUUID,
+					CommandUUID:       "",
 					ProfileIdentifier: p.ProfileIdentifier,
 					ProfileName:       p.ProfileName,
 					Checksum:          p.Checksum,
@@ -4119,12 +4088,12 @@ func ReconcileAppleProfiles(
 				hostProfiles = append(hostProfiles, hostProfile)
 				continue
 			}
-			toGetContents[p.ProfileUUID] = true
 
 			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
 		} else {
 			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
 		}
+		toGetContents[p.ProfileUUID] = true
 
 		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 			ProfileUUID:       p.ProfileUUID,
@@ -4213,11 +4182,16 @@ func ReconcileAppleProfiles(
 	// Create a map of command UUIDs to host IDs
 	commandUUIDToHostIDsCleanupMap := make(map[string][]string)
 	for _, hp := range hostProfilesToCleanup {
-		commandUUIDToHostIDsCleanupMap[hp.CommandUUID] = append(commandUUIDToHostIDsCleanupMap[hp.CommandUUID], hp.HostUUID)
+		// Certain failure scenarios may leave the profile without a command UUID, so skip those
+		if hp.CommandUUID != "" {
+			commandUUIDToHostIDsCleanupMap[hp.CommandUUID] = append(commandUUIDToHostIDsCleanupMap[hp.CommandUUID], hp.HostUUID)
+		}
 	}
 	// We need to delete commands from the nano queue so they don't get sent to device.
-	if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting nano commands without results")
+	if len(commandUUIDToHostIDsCleanupMap) > 0 {
+		if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting nano commands without results")
+		}
 	}
 	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
