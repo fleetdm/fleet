@@ -33,6 +33,7 @@ const (
 	CronRefreshVPPAppVersions         CronScheduleName = "refresh_vpp_app_versions"
 	CronAppleMDMIPhoneIPadReviver     CronScheduleName = "apple_mdm_iphone_ipad_reviver"
 	CronUpcomingActivitiesMaintenance CronScheduleName = "upcoming_activities_maintenance"
+	CronHostVitalsLabelMembership     CronScheduleName = "host_vitals_label_membership"
 )
 
 type CronSchedulesService interface {
