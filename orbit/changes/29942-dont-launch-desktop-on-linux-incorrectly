@@ -1,0 +1,1 @@
+- Fixed an issue where Orbit would attempt to launch Fleet Desktop on Linux systems without a logged-in GUI user
