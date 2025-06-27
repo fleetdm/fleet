@@ -62,7 +62,7 @@ const generateCreateLabelBody = (formData: INewLabelFormData) => {
         query: formData.labelQuery,
         platform: formData.platform,
       };
-    case "host-vitals":
+    case "host_vitals":
       return {
         name: formData.name,
         description: formData.description,

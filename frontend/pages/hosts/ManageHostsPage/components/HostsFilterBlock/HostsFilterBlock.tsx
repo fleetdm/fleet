@@ -198,8 +198,8 @@ const HostsFilterBlock = ({
             onClear={handleClearRouteParam}
           />
           {label_type !== "builtin" &&
-            // TODO - remove condition if/when can edit host-vitals labels
-            label_membership_type !== "host-vitals" &&
+            // TODO - remove condition if/when can edit host_vitals labels
+            label_membership_type !== "host_vitals" &&
             !isOnlyObserver &&
             (isOnGlobalTeam || currentUser?.id === selectedLabel.author_id) && (
               <>

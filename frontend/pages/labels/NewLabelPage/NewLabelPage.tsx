@@ -101,7 +101,7 @@ const validate = (newData: INewLabelFormData) => {
     if (!labelQuery) {
       errors.labelQuery = "Query text must be present";
     }
-  } else if (type === "host-vitals") {
+  } else if (type === "host_vitals") {
     if (!vitalValue) {
       errors.criteria = "Label criteria must be completed";
     }
@@ -147,7 +147,7 @@ const NewLabelPage = ({
     // dynamic-specific
     labelQuery: "",
     platform: "",
-    // host-vitals-specific
+    // host_vitals-specific
     vital: "end_user_idp_group",
     vitalValue: "",
     // manual-specific
@@ -424,9 +424,9 @@ const NewLabelPage = ({
           </>
         );
 
-      case "host-vitals":
+      case "host_vitals":
         return (
-          <div className={`${baseClass}__host-vitals-fields`}>
+          <div className={`${baseClass}__host_vitals-fields`}>
             <Dropdown
               label="Label criteria"
               name="vital"
@@ -516,9 +516,9 @@ const NewLabelPage = ({
         <Radio
           className={`${baseClass}__radio-input`}
           label="Host vitals"
-          id="host-vitals"
-          checked={type === "host-vitals"}
-          value="host-vitals"
+          id="host_vitals"
+          checked={type === "host_vitals"}
+          value="host_vitals"
           name="label-type"
           onChange={onTypeChange}
           tooltip={hostVitalsTooltipContent}

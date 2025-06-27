@@ -15,7 +15,7 @@ export default PropTypes.shape({
 });
 
 export type LabelType = "regular" | "builtin";
-export type LabelMembershipType = "dynamic" | "manual" | "host-vitals";
+export type LabelMembershipType = "dynamic" | "manual" | "host_vitals";
 export type LabelHostVitalsCriterion =
   | "end_user_idp_group"
   | "end_user_idp_department"; // for now, may expand to be configurable
@@ -76,7 +76,7 @@ export interface ILabel extends ILabelSummary {
   // dynamic-specific
   query: string; // does return '""' for other types
   platform: string; // does return '""' for other types
-  // host-vitals-specific
+  // host_vitals-specific
   criteria: LabelHostVitalsCriteria | null;
 
   // manual-specific
