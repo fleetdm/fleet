@@ -42,6 +42,27 @@ In the list of hosts, click on an individual host and click the **OS settings** 
 
 Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the profile's status to update to "Pending."
 
+On Windows, due to limitations of the MDM protocol, verification of [Win32 and Desktop Bridge app ADMX
+policy](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration)
+CSPs is limited to verifying that the host returned a success status code in response to the MDM
+command to install the CSP. It is possible, however, to query the registry keys defined by the ADMX
+file and set by any related policies to inspect their settings. For instance, if an ADMX file
+defines the following policy:
+```
+      <policy name="Subteam" class="Machine" displayName="Subteam" key="Software\Policies\employee\Attributes" explainText="Subteam" presentation="String">
+         <parentCategory ref="DefaultCategory" />
+         <supportedOn ref="SUPPORTED_WIN10" />
+         <elements>
+            <text id="Subteam" valueName="Subteam" />
+         </elements>
+      </policy>
+```
+
+The following osquery query will return any values set by this policy:
+```
+SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\employee\Attributes\Subteam';
+```
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
