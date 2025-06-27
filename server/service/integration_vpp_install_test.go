@@ -360,8 +360,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
-	s.runWorker()
-
 	// Simulate successful installation on the host
 	installCmdUUID := processVPPInstallOnClient(false, true)
 
