@@ -76,25 +76,33 @@ func (ds *Datastore) NewActivity(
 			cmdUUID = vppPtrAct.CommandUUID
 			hostID = vppPtrAct.HostID
 		}
-		// NOTE: ideally this would be called in the same transaction as storing
-		// the nanomdm command results, but the current design doesn't allow for
-		// that with the nano store being a distinct entity to our datastore (we
-		// should get rid of that distinction eventually, we've broken it already
-		// in some places and it doesn't bring much benefit anymore).
-		//
-		// Instead, this gets called from CommandAndReportResults, which is
-		// executed after the results have been saved in nano, but we already
-		// accept this non-transactional fact for many other states we manage in
-		// Fleet (wipe, lock results, setup experience results, etc. - see all
-		// critical data that gets updated in CommandAndReportResults) so there's
-		// no reason to treat the unified queue differently.
-		//
-		// This place here is a bit hacky but perfect for VPP apps as the activity
-		// gets created only when the MDM command status is in a final state
-		// (success or failure), which is exactly when we want to activate the next
-		// activity.
-		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+
+		activateNext := vppAct.Status != string(fleet.SoftwareInstalled)
+		if vppPtrAct != nil {
+			activateNext = vppPtrAct.Status != string(fleet.SoftwareInstalled)
+		}
+
+		if activateNext {
+			// NOTE: ideally this would be called in the same transaction as storing
+			// the nanomdm command results, but the current design doesn't allow for
+			// that with the nano store being a distinct entity to our datastore (we
+			// should get rid of that distinction eventually, we've broken it already
+			// in some places and it doesn't bring much benefit anymore).
+			//
+			// Instead, this gets called from CommandAndReportResults, which is
+			// executed after the results have been saved in nano, but we already
+			// accept this non-transactional fact for many other states we manage in
+			// Fleet (wipe, lock results, setup experience results, etc. - see all
+			// critical data that gets updated in CommandAndReportResults) so there's
+			// no reason to treat the unified queue differently.
+			//
+			// This place here is a bit hacky but perfect for VPP apps as the activity
+			// gets created only when the MDM command status is in a final state
+			// (success or failure), which is exactly when we want to activate the next
+			// activity.
+			if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+			}
 		}
 	}
 
@@ -1464,6 +1472,8 @@ WHERE
 <dict>
     <key>Command</key>
     <dict>
+		<key>InstallAsManaged</key>
+		<true/>
         <key>ManagementFlags</key>
         <integer>0</integer>
         <key>Options</key>

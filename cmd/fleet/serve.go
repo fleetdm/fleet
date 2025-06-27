@@ -1171,6 +1171,8 @@ the way that the Fleet server works.
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
 				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 
+				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
+
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {
 					initFatal(err, "checking SCEP challenge in database")
