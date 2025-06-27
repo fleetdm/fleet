@@ -56,7 +56,7 @@ const User = ({
   const showChromeProfiles = chromeProfilesDisplayValues.length > 0;
   const showOtherEmails = otherEmailsDisplayValues.length > 0;
   const userDepartment = [];
-  if (endUser && endUser.idp_department && endUser.idp_department !== "") {
+  if (endUser?.idp_department) {
     userDepartment.push(endUser.idp_department);
   }
 
