@@ -3282,6 +3282,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if s.VPPAppAdamID != nil {
 			// Override the status; if there's a pending re-install, we should show that status.
 			if hs, ok := byVPPAdamID[*s.VPPAppAdamID]; ok {
+				fmt.Printf("hs.Status: %+v\n", *hs.Status)
+				fmt.Printf("s.VPPAppAdamID: %v\n", *s.VPPAppAdamID)
 				s.Status = hs.Status
 			}
 		}
@@ -4249,6 +4251,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		hs := hs
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
+
+	for _, s := range software {
+		fmt.Printf("s.AppStoreApp.AppStoreID: %v\n", s.AppStoreApp.AppStoreID)
+		fmt.Printf("s.Status: %v\n", *s.Status)
+	}
+
 	return software, metaData, nil
 }
 
