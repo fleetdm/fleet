@@ -290,14 +290,14 @@ SELECT
 	base64_encrypted, 
 	base64_encrypted_salt,
 	key_slot,
-	created_at AS updated_at
+	created_at
 FROM host_disk_encryption_keys_archive
 %s
 ORDER BY created_at DESC
 LIMIT 1`
 
 	var key fleet.HostArchivedDiskEncryptionKey
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE host_id = ?`, host.ID))
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE host_id = ?`), host.ID)
 	if err == sql.ErrNoRows && host.HardwareSerial != "" {
 		// If we didn't find a key by host ID, try to find it by hardware serial.
 		level.Debug(ds.logger).Log("msg", "get archived disk encryption key by host serial", "serial", host.HardwareSerial, "host_id", host.ID)

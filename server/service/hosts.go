@@ -2332,6 +2332,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, err
 	}
 
+	level.Info(svc.logger).Log("msg", "retrieving host disk encryption key", "host_id", host.ID, "host_name", host.DisplayName())
 	key, err := svc.getHostDiskEncryptionKey(ctx, host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
@@ -2444,6 +2445,8 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 		// If we couldn't decrypt any key, return an error.
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key")
 	}
+
+	level.Info(svc.logger).Log("msg", "retrieved host disk encryption key", "host_id", host.ID, "decrypted", key.DecryptedValue)
 
 	return key, nil
 }
