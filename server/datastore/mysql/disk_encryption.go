@@ -278,7 +278,7 @@ WHERE host_id = ?`, hostID)
 			msg := fmt.Sprintf("for host %d", hostID)
 			return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
 		}
-		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_disk_encryption_keys for host_id %d", hostID)
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting data from host_disk_encryption_keys for host_id %d", hostID))
 	}
 	return &key, nil
 }
