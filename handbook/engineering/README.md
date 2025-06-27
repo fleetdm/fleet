@@ -97,7 +97,7 @@ When merging a pull request from a community contributor:
 - Verify that all necessary reviews have been approved.
 - Merge the PR.
 - Thank and congratulate the contributor.
-- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+- Share the merged PR with the team in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 
 ### Close a stale community issue

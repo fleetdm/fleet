@@ -130,6 +130,12 @@ Here are some topics for social media posts:
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
+> **Is there a post that you would like to see on the company page?**
+>
+> Reach out in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) with context and a link to the post for help to get your post on the Fleet LinkedIn company page.  
+
+
+
 
 ##### Fleet on LinkedIn
 
