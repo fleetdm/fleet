@@ -1808,7 +1808,7 @@ func (c *Client) DoGitOps(
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 
 		// we want to apply the EULA only for the global settings
-		if appConfig.License.IsPremium() {
+		if appConfig.License.IsPremium() && appConfig.MDM.EnabledAndConfigured {
 			err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
 			if err != nil {
 				return nil, nil, err
