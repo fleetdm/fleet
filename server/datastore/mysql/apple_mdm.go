@@ -51,7 +51,6 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	    AND ne.type = 'Device'
 	    AND hm.enrolled = 1 LIMIT 1
 	`, h.ID))
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -3100,6 +3099,13 @@ func generateEntitiesToInstallQuery(entityType string) string {
 	// Cons is of course a more complex query, but the final query is already
 	// quite complex and this new condition is not too bad, and it would be
 	// required *somewhere* anyway.
+	// TODO EJM Changes here
+	// Possible change possibly stupid:
+	//   if profile different AND scope has changed
+	//     then remove it from the old scope and install on the new scope
+	//     and have Reconcile handle the logic. We have to be super careful
+	//     not to break the existing behavior doing that and we have to be
+	//     careful about order of operations. Lots of side effects. But maybe...
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
 		LEFT JOIN ${hostMDMAppleEntityTable} hmae
@@ -3150,6 +3156,9 @@ func generateEntitiesToInstallQuery(entityType string) string {
 //     that the operation is in flight (pending) or the operation has been completed
 //     but is still subject to independent verification by Fleet (verifying)
 //     or the operation has been completed and independenly verified by Fleet (verified).
+//   - entities that are in both A and B but with a different checksum (i.e. the profile has changed)
+//     or which are marked for resend, and for which the scope is changing, and a user-channel exists
+//     so we are actually going to be issuing an install to move the profile between the channels.
 //
 // Any other case are entities that are in both B and A, and as such are
 // processed by the generateEntitiesToInstallQuery query (since they are in
@@ -3168,10 +3177,10 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
-	// NOTE(mna): there is no check for an existing user-enrollment here, because
-	// if a user-scoped profile is identified as "to remove", it has to have been
-	// delivered at some point, either because a user-channel did exist, or
-	// because it was delivered to the device-channel after the maximum wait
+	// NOTE(mna): there is no check for an existing user-enrollment for the standard,
+	// removal case, because if a user-scoped profile is identified as "to remove",
+	// it has to have been delivered at some point, either because a user-channel did
+	// exist, or because it was delivered to the device-channel after the maximum wait
 	// delay. Either way, it should proceed with removal.
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
@@ -3179,7 +3188,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
 	WHERE
 		-- entities that are in B but not in A
-		ds.${entityUUIDColumn} IS NULL AND ds.host_uuid IS NULL AND
+		(ds.${entityUUIDColumn} IS NULL AND ds.host_uuid IS NULL AND
 		-- except "remove" operations in a terminal state or already pending
 		( hmae.operation_type IS NULL OR hmae.operation_type != ? OR hmae.status IS NULL ) AND
 		-- except "would be removed" entities if they are a broken label-based entities
@@ -3190,7 +3199,24 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 			WHERE
 				mcpl.${appleEntityUUIDColumn} = hmae.${entityUUIDColumn} AND
 				mcpl.label_id IS NULL
-		)
+	)) OR
+	 -- entities that are in both A and B
+	 (ds.${entityUUIDColumn} IS NOT NULL AND ds.host_uuid IS NOT NULL AND
+	 -- but with a different checksum(i.e. the profile has changed) or being resent
+	 (ds.${checksumColumn} != hmae.${checksumColumn} OR hmae.status IS NULL) AND hmae.operation_type = ? AND
+	 -- and the scope has changed(meaning we need to move the profile between the channels)
+	  ds.scope != hmae.scope
+	 -- and a user-channel exists for the host(meaning we are actually going to move the profile)
+	 -- and as such we need to remove it from the old channel
+	  AND EXISTS (
+				SELECT 1
+				FROM nano_enrollments ne
+				WHERE
+					ne.type = 'User' AND
+					ne.enabled = 1 AND
+					ne.device_id = ds.host_uuid
+			)
+	  )
 `, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"))
 }
 
@@ -3230,7 +3256,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 		hmae.scope
 	FROM %s`, generateEntitiesToRemoveQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
 
 	return profiles, err
 }
@@ -5738,7 +5764,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	)
 
 	var decls []*fleet.MDMAppleHostDeclaration
-	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}
 	return decls, nil

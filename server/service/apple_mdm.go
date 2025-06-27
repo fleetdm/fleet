@@ -3926,6 +3926,24 @@ type cmdTarget struct {
 	enrollmentIDs []string
 }
 
+func getNanoMDMUserEnrollment(ctx context.Context, ds fleet.Datastore, userEnrollmentMap map[string]string, userEnrollmentsToHostUUIDsMap map[string]string, hostUUID string) (string, error) {
+	userEnrollment, ok := userEnrollmentMap[hostUUID]
+	if !ok {
+		userNanoEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, hostUUID)
+		if err != nil {
+			return userEnrollment, ctxerr.Wrap(ctx, err, "getting user enrollment for host")
+		}
+		if userNanoEnrollment != nil {
+			userEnrollment = userNanoEnrollment.ID
+			userEnrollmentMap[hostUUID] = userEnrollment
+			userEnrollmentsToHostUUIDsMap[userEnrollment] = hostUUID
+		} else {
+			userEnrollmentMap[hostUUID] = "" // no user enrollment for this host
+		}
+	}
+	return userEnrollment, nil
+}
+
 func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -3996,6 +4014,7 @@ func ReconcileAppleProfiles(
 	// command causes unwanted behavior.
 	profileIntersection := apple_mdm.NewProfileBimap()
 	profileIntersection.IntersectByIdentifierAndHostUUID(toInstall, toRemove)
+	// the intersection only includes the ones in both with profileIdentifier and hostUUID same
 
 	// hostProfilesToCleanup is used to track profiles that should be removed
 	// from the database directly without having to issue a RemoveProfile
@@ -4007,12 +4026,46 @@ func ReconcileAppleProfiles(
 
 	installTargets, removeTargets := make(map[string]*cmdTarget), make(map[string]*cmdTarget)
 	for _, p := range toInstall {
+		fmt.Printf("Profile to Install: %s, %s, %s, %s %v\n", p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.Scope, p.Checksum)
+		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
+			status := "nil"
+			if pp.Status != nil {
+				status = string(*pp.Status)
+			}
+			fmt.Printf("  => matching profile in current state: %s, %s, %v\n", status, pp.CommandUUID, pp.Checksum)
+		} else {
+			fmt.Printf("  => no matching profile in current state\n")
+		}
+	}
+	if len(toInstall) == 0 {
+		fmt.Println("No profiles to install")
+	}
+	for _, p := range toRemove {
+		fmt.Printf("Profile to Remove: %s, %s, %s, %s %v\n", p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.Scope, p.Checksum)
+		if pp, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+			status := "nil"
+			if pp.Status != nil {
+				status = string(*pp.Status)
+			}
+			fmt.Printf("  => matching profile in desired state: %s, %s, %v\n", status, pp.CommandUUID, pp.Checksum)
+		} else {
+			fmt.Printf("  => no matching profile in desired state\n")
+		}
+	}
+	if len(toRemove) == 0 {
+		fmt.Println("No profiles to remove")
+	}
+
+	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
 			// if the profile was in any other status than `failed`
 			// and the checksums match (the profiles are exactly
 			// the same) we don't send another InstallProfile
 			// command.
-			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
+
+			// TODO Jordan we can use this to find profiles to move
+			// What are we moving
+			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) && pp.Scope == p.Scope {
 				hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
 					HostUUID:          p.HostUUID,
@@ -4089,7 +4142,8 @@ func ReconcileAppleProfiles(
 	for _, p := range toRemove {
 		// Exclude profiles that are also marked for installation.
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
-			// TODO EJM may need "move profile" logic here
+			// TODO EJM may need "move profile" logic here. Also check if matching profile has same
+			// profileUUID - then don't clean up!
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
 		}
@@ -4147,6 +4201,7 @@ func ReconcileAppleProfiles(
 			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
 		}
 
+		// TODO do not update hostProfiles if we're moving and new profileUUID is the same
 		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
 			ProfileUUID:       p.ProfileUUID,
 			HostUUID:          p.HostUUID,
