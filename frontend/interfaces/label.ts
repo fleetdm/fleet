@@ -73,9 +73,11 @@ export interface ILabel extends ILabelSummary {
   author_id?: number;
 
   label_membership_type: LabelMembershipType;
+
   // dynamic-specific
   query: string; // does return '""' for other types
   platform: string; // does return '""' for other types
+
   // host_vitals-specific
   criteria: LabelHostVitalsCriteria | null;
 

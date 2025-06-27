@@ -91,8 +91,9 @@ export default {
 
   // Label pages
   NEW_LABEL: `${URL_PREFIX}/labels/new`,
-  // deprecated - both handled by `/new` route
+  // deprecated - now handled by `/new` route
   LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,
+  // deprecated - now handled by `/new` route
   LABEL_NEW_MANUAL: `${URL_PREFIX}/labels/new/manual`,
 
   LABEL_EDIT: (labelId: number) => `${URL_PREFIX}/labels/${labelId}`,

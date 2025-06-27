@@ -223,9 +223,7 @@ const NewLabelPage = ({
       enabled: isPremiumTier,
     }
   );
-  // TODO - restore
-  // const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
-  const idpConfigured = true;
+  const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
 
   let hostVitalsTooltipContent: React.ReactNode;
   if (!isPremiumTier) {

@@ -227,7 +227,7 @@ const routes = (
           <Route path="labels">
             <IndexRedirect to="new" />
             <Route path="new" component={NewLabelPage}>
-              {/* maintaining all 3 sub-routes for "backward-compatibility" of URL routes. NewLabelPage correspondingly sets the label type */}
+              {/* maintaining previous 2 sub-routes for backward-compatibility of URL routes. NewLabelPage now sets the corresponding label type */}
               <Route path="dynamic" component={NewLabelPage} />
               <Route path="manual" component={NewLabelPage} />
             </Route>
