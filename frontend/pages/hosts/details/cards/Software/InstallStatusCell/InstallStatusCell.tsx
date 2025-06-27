@@ -99,9 +99,16 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: ({ lastInstalledAt = null, isSelfService }) => (
       <>
         Software failed to install
-        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-        <b>Retry</b> to install again
-        {isSelfService && ", or contact your IT department"}.
+        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
+        {isSelfService ? (
+          <>
+            Select <b>Retry</b> to install again, or contact your IT department.
+          </>
+        ) : (
+          <>
+            Select <b>Details &gt; Activity</b> to view errors.
+          </>
+        )}
       </>
     ),
   },
@@ -181,7 +188,7 @@ const InstallStatusCell = ({
     | keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS
     | null;
 
-  // Status is null, return ---
+  // Status is null
   if (displayStatus === null) {
     return (
       <TextCell
@@ -232,8 +239,6 @@ const InstallStatusCell = ({
       isHostOnline
     );
 
-    console.log("lastInstall", lastInstall);
-    console.log("resolvedDisplayText", resolvedDisplayText);
     if (
       lastInstall &&
       (resolvedDisplayText === "Failed" ||
@@ -268,6 +273,9 @@ const InstallStatusCell = ({
       );
     }
 
+    // Defaults to text without modal button if:
+    // - there is neither last_install or last_uninstall information regardless of status
+    // - Display text is "Installing...", "Uninstalling..." (host is online/self-service)
     return resolvedDisplayText;
   };
 
@@ -283,8 +291,9 @@ const InstallStatusCell = ({
       showArrow
       underline={false}
       position="top"
+      className={`${baseClass}__tooltip-wrapper`}
     >
-      <div className={`${baseClass}__status-content`}>
+      <div className={baseClass}>
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (
           <Spinner size="x-small" includeContainer={false} centered={false} />

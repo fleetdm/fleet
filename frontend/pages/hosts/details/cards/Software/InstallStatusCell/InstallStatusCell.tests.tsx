@@ -58,7 +58,7 @@ describe("InstallStatusCell - component", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders 'Install pending' status with tooltip if host is offline", async () => {
+  it("renders 'Install (pending)' status with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={createMockHostSoftware({
@@ -70,9 +70,9 @@ describe("InstallStatusCell - component", () => {
       />
     );
 
-    expect(screen.getByText("Install pending")).toBeInTheDocument();
+    expect(screen.getByText("Install (pending)")).toBeInTheDocument();
 
-    await user.hover(screen.getByText("Install pending"));
+    await user.hover(screen.getByText("Install (pending)"));
     expect(
       screen.getByText(/Fleet will install software/i)
     ).toBeInTheDocument();
@@ -99,7 +99,7 @@ describe("InstallStatusCell - component", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders 'Uninstall pending' status with tooltip if host is offline", async () => {
+  it("renders 'Uninstall (pending)' status with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={createMockHostSoftware({
@@ -111,9 +111,9 @@ describe("InstallStatusCell - component", () => {
       />
     );
 
-    expect(screen.getByText("Uninstall pending")).toBeInTheDocument();
+    expect(screen.getByText("Uninstall (pending)")).toBeInTheDocument();
 
-    await user.hover(screen.getByText("Uninstall pending"));
+    await user.hover(screen.getByText("Uninstall (pending)"));
     expect(
       screen.getByText(/Fleet will uninstall software/i)
     ).toBeInTheDocument();
