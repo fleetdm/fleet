@@ -865,6 +865,24 @@
                 <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>Threat hunting</p></div>
+              <div purpose="fleet-column">
+                <p>Instant</p>
+              </div>
+              <div purpose="comparison-column" v-if="['rapid'].includes(comparisonModeForSecurity)">
+                <p>Only in MDR</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="['defender'].includes(comparisonModeForSecurity)">
+                <p>1-6 hour delay</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="['tanium'].includes(comparisonModeForSecurity)">
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+              <div purpose="comparison-column" v-else>
+                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
+              </div>
+            </div>
 
             <div purpose="table-row">
               <div purpose="feature-name">
@@ -1077,6 +1095,30 @@
               </div>
               <div purpose="feature-status" v-else-if="['qualys', 'tenable', 'defender'].includes(comparisonModeForSecurity)">
                 <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+          </div>
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>Threat hunting</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <p>Instant</p>
+              </div>
+            </div>
+            <div purpose="feature-table-row">
+              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
+              <div purpose="feature-status" v-if="['rapid'].includes(comparisonModeForSecurity)">
+                <p>Only in MDR</p>
+              </div>
+              <div purpose="feature-status" v-else-if="['defender'].includes(comparisonModeForSecurity)">
+                <p>1-6 hour delay</p>
+              </div>
+              <div purpose="feature-status" v-else-if="['tanium'].includes(comparisonModeForSecurity)">
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+              <div purpose="feature-status" v-else>
+                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
             </div>
           </div>
