@@ -408,6 +408,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			Notifications:    notifs,
 			NudgeConfig:      nudgeConfig,
 			UpdateChannels:   updateChannels,
+			Quarantine:       opts.Quarantine,
 		}, nil
 	}
 

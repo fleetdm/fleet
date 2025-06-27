@@ -968,6 +968,7 @@ func main() {
 			c.Bool("enable-scripts"), orbitClient, c.String("root-dir"),
 		)
 		orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
+		orbitClient.RegisterConfigReceiver(&quarantineReceiver{})
 
 		switch runtime.GOOS {
 		case "darwin":
@@ -2163,4 +2164,18 @@ func (w *wrapSubsystem) Execute() error {
 // Interrupt partially implements subSystem.
 func (w *wrapSubsystem) Interrupt(err error) {
 	w.interrupt(err)
+}
+
+type quarantineReceiver struct{}
+
+func (q *quarantineReceiver) Run(c *fleet.OrbitConfig) error {
+	if !c.Quarantine {
+		log.Info().Msg("--------------- This host is not quarantined  ---------------")
+		return nil
+	}
+
+	// TODO: Quarantine this host!
+	log.Info().Msg("--------------- This host is quarantined! ---------------")
+
+	return nil
 }

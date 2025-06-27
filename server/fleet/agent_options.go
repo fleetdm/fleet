@@ -26,6 +26,8 @@ type AgentOptions struct {
 	Extensions json.RawMessage `json:"extensions,omitempty"`
 	// UpdateChannels holds the configured channels for fleetd components.
 	UpdateChannels json.RawMessage `json:"update_channels,omitempty"`
+
+	Quarantine bool `json:"quarantine"`
 }
 
 type AgentOptionsOverrides struct {
