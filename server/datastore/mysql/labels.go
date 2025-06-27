@@ -216,7 +216,6 @@ func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hv
 		labelQuery := fmt.Sprintf(query, labelSelect, "hosts")
 		// Insert new label membership based on the label query.
 		sql = `INSERT INTO label_membership (label_id, host_id) ` + labelQuery
-		fmt.Println(sql)
 
 		res, err := tx.ExecContext(ctx, sql, queryVals...)
 		if err != nil {
@@ -444,12 +443,16 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		return nil, &fleet.BadRequestError{Message: "parameter 'query' is not supported"}
 	}
 
-	query := fmt.Sprintf(`
-			SELECT *,
-				(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
-			FROM labels l
-		`, ds.whereFilterHostsByTeams(filter, "h"),
-	)
+	query := "SELECT * FROM labels l "
+	// If a team filter is provided, filter host membership by team and return counts with the labels.
+	if filter.User != nil {
+		query = fmt.Sprintf(`
+				SELECT *,
+					(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
+				FROM labels l
+			`, ds.whereFilterHostsByTeams(filter, "h"),
+		)
+	}
 
 	query, params := appendListOptionsToSQL(query, &opt)
 	labels := []*fleet.Label{}

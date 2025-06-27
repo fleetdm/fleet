@@ -635,6 +635,14 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 		assert.True(t, l.HostCount > 0)
 	}
 
+	// If an empty team filter is used, all hosts should be returned.
+	labelsNoTeamFilter, err := db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, labelsNoTeamFilter, 2)
+	for _, l := range labelsNoTeamFilter {
+		assert.True(t, l.HostCount == 0)
+	}
+
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
 
