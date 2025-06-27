@@ -1266,6 +1266,14 @@ type HostDiskEncryptionKey struct {
 	ClientError         string    `json:"-" db:"client_error"`
 }
 
+type HostArchivedDiskEncryptionKey struct {
+	HostID              uint      `json:"-" db:"host_id"`
+	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
+	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
+	KeySlot             *uint     `json:"-" db:"key_slot"`
+	CreatedAt           time.Time `json:"created_at" db:"created_at"`
+}
+
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed
 type HostSoftwareInstalledPath struct {
 	// ID row id

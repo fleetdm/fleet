@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -2333,30 +2332,9 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, err
 	}
 
-	var key *fleet.HostDiskEncryptionKey
-	if host.IsLUKSSupported() {
-		if svc.config.Server.PrivateKey == "" {
-			return nil, ctxerr.Wrap(ctx, errors.New("private key is unavailable"), "getting host encryption key")
-		}
-
-		key, err = svc.ds.GetHostDiskEncryptionKey(ctx, id)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
-		}
-		if key.Base64Encrypted == "" {
-			return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not set")
-		}
-
-		decryptedKey, err := mdm.DecodeAndDecrypt(key.Base64Encrypted, svc.config.Server.PrivateKey)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
-		}
-		key.DecryptedValue = decryptedKey
-	} else {
-		key, err = svc.decryptForMDMPlatform(ctx, host)
-		if err != nil {
-			return nil, err
-		}
+	key, err := svc.getHostDiskEncryptionKey(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
 
 	err = svc.NewActivity(
@@ -2374,47 +2352,99 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	return key, nil
 }
 
-func (svc *Service) decryptForMDMPlatform(ctx context.Context, host *fleet.Host) (*fleet.HostDiskEncryptionKey, error) {
-	// Here we must check if the appropriate MDM is enabled for that particular host's platform.
-	var decryptCert *tls.Certificate
-	if host.FleetPlatform() == "windows" {
+func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostDiskEncryptionKey, error) {
+	// First, determine the decryption function based on the host platform and configuration.
+	var decryptFn func(b64 string) (string, error)
+	switch {
+	case host.IsLUKSSupported():
+		if svc.config.Server.PrivateKey == "" {
+			return nil, errors.New("private key is unavailable")
+		}
+		decryptFn = func(b64 string) (string, error) {
+			return mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
+		}
+	case host.FleetPlatform() == "windows":
 		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
 			return nil, err
 		}
-
-		// use Microsoft's WSTEP certificate for decrypting
 		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
 		}
-		decryptCert = cert
-	} else {
+		decryptFn = func(b64 string) (string, error) {
+			b, err := mdm.DecryptBase64CMS(b64, cert.Leaf, cert.PrivateKey)
+			return string(b), err
+		}
+	default:
+		// Fallback to using Apple MDM CA assets for decryption.
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return nil, err
 		}
-
-		// use Apple's SCEP certificate for decrypting
 		cert, err := assets.CAKeyPair(ctx, svc.ds)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 		}
-		decryptCert = cert
+		decryptFn = func(b64 string) (string, error) {
+			b, err := mdm.DecryptBase64CMS(b64, cert.Leaf, cert.PrivateKey)
+			return string(b), err
+		}
 	}
 
+	// Next, get host disk encryption key and archived key, if any
 	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
-	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
+	archivedKey, err := svc.ds.GetHostArchivedDiskEncryptionKey(ctx, host)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "getting host archived disk encryption key")
+	}
+	if key == nil && archivedKey == nil {
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not set")
 	}
 
-	decryptedKey, err := mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
+	// Try to decrypt the current key.
+	var decrypted string
+	var decryptErrs []error
+	if key != nil && key.Base64Encrypted != "" {
+		// try to decrypt the key, early return if success
+		decrypted, err = decryptFn(key.Base64Encrypted)
+		if err != nil {
+			decryptErrs = append(decryptErrs, fmt.Errorf("decrypting host disk encryption key: %w", err))
+		}
+		key.DecryptedValue = decrypted
+		key.Decryptable = ptr.Bool(true)
 	}
 
-	key.DecryptedValue = string(decryptedKey)
+	// If we couldn't decrypt the current key, try the archived key.
+	if decrypted == "" && archivedKey != nil && archivedKey.Base64Encrypted != "" {
+		decrypted, err = decryptFn(archivedKey.Base64Encrypted)
+		if err != nil {
+			decryptErrs = append(decryptErrs, fmt.Errorf("decrypting archived disk encryption key: %w", err))
+		} else {
+			// If we successfully decrypted the archived key, use it for the return value.
+			key = &fleet.HostDiskEncryptionKey{
+				HostID:              host.ID,
+				Base64Encrypted:     archivedKey.Base64Encrypted,
+				Base64EncryptedSalt: archivedKey.Base64EncryptedSalt,
+				KeySlot:             archivedKey.KeySlot,
+				Decryptable:         ptr.Bool(true),
+				DecryptedValue:      decrypted,
+				UpdatedAt:           archivedKey.CreatedAt,
+			}
+		}
+	}
+
+	if len(decryptErrs) > 0 {
+		// If we have any decryption errors, log them.
+		level.Error(svc.logger).Log("msg", "decryption errors for host disk encryption key", "host_id", host.ID, "errors", errors.Join(decryptErrs...))
+	}
+
+	if key == nil || key.DecryptedValue == "" {
+		// If we couldn't decrypt any key, return an error.
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key")
+	}
+
 	return key, nil
 }
 
