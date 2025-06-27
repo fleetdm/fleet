@@ -447,6 +447,7 @@ type MDMConfigProfilePayload struct {
 	Name        string `json:"name" db:"name"`
 	Platform    string `json:"platform" db:"platform"`               // "windows" or "darwin"
 	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	Scope       string `json:"scope,omitempty" db:"scope"`           // only set for macOS, can be "System" or "User"
 	// Checksum is the following
 	// - for Apple configuration profiles: the MD5 checksum of the profile contents
 	// - for Apple device declarations: the MD5 checksum of the profile contents and secrets updated timestamp (if profile contains secret variables)
@@ -506,6 +507,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		Checksum:         cp.Checksum,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
+		Scope:            string(cp.Scope),
 		LabelsIncludeAll: cp.LabelsIncludeAll,
 		LabelsIncludeAny: cp.LabelsIncludeAny,
 		LabelsExcludeAny: cp.LabelsExcludeAny,
@@ -842,10 +844,11 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 
 // RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
 const (
-	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
-	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
-	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
-	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
+	RefetchBaseCommandUUIDPrefix           = "REFETCH-"
+	RefetchDeviceCommandUUIDPrefix         = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+	RefetchAppsCommandUUIDPrefix           = RefetchBaseCommandUUIDPrefix + "APPS-"
+	RefetchCertsCommandUUIDPrefix          = RefetchBaseCommandUUIDPrefix + "CERTS-"
+	RefetchVPPAppInstallsCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "VPP-INSTALLS-"
 )
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
@@ -1015,3 +1018,14 @@ type MDMConfigProfileStatus struct {
 type MDMWipeMetadata struct {
 	Windows *MDMWindowsWipeMetadata
 }
+
+type MDMCommandResults interface {
+	// Raw returns the raw bytes of the MDM command result XML.
+	Raw() []byte
+	// UUID returns the UUID of the command that returned these results.
+	UUID() string
+	// HostUUID returns the UUID of the host that ran the command and returned these results.
+	HostUUID() string
+}
+
+type CommandHandler func(ctx context.Context, results MDMCommandResults) error

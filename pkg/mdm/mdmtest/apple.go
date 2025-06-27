@@ -50,6 +50,12 @@ type TestAppleMDMClient struct {
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
 
+	// UserUUID is a random fake unique ID of a simulated user. Only filled in if a user enrollment
+	// is done
+	UserUUID string
+	// Username is the username of a simulated user. Only filled in if a user enrollment is done
+	Username string
+
 	// fleetServerURL is the URL of the Fleet server, used to fetch the enrollment profile.
 	fleetServerURL string
 
@@ -232,6 +238,12 @@ func (c *TestAppleMDMClient) Enroll() error {
 		return fmt.Errorf("token update: %w", err)
 	}
 	return nil
+}
+
+func (c *TestAppleMDMClient) UserEnroll() error {
+	c.UserUUID = strings.ToUpper(uuid.New().String())
+	c.Username = "fleetie" + randStr(5)
+	return c.UserTokenUpdate()
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
@@ -663,6 +675,29 @@ func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 	return err
 }
 
+// TokenUpdate sends the TokenUpdate message with a username to the MDM server (Check In protocol).
+// This creates a user channel pushtoken and an Enrollment with Type=User in nanomdm.
+func (c *TestAppleMDMClient) UserTokenUpdate() error {
+	if c.UserUUID == "" || c.Username == "" {
+		return errors.New("user UUID and username must be set for user enrollment")
+	}
+	payload := map[string]any{
+		"MessageType":   "TokenUpdate",
+		"UDID":          c.UUID,
+		"Topic":         "com.apple.mgmt.External." + c.UUID,
+		"EnrollmentID":  "testenrollmentid-" + c.UUID,
+		"NotOnConsole":  "false",
+		"PushMagic":     "pushmagic.user." + c.SerialNumber,
+		"Token":         []byte("token.user." + c.SerialNumber),
+		"UserID":        c.UserUUID,
+		"UserLongName":  c.Username,
+		"UserShortName": c.Username,
+	}
+
+	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
+	return err
+}
+
 // DeclarativeManagement sends a DeclarativeManagement checkin request to the server.
 //
 // The endpoint argument is used as the value for the `Endpoint` key in the request payload.
@@ -773,6 +808,7 @@ func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID s
 			"Name":         s.Name,
 			"ShortVersion": s.Version,
 			"Identifier":   s.BundleIdentifier,
+			"Installing":   false,
 		})
 	}
 

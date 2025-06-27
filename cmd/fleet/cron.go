@@ -706,11 +706,16 @@ func newWorkerIntegrationsSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 	}
+	vppVerify := &worker.VPPVerification{
+		Datastore: ds,
+		Log:       logger,
+		Commander: commander,
+	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate)
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -997,6 +1002,14 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
+		}),
+		schedule.WithJob("cleanup_worker_jobs", func(ctx context.Context) error {
+			const (
+				failedSince    = 365 * 24 * time.Hour // keep failed jobs for 1 year
+				completedSince = 90 * 24 * time.Hour  // keep completed (successful) jobs for ~3 months
+			)
+			_, err := ds.CleanupWorkerJobs(ctx, failedSince, completedSince)
+			return err
 		}),
 	)
 

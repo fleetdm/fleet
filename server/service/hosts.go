@@ -102,7 +102,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 			id = req.Opts.SoftwareIDFilter
 		}
 		software, err = svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software in that case
 			return listHostsResponse{Err: err}, nil
 		}
 	}
@@ -112,7 +112,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		var err error
 
 		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, req.Opts.TeamFilter)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software title in that case
 			return listHostsResponse{Err: err}, nil
 		}
 	}
@@ -1107,7 +1107,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3)
 		cmdUUID := uuid.NewString()
 		if doAppRefetch {
-			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID)
+			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID, false)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
 			}
