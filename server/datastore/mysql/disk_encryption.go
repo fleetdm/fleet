@@ -309,7 +309,7 @@ LIMIT 1`
 	case err == sql.ErrNoRows:
 		return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
 	case err != nil:
-		return nil, ctxerr.Wrapf(ctx, err, "get archived disk encryption key "+msg)
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get archived disk encryption key %s", msg))
 	default:
 		return &key, nil
 	}
