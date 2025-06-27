@@ -284,7 +284,6 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
-- `macos_manual_disk_encryption` specifies that you want escrow macOS keys outside of Fleet. If enabled, Fleet won’t enforce disk encryption or escrow keys for macOS hosts. To do this manually, add a [custom OS setting (configuration profile)](#macos-settings-and-windows-settings) (default: `false`).
 
 #### Example
 
