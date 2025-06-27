@@ -4689,7 +4689,7 @@ func (s *integrationTestSuite) TestLabels() {
 		t.Run("IdP Group Label", func(t *testing.T) {
 			// Create a label for an IdP group
 			criteria := &fleet.HostVitalCriteria{
-				Vital: ptr.String("end_user_idp_groups"),
+				Vital: ptr.String("end_user_idp_group"),
 				Value: ptr.String("group_good"),
 			}
 

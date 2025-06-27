@@ -378,7 +378,7 @@ func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
 		Name:                "Label C",
 		Description:         "Label C description",
 		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-		HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital": "end_user_idp_groups", "value": "some-group"}`)),
+		HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital": "end_user_idp_group", "value": "some-group"}`)),
 	}}, nil
 }
 

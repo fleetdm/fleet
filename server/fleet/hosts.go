@@ -416,7 +416,7 @@ var hostForeignVitalGroups = map[string]HostForeignVitalGroup{
 }
 
 var hostVitals = map[string]HostVital{
-	"end_user_idp_groups": {
+	"end_user_idp_group": {
 		Name:      "IDP Group",
 		VitalType: HostVitalTypeForeign,
 		// A user can be in multiple groups, but we use a join table to specify them,

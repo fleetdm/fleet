@@ -530,7 +530,7 @@ func TestNewHostVitalsLabel(t *testing.T) {
 		lbl, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
 			Name: "foo",
 			Criteria: &fleet.HostVitalCriteria{
-				Vital: ptr.String("end_user_idp_groups"),
+				Vital: ptr.String("end_user_idp_group"),
 				Value: ptr.String("admin"),
 			},
 		})
