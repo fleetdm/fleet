@@ -1028,4 +1028,4 @@ type MDMCommandResults interface {
 	HostUUID() string
 }
 
-type CommandHandler func(ctx context.Context, results MDMCommandResults) error
+type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error

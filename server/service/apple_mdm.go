@@ -3158,7 +3158,7 @@ type MDMAppleCheckinAndCommandService struct {
 	logger          kitlog.Logger
 	commander       *apple_mdm.MDMAppleCommander
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
-	commandHandlers map[string][]fleet.CommandHandler
+	commandHandlers map[string][]fleet.MDMCommandResultsHandler
 }
 
 func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
@@ -3168,11 +3168,11 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 		commander:       commander,
 		logger:          logger,
 		mdmLifecycle:    mdmLifecycle,
-		commandHandlers: map[string][]fleet.CommandHandler{},
+		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
 	}
 }
 
-func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType string, handler fleet.CommandHandler) {
+func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType string, handler fleet.MDMCommandResultsHandler) {
 	svc.commandHandlers[commandType] = append(svc.commandHandlers[commandType], handler)
 }
 
@@ -3764,7 +3764,7 @@ func NewInstalledApplicationListResultsHandler(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 	verifyTimeout, verifyRequestDelay time.Duration,
-) func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
+) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
 		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
 		if !ok {
@@ -3789,6 +3789,13 @@ func NewInstalledApplicationListResultsHandler(
 			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
 		}
 
+		if testVerifyTimeout := os.Getenv("FLEET_TEST_VPP_VERIFY_TIMEOUT"); testVerifyTimeout != "" {
+			verifyTimeout, err = time.ParseDuration(testVerifyTimeout)
+			if err != nil {
+				level.Error(logger).Log("msg", err)
+			}
+		}
+
 		installsByBundleID := map[string]*fleet.HostVPPSoftwareInstall{}
 		for _, install := range installs {
 			installsByBundleID[install.BundleIdentifier] = install
@@ -3801,23 +3808,23 @@ func NewInstalledApplicationListResultsHandler(
 				continue
 			}
 
-			var terminal bool
+			var terminalStatus string
 			switch {
 			case a.Installed:
 				if err := ds.SetVPPInstallAsVerified(ctx, install.HostID, install.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
-				terminal = true
+				terminalStatus = fleet.MDMAppleStatusAcknowledged
 			case install.InstallCommandAckAt != nil && time.Since(*install.InstallCommandAckAt) > verifyTimeout:
 				if err := ds.SetVPPInstallAsFailed(ctx, install.HostID, install.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
 
-				terminal = true
+				terminalStatus = fleet.MDMAppleStatusError
 			}
 
-			if !terminal {
+			if terminalStatus == "" {
 				poll = true
 				continue
 			}
@@ -3826,7 +3833,7 @@ func NewInstalledApplicationListResultsHandler(
 			if updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, fleet.SetupExperienceVPPInstallResult{
 				HostUUID:      installedAppResult.HostUUID(),
 				CommandUUID:   install.InstallCommandUUID,
-				CommandStatus: install.InstallCommandStatus,
+				CommandStatus: terminalStatus,
 			}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
@@ -3834,7 +3841,7 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 			// create an activity for installing only if we're in a terminal state
-			user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: install.InstallCommandUUID, Status: install.InstallCommandStatus})
+			user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: install.InstallCommandUUID, Status: terminalStatus})
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// Then this isn't a VPP install, so no activity generated
