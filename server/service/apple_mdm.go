@@ -3938,6 +3938,7 @@ func getNanoMDMUserEnrollment(ctx context.Context, ds fleet.Datastore, userEnrol
 			userEnrollmentMap[hostUUID] = userEnrollment
 			userEnrollmentsToHostUUIDsMap[userEnrollment] = hostUUID
 		} else {
+			// Cache the fact that there is no user enrollment for this host
 			userEnrollmentMap[hostUUID] = "" // no user enrollment for this host
 		}
 	}
@@ -4025,6 +4026,7 @@ func ReconcileAppleProfiles(
 	hostProfilesToInstallMap := make(map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(toInstall))
 
 	installTargets, removeTargets := make(map[string]*cmdTarget), make(map[string]*cmdTarget)
+	// TODO EJM REMOVE
 	for _, p := range toInstall {
 		fmt.Printf("Profile to Install: %s, %s, %s, %s %v\n", p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.Scope, p.Checksum)
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
@@ -4032,7 +4034,7 @@ func ReconcileAppleProfiles(
 			if pp.Status != nil {
 				status = string(*pp.Status)
 			}
-			fmt.Printf("  => matching profile in current state: %s, %s, %v\n", status, pp.CommandUUID, pp.Checksum)
+			fmt.Printf("  => matching profile in current state: %s, %s, %s %v\n", status, pp.CommandUUID, pp.Scope, pp.Checksum)
 		} else {
 			fmt.Printf("  => no matching profile in current state\n")
 		}
@@ -4040,6 +4042,7 @@ func ReconcileAppleProfiles(
 	if len(toInstall) == 0 {
 		fmt.Println("No profiles to install")
 	}
+	// TODO EJM REMOVE
 	for _, p := range toRemove {
 		fmt.Printf("Profile to Remove: %s, %s, %s, %s %v\n", p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.Scope, p.Checksum)
 		if pp, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
@@ -4047,7 +4050,7 @@ func ReconcileAppleProfiles(
 			if pp.Status != nil {
 				status = string(*pp.Status)
 			}
-			fmt.Printf("  => matching profile in desired state: %s, %s, %v\n", status, pp.CommandUUID, pp.Checksum)
+			fmt.Printf("  => matching profile in desired state: %s, %s, %s %v\n", status, pp.CommandUUID, pp.Scope, pp.Checksum)
 		} else {
 			fmt.Printf("  => no matching profile in desired state\n")
 		}
@@ -4063,9 +4066,7 @@ func ReconcileAppleProfiles(
 			// the same) we don't send another InstallProfile
 			// command.
 
-			// TODO Jordan we can use this to find profiles to move
-			// What are we moving
-			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) && pp.Scope == p.Scope {
+			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
 				hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
 					HostUUID:          p.HostUUID,
@@ -4084,7 +4085,6 @@ func ReconcileAppleProfiles(
 				continue
 			}
 		}
-		toGetContents[p.ProfileUUID] = true
 
 		target := installTargets[p.ProfileUUID]
 		if target == nil {
@@ -4095,31 +4095,34 @@ func ReconcileAppleProfiles(
 			installTargets[p.ProfileUUID] = target
 		}
 
-		sentToUserChannel := false
 		if p.Scope == fleet.PayloadScopeUser {
-			userEnrollment, ok := userEnrollmentMap[p.HostUUID]
-			if !ok {
-				userNanoEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, p.HostUUID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
-				}
-				if userNanoEnrollment != nil {
-					userEnrollment = userNanoEnrollment.ID
-					userEnrollmentMap[p.HostUUID] = userEnrollment
-					userEnrollmentsToHostUUIDsMap[userEnrollment] = p.HostUUID
-				} else {
-					level.Warn(logger).Log("msg", "host does not have a user enrollment, falling back to system enrollment for user scoped profile",
-						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
-				}
+			userEnrollment, err := getNanoMDMUserEnrollment(ctx, ds, userEnrollmentMap, userEnrollmentsToHostUUIDsMap, p.HostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
 			}
-			if userEnrollment != "" {
-				sentToUserChannel = true
-				target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
+			if userEnrollment == "" {
+				level.Warn(logger).Log("msg", "host does not have a user enrollment, failing profile installation",
+					"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
+				hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
+					ProfileUUID:       p.ProfileUUID,
+					HostUUID:          p.HostUUID,
+					OperationType:     fleet.MDMOperationTypeInstall,
+					Status:            &fleet.MDMDeliveryFailed,
+					Detail:            "Host does not have a user enrollment",
+					CommandUUID:       target.cmdUUID,
+					ProfileIdentifier: p.ProfileIdentifier,
+					ProfileName:       p.ProfileName,
+					Checksum:          p.Checksum,
+					SecretsUpdatedAt:  p.SecretsUpdatedAt,
+					Scope:             p.Scope,
+				}
+				hostProfiles = append(hostProfiles, hostProfile)
+				continue
 			}
-		}
+			toGetContents[p.ProfileUUID] = true
 
-		if !sentToUserChannel {
-			p.Scope = fleet.PayloadScopeSystem
+			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
+		} else {
 			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
 		}
 
@@ -4142,8 +4145,6 @@ func ReconcileAppleProfiles(
 	for _, p := range toRemove {
 		// Exclude profiles that are also marked for installation.
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
-			// TODO EJM may need "move profile" logic here. Also check if matching profile has same
-			// profileUUID - then don't clean up!
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
 		}
@@ -4172,36 +4173,22 @@ func ReconcileAppleProfiles(
 		}
 
 		if p.Scope == fleet.PayloadScopeUser {
-			userEnrollment, ok := userEnrollmentMap[p.HostUUID]
-			if !ok {
-				userNanoEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, p.HostUUID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
-				}
-				// TODO Is there a better way to handle this? This likely just means cleanups
-				// haven't run yet
-				if userNanoEnrollment == nil {
-					// TODO(mna): should we still proceed with the device-channel removal
-					// attempt, but with IgnoreError set to true? Otherwise I think the
-					// profile will stay in remove pending forever (or at least until a
-					// new user-enrollment is created, and then it will likely fail since
-					// it's not the same)?
-					level.Warn(logger).Log("msg", "host does not have a user enrollment, cannot remove user scoped profile",
-						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
-					continue
-				}
-				userEnrollment = userNanoEnrollment.ID
-				userEnrollmentMap[p.HostUUID] = userEnrollment
-				userEnrollmentsToHostUUIDsMap[userEnrollment] = p.HostUUID
+			userEnrollment, err := getNanoMDMUserEnrollment(ctx, ds, userEnrollmentMap, userEnrollmentsToHostUUIDsMap, p.HostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting user enrollment to delete profile from host")
 			}
-			if userEnrollment != "" {
-				target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
+			if userEnrollment == "" {
+				level.Warn(logger).Log("msg", "host does not have a user enrollment, cannot remove user scoped profile",
+					"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
+				hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+				continue
 			}
+
+			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
 		} else {
 			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
 		}
 
-		// TODO do not update hostProfiles if we're moving and new profileUUID is the same
 		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
 			ProfileUUID:       p.ProfileUUID,
 			HostUUID:          p.HostUUID,

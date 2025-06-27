@@ -62,6 +62,64 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	return true, nil
 }
 
+// Checks scopes against existing profiles across the entire DB to ensure there are no conflicts
+// where an existing profile with the same identifier has a different scope than the incoming
+// profile. If we don't do this we must implement some sort of "move" semantics to allow for scope
+// changes when a host switches teams or when a profile is updated.
+func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, tx sqlx.ExtContext, cps []*fleet.MDMAppleConfigProfile) error {
+	if len(cps) == 0 {
+		return nil
+	}
+	incomingProfileIdentifiers := make([]string, 0, len(cps))
+	for i := 0; i < len(cps); i++ {
+		incomingProfileIdentifiers = append(incomingProfileIdentifiers, cps[i].Identifier)
+	}
+	stmt := `
+	SELECT
+		profile_uuid,
+		profile_id,
+		team_id,
+		name,
+		scope,
+		identifier,
+		mobileconfig,
+		created_at,
+		uploaded_at,
+		checksum
+	FROM
+		mdm_apple_configuration_profiles
+	WHERE
+	  identifier IN (?)
+	`
+	stmt, args, err := sqlx.In(stmt, incomingProfileIdentifiers)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In verifyAppleConfigProfileScopesDoNotConflict")
+	}
+
+	var existingProfiles []*fleet.MDMAppleConfigProfile
+	if err = sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "querying existing apple config profiles by identifier")
+	}
+
+	existingProfilesByIdentifier := make(map[string][]*fleet.MDMAppleConfigProfile)
+	for _, existingProfile := range existingProfiles {
+		existingProfilesByIdentifier[existingProfile.Identifier] = append(existingProfilesByIdentifier[existingProfile.Identifier], existingProfile)
+	}
+	for _, cp := range cps {
+		existingProfiles := existingProfilesByIdentifier[cp.Identifier]
+		for _, existingProfile := range existingProfiles {
+			if existingProfile.Scope != cp.Scope {
+				// TODO Fix error messaging
+				// Here we need to know is this net-new, update, and also check mobileconfig to see
+				// if this is implicit or explicit scope change.
+				level.Error(ds.logger).Log("msg", "incoming profile scope conflicts with existing", "identifier", cp.Identifier, "profile_uuid", existingProfile.ProfileUUID, "existing_scope", existingProfile.Scope, "incoming_scope", cp.Scope)
+				return ctxerr.Wrap(ctx, errors.New("payload scopes conflict"))
+			}
+		}
+	}
+	return nil
+}
+
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
 	stmt := `
@@ -82,6 +140,10 @@ INSERT INTO
 
 	var profileID int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		err := ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp})
+		if err != nil {
+			return err
+		}
 		res, err := tx.ExecContext(ctx, stmt,
 			profUUID, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
 			teamID)
@@ -2157,7 +2219,6 @@ VALUES
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
-  scope =  IF(checksum = VALUES(checksum), scope, VALUES(scope)),
   checksum = VALUES(checksum),
   name = VALUES(name),
   mobileconfig = VALUES(mobileconfig)
@@ -2167,6 +2228,11 @@ ON DUPLICATE KEY UPDATE
 	var profTeamID uint
 	if tmID != nil {
 		profTeamID = *tmID
+	}
+
+	err = ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, profiles)
+	if err != nil {
+		return false, err
 	}
 
 	// build a list of identifiers for the incoming profiles, will keep the
@@ -3099,13 +3165,6 @@ func generateEntitiesToInstallQuery(entityType string) string {
 	// Cons is of course a more complex query, but the final query is already
 	// quite complex and this new condition is not too bad, and it would be
 	// required *somewhere* anyway.
-	// TODO EJM Changes here
-	// Possible change possibly stupid:
-	//   if profile different AND scope has changed
-	//     then remove it from the old scope and install on the new scope
-	//     and have Reconcile handle the logic. We have to be super careful
-	//     not to break the existing behavior doing that and we have to be
-	//     careful about order of operations. Lots of side effects. But maybe...
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
 		LEFT JOIN ${hostMDMAppleEntityTable} hmae
@@ -3199,24 +3258,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 			WHERE
 				mcpl.${appleEntityUUIDColumn} = hmae.${entityUUIDColumn} AND
 				mcpl.label_id IS NULL
-	)) OR
-	 -- entities that are in both A and B
-	 (ds.${entityUUIDColumn} IS NOT NULL AND ds.host_uuid IS NOT NULL AND
-	 -- but with a different checksum(i.e. the profile has changed) or being resent
-	 (ds.${checksumColumn} != hmae.${checksumColumn} OR hmae.status IS NULL) AND hmae.operation_type = ? AND
-	 -- and the scope has changed(meaning we need to move the profile between the channels)
-	  ds.scope != hmae.scope
-	 -- and a user-channel exists for the host(meaning we are actually going to move the profile)
-	 -- and as such we need to remove it from the old channel
-	  AND EXISTS (
-				SELECT 1
-				FROM nano_enrollments ne
-				WHERE
-					ne.type = 'User' AND
-					ne.enabled = 1 AND
-					ne.device_id = ds.host_uuid
-			)
-	  )
+	))
 `, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"))
 }
 
@@ -3230,7 +3272,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 		ds.profile_name,
 		ds.checksum,
 		ds.secrets_updated_at,
-		ds.scope
+		COALESCE(hmae.scope, ds.scope) AS scope
 	FROM %s `,
 		generateEntitiesToInstallQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
@@ -3256,7 +3298,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 		hmae.scope
 	FROM %s`, generateEntitiesToRemoveQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)
 
 	return profiles, err
 }
@@ -3822,6 +3864,9 @@ WHERE
 // profiles (called in service.ensureFleetProfiles with the Fleet configuration
 // profiles). Those are known not to use any Fleet variables. This method must
 // not be used for any profile that uses Fleet variables.
+// Also note this method does not implement the "do not allow profile scope to change"
+// logic that other methods do and if it is ever used for non-fleet-controlled profiles
+// it will need to.
 func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
 	if len(payload) == 0 {
 		return nil
@@ -3847,7 +3892,6 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
           ON DUPLICATE KEY UPDATE
             uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
             mobileconfig = VALUES(mobileconfig),
-			scope = IF(checksum = VALUES(checksum) AND name = VALUES(name), scope, VALUES(scope)),
             checksum = VALUES(checksum),
 		    secrets_updated_at = VALUES(secrets_updated_at)
 `, strings.TrimSuffix(sb.String(), ","))
@@ -5764,7 +5808,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	)
 
 	var decls []*fleet.MDMAppleHostDeclaration
-	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}
 	return decls, nil
