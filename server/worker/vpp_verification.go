@@ -60,7 +60,7 @@ func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verific
 	// flight, the install will be verified by that one.
 	if len(pendingCmds) == 0 {
 		newListCmdUUID := fleet.VerifySoftwareInstallVPPPrefix + uuid.NewString()
-		if err := v.Datastore.UpdateVPPInstallVerificationCommandByVerifyUUID(ctx, verificationCommandUUID, newListCmdUUID); err != nil {
+		if err := v.Datastore.ReplaceVPPInstallVerificationUUID(ctx, verificationCommandUUID, newListCmdUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "update install record")
 		}
 		err := v.Commander.InstalledApplicationList(ctx, []string{hostUUID}, newListCmdUUID, true)

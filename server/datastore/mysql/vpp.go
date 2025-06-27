@@ -1751,7 +1751,7 @@ WHERE hvsi.verification_command_uuid = ?
 	return result, nil
 }
 
-func (ds *Datastore) UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID, verifyCommandUUID string) error {
+func (ds *Datastore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
 SET verification_command_uuid = ? 
@@ -1765,7 +1765,7 @@ WHERE command_uuid = ?
 	return nil
 }
 
-func (ds *Datastore) UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error {
+func (ds *Datastore) ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
 SET verification_command_uuid = ? 

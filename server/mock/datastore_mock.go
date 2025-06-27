@@ -486,11 +486,11 @@ type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uin
 
 type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
-type UpdateVPPInstallVerificationCommandFunc func(ctx context.Context, installUUID string, verifyCommandUUID string) error
+type AssociateVPPInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string) error
 
 type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installUUID string) error
 
-type UpdateVPPInstallVerificationCommandByVerifyUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
+type ReplaceVPPInstallVerificationUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
 
 type GetAcknowledgedMDMCommandsByHostFunc func(ctx context.Context, hostUUID string, commandType string) ([]string, error)
 
@@ -2103,14 +2103,14 @@ type DataStore struct {
 	GetCategoriesForSoftwareTitlesFunc        GetCategoriesForSoftwareTitlesFunc
 	GetCategoriesForSoftwareTitlesFuncInvoked bool
 
-	UpdateVPPInstallVerificationCommandFunc        UpdateVPPInstallVerificationCommandFunc
-	UpdateVPPInstallVerificationCommandFuncInvoked bool
+	AssociateVPPInstallToVerificationUUIDFunc        AssociateVPPInstallToVerificationUUIDFunc
+	AssociateVPPInstallToVerificationUUIDFuncInvoked bool
 
 	SetVPPInstallAsVerifiedFunc        SetVPPInstallAsVerifiedFunc
 	SetVPPInstallAsVerifiedFuncInvoked bool
 
-	UpdateVPPInstallVerificationCommandByVerifyUUIDFunc        UpdateVPPInstallVerificationCommandByVerifyUUIDFunc
-	UpdateVPPInstallVerificationCommandByVerifyUUIDFuncInvoked bool
+	ReplaceVPPInstallVerificationUUIDFunc        ReplaceVPPInstallVerificationUUIDFunc
+	ReplaceVPPInstallVerificationUUIDFuncInvoked bool
 
 	GetAcknowledgedMDMCommandsByHostFunc        GetAcknowledgedMDMCommandsByHostFunc
 	GetAcknowledgedMDMCommandsByHostFuncInvoked bool
@@ -5110,11 +5110,11 @@ func (s *DataStore) GetCategoriesForSoftwareTitles(ctx context.Context, software
 	return s.GetCategoriesForSoftwareTitlesFunc(ctx, softwareTitleIDs, team_id)
 }
 
-func (s *DataStore) UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID string, verifyCommandUUID string) error {
+func (s *DataStore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID string, verifyCommandUUID string) error {
 	s.mu.Lock()
-	s.UpdateVPPInstallVerificationCommandFuncInvoked = true
+	s.AssociateVPPInstallToVerificationUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateVPPInstallVerificationCommandFunc(ctx, installUUID, verifyCommandUUID)
+	return s.AssociateVPPInstallToVerificationUUIDFunc(ctx, installUUID, verifyCommandUUID)
 }
 
 func (s *DataStore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error {
@@ -5124,11 +5124,11 @@ func (s *DataStore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, in
 	return s.SetVPPInstallAsVerifiedFunc(ctx, hostID, installUUID)
 }
 
-func (s *DataStore) UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error {
+func (s *DataStore) ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error {
 	s.mu.Lock()
-	s.UpdateVPPInstallVerificationCommandByVerifyUUIDFuncInvoked = true
+	s.ReplaceVPPInstallVerificationUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateVPPInstallVerificationCommandByVerifyUUIDFunc(ctx, oldVerifyUUID, verifyCommandUUID)
+	return s.ReplaceVPPInstallVerificationUUIDFunc(ctx, oldVerifyUUID, verifyCommandUUID)
 }
 
 func (s *DataStore) GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID string, commandType string) ([]string, error) {
