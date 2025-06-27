@@ -431,7 +431,7 @@ var hostVitals = map[string]HostVital{
 		VitalType:         HostVitalTypeForeign,
 		DataType:          "string",
 		ForeignVitalGroup: ptr.String("idp"),
-		Path:              "scim_user.department",
+		Path:              "scim_users.department",
 	},
 }
 
