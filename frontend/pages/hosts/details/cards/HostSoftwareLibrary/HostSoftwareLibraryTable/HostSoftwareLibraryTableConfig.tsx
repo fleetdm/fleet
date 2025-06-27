@@ -2,30 +2,19 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
-import {
-  IHostAppStoreApp,
-  IHostSoftware,
-  SoftwareSource,
-  formatSoftwareType,
-} from "interfaces/software";
+import { IHostAppStoreApp, IHostSoftware } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { IDropdownOption } from "interfaces/dropdownOption";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
+import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
+
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import InstallerActionCell from "./InstallerActionCell";
-import InstallStatusCell from "../Software/InstallStatusCell";
-
-export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "showDetails", label: "Show details", disabled: false },
-  { value: "install", label: "Install", disabled: false },
-  { value: "uninstall", label: "Uninstall", disabled: false },
-];
+import InstallerActionCell from "../InstallerActionCell";
+import InstallStatusCell from "../../Software/InstallStatusCell";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -75,11 +64,24 @@ export const generateHostSWLibraryTableHeaders = ({
       accessor: "name",
       disableSortBy: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source, app_store_app } = cellProps.row.original;
+        const {
+          id,
+          name,
+          source,
+          app_store_app,
+          software_package,
+        } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(id.toString()),
           { team_id: teamId }
+        );
+
+        const hasInstaller = !!app_store_app || !!software_package;
+        const isSelfService =
+          app_store_app?.self_service || software_package?.self_service;
+        const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
+          cellProps.row.original
         );
 
         return (
@@ -89,6 +91,10 @@ export const generateHostSWLibraryTableHeaders = ({
             iconUrl={app_store_app?.icon_url}
             path={softwareTitleDetailsPath}
             router={router}
+            hasInstaller={hasInstaller}
+            isSelfService={isSelfService}
+            automaticInstallPoliciesCount={automaticInstallPoliciesCount}
+            pageContext="hostDetailsLibrary"
           />
         );
       },
@@ -137,21 +143,6 @@ export const generateHostSWLibraryTableHeaders = ({
           <VersionCell versions={[{ version: installerData?.version || "" }]} />
         );
       },
-    },
-    {
-      Header: "Type",
-      disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          formatter={() =>
-            formatSoftwareType({
-              source: cellProps.cell.value as SoftwareSource,
-            })
-          }
-        />
-      ),
     },
     {
       Header: "Actions",

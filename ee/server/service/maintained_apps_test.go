@@ -281,17 +281,6 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 			UniqueIdentifier: "Internet Exploder",
 		}, nil
 	}
-	ds.MatchOrCreateSoftwareInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, uint, error) {
-		require.Equal(t, spoofedSHA, payload.StorageID)
-		require.Empty(t, payload.BundleIdentifier)
-		require.Equal(t, "Internet Exploder", payload.Title)
-		require.Equal(t, "programs", payload.Source)
-		require.Equal(t, "Hello World!", payload.InstallScript)
-		require.Equal(t, "Hello World!", payload.UninstallScript)
-
-		// Can't easily inject a proper fleet.service so we bail early before NewActivity gets called and panics
-		return 0, 0, errors.New("forced error to short-circuit storage and activity creation")
-	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
 	}
@@ -301,6 +290,18 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 		_, _ = w.Write(installerBytes)
 	}))
 	defer installerServer.Close()
+	ds.MatchOrCreateSoftwareInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, uint, error) {
+		require.Equal(t, spoofedSHA, payload.StorageID)
+		require.Empty(t, payload.BundleIdentifier)
+		require.Equal(t, "Internet Exploder", payload.Title)
+		require.Equal(t, "programs", payload.Source)
+		require.Equal(t, "Hello World!", payload.InstallScript)
+		require.Equal(t, "Hello World!", payload.UninstallScript)
+		require.Equal(t, installerServer.URL+"/iexplode.exe", payload.URL)
+
+		// Can't easily inject a proper fleet.service so we bail early before NewActivity gets called and panics
+		return 0, 0, errors.New("forced error to short-circuit storage and activity creation")
+	}
 
 	// Mock server to serve the manifest
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -326,6 +327,7 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 		err := json.NewEncoder(w).Encode(manifest)
 		require.NoError(t, err)
 	}))
+
 	t.Cleanup(manifestServer.Close)
 	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
 	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")

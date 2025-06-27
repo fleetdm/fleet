@@ -182,18 +182,43 @@
                 {{comparisonModeFriendlyNames[comparisonModeForIt]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
               </div>
               <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
-                <div class="dropdown-item" @click="comparisonModeForIt = 'sccm'">SCCM</div>
-                <div class="dropdown-item" @click="comparisonModeForIt = 'omnissa'">Omnissa (WS1)</div>
-                <div class="dropdown-item" @click="comparisonModeForIt = 'jamf'">Jamf Pro</div>
-                <div class="dropdown-item" @click="comparisonModeForIt = 'intune'">Intune</div>
-                <div class="dropdown-item" @click="comparisonModeForIt = 'ansible'">Ansible</div>
-                <div class="dropdown-item" @click="comparisonModeForIt = 'tanium'">Tanium</div>
-                <div class="dropdown-item" @click="comparisonModeForIt = 'puppet'">Puppet</div>
-                <div class="dropdown-item" @click="comparisonModeForIt = 'chef'">Chef</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
               </div>
             </div>
           </div>
           <div purpose="comparison-table" class="d-sm-flex d-none flex-column">
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>Cloud or self-host with no restrictions</p></div>
+              <div purpose="fleet-column">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+              <div purpose="comparison-column" v-if="comparisonModeForIt === 'jamf'">
+                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some key features, like Apple Declarative Device Management (DDM), are cloud-only.">On-prem limited</a></p>
+              </div>
+              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'tanium'">
+                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some modern modules and integrations are cloud-only.">On-prem limited</a></p>
+              </div>
+              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'intune'">
+                <p>Cloud-only</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'sccm'">
+                <p>On-prem only</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'omnissa'">
+                <p>On-prem discouraged</p>
+              </div>
+              <div purpose="comparison-column" v-else>
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+
             <div purpose="table-row">
               <div purpose="feature-name"><p>Zero-touch setup</p></div>
               <div purpose="fleet-column">
@@ -448,14 +473,45 @@
             {{comparisonModeFriendlyNames[comparisonModeForIt]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
           </div>
           <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurpose">
-              <div class="dropdown-item" @click="comparisonModeForIt = 'sccm'">SCCM</div>
-              <div class="dropdown-item" @click="comparisonModeForIt = 'omnissa'">Omnissa (WS1)</div>
-              <div class="dropdown-item" @click="comparisonModeForIt = 'jamf'">Jamf Pro</div>
-              <div class="dropdown-item" @click="comparisonModeForIt = 'intune'">Intune</div>
-              <div class="dropdown-item" @click="comparisonModeForIt = 'ansible'">Ansible</div>
-              <div class="dropdown-item" @click="comparisonModeForIt = 'tanium'">Tanium</div>
-              <div class="dropdown-item" @click="comparisonModeForIt = 'puppet'">Puppet</div>
-              <div class="dropdown-item" @click="comparisonModeForIt = 'chef'">Chef</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
+          </div>
+
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>Cloud or self-host with no restrictions</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row">
+              <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
+              <div purpose="feature-status" v-if="comparisonModeForIt === 'jamf'">
+                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some key features, like Apple Declarative Device Management (DDM), are cloud-only.">On-prem limited</a></p>
+              </div>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'tanium'">
+                <p><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some modern modules and integrations are cloud-only.">On-prem limited</a></p>
+              </div>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'intune'">
+                <p>Cloud-only</p>
+              </div>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'sccm'">
+                <p>On-prem only</p>
+              </div>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'omnissa'">
+                <p>On-prem discouraged</p>
+              </div>
+              <div purpose="feature-status" v-else>
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
           </div>
           <div purpose="feature-table">
             <div purpose="feature-name"><p>Zero-touch setup</p></div>
@@ -784,11 +840,12 @@
                 {{comparisonModeFriendlyNames[comparisonModeForSecurity]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
               </div>
               <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurposeForSecurity">
-                <div class="dropdown-item" @click="comparisonModeForSecurity = 'rapid'">Rapid 7</div>
-                <div class="dropdown-item" @click="comparisonModeForSecurity = 'crowdstrike'">Crowdstrike</div>
-                <div class="dropdown-item" @click="comparisonModeForSecurity = 'tanium'">Tanium</div>
-                <div class="dropdown-item" @click="comparisonModeForSecurity = 'qualys'">Qualys</div>
-                <div class="dropdown-item" @click="comparisonModeForSecurity = 'tenable'">Tenable</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('defender')">Defender</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('rapid')">Rapid 7</div>
+                <!-- <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('crowdstrike')">Crowdstrike</div> -->
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('qualys')">Qualys</div>
+                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tenable')">Tenable</div>
               </div>
             </div>
           </div>
@@ -804,8 +861,26 @@
               <div purpose="comparison-column" v-if="['rapid', 'crowdstrike', 'tanium'].includes(comparisonModeForSecurity)">
                 <p>Proprietary</p>
               </div>
-              <div purpose="comparison-column" v-else-if="['qualys', 'tenable'].includes(comparisonModeForSecurity)">
+              <div purpose="comparison-column" v-else-if="['qualys', 'tenable', 'defender'].includes(comparisonModeForSecurity)">
                 <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>Threat hunting</p></div>
+              <div purpose="fleet-column">
+                <p>Instant</p>
+              </div>
+              <div purpose="comparison-column" v-if="['rapid'].includes(comparisonModeForSecurity)">
+                <p>Only in MDR</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="['defender'].includes(comparisonModeForSecurity)">
+                <p>1-6 hour delay</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="['tanium'].includes(comparisonModeForSecurity)">
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+              <div purpose="comparison-column" v-else>
+                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
             </div>
 
@@ -864,7 +939,7 @@
                 <p>Bring your own</p>
               </div>
               <div purpose="comparison-column">
-                <p>Out of the box</p>
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
 
@@ -880,7 +955,7 @@
                 <img src="/images/icon-android-16x16@2x.png" alt="Android" >
                 <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
               </div>
-              <div purpose="comparison-column" v-if="comparisonModeForSecurity === 'qualys'">
+              <div purpose="comparison-column" v-if="['qualys'].includes(comparisonModeForSecurity)">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column" v-else>
@@ -914,11 +989,11 @@
                 <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
                 <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
               </div>
-              <div purpose="comparison-column" v-if="comparisonModeForSecurity === 'tanium'">
-                <p>Mobile not supported</p>
+              <div purpose="comparison-column" v-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
+                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'qualys'">
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
+              <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'tanium'">
+                <p>Mobile not supported</p>
               </div>
               <div purpose="comparison-column" v-else>
                 <p>Additional purchase</p>
@@ -955,7 +1030,7 @@
               <div purpose="comparison-column" v-if="comparisonModeForSecurity === 'crowdstrike'">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'qualys'">
+              <div purpose="comparison-column" v-else-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
                 <p>Mobile not supported</p>
               </div>
               <div purpose="comparison-column" v-else>
@@ -968,7 +1043,7 @@
               <div purpose="fleet-column">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
-              <div purpose="comparison-column" v-if="['tanium'].includes(comparisonModeForSecurity)">
+              <div purpose="comparison-column" v-if="['tanium', 'defender'].includes(comparisonModeForSecurity)">
                 <p>Additional purchase</p>
               </div>
               <div purpose="comparison-column" v-else-if="['qualys'].includes(comparisonModeForSecurity)">
@@ -998,11 +1073,12 @@
             {{comparisonModeFriendlyNames[comparisonModeForSecurity]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
           </div>
           <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurposeForSecurity">
-            <div class="dropdown-item" @click="comparisonModeForSecurity = 'rapid'">Rapid 7</div>
-            <div class="dropdown-item" @click="comparisonModeForSecurity = 'crowdstrike'">Crowdstrike</div>
-            <div class="dropdown-item" @click="comparisonModeForSecurity = 'tanium'">Tanium</div>
-            <div class="dropdown-item" @click="comparisonModeForSecurity = 'qualys'">Qualys</div>
-            <div class="dropdown-item" @click="comparisonModeForSecurity = 'tenable'">Tenable</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('defender')">Defender</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('rapid')">Rapid 7</div>
+            <!-- <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('crowdstrike')">Crowdstrike</div> -->
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('qualys')">Qualys</div>
+            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tenable')">Tenable</div>
           </div>
           <div purpose="feature-table">
             <div purpose="feature-name"><p>Threat intelligence <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Integrate threat intelligence sources to detect, enrich, or investigate suspicious activity on devices."></p></div>
@@ -1017,8 +1093,32 @@
               <div purpose="feature-status" v-if="['rapid', 'crowdstrike', 'tanium'].includes(comparisonModeForSecurity)">
                 <p>Proprietary</p>
               </div>
-              <div purpose="feature-status" v-else-if="['qualys', 'tenable'].includes(comparisonModeForSecurity)">
-                <p>Proprietary / Bring your own</p>
+              <div purpose="feature-status" v-else-if="['qualys', 'tenable', 'defender'].includes(comparisonModeForSecurity)">
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+          </div>
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>Threat hunting</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <p>Instant</p>
+              </div>
+            </div>
+            <div purpose="feature-table-row">
+              <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
+              <div purpose="feature-status" v-if="['rapid'].includes(comparisonModeForSecurity)">
+                <p>Only in MDR</p>
+              </div>
+              <div purpose="feature-status" v-else-if="['defender'].includes(comparisonModeForSecurity)">
+                <p>1-6 hour delay</p>
+              </div>
+              <div purpose="feature-status" v-else-if="['tanium'].includes(comparisonModeForSecurity)">
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+              <div purpose="feature-status" v-else>
+                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
             </div>
           </div>
@@ -1099,7 +1199,7 @@
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
               <div purpose="feature-status">
-                <p>Out of the box</p>
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
           </div>
@@ -1119,7 +1219,7 @@
             </div>
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForSecurity === 'qualys'">
+              <div purpose="feature-status" v-if="['qualys'].includes(comparisonModeForSecurity)">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="feature-status" v-else>
@@ -1166,7 +1266,7 @@
               <div purpose="feature-status" v-if="comparisonModeForSecurity === 'tanium'">
                 <p>Mobile not supported</p>
               </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForSecurity === 'qualys'">
+              <div purpose="feature-status" v-else-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
               <div purpose="feature-status" v-else>
@@ -1215,7 +1315,7 @@
               <div purpose="feature-status" v-if="comparisonModeForSecurity === 'crowdstrike'">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForSecurity === 'qualys'">
+              <div purpose="feature-status" v-else-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
                 <p>Mobile not supported</p>
               </div>
               <div purpose="feature-status" v-else>
@@ -1234,7 +1334,7 @@
             </div>
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['tanium'].includes(comparisonModeForSecurity)">
+              <div purpose="feature-status" v-if="['tanium', 'defender'].includes(comparisonModeForSecurity)">
                 <p>Additional purchase</p>
               </div>
               <div purpose="feature-status" v-else-if="['qualys'].includes(comparisonModeForSecurity)">

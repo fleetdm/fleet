@@ -317,7 +317,7 @@ export const generateSoftwareTableHeaders = ({
             name={name}
             source={source}
             iconUrl={app_store_app?.icon_url}
-            myDevicePage
+            pageContext="deviceUser"
             isSelfService
           />
         );

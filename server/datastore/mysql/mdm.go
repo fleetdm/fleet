@@ -591,6 +591,8 @@ SET
 WHERE
 	host_uuid = ?
 	AND operation_type = ?
+	-- do not increment retry unnecessarily if the status is already null, no MDM command was sent
+	AND status IS NOT NULL
 	AND %s IN(?)`
 
 	args := []interface{}{
@@ -864,7 +866,7 @@ func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.
 	stmt := `
 -- profiles without labels
 SELECT
-    macp.profile_uuid AS profile_uuid,
+	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
 	0 AS count_profile_labels,
 	0 AS count_non_broken_labels,
@@ -1553,7 +1555,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 
 	// NOTE: if you change any of the conditions in this query, please
 	// update the `hostMDMSelect` constant too, which has a
-	// `connected_to_fleet` condition, and any relevant filters.
+	// `connected_to_fleet` condition, any relevant filters, and the
+	// query used in isAppleHostConnectedToFleetMDM.
 	const appleStmt = `
 	  SELECT ne.id
 	  FROM nano_enrollments ne
@@ -1570,7 +1573,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 
 	// NOTE: if you change any of the conditions in this query, please
 	// update the `hostMDMSelect` constant too, which has a
-	// `connected_to_fleet` condition, and any relevant filters.
+	// `connected_to_fleet` condition, and any relevant filters, and the
+	// query used in isWindowsHostConnectedToFleetMDM.
 	const winStmt = `
 	  SELECT mwe.host_uuid
 	  FROM mdm_windows_enrollments mwe
@@ -1588,11 +1592,13 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 }
 
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
-	mp, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{host})
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
+	if host.Platform == "windows" {
+		return isWindowsHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
+	} else if host.Platform == "darwin" || host.Platform == "ipados" || host.Platform == "ios" {
+		return isAppleHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
 	}
-	return mp[host.UUID], nil
+
+	return false, nil
 }
 
 func batchSetProfileVariableAssociationsDB(
@@ -1960,4 +1966,24 @@ GROUP BY
 	}
 
 	return counts, nil
+}
+
+func (ds *Datastore) GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error) {
+	stmt := `
+SELECT
+    nvq.command_uuid AS command_uuid
+FROM
+    nano_view_queue nvq
+WHERE
+   nvq.active = 1 
+   AND nvq.id = ?
+   AND nvq.request_type = ?
+   AND status != 'Acknowledged'`
+
+	var cmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, stmt, hostUUID, commandType); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get pending mdm commands by host")
+	}
+
+	return cmdUUIDs, nil
 }

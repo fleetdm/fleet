@@ -8,6 +8,23 @@ const DEFAULT_INSTALL_ERROR_MESSAGE = `${INSTALL_SOFTWARE_ERROR_PREFIX} Please t
 const UNINSTALL_SOFTWARE_ERROR_PREFIX = "Couldn't uninstall.";
 const DEFAULT_UNINSTALL_ERROR_MESSAGE = `${UNINSTALL_SOFTWARE_ERROR_PREFIX} Please try again.`;
 
+export type IHostSWLibraryDropdownFilterVal = "available" | "selfService";
+
+export const DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All available",
+    value: "available",
+    helpText: "Software that can be installed on your host.",
+  },
+  {
+    disabled: false,
+    label: "Self-service",
+    value: "selfService",
+    helpText: "Software that end users can install from Fleet Desktop.",
+  },
+];
+
 const createOnlyInstallableOnMacOSMessage = (reason: string) =>
   `Couldn't install. ${reason.replace("darwin", "macOS")}.`;
 

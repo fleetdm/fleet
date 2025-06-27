@@ -71,6 +71,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   exploit?: string;
   min_cvss_score?: string;
   max_cvss_score?: string;
+  self_service?: string;
   category_id?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
@@ -86,6 +87,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   const categoryId = queryParams?.category_id
     ? parseInt(queryParams.category_id, 10)
     : undefined;
+  const selfService = queryParams?.self_service === "true";
 
   return {
     page,
@@ -96,6 +98,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     vulnerable: softwareVulnFilters.vulnerable,
     min_cvss_score: softwareVulnFilters.minCvssScore,
     max_cvss_score: softwareVulnFilters.maxCvssScore,
+    self_service: selfService,
     exploit: softwareVulnFilters.exploit,
     available_for_install: false, // always false for host software
     category_id: categoryId,

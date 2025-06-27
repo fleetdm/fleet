@@ -1,3 +1,9 @@
+## Orbit 1.44.0 (Jun 26, 2025)
+
+* Added `app_sso_platform` table to get Platform SSO extensions state information.
+
+* Updated go to 1.24.4
+
 ## Orbit 1.43.0 (Jun 10, 2025)
 
 * Fixed an issue where the setup experience window would never finish and close if a software installer was deleted while it was running.
