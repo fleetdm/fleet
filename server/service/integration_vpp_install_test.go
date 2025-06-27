@@ -256,7 +256,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.NoError(t, err)
 		for cmd != nil {
 			var fullCmd micromdm.CommandPayload
-			fmt.Printf("1 cmd.Command.RequestType: %v\n", cmd.Command.RequestType)
 			switch cmd.Command.RequestType {
 			case "InstallApplication":
 				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
@@ -285,8 +284,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.NoError(t, err)
 		for cmd != nil {
 			var fullCmd micromdm.CommandPayload
-			fmt.Printf("2 cmd.Command.RequestType: %v\n", cmd.Command.RequestType)
-			switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+			switch cmd.Command.RequestType {
 			case "InstalledApplicationList":
 				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 				cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{{Name: addedApp.Name, BundleIdentifier: addedApp.BundleIdentifier, Version: addedApp.LatestVersion, Installed: appInstallVerified}})
@@ -463,22 +461,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		),
 		0,
 	)
-
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var results []struct {
-			CommandUUID    string     `db:"command_uuid"`
-			VerificationAt *time.Time `db:"verification_at"`
-			VerifyFailedAt *time.Time `db:"verification_failed_at"`
-			AdamID         string     `db:"adam_id"`
-		}
-
-		err := sqlx.SelectContext(context.Background(), q, &results, "SELECT adam_id, command_uuid, verification_at, verification_failed_at FROM host_vpp_software_installs")
-		require.NoError(t, err)
-		for _, r := range results {
-			fmt.Printf("r: %+v\n", r)
-		}
-		return nil
-	})
 
 	// Check list host software
 

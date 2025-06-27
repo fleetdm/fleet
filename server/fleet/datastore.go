@@ -657,7 +657,7 @@ type Datastore interface {
 	// SetVPPInstallAsVerified marks the VPP app install attempt as "verified" (Fleet has validated
 	// that it's installed on the device).
 	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error
-	// ReplaceVPPInstallVerificationUUID replaced the verification command UUID for all
+	// ReplaceVPPInstallVerificationUUID replaces the verification command UUID for all
 	// VPP app install attempts were related to oldVerifyUUID.
 	ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
 	// GetAcknowledgedMDMCommandsByHost gets all commands of the given type that are in the
