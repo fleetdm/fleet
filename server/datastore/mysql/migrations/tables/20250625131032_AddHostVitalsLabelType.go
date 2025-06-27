@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250623131032, Down_20250623131032)
+	MigrationClient.AddMigration(Up_20250625131032, Down_20250625131032)
 }
 
-func Up_20250623131032(tx *sql.Tx) error {
+func Up_20250625131032(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		"ALTER TABLE `labels` " +
 			"ADD COLUMN `criteria` json DEFAULT NULL; ",
@@ -20,6 +20,6 @@ func Up_20250623131032(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250623131032(tx *sql.Tx) error {
+func Down_20250625131032(tx *sql.Tx) error {
 	return nil
 }
