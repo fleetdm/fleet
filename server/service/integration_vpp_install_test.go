@@ -289,29 +289,29 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		return nil
 	})
 
-	// listResp = listHostsResponse{}
-	// s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
-	// 	"software_title_id", fmt.Sprint(errTitleID))
-	// require.Len(t, listResp.Hosts, 1)
-	// require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
-	// countResp = countHostsResponse{}
-	// s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
-	// 	fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
-	// require.Equal(t, 1, countResp.Count)
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+		"software_title_id", fmt.Sprint(errTitleID))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
+	require.Equal(t, 1, countResp.Count)
 
-	// s.lastActivityMatches(
-	// 	fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-	// 	fmt.Sprintf(
-	// 		`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null}`,
-	// 		mdmHost.ID,
-	// 		mdmHost.DisplayName(),
-	// 		errApp.Name,
-	// 		errApp.AdamID,
-	// 		failedCmdUUID,
-	// 		fleet.SoftwareInstallFailed,
-	// 	),
-	// 	0,
-	// )
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null}`,
+			mdmHost.ID,
+			mdmHost.DisplayName(),
+			errApp.Name,
+			errApp.AdamID,
+			failedCmdUUID,
+			fleet.SoftwareInstallFailed,
+		),
+		0,
+	)
 
 	// Successful install
 
@@ -332,13 +332,14 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		fmt.Printf("1 cmd.Command.RequestType: %v\n", cmd.Command.RequestType)
-		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+		switch cmd.Command.RequestType {
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			installCmdUUID = cmd.CommandUUID
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
 		}
 	}
 
@@ -348,16 +349,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		fmt.Printf("2 cmd.Command.RequestType: %v\n", cmd.Command.RequestType)
-		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+		switch cmd.Command.RequestType {
 		case "InstalledApplicationList":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{{Name: addedApp.Name, BundleIdentifier: addedApp.BundleIdentifier, Version: addedApp.LatestVersion, Installed: true}})
 			require.NoError(t, err)
 		default:
-			fmt.Printf("processing cmd: %v\n", cmd)
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
 		}
 	}
 

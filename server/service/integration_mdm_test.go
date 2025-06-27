@@ -195,7 +195,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Log:       wlog,
 		Commander: mdmCommander,
 	}
-	vppVerifyJob := &worker.VPPVerification{
+	vppVerifyJob := &worker.AppleSoftware{
 		Datastore: s.ds,
 		Log:       wlog,
 		Commander: mdmCommander,

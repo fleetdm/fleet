@@ -3444,7 +3444,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	// Check if this is a result of a "refetch" command sent to iPhones/iPads
 	// to fetch their device information periodically.
-	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) && !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchVPPAppInstallsCommandUUIDPrefix) {
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) && !strings.HasPrefix(cmdResult.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix) {
 		return svc.handleRefetch(r, cmdResult)
 	}
 
@@ -3529,7 +3529,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 			if len(ackCmds) == 0 {
 				cmdUUID := uuid.NewString()
-				cmdUUID = fleet.RefetchVPPAppInstallsCommandUUIDPrefix + cmdUUID
+				cmdUUID = fleet.VerifySoftwareInstallVPPPrefix + cmdUUID
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID, true); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
 				}
@@ -3772,7 +3772,7 @@ func NewInstalledApplicationListResultsHandler(
 		}
 
 		// Then it's not a command sent by Fleet, so skip it
-		if !strings.HasPrefix(installedAppResult.UUID(), fleet.RefetchVPPAppInstallsCommandUUIDPrefix) {
+		if !strings.HasPrefix(installedAppResult.UUID(), fleet.VerifySoftwareInstallVPPPrefix) {
 			return nil
 		}
 
