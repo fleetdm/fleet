@@ -184,5 +184,9 @@ func (s *signingRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 		return nil, fmt.Errorf("signing request: %w", err)
 	}
 
+	// Remove X-Forwarded-For because we are forwarding from 127.0.0.1,
+	// which is a non-standard use of this header and may be rejected by some load balancers.
+	req.Header.Del("X-Forwarded-For")
+
 	return s.transport.RoundTrip(req)
 }
