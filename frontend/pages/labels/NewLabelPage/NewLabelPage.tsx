@@ -109,6 +109,8 @@ const validate = (newData: INewLabelFormData) => {
   return errors;
 };
 
+const DEFAULT_DYNAMIC_QUERY = "SELECT 1 FROM os_version WHERE major >= 13;";
+
 const NewLabelPage = ({
   router,
   location,
@@ -145,7 +147,7 @@ const NewLabelPage = ({
     description: "",
     type: "dynamic", // default type
     // dynamic-specific
-    labelQuery: "",
+    labelQuery: DEFAULT_DYNAMIC_QUERY,
     platform: "",
     // host_vitals-specific
     vital: "end_user_idp_group",

@@ -35,7 +35,6 @@ const isManualLabelFormData = (
 const generateUpdateLabelBody = (
   formData: IDynamicLabelFormData | IManualLabelFormData
 ) => {
-  // TODO - handle all of this in a switch case inside the create API method
   // we need to prepare the post body for only manual labels.
   if (isManualLabelFormData(formData)) {
     return {
