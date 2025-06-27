@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -457,6 +458,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		wipeType := fleet.MDMWindowsWipeTypeDoWipeProtected
 		if metadata != nil && metadata.Windows != nil {
 			wipeType = metadata.Windows.WipeType
+			level.Debug(svc.logger).Log("msg", "Windows host wipe request", "wipe_type", wipeType.String())
 		}
 		wipeCmdUUID := uuid.NewString()
 		wipeCmd := &fleet.MDMWindowsCommand{

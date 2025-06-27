@@ -3279,6 +3279,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			s.Version = installedTitle.Version
 			s.BundleIdentifier = installedTitle.BundleIdentifier
 		}
+		if s.VPPAppAdamID != nil {
+			// Override the status; if there's a pending re-install, we should show that status.
+			if hs, ok := byVPPAdamID[*s.VPPAppAdamID]; ok {
+				s.Status = hs.Status
+			}
+		}
 		hostVPPInstalledTitles[s.ID] = s
 	}
 
