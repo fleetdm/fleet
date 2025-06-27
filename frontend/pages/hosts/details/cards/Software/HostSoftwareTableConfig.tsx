@@ -26,12 +26,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
-
-export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "showDetails", label: "Show details", disabled: false },
-  { value: "install", label: "Install", disabled: false },
-  { value: "uninstall", label: "Uninstall", disabled: false },
-];
+import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -64,13 +59,27 @@ export const generateSoftwareTableHeaders = ({
       accessor: "name",
       disableSortBy: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source, app_store_app } = cellProps.row.original;
+        const {
+          id,
+          name,
+          source,
+          app_store_app,
+          software_package,
+        } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(id.toString()),
           { team_id: teamId }
         );
 
+        const hasInstaller = !!app_store_app || !!software_package;
+        const isSelfService =
+          app_store_app?.self_service || software_package?.self_service;
+        const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
+          cellProps.row.original
+        );
+
+        console.log("isSelfService", isSelfService);
         return (
           <SoftwareNameCell
             name={name}
@@ -78,6 +87,10 @@ export const generateSoftwareTableHeaders = ({
             iconUrl={app_store_app?.icon_url}
             path={softwareTitleDetailsPath}
             router={router}
+            hasInstaller={hasInstaller}
+            isSelfService={isSelfService}
+            automaticInstallPoliciesCount={automaticInstallPoliciesCount}
+            pageContext="hostDetails"
           />
         );
       },

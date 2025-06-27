@@ -145,6 +145,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 	cases := []struct {
 		name              string
 		hostProfiles      []hostProfile
+		existingProfiles  []fleet.HostMDMWindowsProfile
 		report            []osqueryReport
 		toVerify          []string
 		toFail            []string
@@ -427,6 +428,160 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toFail:   []string{"N1"},
 			toRetry:  []string{},
 		},
+		{
+			name: `win32/desktop bridge ADMX profile 404s and is marked for retry since it was previously undelivered`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename",
+						Data:   "some ADMX policy file data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company",
+						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{},
+			report: []osqueryReport{{
+				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
+			}, {
+				"N1", "404", "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company", "",
+			}},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{"N1"},
+		},
+		{
+			name: `win32/desktop bridge ADMX profile 404s and is marked for retry since it was previously nil delivery status`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename",
+						Data:   "some ADMX policy file data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company",
+						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      nil,
+				},
+			},
+			report: []osqueryReport{{
+				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
+			}, {
+				"N1", "404", "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company", "",
+			}},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{"N1"},
+		},
+		{
+			name: `win32/desktop bridge ADMX profile 404s and is marked for retry since it was previously pending`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename",
+						Data:   "some ADMX policy file data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company",
+						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+			},
+			report: []osqueryReport{{
+				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
+			}, {
+				"N1", "404", "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company", "",
+			}},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{"N1"},
+		},
+		{
+			name: `win32/desktop bridge ADMX profile 404s but is marked verified since it was previously verifying`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename",
+						Data:   "some ADMX policy file data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company",
+						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryVerifying,
+				},
+			},
+			report: []osqueryReport{{
+				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
+			}, {
+				"N1", "404", "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company", "",
+			}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: `win32/desktop bridge ADMX profile 404s but is marked verified since it was previously verifying`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename",
+						Data:   "some ADMX policy file data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company",
+						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryVerified,
+				},
+			},
+			report: []osqueryReport{{
+				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
+			}, {
+				"N1", "404", "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company", "",
+			}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
 	}
 
 	for _, tt := range cases {
@@ -471,12 +626,17 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				out := map[string]*fleet.ExpectedMDMProfile{}
 				for _, profile := range tt.hostProfiles {
 					out[profile.Name] = &fleet.ExpectedMDMProfile{
+						ProfileUUID:         "uuid-" + profile.Name,
 						Name:                profile.Name,
 						RawProfile:          profile.RawContents,
 						EarliestInstallDate: installDate,
 					}
 				}
 				return out, nil
+			}
+
+			ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+				return tt.existingProfiles, nil
 			}
 
 			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, toVerify []string, toFail []string, toRetry []string) error {
@@ -507,8 +667,131 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				VerifyHostMDMProfiles(context.Background(), log.NewNopLogger(), ds, &fleet.Host{DetailUpdatedAt: time.Now()}, out))
 			require.True(t, ds.UpdateHostMDMProfilesVerificationFuncInvoked)
 			require.True(t, ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked)
+			require.True(t, ds.GetHostMDMWindowsProfilesFuncInvoked)
 			ds.UpdateHostMDMProfilesVerificationFuncInvoked = false
 			ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked = false
+			ds.GetHostMDMWindowsProfilesFuncInvoked = false
+		})
+	}
+}
+
+func TestIsWin32OrDesktopBridgeADMXCSP(t *testing.T) {
+	testCases := []struct {
+		name     string
+		locURI   string
+		expected bool
+	}{
+		{
+			name:     "ADMX desktop bridge",
+			locURI:   "",
+			expected: false,
+		},
+		{
+			name:     "properly formatted ADMX win32/desktop bridge app locURI with a specific category",
+			locURI:   "./Device/Vendor/MSFT/Policy/Config/ContosoCompanyApp~Policy~ParentCategoryArea~Category1/L_PolicyConfigurationMode",
+			expected: true,
+		},
+		{
+			name:     "properly formatted ADMX win32/desktop bridge app with the default category",
+			locURI:   "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/Subteam",
+			expected: true,
+		},
+		{
+			name:     "Base ADMXInstall node for app",
+			locURI:   "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetTestApp",
+			expected: false,
+		},
+		{
+			name:     "ADMXInstall node with ADMX policy filename",
+			locURI:   "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetTestApp/Policy/FleetTestAppAdmxFilename",
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := IsWin32OrDesktopBridgeADMXCSP(tc.locURI)
+			require.Equal(t, tc.expected, result)
+			result = IsWin32OrDesktopBridgeADMXCSP(strings.ToUpper(tc.locURI))
+			require.Equal(t, tc.expected, result, "Expected same result for uppercased locURI")
+			result = IsWin32OrDesktopBridgeADMXCSP(strings.ToLower(tc.locURI))
+			require.Equal(t, tc.expected, result, "Expected same result for lowercased locURI")
+
+			// a locURI starting with "./Vendor/" is implicitly device scoped, so we should
+			// get the same result if we expliclty scope it with ./Device/Vendor/
+			if strings.HasPrefix(tc.locURI, "./Vendor/") {
+				explicitlyDeviceScopedLocURI := strings.Replace(tc.locURI, "./Vendor/", "./Device/Vendor/", 1)
+				result = IsWin32OrDesktopBridgeADMXCSP(explicitlyDeviceScopedLocURI)
+				require.Equal(t, tc.expected, result, "Expected same result for explicitly and implicitly device scoped locURIs")
+				result = IsWin32OrDesktopBridgeADMXCSP(strings.ToUpper(tc.locURI))
+				require.Equal(t, tc.expected, result, "Expected same result for uppercased locURI when explicitly device scoped")
+				result = IsWin32OrDesktopBridgeADMXCSP(strings.ToLower(tc.locURI))
+				require.Equal(t, tc.expected, result, "Expected same result for lowercased locURI when explicitly device scoped")
+			}
+		})
+	}
+}
+
+func TestIsADMXInstallConfigOperationCSP(t *testing.T) {
+	testCases := []struct {
+		name     string
+		locURI   string
+		expected bool
+	}{
+		{
+			name:     "Base ADMXInstall node for app",
+			locURI:   "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetTestApp",
+			expected: true,
+		},
+		{
+			name:     "ADMXInstall node with ADMX policy filename",
+			locURI:   "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetTestApp/Policy/FleetTestAppAdmxFilename",
+			expected: true,
+		},
+		{
+			name:     "empty string",
+			locURI:   "",
+			expected: false,
+		},
+		// User-scoped ConfigOperations are not supported per Microsoft documentation
+		{
+			name:     "Unsupported User-scoped ADMXInstall node",
+			locURI:   "./User/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetTestApp",
+			expected: false,
+		},
+		// Neither of these are valid or supported paths and should definitely not be picked up by
+		// this logic
+		{
+			name:     "Similar looking ADMX path but not ADMXInstall",
+			locURI:   "./Vendor/MSFT/Policy/ConfigOperations/ADMX/Something",
+			expected: false,
+		},
+		{
+			name:     "ADMXInstall under /Config/ path",
+			locURI:   "./Vendor/MSFT/Policy/Config/ADMXInstall",
+			expected: false,
+		},
+		{
+			name:     "Partial path but not full ADMXInstall",
+			locURI:   "./Vendor/MSFT/Policy",
+			expected: false,
+		},
+		{
+			name:     "Another Partial path but not full ADMXInstall",
+			locURI:   "./Vendor/MSFT",
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := IsADMXInstallConfigOperationCSP(tc.locURI)
+			require.Equal(t, tc.expected, result)
+			if strings.HasPrefix(tc.locURI, "./Vendor/") {
+				explicitlyDeviceScopedLocURI := strings.Replace(tc.locURI, "./Vendor/", "./Device/Vendor/", 1)
+				result = IsADMXInstallConfigOperationCSP(explicitlyDeviceScopedLocURI)
+				require.Equal(t, tc.expected, result, "Expected same result for explicitly and implicitly device scoped locURIs")
+			}
 		})
 	}
 }

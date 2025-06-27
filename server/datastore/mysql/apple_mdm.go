@@ -37,6 +37,32 @@ import (
 // addHostMDMCommandsBatchSize is the number of host MDM commands to add in a single batch. This is a var so that it can be modified in tests.
 var addHostMDMCommandsBatchSize = 10000
 
+func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
+	var uuid string
+
+	// safe to use with interpolation rather than prepared statements because we're using a numeric ID here
+	err := sqlx.GetContext(ctx, q, &uuid, fmt.Sprintf(`
+	  SELECT ne.id
+	  FROM nano_enrollments ne
+	    JOIN hosts h ON h.uuid = ne.id
+	    JOIN host_mdm hm ON hm.host_id = h.id
+	  WHERE h.id = %d
+	    AND ne.enabled = 1
+	    AND ne.type = 'Device'
+	    AND hm.enrolled = 1 LIMIT 1
+	`, h.ID))
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
 	stmt := `
@@ -2048,6 +2074,29 @@ func (ds *Datastore) GetNanoMDMUserEnrollment(ctx context.Context, deviceId stri
 	}
 
 	return &nanoEnroll, nil
+}
+
+func (ds *Datastore) GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error) {
+	var username string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &username, `
+		SELECT
+			COALESCE(nu.user_short_name, '') as user_short_name
+		FROM
+			nano_enrollments ne
+			INNER JOIN nano_users nu ON ne.user_id = nu.id
+		WHERE
+			ne.type = 'User' AND
+			ne.enabled = 1 AND
+			ne.device_id = ?
+		LIMIT 1`, deviceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", ctxerr.Wrapf(ctx, err, "getting username from nano_users for device id %s", deviceID)
+	}
+
+	return username, nil
 }
 
 // NOTE: this is only called from a deprecated endpoint that does not support
@@ -4719,7 +4768,19 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			return ctxerr.Wrap(ctx, err, "resetting disk encryption key information for host")
 		}
 
-		if host.Platform == "darwin" {
+		// Do platform-specific cleanup.
+		switch host.Platform {
+		case "ios", "ipados":
+			// Clear refetch commands for iOS and iPadOS hosts.
+			// FIXME: Do we care about wipe/lock commands? How can we consolidate this with host deletion? See https://github.com/fleetdm/fleet/pull/29283/files#r2098735905
+			_, err = tx.ExecContext(ctx, `
+					DELETE FROM host_mdm_commands
+					WHERE host_id = ? AND instr(command_type, ?)`, host.ID, fleet.RefetchBaseCommandUUIDPrefix)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting host_mdm_commands for host")
+			}
+
+		case "darwin":
 			// Deleting the matching entry on this table will cause
 			// the aggregate report to show this host as 'pending' to
 			// install the bootstrap package.
