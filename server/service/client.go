@@ -1804,14 +1804,15 @@ func (c *Client) DoGitOps(
 			eulaPath = endUserLicenseAgreement
 			delete(mdmAppConfig, "end_user_license_agreement")
 		}
-		fmt.Println("eula in DoGitOps:", eulaPath)
 
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 
 		// we want to apply the EULA only for the global settings
-		err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
-		if err != nil {
-			return nil, nil, err
+		if appConfig.License.IsPremium() {
+			err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
 	} else if !config.IsNoTeam() {
