@@ -6,8 +6,8 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   IconNames
 > = {
   pending_install: "pending-outline",
-  installed: "success-outline",
-  uninstalled: "success-outline",
+  installed: "success",
+  uninstalled: "success",
   failed_install: "error",
   pending_uninstall: "pending-outline",
   failed_uninstall: "error",
