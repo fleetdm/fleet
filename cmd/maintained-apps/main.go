@@ -42,7 +42,7 @@ func main() {
 	for inputDir, ingest := range ingesters {
 		apps, err := ingest(ctx, logger, inputDir, *slugPtr)
 		if err != nil {
-			level.Error(logger).Log("msg", "failed to ingest apps", "error", err)
+			panic(err)
 		}
 
 		for _, app := range apps {

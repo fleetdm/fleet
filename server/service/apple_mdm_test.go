@@ -4226,6 +4226,8 @@ func TestUnmarshalAppList(t *testing.T) {
 			<string>com.evernote.iPhone.Evernote</string>
 			<key>Name</key>
 			<string>Evernote</string>
+			<key>Installing</key>
+			<false/>
 			<key>ShortVersion</key>
 			<string>10.98.0</string>
 		</dict>
@@ -4256,6 +4258,7 @@ func TestUnmarshalAppList(t *testing.T) {
 			Version:          "10.98.0",
 			Source:           "ios_apps",
 			BundleIdentifier: "com.evernote.iPhone.Evernote",
+			Installed:        true,
 		},
 		{
 			Name:             "Netflix",
