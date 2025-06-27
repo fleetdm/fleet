@@ -140,7 +140,7 @@
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column" v-if="comparisonMode === 'jamf'">
-                <a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some modern modules and integrations are cloud-only.">On-prem limited</a></p>
+                <a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some key features, like Apple Declarative Device Management (DDM), are cloud-only.">On-prem limited</a></p>
               </div>
               <div purpose="comparison-column" v-else-if="comparisonMode === 'tanium'">
                 <a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some modern modules and integrations are cloud-only.">On-prem limited</a></p>
@@ -430,7 +430,7 @@
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonMode]}}</div>
               <div purpose="feature-status" v-if="comparisonMode === 'jamf'">
-                <a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some modern modules and integrations are cloud-only.">On-prem limited</a></p>
+                <a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some key features, like Apple Declarative Device Management (DDM), are cloud-only.">On-prem limited</a></p>
               </div>
               <div purpose="feature-status" v-else-if="comparisonMode === 'tanium'">
                 <a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="On-prem supported, but some modern modules and integrations are cloud-only.">On-prem limited</a></p>
