@@ -104,6 +104,6 @@ Make sure you replace the `<PR-branch-name>`.
 
 8. Add and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
 
-9. If the tests fail, the QA sets the PR to draft, files a bug that links to the PR, and updates the [testing spreadsheet](https://docs.google.com/spreadsheets/d/1H-At5fczHwV2Shm_vZMh0zuWowV7AD7yzHgA0RVN7nQ/edit?gid=0#gid=0).
+9. If the tests fail, the QA sets the PR to draft, files a bug, [triages the bug](https://fleetdm.com/handbook/product-design#triage-new-bugs), and updates the [testing spreadsheet](https://docs.google.com/spreadsheets/d/1H-At5fczHwV2Shm_vZMh0zuWowV7AD7yzHgA0RVN7nQ/edit?gid=0#gid=0).
 10. If the test is successful, QA approves and merges the PR.
 
