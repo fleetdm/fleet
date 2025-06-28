@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -1817,4 +1818,60 @@ WHERE command_uuid = ?
 
 		return nil
 	})
+}
+
+// TODO(JVE): we have to be able to mark as failed when specific hosts have MDM turned off too
+func (ds *Datastore) MarkAllPendingVPPInstallsAsFailed(ctx context.Context) error {
+	clearUpcomingActivitiesStmt := `
+DELETE ua FROM
+	upcoming_activities ua
+JOIN
+	host_vpp_software_installs hvsi ON hvsi.command_uuid = ua.execution_id
+WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL AND hvsi.verification_at IS NULL
+	`
+
+	installFailStmt := `
+UPDATE host_vpp_software_installs
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
+WHERE verification_failed_at IS NULL AND verification_at IS NULL
+	`
+
+	deletePendingJobsStmt := `
+DELETE FROM jobs
+WHERE name = ?
+AND state = ?
+	`
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, clearUpcomingActivitiesStmt, "vpp_app_install"); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear vpp install upcoming activities")
+		}
+
+		if _, err := tx.ExecContext(ctx, installFailStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+		}
+
+		if _, err := tx.ExecContext(ctx, deletePendingJobsStmt, worker.AppleSoftwareJobName, fleet.JobStateQueued); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete pending jobs")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
+	installFailStmt := `
+UPDATE host_vpp_software_installs
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
+WHERE
+	verification_failed_at IS NULL
+	AND verification_at IS NULL
+	AND host_id = ?
+	`
+
+	if _, err := tx.ExecContext(ctx, installFailStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+	}
+
+	return nil
 }

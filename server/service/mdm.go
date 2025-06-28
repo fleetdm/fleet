@@ -2798,7 +2798,19 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 
 	appCfg.MDM.EnabledAndConfigured = false
 
-	return svc.ds.SaveAppConfig(ctx, appCfg)
+	// If an install doesn't have a verification_at or verification_failed_at, then
+	// mark it as failed
+	// remove pending jobs? makes sense so we don't send out any more commands that will fail
+
+	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+		return ctxerr.Wrap(ctx, err, "saving app config")
+	}
+
+	if err := svc.ds.MarkAllPendingVPPInstallsAsFailed(ctx); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking all pending vpp installs as failed")
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
