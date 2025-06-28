@@ -389,7 +389,9 @@ If your Fleet deployment was successful, you should be able to access fleet with
 
 ## Fleet Upgrades
 
-Fleet requires that there be no active connections to the MySQL Fleet database, prior to initializing a deployment, as Database migrations are often included and risk failing. Below are instructions that can be followed to Upgrade Fleet using Helm or Terraform
+>Fleet requires that there be no active connections to the MySQL Fleet database, prior to initializing a deployment, as Database migrations are often included and risk failing. 
+
+Below are instructions that can be followed to upgrade Fleet using Helm or Terraform
 
 **Helm**
 
