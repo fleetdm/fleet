@@ -8,7 +8,7 @@ In this guide, we will focus on deploying Fleet only on a Kubernetes cluster usi
 
 ## Getting Started
 
-> You will need to have **Helm (v3)** and/or **Terraform (v1.10.2**).
+> You will need to have [Helm (v3)](https://github.com/helm/helm/releases) and/or [Terraform (v1.10.2)](https://developer.hashicorp.com/terraform/install).
 > - If you intend to deploy using the Fleet Helm chart, you will only need to have Helm (v3).
 > - If you intend to deploy using Terraform, you will, at minimum, need Terraform installed. If you intend to deploy MySQL and/or Redis to your k8s cluster using this guide, for testing, then you will also need Helm (v3).
 
