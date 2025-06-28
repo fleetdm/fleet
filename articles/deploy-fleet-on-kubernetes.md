@@ -258,7 +258,7 @@ helm upgrade --install fleet fleet \
 
 Let's start by cloning the [fleet-terraform repository](https://github.com/fleetdm/fleet-terraform).
 
-To configure preferences for Fleet for use in Terraform, including secret names, including secret names, MySQL and Redis hostnames, and TLS certificates, we'll be modifying `fleet-terraform/k8s/example/main.tf`.
+To configure Fleet preferences for use in Terraform, including secret names, MySQL and Redis hostnames, and TLS certificates, we'll modify `fleet-terraform/k8s/example/main.tf`.
 
 - Update the `main.tf` to include the details for the secret you've created containing your TLS certificate information.
  - Update `hostname` to match the SAN covered by your TLS secret (configured above)
