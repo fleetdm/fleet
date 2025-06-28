@@ -30,7 +30,7 @@ kubectl create ns <namespace>
 
 > Skip if you already have a MySQL database that you plan on using.
 
-The MySQL that we will use for this tutorial is not replicated and it is not highly available. If you're deploying Fleet on a Kubernetes managed by a cloud provider (GCP, Azure, AWS, etc), I suggest using their MySQL product if possible as running HA MySQL in Kubernetes can be complex. To make this tutorial cloud provider agnostic however, we will use a non-replicated instance of MySQL.
+The MySQL that we will use for this tutorial is not replicated and is not highly available. If you're deploying Fleet on a Kubernetes managed by a cloud provider (GCP, Azure, AWS, etc.), I suggest using their MySQL product if possible, as running HA MySQL in Kubernetes can be complex. To make this tutorial cloud provider agnostic, however, we will use a non-replicated instance of MySQL.
 
 To install MySQL from Helm, run the following command.
 
