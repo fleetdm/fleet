@@ -115,7 +115,7 @@ const FailedEndUserInfoCard = ({
 const IdentityProviders = () => {
   const { isPremiumTier } = useContext(AppContext);
 
-  const { data, isLoading, isError } = useQuery(
+  const { data: scimIdPDetails, isLoading, isError } = useQuery(
     ["scim_details"],
     () => idpAPI.getSCIMDetails(),
     {
@@ -137,19 +137,21 @@ const IdentityProviders = () => {
       return <Spinner />;
     }
 
-    if (!data) return null;
+    if (!scimIdPDetails) return null;
 
-    if (data.last_request === null) {
+    if (scimIdPDetails.last_request === null) {
       return <AddEndUserInfoCard />;
-    } else if (data.last_request.status === "success") {
+    } else if (scimIdPDetails.last_request.status === "success") {
       return (
-        <ReceivedEndUserInfoCard receivedAt={data.last_request.requested_at} />
+        <ReceivedEndUserInfoCard
+          receivedAt={scimIdPDetails.last_request.requested_at}
+        />
       );
-    } else if (data.last_request.status === "error") {
+    } else if (scimIdPDetails.last_request.status === "error") {
       return (
         <FailedEndUserInfoCard
-          receivedAt={data.last_request.requested_at}
-          details={data.last_request.details}
+          receivedAt={scimIdPDetails.last_request.requested_at}
+          details={scimIdPDetails.last_request.details}
         />
       );
     }

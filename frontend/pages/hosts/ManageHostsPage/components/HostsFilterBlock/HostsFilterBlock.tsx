@@ -169,7 +169,12 @@ const HostsFilterBlock = ({
 
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
-      const { description, display_text, label_type } = selectedLabel;
+      const {
+        description,
+        display_text,
+        label_type,
+        label_membership_type,
+      } = selectedLabel;
       const pillLabel =
         (isPlatformLabelNameFromAPI(display_text) &&
           PLATFORM_LABEL_DISPLAY_NAMES[display_text]) ||
@@ -196,13 +201,18 @@ const HostsFilterBlock = ({
             !isOnlyObserver &&
             (isOnGlobalTeam || currentUser?.id === selectedLabel.author_id) && (
               <>
-                <Button
-                  className={`${baseClass}__action-btn`}
-                  onClick={onClickEditLabel}
-                  variant="icon"
-                >
-                  <Icon name="pencil" size="small" />
-                </Button>
+                {
+                  // TODO - remove condition if/when can edit host_vitals labels
+                  label_membership_type !== "host_vitals" && (
+                    <Button
+                      className={`${baseClass}__action-btn`}
+                      onClick={onClickEditLabel}
+                      variant="icon"
+                    >
+                      <Icon name="pencil" size="small" />
+                    </Button>
+                  )
+                }
                 <Button
                   className={`${baseClass}__action-btn`}
                   onClick={onClickDeleteLabel}
