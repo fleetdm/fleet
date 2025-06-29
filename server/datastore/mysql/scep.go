@@ -15,6 +15,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/jmoiron/sqlx"
 )
 
 // SCEPDepot is a MySQL-backed SCEP certificate depot.
@@ -103,4 +104,13 @@ VALUES
 		certPEM,
 	)
 	return err
+}
+
+func (ds *Datastore) CertBySerialNumber(ctx context.Context, serialNumber uint64) (string, error) {
+	var certPEM string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &certPEM,
+		`SELECT certificate_pem FROM scep_certificates WHERE serial = ?`,
+		serialNumber,
+	)
+	return certPEM, err
 }

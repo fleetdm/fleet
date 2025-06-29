@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -27,6 +28,9 @@ import (
 	"strings"
 	"time"
 
+	fleethttpsig "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/tee"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -56,6 +60,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/oklog/run"
+	"github.com/remitly-oss/httpsig-go"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
@@ -918,11 +923,68 @@ func main() {
 
 		}
 
+		// Load certificates for mTLS, if they exist.
 		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
 		fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
-		fleetClientCrt, err := certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+		var fleetClientCrt *certificate.Certificate
+		// TODO: re-enable MTLS support
+		// loadCertificatesForMTLS := func() error {
+		// 	fleetClientCrt, err = certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+		// 	return err
+		// }
+		// if err = loadCertificatesForMTLS(); err != nil {
+		// 	return fmt.Errorf("error loading fleet client certificate: %w", err)
+		// }
+
+		// TODO: Add --fleet-managed-client-certificate option
+		// Initialize TPM 2.0 device for hardware-based cryptography
+		teeDevice, err := tee.NewTPM2(
+			// Enable detailed logging for TPM operations
+			tee.WithLogger(log.Logger),
+
+			// Specify paths for storing TPM key blobs
+			// These files will contain the encrypted key material that can only be used by this TPM
+			tee.WithPublicBlobPath(filepath.Join(c.String("root-dir"), "tpm_cms_pub.blob")),
+			tee.WithPrivateBlobPath(filepath.Join(c.String("root-dir"), "tpm_cms_priv.blob")),
+		)
 		if err != nil {
-			return fmt.Errorf("error loading fleet client certificate: %w", err)
+			return fmt.Errorf("failed to initialize TPM: %w", err)
+		}
+		defer teeDevice.Close()
+		// Check whether we need to request a new cert.
+		key, err := teeDevice.LoadKey(c.Context)
+		var keyFound bool
+		if err != nil {
+			// TODO: Don't use errors for flow control.
+			log.Info().Err(err).Msg("No key found in TPM. Generating a new key.")
+		} else {
+			keyFound = true
+			log.Info().Msg("Key found in TPM. Using it.")
+		}
+
+		if !keyFound {
+			client, err := scep.NewClient(
+				scep.WithTEE(teeDevice),
+				scep.WithLogger(log.Logger),
+				scep.WithURL(fleetURL+"/api/fleet/orbit/scep"),
+				scep.WithChallenge(c.String("enroll-secret")),
+				scep.WithCertDestDir(c.String("root-dir")),
+				scep.WithCommonName(fmt.Sprintf("host-%s-%s", osqueryHostInfo.HardwareUUID, osqueryHostInfo.HardwareSerial)),
+			)
+			if err != nil {
+				return fmt.Errorf("error creating scep client: %w", err)
+			}
+			if err = client.FetchAndSaveCert(c.Context); err != nil {
+				return fmt.Errorf("error fetching and saving SCEP cert: %w", err)
+			}
+			key, err = teeDevice.LoadKey(c.Context)
+			if err != nil {
+				return fmt.Errorf("error loading key: %w", err)
+			}
+		}
+		if key != nil {
+			log.Info().Msg("Key from TPM is valid.")
+			defer key.Close()
 		}
 
 		var fleetClientCertificate *tls.Certificate
@@ -933,6 +995,111 @@ func main() {
 				"--tls_client_cert", fleetClientCertPath,
 				"--tls_client_key", fleetClientKeyPath,
 			}))
+		}
+
+		var signerWrapper func(*http.Client) *http.Client
+		if key != nil {
+			// TODO: move this section to httpsig package
+			cryptoSigner, err := key.HTTPSigner()
+			if err != nil {
+				return fmt.Errorf("error getting TPM-backed signer: %w", err)
+			}
+			cert, err := scep.GetCert(filepath.Join(c.String("root-dir"), constant.FleetHTTPSignatureCertificateFileName))
+			if err != nil {
+				return fmt.Errorf("error getting cert: %w", err)
+			}
+
+			// Compare the TPM key with the certificate public key
+			tpmPubKey, err := key.Public()
+			if err != nil {
+				return fmt.Errorf("error getting TPM public key: %w", err)
+			}
+			keysEqual, err := scep.PublicKeysEqual(tpmPubKey, cert.PublicKey)
+			if err != nil {
+				return fmt.Errorf("error comparing public keys: %w", err)
+			}
+			if !keysEqual {
+				return errors.New("TPM key does not match certificate public key")
+			}
+			log.Debug().Msg("TPM public key matches certificate public key")
+
+			// Get serial number as hex string
+			certSN := strings.ToUpper(cert.SerialNumber.Text(16))
+			signer, err := httpsig.NewSigner(httpsig.SigningProfile{
+				Algorithm: httpsig.Algo_ECDSA_P384_SHA384, // TODO: allow to use P256: check the cert.PublicKey curve
+				// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
+				Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
+				Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
+			}, httpsig.SigningKey{
+				Key:       cryptoSigner,
+				MetaKeyID: certSN,
+			})
+			if err != nil {
+				return fmt.Errorf("error creating signer: %w", err)
+			}
+			signerWrapper = func(client *http.Client) *http.Client {
+				return httpsig.NewHTTPClient(client, signer, nil)
+			}
+
+			// TODO: Move this into its own package/function
+			// TODO: Check if 127.0.0.1 or ::1 exists and use the appropriate one.
+			proxy, err := fleethttpsig.NewProxy(fleetURL, signer)
+			if err != nil {
+				return fmt.Errorf("create TLS proxy: %w", err)
+			}
+
+			addSubsystem(&g, "httpsig proxy", &wrapSubsystem{
+				execute: func() error {
+					log.Info().
+						Str("addr", fmt.Sprintf("127.0.0.1:%d", proxy.Port)).
+						Str("target", c.String("fleet-url")).
+						Msg("using HTTP signing proxy")
+					err := proxy.Serve()
+					return err
+				},
+				interrupt: func(_ error) {
+					if err := proxy.Close(); err != nil {
+						log.Error().Err(err).Msg("close proxy")
+					}
+				},
+			})
+
+			// Directory to store proxy related assets
+			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
+			if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
+				return fmt.Errorf("there was a problem creating the proxy directory: %w", err)
+			}
+
+			certPath = filepath.Join(proxyDirectory, "fleet.crt")
+
+			// Write cert that proxy uses
+			err = os.WriteFile(certPath, []byte(fleethttpsig.ServerCert), os.FileMode(0o644))
+			if err != nil {
+				return fmt.Errorf("write server cert: %w", err)
+			}
+
+			// Rewrite URL to the proxy URL. Note the proxy handles any URL
+			// prefix so we don't need to carry that over here.
+			// We use 127.0.0.1 and NOT localhost due to security.
+			// A misconfigured /etc/hosts could resolve localhost to something unexpected.
+			parsedURL := &url.URL{
+				Scheme: "https",
+				Host:   fmt.Sprintf("127.0.0.1:%d", proxy.Port),
+			}
+
+			// Check and log if there are any errors with TLS connection.
+			pool, err := certificate.LoadPEM(certPath)
+			if err != nil {
+				return fmt.Errorf("load certificate: %w", err)
+			}
+			if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
+				log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
+			}
+
+			options = append(options,
+				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
+				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
+			)
 		}
 
 		orbitClient, err := service.NewOrbitClient(
@@ -951,6 +1118,7 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
+			signerWrapper,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -1228,6 +1396,7 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
+			nil,
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
