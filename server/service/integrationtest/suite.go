@@ -48,9 +48,11 @@ func SetUpServerURL(t *testing.T, ds *mysql.Datastore, server *httptest.Server) 
 	require.NoError(t, err)
 }
 
-func SetUpMySQLAndRedisAndService(t *testing.T, uniqueTestName string, opts ...*service.TestServerOpts) (*mysql.Datastore, fleet.RedisPool,
+func SetUpMySQLAndService(t *testing.T, uniqueTestName string, opts ...*service.TestServerOpts) (
+	*mysql.Datastore,
 	config.FleetConfig,
-	fleet.Service, context.Context) {
+	fleet.Service, context.Context,
+) {
 	ds := mysql.CreateMySQLDS(t)
 	test.AddAllHostsLabel(t, ds)
 
@@ -62,10 +64,17 @@ func SetUpMySQLAndRedisAndService(t *testing.T, uniqueTestName string, opts ...*
 	err = ds.SaveAppConfig(testContext(), appConf)
 	require.NoError(t, err)
 
-	redisPool := redistest.SetupRedis(t, uniqueTestName, false, false, false)
-
 	fleetCfg := config.TestConfig()
 	fleetSvc, ctx := service.NewTestService(t, ds, fleetCfg, opts...)
+	return ds, fleetCfg, fleetSvc, ctx
+}
+
+func SetUpMySQLAndRedisAndService(t *testing.T, uniqueTestName string, opts ...*service.TestServerOpts) (*mysql.Datastore, fleet.RedisPool,
+	config.FleetConfig,
+	fleet.Service, context.Context,
+) {
+	redisPool := redistest.SetupRedis(t, uniqueTestName, false, false, false)
+	ds, fleetCfg, fleetSvc, ctx := SetUpMySQLAndService(t, uniqueTestName, opts...)
 	return ds, redisPool, fleetCfg, fleetSvc, ctx
 }
 
