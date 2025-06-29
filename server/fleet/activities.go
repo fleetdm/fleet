@@ -30,6 +30,7 @@ type Activity struct {
 	ActorID        *uint            `json:"actor_id,omitempty" db:"user_id"`
 	ActorGravatar  *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
 	ActorEmail     *string          `json:"actor_email,omitempty" db:"user_email"`
+	ActorAPIOnly   *bool            `json:"actor_api_only,omitempty" db:"api_only"`
 	Type           string           `json:"type" db:"activity_type"`
 	Details        *json.RawMessage `json:"details" db:"details"`
 	Streamed       *bool            `json:"-" db:"streamed"`
