@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -513,5 +514,36 @@ func TestModifyManualLabel(t *testing.T) {
 			HostIDs: []uint{1, 2},
 		})
 		require.NoError(t, err)
+	})
+}
+
+func TestNewHostVitalsLabel(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+		return lbl, nil
+	}
+
+	t.Run("create host vitals label", func(t *testing.T) {
+		lbl, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name: "foo",
+			Criteria: &fleet.HostVitalCriteria{
+				Vital: ptr.String("end_user_idp_group"),
+				Value: ptr.String("admin"),
+			},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, fleet.LabelTypeRegular, lbl.LabelType)
+		assert.Equal(t, fleet.LabelMembershipTypeHostVitals, lbl.LabelMembershipType)
+
+		// Test parsing the criteria
+		query, queryValues, err := lbl.CalculateHostVitalsQuery()
+		require.NoError(t, err)
+		queryValuesJson, err := json.Marshal(queryValues)
+		require.NoError(t, err)
+		assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+		assert.Equal(t, `["admin"]`, string(queryValuesJson))
 	})
 }
