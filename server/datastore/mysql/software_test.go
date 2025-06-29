@@ -7422,10 +7422,10 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// intall vpp app on fourth host
-	forthHostVpp1CmdUUID := createVPPAppInstallRequest(t, ds, fourthHost, vppApp.AdamID, user1)
+	fourthHostVpp1CmdUUID := createVPPAppInstallRequest(t, ds, fourthHost, vppApp.AdamID, user1)
 	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), fourthHost.ID, "")
 	require.NoError(t, err)
-	createVPPAppInstallResult(t, ds, fourthHost, forthHostVpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	createVPPAppInstallResult(t, ds, fourthHost, fourthHostVpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// but inventory has not been updated yet so no software/host software records exist
 	software, _, err = ds.ListHostSoftware(
 		ctx,
@@ -7453,13 +7453,26 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, hostsInScope)
 
-	// vpp app is installed, so should come back in list of software
+	// vpp app is installed but not verified, so should still be pending
 	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
 	require.NoError(t, err)
 	require.Len(t, software, 1)
 	require.Equal(t, software[0].Name, vppApp.Name)
-	expectedStatus := fleet.SoftwareInstallerStatus("installed")
-	require.Equal(t, software[0].Status, &expectedStatus)
+	expectedStatus := fleet.SoftwareInstallPending
+	require.Equal(t, &expectedStatus, software[0].Status)
+	// but should not be available for install because of the ExcludeAny label
+	require.Nil(t, software[0].AppStoreApp)
+
+	// verify the install
+	require.NoError(t, ds.SetVPPInstallAsVerified(ctx, anotherHost.ID, vpp1CmdUUID))
+
+	// Now the app should come back as installed
+	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, software[0].Name, vppApp.Name)
+	expectedStatus = fleet.SoftwareInstalled
+	require.Equal(t, &expectedStatus, software[0].Status)
 	// but should not be available for install because of the ExcludeAny label
 	require.Nil(t, software[0].AppStoreApp)
 

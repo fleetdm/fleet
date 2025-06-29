@@ -51,7 +51,6 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	    AND ne.type = 'Device'
 	    AND hm.enrolled = 1 LIMIT 1
 	`, h.ID))
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -1843,6 +1842,10 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 		// to process them anymore
 		if err := ds.ClearMDMUpcomingActivitiesDB(ctx, tx, uuid); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting mdm-related upcoming activities for host")
+		}
+
+		if err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "marking pending vpp installs as failed for host")
 		}
 
 		// NOTE: intentionally keeping disk encryption keys and bootstrap

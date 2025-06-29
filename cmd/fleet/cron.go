@@ -706,7 +706,7 @@ func newWorkerIntegrationsSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 	}
-	vppVerify := &worker.VPPVerification{
+	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
 		Log:       logger,
 		Commander: commander,

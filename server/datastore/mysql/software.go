@@ -2996,6 +2996,10 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 		return nil, err
 	}
 
+	for _, hs := range vppInstalls {
+		fmt.Printf("hs: %+v\n", hs)
+	}
+
 	return vppInstalls, nil
 }
 
@@ -4249,6 +4253,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		hs := hs
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
+
 	return software, metaData, nil
 }
 

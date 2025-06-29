@@ -1095,7 +1095,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
 	man.addConfigBool("server.force_h2c", false, "Force the fleet server to use HTTP2 cleartext aka h2c (ignored if using TLS)")
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
-	man.addConfigDuration("server.vpp_verify_timeout", 5*time.Minute, "Maximum amout of time to wait for VPP app install verification")
+	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amout of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
