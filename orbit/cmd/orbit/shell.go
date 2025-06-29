@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -35,6 +37,11 @@ var shellCommand = &cli.Command{
 			Name:    "debug",
 			Usage:   "Enable debug logging",
 			EnvVars: []string{"ORBIT_DEBUG"},
+		},
+		&cli.StringFlag{
+			Name:    "fleet-certificate",
+			Usage:   "Path to the Fleet server certificate chain",
+			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
 		},
 	},
 	Action: func(c *cli.Context) error {
@@ -98,6 +105,16 @@ var shellCommand = &cli.Command{
 			osquery.WithFlags([]string{"--database_path", osqueryDB}),
 		}
 
+		certPath := getCertPath(c)
+		if exists, err := file.Exists(certPath); err == nil && exists {
+			if _, err := certificate.LoadPEM(certPath); err != nil {
+				return fmt.Errorf("failed to load PEM %s: %w", certPath, err)
+			}
+			opts = append(opts, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
+		} else if err != nil {
+			return fmt.Errorf("failed to read file %s: %w", certPath, err)
+		}
+
 		// Detect if the additional arguments have a positional argument.
 		//
 		// osqueryi/osqueryd has the following usage:
@@ -139,4 +156,11 @@ var shellCommand = &cli.Command{
 
 		return nil
 	},
+}
+
+func getCertPath(c *cli.Context) string {
+	if certPath := c.String("fleet-certificate"); certPath != "" {
+		return certPath
+	}
+	return filepath.Join(c.String("root-dir"), "certs.pem")
 }
