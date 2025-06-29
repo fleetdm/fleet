@@ -24,15 +24,15 @@ type encryptionKey struct {
 }
 
 func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, encryptedBase64Key, clientError string,
-	decryptable *bool) error {
-
+	decryptable *bool,
+) error {
 	existingKey, err := ds.getExistingHostDiskEncryptionKey(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting existing key, if present")
 	}
 
 	// We use the same timestamp for base and archive tables so that it can be used as an additional debug tool if needed.
-	var incomingKey = encryptionKey{Base: encryptedBase64Key, CreatedAt: time.Now().UTC()}
+	incomingKey := encryptionKey{Base: encryptedBase64Key, CreatedAt: time.Now().UTC()}
 	err = ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "archiving key")
@@ -91,7 +91,8 @@ func (ds *Datastore) getExistingHostDiskEncryptionKey(ctx context.Context, host 
 }
 
 func (ds *Datastore) archiveHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, incomingKey encryptionKey,
-	existingKey encryptionKey) error {
+	existingKey encryptionKey,
+) error {
 	// We archive only valid and different keys to reduce noise.
 	if (incomingKey.Base != "" && existingKey.Base != incomingKey.Base) ||
 		(incomingKey.Salt != "" && existingKey.Salt != incomingKey.Salt) {
@@ -117,7 +118,8 @@ DELETE FROM host_disk_encryption_keys WHERE host_id = ? AND key_slot = ?`, hostI
 }
 
 func (ds *Datastore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string,
-	keySlot uint) error {
+	keySlot uint,
+) error {
 	if encryptedBase64Passphrase == "" || encryptedBase64Salt == "" { // should have been caught at service level
 		return errors.New("passphrase and salt must be set")
 	}
@@ -128,8 +130,10 @@ func (ds *Datastore) SaveLUKSData(ctx context.Context, host *fleet.Host, encrypt
 	}
 
 	// We use the same timestamp for base and archive tables so that it can be used as an additional debug tool if needed.
-	var incomingKey = encryptionKey{Base: encryptedBase64Passphrase, Salt: encryptedBase64Salt, KeySlot: &keySlot,
-		CreatedAt: time.Now().UTC()}
+	incomingKey := encryptionKey{
+		Base: encryptedBase64Passphrase, Salt: encryptedBase64Salt, KeySlot: &keySlot,
+		CreatedAt: time.Now().UTC(),
+	}
 	err = ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "archiving LUKS key")
@@ -170,7 +174,6 @@ WHERE host_id = ?
 		return ctxerr.Wrap(ctx, err, "updating LUKS key")
 	}
 	return nil
-
 }
 
 func (ds *Datastore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
@@ -275,9 +278,41 @@ WHERE host_id = ?`, hostID)
 			msg := fmt.Sprintf("for host %d", hostID)
 			return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
 		}
-		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_disk_encryption_keys for host_id %d", hostID)
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting data from host_disk_encryption_keys for host_id %d", hostID))
 	}
 	return &key, nil
+}
+
+func (ds *Datastore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+	sqlFmt := `
+SELECT
+	host_id, 
+	base64_encrypted, 
+	base64_encrypted_salt,
+	key_slot,
+	created_at
+FROM host_disk_encryption_keys_archive
+%s
+ORDER BY created_at DESC
+LIMIT 1`
+
+	var key fleet.HostArchivedDiskEncryptionKey
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE host_id = ?`), host.ID)
+	if err == sql.ErrNoRows && host.HardwareSerial != "" {
+		// If we didn't find a key by host ID, try to find it by hardware serial.
+		level.Debug(ds.logger).Log("msg", "get archived disk encryption key by host serial", "serial", host.HardwareSerial, "host_id", host.ID)
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE hardware_serial = ?`), host.HardwareSerial)
+	}
+
+	msg := fmt.Sprintf("for host %d with serial %s", host.ID, host.HardwareSerial)
+	switch {
+	case err == sql.ErrNoRows:
+		return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get archived disk encryption key %s", msg))
+	default:
+		return &key, nil
+	}
 }
 
 func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {

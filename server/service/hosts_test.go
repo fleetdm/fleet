@@ -510,6 +510,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 		return &fleet.HostDiskEncryptionKey{}, nil
 	}
+	ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+		return &fleet.HostArchivedDiskEncryptionKey{}, nil
+	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return nil, nil
 	}
@@ -1477,6 +1480,9 @@ func TestHostEncryptionKey(t *testing.T) {
 					Decryptable:     ptr.Bool(true),
 				}, nil
 			}
+			ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+				return &fleet.HostArchivedDiskEncryptionKey{}, nil
+			}
 
 			ds.NewActivityFunc = func(
 				ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -1542,6 +1548,12 @@ func TestHostEncryptionKey(t *testing.T) {
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
 			return nil, keyErr
 		}
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+			return &fleet.HostArchivedDiskEncryptionKey{}, nil
+		}
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+			return &fleet.HostArchivedDiskEncryptionKey{}, nil
+		}
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 			_ sqlx.QueryerContext,
 		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -1599,6 +1611,9 @@ func TestHostEncryptionKey(t *testing.T) {
 						Decryptable:     ptr.Bool(true),
 					}, nil
 				}
+				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+					return &fleet.HostArchivedDiskEncryptionKey{}, nil
+				}
 				ds.NewActivityFunc = func(
 					ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 				) error {
@@ -1641,7 +1656,9 @@ func TestHostEncryptionKey(t *testing.T) {
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return host, nil
 		}
-
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+			return &fleet.HostArchivedDiskEncryptionKey{}, nil
+		}
 		ds.NewActivityFunc = func(
 			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 		) error {
@@ -2384,6 +2401,9 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			}
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return tt.appConfig, nil
+			}
+			ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+				return &fleet.HostArchivedDiskEncryptionKey{}, nil
 			}
 
 			if !tt.disableCapability {
