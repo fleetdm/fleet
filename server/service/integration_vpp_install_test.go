@@ -241,7 +241,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Install attempts
 	// ================================
 
-	processVPPInstallOnClient := func(failOnInstall bool, appInstallVerified bool) string {
+	processVPPInstallOnClient := func(failOnInstall, appInstallVerified bool) string {
 		var installCmdUUID string
 
 		// Process the InstallApplication command
@@ -304,6 +304,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.NotNil(t, got.AppStoreApp.LastInstall.InstalledAt)
 	}
 
+	// ================================
+	// Install command failed
+	// ================================
+
 	// Trigger install to the host
 	installResp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
@@ -356,6 +360,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		0,
 	)
 
+	// ======================================
+	// Successful install and verification
+	// ======================================
+
 	// Successful install
 
 	// Trigger install to the host
@@ -403,7 +411,9 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstalled)
 	checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
 
-	// Unsuccessful install (failed to verify)
+	// ========================================================
+	// Install command succeeds, but verification fails
+	// ========================================================
 
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
@@ -450,7 +460,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	)
 
 	// Check list host software
-
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
 	gotSW = getHostSw.Software
@@ -462,7 +471,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Go back to the default timeout
 	os.Unsetenv("FLEET_TEST_VPP_VERIFY_TIMEOUT")
 
-	// Mark installs as failed when MDM is turned off for host
+	// ========================================================
+	// Mark installs as failed when MDM turned off on host
+	// ========================================================
+
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
@@ -508,12 +520,15 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 0, countResp.Count)
 
-	// Re-enroll in MDM
+	// ========================================================
+	// Mark installs as failed when MDM turned off globally
+	// ========================================================
+
+	// Re-enroll host in MDM
 	mdmDevice = enrollMacOSHostInMDM(t, mdmHost, s.ds, s.server.URL)
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, true)
 
-	// Mark installs as failed when MDM is turned off globally
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
