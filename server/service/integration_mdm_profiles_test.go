@@ -2523,6 +2523,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
@@ -2560,6 +2561,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h4: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "T1.3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
@@ -2591,6 +2593,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2656,9 +2659,10 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		"some_name", mobileconfigForTest("G4", "G4"), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-		h2: { // still no user channel, so no G3
+		h2: { // still no user channel
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
@@ -2713,6 +2717,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -6593,8 +6598,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 
-	// user-scoped profiles have been ignored for now
-	// TODO(mna): change behavior in future PR, we want them pending (NULL) immediately
+	// user-scoped profiles show up as status nil (no user-enrollment yet)
 	assertHostProfiles([]hostProfile{
 		{
 			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
@@ -6604,6 +6608,24 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
 		},
 	})
 
@@ -6632,6 +6654,24 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeSystem),
 		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
 	})
 
 	// create the user-enrollment
@@ -6641,7 +6681,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 
-	// user-scoped profiles have been added
+	// user-scoped profiles have been added as pending (not nil)
 	assertHostProfiles([]hostProfile{
 		{
 			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
