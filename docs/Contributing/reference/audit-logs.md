@@ -1404,6 +1404,44 @@ This activity contains the following fields:
 }
 ```
 
+## applied_spec_software
+
+Generated when a user edits the software of a team (or no team) via the fleetctl CLI.
+This activity contains the following fields:
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the software applies to, null if they apply to devices that are not in a team.
+- "team_name": The name of the team that the software applies to, null if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations",
+  "software": {
+    "packages": [
+      {
+        "software_title": "Falcon.app",
+        "software_package": "FalconSensor-6.44.pkg",
+        "self_service": true,
+        "software_title_id": 2234
+      },
+      ],
+    "app_store_apps": null,
+    "fleet_maintained_apps": [
+      {
+        "software_title": "1Password",
+        "software_package": "1Password-8.0.0.12.msi",
+        "self_service": true,
+        "software_title_id": 2236,
+        "fleet_maintained_app_slug": "1password/windows"
+      }
+    ]
+  }
+}
+```
+
 ## enabled_vpp
 
 Generated when VPP features are enabled in Fleet.
