@@ -51,7 +51,6 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	    AND ne.type = 'Device'
 	    AND hm.enrolled = 1 LIMIT 1
 	`, h.ID))
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -61,6 +60,64 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	}
 
 	return true, nil
+}
+
+// Checks scopes against existing profiles across the entire DB to ensure there are no conflicts
+// where an existing profile with the same identifier has a different scope than the incoming
+// profile. If we don't do this we must implement some sort of "move" semantics to allow for scope
+// changes when a host switches teams or when a profile is updated.
+func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, tx sqlx.ExtContext, cps []*fleet.MDMAppleConfigProfile) error {
+	if len(cps) == 0 {
+		return nil
+	}
+	incomingProfileIdentifiers := make([]string, 0, len(cps))
+	for i := 0; i < len(cps); i++ {
+		incomingProfileIdentifiers = append(incomingProfileIdentifiers, cps[i].Identifier)
+	}
+	stmt := `
+	SELECT
+		profile_uuid,
+		profile_id,
+		team_id,
+		name,
+		scope,
+		identifier,
+		mobileconfig,
+		created_at,
+		uploaded_at,
+		checksum
+	FROM
+		mdm_apple_configuration_profiles
+	WHERE
+	  identifier IN (?)
+	`
+	stmt, args, err := sqlx.In(stmt, incomingProfileIdentifiers)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In verifyAppleConfigProfileScopesDoNotConflict")
+	}
+
+	var existingProfiles []*fleet.MDMAppleConfigProfile
+	if err = sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "querying existing apple config profiles by identifier")
+	}
+
+	existingProfilesByIdentifier := make(map[string][]*fleet.MDMAppleConfigProfile)
+	for _, existingProfile := range existingProfiles {
+		existingProfilesByIdentifier[existingProfile.Identifier] = append(existingProfilesByIdentifier[existingProfile.Identifier], existingProfile)
+	}
+	for _, cp := range cps {
+		existingProfiles := existingProfilesByIdentifier[cp.Identifier]
+		for _, existingProfile := range existingProfiles {
+			if existingProfile.Scope != cp.Scope {
+				// TODO Fix error messaging
+				// Here we need to know is this net-new, update, and also check mobileconfig to see
+				// if this is implicit or explicit scope change.
+				level.Error(ds.logger).Log("msg", "incoming profile scope conflicts with existing", "identifier", cp.Identifier, "profile_uuid", existingProfile.ProfileUUID, "existing_scope", existingProfile.Scope, "incoming_scope", cp.Scope)
+				return ctxerr.Wrap(ctx, errors.New("payload scopes conflict"))
+			}
+		}
+	}
+	return nil
 }
 
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
@@ -83,6 +140,10 @@ INSERT INTO
 
 	var profileID int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		err := ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp})
+		if err != nil {
+			return err
+		}
 		res, err := tx.ExecContext(ctx, stmt,
 			profUUID, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
 			teamID)
@@ -2064,8 +2125,9 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 func (ds *Datastore) GetNanoMDMUserEnrollment(ctx context.Context, deviceId string) (*fleet.NanoEnrollment, error) {
 	var nanoEnroll fleet.NanoEnrollment
 	// use writer as it is used just after creation in some cases
+	// Note that we only ever return the first active user enrollment from the device
 	err := sqlx.GetContext(ctx, ds.writer(ctx), &nanoEnroll, `SELECT id, device_id, type, enabled, token_update_tally
-		FROM nano_enrollments WHERE type = 'User' AND enabled = 1 AND device_id = ? LIMIT 1`, deviceId)
+		FROM nano_enrollments WHERE type = 'User' AND enabled = 1 AND device_id = ? ORDER BY created_at ASC LIMIT 1`, deviceId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -2078,6 +2140,7 @@ func (ds *Datastore) GetNanoMDMUserEnrollment(ctx context.Context, deviceId stri
 
 func (ds *Datastore) GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error) {
 	var username string
+	// Note that we only ever return the first active user enrollment from the device
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &username, `
 		SELECT
 			COALESCE(nu.user_short_name, '') as user_short_name
@@ -2088,6 +2151,7 @@ func (ds *Datastore) GetNanoMDMUserEnrollmentUsername(ctx context.Context, devic
 			ne.type = 'User' AND
 			ne.enabled = 1 AND
 			ne.device_id = ?
+		ORDER BY ne.created_at ASC
 		LIMIT 1`, deviceID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -2158,7 +2222,6 @@ VALUES
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
-  scope = VALUES(scope),
   checksum = VALUES(checksum),
   name = VALUES(name),
   mobileconfig = VALUES(mobileconfig)
@@ -2168,6 +2231,11 @@ ON DUPLICATE KEY UPDATE
 	var profTeamID uint
 	if tmID != nil {
 		profTeamID = *tmID
+	}
+
+	err = ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, profiles)
+	if err != nil {
+		return false, err
 	}
 
 	// build a list of identifiers for the incoming profiles, will keep the
@@ -3150,6 +3218,9 @@ func generateEntitiesToInstallQuery(entityType string) string {
 //     that the operation is in flight (pending) or the operation has been completed
 //     but is still subject to independent verification by Fleet (verifying)
 //     or the operation has been completed and independenly verified by Fleet (verified).
+//   - entities that are in both A and B but with a different checksum (i.e. the profile has changed)
+//     or which are marked for resend, and for which the scope is changing, and a user-channel exists
+//     so we are actually going to be issuing an install to move the profile between the channels.
 //
 // Any other case are entities that are in both B and A, and as such are
 // processed by the generateEntitiesToInstallQuery query (since they are in
@@ -3168,10 +3239,10 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
-	// NOTE(mna): there is no check for an existing user-enrollment here, because
-	// if a user-scoped profile is identified as "to remove", it has to have been
-	// delivered at some point, either because a user-channel did exist, or
-	// because it was delivered to the device-channel after the maximum wait
+	// NOTE(mna): there is no check for an existing user-enrollment for the standard,
+	// removal case, because if a user-scoped profile is identified as "to remove",
+	// it has to have been delivered at some point, either because a user-channel did
+	// exist, or because it was delivered to the device-channel after the maximum wait
 	// delay. Either way, it should proceed with removal.
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
@@ -3179,7 +3250,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
 	WHERE
 		-- entities that are in B but not in A
-		ds.${entityUUIDColumn} IS NULL AND ds.host_uuid IS NULL AND
+		(ds.${entityUUIDColumn} IS NULL AND ds.host_uuid IS NULL AND
 		-- except "remove" operations in a terminal state or already pending
 		( hmae.operation_type IS NULL OR hmae.operation_type != ? OR hmae.status IS NULL ) AND
 		-- except "would be removed" entities if they are a broken label-based entities
@@ -3190,7 +3261,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 			WHERE
 				mcpl.${appleEntityUUIDColumn} = hmae.${entityUUIDColumn} AND
 				mcpl.label_id IS NULL
-		)
+	))
 `, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"))
 }
 
@@ -3204,7 +3275,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 		ds.profile_name,
 		ds.checksum,
 		ds.secrets_updated_at,
-		ds.scope
+		COALESCE(hmae.scope, ds.scope) AS scope
 	FROM %s `,
 		generateEntitiesToInstallQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
@@ -3796,6 +3867,9 @@ WHERE
 // profiles (called in service.ensureFleetProfiles with the Fleet configuration
 // profiles). Those are known not to use any Fleet variables. This method must
 // not be used for any profile that uses Fleet variables.
+// Also note this method does not implement the "do not allow profile scope to change"
+// logic that other methods do and if it is ever used for non-fleet-controlled profiles
+// it will need to.
 func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
 	if len(payload) == 0 {
 		return nil
@@ -3821,7 +3895,6 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
           ON DUPLICATE KEY UPDATE
             uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
             mobileconfig = VALUES(mobileconfig),
-			scope = VALUES(scope),
             checksum = VALUES(checksum),
 		    secrets_updated_at = VALUES(secrets_updated_at)
 `, strings.TrimSuffix(sb.String(), ","))
