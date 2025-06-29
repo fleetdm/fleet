@@ -349,15 +349,6 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	)
 	require.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	require.NoError(t, err)
-
-	// try to change the enroll secret with the config set
-	ds.ApplyEnrollSecretsFuncInvoked = false
-	cfg.Packaging.GlobalEnrollSecret = "xyz"
-	svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil)
-	ctx = test.UserContext(ctx, test.UserAdmin)
-	err = svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "DEF"}}}, fleet.ApplySpecOptions{})
-	require.Error(t, err)
-	require.False(t, ds.ApplyEnrollSecretsFuncInvoked)
 }
 
 func TestCertificateChain(t *testing.T) {

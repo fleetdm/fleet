@@ -8,13 +8,12 @@ import (
 	"math"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/firehose"
-	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	aws_config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -31,58 +30,70 @@ const (
 	firehoseMaxSizeOfBatch    = 4 * 1000 * 1000 // 4 MB
 )
 
+type FirehoseAPI interface {
+	PutRecordBatch(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error)
+	DescribeDeliveryStream(ctx context.Context, input *firehose.DescribeDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DescribeDeliveryStreamOutput, error)
+}
+
 type firehoseLogWriter struct {
-	client firehoseiface.FirehoseAPI
+	client FirehoseAPI
 	stream string
 	logger log.Logger
 }
 
 func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger log.Logger) (*firehoseLogWriter, error) {
-	conf := &aws.Config{
-		Region:   &region,
-		Endpoint: &endpointURL, // empty string or nil will use default values
+	var opts []func(*aws_config.LoadOptions) error
+
+	// The service endpoint is deprecated, but we still set it
+	// in case users are using it.
+	if endpointURL != "" {
+		opts = append(opts, aws_config.WithEndpointResolver(aws.EndpointResolverFunc(
+			func(service, region string) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL: endpointURL,
+				}, nil
+			})),
+		)
 	}
 
 	// Only provide static credentials if we have them
-	// otherwise use the default credentials provider chain
+	// otherwise use the default credentials provider chain.
 	if id != "" && secret != "" {
-		conf.Credentials = credentials.NewStaticCredentials(id, secret, "")
-	}
-
-	sess, err := session.NewSession(conf)
-	if err != nil {
-		return nil, fmt.Errorf("create Firehose client: %w", err)
+		opts = append(opts,
+			aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(id, secret, "")),
+		)
 	}
 
 	if stsAssumeRoleArn != "" {
-		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
+		opts = append(opts, aws_config.WithAssumeRoleCredentialOptions(func(r *stscreds.AssumeRoleOptions) {
+			r.RoleARN = stsAssumeRoleArn
 			if stsExternalID != "" {
-				provider.ExternalID = &stsExternalID
+				r.ExternalID = &stsExternalID
 			}
-		})
-		conf.Credentials = creds
-
-		sess, err = session.NewSession(conf)
-
-		if err != nil {
-			return nil, fmt.Errorf("create Firehose client: %w", err)
-		}
+		}))
 	}
-	client := firehose.New(sess)
+
+	opts = append(opts, aws_config.WithRegion(region))
+	conf, err := aws_config.LoadDefaultConfig(context.Background(), opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create default config: %w", err)
+	}
+
+	firehoseClient := firehose.NewFromConfig(conf)
 
 	f := &firehoseLogWriter{
-		client: client,
+		client: firehoseClient,
 		stream: stream,
 		logger: logger,
 	}
-	if err := f.validateStream(); err != nil {
-		return nil, fmt.Errorf("create Firehose writer: %w", err)
+	if err := f.validateStream(context.Background()); err != nil {
+		return nil, fmt.Errorf("validate firehose: %w", err)
 	}
 	return f, nil
 }
 
-func (f *firehoseLogWriter) validateStream() error {
-	out, err := f.client.DescribeDeliveryStream(
+func (f *firehoseLogWriter) validateStream(ctx context.Context) error {
+	out, err := f.client.DescribeDeliveryStream(ctx,
 		&firehose.DescribeDeliveryStreamInput{
 			DeliveryStreamName: &f.stream,
 		},
@@ -91,7 +102,7 @@ func (f *firehoseLogWriter) validateStream() error {
 		return fmt.Errorf("describe stream %s: %w", f.stream, err)
 	}
 
-	if (*out.DeliveryStreamDescription.DeliveryStreamStatus) != firehose.DeliveryStreamStatusActive {
+	if out.DeliveryStreamDescription.DeliveryStreamStatus != types.DeliveryStreamStatusActive {
 		return fmt.Errorf("delivery stream %s not active", f.stream)
 	}
 
@@ -99,7 +110,7 @@ func (f *firehoseLogWriter) validateStream() error {
 }
 
 func (f *firehoseLogWriter) Write(ctx context.Context, logs []json.RawMessage) error {
-	var records []*firehose.Record
+	var records []types.Record
 	totalBytes := 0
 	for _, log := range logs {
 		// Add newline because Firehose does not output each record on
@@ -126,20 +137,22 @@ func (f *firehoseLogWriter) Write(ctx context.Context, logs []json.RawMessage) e
 		// adding any more.
 		if len(records) >= firehoseMaxRecordsInBatch ||
 			totalBytes+len(log) > firehoseMaxSizeOfBatch {
-			if err := f.putRecordBatch(0, records); err != nil {
+			if err := f.putRecordBatch(ctx, 0, records); err != nil {
 				return ctxerr.Wrap(ctx, err, "put records")
 			}
 			totalBytes = 0
 			records = nil
 		}
 
-		records = append(records, &firehose.Record{Data: []byte(log)})
+		records = append(records, types.Record{
+			Data: []byte(log),
+		})
 		totalBytes += len(log)
 	}
 
 	// Push the final batch
 	if len(records) > 0 {
-		if err := f.putRecordBatch(0, records); err != nil {
+		if err := f.putRecordBatch(ctx, 0, records); err != nil {
 			return ctxerr.Wrap(ctx, err, "put records")
 		}
 	}
@@ -147,7 +160,7 @@ func (f *firehoseLogWriter) Write(ctx context.Context, logs []json.RawMessage) e
 	return nil
 }
 
-func (f *firehoseLogWriter) putRecordBatch(try int, records []*firehose.Record) error {
+func (f *firehoseLogWriter) putRecordBatch(ctx context.Context, try int, records []types.Record) error {
 	if try > 0 {
 		time.Sleep(100 * time.Millisecond * time.Duration(math.Pow(2.0, float64(try))))
 	}
@@ -156,13 +169,13 @@ func (f *firehoseLogWriter) putRecordBatch(try int, records []*firehose.Record) 
 		Records:            records,
 	}
 
-	output, err := f.client.PutRecordBatch(input)
+	output, err := f.client.PutRecordBatch(ctx, input)
 	if err != nil {
-		var aerr awserr.Error
-		if errors.As(err, &aerr) {
-			if aerr.Code() == firehose.ErrCodeServiceUnavailableException && try < firehoseMaxRetries {
+		var serviceUnavailableException *types.ServiceUnavailableException
+		if errors.As(err, &serviceUnavailableException) {
+			if try < firehoseMaxRetries {
 				// Retry with backoff
-				return f.putRecordBatch(try+1, records)
+				return f.putRecordBatch(ctx, try+1, records)
 			}
 		}
 
@@ -190,7 +203,7 @@ func (f *firehoseLogWriter) putRecordBatch(try int, records []*firehose.Record) 
 			)
 		}
 
-		var failedRecords []*firehose.Record
+		var failedRecords []types.Record
 		// Collect failed records for retry
 		for i, record := range output.RequestResponses {
 			if record.ErrorCode != nil {
@@ -198,7 +211,7 @@ func (f *firehoseLogWriter) putRecordBatch(try int, records []*firehose.Record) 
 			}
 		}
 
-		return f.putRecordBatch(try+1, failedRecords)
+		return f.putRecordBatch(ctx, try+1, failedRecords)
 	}
 
 	return nil

@@ -2010,10 +2010,6 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 		}
 	}
 
-	if svc.config.Packaging.GlobalEnrollSecret != "" {
-		return ctxerr.New(ctx, "enroll secret cannot be changed when fleet_packaging.global_enroll_secret is set")
-	}
-
 	if applyOpts.DryRun {
 		for _, s := range spec.Secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, s.Secret, false, nil)

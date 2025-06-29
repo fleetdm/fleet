@@ -70,6 +70,9 @@ func TestConfigRoundtrip(t *testing.T) {
 				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
 				case "Bucket", "Prefix", "Region", "EndpointURL", "AccessKeyID", "SecretAccessKey", "StsAssumeRoleArn", "StsExternalID":
 					key_v.SetString("")
+				// This is a deprecated config for "Fleet Sandbox" that doesn't exist anymore.
+				case "GlobalEnrollSecret":
+					key_v.SetString("")
 				default:
 					key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
 				}

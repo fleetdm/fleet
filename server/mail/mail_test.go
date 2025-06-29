@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -86,7 +87,7 @@ func testSMTPPlainAuth(t *testing.T, mailer fleet.MailService) {
 		},
 	}
 
-	err := mailer.SendEmail(mail)
+	err := mailer.SendEmail(context.Background(), mail)
 	assert.Nil(t, err)
 }
 
@@ -112,7 +113,7 @@ func testSMTPPlainAuthInvalidCreds(t *testing.T, mailer fleet.MailService) {
 		},
 	}
 
-	err := mailer.SendEmail(mail)
+	err := mailer.SendEmail(context.Background(), mail)
 	assert.Error(t, err)
 }
 
@@ -138,7 +139,7 @@ func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
 		},
 	}
 
-	err := mailer.SendEmail(mail)
+	err := mailer.SendEmail(context.Background(), mail)
 	assert.Nil(t, err)
 }
 
@@ -161,7 +162,7 @@ func testSMTPNoAuthWithTLS(t *testing.T, mailer fleet.MailService) {
 		},
 	}
 
-	err := mailer.SendEmail(mail)
+	err := mailer.SendEmail(context.Background(), mail)
 	assert.Nil(t, err)
 }
 
@@ -190,7 +191,7 @@ func testSMTPDomain(t *testing.T, mailer fleet.MailService) {
 		},
 	}
 
-	err := mailer.SendEmail(mail)
+	err := mailer.SendEmail(context.Background(), mail)
 	assert.Nil(t, err)
 
 	rawMsg := getLastRawMailpitMessageFrom(t, randomAddress)

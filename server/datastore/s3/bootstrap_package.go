@@ -11,7 +11,7 @@ type BootstrapPackageStore struct {
 // NewBootstrapPackageStore creates a new instance with the given S3 config.
 func NewBootstrapPackageStore(config config.S3Config) (*BootstrapPackageStore, error) {
 	// bootstrap packages use the same S3 config as software installers
-	s3store, err := newS3store(config.SoftwareInstallersToInternalCfg())
+	s3store, err := newS3Store(config.SoftwareInstallersToInternalCfg())
 	if err != nil {
 		return nil, err
 	}
