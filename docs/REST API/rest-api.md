@@ -9381,8 +9381,6 @@ Get a list of all software.
 
 `GET /api/v1/fleet/software/titles`
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 #### Parameters
 
 | Name                    | Type    | In    | Description                                                                                                                                                                |
@@ -9670,8 +9668,6 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Get software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
 `GET /api/v1/fleet/software/titles/:id`
@@ -9947,8 +9943,6 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Add package
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windows, or Linux hosts.
@@ -10044,8 +10038,6 @@ Content-Type: application/octet-stream
 
 ### Modify package
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
@@ -10138,8 +10130,6 @@ Content-Type: application/octet-stream
 
 ### List App Store apps
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 Returns the list of Apple App Store (VPP) that can be added to the specified team. If an app is already added to the team, it's excluded from the list.
 
 `GET /api/v1/fleet/software/app_store_apps`
@@ -10187,8 +10177,6 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
 ```
 
 ### Add App Store app
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -10239,7 +10227,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ### Modify App Store app
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
 Modify App Store (VPP) app's options.
@@ -10318,8 +10305,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ### List Fleet-maintained apps
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 List available Fleet-maintained apps.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps`
@@ -10378,8 +10363,6 @@ List available Fleet-maintained apps.
 
 ### Get Fleet-maintained app
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 Returns information about the specified Fleet-maintained app.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps/:id`
@@ -10419,7 +10402,6 @@ Returns information about the specified Fleet-maintained app.
 
 ### Add Fleet-maintained app
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
 Add Fleet-maintained app so it's available for install.
@@ -10466,41 +10448,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Download software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-_Available in Fleet Premium._
-
-`GET /api/v1/fleet/software/titles/:id/package?alt=media`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| id   | integer | path | **Required**. The ID of the software title to download software package.|
-| team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
-| alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
-
-#### Example
-
-`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
-
-##### Default response
-
-`Status: 200`
-
-```http
-Status: 200
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
-```
-
 ### Install software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -10527,7 +10475,6 @@ Package installs time out after 1 hour.
 
 ### Uninstall software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
 Uninstalls software from a host.
@@ -10550,8 +10497,6 @@ Uninstalls software from a host.
 `Status: 202`
 
 ### Get software install result
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
@@ -10588,19 +10533,17 @@ To get the results of an App Store app install, use the [List MDM commands](#lis
  }
 ```
 
-### Download package
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+### Download software
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
+`GET /api/v1/fleet/software/titles/:id/package?alt=media`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
+| id   | integer | path | **Required**. The ID of the software title to download software package.|
 | team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
 | alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
 
@@ -10621,8 +10564,6 @@ Body: <blob>
 ```
 
 ### Delete software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
