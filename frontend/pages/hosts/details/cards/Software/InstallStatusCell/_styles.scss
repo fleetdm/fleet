@@ -1,24 +1,15 @@
 .install-status-cell {
-  &__status-content {
-    display: flex;
-    align-items: center;
-    gap: $pad-small;
+  display: flex;
+  align-items: center;
+  gap: $pad-small;
+
+  &__tooltip-wrapper {
+    .component__tooltip-wrapper__tip-text {
+      max-width: 250px;
+    }
   }
 
-  &__status-with-tooltip {
-    display: flex;
-    gap: $pad-small;
-  }
-
-  &__status-tooltip {
-    text-align: center;
-  }
-
-  &__status-tooltip-text {
-    font-size: $xx-small;
-  }
-
-  .component__tooltip-wrapper {
-    margin: 0;
+  &__item-status-button {
+    font-weight: $regular;
   }
 }

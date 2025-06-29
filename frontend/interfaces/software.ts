@@ -362,8 +362,8 @@ interface SignatureInformation {
   hash_sha256: string | null;
 }
 export interface ISoftwareLastUninstall {
-  install_uuid: string;
-  installed_at: string;
+  script_execution_id: string;
+  uninstalled_at: string;
 }
 
 export interface ISoftwareInstallVersion {

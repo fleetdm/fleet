@@ -7,14 +7,9 @@ import React, {
 } from "react";
 import { CellProps, Column } from "react-table";
 
-import {
-  IAppLastInstall,
-  IHostSoftware,
-  ISoftwareLastInstall,
-  ISoftwareLastUninstall,
-  SoftwareInstallStatus,
-} from "interfaces/software";
+import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import deviceApi from "services/entities/device_user";
 import { NotificationContext } from "context/notification";
@@ -289,7 +284,7 @@ interface ISelfServiceTableHeaders {
   deviceToken: string;
   onInstall: () => void;
   onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (scriptExecutionId?: string) => void;
+  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   onClickUninstallAction: (software: IHostSoftware) => void;
 }
 
@@ -337,8 +332,8 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: IStatusCellProps) => (
         <InstallerStatusCell
           software={cellProps.row.original}
-          onShowSSInstallDetails={onShowInstallDetails}
-          onShowSSUninstallDetails={onShowUninstallDetails}
+          onShowInstallDetails={onShowInstallDetails}
+          onShowUninstallDetails={onShowUninstallDetails}
           isSelfService
         />
       ),
