@@ -906,6 +906,20 @@ allow {
   action == write
 }
 
+# Global admins and maintainers can read and write the EULA.
+allow {
+  object.type == "mdm_apple_eula"
+  subject.global_role == admin
+  action == [read, write, list][_]
+}
+
+# Global gitops can read and write the EULA.
+allow {
+  object.type == "mdm_apple_eula"
+  subject.global_role == gitops
+  action == [read, write][_]
+}
+
 ##
 # MDM Apple Setup Assistant
 ##

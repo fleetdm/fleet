@@ -985,9 +985,9 @@ type Service interface {
 	// be used by clients to display information.
 	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
 	// MDMCreateEULA adds a new EULA file.
-	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
+	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
 	// MDMAppleDelete EULA removes an EULA entry.
-	MDMDeleteEULA(ctx context.Context, token string) error
+	MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)

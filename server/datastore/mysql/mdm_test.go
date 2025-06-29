@@ -6756,9 +6756,10 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 func testMDMEULA(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	eula := &fleet.MDMEULA{
-		Token: uuid.New().String(),
-		Name:  "eula.pdf",
-		Bytes: []byte("contents"),
+		Token:  uuid.New().String(),
+		Name:   "eula.pdf",
+		Bytes:  []byte("contents"),
+		Sha256: []byte("test-sha256"),
 	}
 
 	err := ds.MDMInsertEULA(ctx, eula)
