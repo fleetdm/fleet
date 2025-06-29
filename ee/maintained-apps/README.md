@@ -82,15 +82,18 @@ Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updat
 
 1. When a pull request (PR) is opened in `inputs/`, the [#g-software Product Designer (PD)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer.
 2. The PD is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the PD will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
-3. Then, the PD builds the app's `outputs/` on the same PR by running the following command:
+- Find the app in [Homebrew's GitHub casks](https://github.com/Homebrew/homebrew-cask/tree/699414cb220dde2b93af764cea7f24f4018e49ac/Casks) and download it locally using `cask.url`.
+- Install it on a host and run a live query on the host: `SELECT * FROM apps WHERE name LIKE '%App Name%';` Ensure the name you get back from the query matches the `name` provided in the PR.
+
+3. Then, the PD builds the app's `outputs/` and updates `outputs/apps.json` on the same PR by running the following command:
 
 ```
-go run cmd/maintained-apps/main.go
+go run cmd/maintained-apps/main.go -slug="<slug from inputs/type/app-name.json>" -debug
 ```
 
 4. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
-5. If the app is a new app, add an icon for the app to the PR. To add the icon, add the SVG as a comment to the PR and then ask the contributor to add the SVG to their PR [like this](https://github.com/fleetdm/fleet/pull/28332/files#diff-3728cfaafa50a41f6b017a4ef6ab64f7ce99034a9e90ed46421670f76a2db17f). Also, ask them to update the `index.ts` file [like this](https://github.com/fleetdm/fleet/pull/28332/files#diff-628095892e1d16090be1db6cc1a5c9cebc65248c32a8b1312385394818f2907b).
-6. [Quality Assurance (QA)](https://fleetdm.com/handbook/company/product-groups#software-group) is responsible for testing the app. 
+5. Add an icon for the app to the PR. To add the icon, add an SVG to `frontend/pages/SoftwarePage/components/icons/` and update the `frontend/pages/SoftwarePage/components/icons/index.ts` file. Also add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671) and publish the icon as a part of the Software icon Figma component.
+6. Then, the PD adds [Quality Assurance (QA)](https://fleetdm.com/handbook/company/product-groups#software-group) as a reviewer. QA is responsible for testing the app. 
 7. When testing, update the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
 
 ```
@@ -101,6 +104,6 @@ Make sure you replace the `<PR-branch-name>`.
 
 8. Add and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
 
-9. If the tests fail, the PD sets the PR to draft, files a bug that links to the PR, and updates the [testing spreadsheet](https://docs.google.com/spreadsheets/d/1H-At5fczHwV2Shm_vZMh0zuWowV7AD7yzHgA0RVN7nQ/edit?gid=0#gid=0).
-    
-10. If the test is successful, the PD approves and merges the PR.
+9. If the tests fail, the QA sets the PR to draft, files a bug, [triages the bug](https://fleetdm.com/handbook/product-design#triage-new-bugs), and updates the [testing spreadsheet](https://docs.google.com/spreadsheets/d/1H-At5fczHwV2Shm_vZMh0zuWowV7AD7yzHgA0RVN7nQ/edit?gid=0#gid=0).
+10. If the test is successful, QA approves and merges the PR.
+
