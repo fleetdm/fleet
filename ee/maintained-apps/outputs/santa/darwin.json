@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "2025.5",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.northpolesec.santa';"
+      },
+      "installer_url": "https://github.com/northpolesec/santa/releases/download/2025.5/santa-2025.5.dmg",
+      "install_script_ref": "ca838269",
+      "uninstall_script_ref": "1b2c434d",
+      "sha256": "1d79af9cde4fa17279d8e5ccd74021fcd2685581590659addb25b6389c6ef55a",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "1b2c434d": "#!/bin/sh\n\n# variables\nLOGGED_IN_USER=$(scutil \u003c\u003c\u003c \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\nremove_launchctl_service() {\n  local service=\"$1\"\n  local booleans=(\"true\" \"false\")\n  local plist_status\n  local paths\n  local should_sudo\n\n  echo \"Removing launchctl service ${service}\"\n\n  for should_sudo in \"${booleans[@]}\"; do\n    plist_status=$(launchctl list \"${service}\" 2\u003e/dev/null)\n\n    if [[ $plist_status == \\{* ]]; then\n      if [[ $should_sudo == \"true\" ]]; then\n        sudo launchctl remove \"${service}\"\n      else\n        launchctl remove \"${service}\"\n      fi\n      sleep 1\n    fi\n\n    paths=(\n      \"/Library/LaunchAgents/${service}.plist\"\n      \"/Library/LaunchDaemons/${service}.plist\"\n    )\n\n    # if not using sudo, prepend the home directory to the paths\n    if [[ $should_sudo == \"false\" ]]; then\n      for i in \"${!paths[@]}\"; do\n        paths[i]=\"${HOME}${paths[i]}\"\n      done\n    fi\n\n    for path in \"${paths[@]}\"; do\n      if [[ -e \"$path\" ]]; then\n        if [[ $should_sudo == \"true\" ]]; then\n          sudo rm -f -- \"$path\"\n        else\n          rm -f -- \"$path\"\n        fi\n      fi\n    done\n  done\n}\n\ntrash() {\n  local logged_in_user=\"$1\"\n  local target_file=\"$2\"\n  local timestamp=\"$(date +%Y-%m-%d-%s)\"\n  local rand=\"$(jot -r 1 0 99999)\"\n\n  # replace ~ with /Users/$logged_in_user\n  if [[ \"$target_file\" == ~* ]]; then\n    target_file=\"/Users/$logged_in_user${target_file:1}\"\n  fi\n\n  local trash=\"/Users/$logged_in_user/.Trash\"\n  local file_name=\"$(basename \"${target_file}\")\"\n\n  if [[ -e \"$target_file\" ]]; then\n    echo \"removing $target_file.\"\n    mv -f \"$target_file\" \"$trash/${file_name}_${timestamp}_${rand}\"\n  else\n    echo \"$target_file doesn't exist.\"\n  fi\n}\n\nremove_launchctl_service 'com.northpolesec.santa'\nremove_launchctl_service 'com.northpolesec.santa.bundleservice'\nremove_launchctl_service 'com.northpolesec.santa.metricservice'\nremove_launchctl_service 'com.northpolesec.santa.syncservice'\nremove_launchctl_service 'com.northpolesec.santad'\nsudo pkgutil --forget 'com.northpolesec.santa'\nsudo rm -rf '/Applications/Santa.app'\nsudo rm -rf '/usr/local/bin/santactl'\nsudo rm -rf '/var/db/santa'\nsudo rm -rf '/var/log/santa*'\ntrash $LOGGED_IN_USER '/private/etc/asl/com.northpolesec.santa.asl.conf'\ntrash $LOGGED_IN_USER '/private/etc/newsyslog.d/com.northpolesec.santa.newsyslog.conf'\n",
+    "ca838269": "#!/bin/sh\n\n# variables\nAPPDIR=\"/Applications/\"\nTMPDIR=$(dirname \"$(realpath $INSTALLER_PATH)\")\n\n# extract contents\nMOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)\nhdiutil attach -plist -nobrowse -readonly -mountpoint \"$MOUNT_POINT\" \"$INSTALLER_PATH\"\nsudo cp -R \"$MOUNT_POINT\"/* \"$TMPDIR\"\nhdiutil detach \"$MOUNT_POINT\"\n# install pkg files\nsudo installer -pkg \"$TMPDIR/santa-2025.5.pkg\" -target /\n"
+  }
+}
