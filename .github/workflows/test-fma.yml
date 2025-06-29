@@ -1,0 +1,42 @@
+name: Test Fleet Maintained Apps
+
+#on:
+#  workflow_dispatch: # Manual trigger
+on: 
+  push:
+    branches:
+      - 30037-test-fmas
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  test-fma:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Fleet
+        uses: actions/checkout@v4
+        with:
+          repository: fleetdm/fleet
+          fetch-depth: 1
+          ref: ${{ github.ref }}
+          path: fleet
+      
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'fleet/go.mod'
+      
+      - name: Install osquery
+        run: |
+          curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.17.0/osquery-5.17.0_1.macos_arm64.tar.gz"
+          tar -xzf osquery.tar.gz
+          sudo cp -r opt /
+          sudo cp -r private /
+          sudo ln -sf /opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd /usr/local/bin/osqueryi
+          sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
+
+      - name: Verify Fleet Maintained Apps
+        run: |
+          cd fleet
+          sudo -E go run cmd/maintained-apps/validate/main.go
