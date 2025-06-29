@@ -1,0 +1,1 @@
+* Fixed bug present on gitops cmd when importing no-team.yml with scripts without default.yml.
