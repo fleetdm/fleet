@@ -154,10 +154,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true}`, team.Name,
 			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, addedApp.Platform), 0)
 
-	// ===============================
-	// Initial setup
-	// ===============================
-
 	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
 		foundInstallFleetdCommand := false
 		cmd, err := mdmDevice.Idle()
@@ -295,6 +291,19 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		return installCmdUUID
 	}
 
+	checkVPPApp := func(got *fleet.HostSoftwareWithInstaller, expected *fleet.VPPApp, expectedCmdUUID string, expectedStatus fleet.SoftwareInstallerStatus) {
+		require.Equal(t, expected.Name, got.Name)
+		require.NotNil(t, got.AppStoreApp)
+		require.Equal(t, expected.AdamID, got.AppStoreApp.AppStoreID)
+		require.Equal(t, ptr.String(expected.IconURL), got.AppStoreApp.IconURL)
+		require.Empty(t, got.AppStoreApp.Name) // Name is only present for installer packages
+		require.Equal(t, expected.LatestVersion, got.AppStoreApp.Version)
+		require.NotNil(t, got.Status)
+		require.Equal(t, expectedStatus, *got.Status)
+		require.Equal(t, expectedCmdUUID, got.AppStoreApp.LastInstall.CommandUUID)
+		require.NotNil(t, got.AppStoreApp.LastInstall.InstalledAt)
+	}
+
 	// Trigger install to the host
 	installResp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
@@ -385,32 +394,14 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	)
 
 	// Check list host software
-
 	getHostSw := getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
 	gotSW := getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
 	got1, got2 := gotSW[0], gotSW[1]
-	require.Equal(t, got1.Name, "App 1")
-	require.NotNil(t, got1.AppStoreApp)
-	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
-	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
-	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
-	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
-	require.NotNil(t, got1.Status)
-	require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
-	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, installCmdUUID)
-	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
-	require.Equal(t, got2.Name, "App 2")
-	require.NotNil(t, got2.Status)
-	require.Equal(t, fleet.SoftwareInstallFailed, *got2.Status)
-	require.NotNil(t, got2.AppStoreApp)
-	require.Equal(t, got2.AppStoreApp.AppStoreID, errApp.AdamID)
-	require.Equal(t, got2.AppStoreApp.IconURL, ptr.String(errApp.IconURL))
-	require.Empty(t, got2.AppStoreApp.Name)
-	require.Equal(t, got2.AppStoreApp.Version, errApp.LatestVersion)
-	require.Equal(t, got2.AppStoreApp.LastInstall.CommandUUID, failedCmdUUID)
-	require.NotNil(t, got2.AppStoreApp.LastInstall.InstalledAt)
+
+	checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstalled)
+	checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
 
 	// Unsuccessful install (failed to verify)
 
@@ -465,26 +456,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	gotSW = getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
 	got1, got2 = gotSW[0], gotSW[1]
-	require.Equal(t, got1.Name, "App 1")
-	require.NotNil(t, got1.AppStoreApp)
-	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
-	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
-	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
-	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
-	require.NotNil(t, got1.Status)
-	require.Equal(t, fleet.SoftwareInstallFailed, *got1.Status)
-	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, installCmdUUID)
-	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
-	require.Equal(t, got2.Name, "App 2")
-	require.NotNil(t, got2.Status)
-	require.Equal(t, fleet.SoftwareInstallFailed, *got2.Status)
-	require.NotNil(t, got2.AppStoreApp)
-	require.Equal(t, got2.AppStoreApp.AppStoreID, errApp.AdamID)
-	require.Equal(t, got2.AppStoreApp.IconURL, ptr.String(errApp.IconURL))
-	require.Empty(t, got2.AppStoreApp.Name)
-	require.Equal(t, got2.AppStoreApp.Version, errApp.LatestVersion)
-	require.Equal(t, got2.AppStoreApp.LastInstall.CommandUUID, failedCmdUUID)
-	require.NotNil(t, got2.AppStoreApp.LastInstall.InstalledAt)
+	checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstallFailed)
+	checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
 
 	// Go back to the default timeout
 	os.Unsetenv("FLEET_TEST_VPP_VERIFY_TIMEOUT")
@@ -528,26 +501,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	gotSW = getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
 	got1, got2 = gotSW[0], gotSW[1]
-	require.Equal(t, got1.Name, "App 1")
-	require.NotNil(t, got1.AppStoreApp)
-	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
-	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
-	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
-	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
-	require.NotNil(t, got1.Status)
-	require.Equal(t, fleet.SoftwareInstallFailed, *got1.Status)
-	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, installCmdUUID)
-	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
-	require.Equal(t, got2.Name, "App 2")
-	require.NotNil(t, got2.Status)
-	require.Equal(t, fleet.SoftwareInstallFailed, *got2.Status)
-	require.NotNil(t, got2.AppStoreApp)
-	require.Equal(t, got2.AppStoreApp.AppStoreID, errApp.AdamID)
-	require.Equal(t, got2.AppStoreApp.IconURL, ptr.String(errApp.IconURL))
-	require.Empty(t, got2.AppStoreApp.Name)
-	require.Equal(t, got2.AppStoreApp.Version, errApp.LatestVersion)
-	require.Equal(t, got2.AppStoreApp.LastInstall.CommandUUID, failedCmdUUID)
-	require.NotNil(t, got2.AppStoreApp.LastInstall.InstalledAt)
+	checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstallFailed)
+	checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
@@ -597,26 +552,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	gotSW = getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
 	got1, got2 = gotSW[0], gotSW[1]
-	require.Equal(t, got1.Name, "App 1")
-	require.NotNil(t, got1.AppStoreApp)
-	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
-	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
-	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
-	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
-	require.NotNil(t, got1.Status)
-	require.Equal(t, fleet.SoftwareInstallFailed, *got1.Status)
-	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, installCmdUUID)
-	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
-	require.Equal(t, got2.Name, "App 2")
-	require.NotNil(t, got2.Status)
-	require.Equal(t, fleet.SoftwareInstallFailed, *got2.Status)
-	require.NotNil(t, got2.AppStoreApp)
-	require.Equal(t, got2.AppStoreApp.AppStoreID, errApp.AdamID)
-	require.Equal(t, got2.AppStoreApp.IconURL, ptr.String(errApp.IconURL))
-	require.Empty(t, got2.AppStoreApp.Name)
-	require.Equal(t, got2.AppStoreApp.Version, errApp.LatestVersion)
-	require.Equal(t, got2.AppStoreApp.LastInstall.CommandUUID, failedCmdUUID)
-	require.NotNil(t, got2.AppStoreApp.LastInstall.InstalledAt)
+	checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstallFailed)
+	checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
