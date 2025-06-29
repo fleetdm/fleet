@@ -574,6 +574,11 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			if err != nil {
 				return scim.Resource{}, err
 			}
+		case op.Path.AttributePath.String() == extensionEnterpriseUserAttributes+":"+departmentAttr:
+			err = u.patchDepartment(op.Op, op.Value, user)
+			if err != nil {
+				return scim.Resource{}, err
+			}
 		default:
 			level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})

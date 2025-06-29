@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -314,14 +315,9 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		if rowsAffected == 0 {
 			return notFound("scim user").WithID(user.ID)
 		}
+
 		usernameChanged := old.UserName != user.UserName
-		derefStrPtr := func(s *string) string {
-			if s == nil {
-				return ""
-			}
-			return *s
-		}
-		departmentChanged := derefStrPtr(old.Department) != derefStrPtr(user.Department)
+		departmentChanged := !cmp.Equal(old.Department, user.Department)
 
 		// Only update emails if they've changed
 		if emailsNeedUpdate {
