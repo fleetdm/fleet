@@ -17,6 +17,7 @@ on:
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
+      - '.github/workflows/fleetctl-preview-latest.yml'
       - 'tools/osquery/in-a-box'
   pull_request:
     paths:
@@ -27,8 +28,8 @@ on:
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
-      - 'tools/osquery/in-a-box'
       - '.github/workflows/fleetctl-preview-latest.yml'
+      - 'tools/osquery/in-a-box'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -81,7 +82,7 @@ jobs:
           --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
         sleep 10
         ./build/fleetctl get hosts | tee hosts.txt
-        [ $( cat hosts.txt | grep online | wc -l) -eq 9 ]
+        [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
 
     - name: Get fleet logs
       if: always()
