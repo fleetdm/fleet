@@ -39,7 +39,7 @@ for file in "${files[@]}"; do
   ext="${file##*.}"
 
   CURL_ARGS=(
-    -s -w "%{http_code}" -o "$tmp_body"
+    -s -k -w "%{http_code}" -o "$tmp_body"
     -X POST "$ENDPOINT"
     -H "Authorization: Bearer $API_TOKEN"
     -F "software=@${file}"
