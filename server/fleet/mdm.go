@@ -39,6 +39,7 @@ const (
 	FleetVarHostEndUserIDPUsername          = "HOST_END_USER_IDP_USERNAME"
 	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
 	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
+	FleetVarHostEndUserIDPDepartment        = "HOST_END_USER_IDP_DEPARTMENT"
 	FleetVarSCEPRenewalID                   = "SCEP_RENEWAL_ID"
 
 	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"
@@ -844,10 +845,11 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 
 // RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
 const (
-	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
-	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
-	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
-	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
+	RefetchBaseCommandUUIDPrefix           = "REFETCH-"
+	RefetchDeviceCommandUUIDPrefix         = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+	RefetchAppsCommandUUIDPrefix           = RefetchBaseCommandUUIDPrefix + "APPS-"
+	RefetchCertsCommandUUIDPrefix          = RefetchBaseCommandUUIDPrefix + "CERTS-"
+	RefetchVPPAppInstallsCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "VPP-INSTALLS-"
 )
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
@@ -1017,3 +1019,14 @@ type MDMConfigProfileStatus struct {
 type MDMWipeMetadata struct {
 	Windows *MDMWindowsWipeMetadata
 }
+
+type MDMCommandResults interface {
+	// Raw returns the raw bytes of the MDM command result XML.
+	Raw() []byte
+	// UUID returns the UUID of the command that returned these results.
+	UUID() string
+	// HostUUID returns the UUID of the host that ran the command and returned these results.
+	HostUUID() string
+}
+
+type CommandHandler func(ctx context.Context, results MDMCommandResults) error

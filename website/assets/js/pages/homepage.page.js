@@ -124,6 +124,19 @@ parasails.registerPage('homepage', {
         });
       }, 250);
     },
+    clickSwitchComparisonTableColumn: async function(option){
+      if(this.comparisonTableMode === 'it'){
+        this.comparisonModeForIt = option;
+      } else {
+        this.comparisonModeForSecurity = option;
+      }
+      await setTimeout(()=>{
+        $('[data-toggle="tooltip"]').tooltip({
+          container: '#homepage',
+          trigger: 'hover',
+        });
+      }, 250);
+    },
     closeModal: function() {
       this.modal = undefined;
     },

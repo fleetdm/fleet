@@ -974,7 +974,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 		require.Equal(t, wantCommand, foundInstallFleetdCommand)
 	}
 
-	triggerRefetchCron := func(hostID uint, expectCmds int) {
+	triggerRefetchCron := func(hostID uint) {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, hostID)
 			return err
@@ -983,7 +983,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 			Name: string(fleet.CronAppleMDMIPhoneIPadRefetcher),
 		}
 		s.Do("POST", "/api/latest/fleet/trigger", trigger, http.StatusOK)
+	}
 
+	awaitRefetchCommands := func(hostID uint, expectCmds int) {
 		// Wait until MDM commands are set up
 		done := make(chan struct{})
 		go func() {
@@ -1005,6 +1007,41 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 		}
 	}
 
+	acknowledgeRefetchCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, expectCmds int) {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{})
+				require.NoError(t, err)
+			case "CertificateList":
+				cmd, err = mdmDevice.AcknowledgeCertificateList(mdmDevice.UUID, cmd.CommandUUID, []*x509.Certificate{})
+				require.NoError(t, err)
+			case "DeviceInformation":
+				cmd, err = mdmDevice.AcknowledgeDeviceInformation(mdmDevice.UUID, cmd.CommandUUID, "Test Name", "iPhone 16")
+				require.NoError(t, err)
+			default:
+				require.Fail(t, "unexpected command", cmd.Command.RequestType)
+			}
+		}
+	}
+
+	// // we're going to modify this mock, make sure we restore its default
+	// originalPushMock := s.pushProvider.PushFunc
+	// defer func() { s.pushProvider.PushFunc = originalPushMock }()
+
+	// // FIXME: Figure out the best way to test pushes in the test suite. Can we make this more
+	// // user-friendly and reusable?
+	// var recordedPushes []*mdm.Push
+	// var mu sync.Mutex
+	// s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+	// 	mu.Lock()
+	// 	defer mu.Unlock()
+	// 	recordedPushes = pushes
+	// 	return mockSuccessfulPush(ctx, pushes)
+	// }
+
 	// create a global enroll secret
 	globalSecret := "global_secret"
 	var applyResp applyEnrollSecretSpecResponse
@@ -1020,10 +1057,13 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 		"global_secret",
 		hwModel,
 	)
-	// enrollTime := time.Now().UTC().Truncate(time.Second)
 	require.NoError(t, mdmDevice.Enroll())
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, false)
+
+	// mu.Lock()
+	// require.Len(t, recordedPushes, 1)
+	// mu.Unlock()
 
 	hostByIdentifierResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
@@ -1032,41 +1072,27 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	require.False(t, hostByIdentifierResp.Host.RefetchRequested)
 	hostID := hostByIdentifierResp.Host.ID
 
-	triggerRefetchCron(hostID, 3)
+	triggerRefetchCron(hostID)
+	awaitRefetchCommands(hostID, 3) // expect three commands: refetch UUID, apps, certs
 
 	hostByIdentifierResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
-	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
-	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
-	require.False(t, hostByIdentifierResp.Host.RefetchRequested)
+	require.False(t, hostByIdentifierResp.Host.RefetchRequested) // refetch cron doesn't set the refetch_requested flag
 
-	cmd, err := mdmDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		switch cmd.Command.RequestType {
-		case "InstalledApplicationList":
-			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{})
-			require.NoError(t, err)
-		case "CertificateList":
-			cmd, err = mdmDevice.AcknowledgeCertificateList(mdmDevice.UUID, cmd.CommandUUID, []*x509.Certificate{})
-			require.NoError(t, err)
-		case "DeviceInformation":
-			cmd, err = mdmDevice.AcknowledgeDeviceInformation(mdmDevice.UUID, cmd.CommandUUID, "Test Name", "iPhone 16")
-			require.NoError(t, err)
-		default:
-			require.Fail(t, "unexpected command", cmd.Command.RequestType)
-		}
-	}
+	// mu.Lock()
+	// require.Len(t, recordedPushes, 4)
+	// mu.Unlock()
 
+	acknowledgeRefetchCommands(mdmDevice, 3)
 	commands, err := s.ds.GetHostMDMCommands(context.Background(), hostID)
 	require.NoError(t, err)
-	require.Len(t, commands, 0)
+	require.Len(t, commands, 0) // after acknowledging the commands, there should be no more commands
 
-	triggerRefetchCron(hostID, 3)
-
+	triggerRefetchCron(hostID)
+	awaitRefetchCommands(hostID, 3) // expect three new commands from the cron
 	commands, err = s.ds.GetHostMDMCommands(context.Background(), hostID)
 	require.NoError(t, err)
-	require.Len(t, commands, 3)
+	require.Len(t, commands, 3) // three new refetch commands from the cron
 	cmdTypes := make([]string, 0, len(commands))
 	for _, cmd := range commands {
 		cmdTypes = append(cmdTypes, cmd.CommandType)
@@ -1075,12 +1101,77 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	// re-enroll the device
 	require.NoError(t, mdmDevice.Enroll())
+	commands, err = s.ds.GetHostMDMCommands(context.Background(), hostID)
+	require.NoError(t, err)
+	require.Len(t, commands, 0) // re-enrollment clears existing commands
 
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostID), nil, http.StatusOK)
+	hostByIdentifierResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
+
+	awaitRefetchCommands(hostID, 3) // expect three commands: refetch UUID, apps, certs
+	commands, err = s.ds.GetHostMDMCommands(context.Background(), hostID)
+	require.NoError(t, err)
+	require.Len(t, commands, 3)
+
+	// re-enroll the device
+	require.NoError(t, mdmDevice.Enroll())
 	commands, err = s.ds.GetHostMDMCommands(context.Background(), hostID)
 	require.NoError(t, err)
 	require.Len(t, commands, 0)
 
-	triggerRefetchCron(hostID, 3)
+	hostByIdentifierResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	require.False(t, hostByIdentifierResp.Host.RefetchRequested) // re-enrollment also clears the refetch_requested flag
+}
 
-	// TODO: Do we care about manually triggered host refetch (where refetch_requested=true)?
+// TestMDMLockHostUnenrolled tests that we cannot lock a macOS host that is not enrolled in MDM.
+// See https://github.com/fleetdm/fleet/issues/30192
+func (s *integrationMDMTestSuite) TestMDMLockHostUnenrolled() {
+	t := s.T()
+
+	// create a global enroll secret
+	globalSecret := "global_secret"
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: globalSecret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	hwModel := "MacBookPro14,3"
+	mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+		s.server.URL,
+		"global_secret",
+		hwModel,
+	)
+	require.NoError(t, mdmDevice.Enroll())
+
+	hostByIdentifierResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
+	hostID := hostByIdentifierResp.Host.ID
+
+	// mark the host as unenrolled in MDM
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `
+			UPDATE nano_enrollments
+			SET enabled = 0
+			WHERE id = ?
+		`, mdmDevice.UUID)
+		return err
+	})
+
+	// try to lock the host, it should fail because the host is not enrolled
+	res := s.Do(
+		"POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostID),
+		nil,
+		http.StatusUnprocessableEntity,
+	)
+	defer res.Body.Close()
+
+	e := extractServerErrorText(res.Body)
+	require.Contains(t, e, "Can't lock the host because it doesn't have MDM turned on")
 }

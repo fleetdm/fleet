@@ -3146,11 +3146,6 @@ func generateDesiredStateQuery(entityType string) string {
 	`, func(s string) string { return dynamicNames[s] })
 }
 
-// Number of hours to wait for a user enrollment to exist for a host after its
-// device enrollment. After that duration, the user-scoped profiles will be
-// delivered to the device-channel.
-const hoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
-
 // generateEntitiesToInstallQuery is a set difference between:
 //
 //   - Set A (ds), the "desired state", can be obtained from a JOIN between
@@ -3193,53 +3188,21 @@ func generateEntitiesToInstallQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
-	// NOTE(mna): do not return as "to install" the user-channel profiles for
-	// which the host doesn't have a user-channel registered yet (within some
-	// time window after device enrollment).
-	//
-	// Pros of this approach: no need to do some extra logic in
-	// ReconcileAppleProfiles, automatically works for label-constrained profiles
-	// without adding complexity to the big sub-query with many unions (since
-	// this filtering happens after the desired state query), also supports
-	// declarations "automatically", user-scoped profiles are correctly ignored
-	// everywhere we rely on the "to install" list.
-	//
-	// Cons is of course a more complex query, but the final query is already
-	// quite complex and this new condition is not too bad, and it would be
-	// required *somewhere* anyway.
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
 		LEFT JOIN ${hostMDMAppleEntityTable} hmae
 			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
 	WHERE
-		(
-			-- not user-scoped
-			ds.scope != 'User' OR
-			-- user-scoped and user-channel exists
-			( ds.scope = 'User' AND EXISTS (
-				SELECT 1
-				FROM nano_enrollments ne
-				WHERE
-					ne.type = 'User' AND
-					ne.enabled = 1 AND
-					ne.device_id = ds.host_uuid
-			) ) OR
-			-- user-scoped, no user-channel but sufficient delay after device enrollment
-			-- (which will result in deploying the profile to the device channel)
-			( ds.scope = 'User' AND ds.device_enrolled_at < (NOW() - INTERVAL %d HOUR) )
-		) AND (
-			-- entity has been updated
-			( hmae.${checksumColumn} != ds.${checksumColumn} ) OR IFNULL(hmae.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
-			-- entity in A but not in B
-			( hmae.${entityUUIDColumn} IS NULL AND hmae.host_uuid IS NULL ) OR
-			-- entities in A and B but with operation type "remove"
-			( hmae.host_uuid IS NOT NULL AND ( hmae.operation_type = ? OR hmae.operation_type IS NULL ) ) OR
-			-- entities in A and B with operation type "install" and NULL status
-			( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
-		)
+		-- entity has been updated
+		( hmae.${checksumColumn} != ds.${checksumColumn} ) OR IFNULL(hmae.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
+		-- entity in A but not in B
+		( hmae.${entityUUIDColumn} IS NULL AND hmae.host_uuid IS NULL ) OR
+		-- entities in A and B but with operation type "remove"
+		( hmae.host_uuid IS NOT NULL AND ( hmae.operation_type = ? OR hmae.operation_type IS NULL ) ) OR
+		-- entities in A and B with operation type "install" and NULL status
+		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
 `, func(s string) string { return dynamicNames[s] }),
 		fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"),
-		hoursToWaitForUserEnrollmentAfterDeviceEnrollment,
 	)
 }
 
@@ -3311,7 +3274,8 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 		ds.profile_name,
 		ds.checksum,
 		ds.secrets_updated_at,
-		ds.scope AS scope
+		ds.scope,
+		ds.device_enrolled_at
 	FROM %s `,
 		generateEntitiesToInstallQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
@@ -5821,7 +5785,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
                 ds.host_uuid,
                 'install' as operation_type,
                 ds.token,
-				ds.secrets_updated_at,
+                ds.secrets_updated_at,
                 ds.declaration_uuid,
                 ds.declaration_identifier,
                 ds.declaration_name
@@ -5834,7 +5798,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
                 hmae.host_uuid,
                 'remove' as operation_type,
                 hmae.token,
-				hmae.secrets_updated_at,
+                hmae.secrets_updated_at,
                 hmae.declaration_uuid,
                 hmae.declaration_identifier,
                 hmae.declaration_name

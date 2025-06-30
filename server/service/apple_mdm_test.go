@@ -4242,6 +4242,8 @@ func TestUnmarshalAppList(t *testing.T) {
 			<string>com.evernote.iPhone.Evernote</string>
 			<key>Name</key>
 			<string>Evernote</string>
+			<key>Installing</key>
+			<false/>
 			<key>ShortVersion</key>
 			<string>10.98.0</string>
 		</dict>
@@ -4272,6 +4274,7 @@ func TestUnmarshalAppList(t *testing.T) {
 			Version:          "10.98.0",
 			Source:           "ios_apps",
 			BundleIdentifier: "com.evernote.iPhone.Evernote",
+			Installed:        true,
 		},
 		{
 			Name:             "Netflix",
@@ -4738,7 +4741,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 		},
 		{
-			desc:           "username no idp user",
+			desc:           "username, no idp user",
 			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
@@ -4757,7 +4760,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 		},
 		{
-			desc:           "username local part no idp user",
+			desc:           "username local part, no idp user",
 			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
@@ -4776,7 +4779,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 		},
 		{
-			desc:           "groups no idp user",
+			desc:           "groups, no idp user",
 			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
@@ -4790,6 +4793,23 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
 				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+			},
+		},
+		{
+			desc:           "department, no idp user",
+			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return nil, newNotFoundError()
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{}, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Len(t, targets, 0) // target is not present
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
 		{
@@ -4807,6 +4827,51 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
 				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+			},
+		},
+		{
+			desc:           "profile with scim department",
+			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:   "user1@example.com",
+						Groups:     []fleet.ScimUserGroup{},
+						Department: ptr.String("Engineering"),
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "Engineering", output)
+			},
+		},
+		{
+			desc:           "profile with scim department, user has no department",
+			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:   "user1@example.com",
+						Groups:     []fleet.ScimUserGroup{},
+						Department: nil,
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Len(t, targets, 0) // target is not present
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
 	}
@@ -5040,7 +5105,12 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name:    "Custom profile with IdP variables happy path",
 			profile: customProfileForValidation("value"),
 			errMsg:  "",
-			vars:    []string{"HOST_END_USER_IDP_USERNAME", "HOST_END_USER_IDP_USERNAME_LOCAL_PART", "HOST_END_USER_IDP_GROUPS"},
+			vars: []string{
+				"HOST_END_USER_IDP_USERNAME",
+				"HOST_END_USER_IDP_USERNAME_LOCAL_PART",
+				"HOST_END_USER_IDP_GROUPS",
+				"HOST_END_USER_IDP_DEPARTMENT",
+			},
 		},
 		{
 			name: "Custom SCEP and NDES 2 valid profiles should error",

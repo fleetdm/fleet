@@ -1122,10 +1122,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 	packages := make([]map[string]interface{}, 0)
 	appStoreApps := make([]map[string]interface{}, 0)
 	for _, sw := range software {
-		versions := make([]string, len(sw.Versions))
-		for j, version := range sw.Versions {
-			versions[j] = version.Version
-		}
 		softwareSpec := make(map[string]interface{})
 		switch {
 		case sw.SoftwarePackage != nil:
@@ -1133,7 +1129,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			if sw.SoftwarePackage.Name != "" {
 				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
 			}
-			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, strings.Join(versions, ", ")))
+			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
 			if sw.HashSHA256 == nil {
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: filePath,
@@ -1283,10 +1279,13 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 		if label.Platform != "" {
 			labelSpec[jsonFieldName(t, "Platform")] = label.Platform
 		}
-		if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic {
-			labelSpec[jsonFieldName(t, "Query")] = label.Query
-		} else {
+		switch label.LabelMembershipType {
+		case fleet.LabelMembershipTypeManual:
 			labelSpec[jsonFieldName(t, "Hosts")] = label.Hosts
+		case fleet.LabelMembershipTypeDynamic:
+			labelSpec[jsonFieldName(t, "Query")] = label.Query
+		case fleet.LabelMembershipTypeHostVitals:
+			labelSpec[jsonFieldName(t, "HostVitalsCriteria")] = label.HostVitalsCriteria
 		}
 
 		result = append(result, labelSpec)

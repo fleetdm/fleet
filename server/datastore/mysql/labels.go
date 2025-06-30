@@ -33,15 +33,17 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			platform,
 			label_type,
 			label_membership_type,
+			criteria,
 			author_id
-		) VALUES ( ?, ?, ?, ?, ?, ?, ? )
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
 			query = VALUES(query),
 			platform = VALUES(platform),
 			label_type = VALUES(label_type),
-			label_membership_type = VALUES(label_membership_type)
+			label_membership_type = VALUES(label_membership_type),
+			criteria = VALUES(criteria)
 		`
 
 		prepTx, ok := tx.(sqlx.PreparerContext)
@@ -58,7 +60,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			if s.Name == "" {
 				return ctxerr.New(ctx, "label name must not be empty")
 			}
-			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType, authorID)
+			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType, s.HostVitalsCriteria, authorID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
 			}
@@ -182,6 +184,58 @@ VALUES ` + strings.Join(placeholders, ", ")
 	return ds.labelDB(ctx, labelID, teamFilter, ds.writer(ctx))
 }
 
+// Update label membership for a host vitals label.
+func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
+	// Get the label data.
+	label := hvl.GetLabel()
+
+	// If the label isn't a host vitals label, bail out.
+	if label.LabelMembershipType != fleet.LabelMembershipTypeHostVitals {
+		return nil, ctxerr.New(ctx, "label is not a host vitals label")
+	}
+
+	// Get the query and value params for the host vitals label.
+	query, queryVals, err := hvl.CalculateHostVitalsQuery()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "calculating host vitals query")
+	}
+	if query == "" {
+		return nil, ctxerr.New(ctx, "label query is empty after calculating host vitals query")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		labelSelect := fmt.Sprintf("%d as label_id, hosts.id as host_id", label.ID)
+		labelQuery := fmt.Sprintf(query, labelSelect, "hosts")
+		// Insert new label membership based on the label query.
+		sql := fmt.Sprintf(`INSERT INTO label_membership (label_id, host_id) SELECT candidate.label_id, candidate.host_id FROM (%s) as candidate ON DUPLICATE KEY UPDATE host_id = label_membership.host_id`, labelQuery)
+		_, err := tx.ExecContext(ctx, sql, queryVals...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "execute membership INSERT")
+		}
+
+		// Remove any existing label membership for the label that is not in the new query.
+		sql = fmt.Sprintf(`DELETE FROM label_membership WHERE label_id = %d AND NOT EXISTS (SELECT 1 FROM (%s) as candidate WHERE candidate.host_id = label_membership.host_id)`, label.ID, labelQuery)
+		_, err = tx.ExecContext(ctx, sql, queryVals...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "execute membership DELETE")
+		}
+
+		// Get the new number of members.
+		sql = `SELECT COUNT(*) FROM label_membership WHERE label_id = ?`
+		var count int
+		if err := sqlx.GetContext(ctx, tx, &count, sql, label.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get label membership count")
+		}
+		label.HostCount = count
+		return nil
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostCriteria transaction")
+	}
+
+	return label, err
+}
+
 func batchHostIds(hostIds []uint) [][]uint {
 	// same functionality as `batchHostnames`, but for host IDs
 	const batchSize = 50000 // Large, but well under the undocumented limit
@@ -197,7 +251,7 @@ func batchHostIds(hostIds []uint) [][]uint {
 func (ds *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	// Get basic specs
-	query := "SELECT id, name, description, query, platform, label_type, label_membership_type FROM labels"
+	query := "SELECT id, name, description, query, platform, label_type, label_membership_type, criteria FROM labels"
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &specs, query); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get labels")
 	}
@@ -268,11 +322,12 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		name,
 		description,
 		query,
+		criteria,
 		platform,
 		label_type,
 		label_membership_type,
 		author_id
-	) VALUES ( ?, ?, ?, ?, ?, ?, ?)
+	) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -280,6 +335,7 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label.Name,
 		label.Description,
 		label.Query,
+		label.HostVitalsCriteria,
 		label.Platform,
 		label.LabelType,
 		label.LabelMembershipType,

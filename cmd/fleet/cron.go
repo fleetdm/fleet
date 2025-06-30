@@ -706,11 +706,16 @@ func newWorkerIntegrationsSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 	}
+	vppVerify := &worker.VPPVerification{
+		Datastore: ds,
+		Log:       logger,
+		Commander: commander,
+	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate)
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
