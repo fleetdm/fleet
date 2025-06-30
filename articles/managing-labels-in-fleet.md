@@ -30,7 +30,7 @@ To add a new label:
 4. **Choose label Type**: You will be prompted to choose between "Dynamic", "Manual" or "Host vitals" label creation.
     1. **Dynamic**: Build your query and select the platforms to which this label applies.
     2. **Manual**: Select the hosts to which you want to apply this label.
-    3. **Host vitals**: Select an attribute from the "Label Criteria" dropdown, and enter a value that each host in the label should match for that attribute.
+    3. **Host vitals**: Select an attribute from the "Label criteria" dropdown, and enter a value that each host in the label should match for that attribute.
 5. **Save the label**: Click the "Save" button to create your label.
 
 
