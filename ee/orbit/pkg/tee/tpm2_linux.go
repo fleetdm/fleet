@@ -121,7 +121,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 			SensitiveDataOrigin: true,
 			UserWithAuth:        true, // Required even if password is nil
 			SignEncrypt:         true,
-			Decrypt:             true,
+			Decrypt:             true, // TODO: Needed?
 		},
 		Parameters: tpm2.NewTPMUPublicParms(
 			tpm2.TPMAlgECC,
@@ -206,12 +206,12 @@ func (t *tpm2TEE) createParentKey() (tpm2.NamedHandle, error) {
 		Type:    tpm2.TPMAlgRSA,
 		NameAlg: tpm2.TPMAlgSHA256,
 		ObjectAttributes: tpm2.TPMAObject{
-			FixedTPM:            true,
-			FixedParent:         true,
-			SensitiveDataOrigin: true,
+			FixedTPM:            true, // bound to TPM that created it
+			FixedParent:         true, // Required, based on manual testing
+			SensitiveDataOrigin: true, // key material generated internally
 			UserWithAuth:        true, // Required, even if we use nil password
-			Decrypt:             true,
-			Restricted:          true,
+			Decrypt:             true, // Allows key to be used for decryption/unwrapping
+			Restricted:          true, // Limits use to decryption of child keys
 		},
 		Parameters: tpm2.NewTPMUPublicParms(
 			tpm2.TPMAlgRSA,
