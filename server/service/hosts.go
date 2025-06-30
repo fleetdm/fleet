@@ -1377,11 +1377,15 @@ func getEndUsers(ctx context.Context, ds fleet.Datastore, hostID uint) ([]fleet.
 			IdpFullName:      scimUser.DisplayName(),
 			IdpInfoUpdatedAt: ptr.Time(scimUser.UpdatedAt),
 		}
+
 		if scimUser.ExternalID != nil {
 			endUser.IdpID = *scimUser.ExternalID
 		}
 		for _, group := range scimUser.Groups {
 			endUser.IdpGroups = append(endUser.IdpGroups, group.DisplayName)
+		}
+		if scimUser.Department != nil {
+			endUser.Department = *scimUser.Department
 		}
 		endUsers = append(endUsers, endUser)
 	}
