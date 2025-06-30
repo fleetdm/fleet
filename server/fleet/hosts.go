@@ -395,9 +395,9 @@ type HostForeignVitalGroup struct {
 type HostVitalType int
 
 const (
-	HostVitalTypeDomestic HostVitalType = iota // Domestic vitals are those that are stored in the host table
-	HostVitalTypeForeign                       // Foreign vitals are those that are stored in a separate table and joined to the host table
-	HostVitalTypeCustom                        // Custom vitals are those that are stored in the host_additional table as a JSON blob
+	HostVitalTypeDomestic   HostVitalType = iota // Domestic vitals are those that are stored in the host table
+	HostVitalTypeForeign                         // Foreign vitals are those that are stored in a separate table and joined to the host table
+	HostVitalTypeAdditional                      // Additional vitals are those that are stored in the host_additional table as a JSON blob
 )
 
 type HostVital struct {
