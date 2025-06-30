@@ -172,7 +172,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Install attempts
 	// ================================
 
-	processVPPInstallOnClient := func(failOnInstall, appInstallVerified bool) string {
+	processVPPInstallOnClient := func(failOnInstall, appInstallVerified, appInstallTimeout bool) string {
 		var installCmdUUID string
 
 		// Process the InstallApplication command
@@ -225,6 +225,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 		if failOnInstall {
 			return installCmdUUID
+		}
+
+		if appInstallTimeout {
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(context.Background(), "UPDATE nano_command_results SET updated_at = ? WHERE command_uuid = ?", time.Now().Add(-11*time.Minute), installCmdUUID)
+				return err
+			})
 		}
 
 		// Process the verification command (InstalledApplicationList)
@@ -297,7 +304,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate failed installation on the host
-	failedCmdUUID := processVPPInstallOnClient(true, false)
+	failedCmdUUID := processVPPInstallOnClient(true, false, false)
 
 	// We should have cleared out upcoming_activies since the install failed
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -348,7 +355,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate successful installation on the host
-	installCmdUUID := processVPPInstallOnClient(false, true)
+	installCmdUUID := processVPPInstallOnClient(false, true, false)
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
@@ -399,7 +406,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.Equal(t, 1, countResp.Count)
 
 		// Install is ACK, but not verified yet
-		installCmdUUID = processVPPInstallOnClient(false, false)
+		installCmdUUID = processVPPInstallOnClient(false, false, false)
 
 		// We should have 0 installed, because the verification is not done yet
 		listResp = listHostsResponse{}
@@ -426,7 +433,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		// Install is ACK, but not verified yet
 		// Don't update the command UUID because we didn't trigger a new install command
 		// (the command UUID is the same as the one we got when we triggered the install)
-		processVPPInstallOnClient(false, false)
+		processVPPInstallOnClient(false, false, false)
 
 		// s.runWorker()
 
@@ -455,7 +462,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		// Install is ACK, and now it's verified
 		// Don't update the command UUID because we didn't trigger a new install command
 		// (the command UUID is the same as the one we got when we triggered the install)
-		processVPPInstallOnClient(false, true)
+		processVPPInstallOnClient(false, true, false)
 
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
 		gotSW = getHostSw.Software
@@ -491,12 +498,12 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate timed out verification
-	s.fleetCfg.Server.VPPVerifyTimeout = 1 * time.Millisecond
-	t.Cleanup(func() {
-		s.fleetCfg.Server.VPPVerifyTimeout = 10 * time.Minute
-	})
+	// s.fleetCfg.Server.VPPVerifyTimeout = 1 * time.Millisecond
+	// t.Cleanup(func() {
+	// 	s.fleetCfg.Server.VPPVerifyTimeout = 10 * time.Minute
+	// })
 
-	installCmdUUID = processVPPInstallOnClient(false, false)
+	installCmdUUID = processVPPInstallOnClient(false, false, true)
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
