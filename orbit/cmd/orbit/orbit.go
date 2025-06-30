@@ -2176,7 +2176,8 @@ func (q *quarantineReceiver) Run(c *fleet.OrbitConfig) error {
 	}
 
 	log.Info().Msg("--------------- This host is quarantined! ---------------")
-	fleetUrl := c.String("fleet-url")
+	// TODO: get the proper fleet-url from the context
+	fleetUrl := "hp-ubuntu"
 	// TODO: add updateUrl to quarantine allow list
 	QuarantineIfNeeded(fleetUrl)
 	return nil

@@ -1,13 +1,14 @@
 package main
 
 import (
-	"log"
-	"net/netip"
 	"net"
-	"os"
+	"net/netip"
+	//"net/netip"
 	"encoding/json"
+	"os"
 	"runtime"
 
+	"github.com/rs/zerolog/log"
 	"github.com/tailscale/wf"
 	"golang.org/x/sys/windows"
 )
@@ -52,22 +53,35 @@ func QuarantineIfNeeded(fleetUrl string) {
 		Dynamic:	false,
 	})
 	if err != nil {
-		log.Error().Msg("Quarantine failed: Failed to start firewall session: ", err)
+		log.Error().Msg("Quarantine failed: Failed to start firewall session: ")
 		return
 	}
 
-	fleetServerIP, err := net.LookupIP(fleetUrl) // ipv4
+	fleetServerIPLookup, err := net.LookupIP(fleetUrl) // ipv4
 	if err != nil {
-		log.Error().Msg("Quarantine failed: Failed find IP of fleet server: ", err)
+		log.Error().Msg("Quarantine failed: Failed find IP of fleet server: ")
 		return
 	}
-	//allowedAddress, err := netip.ParseAddr(fleetServerIP)
+	var fleetServerIP netip.Addr
+	// Convert []Ip to Addr
+	for _, ip := range fleetServerIPLookup {
+		ipv4 := ip.To4()
+		if ipv4 == nil {
+			continue 
+		}
+		var ok bool
+		fleetServerIP, ok = netip.AddrFromSlice(ipv4)
+		if !ok {
+			log.Error().Msg("Quarantine failed: Failed to convert server ip from LookupIP to netip.Addr: ")
+			return
+		}
+	}
 	
 	addedRules := QuarantineInfo{make([]windows.GUID, 0), make([]windows.GUID, 0)}
 	
 	guidSublayer, err := windows.GenerateGUID()
 	if err != nil {
-		log.Error().Msg("Quarantine failed: Failed to generate windows GUID: ", err)
+		log.Error().Msg("Quarantine failed: Failed to generate windows GUID: ")
 		return
 	}
 	sublayerID := wf.SublayerID(guidSublayer)
@@ -77,7 +91,7 @@ func QuarantineIfNeeded(fleetUrl string) {
 		Weight:	0xffff,
 	})
 	if err != nil {
-		log.Error().Msg("Quarantine failed: Failed to add sublayer: ", err)
+		log.Error().Msg("Quarantine failed: Failed to add sublayer: ")
 		return
 	}
 	addedRules.Sublayers = append(addedRules.Sublayers, guidSublayer)
@@ -94,7 +108,8 @@ func QuarantineIfNeeded(fleetUrl string) {
 		// Block all traffic except fleetServerIP
 		guidBlock, err := windows.GenerateGUID()
 		if err != nil {
-			log.Error().Msg("Quarantine failed: Failed to generate windows GUID: ", err)
+			log.Error().Msg("Quarantine failed: Failed to generate windows GUID: ")
+			return
 		}
 		addedRules.Rules = append(addedRules.Rules, guidBlock)
 		err = fwSession.AddRule(&wf.Rule{
@@ -113,7 +128,36 @@ func QuarantineIfNeeded(fleetUrl string) {
 			// Persistent: true
 		})
 		if err != nil {
-			log.Error().Msg("Quarantine failed: Failed to add blocking rule: ", err)
+			log.Error().Msg("Quarantine failed: Failed to add blocking rule: ")
+			return
+		}
+
+		// NOTE: For the proof of concept I am allowing all traffic to port 53
+		// to be able to keep the DNS server working, but this is UNSAFE
+		guidDns, err := windows.GenerateGUID()
+		if err != nil {
+			log.Error().Msg("Quarantine failed: Failed to generate windows GUID: ")
+			return
+		}
+		addedRules.Rules = append(addedRules.Rules, guidDns)
+		err = fwSession.AddRule(&wf.Rule{
+			ID:			wf.RuleID(guidDns),
+			Name:		"Allow DNS port",
+			Layer:		layer,
+			Weight:		900,
+			Conditions:	[]*wf.Match{
+				&wf.Match{
+					Field:	wf.FieldIPRemotePort,
+					Op:		wf.MatchTypeEqual,
+					Value:	uint16(53),
+				},
+			},
+			Action:		wf.ActionPermit,
+			// Persistent: true
+		})
+		if err != nil {
+			log.Error().Msg("Quarantine failed: Failed to add DNS port permit rule: ")
+			return
 		}
 	}
 
@@ -130,7 +174,7 @@ func UnquarantineIfNeeded() {
 		Dynamic:	false,
 	})
 	if err != nil {
-		log.Error().Msg("Unquarantine failed: Failed to start WFP session: ", err)
+		log.Error().Msg("Unquarantine failed: Failed to start WFP session: ")
 	}
 	rules := LoadAllCustomRules()
 	RemoveAllCustomRules(fwSession, rules)
@@ -138,18 +182,18 @@ func UnquarantineIfNeeded() {
 }
 
 func PrintAllCustomRules(customRules QuarantineInfo) {
-	log.Println("Subalyers:")
+	//log.Println("Subalyers:")
 	for _, id := range customRules.Sublayers {
-		log.Debug().Msg(id)
+		log.Debug().Msg(id.String())
 	}
-	log.Println("Rules:")
+	//log.Println("Rules:")
 	for _, id := range customRules.Rules {
-		log.Debug().Msg(id)
+		log.Debug().Msg(id.String())
 	}
 }
 
 func RemoveAllCustomRules(fwSession *wf.Session, customRules QuarantineInfo) {
-	log.Println("Remove all custom rules")
+	//log.Println("Remove all custom rules")
 	for _, id := range customRules.Sublayers {
 		fwSession.DeleteSublayer(wf.SublayerID(id))
 	}
@@ -161,13 +205,13 @@ func RemoveAllCustomRules(fwSession *wf.Session, customRules QuarantineInfo) {
 func SaveAllCustomRules(customRules *QuarantineInfo) {
 	ruleFile, err := os.Create(".\\quarantine_rules.json")
 	if err != nil {
-		log.Error().Msg("Quarantine failed: Failed to create quarantine_rules.json: ", err)
+		log.Error().Msg("Quarantine failed: Failed to create quarantine_rules.json: ")
 		return
 	}
 	enc := json.NewEncoder(ruleFile)
 	err = enc.Encode(customRules)
 	if err != nil {
-		log.Error().Msg("Quarantine failed: Error encoding json: ", err)
+		log.Error().Msg("Quarantine failed: Error encoding json: ")
 		return
 	}
 }
@@ -175,8 +219,8 @@ func SaveAllCustomRules(customRules *QuarantineInfo) {
 func LoadAllCustomRules() (QuarantineInfo) {
 	ruleFile, err := os.Open(".\\quarantine_rules.json")
 	if err != nil {
-		log.Error().Msg("Quarantine failed: Error opening file quarantine_rules.json: ", err)
-		return
+		log.Error().Msg("Quarantine failed: Error opening file quarantine_rules.json: ")
+		return QuarantineInfo{}
 	}
 	data := QuarantineInfo{make([]windows.GUID, 0), make([]windows.GUID, 0)}
 	dec := json.NewDecoder(ruleFile)
