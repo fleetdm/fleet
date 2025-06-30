@@ -75,6 +75,7 @@ jobs:
     - name: Run fleetctl preview
       run: |
         ./build/fleetctl preview \
+          --disable-open-browser \
           --preview-config-path ./tools/osquery/in-a-box \
           --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
         sleep 10

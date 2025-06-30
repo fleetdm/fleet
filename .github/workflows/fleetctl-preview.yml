@@ -35,7 +35,7 @@ jobs:
     - name: Test fleetctl preview
       run: |
         npm install -g fleetctl
-        fleetctl preview
+        fleetctl preview --disable-open-browser
         sleep 10
         fleetctl get hosts | tee hosts.txt
         [ $( cat hosts.txt | grep online | wc -l) -eq 9 ]

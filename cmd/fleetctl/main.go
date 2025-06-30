@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	// TODO: remove me, to run CI
 	app := fleetctl.CreateApp(os.Stdin, os.Stdout, os.Stderr, exitErrHandler)
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stdout, "Error: %+v\n", err)
