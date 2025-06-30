@@ -105,15 +105,14 @@ var shellCommand = &cli.Command{
 			osquery.WithFlags([]string{"--database_path", osqueryDB}),
 		}
 
-		certPath := getCertPath(c)
-		if exists, err := file.Exists(certPath); err == nil && exists {
-			if _, err := certificate.LoadPEM(certPath); err != nil {
-				return fmt.Errorf("failed to load PEM %s: %w", certPath, err)
-			}
-			opts = append(opts, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
-		} else if err != nil {
-			return fmt.Errorf("failed to read file %s: %w", certPath, err)
+		certPath, err := getCertPath(
+			c.String("root-dir"),
+			c.String("fleet-certificate"),
+		)
+		if err != nil {
+			return err
 		}
+		opts = append(opts, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
 
 		// Detect if the additional arguments have a positional argument.
 		//
@@ -158,9 +157,23 @@ var shellCommand = &cli.Command{
 	},
 }
 
-func getCertPath(c *cli.Context) string {
-	if certPath := c.String("fleet-certificate"); certPath != "" {
-		return certPath
+func getCertPath(rootDir, fleetCertPath string) (string, error) {
+	certPath := filepath.Join(rootDir, "certs.pem")
+	if fleetCertPath != "" {
+		certPath = fleetCertPath
 	}
-	return filepath.Join(c.String("root-dir"), "certs.pem")
+
+	exists, err := file.Exists(certPath)
+	switch {
+	case err != nil:
+		return "", fmt.Errorf("failed to check if cert exists %s: %w", certPath, err)
+	case !exists:
+		return "", fmt.Errorf("cert not found at %s", certPath)
+	default:
+		if _, err := certificate.LoadPEM(certPath); err != nil {
+			return "", fmt.Errorf("invalid PEM format %s: %w", certPath, err)
+		}
+	}
+
+	return certPath, nil
 }
