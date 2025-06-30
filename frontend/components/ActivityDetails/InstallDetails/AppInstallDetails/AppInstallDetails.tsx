@@ -27,6 +27,7 @@ import {
 interface IGetStatusMessageProps {
   displayStatus: SoftwareInstallStatus | "pending";
   isStatusNotNow: boolean;
+  isStatusAcknowledged: boolean;
   software_title: string;
   host_display_name: string;
 }
@@ -34,6 +35,7 @@ interface IGetStatusMessageProps {
 export const getStatusMessage = ({
   displayStatus,
   isStatusNotNow,
+  isStatusAcknowledged,
   software_title,
   host_display_name,
 }: IGetStatusMessageProps) => {
@@ -55,7 +57,7 @@ export const getStatusMessage = ({
   }
 
   // VPP Verify command pending state
-  if (displayStatus === "pending_install") {
+  if (displayStatus === "pending_install" && isStatusAcknowledged) {
     return (
       <>
         The MDM command (request) to install <b>{software_title}</b> on{" "}
@@ -183,10 +185,13 @@ export const AppInstallDetails = ({
   // from the MDM protocol, e.g., "NotNow" or "Acknowledged". We need to display some special
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
   const isStatusNotNow = result?.status === "NotNow";
+  const isStatusAcknowledged =
+    result?.status === "Acknowledged" && !!result?.result;
 
   const statusMessage = getStatusMessage({
     displayStatus,
     isStatusNotNow,
+    isStatusAcknowledged,
     software_title,
     host_display_name,
   });

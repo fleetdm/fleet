@@ -7,6 +7,7 @@ describe("getStatusMessage helper function", () => {
       getStatusMessage({
         displayStatus: "pending",
         isStatusNotNow: true,
+        isStatusAcknowledged: false,
         software_title: "Logic Pro",
         host_display_name: "Marko's MacBook Pro",
       })
@@ -20,11 +21,12 @@ describe("getStatusMessage helper function", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows pending_install message", () => {
+  it("shows pending acknowledged message", () => {
     render(
       getStatusMessage({
         displayStatus: "pending_install",
         isStatusNotNow: false,
+        isStatusAcknowledged: true,
         software_title: "Logic Pro",
         host_display_name: "Marko's MacBook Pro",
       })
@@ -45,6 +47,7 @@ describe("getStatusMessage helper function", () => {
       getStatusMessage({
         displayStatus: "failed_install",
         isStatusNotNow: false,
+        isStatusAcknowledged: false,
         software_title: "Logic Pro",
         host_display_name: "Marko's MacBook Pro",
       })
@@ -59,6 +62,7 @@ describe("getStatusMessage helper function", () => {
       getStatusMessage({
         displayStatus: "installed",
         isStatusNotNow: false,
+        isStatusAcknowledged: true,
         software_title: "Logic Pro",
         host_display_name: "Marko's MacBook Pro",
       })
@@ -73,6 +77,7 @@ describe("getStatusMessage helper function", () => {
       getStatusMessage({
         displayStatus: "installed",
         isStatusNotNow: false,
+        isStatusAcknowledged: false,
         software_title: "Logic Pro",
         host_display_name: "",
       })
