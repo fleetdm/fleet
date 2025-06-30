@@ -1,4 +1,3 @@
-
 ## Fleet 4.70.0 (Jun 25, 2025)
 
 ### Security Engineers
@@ -47,6 +46,10 @@
 - Fixed the Docker Fleet-maintained app install script to prevent a successful install from showing
 up as a failure due to directory existence checks (live as of 2025-06-13 FMA update).
 - Fixed issue causing a 500 error when clicking "Manage Automations" from the Queries page when osquery logging has certain configurations.
+- Fixed issue where you could not delete a bootstrap package.
+- Fixed policy autofill using incorrect media-type for query.
+- Fleet Free: Removed the installer dropdown (Premium-only) from the Software page and Host details > Software tab as installer filtering isn’t applicable on the Free tier.
+- Fixed issue where users were not able to reenable end user migration in the UI.
 
 ## Fleet 4.69.0 (June 14, 2025)
 
