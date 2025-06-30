@@ -2091,12 +2091,41 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	_, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+	updatedLabel, err := ds.UpdateLabelMembershipByHostCriteria(ctx, label)
 	require.NoError(t, err)
+	require.Equal(t, 2, updatedLabel.HostCount)
 
 	// Check that the label has the correct hosts
 	hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, label.ID, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Len(t, hostsInLabel, 2) // Only hosts 1 and 3 should match the criteria (user1)
 	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[2].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID})
+
+	// Update host users.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+		INSERT INTO host_users (host_id, uid, username) VALUES 
+		(?, ?, ?), 
+		(?, ?, ?),
+		(?, ?, ?) ON DUPLICATE KEY UPDATE username = VALUES(username), uid = VALUES(uid)`,
+			hosts[0].ID, 2, "user2",
+			hosts[1].ID, 1, "user1",
+			hosts[3].ID, 1, "user1")
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+		DELETE FROM host_users WHERE host_id = ? AND uid = ?`,
+			hosts[0].ID, 1) // Remove user1 from host 1
+		return err
+	})
+	updatedLabel, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+	require.NoError(t, err)
+	require.Equal(t, 3, updatedLabel.HostCount)
+
+	// Check that the label has the correct hosts
+	hostsInLabel, err = ds.ListHostsInLabel(ctx, filter, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hostsInLabel, 3) // Only hosts 2, 3 and 4 should match the criteria (user1)
+	require.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID, hostsInLabel[2].ID})
 }
