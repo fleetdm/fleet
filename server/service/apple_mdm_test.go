@@ -4725,7 +4725,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 		},
 		{
-			desc:           "username no idp user",
+			desc:           "username, no idp user",
 			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
@@ -4744,7 +4744,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 		},
 		{
-			desc:           "username local part no idp user",
+			desc:           "username local part, no idp user",
 			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
@@ -4763,7 +4763,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 		},
 		{
-			desc:           "groups no idp user",
+			desc:           "groups, no idp user",
 			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
@@ -4777,6 +4777,23 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
 				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+			},
+		},
+		{
+			desc:           "department, no idp user",
+			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return nil, newNotFoundError()
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{}, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Len(t, targets, 0) // target is not present
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
 		{
@@ -4820,11 +4837,9 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 		},
 		{
-			// Given department is not required, we don't make a profile fail if the user has no department,
-			// we replace by empty string instead.
-			desc:           "profile with scim department, user has no department, replaces with empty string",
+			desc:           "profile with scim department, user has no department",
 			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
-			expectedStatus: fleet.MDMDeliveryPending,
+			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					require.EqualValues(t, 1, hostID)
@@ -4839,9 +4854,8 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 				}
 			},
 			assert: func(output string) {
-				assert.Empty(t, updatedPayload.Detail) // no error detail
-				assert.Len(t, targets, 1)              // target is still present
-				require.Empty(t, output)               // replaces to empty string
+				assert.Len(t, targets, 0) // target is not present
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
 	}
