@@ -6,7 +6,7 @@
 2. Run the following script to upload a folder of packages via the Fleet API:
 
 ``` bash
-bash ./tools/software/packages/upload-packages.sh -u $FLEET_URL -t $TEAM_ID -k $API_KEY -f $FOLDER_PATH_CONTAINING_PACKAGES
+bash ./tools/software/packages/upload-packages.sh -u $FLEET_URL -t $TEAM_ID -k "$API_KEY" -f $FOLDER_PATH_CONTAINING_PACKAGES
 ```
 
 Notes:
