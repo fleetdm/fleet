@@ -3726,7 +3726,9 @@ func TestMDMApplePreassignEndpoints(t *testing.T) {
 }
 
 // Helper for creating scoped mobileconfigs. scope is optional and if set to nil is not included in
-// the mobileconfig so that default behavior is used.
+// the mobileconfig so that default behavior is used. Note that because Fleet enforces that all
+// profiles sharing a given identifier have the same scope, it's a good idea to use a unique
+// identifier in your test or perhaps one with the scope in its name
 func scopedMobileconfigForTest(name, identifier string, scope *fleet.PayloadScope, vars ...string) []byte {
 	var varsStr strings.Builder
 	for i, v := range vars {
