@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -356,9 +355,9 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate timed out verification
-	os.Setenv("FLEET_TEST_VPP_VERIFY_TIMEOUT", "1ms")
+	s.fleetCfg.Server.VPPVerifyTimeout = 1 * time.Millisecond
 	t.Cleanup(func() {
-		require.NoError(t, os.Unsetenv("FLEET_TEST_VPP_VERIFY_TIMEOUT"))
+		s.fleetCfg.Server.VPPVerifyTimeout = 10 * time.Minute
 	})
 
 	installCmdUUID = processVPPInstallOnClient(false, false)
@@ -400,7 +399,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
 
 	// Go back to the default timeout
-	os.Unsetenv("FLEET_TEST_VPP_VERIFY_TIMEOUT")
+	s.fleetCfg.Server.VPPVerifyTimeout = 10 * time.Minute
 
 	// ========================================================
 	// Mark installs as failed when MDM turned off on host

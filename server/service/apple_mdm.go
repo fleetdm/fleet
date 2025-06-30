@@ -3789,13 +3789,6 @@ func NewInstalledApplicationListResultsHandler(
 			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
 		}
 
-		if testVerifyTimeout := os.Getenv("FLEET_TEST_VPP_VERIFY_TIMEOUT"); testVerifyTimeout != "" {
-			verifyTimeout, err = time.ParseDuration(testVerifyTimeout)
-			if err != nil {
-				level.Error(logger).Log("msg", err)
-			}
-		}
-
 		installsByBundleID := map[string]*fleet.HostVPPSoftwareInstall{}
 		for _, install := range installs {
 			installsByBundleID[install.BundleIdentifier] = install
