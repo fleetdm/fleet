@@ -43,12 +43,12 @@ import labelsAPI, {
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
-export interface ISaveQueryModalProps {
+export interface ISaveNewQueryModalProps {
   queryValue: string;
   apiTeamIdForQuery?: number; // query will be global if omitted
   isLoading: boolean;
   saveQuery: (formData: ICreateQueryRequestBody) => void;
-  toggleSaveQueryModal: () => void;
+  toggleSaveNewQueryModal: () => void;
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;
   queryReportsDisabled?: boolean;
@@ -66,17 +66,17 @@ const validateQueryName = (name: string) => {
   return { valid, errors };
 };
 
-const SaveQueryModal = ({
+const SaveNewQueryModal = ({
   queryValue,
   apiTeamIdForQuery,
   isLoading,
   saveQuery,
-  toggleSaveQueryModal,
+  toggleSaveNewQueryModal,
   backendValidators,
   existingQuery,
   queryReportsDisabled,
   platformSelector,
-}: ISaveQueryModalProps): JSX.Element => {
+}: ISaveNewQueryModalProps): JSX.Element => {
   const { config, isPremiumTier } = useContext(AppContext);
 
   const [name, setName] = useState("");
@@ -194,7 +194,7 @@ const SaveQueryModal = ({
   };
 
   return (
-    <Modal title="Save query" onExit={toggleSaveQueryModal}>
+    <Modal title="Save query" onExit={toggleSaveNewQueryModal}>
       <form
         onSubmit={onClickSaveQuery}
         className={baseClass}
@@ -350,7 +350,7 @@ const SaveQueryModal = ({
           >
             Save
           </Button>
-          <Button onClick={toggleSaveQueryModal} variant="inverse">
+          <Button onClick={toggleSaveNewQueryModal} variant="inverse">
             Cancel
           </Button>
         </div>
@@ -359,4 +359,4 @@ const SaveQueryModal = ({
   );
 };
 
-export default SaveQueryModal;
+export default SaveNewQueryModal;
