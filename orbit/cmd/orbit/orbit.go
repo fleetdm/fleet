@@ -2171,11 +2171,13 @@ type quarantineReceiver struct{}
 func (q *quarantineReceiver) Run(c *fleet.OrbitConfig) error {
 	if !c.Quarantine {
 		log.Info().Msg("--------------- This host is not quarantined  ---------------")
+		UnquarantineIfNeeded()
 		return nil
 	}
 
-	// TODO: Quarantine this host!
 	log.Info().Msg("--------------- This host is quarantined! ---------------")
-
+	fleetUrl := c.String("fleet-url")
+	// TODO: add updateUrl to quarantine allow list
+	QuarantineIfNeeded(fleetUrl)
 	return nil
 }
