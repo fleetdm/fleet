@@ -4292,11 +4292,11 @@ func ReconcileAppleProfiles(
 		}
 
 		if p.Scope == fleet.PayloadScopeUser {
-			userEnrollment, err := getHostUserEnrollmentID(p.HostUUID)
+			userEnrollmentID, err := getHostUserEnrollmentID(p.HostUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
 			}
-			if userEnrollment == "" {
+			if userEnrollmentID == "" {
 				level.Warn(logger).Log("msg", "host does not have a user enrollment, failing profile installation",
 					"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
 				hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -4316,7 +4316,7 @@ func ReconcileAppleProfiles(
 				continue
 			}
 
-			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
+			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollmentID)
 		} else {
 			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
 		}
@@ -4369,18 +4369,18 @@ func ReconcileAppleProfiles(
 		}
 
 		if p.Scope == fleet.PayloadScopeUser {
-			userEnrollment, err := getHostUserEnrollmentID(p.HostUUID)
+			userEnrollmentID, err := getHostUserEnrollmentID(p.HostUUID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting user enrollment to delete profile from host")
+				return err
 			}
-			if userEnrollment == "" {
+			if userEnrollmentID == "" {
 				level.Warn(logger).Log("msg", "host does not have a user enrollment, cannot remove user scoped profile",
 					"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
 				hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 				continue
 			}
 
-			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
+			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollmentID)
 		} else {
 			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
 		}
