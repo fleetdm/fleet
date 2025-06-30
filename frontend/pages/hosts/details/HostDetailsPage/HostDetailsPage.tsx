@@ -66,7 +66,9 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
-import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISoftwareUninstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -205,7 +207,7 @@ const HostDetailsPage = ({
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
-  ] = useState<IPackageInstallDetails | null>(null);
+  ] = useState<ISoftwareUninstallDetails | null>(null);
   const [
     appInstallDetails,
     setAppInstallDetails,
@@ -694,6 +696,16 @@ const HostDetailsPage = ({
     [setSelectedSoftwareDetails]
   );
 
+  const onShowUninstallDetails = useCallback(
+    (details?: ISoftwareUninstallDetails) => {
+      setPackageUninstallDetails({
+        ...details,
+        host_display_name: host?.display_name || "",
+      });
+    },
+    [setPackageUninstallDetails]
+  );
+
   const onCancelRunScriptDetailsModal = useCallback(() => {
     setScriptExecutiontId("");
     // refetch activities to make sure they up-to-date with what was displayed in the modal
@@ -924,6 +936,8 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
+  const isSoftwareLibrarySupported = isPremiumTier && !isAndroidHost;
+
   const showUsersCard =
     isDarwinHost ||
     generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
@@ -943,7 +957,7 @@ const HostDetailsPage = ({
         paddingSize="xlarge"
         includeShadow
       >
-        {isPremiumTier ? (
+        {isSoftwareLibrarySupported ? (
           <>
             <TabList>
               <Tab>Inventory</Tab>
@@ -983,7 +997,9 @@ const HostDetailsPage = ({
                 }}
                 pathname={location.pathname}
                 onShowSoftwareDetails={onShowSoftwareDetails}
+                onShowUninstallDetails={onShowUninstallDetails}
                 hostTeamId={host.team_id || 0}
+                hostName={host.display_name}
                 hostMDMEnrolled={host.mdm.connected_to_fleet}
                 isHostOnline={host.status === "online"}
               />

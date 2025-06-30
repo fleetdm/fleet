@@ -6,10 +6,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/firehose"
-	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/fleetdm/fleet/v4/server/logging/mock"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +27,7 @@ var (
 	}
 )
 
-func makeFirehoseWriterWithMock(client firehoseiface.FirehoseAPI, stream string) *firehoseLogWriter {
+func makeFirehoseWriterWithMock(client FirehoseAPI, stream string) *firehoseLogWriter {
 	return &firehoseLogWriter{
 		client: client,
 		stream: stream,
@@ -47,7 +46,7 @@ func getLogsFromInput(input *firehose.PutRecordBatchInput) []json.RawMessage {
 func TestFirehoseNonRetryableFailure(t *testing.T) {
 	ctx := context.Background()
 	callCount := 0
-	putFunc := func(*firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+	putFunc := func(context.Context, *firehose.PutRecordBatchInput, ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
 		return nil, errors.New("generic error")
 	}
@@ -61,12 +60,12 @@ func TestFirehoseNonRetryableFailure(t *testing.T) {
 func TestFirehoseRetryableFailure(t *testing.T) {
 	ctx := context.Background()
 	callCount := 0
-	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+	putFunc := func(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
 		assert.Equal(t, logsWithNewlines, getLogsFromInput(input))
 		assert.Equal(t, "foobar", *input.DeliveryStreamName)
 		if callCount < 3 {
-			return nil, awserr.New(firehose.ErrCodeServiceUnavailableException, "", nil)
+			return nil, &types.ServiceUnavailableException{}
 		}
 		// Returning a non-retryable error earlier helps keep
 		// this test faster
@@ -82,11 +81,13 @@ func TestFirehoseRetryableFailure(t *testing.T) {
 func TestFirehoseNormalPut(t *testing.T) {
 	ctx := context.Background()
 	callCount := 0
-	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+	putFunc := func(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
 		assert.Equal(t, logsWithNewlines, getLogsFromInput(input))
 		assert.Equal(t, "foobar", *input.DeliveryStreamName)
-		return &firehose.PutRecordBatchOutput{FailedPutCount: aws.Int64(0)}, nil
+		return &firehose.PutRecordBatchOutput{
+			FailedPutCount: aws.Int32(0),
+		}, nil
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
@@ -100,48 +101,48 @@ func TestFirehoseSomeFailures(t *testing.T) {
 	f := &mock.FirehoseMock{}
 	callCount := 0
 
-	call3 := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+	call3 := func(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 		// final invocation
 		callCount += 1
 		assert.Equal(t, logsWithNewlines[1:2], getLogsFromInput(input))
 		return &firehose.PutRecordBatchOutput{
-			FailedPutCount: aws.Int64(0),
+			FailedPutCount: aws.Int32(0),
 		}, nil
 	}
 
-	call2 := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+	call2 := func(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 		// Set to invoke call3 next time
 		f.PutRecordBatchFunc = call3
 		callCount += 1
 		assert.Equal(t, logsWithNewlines[1:], getLogsFromInput(input))
 		return &firehose.PutRecordBatchOutput{
-			FailedPutCount: aws.Int64(1),
-			RequestResponses: []*firehose.PutRecordBatchResponseEntry{
-				&firehose.PutRecordBatchResponseEntry{
+			FailedPutCount: aws.Int32(1),
+			RequestResponses: []types.PutRecordBatchResponseEntry{
+				{
 					ErrorCode: aws.String("error"),
 				},
-				&firehose.PutRecordBatchResponseEntry{
+				{
 					RecordId: aws.String("foo"),
 				},
 			},
 		}, nil
 	}
 
-	call1 := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+	call1 := func(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 		// Use call2 function for next call
 		f.PutRecordBatchFunc = call2
 		callCount += 1
 		assert.Equal(t, logsWithNewlines, getLogsFromInput(input))
 		return &firehose.PutRecordBatchOutput{
-			FailedPutCount: aws.Int64(1),
-			RequestResponses: []*firehose.PutRecordBatchResponseEntry{
-				&firehose.PutRecordBatchResponseEntry{
+			FailedPutCount: aws.Int32(1),
+			RequestResponses: []types.PutRecordBatchResponseEntry{
+				{
 					RecordId: aws.String("foo"),
 				},
-				&firehose.PutRecordBatchResponseEntry{
+				{
 					ErrorCode: aws.String("error"),
 				},
-				&firehose.PutRecordBatchResponseEntry{
+				{
 					ErrorCode: aws.String("error"),
 				},
 			},
@@ -159,13 +160,13 @@ func TestFirehoseFailAllRecords(t *testing.T) {
 	f := &mock.FirehoseMock{}
 	callCount := 0
 
-	f.PutRecordBatchFunc = func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+	f.PutRecordBatchFunc = func(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
 		assert.Equal(t, logsWithNewlines, getLogsFromInput(input))
 		if callCount < 3 {
 			return &firehose.PutRecordBatchOutput{
-				FailedPutCount: aws.Int64(1),
-				RequestResponses: []*firehose.PutRecordBatchResponseEntry{
+				FailedPutCount: aws.Int32(1),
+				RequestResponses: []types.PutRecordBatchResponseEntry{
 					{ErrorCode: aws.String("error")},
 					{ErrorCode: aws.String("error")},
 					{ErrorCode: aws.String("error")},
@@ -189,11 +190,11 @@ func TestFirehoseRecordTooBig(t *testing.T) {
 	copy(newLogs, logs)
 	newLogs[0] = make(json.RawMessage, firehoseMaxSizeOfRecord+1)
 	callCount := 0
-	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+	putFunc := func(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
 		assert.Equal(t, logsWithNewlines[1:], getLogsFromInput(input))
 		assert.Equal(t, "foobar", *input.DeliveryStreamName)
-		return &firehose.PutRecordBatchOutput{FailedPutCount: aws.Int64(0)}, nil
+		return &firehose.PutRecordBatchOutput{FailedPutCount: aws.Int32(0)}, nil
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
@@ -211,11 +212,11 @@ func TestFirehoseSplitBatchBySize(t *testing.T) {
 		logs[i] = make(json.RawMessage, firehoseMaxSizeOfRecord-1)
 	}
 	callCount := 0
-	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+	putFunc := func(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
 		assert.Len(t, getLogsFromInput(input), 4)
 		assert.Equal(t, "foobar", *input.DeliveryStreamName)
-		return &firehose.PutRecordBatchOutput{FailedPutCount: aws.Int64(0)}, nil
+		return &firehose.PutRecordBatchOutput{FailedPutCount: aws.Int32(0)}, nil
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
@@ -231,11 +232,11 @@ func TestFirehoseSplitBatchByCount(t *testing.T) {
 		logs[i] = json.RawMessage(`{}`)
 	}
 	callCount := 0
-	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
+	putFunc := func(ctx context.Context, input *firehose.PutRecordBatchInput, optFns ...func(*firehose.Options)) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
 		assert.Len(t, getLogsFromInput(input), 500)
 		assert.Equal(t, "foobar", *input.DeliveryStreamName)
-		return &firehose.PutRecordBatchOutput{FailedPutCount: aws.Int64(0)}, nil
+		return &firehose.PutRecordBatchOutput{FailedPutCount: aws.Int32(0)}, nil
 	}
 	f := &mock.FirehoseMock{PutRecordBatchFunc: putFunc}
 	writer := makeFirehoseWriterWithMock(f, "foobar")
@@ -245,45 +246,45 @@ func TestFirehoseSplitBatchByCount(t *testing.T) {
 }
 
 func TestFirehoseValidateStreamActive(t *testing.T) {
-	describeFunc := func(input *firehose.DescribeDeliveryStreamInput) (*firehose.DescribeDeliveryStreamOutput, error) {
+	describeFunc := func(ctx context.Context, input *firehose.DescribeDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DescribeDeliveryStreamOutput, error) {
 		assert.Equal(t, "test", *input.DeliveryStreamName)
 		return &firehose.DescribeDeliveryStreamOutput{
-			DeliveryStreamDescription: &firehose.DeliveryStreamDescription{
-				DeliveryStreamStatus: aws.String(firehose.DeliveryStreamStatusActive),
+			DeliveryStreamDescription: &types.DeliveryStreamDescription{
+				DeliveryStreamStatus: types.DeliveryStreamStatusActive,
 			},
 		}, nil
 	}
 	f := &mock.FirehoseMock{DescribeDeliveryStreamFunc: describeFunc}
 	writer := makeFirehoseWriterWithMock(f, "test")
-	err := writer.validateStream()
+	err := writer.validateStream(context.Background())
 	assert.NoError(t, err)
 	assert.True(t, f.DescribeDeliveryStreamFuncInvoked)
 }
 
 func TestFirehoseValidateStreamNotActive(t *testing.T) {
-	describeFunc := func(input *firehose.DescribeDeliveryStreamInput) (*firehose.DescribeDeliveryStreamOutput, error) {
+	describeFunc := func(ctx context.Context, input *firehose.DescribeDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DescribeDeliveryStreamOutput, error) {
 		assert.Equal(t, "test", *input.DeliveryStreamName)
 		return &firehose.DescribeDeliveryStreamOutput{
-			DeliveryStreamDescription: &firehose.DeliveryStreamDescription{
-				DeliveryStreamStatus: aws.String(firehose.DeliveryStreamStatusCreating),
+			DeliveryStreamDescription: &types.DeliveryStreamDescription{
+				DeliveryStreamStatus: types.DeliveryStreamStatusCreating,
 			},
 		}, nil
 	}
 	f := &mock.FirehoseMock{DescribeDeliveryStreamFunc: describeFunc}
 	writer := makeFirehoseWriterWithMock(f, "test")
-	err := writer.validateStream()
+	err := writer.validateStream(context.Background())
 	assert.Error(t, err)
 	assert.True(t, f.DescribeDeliveryStreamFuncInvoked)
 }
 
 func TestFirehoseValidateStreamError(t *testing.T) {
-	describeFunc := func(input *firehose.DescribeDeliveryStreamInput) (*firehose.DescribeDeliveryStreamOutput, error) {
+	describeFunc := func(ctx context.Context, input *firehose.DescribeDeliveryStreamInput, optFns ...func(*firehose.Options)) (*firehose.DescribeDeliveryStreamOutput, error) {
 		assert.Equal(t, "test", *input.DeliveryStreamName)
 		return nil, errors.New("boom!")
 	}
 	f := &mock.FirehoseMock{DescribeDeliveryStreamFunc: describeFunc}
 	writer := makeFirehoseWriterWithMock(f, "test")
-	err := writer.validateStream()
+	err := writer.validateStream(context.Background())
 	assert.Error(t, err)
 	assert.True(t, f.DescribeDeliveryStreamFuncInvoked)
 }
