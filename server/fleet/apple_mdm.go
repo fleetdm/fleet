@@ -347,6 +347,7 @@ type MDMAppleProfilePayload struct {
 	CommandUUID       string             `db:"command_uuid"`
 	IgnoreError       bool               `db:"ignore_error"`
 	Scope             PayloadScope       `db:"scope"`
+	DeviceEnrolledAt  *time.Time         `db:"device_enrolled_at"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and

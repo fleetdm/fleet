@@ -34,6 +34,9 @@ const (
 	valueAttr      = "value"
 	typeAttr       = "type"
 	primaryAttr    = "primary"
+
+	extensionEnterpriseUserAttributes = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+	departmentAttr                    = "department"
 )
 
 type UserHandler struct {
@@ -70,7 +73,7 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 		return scim.Resource{}, errors.ScimErrorUniqueness
 	}
 
-	user, err := createUserFromAttributes(attributes)
+	user, err := u.createUserFromAttributes(attributes)
 	if err != nil {
 		level.Error(u.logger).Log("msg", "failed to create user from attributes", userNameAttr, userName, "err", err)
 		return scim.Resource{}, err
@@ -83,7 +86,7 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 	return createUserResource(user), nil
 }
 
-func createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUser, error) {
+func (u *UserHandler) createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUser, error) {
 	user := fleet.ScimUser{}
 	var err error
 	user.UserName, err = getRequiredResource[string](attributes, userNameAttr)
@@ -138,7 +141,46 @@ func createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUs
 		userEmails = append(userEmails, userEmail)
 	}
 	user.Emails = userEmails
+
+	// Attempt to get extension enterprise user attributes.
+	extendedAttributes := u.getExtensionEnterpriseUserAttributes(user.UserName, attributes)
+	user.Department = extendedAttributes.department
+
 	return &user, nil
+}
+
+type extendedAttributes struct {
+	department *string
+}
+
+func (u *UserHandler) getExtensionEnterpriseUserAttributes(userName string, attributes scim.ResourceAttributes) extendedAttributes {
+	var attrs extendedAttributes
+	m_, ok := attributes[extensionEnterpriseUserAttributes]
+	if !ok {
+		return attrs
+	}
+	m, ok := m_.(map[string]any)
+	if !ok {
+		level.Error(u.logger).Log(
+			"msg", fmt.Sprintf("unexpected type for %s: %T", extensionEnterpriseUserAttributes, m_),
+			userNameAttr, userName,
+		)
+		return attrs
+	}
+
+	// Attempt to get department attribute.
+	if department_, ok := m[departmentAttr]; ok {
+		if department, ok := department_.(string); ok {
+			attrs.department = &department
+		} else {
+			level.Error(u.logger).Log(
+				"msg", fmt.Sprintf("unexpected type for %s.department: %T", extensionEnterpriseUserAttributes, department_),
+				userNameAttr, userName,
+			)
+		}
+	}
+
+	return attrs
 }
 
 func getRequiredResource[T string | bool](attributes scim.ResourceAttributes, key string) (T, error) {
@@ -267,6 +309,11 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 		}
 		userResource.Attributes[groupsAttr] = groups
 	}
+	if user.Department != nil {
+		extensionEnterpriseUserAttributesMap := make(scim.ResourceAttributes)
+		extensionEnterpriseUserAttributesMap[departmentAttr] = *user.Department
+		userResource.Attributes[extensionEnterpriseUserAttributes] = extensionEnterpriseUserAttributesMap
+	}
 	return userResource
 }
 
@@ -354,7 +401,7 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 
-	user, err := createUserFromAttributes(attributes)
+	user, err := u.createUserFromAttributes(attributes)
 	if err != nil {
 		level.Error(u.logger).Log("msg", "failed to create user from attributes", "id", id, "err", err)
 		return scim.Resource{}, err
@@ -477,6 +524,11 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 					if err != nil {
 						return scim.Resource{}, err
 					}
+				case extensionEnterpriseUserAttributes + ":" + departmentAttr:
+					err = u.patchDepartment(op.Op, v, user)
+					if err != nil {
+						return scim.Resource{}, err
+					}
 				default:
 					level.Info(u.logger).Log("msg", "unsupported patch value field", "field", k)
 					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -519,6 +571,11 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			}
 		case op.Path.AttributePath.String() == emailsAttr:
 			err = u.patchEmailsWithPathFiltering(op, user)
+			if err != nil {
+				return scim.Resource{}, err
+			}
+		case op.Path.AttributePath.String() == extensionEnterpriseUserAttributes+":"+departmentAttr:
+			err = u.patchDepartment(op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
@@ -778,6 +835,19 @@ func (u *UserHandler) patchUserName(op string, v interface{}, user *fleet.ScimUs
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
 	}
 	user.UserName = userName
+	return nil
+}
+
+func (u *UserHandler) patchDepartment(op string, v interface{}, user *fleet.ScimUser) error {
+	if op == scim.PatchOperationRemove || v == nil {
+		user.Department = nil
+		return nil
+	}
+	department, err := getConcreteType[string](u, v, departmentAttr)
+	if err != nil {
+		return err
+	}
+	user.Department = &department
 	return nil
 }
 

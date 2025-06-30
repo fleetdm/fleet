@@ -14,10 +14,12 @@ import hostAPI, {
   IGetHostSoftwareResponse,
   IHostSoftwareQueryKey,
 } from "services/entities/hosts";
+import PATHS from "router/paths";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { HostPlatform, isAndroid } from "interfaces/platform";
+import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -25,6 +27,9 @@ import { AppContext } from "context/app";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
@@ -45,7 +50,9 @@ interface IHostInstallersProps {
   queryParams: ReturnType<typeof parseHostSoftwareLibraryQueryParams>;
   pathname: string;
   hostTeamId: number;
+  hostName: string;
   onShowSoftwareDetails: (software?: IHostSoftware) => void;
+  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   hostMDMEnrolled?: boolean;
@@ -94,7 +101,9 @@ const HostSoftwareLibrary = ({
   queryParams,
   pathname,
   hostTeamId = 0,
+  hostName,
   onShowSoftwareDetails,
+  onShowUninstallDetails,
   isSoftwareEnabled = false,
   hostMDMEnrolled,
   isHostOnline = false,
@@ -108,6 +117,9 @@ const HostSoftwareLibrary = ({
   } = useContext(AppContext);
 
   const isUnsupported = isAndroid(platform); // no Android software
+  const isWindowsHost = platform === "windows";
+  const isIPadOrIPhoneHost = isIPadOrIPhone(platform);
+  const isMacOSHost = platform === "darwin";
 
   const [hostSoftwareLibraryRes, setHostSoftwareLibraryRes] = useState<
     IGetHostSoftwareResponse | undefined
@@ -267,6 +279,25 @@ const HostSoftwareLibrary = ({
     }
   }, [hostSoftwareLibraryRes, startPollingForPendingInstallsOrUninstalls]);
 
+  const onAddSoftware = useCallback(() => {
+    // "Add Software" path dependent on host's platform
+    const addSoftwarePathForHostPlatform = () => {
+      if (isIPadOrIPhoneHost) {
+        return PATHS.SOFTWARE_ADD_APP_STORE;
+      }
+      if (isMacOSHost || isWindowsHost) {
+        return PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
+      }
+      return PATHS.SOFTWARE_ADD_PACKAGE;
+    };
+
+    router.push(
+      getPathWithQueryParams(addSoftwarePathForHostPlatform(), {
+        team_id: hostTeamId,
+      })
+    );
+  }, [hostTeamId, isIPadOrIPhoneHost, isMacOSHost, isWindowsHost, router]);
+
   const onInstallOrUninstall = useCallback(() => {
     refetchForPendingInstallsOrUninstalls();
   }, [refetchForPendingInstallsOrUninstalls]);
@@ -338,8 +369,10 @@ const HostSoftwareLibrary = ({
       hostMDMEnrolled,
       router,
       teamId: hostTeamId,
+      hostName,
       baseClass,
       onShowSoftwareDetails,
+      onShowUninstallDetails,
       onClickInstallAction,
       onClickUninstallAction,
       isHostOnline,
@@ -349,8 +382,10 @@ const HostSoftwareLibrary = ({
     userHasSWWritePermission,
     hostScriptsEnabled,
     hostTeamId,
+    hostName,
     hostMDMEnrolled,
     onShowSoftwareDetails,
+    onShowUninstallDetails,
     onClickInstallAction,
     onClickUninstallAction,
     isHostOnline,
@@ -388,7 +423,15 @@ const HostSoftwareLibrary = ({
 
   return (
     <div className={baseClass}>
-      <CardHeader subheader="Software available to install on this host." />
+      <div className={`${baseClass}__header`}>
+        <CardHeader subheader="Software available to be installed on this host" />
+        {userHasSWWritePermission && (
+          <Button variant="text-icon" onClick={onAddSoftware}>
+            <Icon name="plus" />
+            <span>Add software</span>
+          </Button>
+        )}
+      </div>
       {renderHostSoftware()}
     </div>
   );
