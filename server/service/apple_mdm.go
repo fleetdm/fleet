@@ -4218,7 +4218,6 @@ func ReconcileAppleProfiles(
 	// command causes unwanted behavior.
 	profileIntersection := apple_mdm.NewProfileBimap()
 	profileIntersection.IntersectByIdentifierAndHostUUID(toInstall, toRemove)
-	// the intersection only includes the ones in both with profileIdentifier and hostUUID same
 
 	// hostProfilesToCleanup is used to track profiles that should be removed
 	// from the database directly without having to issue a RemoveProfile
@@ -4229,9 +4228,8 @@ func ReconcileAppleProfiles(
 	hostProfilesToInstallMap := make(map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(toInstall))
 
 	installTargets, removeTargets := make(map[string]*cmdTarget), make(map[string]*cmdTarget)
-
 	for _, p := range toInstall {
-		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
+		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); okf {
 			// if the profile was in any other status than `failed`
 			// and the checksums match (the profiles are exactly
 			// the same) we don't send another InstallProfile
@@ -4294,7 +4292,7 @@ func ReconcileAppleProfiles(
 		if p.Scope == fleet.PayloadScopeUser {
 			userEnrollmentID, err := getHostUserEnrollmentID(p.HostUUID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
+				return err
 			}
 			if userEnrollmentID == "" {
 				level.Warn(logger).Log("msg", "host does not have a user enrollment, failing profile installation",
