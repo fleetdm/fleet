@@ -15,9 +15,9 @@ import (
 
 const AppleSoftwareJobName = "apple_software"
 
-type VPPVerificationTask string
+type AppleSoftwareTask string
 
-const VerifyVPPTask VPPVerificationTask = "verify_vpp_installs"
+const VerifyVPPTask AppleSoftwareTask = "verify_vpp_installs"
 
 type AppleSoftware struct {
 	Datastore fleet.Datastore
@@ -30,9 +30,9 @@ func (v *AppleSoftware) Name() string {
 }
 
 type appleSoftwareArgs struct {
-	Task                    VPPVerificationTask `json:"task"`
-	HostUUID                string              `json:"host_uuid"`
-	VerificationCommandUUID string              `json:"verification_command_uuid"`
+	Task                    AppleSoftwareTask `json:"task"`
+	HostUUID                string            `json:"host_uuid"`
+	VerificationCommandUUID string            `json:"verification_command_uuid"`
 }
 
 func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -56,6 +56,7 @@ func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verific
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get pending mdm commands by host")
 	}
+	level.Debug(v.Log).Log("msg", "verifying VPP installs", "host_uuid", hostUUID, "verification_command_uuid", verificationCommandUUID, "pending_cmds_count", len(pendingCmds))
 	// Only send a new list command if none are in flight. If there's one in
 	// flight, the install will be verified by that one.
 	if len(pendingCmds) == 0 {
@@ -73,7 +74,7 @@ func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verific
 	return nil
 }
 
-func QueueVPPInstallVerificationJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, task VPPVerificationTask, requestDelay time.Duration, hostUUID, verificationCommandUUID string) error {
+func QueueVPPInstallVerificationJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, task AppleSoftwareTask, requestDelay time.Duration, hostUUID, verificationCommandUUID string) error {
 	args := &appleSoftwareArgs{
 		Task:                    task,
 		HostUUID:                hostUUID,

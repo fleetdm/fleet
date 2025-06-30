@@ -851,6 +851,14 @@ const (
 	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
 
+func ListAppleRefetchCommandPrefixes() []string {
+	return []string{
+		RefetchDeviceCommandUUIDPrefix,
+		RefetchAppsCommandUUIDPrefix,
+		RefetchCertsCommandUUIDPrefix,
+	}
+}
+
 // VerifySoftwareInstallVPPPrefix is the prefix used for MDM commands used to verify VPP app installs.
 const VerifySoftwareInstallVPPPrefix = "VERIFY-VPP-INSTALLS-"
 
