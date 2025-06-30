@@ -216,7 +216,6 @@ func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hv
 		labelQuery := fmt.Sprintf(query, labelSelect, "hosts")
 		// Insert new label membership based on the label query.
 		sql = `INSERT INTO label_membership (label_id, host_id) ` + labelQuery
-		fmt.Println(sql)
 
 		res, err := tx.ExecContext(ctx, sql, queryVals...)
 		if err != nil {
