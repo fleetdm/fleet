@@ -2097,6 +2097,6 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	// Check that the label has the correct hosts
 	hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, label.ID, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hostsInLabel, 2) // host1, host2, and host4 should be in the label
+	require.Len(t, hostsInLabel, 2) // Only hosts 1 and 3 should match the criteria (user1)
 	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[2].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID})
 }
