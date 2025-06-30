@@ -936,6 +936,8 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
+  const isSoftwareLibrarySupported = isPremiumTier && !isAndroidHost;
+
   const showUsersCard =
     isDarwinHost ||
     generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
@@ -955,7 +957,7 @@ const HostDetailsPage = ({
         paddingSize="xlarge"
         includeShadow
       >
-        {isPremiumTier ? (
+        {isSoftwareLibrarySupported ? (
           <>
             <TabList>
               <Tab>Inventory</Tab>

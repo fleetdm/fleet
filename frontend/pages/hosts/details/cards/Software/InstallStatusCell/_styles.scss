@@ -2,6 +2,7 @@
   display: flex;
   align-items: center;
   gap: $pad-small;
+  width: 140px; // Prevent status change from installer action from changing cell width
 
   &__tooltip-wrapper {
     .component__tooltip-wrapper__tip-text {

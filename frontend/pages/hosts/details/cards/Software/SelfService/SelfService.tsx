@@ -20,7 +20,6 @@ import deviceApi, {
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
-import { ISoftwareLastUninstall } from "interfaces/software";
 
 import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";

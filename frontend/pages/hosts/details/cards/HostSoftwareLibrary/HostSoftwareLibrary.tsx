@@ -15,12 +15,8 @@ import hostAPI, {
   IHostSoftwareQueryKey,
 } from "services/entities/hosts";
 import PATHS from "router/paths";
-import {
-  IHostSoftware,
-  ISoftware,
-  ISoftwareLastUninstall,
-} from "interfaces/software";
-import { HostPlatform, isAndroid } from "interfaces/platform";
+import { IHostSoftware, ISoftware } from "interfaces/software";
+import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
@@ -121,6 +117,9 @@ const HostSoftwareLibrary = ({
   } = useContext(AppContext);
 
   const isUnsupported = isAndroid(platform); // no Android software
+  const isWindowsHost = platform === "windows";
+  const isIPadOrIPhoneHost = isIPadOrIPhone(platform);
+  const isMacOSHost = platform === "darwin";
 
   const [hostSoftwareLibraryRes, setHostSoftwareLibraryRes] = useState<
     IGetHostSoftwareResponse | undefined
@@ -281,12 +280,23 @@ const HostSoftwareLibrary = ({
   }, [hostSoftwareLibraryRes, startPollingForPendingInstallsOrUninstalls]);
 
   const onAddSoftware = useCallback(() => {
+    // "Add Software" path dependent on host's platform
+    const addSoftwarePathForHostPlatform = () => {
+      if (isIPadOrIPhoneHost) {
+        return PATHS.SOFTWARE_ADD_APP_STORE;
+      }
+      if (isMacOSHost || isWindowsHost) {
+        return PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
+      }
+      return PATHS.SOFTWARE_ADD_PACKAGE;
+    };
+
     router.push(
-      getPathWithQueryParams(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED, {
+      getPathWithQueryParams(addSoftwarePathForHostPlatform(), {
         team_id: hostTeamId,
       })
     );
-  }, [hostTeamId, router]);
+  }, [hostTeamId, isIPadOrIPhoneHost, isMacOSHost, isWindowsHost, router]);
 
   const onInstallOrUninstall = useCallback(() => {
     refetchForPendingInstallsOrUninstalls();
@@ -414,7 +424,7 @@ const HostSoftwareLibrary = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__header`}>
-        <CardHeader subheader="Software available to install on this host." />
+        <CardHeader subheader="Software available to be installed on this host" />
         {userHasSWWritePermission && (
           <Button variant="text-icon" onClick={onAddSoftware}>
             <Icon name="plus" />

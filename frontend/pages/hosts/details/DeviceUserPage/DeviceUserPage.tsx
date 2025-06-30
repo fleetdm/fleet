@@ -675,7 +675,6 @@ const DeviceUserPage = ({
             details={{
               ...selectedSelfServiceScriptDetails,
               host_display_name: host.display_name,
-              status: "failed_uninstall", // FIX
             }}
             onCancel={() => setSelectedSelfServiceScriptDetails(undefined)}
             deviceAuthToken={deviceAuthToken}
