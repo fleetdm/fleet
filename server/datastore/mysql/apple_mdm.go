@@ -3257,9 +3257,6 @@ func generateEntitiesToInstallQuery(entityType string) string {
 //     that the operation is in flight (pending) or the operation has been completed
 //     but is still subject to independent verification by Fleet (verifying)
 //     or the operation has been completed and independenly verified by Fleet (verified).
-//   - entities that are in both A and B but with a different checksum (i.e. the profile has changed)
-//     or which are marked for resend, and for which the scope is changing, and a user-channel exists
-//     so we are actually going to be issuing an install to move the profile between the channels.
 //
 // Any other case are entities that are in both B and A, and as such are
 // processed by the generateEntitiesToInstallQuery query (since they are in
