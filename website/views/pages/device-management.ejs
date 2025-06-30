@@ -122,14 +122,14 @@
                 {{comparisonModeFriendlyNames[comparisonMode]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
               </div>
               <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
+                <div class="dropdown-item" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
+                <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
+                <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
+                <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
+                <div class="dropdown-item" data-compare-with="ansible" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
+                <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
+                <div class="dropdown-item" data-compare-with="puppet" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
+                <div class="dropdown-item" data-compare-with="chef" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
               </div>
             </div>
           </div>
@@ -410,14 +410,14 @@
             {{comparisonModeFriendlyNames[comparisonMode]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
           </div>
           <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurpose">
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
+            <div class="dropdown-item" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
+            <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
+            <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
+            <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
+            <div class="dropdown-item" data-compare-with="ansible" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
+            <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
+            <div class="dropdown-item" data-compare-with="puppet" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
+            <div class="dropdown-item" data-compare-with="chef" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
           </div>
           <div purpose="feature-table">
             <div purpose="feature-name"><p>Cloud or self-host with no restrictions</p></div>
