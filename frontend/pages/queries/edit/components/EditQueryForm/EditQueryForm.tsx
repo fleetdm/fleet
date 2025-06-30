@@ -182,10 +182,6 @@ const EditQueryForm = ({
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  // NOTE: SaveNewQueryModal is only being used to create a new query in this component.
-  // It's easy to confuse with other names like promptSaveQuery, promptSaveAsNewQuery, etc.,
-  // which are used in connection with existing (i.e. previously saved) queries rather
-  // than new queries. Consider renaming some things to distinguish the various flows.
   const [showSaveNewQueryModal, setShowSaveNewQueryModal] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
