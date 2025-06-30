@@ -28,6 +28,7 @@ on:
       - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
       - 'tools/osquery/in-a-box'
+      - '.github/workflows/fleetctl-preview-latest.yml'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs

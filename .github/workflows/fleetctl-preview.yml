@@ -3,6 +3,9 @@ name: Test fleetctl preview
 
 on:
   workflow_dispatch: # Manual
+  pull_request:
+    paths:
+      - '.github/workflows/fleetctl-preview.yml'
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
 
