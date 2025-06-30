@@ -167,9 +167,15 @@ const ManageHostsPage = ({
     setFilteredQueriesPath,
     setFilteredSoftwarePath,
   } = useContext(AppContext);
+  const primoMode = config?.partnerships?.enable_primo;
   const { renderFlash } = useContext(NotificationContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
+
+  const shouldStripScriptBatchExecParamOnTeamChange = (
+    newTeamId?: number,
+    curTeamId?: number
+  ) => newTeamId !== curTeamId;
 
   const {
     currentTeamId,
@@ -193,11 +199,8 @@ const ManageHostsPage = ({
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
         newTeamId === API_ALL_TEAMS_ID,
       // remove batch script summary results filters on team change
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: (newTeamId?: number) =>
-        newTeamId !== currentTeamId,
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: (
-        newTeamId?: number
-      ) => newTeamId !== currentTeamId,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripScriptBatchExecParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripScriptBatchExecParamOnTeamChange,
     },
   });
 
@@ -1438,7 +1441,8 @@ const ManageHostsPage = ({
 
   const renderEnrollSecretModal = () => (
     <EnrollSecretModal
-      selectedTeam={teamIdForApi || 0}
+      selectedTeamId={teamIdForApi || 0}
+      primoMode={primoMode || false}
       teams={teams || []}
       onReturnToApp={() => setShowEnrollSecretModal(false)}
       toggleSecretEditorModal={toggleSecretEditorModal}
@@ -1501,7 +1505,7 @@ const ManageHostsPage = ({
   );
 
   const renderHeaderContent = () => {
-    if (isPremiumTier && !config?.partnerships?.enable_primo && userTeams) {
+    if (isPremiumTier && !primoMode && userTeams) {
       if (userTeams.length > 1 || isOnGlobalTeam) {
         return (
           <TeamsDropdown

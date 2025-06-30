@@ -43,6 +43,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-14 16:30:01
 
+### [CVE-2025-22874](https://nvd.nist.gov/vuln/detail/CVE-2025-22874)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet does not perform any verification of policies in client certificates (CertificatePolicies not set in VerifyOptions).
+- **Products:**: `fleet`,`pkg:golang/stdlib@1.24.2`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-06-23 16:48:42
+
 ### [CVE-2025-21614](https://nvd.nist.gov/vuln/detail/CVE-2025-21614)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
