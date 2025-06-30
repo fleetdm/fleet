@@ -1291,7 +1291,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
-
+	var fromSetupExperience bool
 	if fleet.IsSetupExperienceSupported(host.Platform) {
 		// this might be a setup experience software install result
 		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceSoftwareInstallResult{
@@ -1302,6 +1302,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			// TODO: call next step of setup experience?
+			fromSetupExperience = true
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
 		}
 	}
@@ -1334,15 +1335,16 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			ctx,
 			user,
 			fleet.ActivityTypeInstalledSoftware{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-				SoftwareTitle:   hsi.SoftwareTitle,
-				SoftwarePackage: hsi.SoftwarePackage,
-				InstallUUID:     result.InstallUUID,
-				Status:          string(status),
-				SelfService:     hsi.SelfService,
-				PolicyID:        hsi.PolicyID,
-				PolicyName:      policyName,
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       hsi.SoftwareTitle,
+				SoftwarePackage:     hsi.SoftwarePackage,
+				InstallUUID:         result.InstallUUID,
+				Status:              string(status),
+				SelfService:         hsi.SelfService,
+				PolicyID:            hsi.PolicyID,
+				PolicyName:          policyName,
+				FromSetupExperience: fromSetupExperience,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")

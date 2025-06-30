@@ -1737,15 +1737,16 @@ func (a ActivityTypeResentConfigurationProfileBatch) Documentation() (activity s
 }
 
 type ActivityTypeInstalledSoftware struct {
-	HostID          uint    `json:"host_id"`
-	HostDisplayName string  `json:"host_display_name"`
-	SoftwareTitle   string  `json:"software_title"`
-	SoftwarePackage string  `json:"software_package"`
-	SelfService     bool    `json:"self_service"`
-	InstallUUID     string  `json:"install_uuid"`
-	Status          string  `json:"status"`
-	PolicyID        *uint   `json:"policy_id"`
-	PolicyName      *string `json:"policy_name"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	SoftwarePackage     string  `json:"software_package"`
+	SelfService         bool    `json:"self_service"`
+	InstallUUID         string  `json:"install_uuid"`
+	Status              string  `json:"status"`
+	PolicyID            *uint   `json:"policy_id"`
+	PolicyName          *string `json:"policy_name"`
+	FromSetupExperience bool    `json:"-"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1757,7 +1758,7 @@ func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 }
 
 func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
-	return a.PolicyID != nil
+	return a.PolicyID != nil || a.FromSetupExperience
 }
 
 func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
