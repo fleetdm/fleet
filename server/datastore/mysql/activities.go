@@ -317,6 +317,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) as name,
 			u.id as user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:ran_script_type as activity_type,
@@ -356,6 +357,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
 			ua.user_id as user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:installed_software_type as activity_type,
@@ -397,6 +399,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
 			ua.user_id as user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:uninstalled_software_type as activity_type,
@@ -436,6 +439,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id AS uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
 			u.id AS user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:installed_app_store_app_type AS activity_type,
@@ -477,6 +481,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			user_id,
 			gravatar_url,
 			user_email,
+			api_only,
 			activity_type,
 			created_at,
 			details,
@@ -525,6 +530,7 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 		u.gravatar_url as gravatar_url,
 		a.created_at as created_at,
 		u.id as user_id,
+		u.api_only as api_only,
 		a.fleet_initiated as fleet_initiated
 	FROM
 		host_activities ha
