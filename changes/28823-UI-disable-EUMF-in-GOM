@@ -1,2 +1,0 @@
-* Prevent editing the UI MDM > End user migration section when GitOps mode is enabled, since this is
-GitOps-configurable
