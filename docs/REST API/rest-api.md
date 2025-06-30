@@ -8930,6 +8930,7 @@ The script will be added to each host's list of upcoming activities.
 | script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
 | host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
 | filters | object  | body | See [filters](#filters3). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
+| starts_at       | string  | body | TODO |
 
 
 ##### Filters
@@ -8953,7 +8954,8 @@ Request (using `host_ids`):
 ```json
 {
   "script_id": 123,
-  "host_ids": [1, 2, 3]
+  "host_ids": [1, 2, 3],
+  "starts_at": "TODO"
 }
 ```
 
