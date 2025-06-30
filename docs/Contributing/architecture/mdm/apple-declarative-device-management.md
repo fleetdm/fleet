@@ -36,11 +36,41 @@ Note that the following endpoints do _not_ support DDM profiles:
 
 Via `fleetctl gitops`, the following YAML section can be used to manage profiles:
 
-TODO: tables, uuid prefix, etc.
+```
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ../lib/macos-profile1.mobileconfig
+        labels_exclude_any:
+          - Macs on Sequoia
+      - path: ../lib/macos-profile2.json
+        labels_include_all:
+          - Macs on Sonoma
+```
+
+See full YAML reference [here](https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings).
+
+The `gitops` command uses the `POST /api/latest/fleet/mdm/profiles/batch` contributor-only API endpoint to set the profiles. It replaces any existing profile with the set provided in the YAML, removing any profile that is not present in the YAML.
 
 ### Delivery of DDM custom settings
 
 ### Verification of DDM custom settings
+
+## Database details
+
+The DDM profiles are stored in the `mdm_apple_declarations` table which closely resembles the `mdm_apple_configuration_profiles` table but uses `declaration_uuid` instead of `profile_uuid` as primary key. Note that for historical reasons, the `uuid` primary key column of both these tables and the `mdm_windows_configuration_profiles` table is `VARCHAR(37)` even though a UUID is 36 characters long. This is because a prefix is prepended to the generated UUID to distinguish the type of the profile, so that if you have its UUID, you know in which table to look for it. The [prefixes](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/mdm.go#L18-L20) are "d" for a DDM, "a" for an Apple `.mobileconfig` profile and "w" for a Windows profile.
+
+The profiles names must be unique across all platforms and profile types for a given team (or "no team"), so [the SQL statement to insert new profiles is a bit unusual](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/datastore/mysql/apple_mdm.go#L5078-L5096). That's because distinct tables are used to store the different profile types, so a standard database constraint cannot be used.
+
+## Supported features and limitations
+
+* As mentioned earlier, label restrictions (include any, include all and exclude any) are supported for DDM profiles, same as for other types of profiles.
+* Fleet secrets [are supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L885-L888) and are expanded with their values when the profile is created (or batch-set).
+* Fleet _variables_ [are **not** supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L948-L953) for DDM.
+* DDM profiles [cannot include OS updates settings](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L670-L672), as those are handled by Fleet via the "Controls -> OS updates" settings.
+* DDM profiles [cannot be of a type that requires assets](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L674-L676), as assets are currently not supported.
+* DDM profiles [cannot have a "status subscription" type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L678-L680).
+* DDM profiles [must be a configuration type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L682-L684).
 
 ## Architecture diagram
 
