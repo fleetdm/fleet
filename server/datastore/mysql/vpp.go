@@ -1820,7 +1820,6 @@ WHERE command_uuid = ?
 	})
 }
 
-// TODO(JVE): we have to be able to mark as failed when specific hosts have MDM turned off too
 func (ds *Datastore) MarkAllPendingVPPInstallsAsFailed(ctx context.Context) error {
 	clearUpcomingActivitiesStmt := `
 DELETE ua FROM

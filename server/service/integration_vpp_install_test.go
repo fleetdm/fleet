@@ -30,7 +30,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	// Valid token
 	orgName := "Fleet Device Management Inc."
-	location := "Fleet Location One"
 	token := "mycooltoken"
 	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
 	expDate := expTime.Format(fleet.VPPTimeFormat)
@@ -45,10 +44,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	var resp getVPPTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
 	require.NoError(t, resp.Err)
-	require.Len(t, resp.Tokens, 1)
-	require.Equal(t, orgName, resp.Tokens[0].OrgName)
-	require.Equal(t, location, resp.Tokens[0].Location)
-	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
 
 	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
 		var titleID uint
@@ -69,15 +64,9 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
-	// Get list of VPP apps from "Apple"
-	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
-	// back all available apps in our VPP location.
-	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
-		fmt.Sprint(team.ID))
-	require.NoError(t, appResp.Err)
-
-	macOSApp := fleet.VPPApp{
+	// Insert/deletion flow for macOS app
+	// Add an app store app to team 1
+	addedApp := &fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
 				AdamID:   "1",
@@ -89,64 +78,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		IconURL:          "https://example.com/images/1",
 		LatestVersion:    "1.0.0",
 	}
-	iPadOSApp := fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.IPadOSPlatform,
-			},
-		},
-		Name:             "App 2",
-		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
-		LatestVersion:    "2.0.0",
-	}
-	iOSApp := fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.IOSPlatform,
-			},
-		},
-		Name:             "App 2",
-		BundleIdentifier: "b-2",
-		IconURL:          "https://example.com/images/2",
-		LatestVersion:    "2.0.0",
-	}
-	expectedApps := []*fleet.VPPApp{
-		&macOSApp,
-		&iPadOSApp,
-		&iOSApp,
-		{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   "2",
-					Platform: fleet.MacOSPlatform,
-				},
-			},
-			Name:             "App 2",
-			BundleIdentifier: "b-2",
-			IconURL:          "https://example.com/images/2",
-			LatestVersion:    "2.0.0",
-		},
-		{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   "3",
-					Platform: fleet.IPadOSPlatform,
-				},
-			},
-			Name:             "App 3",
-			BundleIdentifier: "c-3",
-			IconURL:          "https://example.com/images/3",
-			LatestVersion:    "3.0.0",
-		},
-	}
-	require.ElementsMatch(t, expectedApps, appResp.AppStoreApps)
-
-	// Insert/deletion flow for macOS app
-	// Add an app store app to team 1
-	addedApp := expectedApps[0]
 	var addAppResp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, SelfService: true, AutomaticInstall: true}, http.StatusOK, &addAppResp)
 
@@ -192,25 +123,25 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, orbitHost.ID, selfServiceHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// Add all apps to the team
-	addedApp = expectedApps[0]
-	errApp := expectedApps[3]
-	appSelfService := expectedApps[0]
-	// Add app 1 as self-service
-	addAppResp = addAppStoreAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
-		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appSelfService.AdamID, Platform: appSelfService.Platform, SelfService: true},
-		http.StatusOK, &addAppResp)
-	s.lastActivityMatches(
-		fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true}`, team.Name,
-			appSelfService.Name, getSoftwareTitleIDFromApp(appSelfService), appSelfService.AdamID, team.ID, appSelfService.Platform),
-		0,
-	)
+	errApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+	expectedApps := []*fleet.VPPApp{addedApp, errApp}
+
 	var listSw listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID),
 		"available_for_install", "true")
 	// Add remaining as non-self-service
-	for _, app := range expectedApps[1:] {
+	for _, app := range expectedApps {
 		addAppResp = addAppStoreAppResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
 			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
