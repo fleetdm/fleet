@@ -105,16 +105,55 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 	for _, existingProfile := range existingProfiles {
 		existingProfilesByIdentifier[existingProfile.Identifier] = append(existingProfilesByIdentifier[existingProfile.Identifier], existingProfile)
 	}
+
 	for _, cp := range cps {
 		existingProfiles := existingProfilesByIdentifier[cp.Identifier]
+		isEdit := false
+		scopeImplicitlyChanged := false
+		var conflictingProfile *fleet.MDMAppleConfigProfile
+
+		// We have to look through all profiles with the same identifier(which is potentially number
+		// of teams + 1, for no team) in most cases but even in the case of a large number of teams
 		for _, existingProfile := range existingProfiles {
-			if existingProfile.Scope != cp.Scope {
-				// TODO Fix error messaging
-				// Here we need to know is this net-new, update, and also check mobileconfig to see
-				// if this is implicit or explicit scope change.
-				level.Error(ds.logger).Log("msg", "incoming profile scope conflicts with existing", "identifier", cp.Identifier, "profile_uuid", existingProfile.ProfileUUID, "existing_scope", existingProfile.Scope, "incoming_scope", cp.Scope)
-				return ctxerr.Wrap(ctx, errors.New("payload scopes conflict"))
+			if existingProfile.TeamID != nil && cp.TeamID != nil && *existingProfile.TeamID == *cp.TeamID {
+				isEdit = true
 			}
+			if existingProfile.Scope != cp.Scope {
+				// This is an existing, unmodified profile the user is using, just keep the existing
+				// scope behavior
+				if bytes.Equal(conflictingProfile.Checksum, cp.Checksum) {
+					cp.Scope = existingProfile.Scope
+					conflictingProfile = nil
+					break
+				}
+				conflictingProfile = existingProfile
+				parsedConflictingMobileConfig, err := conflictingProfile.Mobileconfig.ParseConfigProfile()
+				if err == nil && fleet.PayloadScope(parsedConflictingMobileConfig.PayloadScope) != cp.Scope {
+					scopeImplicitlyChanged = true
+				}
+			}
+		}
+		if conflictingProfile != nil {
+			// 4 different error scenarios covering:
+			//  1. Net new profile(on this team, but conflicting profile on other team) vs existing profile on this team
+			//  2. Whether or not the conflict is an explicit scope change or an implicit one where the profile existed in
+			//     fleet prior to User channel profiles support being added
+			var errorMessage string
+			if isEdit {
+				if scopeImplicitlyChanged {
+					errorMessage = `The profile cannot be edited because it was previously delivered to some hosts on the device channel. Please remove the User PayloadScope from this profile. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and remove the old profile.`
+				} else {
+					errorMessage = fmt.Sprintf(`The profile cannot be edited because the profile’s PayloadScope (%s) conflicts with another profile with the same identifier on another team. Specify a different identifier for this profile in order to add it.`, string(cp.Scope))
+				}
+			} else {
+				// Net new profile
+				if scopeImplicitlyChanged {
+					errorMessage = `The profile cannot be added because a profile with the same identifier was previously delivered to some hosts on the device channel. Please remove the User PayloadScope from this profile. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and remove the old profile.`
+				} else {
+					errorMessage = fmt.Sprintf(`The profile cannot be added because the profile’s PayloadScope (%s) conflicts with another profile with the same identifier on another team. Specify a different identifier for this profile in order to add it.`, string(cp.Scope))
+				}
+			}
+			return fleet.ConflictError{Message: errorMessage}
 		}
 	}
 	return nil
@@ -3239,10 +3278,10 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
-	// NOTE(mna): there is no check for an existing user-enrollment for the standard,
-	// removal case, because if a user-scoped profile is identified as "to remove",
-	// it has to have been delivered at some point, either because a user-channel did
-	// exist, or because it was delivered to the device-channel after the maximum wait
+	// NOTE(mna): there is no check for an existing user-enrollment here, because
+	// if a user-scoped profile is identified as "to remove", it has to have been
+	// delivered at some point, either because a user-channel did exist, or
+	// because it was delivered to the device-channel after the maximum wait
 	// delay. Either way, it should proceed with removal.
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
@@ -3250,7 +3289,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
 	WHERE
 		-- entities that are in B but not in A
-		(ds.${entityUUIDColumn} IS NULL AND ds.host_uuid IS NULL AND
+		ds.${entityUUIDColumn} IS NULL AND ds.host_uuid IS NULL AND
 		-- except "remove" operations in a terminal state or already pending
 		( hmae.operation_type IS NULL OR hmae.operation_type != ? OR hmae.status IS NULL ) AND
 		-- except "would be removed" entities if they are a broken label-based entities
@@ -3261,7 +3300,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 			WHERE
 				mcpl.${appleEntityUUIDColumn} = hmae.${entityUUIDColumn} AND
 				mcpl.label_id IS NULL
-	))
+		)
 `, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"))
 }
 
@@ -3275,7 +3314,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 		ds.profile_name,
 		ds.checksum,
 		ds.secrets_updated_at,
-		COALESCE(hmae.scope, ds.scope) AS scope
+		ds.scope AS scope
 	FROM %s `,
 		generateEntitiesToInstallQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
