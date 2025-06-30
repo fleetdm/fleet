@@ -164,6 +164,8 @@ queries:
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
 software:
   packages:
+    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
+    - path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
     - path: ../lib/macos/software/santa.yml # Santa for macOS
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
@@ -188,10 +190,6 @@ software:
       self_service: true
   fleet_maintained_apps:
     # macOS apps
-    - slug: google-chrome/darwin # Google Chrome for macOS
-      self_service: true
-    - slug: firefox/darwin # Mozilla Firefox for macOS
-      self_service: true
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:

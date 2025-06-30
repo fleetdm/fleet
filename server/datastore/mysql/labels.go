@@ -204,29 +204,29 @@ func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hv
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// delete all current label membership
-		sql := `
-	DELETE FROM label_membership WHERE label_id = ?
-	`
-		_, err := tx.ExecContext(ctx, sql, label.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "clear membership for ID")
-		}
-		labelSelect := fmt.Sprintf("%d as label_id, hosts.id", label.ID)
+		labelSelect := fmt.Sprintf("%d as label_id, hosts.id as host_id", label.ID)
 		labelQuery := fmt.Sprintf(query, labelSelect, "hosts")
 		// Insert new label membership based on the label query.
-		sql = `INSERT INTO label_membership (label_id, host_id) ` + labelQuery
-
-		res, err := tx.ExecContext(ctx, sql, queryVals...)
+		sql := fmt.Sprintf(`INSERT INTO label_membership (label_id, host_id) SELECT candidate.label_id, candidate.host_id FROM (%s) as candidate ON DUPLICATE KEY UPDATE host_id = label_membership.host_id`, labelQuery)
+		_, err := tx.ExecContext(ctx, sql, queryVals...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "execute membership INSERT")
 		}
-		// Get the number of rows affected by the insert.
-		inserts, err := res.RowsAffected()
+
+		// Remove any existing label membership for the label that is not in the new query.
+		sql = fmt.Sprintf(`DELETE FROM label_membership WHERE label_id = %d AND NOT EXISTS (SELECT 1 FROM (%s) as candidate WHERE candidate.host_id = label_membership.host_id)`, label.ID, labelQuery)
+		_, err = tx.ExecContext(ctx, sql, queryVals...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting rows affected by membership INSERT")
+			return ctxerr.Wrap(ctx, err, "execute membership DELETE")
 		}
-		label.HostCount = int(inserts)
+
+		// Get the new number of members.
+		sql = `SELECT COUNT(*) FROM label_membership WHERE label_id = ?`
+		var count int
+		if err := sqlx.GetContext(ctx, tx, &count, sql, label.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get label membership count")
+		}
+		label.HostCount = count
 		return nil
 	})
 	if err != nil {

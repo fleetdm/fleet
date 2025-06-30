@@ -395,9 +395,9 @@ type HostForeignVitalGroup struct {
 type HostVitalType int
 
 const (
-	HostVitalTypeDomestic HostVitalType = iota // Domestic vitals are those that are stored in the host table
-	HostVitalTypeForeign                       // Foreign vitals are those that are stored in a separate table and joined to the host table
-	HostVitalTypeCustom                        // Custom vitals are those that are stored in the host_additional table as a JSON blob
+	HostVitalTypeDomestic   HostVitalType = iota // Domestic vitals are those that are stored in the host table
+	HostVitalTypeForeign                         // Foreign vitals are those that are stored in a separate table and joined to the host table
+	HostVitalTypeAdditional                      // Additional vitals are those that are stored in the host_additional table as a JSON blob
 )
 
 type HostVital struct {
@@ -865,6 +865,7 @@ type HostEndUser struct {
 	IdpUserName      string              `json:"idp_username,omitempty"`
 	IdpFullName      string              `json:"idp_full_name,omitempty"`
 	IdpGroups        []string            `json:"idp_groups,omitempty"`
+	Department       string              `json:"idp_department,omitempty"`
 	IdpInfoUpdatedAt *time.Time          `json:"idp_info_updated_at"`
 	OtherEmails      []HostDeviceMapping `json:"other_emails,omitempty"`
 }
