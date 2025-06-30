@@ -74,7 +74,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 
 	if p.Criteria != nil {
 		if p.Query != "" || (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
-			return nil, nil, fleet.NewInvalidArgumentError("criteria", `Only one of either "criteria", "query" or "hosts/host_ids" can be included in the request.`)
+			return nil, nil, fleet.NewInvalidArgumentError("criteria", `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
 		}
 		label.LabelMembershipType = fleet.LabelMembershipTypeHostVitals
 		labelCriteriaJson, err := json.Marshal(p.Criteria)
@@ -89,7 +89,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		}
 	} else {
 		if p.Query != "" && (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
-			return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of either "criteria", "query" or "hosts/host_ids" can be included in the request.`)
+			return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
 		}
 		label.Query = p.Query
 		if p.Query == "" {

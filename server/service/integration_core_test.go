@@ -4282,7 +4282,7 @@ func (s *integrationTestSuite) TestLabels() {
 		// create a label with both a query and hosts, error
 		res := s.Do("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1", Hosts: []string{manualHosts[0].UUID}}, http.StatusUnprocessableEntity)
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, `Only one of either "query" or "hosts/host_ids" can be included in the request.`)
+		require.Contains(t, errMsg, `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
 
 		// create invalid label, conflicts with builtin name
 		for n := range builtinsMap {
