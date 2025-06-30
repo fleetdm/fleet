@@ -409,11 +409,13 @@ To add additional users, modify [tools/saml/users.php](https://github.com/fleetd
 
 <meta name="pageOrderInSection" value="200">
 
-## Testing Kinesis Logging
+## Testing Kinesis logging
 
-Tip: Install [AwsLocal](https://github.com/localstack/awscli-local) to ease interaction with
-[LocalStack](https://github.com/localstack/localstack). Alternatively, you can use the `aws` client
-and use `--endpoint-url=http://localhost:4566` on all invocations.
+Install the `aws` client: `brew install aws-cli`
+Set the following alias to ease interaction with [LocalStack](https://github.com/localstack/localstack):
+```sh
+awslocal='AWS_ACCESS_KEY_ID=default AWS_SECRET_ACCESS_KEY=default AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url=http://localhost:4566'
+```
 
 The following guide assumes you have server dependencies running:
 ```sh
@@ -472,7 +474,6 @@ $ awslocal kinesis describe-stream --stream-name sample_status
     }
 }
 ```
-
 
 Use the following configuration to run Fleet:
 ```sh
@@ -545,26 +546,122 @@ echo eyJob3N0SWRlbnRpZmllciI6Ijg3OGE2ZWRmLTcxMzEtNGUyOC05NWEyLWQzNDQ5MDVjYWNhYiI
 {"hostIdentifier":"878a6edf-7131-4e28-95a2-d344905cacab","calendarTime":"Wed Mar  2 22:02:54 2022 UTC","unixTime":"1646258574","severity":"0","filename":"glog_logger.cpp","line":"49","message":"Could not get RPM header flag.","version":"4.9.0","decorations":{"host_uuid":"eb3946b2-0000-0000-b888-2591a1b666e9","hostname":"e0088d28a63f"}}
 ```
 
-## Testing pre-built installers
+## Testing Firehose logging
 
-Pre-built installers are kept in a blob storage like AWS S3. As part of your your local development there's a [MinIO](https://min.io/) instance running on http://localhost:9000. To test the pre-built installers functionality locally:
+We will configure Fleet to send result and status logs to Firehose directly which will in turn stream them to S3 (`Fleet -> LocalStack Firehose -> LocalStack S3`).
 
-1. Build the installers you want using `fleetctl package`. Be sure to include the `--insecure` flag
-   for local testing.
-2. Use the [installerstore](https://github.com/fleetdm/fleet/tree/97b4d1f3fb30f7b25991412c0b40327f93cb118c/tools/installerstore) tool to upload them to your MinIO instance.
-3. Configure your fleet server setting `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` to match your global enroll secret.
-4. Set `FLEET_SERVER_SANDBOX_ENABLED=1`, as the endpoint to retrieve the installer is only available in the sandbox.
-
+Install the `aws` client: `brew install aws-cli`
+Set the following alias to ease interaction with [LocalStack](https://github.com/localstack/localstack):
 ```sh
-FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev
+awslocal='AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url=http://localhost:4566'
 ```
 
-Be sure to replace the `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` value above with the global enroll
-secret from the `fleetctl package` command used to build the installers.
+We need to create a S3 bucket in LocalStack and make it "publicly" available (so that we can inspect it in the browser)
+```sh
+awslocal s3 mb s3://s3-firehose --region us-east-1
+awslocal s3api put-bucket-acl --bucket s3-firehose --acl public-read
+```
+Check `http://localhost:4566/s3-firehose` in your browser.
 
-MinIO also offers a web interface at http://localhost:9001. Credentials are `minio` / `minio123!`. When starting the
-Fleet server up with `--dev` the server will look for installers in the `software-installers-dev` MinIO bucket. You can
-create this bucket via the MinIO web UI (it is *not* created by default when setting up the docker-compose environment).
+Create the following `iam_policy.json` file and apply it to create a "super-role":
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Stmt1572416334166",
+      "Action": "*",
+      "Effect": "Allow",
+      "Resource": "*"
+    }
+  ]
+}
+```
+```sh
+awslocal iam create-role --role-name super-role --assume-role-policy-document file://$(pwd)/iam_policy.json
+```
+
+After applying it, grab the "Arn" in the output (e.g. `"arn:aws:iam::000000000000:role/super-role"`)
+
+Create the following `firehose_skeleton_result.json` file to create the delivery stream for "result" logs:
+```json
+{
+  "DeliveryStreamName": "s3-stream-result",
+  "DeliveryStreamType": "DirectPut",
+  "S3DestinationConfiguration": {
+    "RoleARN": "arn:aws:iam::000000000000:role/super-role",
+    "BucketARN": "arn:aws:s3:::s3-firehose",
+    "Prefix": "result",
+    "ErrorOutputPrefix": "result-error",
+    "BufferingHints": {
+      "SizeInMBs": 1,
+      "IntervalInSeconds": 60
+    },
+    "CompressionFormat": "UNCOMPRESSED",
+    "CloudWatchLoggingOptions": {
+      "Enabled": false,
+      "LogGroupName": "",
+      "LogStreamName": ""
+    }
+  },
+  "Tags": [
+    {
+      "Key": "tagKey",
+      "Value": "tagValue"
+    }
+  ]
+}
+```
+```sh
+awslocal firehose create-delivery-stream --cli-input-json file://$(pwd)/firehose_skeleton_result.json
+```
+
+Similarly, create a `firehose_skeleton_status.json` file to create the delivery stream for "status" logs:
+```json
+{
+  "DeliveryStreamName": "s3-stream-status",
+  "DeliveryStreamType": "DirectPut",
+  "S3DestinationConfiguration": {
+    "RoleARN": "arn:aws:iam::000000000000:role/super-role",
+    "BucketARN": "arn:aws:s3:::s3-firehose",
+    "Prefix": "status",
+    "ErrorOutputPrefix": "status-error",
+    "BufferingHints": {
+      "SizeInMBs": 1,
+      "IntervalInSeconds": 60
+    },
+    "CompressionFormat": "UNCOMPRESSED",
+    "CloudWatchLoggingOptions": {
+      "Enabled": false,
+      "LogGroupName": "",
+      "LogStreamName": ""
+    }
+  },
+  "Tags": [
+    {
+      "Key": "tagKey",
+      "Value": "tagValue"
+    }
+  ]
+}
+```
+
+After applying such configuration, "result" logs will be stored under the `results/` prefix and "status" logs will be stored under `status/` prefix (both on the `s3-firehose` bucket).
+
+Finally, here's the Fleet configuration:
+```sh
+FLEET_OSQUERY_RESULT_LOG_PLUGIN=firehose
+FLEET_OSQUERY_STATUS_LOG_PLUGIN=firehose
+FLEET_FIREHOSE_REGION=us-east-1
+FLEET_FIREHOSE_ENDPOINT_URL=http://localhost:4566
+FLEET_FIREHOSE_ACCESS_KEY_ID=default
+FLEET_FIREHOSE_SECRET_ACCESS_KEY=default
+FLEET_FIREHOSE_STS_ASSUME_ROLE_ARN=arn:aws:iam::000000000000:role/super-role
+FLEET_FIREHOSE_RESULT_STREAM=s3-stream-result
+FLEET_FIREHOSE_STATUS_STREAM=s3-stream-status
+```
+
+You can inspect logs by visiting `http://localhost:4566/s3-firehose` on your browser.
 
 ## Telemetry
 
@@ -943,7 +1040,7 @@ open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/or
 
 ### Bootstrap package
 
-A bootstrap package is a `pkg` file that gets automatically installed on hosts when they enroll via DEP.
+A bootstrap package is a `pkg` file that gets automatically installed on hosts when they enroll via ABM/DEP.
 
 The `pkg` file needs to be a signed "distribution package", you can find a dummy file that meets all the requirements [in Drive](https://drive.google.com/file/d/1adwAOTD5G6D4WzWvJeMId6mDhyeFy-lm/view). We have instructions in [the docs](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package) to upload a new bootstrap package to your Fleet instance.
 

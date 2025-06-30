@@ -1,20 +1,22 @@
 package mail
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	aws_config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
+	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type fleetSESSender interface {
-	SendRawEmail(input *ses.SendRawEmailInput) (*ses.SendRawEmailOutput, error)
+	SendRawEmail(ctx context.Context, input *ses.SendRawEmailInput, optFns ...func(*ses.Options)) (*ses.SendRawEmailOutput, error)
 }
 
 type sesSender struct {
@@ -30,7 +32,7 @@ func getFromSES(e fleet.Email) (string, error) {
 	return fmt.Sprintf("From: %s\r\n", fmt.Sprintf("do-not-reply@%s", serverURL.Host)), nil
 }
 
-func (s *sesSender) SendEmail(e fleet.Email) error {
+func (s *sesSender) SendEmail(ctx context.Context, e fleet.Email) error {
 	if s.client == nil {
 		return errors.New("ses sender not configured")
 	}
@@ -38,7 +40,7 @@ func (s *sesSender) SendEmail(e fleet.Email) error {
 	if err != nil {
 		return err
 	}
-	return s.sendMail(e, msg)
+	return s.sendMail(ctx, e, msg)
 }
 
 func (s *sesSender) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
@@ -46,50 +48,57 @@ func (s *sesSender) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
 }
 
 func NewSESSender(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, sourceArn string) (*sesSender, error) {
-	conf := &aws.Config{
-		Region:   &region,
-		Endpoint: &endpointURL, // empty string or nil will use default values
+	var opts []func(*aws_config.LoadOptions) error
+
+	// The service endpoint is deprecated, but we still set it
+	// in case users are using it.
+	if endpointURL != "" {
+		opts = append(opts, aws_config.WithEndpointResolver(aws.EndpointResolverFunc(
+			func(service, region string) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL: endpointURL,
+				}, nil
+			})),
+		)
 	}
 
 	// Only provide static credentials if we have them
-	// otherwise use the default credentials provider chain
+	// otherwise use the default credentials provider chain.
 	if id != "" && secret != "" {
-		conf.Credentials = credentials.NewStaticCredentials(id, secret, "")
+		opts = append(opts,
+			aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(id, secret, "")),
+		)
 	}
 
-	sess, err := session.NewSession(conf)
-	if err != nil {
-		return nil, fmt.Errorf("create SES client: %w", err)
-	}
-
+	// cfg.StsAssumeRoleArn has been marked as deprecated, but we still set it in case users are using it.
 	if stsAssumeRoleArn != "" {
-		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
+		opts = append(opts, aws_config.WithAssumeRoleCredentialOptions(func(r *stscreds.AssumeRoleOptions) {
+			r.RoleARN = stsAssumeRoleArn
 			if stsExternalID != "" {
-				provider.ExternalID = &stsExternalID
+				r.ExternalID = &stsExternalID
 			}
-		})
-		conf.Credentials = creds
-
-		sess, err = session.NewSession(conf)
-
-		if err != nil {
-			return nil, fmt.Errorf("create SES client: %w", err)
-		}
+		}))
 	}
-	return &sesSender{client: ses.New(sess), sourceArn: sourceArn}, nil
+
+	opts = append(opts, aws_config.WithRegion(region))
+	conf, err := aws_config.LoadDefaultConfig(context.Background(), opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create default config: %w", err)
+	}
+
+	sesClient := ses.NewFromConfig(conf)
+
+	return &sesSender{
+		client:    sesClient,
+		sourceArn: sourceArn,
+	}, nil
 }
 
-func (s *sesSender) sendMail(e fleet.Email, msg []byte) error {
-	toAddresses := make([]*string, len(e.To))
-	for i := range e.To {
-		t := e.To[i]
-		toAddresses[i] = &t
-	}
-
-	_, err := s.client.SendRawEmail(&ses.SendRawEmailInput{
-		Destinations: toAddresses,
+func (s *sesSender) sendMail(ctx context.Context, e fleet.Email, msg []byte) error {
+	_, err := s.client.SendRawEmail(ctx, &ses.SendRawEmailInput{
+		Destinations: e.To,
 		FromArn:      &s.sourceArn,
-		RawMessage:   &ses.RawMessage{Data: msg},
+		RawMessage:   &types.RawMessage{Data: msg},
 		SourceArn:    &s.sourceArn,
 	})
 	if err != nil {

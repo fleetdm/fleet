@@ -138,7 +138,7 @@ the way that the Fleet server works.
 			logger := initLogger(config)
 
 			if dev {
-				createTestBucketForInstallers(&config, logger)
+				createTestBuckets(&config, logger)
 			}
 
 			// Init tracing
@@ -251,41 +251,6 @@ the way that the Fleet server works.
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {
 					initFatal(err, "loading built in data")
-				}
-			}
-
-			if config.Packaging.GlobalEnrollSecret != "" {
-				secrets, err := ds.GetEnrollSecrets(cmd.Context(), nil)
-				if err != nil {
-					initFatal(err, "loading enroll secrets")
-				}
-
-				var globalEnrollSecret string
-				for _, secret := range secrets {
-					if secret.TeamID == nil {
-						globalEnrollSecret = secret.Secret
-						break
-					}
-				}
-
-				if globalEnrollSecret != "" {
-					if globalEnrollSecret != config.Packaging.GlobalEnrollSecret {
-						fmt.Printf("################################################################################\n" +
-							"# WARNING:\n" +
-							"#  You have provided a global enroll secret config, but there's\n" +
-							"#  already one set up for your application.\n" +
-							"#\n" +
-							"#  This is generally an error and the provided value will be\n" +
-							"#  ignored, if you really need to configure an enroll secret please\n" +
-							"#  remove the global enroll secret from the database manually.\n" +
-							"################################################################################\n")
-						os.Exit(1)
-					}
-				} else {
-					if err := ds.ApplyEnrollSecrets(cmd.Context(), nil,
-						[]*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}}); err != nil {
-						level.Debug(logger).Log("err", err, "msg", "failed to apply enroll secrets")
-					}
 				}
 			}
 
@@ -1654,17 +1619,29 @@ func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, e
 	return nil, nil
 }
 
-func createTestBucketForInstallers(config *configpkg.FleetConfig, logger log.Logger) {
-	store, err := s3.NewSoftwareInstallerStore(config.S3)
+func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
+	softwareInstallerStore, err := s3.NewSoftwareInstallerStore(config.S3)
 	if err != nil {
 		initFatal(err, "initializing S3 software installer store")
 	}
-	if err := store.CreateTestBucket(config.S3.SoftwareInstallersBucket); err != nil {
+	if err := softwareInstallerStore.CreateTestBucket(context.Background(), config.S3.SoftwareInstallersBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
 		level.Info(logger).Log(
 			"err", err,
-			"msg", "failed to create test bucket",
+			"msg", "failed to create test software installer bucket",
 			"name", config.S3.SoftwareInstallersBucket,
+		)
+	}
+	carveStore, err := s3.NewCarveStore(config.S3, nil)
+	if err != nil {
+		initFatal(err, "initializing S3 carve store")
+	}
+	if err := carveStore.CreateTestBucket(context.Background(), config.S3.CarvesBucket); err != nil {
+		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+		level.Info(logger).Log(
+			"err", err,
+			"msg", "failed to create test carve bucket",
+			"name", config.S3.CarvesBucket,
 		)
 	}
 }
