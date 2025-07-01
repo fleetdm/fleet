@@ -589,7 +589,6 @@ Only one of the objects is allowed in a single request.
 
 | Name            | Type    | In   | Description                                                 |
 |---------------- |-------- |------|-------------------------------------------------------------|
-| type   | string | body | Type of the certificate authority. Options include `digicert`, `ndes_scep_proxy`, `hydrant`, and `custom_scep_proxy`. |
 | digicert   | object | body | See [digicert](#digicert) |
 | ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
