@@ -76,6 +76,7 @@ import TargetLabelSelector from "components/TargetLabelSelector";
 import SaveNewQueryModal from "../SaveNewQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 import DiscardDataOption from "../DiscardDataOption";
+import SaveAsNewQueryModal from "../SaveAsNewQueryModal";
 
 const baseClass = "edit-query-form";
 
@@ -161,7 +162,6 @@ const EditQueryForm = ({
     setLastEditedQueryDiscardData,
     setEditingExistingQuery,
   } = useContext(QueryContext);
-
   const {
     currentUser,
     isOnlyObserver,
@@ -175,20 +175,23 @@ const EditQueryForm = ({
     config,
     isPremiumTier,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const savedQueryMode = !!queryIdForEdit;
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  // handles saving a copy of an existing query as a new query
+  const [showSaveAsNewQueryModal, setShowSaveAsNewQueryModal] = useState(false);
+  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
+
+  // handles saving a brand new query
   const [showSaveNewQueryModal, setShowSaveNewQueryModal] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
   );
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [queryWasChanged, setQueryWasChanged] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("");
@@ -201,6 +204,28 @@ const EditQueryForm = ({
     undefined,
     undefined
   );
+  const updateQueryData = {
+    name: lastEditedQueryName.trim(),
+    description: lastEditedQueryDescription,
+    query: lastEditedQueryBody,
+    platform: platformSelector
+      .getSelectedPlatforms()
+      .join(",") as CommaSeparatedPlatformString,
+    // name should already be trimmed at this point due to associated onBlurs, but this
+    // doesn't hurt
+    observer_can_run: lastEditedQueryObserverCanRun,
+    interval: lastEditedQueryFrequency,
+    automations_enabled: lastEditedQueryAutomationsEnabled,
+    min_osquery_version: lastEditedQueryMinOsqueryVersion,
+    logging: lastEditedQueryLoggingType,
+    discard_data: lastEditedQueryDiscardData,
+    labels_include_any:
+      selectedTargetType === "Custom"
+        ? Object.entries(selectedLabels)
+            .filter(([, selected]) => selected)
+            .map(([labelName]) => labelName)
+        : [],
+  };
 
   useEffect(() => {
     setSelectedTargetType(
@@ -258,6 +283,10 @@ const EditQueryForm = ({
 
   const toggleConfirmSaveChangesModal = () => {
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
+  };
+
+  const toggleSaveAsNewQueryModal = () => {
+    setShowSaveAsNewQueryModal(!showSaveAsNewQueryModal);
   };
 
   const onLoad = (editor: IAceEditor) => {
@@ -343,112 +372,6 @@ const EditQueryForm = ({
     [setLastEditedQueryLoggingType]
   );
 
-  const promptSaveAsNewQuery = () => (
-    evt: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    evt.preventDefault();
-
-    if (savedQueryMode && !lastEditedQueryName) {
-      return setErrors({
-        ...errors,
-        name: "Query name must be present",
-      });
-    }
-
-    let valid = true;
-    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
-
-    valid = isValidated;
-
-    if (valid) {
-      const newPlatformString = platformSelector
-        .getSelectedPlatforms()
-        .join(",") as CommaSeparatedPlatformString;
-
-      setIsSaveAsNewLoading(true);
-      const apiProps = {
-        description: lastEditedQueryDescription,
-        query: lastEditedQueryBody,
-        team_id: apiTeamIdForQuery,
-        observer_can_run: lastEditedQueryObserverCanRun,
-        interval: lastEditedQueryFrequency,
-        automations_enabled: lastEditedQueryAutomationsEnabled,
-        platform: newPlatformString,
-        min_osquery_version: lastEditedQueryMinOsqueryVersion,
-        logging: lastEditedQueryLoggingType,
-        labels_include_any:
-          selectedTargetType === "Custom"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [],
-      };
-      queryAPI
-        .create({
-          name: lastEditedQueryName,
-          ...apiProps,
-        })
-        .then((response: { query: ISchedulableQuery }) => {
-          setIsSaveAsNewLoading(false);
-          router.push(
-            getPathWithQueryParams(PATHS.QUERY_DETAILS(response.query.id), {
-              team_id: response.query.team_id,
-            })
-          );
-          renderFlash("success", `Successfully added query.`);
-        })
-        .catch((createError: { data: IApiError }) => {
-          const createErrorReason = getErrorReason(createError);
-          if (createErrorReason.includes("already exists")) {
-            queryAPI
-              .create({
-                name: `Copy of ${lastEditedQueryName}`,
-                ...apiProps,
-              })
-              .then((response: { query: ISchedulableQuery }) => {
-                setIsSaveAsNewLoading(false);
-                router.push(
-                  getPathWithQueryParams(PATHS.EDIT_QUERY(response.query.id), {
-                    team_id: apiTeamIdForQuery,
-                  })
-                );
-                renderFlash(
-                  "success",
-                  `Successfully added query as "Copy of ${lastEditedQueryName}".`
-                );
-              })
-              .catch((createCopyError: { data: IApiError }) => {
-                if (
-                  getErrorReason(createCopyError).includes("already exists")
-                ) {
-                  let teamErrorText;
-                  if (apiTeamIdForQuery !== 0) {
-                    if (teamNameForQuery) {
-                      teamErrorText = `the ${teamNameForQuery} team`;
-                    } else {
-                      teamErrorText = "this team";
-                    }
-                  } else {
-                    teamErrorText = "all teams";
-                  }
-                  renderFlash(
-                    "error",
-                    `A query called "Copy of ${lastEditedQueryName}" already exists for ${teamErrorText}.`
-                  );
-                }
-                setIsSaveAsNewLoading(false);
-              });
-          } else if (createErrorReason.includes(INVALID_PLATFORMS_REASON)) {
-            setIsSaveAsNewLoading(false);
-            renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
-          } else {
-            setIsSaveAsNewLoading(false);
-            renderFlash("error", "Could not create query. Please try again.");
-          }
-        });
-    }
-  };
-
   const handleSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
@@ -471,30 +394,8 @@ const EditQueryForm = ({
         );
         setShowSaveNewQueryModal(true);
       } else {
-        const newPlatformString = platformSelector
-          .getSelectedPlatforms()
-          .join(",") as CommaSeparatedPlatformString;
-
-        onUpdate({
-          // name should already be trimmed at this point due to associated onBlurs, but this
-          // doesn't hurt
-          name: lastEditedQueryName.trim(),
-          description: lastEditedQueryDescription,
-          query: lastEditedQueryBody,
-          observer_can_run: lastEditedQueryObserverCanRun,
-          interval: lastEditedQueryFrequency,
-          automations_enabled: lastEditedQueryAutomationsEnabled,
-          platform: newPlatformString,
-          min_osquery_version: lastEditedQueryMinOsqueryVersion,
-          logging: lastEditedQueryLoggingType,
-          discard_data: lastEditedQueryDiscardData,
-          labels_include_any:
-            selectedTargetType === "Custom"
-              ? Object.entries(selectedLabels)
-                  .filter(([, selected]) => selected)
-                  .map(([labelName]) => labelName)
-              : [],
-        });
+        //
+        onUpdate(updateQueryData);
       }
     }
   };
@@ -964,10 +865,8 @@ const EditQueryForm = ({
                     renderChildren={(disableChildren) => (
                       <Button
                         variant="text-link"
-                        onClick={promptSaveAsNewQuery()}
+                        onClick={toggleSaveAsNewQueryModal}
                         disabled={disableSaveFormErrors || disableChildren}
-                        className="save-as-new-loading"
-                        isLoading={isSaveAsNewLoading}
                       >
                         Save as new
                       </Button>
@@ -1050,6 +949,15 @@ const EditQueryForm = ({
             isLoading={isQuerySaving}
             queryReportsDisabled={queryReportsDisabled}
             platformSelector={platformSelector}
+          />
+        )}
+        {showSaveAsNewQueryModal && (
+          <SaveAsNewQueryModal
+            router={router}
+            initialQueryData={{
+              ...updateQueryData,
+              team_id: apiTeamIdForQuery,
+            }}
           />
         )}
         {showConfirmSaveChangesModal && (
