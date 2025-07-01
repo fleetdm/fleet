@@ -3524,11 +3524,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
 			// Only send a new InstalledApplicationList command if there's not one in flight
-			ackCmds, err := svc.ds.GetAcknowledgedMDMCommandsByHost(r.Context, cmdResult.UDID, "InstalledApplicationList")
+			commandsPending, err := svc.ds.GetPendingVerifyVPPInstallCommandsByHost(r.Context, cmdResult.UDID)
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "get pending mdm commands by host")
 			}
-			if len(ackCmds) == 0 {
+			if !commandsPending {
 				cmdUUID := uuid.NewString()
 				cmdUUID = fleet.VerifySoftwareInstallVPPPrefix + cmdUUID
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID, true); err != nil {
@@ -3795,6 +3795,10 @@ func NewInstalledApplicationListResultsHandler(
 			installsByBundleID[install.BundleIdentifier] = install
 		}
 
+		// We've already check the length above, and this is scoped to a single host via the host
+		// UUID, so this is OK.
+		hostID := installs[0].HostID
+
 		var poll bool
 		for _, a := range installedApps {
 			install, ok := installsByBundleID[a.BundleIdentifier]
@@ -3851,11 +3855,17 @@ func NewInstalledApplicationListResultsHandler(
 
 		}
 
-		if poll {
+		switch poll {
+		case true:
 			err := worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID())
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: queueing vpp install verification job")
 			}
+		case false:
+			if err := ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{CommandType: fleet.VerifySoftwareInstallVPPPrefix, HostID: hostID}); err != nil {
+				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: removing host mdm command")
+			}
+
 		}
 
 		return nil

@@ -343,8 +343,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Successful install and immediate verification
 	// ================================================
 
-	// Successful install
-
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
@@ -356,6 +354,11 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	// Simulate successful installation on the host
 	installCmdUUID := processVPPInstallOnClient(false, true, false)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "host_mdm_commands")
+		return nil
+	})
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
