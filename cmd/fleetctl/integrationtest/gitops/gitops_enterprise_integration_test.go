@@ -222,7 +222,12 @@ team_settings:
 	// Dry run
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
 	for _, fileName := range teamFileNames {
-		_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "--dry-run"})
+		// When running no-teams, global config must also be provided ...
+		if strings.Contains(fileName, "no-team.yml") {
+			_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile, "--dry-run"})
+		} else {
+			_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "--dry-run"})
+		}
 	}
 
 	// Dry run with all the files
@@ -258,7 +263,12 @@ team_settings:
 	// Real run with one file at a time
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
 	for _, fileName := range teamFileNames {
-		_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName})
+		// When running no-teams, global config must also be provided ...
+		if strings.Contains(fileName, "no-team.yml") {
+			_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile})
+		} else {
+			_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName})
+		}
 	}
 }
 
