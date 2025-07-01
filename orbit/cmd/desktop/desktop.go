@@ -175,6 +175,14 @@ func main() {
 
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
+		myDeviceItem.Hide()
+
+		hostOfflineItem := systray.AddMenuItem(
+			`🛜🚫 Your computer is offline.
+
+It might take up to 5 minutes to reconnect to the Fleet.`,
+			"")
+		hostOfflineItem.Disable()
 
 		selfServiceItem := systray.AddMenuItem("Self-service", "")
 		selfServiceItem.Disable()
@@ -220,12 +228,17 @@ func main() {
 		disableTray := func() {
 			log.Debug().Msg("disabling tray items")
 			myDeviceItem.SetTitle("Connecting...")
+			myDeviceItem.Show()
 			myDeviceItem.Disable()
+
 			transparencyItem.Disable()
 			selfServiceItem.Disable()
 			selfServiceItem.Hide()
+
 			migrateMDMItem.Disable()
 			migrateMDMItem.Hide()
+
+			hostOfflineItem.Hide()
 		}
 
 		reportError := func(err error, info map[string]any) {
@@ -283,8 +296,13 @@ func main() {
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
 						myDeviceItem.SetTitle("My device")
+						myDeviceItem.Show()
 						myDeviceItem.Enable()
+
 						transparencyItem.Enable()
+						transparencyItem.Show()
+
+						hostOfflineItem.Hide()
 
 						// Hide Self-Service for Free tier
 						if errors.Is(err, service.ErrMissingLicense) || (summary.SelfService != nil && !*summary.SelfService) {
@@ -345,21 +363,28 @@ func main() {
 				sum, err := client.DesktopSummary(tokenReader.GetCached())
 				switch {
 				case err == nil:
-					// OK
+					hostOfflineItem.Hide()
 				case errors.Is(err, service.ErrMissingLicense):
 					myDeviceItem.SetTitle("My device")
+					myDeviceItem.Show()
+					hostOfflineItem.Hide()
 					continue
 				case errors.Is(err, service.ErrUnauthenticated):
 					disableTray()
+					hostOfflineItem.Hide()
 					<-checkToken()
 					continue
 				default:
+					myDeviceItem.Hide()
+					transparencyItem.Disable()
+					hostOfflineItem.Show()
 					log.Error().Err(err).Msg("get desktop summary")
 					continue
 				}
 
 				refreshMenuItems(sum.DesktopSummary, selfServiceItem, myDeviceItem)
 				myDeviceItem.Enable()
+				myDeviceItem.Show()
 
 				// Check our file to see if we should migrate
 				var migrationType string
