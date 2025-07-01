@@ -116,9 +116,17 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 		// We have to look through all profiles with the same identifier(which is potentially number
 		// of teams + 1, for no team) in most cases but even in the case of a large number of teams
 		for _, existingProfile := range existingProfiles {
-			if existingProfile.TeamID != nil && cp.TeamID != nil && *existingProfile.TeamID == *cp.TeamID {
+			var incomingProfileTeamID, existingProfileTeamID uint
+			if existingProfile.TeamID != nil {
+				existingProfileTeamID = *existingProfile.TeamID
+			}
+			if cp.TeamID != nil {
+				incomingProfileTeamID = *cp.TeamID
+			}
+			if incomingProfileTeamID == existingProfileTeamID {
 				isEdit = true
 			}
+
 			if existingProfile.Scope != cp.Scope {
 				if cp.Checksum == nil {
 					checksum := md5.Sum(cp.Mobileconfig) // nolint:gosec // Dismiss G401, we are not using this for secret/security reasons
@@ -167,7 +175,7 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 			} else {
 				// Net new profile
 				if scopeImplicitlyChanged {
-					errorMessage = fmt.Sprintf(`The profile (%s) cannot be added because a profile with the same identifier on another was previously delivered to some hosts on the device channel. Please remove the User PayloadScope from this profile. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and remove the old profile.`, cp.Identifier)
+					errorMessage = fmt.Sprintf(`The profile (%s) cannot be added because a profile with the same identifier on another team was previously delivered to some hosts on the device channel. Please remove the User PayloadScope from this profile. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and remove the old profile.`, cp.Identifier)
 				} else {
 					errorMessage = fmt.Sprintf(`The profile (%s) cannot be added because the profile’s PayloadScope (%s) conflicts with another profile with the same identifier on another team. Specify a different identifier for this profile in order to add it.`, cp.Identifier, string(cp.Scope))
 				}
