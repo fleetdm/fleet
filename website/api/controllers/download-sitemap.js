@@ -74,7 +74,7 @@ module.exports = {
       '/queries',// « overview page (all subpages are dynamic)
       '/policies',// « overview page (all subpages are dynamic)
       '/tables',// « overview page (all subpages are dynamic)
-      '/app-library',// « overview page (all subpages are dynamic)
+      '/software-catalog',// « overview page (all subpages are dynamic)
       '/reports/state-of-device-management',// « 2021 research
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
       // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
