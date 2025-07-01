@@ -6870,9 +6870,19 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		mobileconfigForTest("G1", "G1"),
 		scopedMobileconfigForTest("G2", "G2", &payloadScopeSystem),
 		scopedMobileconfigForTest("G3", "G3.user", &payloadScopeUser),
+		scopedMobileconfigForTest("G4", "G4.user-but-actually-system", &payloadScopeUser),
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+
+	// Create a profile with a scope that is System in the DB but User in the XML. This mimics
+	// our upgrade behavior from versions prior to 4.71 to 4.71+ when we added support for User
+	// scoped profiles
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE mdm_apple_configuration_profiles SET scope=? WHERE identifier=?;`
+		_, err := q.ExecContext(context.Background(), stmt, fleet.PayloadScopeSystem, "G4.user-but-actually-system")
+		return err
+	})
 
 	// create a team with a couple profiles
 	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team_profile_scope_changes_1"})
@@ -6909,6 +6919,16 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm2Profiles}, http.StatusNoContent,
 		"team_id", fmt.Sprint(tm2.ID))
+
+	// Test a modification of an existing global profile with an implicit scope change
+	newGlobalProfiles := [][]byte{
+		globalProfiles[0],
+		globalProfiles[1],
+		globalProfiles[2],
+		scopedMobileconfigForTest("G4-bozo", "G4.user-but-actually-system", &payloadScopeUser),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: newGlobalProfiles}, http.StatusNoContent)
 
 	// Test a conflict of a profile on a team with an existing global profile
 	// Should error because "G2" conflicts with global "G2" profile
