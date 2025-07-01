@@ -137,7 +137,6 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 				// but the checksums match, this is a profile that existed prior to User Channel
 				// support being added and is unmodified, so allow the existing behavior to continue
 				if existingProfile.Scope == fleet.PayloadScopeSystem && cp.Scope == fleet.PayloadScopeUser && bytes.Equal(existingProfile.Checksum, cp.Checksum) {
-					fmt.Printf("Existing profile checksum matched, keeping existing scope: %s\n", existingProfile.Checksum)
 					cp.Scope = existingProfile.Scope
 					conflictingProfile = nil
 					break
