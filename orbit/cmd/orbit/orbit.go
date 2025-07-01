@@ -256,6 +256,9 @@ func main() {
 		}
 		startTime := time.Now()
 
+		// This is a temporary way to pass fleet-url to quarantine.go
+		setFleetUrl(c.String("fleet-url"))
+
 		var logFile io.Writer
 		if logf := c.String("log-file"); logf != "" {
 			if logDir := filepath.Dir(logf); logDir != "." {
@@ -2176,9 +2179,7 @@ func (q *quarantineReceiver) Run(c *fleet.OrbitConfig) error {
 	}
 
 	log.Info().Msg("--------------- This host is quarantined! ---------------")
-	// TODO: get the proper fleet-url from the context
-	fleetUrl := "hp-ubuntu"
 	// TODO: add updateUrl to quarantine allow list
-	QuarantineIfNeeded(fleetUrl)
+	QuarantineIfNeeded()
 	return nil
 }
