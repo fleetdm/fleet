@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -119,10 +120,16 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 				isEdit = true
 			}
 			if existingProfile.Scope != cp.Scope {
-				if bytes.Equal(existingProfile.Mobileconfig, cp.Mobileconfig) {
-					// This is an existing, unmodified profile the user is using, just keep the existing
-					// scope behavior. Note that we can't check checksum as it's set by the DB so the
-					// incoming profile will not have it yet so we must check the mobileconfig bytes
+				if cp.Checksum == nil {
+					checksum := md5.Sum(cp.Mobileconfig) // nolint:gosec // Dismiss G401, we are not using this for secret/security reasons
+					cp.Checksum = checksum[:]
+				}
+
+				// If the existing profile is marked as system scope, the new profile is user scope
+				// but the checksums match, this is a profile that existed prior to User Channel
+				// support being added and is unmodified, so allow the existing behavior to continue
+				if existingProfile.Scope == fleet.PayloadScopeSystem && cp.Scope == fleet.PayloadScopeUser && bytes.Equal(existingProfile.Checksum, cp.Checksum) {
+					fmt.Printf("Existing profile checksum matched, keeping existing scope: %s\n", existingProfile.Checksum)
 					cp.Scope = existingProfile.Scope
 					conflictingProfile = nil
 					break
@@ -147,16 +154,16 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 			var errorMessage string
 			if isEdit {
 				if scopeImplicitlyChanged {
-					errorMessage = `The profile cannot be edited because it was previously delivered to some hosts on the device channel. Please remove the User PayloadScope from this profile. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and remove the old profile.`
+					errorMessage = fmt.Sprintf(`The profile (%s) cannot be edited because it was previously delivered to some hosts on the device channel. Please remove the User PayloadScope from this profile. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and remove the old profile.`, cp.Identifier)
 				} else {
-					errorMessage = fmt.Sprintf(`The profile cannot be edited because the profile’s PayloadScope (%s) is being changed. To change the scope of an existing profile, add a new profile with a new identifier with the desired scope and delete the old profile with the undesired scope.`, string(cp.Scope))
+					errorMessage = fmt.Sprintf(`The profile (%s) cannot be edited because the profile’s PayloadScope (%s) is being changed. To change the scope of an existing profile, add a new profile with a new identifier with the desired scope and delete the old profile with the undesired scope.`, cp.Identifier, string(cp.Scope))
 				}
 			} else {
 				// Net new profile
 				if scopeImplicitlyChanged {
-					errorMessage = `The profile cannot be added because a profile with the same identifier on another was previously delivered to some hosts on the device channel. Please remove the User PayloadScope from this profile. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and remove the old profile.`
+					errorMessage = fmt.Sprintf(`The profile (%s) cannot be added because a profile with the same identifier on another was previously delivered to some hosts on the device channel. Please remove the User PayloadScope from this profile. Alternatively, if you want this profile to be delivered on the user channel, please specify a new identifier for this profile and remove the old profile.`, cp.Identifier)
 				} else {
-					errorMessage = fmt.Sprintf(`The profile cannot be added because the profile’s PayloadScope (%s) conflicts with another profile with the same identifier on another team. Specify a different identifier for this profile in order to add it.`, string(cp.Scope))
+					errorMessage = fmt.Sprintf(`The profile (%s) cannot be added because the profile’s PayloadScope (%s) conflicts with another profile with the same identifier on another team. Specify a different identifier for this profile in order to add it.`, cp.Identifier, string(cp.Scope))
 				}
 			}
 			return fleet.ConflictError{Message: errorMessage}
