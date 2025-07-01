@@ -125,9 +125,9 @@ sequenceDiagram
 	fleet-->>-host: custom JSON response based on fleet.MDMAppleDeclaration
 	host->>fleet: DDM message "declaration/configuration/{id}"
 	fleet-->>-host: custom JSON response based on fleet.MDMAppleDeclaration
-	host-->>fleet: Acknowledge DeclarativeManagement command (unclear exactly when that happens in the flow)
+	host-->>-fleet: Acknowledge DeclarativeManagement command (unclear exactly when that happens in the flow)
 	host->>fleet: DDM message "status"
-	fleet-->>fleet: verify/fail declarations
+	fleet->>fleet: verify/fail declarations
 	deactivate host
 ```
 
