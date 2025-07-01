@@ -4,7 +4,7 @@ This document provides an overview of how Fleet handles Apple’s Declarative De
 
 ## Introduction
 
-Declarative Device Management (DDM) is Apple’s [declarative paradigm extension][1] to the MDM protocol, designed to avoid the common performance and scalability issues associated with traditional MDM commands. With DDM, configuration settings are described declaratively, allowing devices to evaluate and enforce compliance without requiring continuous server polling.
+Declarative Device Management (DDM) is Apple’s [declarative paradigm extension](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L948-L953) to the MDM protocol, designed to avoid the common performance and scalability issues associated with traditional MDM commands. With DDM, configuration settings are described declaratively, allowing devices to evaluate and enforce compliance without requiring continuous server polling.
 
 ## Architecture Overview
 
@@ -54,7 +54,32 @@ The `gitops` command uses the `POST /api/latest/fleet/mdm/profiles/batch` contri
 
 ### Delivery of DDM custom settings
 
+Delivery of the DDM profiles is handled via a cron job, as for other types of profiles. The `ReconcileAppleDeclarations` function takes care of marking as "pending" the hosts that have declarations that changed (either to install or to remove). However, unlike the `ReconcileAppleProfiles` function that delivers non-declarative `.mobileconfig` profiles, the declarations job only needs to enqueue a [`DeclarativeManagement` MDM command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) next, targeting all hosts with changed DDM profiles, and the DDM protocol will take care of the rest.
+
+The reason we even need a `ReconcileAppleDeclarations` function is so that we can transition the statuses of the profiles on the host to "pending", and to ensure we initiate the DDM protocol via the `DeclarativeManagement` command (this is how the DDM protocol is handled - similar to, say, Websockets that are initiated via a standard HTTP request, the [DDM protocol is built on top of the traditional MDM protocol](https://developer.apple.com/documentation/devicemanagement/integrating-declarative-management) and requires that `DeclarativeManagement` command to get started). 
+
+Otherwise, the fact that we initiate it only for hosts that have changed DDM profiles is an optimization, sending it for the other hosts would simply detect that no changes were necessary.
+
+There is one more thing happening in `ReconcileAppleDeclarations`, and it's to handle the `resync` field of the `host_mdm_apple_declarations` table. [This was added](https://github.com/fleetdm/fleet/pull/29059) to handle a race where a [declaration is pending install but is currently marked as pending remove](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/datastore/mysql/apple_mdm.go#L5590-L5595). In this case, the install is immediately transitioned to "verified" (as it had to be installed in order to be pending remove), but because the remove might've already happened (and Fleet did not get the status confirmation), the profile is marked as "to resync" for the host to ensure it gets delivered.
+
 ### Verification of DDM custom settings
+
+The DDM protocol is handled by the `nanomdm` package, which calls out to a Fleet-implemented `DeclarativeManagement` interface:
+* the `nanomdm` handler is here: https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/mdm/nanomdm/service/nanomdm/service.go#L198
+* the Fleet implementation of the `DeclarativeManagement` interface is here: https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/service/apple_mdm.go#L5818
+* the registration of the Fleet implementation in the `nanomdm` service handler is here: https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/service/handler.go#L1229-L1230
+
+When a DDM session is initiated (via the `DeclarativeManagement` command), `nanomdm` will call the `DeclarativeManagement` registered interface (in our case, the Fleet implementation) to do the actual exchange of DDM messages. The DDM protocol is based on a [series of messages executing different operations identified by the `Endpoint` field](https://developer.apple.com/documentation/devicemanagement/declarativemanagementrequest).
+
+The [various endpoint operations are handled in the Fleet implementation](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/service/apple_mdm.go#L5833-L5852) by dispatching to different functions that return the requested information to the device. It also stores all messages received in the DDM protocol into the `mdm_apple_declarative_requests` table. Here's a breakdown of what each operation does:
+
+* `Endpoint == "tokens"`: generates the token for the set of declarations to be sent to the host. How that token is generated is [somewhat involved](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/datastore/mysql/apple_mdm.go#L5322-L5340). The generated token dictates if the host will receive the declarations or not, depending on the token of the last applied changes on the host.
+* `Endpoint == "declaration-items"`: sends the list of declarations to install to the host. Only the "tokens" of the declarations are sent in this step (along with their activation token). Declarations to remove have their status transition from `nil` to "pending" as part of this processing (because since they are not included in the list sent to the host, the host will remove any declaration not in the set - this is how a "remove" is done with DDM). Every configuration needs an "activation" to be applied, so this also creates the corresponding activations. The host then determines which declaration is missing using the tokens, and requests the full declaration content as needed in a subsequent step.
+* `strings.HasPrefix(Endpoint, "declaration/configuration")`: sends the full JSON of the corresponding declaration (identified by the "Endpoint"), expanding its Fleet secrets as needed.
+* `strings.HasPrefix(Endpoint, "declaration/activation")`: sends the full JSON of the corresponding activation (identified by the "Endpoint"). Activations can be used to conditionnally apply configurations, but we currently don't use that feature.
+* `Endpoint == "status"`: receives the status report of the DDM profiles on the host. If the declaration is active and valid, it is marked as "verified", and if it is invalid it is marked as "failed". Other rare cases are handled in this code, but those are the main ones. Note that [according the Roberto's research at the time](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/service/apple_mdm.go#L6084-L6093), the host will not send "remove" statuses, instead we detect removal by the fact that the declaration is not in the status report.
+
+In addition to verifying the DDM profiles from the status response of the DDM protocol, we also [update the statuses from the response of the traditional `DeclarativeManagement` command](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/service/apple_mdm.go#L3486) to do the initial transition from "pending" to "verifying" or "failed" depending on the result of the command. This batch-affects all declarations for the host.
 
 ## Database details
 
@@ -80,14 +105,10 @@ The profiles names must be unique across all platforms and profile types for a g
 
 ## Special Cases
 
-- **Device Re-enrollment**: On device re-enrollment, Fleet re-applies all relevant declarations.
-- **Manual Removal or Tampering**: If a declaration is removed or tampered with on the device, Fleet detects this via status updates and re-issues as needed.
-- **Setup assistant**:
+- **Setup assistant**: As of Fleet v4.70.0, DDM profiles are ignored during the setup assistant phase of a macOS device. This is because Apple does not currently support the DDM protocol in this phase, it always returns a "NotNow" response to the `DeclarativeManagement` MDM command, so Fleet cannot wait for DDM profiles to be delivered before releasing the device so we ignore them and wait for after the device is configured to send them.
 
 ## Related Resources
 
 - [Original research on DDM](https://docs.google.com/document/d/1FRpIdIShpM4nEhPI5FH0Arqg-NO_e-nBMqXJWjJRnSs/edit?tab=t.0)
 - [MDM Product Group Documentation](../../product-groups/mdm/) - Documentation for the MDM product group
 - [MDM Development Guides](../../guides/mdm/) - Guides for MDM development
-
-[1]: https://developer.apple.com/documentation/devicemanagement/leveraging-the-declarative-management-data-model-to-scale-devices
