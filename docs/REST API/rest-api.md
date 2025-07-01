@@ -572,6 +572,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 - [Add certificate authority (CA)](#add-certificate-authority-ca)
 - [Edit certificate authority (CA)](#edit-certificate-authority-ca)
+- [Get certificate authority (CA)](#get-certificate-authority-ca)
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 - [Request certificate](#delete-certificate-authority-ca)
 
@@ -624,7 +625,6 @@ When adding CA use fields that are relevant for specified `type`. E.g. if `type`
   ],
   "digicert_certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
 }
-}
 ```
 
 ##### Default response
@@ -638,6 +638,127 @@ When adding CA use fields that are relevant for specified `type`. E.g. if `type`
   "type": "digicert"
 }
 ```
+
+### Edit DigiCert certificate authority (CA)
+
+`PATCH /api/v1/fleet/certificate_authorities/:id`
+
+When editing CA use fields that are relevant for `type` of CA. E.g. if `type` is `digicert`, specify only fields prefixed with `digicert_`. Fields non-relevant to specified type will be ignored.
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | body | **Required**. The ID of certificate authority. |
+| digicert_url   | string | body | **Required (if type is `digicert`)** DigiCert instance URL, used as base URL for DigiCert API requests. |
+| digicert_api_token        | string | body | **Required (if type is `digicert`)** API token used to authenticate requests to DigiCert. |
+| digicert_profile_id       | string  | body | **Required (if type is `digicert`)** The ID of certificate profile in DigiCert. |
+| digicert_certificate_common_name      | string  | body | **Required (if type is `digicert`)** The certificate's common name. |
+| digicert_certificate_user_principal_names    | array  | body | Use with type `digicert`. The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
+| digicert_certificate_seat_id     | string  | body | **Required (if type is `digicert`)** The ID of the DigiCert seat. Seats are license units in DigiCert. |
+| ndes_url       | string | body | **Required (if type is `ndes_scep_proxy`)**. The URL of the NDES SCEP endpoint.        |
+| ndes_admin_url | string | body | **Required (if type is `ndes_scep_proxy`)**. The URL of the NDES admin endpoint.       |
+| ndes_password  | string | body | **Required (if type is `ndes_scep_proxy`)**. The password for the NDES admin endpoint. |
+| ndes_username  | string | body | **Required (if type is `ndes_scep_proxy`)**. The username for the NDES admin endpoint. |
+| hydrant_url       | string | body | **Required (if type is `hydrant`)**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.        |
+| hydrant_client_id | string | body | **Required (if type is `hydrant`)**. The client ID provided by Hydrant.       |
+| hydrant_client_secret  | string | body | **Required**. The client secret provided by Hydrant. |
+| custom_scep_url        | string | body | **Required (if type is `custom_scep_proxy`)**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
+| custom_scep_challenge         | string  | body | **Required (if type is `custom_scep_proxy`)**. Static challenge password used to authenticate requests to SCEP server. |
+
+#### Example
+
+`PATCH /api/v1/fleet/certificate_authorities/1`
+
+##### Request body
+
+```json
+{
+  "digicert_certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+
+### Get DigiCert certificate authority (CA)
+
+Get details of certificate authority.
+
+`GET /api/v1/fleet/certificate_authorities/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | body | **Required**. The ID of certificate authority. |
+
+#### Example
+
+`GET /api/v1/fleet/certificate_authorities/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "type": "digicert",
+  "name": "WIFI_CERTIFICATE",
+  "digicert_url": "https://one.digicert.com",
+  "digicert_api_token": "********",
+  "digicert_profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
+  "digicert_certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "digicert_certificate_user_principal_names": [
+    "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  ],
+  "digicert_certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+}
+```
+
+### Delete DigiCert certificate authority (CA)
+
+When CA is deleted issued certificates won't be removed on existing hosts.
+
+`DELETE /api/v1/fleet/certificate_authorities/:id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                 |
+|---------------- |-------- |------|-------------------------------------------------------------|
+| id   | integer | body | **Required**. The ID of certificate authority. |
+
+#### Example
+
+`DELETE /api/v1/fleet/certificate_authorities/1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "type": "digicert",
+  "name": "WIFI_CERTIFICATE",
+  "digicert_url": "https://one.digicert.com",
+  "digicert_api_token": "********",
+  "digicert_profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
+  "digicert_certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "digicert_certificate_user_principal_names": [
+    "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  ],
+  "digicert_certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+}
+```
+
+### Request certificate
+
+
+
 
 ## File carving
 
