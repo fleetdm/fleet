@@ -1849,6 +1849,23 @@ This activity contains the following field:
 }
 ```
 
+## cancelled_batch_script
+
+Generated when a batch script run is cancelled.
+
+This activity contains the following fields:
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+
+#### Example
+
+```json
+{
+	"script_name": "remove-old-nudge.sh",
+	"host_count": 36
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
