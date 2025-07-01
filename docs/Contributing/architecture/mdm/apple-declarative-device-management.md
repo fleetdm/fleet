@@ -4,7 +4,7 @@ This document provides an overview of how Fleet handles Apple’s Declarative De
 
 ## Introduction
 
-Declarative Device Management (DDM) is Apple’s [declarative paradigm extension](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L948-L953) to the MDM protocol, designed to avoid the common performance and scalability issues associated with traditional MDM commands. With DDM, configuration settings are described declaratively, allowing devices to evaluate and enforce compliance without requiring continuous server polling.
+Declarative Device Management (DDM) is Apple’s [declarative paradigm extension](https://developer.apple.com/documentation/devicemanagement/leveraging-the-declarative-management-data-model-to-scale-devices) to the MDM protocol, designed to avoid the common performance and scalability issues associated with traditional MDM commands. With DDM, configuration settings are described declaratively, allowing devices to evaluate and enforce compliance without requiring continuous server polling.
 
 ## Architecture Overview
 
@@ -56,7 +56,7 @@ The `gitops` command uses the `POST /api/latest/fleet/mdm/profiles/batch` contri
 
 Delivery of the DDM profiles is handled via a cron job, as for other types of profiles. The `ReconcileAppleDeclarations` function takes care of marking as "pending" the hosts that have declarations that changed (either to install or to remove). However, unlike the `ReconcileAppleProfiles` function that delivers non-declarative `.mobileconfig` profiles, the declarations job only needs to enqueue a [`DeclarativeManagement` MDM command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) next, targeting all hosts with changed DDM profiles, and the DDM protocol will take care of the rest.
 
-The reason we even need a `ReconcileAppleDeclarations` function is so that we can transition the statuses of the profiles on the host to "pending", and to ensure we initiate the DDM protocol via the `DeclarativeManagement` command (this is how the DDM protocol is handled - similar to, say, Websockets that are initiated via a standard HTTP request, the [DDM protocol is built on top of the traditional MDM protocol](https://developer.apple.com/documentation/devicemanagement/integrating-declarative-management) and requires that `DeclarativeManagement` command to get started). 
+The reason we even need a `ReconcileAppleDeclarations` function is so that we can transition the statuses of the profiles on the host to "pending", and to ensure we initiate the DDM protocol via the `DeclarativeManagement` command (this is how the DDM protocol is handled - similar to, say, Websockets that are initiated via a standard HTTP request, the [DDM protocol is built on top of the traditional MDM protocol](https://developer.apple.com/documentation/devicemanagement/integrating-declarative-management) and requires that `DeclarativeManagement` command to get started).
 
 Otherwise, the fact that we initiate it only for hosts that have changed DDM profiles is an optimization, sending it for the other hosts would simply detect that no changes were necessary.
 
