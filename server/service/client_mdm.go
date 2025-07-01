@@ -415,14 +415,6 @@ type EULAContent struct {
 	Bytes []byte
 }
 
-func prettyPrintJSON(v interface{}) string {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
-
 func (ec *EULAContent) Handle(res *http.Response) error {
 	b, err := io.ReadAll(res.Body)
 	ec.Bytes = b
