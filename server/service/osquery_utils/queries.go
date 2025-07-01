@@ -715,11 +715,23 @@ var extraDetailQueries = map[string]DetailQuery{
 		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1
+		serial, sha1, "system" as source,
+		path
 	FROM
 		certificates
 	WHERE
-		path = '/Library/Keychains/System.keychain';`,
+		path = '/Library/Keychains/System.keychain'
+	UNION
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, "user" as source,
+		path
+	FROM
+		certificates
+	WHERE
+		path LIKE '/Users/%/Library/Keychains/login.keychain-db';`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestHostCertificates,
 	},
@@ -731,10 +743,19 @@ var extraDetailQueries = map[string]DetailQuery{
 // configured
 var mdmQueries = map[string]DetailQuery{
 	"mdm_config_profiles_darwin": {
-		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";`,
+		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles WHERE type = "Configuration";`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestMacOSProfiles,
-		Discovery:        discoveryTable("macos_profiles"),
+		Discovery:        fmt.Sprintf(`SELECT 1 WHERE EXISTS (%s) AND NOT EXISTS (%s);`, discoveryTable("macos_profiles"), discoveryTable("macos_user_profiles")),
+	},
+	"mdm_config_profiles_darwin_with_user": {
+		QueryFunc:        buildConfigProfilesMacOSQuery,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestMacOSProfiles,
+		Discovery: generateSQLForAllExists(
+			discoveryTable("macos_profiles"),
+			discoveryTable("macos_user_profiles"),
+		),
 	},
 	"mdm_config_profiles_windows": {
 		QueryFunc:        buildConfigProfilesWindowsQuery,
@@ -845,6 +866,16 @@ var windowsUpdateHistory = DetailQuery{
 	Platforms:        []string{"windows"},
 	Discovery:        discoveryTable("windows_update_history"),
 	DirectIngestFunc: directIngestWindowsUpdateHistory,
+}
+
+// entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
+var entraIDDetails = DetailQuery{
+	// The query ingests Entra's Device ID and User Principal Name of the account
+	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
+	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
+	Discovery:        discoveryTable("app_sso_platform"),
+	Platforms:        []string{"darwin"},
+	DirectIngestFunc: directIngestEntraIDDetails,
 }
 
 var softwareMacOS = DetailQuery{
@@ -1506,6 +1537,34 @@ func directIngestWindowsUpdateHistory(
 	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
 }
 
+func directIngestEntraIDDetails(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// Device maybe hasn't logged in to Entra ID yet.
+		return nil
+	}
+	row := rows[0]
+
+	deviceID := row["device_id"]
+	if deviceID == "" {
+		return ctxerr.New(ctx, "empty Entra ID device_id")
+	}
+	userPrincipalName := row["user_principal_name"]
+	// userPrincipalName can be empty on macOS workstations with e.g. two accounts:
+	// one logged in to Entra and the other one not logged in.
+	// While the second one is logged in, it would report the same Device ID but empty user principal name.
+
+	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
+	}
+	return nil
+}
+
 func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
 	packs := map[string][]fleet.ScheduledQueryStats{}
 	for _, row := range rows {
@@ -1688,6 +1747,10 @@ func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var users []fleet.HostUser
 	for _, row := range rows {
+		if row["uid"] == "" {
+			// Under certain circumstances, broken users can come back with empty UIDs. We don't want them
+			continue
+		}
 		uid, err := strconv.Atoi(row["uid"])
 		if err != nil {
 			// Chrome returns uids that are much larger than a 32 bit int, ignore this.
@@ -2007,6 +2070,41 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 }
 
+func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
+	query := `
+		SELECT
+			display_name,
+			identifier,
+			install_date
+		FROM
+			macos_profiles
+		WHERE
+			type = "Configuration"`
+
+	username, err := ds.GetNanoMDMUserEnrollmentUsername(ctx, host.UUID)
+	if err != nil {
+		logger.Log("component", "service",
+			"method", "QueryFunc - macos config profiles", "err", err)
+		return "", false
+	}
+
+	if username != "" {
+		query += fmt.Sprintf(`
+			UNION
+
+			SELECT
+				display_name,
+				identifier,
+				install_date
+			FROM
+				macos_user_profiles
+			WHERE
+				username = %q AND
+				type = "Configuration"`, username)
+	}
+	return query, true
+}
+
 func directIngestMacOSProfiles(
 	ctx context.Context,
 	logger log.Logger,
@@ -2093,7 +2191,7 @@ var luksVerifyQuery = DetailQuery{
 		query := `
 		WITH RECURSIVE
 		devices AS (
-			SELECT 
+			SELECT
 				MAX(CASE WHEN key = 'path' THEN value ELSE NULL END) AS path,
 				MAX(CASE WHEN key = 'kname' THEN value ELSE NULL END) AS kname,
 				MAX(CASE WHEN key = 'pkname' THEN value ELSE NULL END) AS pkname,
@@ -2104,33 +2202,33 @@ var luksVerifyQuery = DetailQuery{
 		HAVING path <> '' AND fstype <> ''
 		),
 		root_mount AS (
-			SELECT 
-				path, 
-				kname, 
+			SELECT
+				path,
+				kname,
 				-- if '/' is mounted in a LUKS FS, then we don't need to transverse the tree
-				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname, 
-				fstype 
+				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname,
+				fstype
 			FROM devices
 			WHERE mountpoint = '/'
 		),
 		luks_h(path, kname, pkname, fstype) AS (
-			SELECT 
-				rtm.path, 
-				rtm.kname, 
-				rtm.pkname, 
-				rtm.fstype 
+			SELECT
+				rtm.path,
+				rtm.kname,
+				rtm.pkname,
+				rtm.fstype
 			FROM root_mount rtm
 			UNION
-		   SELECT 
+		   SELECT
 				dv.path,
 				dv.kname,
 				dv.pkname,
 				dv.fstype
-		   FROM devices dv 
+		   FROM devices dv
 		   JOIN luks_h ON dv.kname=luks_h.pkname
 		)
 		SELECT salt, key_slot
-		FROM cryptsetup_luks_salt 
+		FROM cryptsetup_luks_salt
 		WHERE device = (SELECT path FROM luks_h WHERE fstype = 'crypto_LUKS' LIMIT 1)`
 		return query, true
 	},
@@ -2219,11 +2317,16 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 
 //go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
 
+type Integrations struct {
+	ConditionalAccessMicrosoft bool
+}
+
 func GetDetailQueries(
 	ctx context.Context,
 	fleetConfig config.FleetConfig,
 	appConfig *fleet.AppConfig,
 	features *fleet.Features,
+	integrations Integrations,
 ) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
@@ -2267,6 +2370,10 @@ func GetDetailQueries(
 			}
 			generatedMap[key] = query
 		}
+	}
+
+	if integrations.ConditionalAccessMicrosoft {
+		generatedMap["conditional_access_microsoft_device_id"] = entraIDDetails
 	}
 
 	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
@@ -2326,9 +2433,11 @@ func buildConfigProfilesWindowsQuery(
 	gotProfiles := false
 	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		// Per the [docs][1], to `<Get>` configurations you must
-		// replace `/Policy/Config` with `Policy/Result`
+		// replace `/Policy/Config/` with `Policy/Result/`
 		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
-		locURI = strings.Replace(locURI, "/Policy/Config", "/Policy/Result", 1)
+		// Note that the trailing slash is important because there is also /Policy/ConfigOperations
+		// for ADMX policy ingestion which does not have a corresponding Result URI.
+		locURI = strings.Replace(locURI, "/Policy/Config/", "/Policy/Result/", 1)
 		sb.WriteString(
 			// NOTE: intentionally building the xml as a one-liner
 			// to prevent any errors in the query.
@@ -2382,6 +2491,8 @@ func directIngestWindowsProfiles(
 	return microsoft_mdm.VerifyHostMDMProfiles(ctx, logger, ds, host, rawResponse)
 }
 
+var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
+
 func directIngestHostCertificates(
 	ctx context.Context,
 	logger log.Logger,
@@ -2412,6 +2523,24 @@ func directIngestHostCertificates(
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
 			continue
 		}
+		source := fleet.HostCertificateSource(row["source"])
+		if !source.IsValid() {
+			// should never happen as the source is hard-coded in the query
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "invalid certificate source", "err", fmt.Errorf("invalid source %s", row["source"]))
+			continue
+		}
+
+		var username string
+		if source == fleet.UserHostCertificate {
+			// extract the username from the keychain path
+			matches := rxExtractUsernameFromHostCertPath.FindStringSubmatch(row["path"])
+			if len(matches) > 1 {
+				username = matches[1]
+			} else {
+				// if we cannot extract the username, we log it but continue
+				level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "could not extract username from path", "err", fmt.Errorf("no username found in path %q", row["path"]))
+			}
+		}
 
 		certs = append(certs, &fleet.HostCertificateRecord{
 			HostID:                    host.ID,
@@ -2433,6 +2562,8 @@ func directIngestHostCertificates(
 			IssuerOrganizationalUnit:  issuer.OrganizationalUnit,
 			IssuerOrganization:        issuer.Organization,
 			IssuerCommonName:          issuer.CommonName,
+			Source:                    source,
+			Username:                  username,
 		})
 	}
 

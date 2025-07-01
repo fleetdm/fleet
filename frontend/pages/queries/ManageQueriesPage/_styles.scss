@@ -12,6 +12,10 @@
     }
   }
 
+  &__manage-automations {
+    white-space: nowrap;
+  }
+
   &__text {
     margin-right: $pad-large;
   }

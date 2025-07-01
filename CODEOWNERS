@@ -81,7 +81,7 @@ go.mod @fleetdm/go
 /docs/Contributing/reference/audit-logs.md                @rachaelshaw # « Advanced / contributors-only audit log documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                    @edwardsb
-
+/it-and-security                                @allenhouchins
 ##############################################################################################
 # 🌐 Repo automation and change control settings
 ##############################################################################################

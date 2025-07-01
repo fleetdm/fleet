@@ -1097,8 +1097,6 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 	<string>` + FleetPayloadIdentifier + `</string>
 	<key>PayloadOrganization</key>
 	<string>{{ .Organization | xml }}</string>
-	<key>PayloadScope</key>
-	<string>System</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
@@ -1236,7 +1234,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 	if len(installedAppsUUIDs) > 0 {
-		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
+		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, false)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
 		}

@@ -1,1 +1,0 @@
-When uploading bootstrap package for macOS setup experience, validate that it is a Distribution package since that is required by Apple's InstallEnterpriseApplication MDM command.

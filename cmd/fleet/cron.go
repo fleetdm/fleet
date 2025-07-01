@@ -706,11 +706,16 @@ func newWorkerIntegrationsSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 	}
+	vppVerify := &worker.VPPVerification{
+		Datastore: ds,
+		Log:       logger,
+		Commander: commander,
+	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate)
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -890,6 +895,13 @@ func newCleanupsAndAggregationSchedule(
 				return ds.CleanupExpiredPasswordResetRequests(ctx)
 			},
 		),
+		schedule.WithJob(
+			"expired_challenges",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupExpiredChallenges(ctx)
+				return err
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -990,6 +1002,14 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
+		}),
+		schedule.WithJob("cleanup_worker_jobs", func(ctx context.Context) error {
+			const (
+				failedSince    = 365 * 24 * time.Hour // keep failed jobs for 1 year
+				completedSince = 90 * 24 * time.Hour  // keep completed (successful) jobs for ~3 months
+			)
+			_, err := ds.CleanupWorkerJobs(ctx, failedSince, completedSince)
+			return err
 		}),
 	)
 
@@ -1402,6 +1422,57 @@ func cronActivitiesStreaming(
 		}
 		page += 1
 	}
+}
+
+func newHostVitalsLabelMembershipSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name     = string(fleet.CronHostVitalsLabelMembership)
+		interval = 5 * time.Minute
+	)
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob(
+			"cron_host_vitals_label_membership",
+			func(ctx context.Context) error {
+				return cronHostVitalsLabelMembership(ctx, ds)
+			},
+		),
+	)
+	return s, nil
+}
+
+func cronHostVitalsLabelMembership(
+	ctx context.Context,
+	ds fleet.Datastore,
+) error {
+	// Get all labels. We don't have a function for labels by membership type
+	// so we'll filter them later.
+	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
+		PerPage: 0, // No limit.
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list labels")
+	}
+	// Iterate over all labels.
+	for _, label := range labels {
+		// Skip ones that aren't host vitals labels.
+		if label.LabelMembershipType != fleet.LabelMembershipTypeHostVitals {
+			continue
+		}
+		// Update membership for the label.
+		_, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "update label membership for label %d (%s)", label.ID, label.Name)
+		}
+	}
+	return nil
 }
 
 func stringSliceToUintSlice(s []string, logger kitlog.Logger) []uint {

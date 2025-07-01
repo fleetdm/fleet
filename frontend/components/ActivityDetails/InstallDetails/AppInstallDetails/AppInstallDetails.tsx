@@ -143,17 +143,14 @@ export const AppInstallDetails = ({
             {subordinate}.
           </span>
         </div>
-        {showCommandPayload && (
-          <Textarea label="Request payload:" variant="code">
-            {result.payload}
+        {showCommandResponse && (
+          <Textarea label="MDM command output:" variant="code">
+            {result.result}
           </Textarea>
         )}
-        {showCommandResponse && (
-          <Textarea
-            label={<>The response from {formattedHost}:</>}
-            variant="code"
-          >
-            {result.result}
+        {showCommandPayload && (
+          <Textarea label="MDM command:" variant="code">
+            {result.payload}
           </Textarea>
         )}
       </div>

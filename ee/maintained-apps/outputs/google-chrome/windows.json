@@ -1,13 +1,13 @@
 {
   "versions": [
     {
-      "version": "136.0.7103.93",
+      "version": "138.0.7204.50",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';"
       },
       "installer_url": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi",
       "install_script_ref": "8959087b",
-      "uninstall_script_ref": "b5a0e74c",
+      "uninstall_script_ref": "ddbf0e7f",
       "sha256": "no_check",
       "default_categories": [
         "Browsers"
@@ -16,6 +16,6 @@
   ],
   "refs": {
     "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
-    "b5a0e74c": "$product_code = \"{66793499-0B07-380D-8FDE-467BB6263225}\"\n\n# Fleet uninstalls app using product code that's extracted on upload\nmsiexec /quiet /x $product_code\nExit $LASTEXITCODE\n"
+    "ddbf0e7f": "$product_code = \"{630C6D4E-5144-3E8C-A7B1-4B3BC607535E}\"\n\n# Fleet uninstalls app using product code that's extracted on upload\nmsiexec /quiet /x $product_code\nExit $LASTEXITCODE\n"
   }
 }

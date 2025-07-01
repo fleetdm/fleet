@@ -211,8 +211,9 @@ INSERT INTO software_installers (
 	user_id,
 	user_name,
 	user_email,
-	fleet_maintained_app_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?)`
+	fleet_maintained_app_id,
+ 	url
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -233,6 +234,7 @@ INSERT INTO software_installers (
 			payload.UserID,
 			payload.UserID,
 			payload.FleetMaintainedAppID,
+			payload.URL,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -521,25 +523,27 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	}
 
 	var touchUploaded string
+	var clearFleetMaintainedAppID string // FMA becomes custom package when uploading a new installer file
 	if payload.InstallerFile != nil {
 		touchUploaded = ", uploaded_at = NOW()"
+		clearFleetMaintainedAppID = ", fleet_maintained_app_id = NULL"
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := fmt.Sprintf(`UPDATE software_installers SET
-	storage_id = ?,
-	filename = ?,
-	version = ?,
-	package_ids = ?,
-	install_script_content_id = ?,
-	pre_install_query = ?,
-	post_install_script_content_id = ?,
-    uninstall_script_content_id = ?,
-    self_service = ?,
-	user_id = ?,
-	user_name = (SELECT name FROM users WHERE id = ?),
-	user_email = (SELECT email FROM users WHERE id = ?) %s
-	WHERE id = ?`, touchUploaded)
+			storage_id = ?,
+			filename = ?,
+			version = ?,
+			package_ids = ?,
+			install_script_content_id = ?,
+			pre_install_query = ?,
+			post_install_script_content_id = ?,
+			uninstall_script_content_id = ?,
+			self_service = ?,
+			user_id = ?,
+			user_name = (SELECT name FROM users WHERE id = ?),
+			user_email = (SELECT email FROM users WHERE id = ?)%s%s
+			WHERE id = ?`, touchUploaded, clearFleetMaintainedAppID)
 
 		args := []interface{}{
 			payload.StorageID,

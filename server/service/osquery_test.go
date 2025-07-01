@@ -263,6 +263,7 @@ var allDetailQueries = osquery_utils.GetDetailQueries(
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: true,
 	},
+	osquery_utils.Integrations{},
 )
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
@@ -2121,6 +2122,9 @@ func TestMDMQueries(t *testing.T) {
 	mdmEnabled := true
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: mdmEnabled}}, nil
+	}
+	ds.GetNanoMDMUserEnrollmentUsernameFunc = func(ctx context.Context, deviceID string) (string, error) {
+		return "", nil
 	}
 
 	host := fleet.Host{

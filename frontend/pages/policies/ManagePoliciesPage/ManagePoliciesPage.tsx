@@ -1047,7 +1047,9 @@ const ManagePolicyPage = ({
     false;
 
   const isConditionalAccessEnabled =
-    teamConfig?.integrations.conditional_access_enabled ?? false;
+    (teamIdForApi === API_NO_TEAM_ID
+      ? globalConfig?.integrations.conditional_access_enabled
+      : teamConfig?.integrations.conditional_access_enabled) ?? false;
 
   const getAutomationsDropdownOptions = (configPresent: boolean) => {
     let disabledInstallTooltipContent: TooltipContent;
@@ -1125,10 +1127,7 @@ const ManagePolicyPage = ({
       },
     ];
 
-    if (
-      globalConfigFromContext?.license.managed_cloud &&
-      featureFlags.allowConditionalAccess === "true"
-    ) {
+    if (globalConfigFromContext?.license.managed_cloud) {
       options.push({
         label: "Conditional access",
         value: "conditional_access",
@@ -1173,7 +1172,9 @@ const ManagePolicyPage = ({
     );
     if (!hasPoliciesToAutomateOrDelete) {
       const tipContent =
-        isPremiumTier && currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID ? (
+        isPremiumTier &&
+        currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
+        !globalConfigFromContext?.partnerships?.enable_primo ? (
           <div className={`${baseClass}__header__tooltip`}>
             To manage automations add a policy to this team.
             <br />
@@ -1224,8 +1225,11 @@ const ManagePolicyPage = ({
 
   let teamsDropdownHelpText: string;
   if (teamIdForApi === API_NO_TEAM_ID) {
-    teamsDropdownHelpText =
-      "Detect device health issues for hosts that are not on a team.";
+    teamsDropdownHelpText = `Detect device health issues${
+      globalConfigFromContext?.partnerships?.enable_primo
+        ? ""
+        : " for hosts that are not on a team"
+    }.`;
   } else if (teamIdForApi === API_ALL_TEAMS_ID) {
     teamsDropdownHelpText = "Detect device health issues for all hosts.";
   } else {

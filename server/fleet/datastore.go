@@ -14,11 +14,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/jmoiron/sqlx"
-
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
 type CarveStore interface {
@@ -198,6 +197,9 @@ type Datastore interface {
 	// UpdateLabelMembershipByHostIDs updates the label membership for the given label ID with host
 	// IDs, applied in batches
 	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
+	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label
+	// based on its host vitals criteria.
+	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
 
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
@@ -209,7 +211,7 @@ type Datastore interface {
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
-	GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
+	GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
 
 	// LabelQueriesForHost returns the label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
@@ -652,6 +654,24 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
+	// UpdateVPPInstallVerificationCommand updates the verification command UUID associated with the
+	// given install attempt (InstallApplication command)
+	UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID, verifyCommandUUID string) error
+	// SetVPPInstallAsVerified marks the VPP app install attempt as "verified" (Fleet has validated
+	// that it's installed on the device).
+	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error
+	// UpdateVPPInstallVerificationCommandByVerifyUUID updates the verification command UUID for all
+	// VPP app install attempts were related to oldVerifyUUID.
+	UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+	// GetAcknowledgedMDMCommandsByHost gets all commands of the given type that are in the
+	// "Acknowledged" state.
+	GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error)
+	// GetVPPInstallsByVerificationUUID gets a HostVPPSoftwareInstall by verification command UUID.
+	GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
+	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
+	// it was installed on the host).
+	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
@@ -743,6 +763,8 @@ type Datastore interface {
 	GetPoliciesWithAssociatedVPP(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyVPPData, error)
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
+	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
+	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
@@ -1041,6 +1063,10 @@ type Datastore interface {
 	// UpdateJobs updates an existing job. Call this after processing a job.
 	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
 
+	// CleanupWorkerJobs deletes jobs in a final state that are older than the
+	// provided durations. It returns the number of jobs deleted and an error.
+	CleanupWorkerJobs(ctx context.Context, failedSince, completedSince time.Duration) (int64, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 
@@ -1226,6 +1252,15 @@ type Datastore interface {
 
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
+
+	// GetNanoMDMUserEnrollment returns the active nano user channel enrollment information for the device
+	// id. Right now only one user channel enrollment is supported per device
+	GetNanoMDMUserEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
+
+	// GetNanoMDMUserEnrollmentUsername returns the short username of the user
+	// channel enrollment for the device id. Right now only one user channel
+	// enrollment is supported per device.
+	GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error)
 
 	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
 	// MDM protocol seen time for the host with the given UUID
@@ -2055,6 +2090,10 @@ type Datastore interface {
 	// ListHostMDMManagedCertificates returns the managed certificates for the given host UUID
 	ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*MDMManagedCertificate, error)
 
+	// ResendHostCustomSCEPProfile marks a custom SCEP profile to be resent to the host with the given UUID. It
+	// also deactivates prior nano commands for the profile UUID and host UUID.
+	ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
 
@@ -2122,6 +2161,46 @@ type Datastore interface {
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info
 	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Challenges
+
+	// NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges table.
+	NewChallenge(ctx context.Context) (string, error)
+	// ConsumeChallenge checks if a valid challenge exists in the challenges table
+	// and deletes it if it does. The error will include sql.ErrNoRows if the challenge
+	// is not found or is expired.
+	ConsumeChallenge(ctx context.Context, challenge string) error
+	// CleanupExpiredChallenges removes expired challenges from the challenges table,
+	// intended to be run as a cron job.
+	CleanupExpiredChallenges(ctx context.Context) (int64, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Microsoft Compliance Partner
+
+	// ConditionalAccessMicrosoftCreateIntegration creates the Conditional Access integration on the datastore.
+	// The integration is created as "not done".
+	// Currently only one integration can be configured, so this method replaces any existing integration.
+	ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID, proxyServerSecret string) error
+	// ConditionalAccessMicrosoftGet returns the current Conditional Access integration.
+	// Returns a NotFoundError error if there's none.
+	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
+	// ConditionalAccessMicrosoftMarkSetupDone marks the configuration as done on the datastore.
+	ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context) error
+	// ConditionalAccessMicrosoftDelete deletes the integration from the datastore.
+	// It will also cleanup all recorded compliance status of all hosts from the datastore.
+	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+	// LoadHostConditionalAccessStatus will load the current "Conditional Access" status of a host.
+	// The status holds Entra's "Device ID", "User Principal Name", and last reported "managed" and "compliant" status.
+	// Returns a NotFoundError error if there's no entry for the host.
+	LoadHostConditionalAccessStatus(ctx context.Context, hostID uint) (*HostConditionalAccessStatus, error)
+	// CreateHostConditionalAccessStatus creates the entry for the host on the datastore.
+	// This does not set the "managed" or "compliant" status yet, this just creates the entry needed with Entra information.
+	// If the host already has a different deviceID/userPrincipalName it will override them.
+	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
+	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
+	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
+	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
 }
 
 type AndroidDatastore interface {
@@ -2192,6 +2271,9 @@ type ProfileVerificationStore interface {
 	// ExpandEmbeddedSecrets expands the fleet secrets in a
 	// document using the secrets stored in the datastore.
 	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
+	// GetHostMDMWindowsProfiles returns the current MDM profile status for the given
+	// Windows host
+	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
 }
 
 var _ ProfileVerificationStore = (Datastore)(nil)

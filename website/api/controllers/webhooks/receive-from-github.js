@@ -90,7 +90,6 @@ module.exports = {
       'KendraAtFleet',
       'ksykulev',
       'onasismunro',
-      'eugkuo',
       'jmwatts',
       'mason-buettner',
       'iansltx',

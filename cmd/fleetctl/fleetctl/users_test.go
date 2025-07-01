@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,18 +45,6 @@ func TestUserDelete(t *testing.T) {
 
 	assert.Equal(t, "", RunAppForTest(t, []string{"user", "delete", "--email", "user1@test.com"}))
 	assert.Equal(t, uint(42), deletedUser)
-}
-
-type notFoundError struct{}
-
-var _ fleet.NotFoundError = (*notFoundError)(nil)
-
-func (e *notFoundError) IsNotFound() bool {
-	return true
-}
-
-func (e *notFoundError) Error() string {
-	return ""
 }
 
 // TestUserCreateForcePasswordReset tests that the `fleetctl user create` command

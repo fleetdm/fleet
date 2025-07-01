@@ -681,13 +681,11 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		result = result["global_integrations"].(map[string]interface{})
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
-		if result["google_calendar"] != nil {
-			result = map[string]interface{}{
-				"google_calendar": result["google_calendar"],
-			}
-		} else {
-			result = nil
-		}
+
+		// We currently don't support configuring Jira and Zendesk integrations on the team.
+		delete(result, "jira")
+		delete(result, "zendesk")
+
 		// Team integrations don't have secrets right now, so just return as-is.
 		return result, nil
 	}
@@ -1018,13 +1016,14 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	result := make([]map[string]interface{}, len(policies))
 	for i, policy := range policies {
 		policySpec := map[string]interface{}{
-			jsonFieldName(t, "Name"):                  policy.Name,
-			jsonFieldName(t, "Description"):           policy.Description,
-			jsonFieldName(t, "Resolution"):            policy.Resolution,
-			jsonFieldName(t, "Query"):                 policy.Query,
-			jsonFieldName(t, "Platform"):              policy.Platform,
-			jsonFieldName(t, "Critical"):              policy.Critical,
-			jsonFieldName(t, "CalendarEventsEnabled"): policy.CalendarEventsEnabled,
+			jsonFieldName(t, "Name"):                     policy.Name,
+			jsonFieldName(t, "Description"):              policy.Description,
+			jsonFieldName(t, "Resolution"):               policy.Resolution,
+			jsonFieldName(t, "Query"):                    policy.Query,
+			jsonFieldName(t, "Platform"):                 policy.Platform,
+			jsonFieldName(t, "Critical"):                 policy.Critical,
+			jsonFieldName(t, "CalendarEventsEnabled"):    policy.CalendarEventsEnabled,
+			jsonFieldName(t, "ConditionalAccessEnabled"): policy.ConditionalAccessEnabled,
 		}
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
@@ -1123,10 +1122,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 	packages := make([]map[string]interface{}, 0)
 	appStoreApps := make([]map[string]interface{}, 0)
 	for _, sw := range software {
-		versions := make([]string, len(sw.Versions))
-		for j, version := range sw.Versions {
-			versions[j] = version.Version
-		}
 		softwareSpec := make(map[string]interface{})
 		switch {
 		case sw.SoftwarePackage != nil:
@@ -1134,7 +1129,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			if sw.SoftwarePackage.Name != "" {
 				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
 			}
-			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, strings.Join(versions, ", ")))
+			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
 			if sw.HashSHA256 == nil {
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: filePath,
@@ -1208,6 +1203,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			if softwareTitle.SoftwarePackage.SelfService {
 				softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
 			}
+
+			if softwareTitle.SoftwarePackage.URL != "" {
+				softwareSpec["url"] = softwareTitle.SoftwarePackage.URL
+			}
 		}
 
 		if cmd.AppConfig.License.IsPremium() {
@@ -1280,10 +1279,13 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 		if label.Platform != "" {
 			labelSpec[jsonFieldName(t, "Platform")] = label.Platform
 		}
-		if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic {
-			labelSpec[jsonFieldName(t, "Query")] = label.Query
-		} else {
+		switch label.LabelMembershipType {
+		case fleet.LabelMembershipTypeManual:
 			labelSpec[jsonFieldName(t, "Hosts")] = label.Hosts
+		case fleet.LabelMembershipTypeDynamic:
+			labelSpec[jsonFieldName(t, "Query")] = label.Query
+		case fleet.LabelMembershipTypeHostVitals:
+			labelSpec[jsonFieldName(t, "HostVitalsCriteria")] = label.HostVitalsCriteria
 		}
 
 		result = append(result, labelSpec)

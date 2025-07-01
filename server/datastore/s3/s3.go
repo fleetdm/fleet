@@ -2,23 +2,27 @@ package s3
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	aws_config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 const awsRegionHint = "us-east-1"
 
 type s3store struct {
-	s3client         *s3.S3
+	s3Client         *s3.Client
 	bucket           string
 	prefix           string
 	cloudFrontConfig *config.S3CloudFrontConfig
@@ -36,76 +40,99 @@ func (p installerNotFoundError) IsNotFound() bool {
 	return true
 }
 
-// newS3store initializes an S3 Datastore
-func newS3store(config config.S3ConfigInternal) (*s3store, error) {
-	conf := &aws.Config{}
+// newS3Store initializes an S3 Datastore.
+func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
+	var opts []func(*aws_config.LoadOptions) error
 
-	// Use default auth provire if no static credentials were provided
-	if config.AccessKeyID != "" && config.SecretAccessKey != "" {
-		conf.Credentials = credentials.NewStaticCredentials(
-			config.AccessKeyID,
-			config.SecretAccessKey,
-			"",
+	// The service endpoint is deprecated, but we still set it
+	// in case users are using it.
+	// It is also used when testing with minio.
+	if cfg.EndpointURL != "" {
+		opts = append(opts, aws_config.WithEndpointResolver(aws.EndpointResolverFunc(
+			func(service, region string) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL: cfg.EndpointURL,
+				}, nil
+			})),
 		)
 	}
 
-	if config.EndpointURL != "" {
-		conf.Endpoint = &config.EndpointURL
+	// DisableSSL is only used for testing.
+	if cfg.DisableSSL {
+		// Ignoring "G402: TLS InsecureSkipVerify set true", this is only used for automated testing.
+		c := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{ //nolint:gosec
+			InsecureSkipVerify: false,
+		}))
+		opts = append(opts, aws_config.WithHTTPClient(c))
 	}
 
-	conf.DisableSSL = &config.DisableSSL
-	conf.S3ForcePathStyle = &config.ForceS3PathStyle
-
-	sess, err := session.NewSession(conf)
-	if err != nil {
-		return nil, fmt.Errorf("create S3 client: %w", err)
+	// Use default auth provider if no static credentials were provided.
+	if cfg.AccessKeyID != "" && cfg.SecretAccessKey != "" {
+		opts = append(opts, aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			cfg.AccessKeyID,
+			cfg.SecretAccessKey,
+			"",
+		)))
 	}
 
-	// Assume role if configured
-	if config.StsAssumeRoleArn != "" {
-		creds := stscreds.NewCredentials(sess, config.StsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
-			if config.StsExternalID != "" {
-				provider.ExternalID = &config.StsExternalID
+	// cfg.StsAssumeRoleArn has been marked as deprecated, but we still set it in case users are using it.
+	if cfg.StsAssumeRoleArn != "" {
+		opts = append(opts, aws_config.WithAssumeRoleCredentialOptions(func(r *stscreds.AssumeRoleOptions) {
+			r.RoleARN = cfg.StsAssumeRoleArn
+			if cfg.StsExternalID != "" {
+				r.ExternalID = &cfg.StsExternalID
 			}
-		})
-		conf.Credentials = creds
-		sess, err = session.NewSession(conf)
-		if err != nil {
-			return nil, fmt.Errorf("create S3 client: %w", err)
-		}
+		}))
 	}
 
-	if len(config.Region) == 0 {
-		region, err := s3manager.GetBucketRegion(context.TODO(), sess, config.Bucket, awsRegionHint)
+	if cfg.Region == "" {
+		// Attempt to deduce region from bucket.
+		conf, err := aws_config.LoadDefaultConfig(context.Background(),
+			append(opts, aws_config.WithRegion(awsRegionHint))...,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("create S3 client: %w", err)
+			return nil, fmt.Errorf("failed to create default config to get bucket region: %w", err)
 		}
-		config.Region = region
+		bucketRegion, err := manager.GetBucketRegion(context.Background(), s3.NewFromConfig(conf), cfg.Bucket)
+		if err != nil {
+			return nil, fmt.Errorf("get bucket region: %w", err)
+		}
+		cfg.Region = bucketRegion
 	}
+
+	opts = append(opts, aws_config.WithRegion(cfg.Region))
+	conf, err := aws_config.LoadDefaultConfig(context.Background(), opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create default config: %w", err)
+	}
+
+	s3Client := s3.NewFromConfig(conf, func(o *s3.Options) {
+		o.UsePathStyle = cfg.ForceS3PathStyle
+	})
 
 	return &s3store{
-		s3client:         s3.New(sess, &aws.Config{Region: &config.Region}),
-		bucket:           config.Bucket,
-		prefix:           config.Prefix,
-		cloudFrontConfig: config.CloudFrontConfig,
+		s3Client:         s3Client,
+		bucket:           cfg.Bucket,
+		prefix:           cfg.Prefix,
+		cloudFrontConfig: cfg.CloudFrontConfig,
 	}, nil
 }
 
 // CreateTestBucket creates a bucket with the provided name and a default
 // bucket config. Only recommended for local testing.
-func (s *s3store) CreateTestBucket(name string) error {
-	_, err := s.s3client.CreateBucket(&s3.CreateBucketInput{
+func (s *s3store) CreateTestBucket(ctx context.Context, name string) error {
+	_, err := s.s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket:                    &name,
-		CreateBucketConfiguration: &s3.CreateBucketConfiguration{},
+		CreateBucketConfiguration: &types.CreateBucketConfiguration{},
 	})
 
 	// Don't error if the bucket already exists
-	if aerr, ok := err.(awserr.Error); ok {
-		switch aerr.Code() {
-		case s3.ErrCodeBucketAlreadyExists, s3.ErrCodeBucketAlreadyOwnedByYou:
-			return nil
-		}
+	var (
+		bucketAlreadyExists     *types.BucketAlreadyExists
+		bucketAlreadyOwnedByYou *types.BucketAlreadyOwnedByYou
+	)
+	if errors.As(err, &bucketAlreadyExists) || errors.As(err, &bucketAlreadyOwnedByYou) {
+		return nil
 	}
-
 	return err
 }

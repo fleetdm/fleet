@@ -275,6 +275,9 @@ const SaveQueryModal = ({
               <b>
                 <LogDestinationIndicator
                   logDestination={config?.logging.result.plugin || ""}
+                  filesystemDestination={
+                    config?.logging.result.config?.result_log_file
+                  }
                   excludeTooltip
                 />
               </b>

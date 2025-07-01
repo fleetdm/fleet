@@ -67,6 +67,8 @@
     "CertificateSigningRequest": false,
     "Platform": false,
     "AdCampaign": false,
+    "MicrosoftComplianceTenant": false,
+    "AndroidEnterprise": false
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   }
