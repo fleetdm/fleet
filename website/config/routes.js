@@ -27,6 +27,7 @@ module.exports.routes = {
       pageTitleForMeta: 'Contact us',
       pageDescriptionForMeta: 'Get in touch with our team.',
       hideFooterLinks: true,
+      currentSection: 'community',
     }
   },
 
@@ -410,7 +411,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Support',
       pageDescriptionForMeta: 'Ask a question, chat with engineers, or get in touch with the Fleet team.',
-      currentSection: 'documentation',
+      currentSection: 'community',
     }
   },
 
@@ -457,7 +458,8 @@ module.exports.routes = {
     action: 'view-testimonials',
     locals: {
       pageTitleForMeta: 'What people are saying',
-      pageDescriptionForMeta: 'See what people are saying about Fleet.'
+      pageDescriptionForMeta: 'See what people are saying about Fleet.',
+      currentSection: 'community',
     }
   },
 
@@ -478,6 +480,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Meetups',
       pageDescriptionForMeta: 'See upcoming meetup locations.',
+      currentSection: 'community',
     }
   },
 
