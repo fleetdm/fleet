@@ -70,6 +70,16 @@ spec:
             value: "{{ .Values.fleet.logging.json }}"
           - name: FLEET_LOGGING_DISABLE_BANNER
             value: "{{ .Values.fleet.logging.disableBanner }}"
+          - name: FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.fleet.secretName }}"
+                key: "{{ .Values.fleet.mdm.windows.wstepIdentityCertKey }}"
+          - name: FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.fleet.secretName }}"
+                key: "{{ .Values.fleet.mdm.windows.wstepIdentityKeyKey }}"
           - name: FLEET_SERVER_TLS
             value: "{{ .Values.fleet.tls.enabled }}"
           {{- if .Values.fleet.tls.enabled }}
@@ -80,11 +90,16 @@ spec:
           - name: FLEET_SERVER_KEY
             value: "/secrets/tls/{{ .Values.fleet.tls.keySecretKey }}"
           {{- end }}
+          ### Carving S3 Configuration
           {{- if ne .Values.fleet.carving.s3.bucketName "" }}
           - name: FLEET_S3_BUCKET
             value: "{{ .Values.fleet.carving.s3.bucketName }}"
           - name: FLEET_S3_PREFIX
             value: "{{ .Values.fleet.carving.s3.prefix }}"
+          - name: FLEET_S3_ENDPOINT_URL
+            value: "{{ .Values.fleet.carving.s3.endpointURL }}"
+          - name: FLEET_S3_FORCE_S3_PATH_STYLE
+            value: "{{ .Values.fleet.carving.s3.forceS3PathStyle }}"
           {{- if ne .Values.fleet.carving.s3.accessKeyID "" }}
           - name: FLEET_S3_ACCESS_KEY_ID
             value: "{{ .Values.fleet.carving.s3.accessKeyID }}"
@@ -96,6 +111,29 @@ spec:
           {{ else }}
           - name: FLEET_S3_STS_ASSUME_ROLE_ARN
             value: "{{ .Values.fleet.carving.s3.stsAssumeRoleARN }}"
+          {{- end }}
+          {{- end }}
+          ### Software Installers S3 Configuration
+          {{- if ne .Values.fleet.softwareInstallers.s3.bucketName "" }}
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_BUCKET
+            value: "{{ .Values.fleet.softwareInstallers.s3.bucketName }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_PREFIX
+            value: "{{ .Values.fleet.softwareInstallers.s3.prefix }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL
+            value: "{{ .Values.fleet.softwareInstallers.s3.endpointURL }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE
+            value: "{{ .Values.fleet.softwareInstallers.s3.forceS3PathStyle }}"
+          {{- if ne .Values.fleet.softwareInstallers.s3.accessKeyID "" }}
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID
+            value: "{{ .Values.fleet.softwareInstallers.s3.accessKeyID }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.fleet.secretName }}"
+                key: "{{ .Values.fleet.softwareInstallers.s3.secretKey }}"
+          {{- else }}
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN
+            value: "{{ .Values.fleet.softwareInstallers.s3.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
           {{- if .Values.fleet.license.secretName }}
