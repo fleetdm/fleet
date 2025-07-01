@@ -1,2 +1,1 @@
-* Added missing --tls_server_certs when running orbit shell.
-* Added new flag --fleet-certificate to orbit shell command.
+* Added new flag `--fleet-certificate` to `sudo orbit shell` command (which sets osquery's `--tls_server_certs` flag).
