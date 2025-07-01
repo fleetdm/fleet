@@ -215,29 +215,45 @@ func CheckAssignedEnrollmentProfile(expectedURL string) error {
 		return errors.New("parsing profiles output: received null device enrollment configuration")
 	}
 
+	var configURL, configWebURL string
 	var assignedURL string
 	for _, line := range lines {
 		// Note the output may contain both ConfigurationURL and ConfigurationWebURL but we check only
 		// the latter for backwards compatibility.
 		// See https://github.com/fleetdm/fleet/blob/963b2438537de14e7e16f1f18857ed8a66d51bfc/server/mdm/apple/apple_mdm.go#L195
-		v, ok := parseEnrollmentProfileValue(line, "ConfigurationWebURL")
-		if ok {
-			assignedURL = v
+		if v, ok := parseEnrollmentProfileValue(line, "ConfigurationURL"); ok {
+			configURL = v
+			continue
+		}
+		if v, ok := parseEnrollmentProfileValue(line, "ConfigurationWebURL"); ok {
+			configWebURL = v
 			break
 		}
 	}
 
+	switch {
+	case configURL == "" && configWebURL == "":
+		return errors.New("parsing profiles output: missing both configuration web url and configuration url")
+	case configWebURL != "":
+		// Always prefer web URL for consistency.
+		assignedURL = configWebURL
+	default:
+		// Fallback to configuration URL.
+		assignedURL = configURL
+	}
+
 	if assignedURL == "" {
-		return errors.New("parsing profiles output: missing or empty configuration web url")
+		// This should not happen, but error just in case.
+		return errors.New("parsing profiles output: missing or empty server url")
 	}
 
 	assigned, err := url.Parse(assignedURL)
 	if err != nil {
-		return fmt.Errorf("parsing profiles output: unable to parse configuration web url: %w", err)
+		return fmt.Errorf("parsing profiles output: unable to parse server url: %w", err)
 	}
 
 	if !strings.EqualFold(assigned.Hostname(), expected.Hostname()) {
-		return fmt.Errorf(`matching configuration web url: expected '%s' but found '%s'`, expected.Hostname(), assigned.Hostname())
+		return fmt.Errorf(`matching server url: expected '%s' but found '%s'`, expected.Hostname(), assigned.Hostname())
 	}
 
 	return nil
