@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20250625155654(t *testing.T) {
+func TestUp_20250701155654(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	eulaBytes := []byte("test eula content")

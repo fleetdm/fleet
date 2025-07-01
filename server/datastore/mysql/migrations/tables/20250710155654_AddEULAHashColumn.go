@@ -10,10 +10,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250625155654, Down_20250625155654)
+	MigrationClient.AddMigration(Up_20250701155654, Down_20250701155654)
 }
 
-func Up_20250625155654(tx *sql.Tx) error {
+func Up_20250701155654(tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE eulas ADD COLUMN sha256 binary(32)")
 	if err != nil {
 		return fmt.Errorf("adding sha256 to eulas table: %w", err)
@@ -45,6 +45,6 @@ func Up_20250625155654(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250625155654(tx *sql.Tx) error {
+func Down_20250701155654(tx *sql.Tx) error {
 	return nil
 }
