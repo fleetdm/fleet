@@ -435,8 +435,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		// (the command UUID is the same as the one we got when we triggered the install)
 		processVPPInstallOnClient(false, false, false)
 
-		// s.runWorker()
-
 		// We should have 0 installed, because the verification is not done yet
 		listResp = listHostsResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",

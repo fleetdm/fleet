@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -1820,7 +1819,7 @@ WHERE command_uuid = ?
 	})
 }
 
-func (ds *Datastore) MarkAllPendingVPPInstallsAsFailed(ctx context.Context) error {
+func (ds *Datastore) MarkAllPendingVPPInstallsAsFailed(ctx context.Context, jobName string) error {
 	clearUpcomingActivitiesStmt := `
 DELETE ua FROM
 	upcoming_activities ua
@@ -1850,7 +1849,7 @@ AND state = ?
 			return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
 		}
 
-		if _, err := tx.ExecContext(ctx, deletePendingJobsStmt, worker.AppleSoftwareJobName, fleet.JobStateQueued); err != nil {
+		if _, err := tx.ExecContext(ctx, deletePendingJobsStmt, jobName, fleet.JobStateQueued); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete pending jobs")
 		}
 

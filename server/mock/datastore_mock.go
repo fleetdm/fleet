@@ -498,7 +498,7 @@ type GetVPPInstallsByVerificationUUIDFunc func(ctx context.Context, verification
 
 type SetVPPInstallAsFailedFunc func(ctx context.Context, hostID uint, installUUID string) error
 
-type MarkAllPendingVPPInstallsAsFailedFunc func(ctx context.Context) error
+type MarkAllPendingVPPInstallsAsFailedFunc func(ctx context.Context, jobName string) error
 
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
@@ -5157,11 +5157,11 @@ func (s *DataStore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, inst
 	return s.SetVPPInstallAsFailedFunc(ctx, hostID, installUUID)
 }
 
-func (s *DataStore) MarkAllPendingVPPInstallsAsFailed(ctx context.Context) error {
+func (s *DataStore) MarkAllPendingVPPInstallsAsFailed(ctx context.Context, jobName string) error {
 	s.mu.Lock()
 	s.MarkAllPendingVPPInstallsAsFailedFuncInvoked = true
 	s.mu.Unlock()
-	return s.MarkAllPendingVPPInstallsAsFailedFunc(ctx)
+	return s.MarkAllPendingVPPInstallsAsFailedFunc(ctx, jobName)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
