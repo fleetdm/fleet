@@ -27,11 +27,11 @@ To add a new label:
 2. **Access labels**: Click the "Filter by platform or label" drop-down.
 3. **Select "Add Label +"**: This option allows you to create a new label.
 4. **Enter a label name**: You may also provide an optional description for the label.
-4. **Choose label Type**: You will be prompted to choose between "Dynamic", "Manual" or "Host vitals" label creation.
+5. **Choose label type**: You will be prompted to choose between "Dynamic", "Manual" or "Host vitals" label creation.
     1. **Dynamic**: Build your query and select the platforms to which this label applies.
     2. **Manual**: Select the hosts to which you want to apply this label.
     3. **Host vitals**: Select an attribute from the "Label criteria" dropdown, and enter a value that each host in the label should match for that attribute.
-5. **Save the label**: Click the "Save" button to create your label.
+6. **Save the label**: Click the "Save" button to create your label.
 
 
 ### Editing a label
