@@ -5,7 +5,7 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -136,6 +136,12 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 				}
 
 				parsedConflictingMobileConfig, err := existingProfile.Mobileconfig.ParseConfigProfile()
+				if err != nil {
+					level.Debug(ds.logger).Log("msg", "error parsing existing profile mobileconfig while checking for scope conflicts",
+						"profile_uuid", existingProfile.ProfileUUID,
+						"err", err,
+					)
+				}
 				// The existing profile has a different scope in the XML than in Fleet's DB, meaning
 				// it existed prior to User channel profiles support being added and this is an
 				// implicit change the user may not be aware of.
