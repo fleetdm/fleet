@@ -89,13 +89,12 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View, edit, and delete Volume Purchasing Program (VPP) connections                                                                                               |          |            |            | ✅    |         |
 | Connect Android Enterprise                                                                                               |          |            |            | ✅    |         |
 | View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
-| Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
+| Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            |           | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                                  |          |            | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            | ✅         | ✅    | ✅      |
 | View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅         | ✅    |         |
-| Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |            |            | ✅    | ✅      |
-| Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |            |            | ✅    | ✅      |
-| View all [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                           |          |            |            | ✅    | ✅      |
+| Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                               |          |            | ✅          | ✅    | ✅      |
+| View all [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                           |          |            | ✅          | ✅    | ✅      |
 | Edit [macOS setup experience]([https://fleetdm.com/docs/](https://fleetdm.com/guides/macos-setup-experience))\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Add and edit identity provider for end user authentication, end user license agreement (EULA), and end user migration workflow\*                                                                                         |          |            |              | ✅    |         |
 | Add and edit certificate authorities (CA)\*                                                                        |          |            |            | ✅    | ✅      |
@@ -103,6 +102,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
+| Configure Microsoft Entra conditional access integration                                                                       |          |            |            | ✅    |       |
 
 \* Applies only to Fleet Premium
 
@@ -165,11 +165,11 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Edit agent options                                    |               |                |                 | ✅         | ✅          |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
-| Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
+| Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            |           | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                        |               |                | ✅              | ✅         | ✅          |
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅         |             |
-| Edit [team MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                |               |                |                 | ✅         | ✅          |
+| Edit [team OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                |               |                | ✅               | ✅         | ✅          |
 | Edit [macOS setup experience]([https://fleetdm.com/docs/](https://fleetdm.com/guides/macos-setup-experience#basic-article))\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Run scripts on hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |

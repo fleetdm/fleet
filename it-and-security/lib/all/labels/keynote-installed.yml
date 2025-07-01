@@ -1,0 +1,5 @@
+- name: Keynote installed
+  description: macOS hosts with Keynote installed
+  query: SELECT 1 FROM apps WHERE name = "Keynote.app";
+  label_membership_type: dynamic
+  platform: darwin

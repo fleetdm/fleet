@@ -197,6 +197,9 @@ type Datastore interface {
 	// UpdateLabelMembershipByHostIDs updates the label membership for the given label ID with host
 	// IDs, applied in batches
 	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
+	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label
+	// based on its host vitals criteria.
+	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
 
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
@@ -208,7 +211,7 @@ type Datastore interface {
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
-	GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
+	GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
 
 	// LabelQueriesForHost returns the label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
@@ -651,6 +654,25 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
+	// AssociateVPPInstallToVerificationUUID updates the verification command UUID associated with the
+	// given install attempt (InstallApplication command)
+	AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error
+	// SetVPPInstallAsVerified marks the VPP app install attempt as "verified" (Fleet has validated
+	// that it's installed on the device).
+	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error
+	// ReplaceVPPInstallVerificationUUID replaces the verification command UUID for all
+	// VPP app install attempts were related to oldVerifyUUID.
+	ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+	// GetAcknowledgedMDMCommandsByHost gets all commands of the given type that are in the
+	// "Acknowledged" state.
+	GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error)
+	// GetVPPInstallsByVerificationUUID gets a HostVPPSoftwareInstall by verification command UUID.
+	GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
+	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
+	// it was installed on the host).
+	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error
+	MarkAllPendingVPPInstallsAsFailed(ctx context.Context, jobName string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
@@ -1042,6 +1064,10 @@ type Datastore interface {
 	// UpdateJobs updates an existing job. Call this after processing a job.
 	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
 
+	// CleanupWorkerJobs deletes jobs in a final state that are older than the
+	// provided durations. It returns the number of jobs deleted and an error.
+	CleanupWorkerJobs(ctx context.Context, failedSince, completedSince time.Duration) (int64, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 
@@ -1227,6 +1253,15 @@ type Datastore interface {
 
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
+
+	// GetNanoMDMUserEnrollment returns the active nano user channel enrollment information for the device
+	// id. Right now only one user channel enrollment is supported per device
+	GetNanoMDMUserEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
+
+	// GetNanoMDMUserEnrollmentUsername returns the short username of the user
+	// channel enrollment for the device id. Right now only one user channel
+	// enrollment is supported per device.
+	GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error)
 
 	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
 	// MDM protocol seen time for the host with the given UUID
@@ -2237,6 +2272,9 @@ type ProfileVerificationStore interface {
 	// ExpandEmbeddedSecrets expands the fleet secrets in a
 	// document using the secrets stored in the datastore.
 	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
+	// GetHostMDMWindowsProfiles returns the current MDM profile status for the given
+	// Windows host
+	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
 }
 
 var _ ProfileVerificationStore = (Datastore)(nil)

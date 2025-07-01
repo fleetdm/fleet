@@ -3175,19 +3175,30 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 
 	hostSoftwareUninstalls, err := hostSoftwareUninstalls(ds, ctx, host.ID)
+	uninstallQuarantineSet := make(map[uint]*hostSoftware)
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, s := range hostSoftwareUninstalls {
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
-			bySoftwareTitleID[s.ID] = s
+			if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
+				bySoftwareTitleID[s.ID] = s
+			} else {
+				uninstallQuarantineSet[s.ID] = s
+			}
 		} else if bySoftwareTitleID[s.ID].LastInstallInstalledAt == nil ||
 			(s.LastUninstallUninstalledAt != nil && s.LastUninstallUninstalledAt.After(*bySoftwareTitleID[s.ID].LastInstallInstalledAt)) {
+
 			// if the uninstall is more recent than the install, we should update the status
 			bySoftwareTitleID[s.ID].Status = s.Status
 			bySoftwareTitleID[s.ID].LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
 			bySoftwareTitleID[s.ID].LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
 			bySoftwareTitleID[s.ID].ExitCode = s.ExitCode
+
+			if !opts.OnlyAvailableForInstall && !opts.IncludeAvailableForInstall {
+				uninstallQuarantineSet[s.ID] = bySoftwareTitleID[s.ID]
+				delete(bySoftwareTitleID, s.ID)
+			}
 		}
 	}
 
@@ -3198,6 +3209,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		return nil, nil, err
 	}
 	for _, s := range hostInstalledSoftware {
+		if unInstalled, ok := uninstallQuarantineSet[s.ID]; ok {
+			// We have an uninstall record according to host_software_installs,
+			// however, osquery says the software is installed.
+			// Put it back into the set of returned software
+			bySoftwareTitleID[s.ID] = unInstalled
+		}
+
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
 			bySoftwareTitleID[s.ID] = s
 		} else {
@@ -3278,6 +3296,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			s.SoftwareSource = installedTitle.SoftwareSource
 			s.Version = installedTitle.Version
 			s.BundleIdentifier = installedTitle.BundleIdentifier
+		}
+		if s.VPPAppAdamID != nil {
+			// Override the status; if there's a pending re-install, we should show that status.
+			if hs, ok := byVPPAdamID[*s.VPPAppAdamID]; ok {
+				s.Status = hs.Status
+			}
 		}
 		hostVPPInstalledTitles[s.ID] = s
 	}
@@ -4243,6 +4267,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		hs := hs
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
+
 	return software, metaData, nil
 }
 

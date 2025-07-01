@@ -250,11 +250,31 @@ func ExtractIP(r *http.Request) string {
 		ip = ip[:i]
 	}
 
+	// Prefer True-Client-IP and X-Real-IP headers before X-Forwarded-For:
+	// - True-Client-IP: set by some CDNs (e.g., Akamai) to indicate the real client IP early in the chain
+	// - X-Real-IP: set by Nginx or similar proxies as a simpler alternative to X-Forwarded-For
+	// These headers are less likely to be spoofed or malformed compared to X-Forwarded-For.
 	if tcip := r.Header.Get(trueClientIP); tcip != "" {
 		ip = tcip
 	} else if xrip := r.Header.Get(xRealIP); xrip != "" {
 		ip = xrip
 	} else if xff := r.Header.Get(xForwardedFor); xff != "" {
+		// X-Forwarded-For is a comma-separated list of IP addresses representing the chain of proxies
+		// that a request has passed through. This is not a standard, but a convention.
+		// The convention is to treat the left-most IP address as the original client IP.
+		// For example:
+		//     X-Forwarded-For: 198.51.100.1, 203.0.113.5, 127.0.0.1
+		// Means:
+		//     - 198.51.100.1 is the client IP
+		//     - 127.0.0.1 is the last proxy (likely this server or a local proxy)
+		//
+		// If the left-most IP is a private or loopback address (e.g., 127.0.0.1 or 10.x.x.x), it may indicate:
+		//   - The request originated from a local proxy, or
+		//   - The header was spoofed by a client (untrusted source)
+		//
+		// Having multiple X-Forwarded-For headers is non-standard, so we do not handle it here.
+		//
+		// Here, we grab the left-most IP address by convention.
 		i := strings.Index(xff, ",")
 		if i == -1 {
 			i = len(xff)

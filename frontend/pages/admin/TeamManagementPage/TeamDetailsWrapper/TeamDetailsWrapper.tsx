@@ -100,6 +100,7 @@ const TeamDetailsWrapper = ({
     setAvailableTeams,
     setUserSettings,
     setCurrentUser,
+    config,
   } = useContext(AppContext);
 
   const {
@@ -483,7 +484,8 @@ const TeamDetailsWrapper = ({
         )}
         {showManageEnrollSecretsModal && (
           <EnrollSecretModal
-            selectedTeam={teamIdForApi || 0} // TODO: confirm teamIdForApi vs currentTeamId throughout
+            selectedTeamId={teamIdForApi || 0} // TODO: confirm teamIdForApi vs currentTeamId throughout
+            primoMode={config?.partnerships?.enable_primo || false}
             teams={teams || []} // TODO: confirm teams vs available teams throughout
             onReturnToApp={toggleManageEnrollSecretsModal}
             toggleSecretEditorModal={toggleSecretEditorModal}

@@ -1,6 +1,6 @@
 import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 import userEvent from "@testing-library/user-event";
@@ -40,17 +40,7 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
 });
 
 const mockQuery = createMockQuery();
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  goBack: jest.fn(),
-  goForward: jest.fn(),
-  go: jest.fn(),
-  setRouteLeaveHook: jest.fn(),
-  isActive: jest.fn(),
-  createHref: jest.fn(),
-  createPath: jest.fn(),
-};
+const mockRouter = createMockRouter();
 
 describe("EditQueryForm - component", () => {
   it("disables save button for missing query name", async () => {
@@ -267,7 +257,7 @@ describe("EditQueryForm - component", () => {
     expect(automationsSlider).toBeInTheDocument();
 
     // Check if the automations are enabled
-    const automationsButton = within(automationsSlider).getByRole("button");
+    const automationsButton = within(automationsSlider).getByRole("switch");
     expect(automationsButton).toHaveClass("fleet-slider--active");
 
     // Check if the warning icon is present

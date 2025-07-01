@@ -1715,6 +1715,8 @@ NOTE: when updating a policy, team and platform will be ignored.
 
 The fields `critical`, `script_id`, and `software_title_id` are available in Fleet Premium.
 
+Fleet-maintained policies are unaffected by this endpoint.
+
 ##### Default response
 
 `Status: 200`
@@ -2037,7 +2039,7 @@ If the `name` is not already associated with an existing team, this API route cr
         }
       },
       "scripts": ["path/to/script.sh"],
-      "software": { 
+      "software": {
         "packages": [
           {
             "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
@@ -2052,7 +2054,7 @@ If the `name` is not already associated with an existing team, this API route cr
             "self_service": true
           }
         ]
-      }  
+      }
     }
   ]
 }
@@ -3415,7 +3417,7 @@ Gets the result of a uninstall performed on a host, viewed from the My device pa
 
 _Available in Fleet Premium_
 
-Lists the policies applied to the current device.
+Lists the policies applied to the current device. Omits Fleet-maintained policies.
 
 `GET /api/v1/fleet/device/{token}/policies`
 
@@ -3519,7 +3521,9 @@ Lists the certificates installed on the current device.
         "organization": "Fleet Device Management Inc.",
         "organizational_unit": "Fleet Device Management Inc.",
         "common_name": "FleetDM"
-      }
+      },
+      "source": "user",
+      "username": "alice"
     }
   ],
   "meta": {
@@ -4343,6 +4347,23 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 }
 ```
 ## Software
+
+### Confirm installer hashes exist
+
+`GET /api/v1/fleet/software/package_hashes`
+
+| Name              | Type    | In   | Description                                        |
+|-------------------|---------|------|----------------------------------------------------|
+| team_name | string | query | The name of the team to filter the check to. If not supplied, the user must haave global access, and hashes are checked across the entire instance. |
+| sha256              | string  | query | **Required**. A comma-separated list of SHA256 hashes, (64 hex characters apiece) to check. Endpoint returns 200 if all specified hashes exist, 404 otherwise. |
+
+#### Example
+
+`GET /api/v1/fleet/software/package_hashes?sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef`
+
+##### Default response
+
+`200 OK`
 
 ### Update software title name
 

@@ -12643,6 +12643,32 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_id", "1")
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_id and software_title_id is not allowed.")
 
+	// Test: software_title_id DNE and software_status is valid (should return 0 hosts, 0 count)
+	nonExistentTitleID := uint(999999) // unlikely to exist
+
+	validStatuses := []string{"installed", "pending", "failed"}
+	for _, status := range validStatuses {
+		t.Run("nonexistent_title_id_"+status, func(t *testing.T) {
+			// List hosts
+			var listResp listHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp,
+				"software_status", status,
+				"team_id", fmt.Sprint(*teamID),
+				"software_title_id", fmt.Sprint(nonExistentTitleID),
+			)
+			require.Empty(t, listResp.Hosts)
+
+			// Count hosts
+			var countResp countHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp,
+				"software_status", status,
+				"team_id", fmt.Sprint(*teamID),
+				"software_title_id", fmt.Sprint(nonExistentTitleID),
+			)
+			require.Equal(t, 0, countResp.Count)
+		})
+	}
+
 	// Return installed app with software detail query
 	distributedReq := submitDistributedQueryResultsRequestShim{
 		NodeKey: *h2.NodeKey,
@@ -14374,6 +14400,14 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	require.NoError(t, err)
 	require.Len(t, team1CalendarEvents, 1)
 	assert.Equal(t, previousEvent, team1CalendarEvents[0])
+
+	err = s.ds.DeleteHost(ctx, host1Team1.ID)
+	require.NoError(t, err)
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
 
 	// Trigger calendar should cleanup the events
 	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)

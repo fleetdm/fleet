@@ -779,7 +779,7 @@ func (svc *Service) makeMFAEmail(ctx context.Context, user fleet.User) error {
 		},
 	}
 
-	return svc.mailService.SendEmail(email)
+	return svc.mailService.SendEmail(ctx, email)
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {

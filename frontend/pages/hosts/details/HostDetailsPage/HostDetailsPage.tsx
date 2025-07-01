@@ -56,6 +56,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
+import Card from "components/Card";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
   AppInstallDetailsModal,
@@ -65,7 +66,9 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
-import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISoftwareUninstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -75,7 +78,8 @@ import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
-import SoftwareCard from "../cards/Software";
+import SoftwareInventoryCard from "../cards/Software";
+import SoftwareLibraryCard from "../cards/HostSoftwareLibrary";
 import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
@@ -144,7 +148,7 @@ interface ISearchQueryData {
 }
 
 interface IHostDetailsSubNavItem {
-  name: string | JSX.Element;
+  name: React.ReactNode;
   title: string;
   pathname: string;
   count?: number;
@@ -203,7 +207,7 @@ const HostDetailsPage = ({
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
-  ] = useState<IPackageInstallDetails | null>(null);
+  ] = useState<ISoftwareUninstallDetails | null>(null);
   const [
     appInstallDetails,
     setAppInstallDetails,
@@ -683,6 +687,25 @@ const HostDetailsPage = ({
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
+  const onShowSoftwareDetails = useCallback(
+    (software?: IHostSoftware) => {
+      if (software) {
+        setSelectedSoftwareDetails(software);
+      }
+    },
+    [setSelectedSoftwareDetails]
+  );
+
+  const onShowUninstallDetails = useCallback(
+    (details?: ISoftwareUninstallDetails) => {
+      setPackageUninstallDetails({
+        ...details,
+        host_display_name: host?.display_name || "",
+      });
+    },
+    [setPackageUninstallDetails]
+  );
+
   const onCancelRunScriptDetailsModal = useCallback(() => {
     setScriptExecutiontId("");
     // refetch activities to make sure they up-to-date with what was displayed in the modal
@@ -841,8 +864,28 @@ const HostDetailsPage = ({
     },
   ];
 
+  const hostSoftwareSubNav: IHostDetailsSubNavItem[] = [
+    {
+      name: "Inventory",
+      title: "inventory",
+      pathname: PATHS.HOST_INVENTORY(hostIdFromURL),
+    },
+    {
+      name: "Library",
+      title: "library",
+      pathname: PATHS.HOST_LIBRARY(hostIdFromURL),
+    },
+  ];
+
   const getTabIndex = (path: string): number => {
     return hostDetailsSubNav.findIndex((navItem) => {
+      // tab stays highlighted for paths that ends with same pathname
+      return path.startsWith(navItem.pathname);
+    });
+  };
+
+  const getSoftwareTabIndex = (path: string): number => {
+    return hostSoftwareSubNav.findIndex((navItem) => {
       // tab stays highlighted for paths that ends with same pathname
       return path.endsWith(navItem.pathname);
     });
@@ -850,6 +893,11 @@ const HostDetailsPage = ({
 
   const navigateToNav = (i: number): void => {
     const navPath = hostDetailsSubNav[i].pathname;
+    router.push(navPath);
+  };
+
+  const navigateToSoftwareTab = (i: number): void => {
+    const navPath = hostSoftwareSubNav[i].pathname;
     router.push(navPath);
   };
 
@@ -888,6 +936,8 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
+  const isSoftwareLibrarySupported = isPremiumTier && !isAndroidHost;
+
   const showUsersCard =
     isDarwinHost ||
     generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
@@ -898,6 +948,88 @@ const HostDetailsPage = ({
   const showCertificatesCard =
     (isIosOrIpadosHost || isDarwinHost) &&
     !!hostCertificates?.certificates.length;
+
+  const renderSoftwareCard = () => {
+    return (
+      <Card
+        className={`${baseClass}__software-card`}
+        borderRadiusSize="xxlarge"
+        paddingSize="xlarge"
+        includeShadow
+      >
+        {isSoftwareLibrarySupported ? (
+          <>
+            <TabList>
+              <Tab>Inventory</Tab>
+              <Tab>Library</Tab>
+            </TabList>
+            <TabPanel>
+              <SoftwareInventoryCard
+                id={host.id}
+                platform={host.platform}
+                softwareUpdatedAt={host.software_updated_at}
+                isSoftwareEnabled={featuresConfig?.enable_software_inventory}
+                router={router}
+                queryParams={parseHostSoftwareQueryParams(location.query)}
+                pathname={location.pathname}
+                onShowSoftwareDetails={setSelectedSoftwareDetails}
+                hostTeamId={host.team_id || 0}
+              />
+              {isDarwinHost && macadmins?.munki?.version && (
+                <MunkiIssuesCard
+                  isLoading={isLoadingHost}
+                  munkiIssues={macadmins.munki_issues}
+                  deviceType={host?.platform === "darwin" ? "macos" : ""}
+                />
+              )}
+            </TabPanel>
+            <TabPanel>
+              <SoftwareLibraryCard
+                id={host.id}
+                platform={host.platform}
+                softwareUpdatedAt={host.software_updated_at}
+                hostScriptsEnabled={host.scripts_enabled || false}
+                isSoftwareEnabled={featuresConfig?.enable_software_inventory}
+                router={router}
+                queryParams={{
+                  ...parseHostSoftwareQueryParams(location.query),
+                  available_for_install: true,
+                }}
+                pathname={location.pathname}
+                onShowSoftwareDetails={onShowSoftwareDetails}
+                onShowUninstallDetails={onShowUninstallDetails}
+                hostTeamId={host.team_id || 0}
+                hostName={host.display_name}
+                hostMDMEnrolled={host.mdm.connected_to_fleet}
+                isHostOnline={host.status === "online"}
+              />
+            </TabPanel>
+          </>
+        ) : (
+          <>
+            <SoftwareInventoryCard
+              id={host.id}
+              platform={host.platform}
+              softwareUpdatedAt={host.software_updated_at}
+              isSoftwareEnabled={featuresConfig?.enable_software_inventory}
+              router={router}
+              queryParams={parseHostSoftwareQueryParams(location.query)}
+              pathname={location.pathname}
+              onShowSoftwareDetails={setSelectedSoftwareDetails}
+              hostTeamId={host.team_id || 0}
+            />
+            {isDarwinHost && macadmins?.munki?.version && (
+              <MunkiIssuesCard
+                isLoading={isLoadingHost}
+                munkiIssues={macadmins.munki_issues}
+                deviceType={host?.platform === "darwin" ? "macos" : ""}
+              />
+            )}
+          </>
+        )}
+      </Card>
+    );
+  };
 
   return (
     <MainContent className={baseClass}>
@@ -1060,27 +1192,14 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              <SoftwareCard
-                id={host.id}
-                platform={host.platform}
-                softwareUpdatedAt={host.software_updated_at}
-                hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
-                hostScriptsEnabled={host.scripts_enabled || false}
-                isSoftwareEnabled={featuresConfig?.enable_software_inventory}
-                router={router}
-                queryParams={parseHostSoftwareQueryParams(location.query)}
-                pathname={location.pathname}
-                onShowSoftwareDetails={setSelectedSoftwareDetails}
-                hostTeamId={host.team_id || 0}
-                hostMDMEnrolled={host.mdm.connected_to_fleet}
-              />
-              {isDarwinHost && macadmins?.munki?.version && (
-                <MunkiIssuesCard
-                  isLoading={isLoadingHost}
-                  munkiIssues={macadmins.munki_issues}
-                  deviceType={host?.platform === "darwin" ? "macos" : ""}
-                />
-              )}
+              <TabNav className={`${baseClass}__software-tab-nav`}>
+                <Tabs
+                  selectedIndex={getSoftwareTabIndex(location.pathname)}
+                  onSelect={(i) => navigateToSoftwareTab(i)}
+                >
+                  {renderSoftwareCard()}
+                </Tabs>
+              </TabNav>
             </TabPanel>
             <TabPanel>
               <QueriesCard

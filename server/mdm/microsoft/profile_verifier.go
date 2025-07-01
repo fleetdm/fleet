@@ -87,7 +87,12 @@ func VerifyHostMDMProfiles(ctx context.Context, logger log.Logger, ds fleet.Prof
 		return ctxerr.Wrap(ctx, err, "transforming policy results")
 	}
 
-	verified, missing, err := compareResultsToExpectedProfiles(ctx, logger, ds, host, profileResults)
+	existingProfiles, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting existing windows host profiles")
+	}
+
+	verified, missing, err := compareResultsToExpectedProfiles(ctx, logger, ds, host, profileResults, existingProfiles)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "comparing results to expected profiles")
 	}
@@ -140,10 +145,17 @@ func splitMissingProfilesIntoFailAndRetryBuckets(ctx context.Context, ds fleet.P
 }
 
 func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds fleet.ProfileVerificationStore, host *fleet.Host,
-	profileResults profileResultsTransform,
+	profileResults profileResultsTransform, existingProfiles []fleet.HostMDMWindowsProfile,
 ) (verified map[string]struct{}, missing map[string]struct{}, err error) {
 	missing = map[string]struct{}{}
 	verified = map[string]struct{}{}
+
+	// Map existing profiles for this host by UUID for easier lookup for certain edge cases
+	windowsProfilesByID := make(map[string]fleet.HostMDMWindowsProfile, len(existingProfiles))
+	for _, existingProfile := range existingProfiles {
+		windowsProfilesByID[existingProfile.ProfileUUID] = existingProfile
+	}
+
 	err = LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
 		// if we didn't get a status for a LocURI, mark the profile as missing.
 		gotStatus, ok := profileResults.cmdRefToStatus[ref]
@@ -154,13 +166,21 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds
 		// it's okay if we didn't get a result
 		gotResults := profileResults.cmdRefToResult[ref]
 		// non-200 status don't have results. Consider it failed
-		// TODO: should we be more granular instead? eg: special case
-		// `4xx` responses? I'm sure there are edge cases we're not
-		// accounting for here, but it's unclear at this moment.
+		// unless it falls into a special case we know about.
+		// TODO: There are likely more to be added
 		var equal bool
 		switch {
 		case !strings.HasPrefix(gotStatus, "2"):
 			equal = false
+			// For unknown reasons these always return a 404 so mark as equal in that case if
+			// the profile is verifying(meaning MDM protocol returned a good status) or verified
+			if gotStatus == "404" && (IsADMXInstallConfigOperationCSP(locURI) || IsWin32OrDesktopBridgeADMXCSP(locURI)) {
+				if existingProfile, ok := windowsProfilesByID[profile.ProfileUUID]; ok && existingProfile.Status != nil &&
+					(*existingProfile.Status == fleet.MDMDeliveryVerified || *existingProfile.Status == fleet.MDMDeliveryVerifying) {
+					level.Debug(logger).Log("msg", "ADMX policy install operation or Win32/Desktop Bridge ADMX policy returned 404, marking as verified", "profile_uuid", profile.ProfileUUID, "host_id", host.ID, "locuri", locURI)
+					equal = true
+				}
+			}
 		case wantData == gotResults:
 			equal = true
 		case wlanxml.IsWLANXML(wantData):
@@ -232,4 +252,22 @@ func transformProfileResults(rawProfileResultsSyncML []byte) (profileResultsTran
 		}
 	}
 	return transform, nil
+}
+
+// These two methods are for detection of ADMX ingestion and Win32/Desktop Bridge ADMX policies.
+// Documentation here: https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration
+// For reasons not entirely clear, attempting to use the Get verb to fetch the results of either the
+// ADMXInstall operatiion or the config then installed against it will return a 404 so for now the best
+// we can do is detect them and mark them as verified.
+func IsADMXInstallConfigOperationCSP(locURI string) bool {
+	normalizedLocURI := strings.ToLower(locURI)
+	return strings.HasPrefix(normalizedLocURI, "./vendor/msft/policy/configoperations/admxinstall/") || strings.HasPrefix(normalizedLocURI, "./device/vendor/msft/policy/configoperations/admxinstall")
+}
+
+func IsWin32OrDesktopBridgeADMXCSP(locURI string) bool {
+	normalizedLocURI := strings.ToLower(locURI)
+	if strings.HasPrefix(normalizedLocURI, "./vendor/msft/policy/config/") || strings.HasPrefix(normalizedLocURI, "./user/vendor/msft/policy/config/") || strings.HasPrefix(normalizedLocURI, "./device/vendor/msft/policy/config/") {
+		return strings.Contains(normalizedLocURI, "~")
+	}
+	return false
 }

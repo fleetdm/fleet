@@ -63,6 +63,8 @@ type generateGitopsClient interface {
 	ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
 	GetProfileContents(profileID string) ([]byte, error)
+	GetEULAMetadata() (*fleet.MDMEULA, error)
+	GetEULAContent(token string) ([]byte, error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
 	GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error)
@@ -750,8 +752,43 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	return result, nil
 }
 
+func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
+	// Download the eula metadata for the token.
+	eulaMetadata, err := cmd.Client.GetEULAMetadata()
+	if err != nil {
+		// not found is OK, it means the user has not uploaded a EULA yet.
+		if strings.Contains(err.Error(), "Resource Not Found") {
+			return "", nil
+		}
+
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting eula metadata: %s\n", err)
+		return "", err
+	}
+
+	// now we want the eula contents, which is a PDF.
+	eulaContent, err := cmd.Client.GetEULAContent(eulaMetadata.Token)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting eula contents: %s\n", err)
+		return "", err
+	}
+
+	fileName := fmt.Sprintf("lib/eula/%s", eulaMetadata.Name)
+	cmd.FilesToWrite[fileName] = string(eulaContent)
+	path := fmt.Sprintf("./%s", fileName)
+
+	return path, nil
+}
+
+// This struct is used to represent the MDM configuration that is used with GitOps.
+// It includes an additonal end user license agreement (EULA) field, which is
+// not present in the fleet.MDM struct.
+type gitopsMDM struct {
+	fleet.MDM
+	EndUserLicenseAgreement string `json:"end_user_license_agreement,omitempty"`
+}
+
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
-	t := reflect.TypeOf(fleet.MDM{})
+	t := reflect.TypeOf(gitopsMDM{})
 	result := map[string]interface{}{
 		jsonFieldName(t, "AppleServerURL"):        mdm.AppleServerURL,
 		jsonFieldName(t, "EndUserAuthentication"): mdm.EndUserAuthentication,
@@ -759,6 +796,13 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
 		result[jsonFieldName(t, "VolumePurchasingProgram")] = mdm.VolumePurchasingProgram
+
+		eulaPath, err := cmd.generateEULA()
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating EULA: %s\n", err)
+			return nil, err
+		}
+		result[jsonFieldName(t, "EndUserLicenseAgreement")] = eulaPath
 	}
 
 	if !cmd.CLI.Bool("insecure") {
@@ -1122,10 +1166,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 	packages := make([]map[string]interface{}, 0)
 	appStoreApps := make([]map[string]interface{}, 0)
 	for _, sw := range software {
-		versions := make([]string, len(sw.Versions))
-		for j, version := range sw.Versions {
-			versions[j] = version.Version
-		}
 		softwareSpec := make(map[string]interface{})
 		switch {
 		case sw.SoftwarePackage != nil:
@@ -1133,7 +1173,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			if sw.SoftwarePackage.Name != "" {
 				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
 			}
-			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, strings.Join(versions, ", ")))
+			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
 			if sw.HashSHA256 == nil {
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: filePath,
@@ -1207,6 +1247,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			if softwareTitle.SoftwarePackage.SelfService {
 				softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
 			}
+
+			if softwareTitle.SoftwarePackage.URL != "" {
+				softwareSpec["url"] = softwareTitle.SoftwarePackage.URL
+			}
 		}
 
 		if cmd.AppConfig.License.IsPremium() {
@@ -1279,10 +1323,13 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 		if label.Platform != "" {
 			labelSpec[jsonFieldName(t, "Platform")] = label.Platform
 		}
-		if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic {
-			labelSpec[jsonFieldName(t, "Query")] = label.Query
-		} else {
+		switch label.LabelMembershipType {
+		case fleet.LabelMembershipTypeManual:
 			labelSpec[jsonFieldName(t, "Hosts")] = label.Hosts
+		case fleet.LabelMembershipTypeDynamic:
+			labelSpec[jsonFieldName(t, "Query")] = label.Query
+		case fleet.LabelMembershipTypeHostVitals:
+			labelSpec[jsonFieldName(t, "HostVitalsCriteria")] = label.HostVitalsCriteria
 		}
 
 		result = append(result, labelSpec)

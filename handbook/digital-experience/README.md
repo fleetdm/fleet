@@ -453,7 +453,7 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 
 ### Grant equity
 
-Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/digital-experience#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
+Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/digital-experience#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose). Any offer of equity >2500 shares must be approved by the CEO.  Offers of equity >0.25% must be approved by the board.
 
 Doing an equity grant involves:
 - Executing a board consent
@@ -546,7 +546,7 @@ Then, to finalize a new advisor after signing is complete:
 
 ### Approve a new position
 
-When review is requested on a proposal to open a new position, the Apprentice to the CEO will complete the following steps when reviewing the pull request:
+When review is requested on a proposal to open a new position, the Head of Digital Experience will complete the following steps when reviewing the pull request:
 1. Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is set to the first Monday of the next month.
 2. Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. Ballpark and document compensation research for the role based on 
@@ -724,7 +724,7 @@ We like to be open about milestones and announcements. Every Friday, e-group mem
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
 
-#### Share recording of all hands meeting
+### Share recording of all hands meeting
 
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
@@ -935,7 +935,7 @@ Once a week, the Apprentice will review the "community activity report" and add 
 
 ### Schedule travel for the CEO
 
-The Apprentice schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
+The Apprentice will verify daily that the CEO's calendar is accurate for any commitment or booked travel. The Apprentice is the DRI for scheduling all travel arrangements for the CEO, including flights, hotels, and reservations if needed. The CEO's traveling preferences in descending order of importance are:
   - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
   - Select a non-middle seat, whenever possible
   - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
@@ -943,6 +943,7 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
   - Default to carry-on only, no checked bags.  (For trips longer than 5 nights, add 1 checked bag.)
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
+  - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
 
 
 ### Schedule CEO interview

@@ -201,31 +201,18 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 	case "available_for_install=1&team_id=1":
 		return []fleet.SoftwareTitleListResult{
 			{
-				ID:   1,
-				Name: "My Software Package",
-				Versions: []fleet.SoftwareVersion{{
-					ID:      1,
-					Version: "1.0.0",
-				}, {
-					ID:      2,
-					Version: "2.0.0",
-				}},
+				ID:         1,
+				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
 					Name:     "my-software.pkg",
 					Platform: "darwin",
+					Version:  "13.37",
 				},
 			},
 			{
 				ID:   2,
 				Name: "My App Store App",
-				Versions: []fleet.SoftwareVersion{{
-					ID:      3,
-					Version: "5.6.7",
-				}, {
-					ID:      4,
-					Version: "8.9.10",
-				}},
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID: "com.example.team-software",
 				},
@@ -340,6 +327,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				UninstallScript:   "baz",
 				SelfService:       true,
 				Platform:          "darwin",
+				URL:               "https://example.com/download/my-software.pkg",
 			},
 		}, nil
 	case 2:
@@ -373,6 +361,11 @@ func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
 		Description:         "Label B description",
 		LabelMembershipType: fleet.LabelMembershipTypeManual,
 		Hosts:               []string{"host1", "host2"},
+	}, {
+		Name:                "Label C",
+		Description:         "Label C description",
+		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+		HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital": "end_user_idp_group", "value": "some-group"}`)),
 	}}, nil
 }
 
@@ -383,6 +376,17 @@ func (MockClient) Me() (*fleet.User, error) {
 		Email:      "test@example.com",
 		GlobalRole: ptr.String("admin"),
 	}, nil
+}
+
+func (MockClient) GetEULAMetadata() (*fleet.MDMEULA, error) {
+	return &fleet.MDMEULA{
+		Name:  "test.pdf",
+		Token: "test-eula-token",
+	}, nil
+}
+
+func (MockClient) GetEULAContent(token string) ([]byte, error) {
+	return []byte("This is the EULA content."), nil
 }
 
 func compareDirs(t *testing.T, sourceDir, targetDir string) {

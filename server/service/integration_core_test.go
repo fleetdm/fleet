@@ -1789,11 +1789,19 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// Filter by inexistent software.
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(9999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_version_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(9999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_title_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_title_id", fmt.Sprint(9999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.SoftwareTitle)
 
 	// Filter by non-existent team.
 	resp = listHostsResponse{}
@@ -3237,6 +3245,13 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
+	require.NotNil(t, getResp.Host.TeamID)
+	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
+	require.NotNil(t, getResp.Host.TeamName)
+	require.Equal(t, tm1.Name, *getResp.Host.TeamName)
+
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[1].ID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
@@ -4235,373 +4250,492 @@ func (s *integrationTestSuite) TestLabels() {
 	manualHosts := hosts[:3]
 	lbl2Hosts := hosts[3:]
 
-	// list labels, has the built-in ones
-	builtinsMap := fleet.ReservedLabelNames()
-	var listResp listLabelsResponse
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
-	assert.True(t, len(listResp.Labels) > 0)
-	var builtinLbl fleet.Label
-	for _, lbl := range listResp.Labels {
-		_, ok := builtinsMap[lbl.Name]
-		assert.True(t, ok)
-		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
-		builtinLbl = lbl.Label
-	}
-	builtInsCount := len(listResp.Labels)
-	require.Equal(t, builtInsCount, len(builtinsMap))
+	t.Run("Manual and Dynamic Labels", func(t *testing.T) {
+		// list labels, has the built-in ones
+		builtinsMap := fleet.ReservedLabelNames()
+		var listResp listLabelsResponse
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+		assert.True(t, len(listResp.Labels) > 0)
+		var builtinLbl fleet.Label
+		for _, lbl := range listResp.Labels {
+			_, ok := builtinsMap[lbl.Name]
+			assert.True(t, ok)
+			assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+			builtinLbl = lbl.Label
+		}
+		builtInsCount := len(listResp.Labels)
+		require.Equal(t, builtInsCount, len(builtinsMap))
 
-	// labels summary has the built-in ones
-	var summaryResp getLabelsSummaryResponse
-	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
-	assert.Len(t, summaryResp.Labels, builtInsCount)
-	for _, lbl := range summaryResp.Labels {
-		_, ok := builtinsMap[lbl.Name]
-		assert.True(t, ok)
-		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
-	}
+		// labels summary has the built-in ones
+		var summaryResp getLabelsSummaryResponse
+		s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
+		assert.Len(t, summaryResp.Labels, builtInsCount)
+		for _, lbl := range summaryResp.Labels {
+			_, ok := builtinsMap[lbl.Name]
+			assert.True(t, ok)
+			assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+		}
 
-	// create a label without name, an error
-	var createResp createLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
+		// create a label without name, an error
+		var createResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
 
-	// create a label with both a query and hosts, error
-	res := s.Do("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1", Hosts: []string{manualHosts[0].UUID}}, http.StatusUnprocessableEntity)
-	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of either "query" or "hosts/host_ids" can be included in the request.`)
+		// create a label with both a query and hosts, error
+		res := s.Do("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1", Hosts: []string{manualHosts[0].UUID}}, http.StatusUnprocessableEntity)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
 
-	// create invalid label, conflicts with builtin name
-	for n := range builtinsMap {
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: n, Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
-	}
+		// create invalid label, conflicts with builtin name
+		for n := range builtinsMap {
+			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: n, Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
+		}
 
-	// create a valid dynamic label
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1"}, http.StatusOK, &createResp)
-	assert.NotZero(t, createResp.Label.ID)
-	assert.Equal(t, t.Name(), createResp.Label.Name)
-	assert.Empty(t, createResp.Label.HostIDs)
-	lbl1 := createResp.Label.Label
+		// create a valid dynamic label
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1"}, http.StatusOK, &createResp)
+		assert.NotZero(t, createResp.Label.ID)
+		assert.Equal(t, t.Name(), createResp.Label.Name)
+		assert.Empty(t, createResp.Label.HostIDs)
+		lbl1 := createResp.Label.Label
 
-	// try to create a manual label with the same name
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: lbl1.Name, Hosts: []string{manualHosts[0].UUID}}, http.StatusConflict, &createResp)
-	// try to create a dynamic label with the same name
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: lbl1.Name, Query: "select 2"}, http.StatusConflict, &createResp)
+		// try to create a manual label with the same name
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: lbl1.Name, Hosts: []string{manualHosts[0].UUID}}, http.StatusConflict, &createResp)
+		// try to create a dynamic label with the same name
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: lbl1.Name, Query: "select 2"}, http.StatusConflict, &createResp)
 
-	// get the label
-	var getResp getLabelResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), nil, http.StatusOK, &getResp)
-	assert.Equal(t, lbl1.ID, getResp.Label.ID)
-	assert.Empty(t, getResp.Label.HostIDs)
+		// get the label
+		var getResp getLabelResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), nil, http.StatusOK, &getResp)
+		assert.Equal(t, lbl1.ID, getResp.Label.ID)
+		assert.Empty(t, getResp.Label.HostIDs)
 
-	// get a non-existing label
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID+1), nil, http.StatusNotFound, &getResp)
+		// get a non-existing label
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID+1), nil, http.StatusNotFound, &getResp)
 
-	// create a valid manual label
-	createResp = createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name() + "manual", Hosts: []string{manualHosts[0].UUID, manualHosts[1].Hostname, *manualHosts[2].NodeKey}}, http.StatusOK, &createResp)
-	assert.NotZero(t, createResp.Label.ID)
-	assert.Equal(t, t.Name()+"manual", createResp.Label.Name)
-	assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, createResp.Label.HostIDs)
-	manualLbl1 := createResp.Label.Label
+		// create a valid manual label
+		createResp = createLabelResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name() + "manual", Hosts: []string{manualHosts[0].UUID, manualHosts[1].Hostname, *manualHosts[2].NodeKey}}, http.StatusOK, &createResp)
+		assert.NotZero(t, createResp.Label.ID)
+		assert.Equal(t, t.Name()+"manual", createResp.Label.Name)
+		assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, createResp.Label.HostIDs)
+		manualLbl1 := createResp.Label.Label
 
-	// get the label
-	getResp = getLabelResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl1.ID), nil, http.StatusOK, &getResp)
-	assert.Equal(t, manualLbl1.ID, getResp.Label.ID)
-	assert.Equal(t, fleet.LabelTypeRegular, getResp.Label.LabelType)
-	assert.Equal(t, fleet.LabelMembershipTypeManual, getResp.Label.LabelMembershipType)
-	assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, getResp.Label.HostIDs)
-	assert.EqualValues(t, 3, getResp.Label.HostCount)
+		// get the label
+		getResp = getLabelResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl1.ID), nil, http.StatusOK, &getResp)
+		assert.Equal(t, manualLbl1.ID, getResp.Label.ID)
+		assert.Equal(t, fleet.LabelTypeRegular, getResp.Label.LabelType)
+		assert.Equal(t, fleet.LabelMembershipTypeManual, getResp.Label.LabelMembershipType)
+		assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, getResp.Label.HostIDs)
+		assert.EqualValues(t, 3, getResp.Label.HostCount)
 
-	// create a valid empty manual label
-	createResp = createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ReplaceAll(t.Name(), "/", "_") + "manual2"}, http.StatusOK, &createResp)
-	assert.NotZero(t, createResp.Label.ID)
-	assert.Equal(t, strings.ReplaceAll(t.Name(), "/", "_")+"manual2", createResp.Label.Name)
-	assert.Empty(t, createResp.Label.HostIDs)
-	manualLbl2 := createResp.Label.Label
+		// create a valid empty manual label
+		createResp = createLabelResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ReplaceAll(t.Name(), "/", "_") + "manual2"}, http.StatusOK, &createResp)
+		assert.NotZero(t, createResp.Label.ID)
+		assert.Equal(t, strings.ReplaceAll(t.Name(), "/", "_")+"manual2", createResp.Label.Name)
+		assert.Empty(t, createResp.Label.HostIDs)
+		manualLbl2 := createResp.Label.Label
 
-	// try to create a manual label with the same name
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: manualLbl2.Name, Hosts: []string{manualHosts[0].UUID}}, http.StatusConflict, &createResp)
-	// try to create a dynamic label with the same name
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: manualLbl2.Name, Query: "select 2"}, http.StatusConflict, &createResp)
+		// try to create a manual label with the same name
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: manualLbl2.Name, Hosts: []string{manualHosts[0].UUID}}, http.StatusConflict, &createResp)
+		// try to create a dynamic label with the same name
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: manualLbl2.Name, Query: "select 2"}, http.StatusConflict, &createResp)
 
-	// get the label
-	getResp = getLabelResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), nil, http.StatusOK, &getResp)
-	assert.Equal(t, manualLbl2.ID, getResp.Label.ID)
-	assert.Equal(t, fleet.LabelTypeRegular, getResp.Label.LabelType)
-	assert.Equal(t, fleet.LabelMembershipTypeManual, getResp.Label.LabelMembershipType)
-	assert.Empty(t, getResp.Label.HostIDs)
-	assert.EqualValues(t, 0, getResp.Label.HostCount)
+		// get the label
+		getResp = getLabelResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), nil, http.StatusOK, &getResp)
+		assert.Equal(t, manualLbl2.ID, getResp.Label.ID)
+		assert.Equal(t, fleet.LabelTypeRegular, getResp.Label.LabelType)
+		assert.Equal(t, fleet.LabelMembershipTypeManual, getResp.Label.LabelMembershipType)
+		assert.Empty(t, getResp.Label.HostIDs)
+		assert.EqualValues(t, 0, getResp.Label.HostCount)
 
-	// get a non-existing label
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", 9999), nil, http.StatusNotFound, &getResp)
+		// get a non-existing label
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", 9999), nil, http.StatusNotFound, &getResp)
 
-	// modify dynamic label lbl1
-	var modResp modifyLabelResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(t.Name() + "zzz")}, http.StatusOK, &modResp)
-	assert.Equal(t, lbl1.ID, modResp.Label.ID)
-	assert.Empty(t, modResp.Label.HostIDs)
-	assert.NotEqual(t, lbl1.Name, modResp.Label.Name)
+		// modify dynamic label lbl1
+		var modResp modifyLabelResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(t.Name() + "zzz")}, http.StatusOK, &modResp)
+		assert.Equal(t, lbl1.ID, modResp.Label.ID)
+		assert.Empty(t, modResp.Label.HostIDs)
+		assert.NotEqual(t, lbl1.Name, modResp.Label.Name)
 
-	// attempt to modify a label to a reserved name
-	for n := range builtinsMap {
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(n)}, http.StatusUnprocessableEntity, &modResp)
-	}
+		// attempt to modify a label to a reserved name
+		for n := range builtinsMap {
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(n)}, http.StatusUnprocessableEntity, &modResp)
+		}
 
-	// modify a non-existing label
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", 9999), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusNotFound, &modResp)
-	// modify a built-in label
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", builtinLbl.ID), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "cannot modify built-in label")
+		// modify a non-existing label
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", 9999), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusNotFound, &modResp)
+		// modify a built-in label
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", builtinLbl.ID), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "cannot modify built-in label")
 
-	// modify manual label 1 without modifying its hosts
-	modResp = modifyLabelResponse{}
-	newName := "modified_manual_label1"
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl1.ID), &fleet.ModifyLabelPayload{Name: &newName}, http.StatusOK,
-		&modResp)
-	assert.Equal(t, manualLbl1.ID, modResp.Label.ID)
-	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
-	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
-	assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
-	assert.EqualValues(t, 3, modResp.Label.HostCount)
-	assert.Equal(t, newName, modResp.Label.Name)
+		// modify manual label 1 without modifying its hosts
+		modResp = modifyLabelResponse{}
+		newName := "modified_manual_label1"
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl1.ID), &fleet.ModifyLabelPayload{Name: &newName}, http.StatusOK,
+			&modResp)
+		assert.Equal(t, manualLbl1.ID, modResp.Label.ID)
+		assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+		assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+		assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
+		assert.EqualValues(t, 3, modResp.Label.HostCount)
+		assert.Equal(t, newName, modResp.Label.Name)
 
-	// add a host with the same name as another host to manual label 2, confirm only one host is added
-	sameName, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		HardwareSerial: "ABCDE",
-		Hostname:       manualHosts[0].Hostname,
-		Platform:       "darwin",
-	})
-	require.NoError(t, err)
-
-	modResp = modifyLabelResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
-		&fleet.ModifyLabelPayload{Hosts: []string{sameName.HardwareSerial}}, http.StatusOK, &modResp)
-	assert.Len(t, modResp.Label.HostIDs, 1)
-	assert.NotEqual(t, manualHosts[0].ID, modResp.Label.HostIDs[0])
-	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
-	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
-	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
-	assert.ElementsMatch(t, []uint{sameName.ID}, modResp.Label.HostIDs)
-	assert.EqualValues(t, 1, modResp.Label.HostCount)
-
-	// modify manual label 2 adding some hosts
-	modResp = modifyLabelResponse{}
-	newName = "modified_manual_label2"
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
-		&fleet.ModifyLabelPayload{Name: &newName, Hosts: []string{manualHosts[0].UUID}}, http.StatusOK, &modResp)
-	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
-	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
-	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
-	assert.ElementsMatch(t, []uint{manualHosts[0].ID}, modResp.Label.HostIDs)
-	assert.EqualValues(t, 1, modResp.Label.HostCount)
-	assert.Equal(t, newName, modResp.Label.Name)
-	manualLbl2.Name = newName
-
-	// modify manual label 2 adding some hosts by ID
-	modResp = modifyLabelResponse{}
-	newName = "modified_manual_label2"
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
-		&fleet.ModifyLabelPayload{Name: &newName, HostIDs: []uint{manualHosts[1].ID, manualHosts[2].ID}}, http.StatusOK, &modResp)
-	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
-	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
-	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
-	assert.ElementsMatch(t, []uint{manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
-	assert.EqualValues(t, 2, modResp.Label.HostCount)
-	assert.Equal(t, newName, modResp.Label.Name)
-	manualLbl2.Name = newName
-
-	// modify manual label 2 clearing its hosts
-	modResp = modifyLabelResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{}, Description: ptr.String("desc")}, http.StatusOK, &modResp)
-	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
-	assert.Equal(t, "desc", modResp.Label.Description)
-	assert.Empty(t, modResp.Label.HostIDs)
-	assert.EqualValues(t, 0, modResp.Label.HostCount)
-
-	// list labels
-	dynamicLabels := []fleet.Label{lbl1}
-	manualLabels := []fleet.Label{manualLbl1, manualLbl2}
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(100))
-	assert.Len(t, listResp.Labels, builtInsCount+len(dynamicLabels)+len(manualLabels))
-
-	// labels summary
-	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
-	assert.Len(t, summaryResp.Labels, builtInsCount+len(dynamicLabels)+len(manualLabels))
-
-	// next page is empty
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "100", "page", "1")
-	assert.Len(t, listResp.Labels, 0)
-
-	// list labels with invalid query params
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "per_page", strconv.Itoa(builtInsCount+1), "order_key", "id", "after", "1")
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "per_page", strconv.Itoa(builtInsCount+1), "query", "no match query for this endpoint")
-
-	// create another dynamic label
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ReplaceAll(t.Name(), "/", "_"), Query: "select 1"}, http.StatusOK, &createResp)
-	assert.NotZero(t, createResp.Label.ID)
-	lbl2 := createResp.Label.Label
-	dynamicLabels = append(dynamicLabels, lbl2)
-	require.Len(t, dynamicLabels, 2) // to make linter happy (dynamicLabels is not used past this point)
-
-	// add lbl2 hosts to that label
-	for _, h := range lbl2Hosts {
-		err := s.ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+		// add a host with the same name as another host to manual label 2, confirm only one host is added
+		sameName, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			HardwareSerial: "ABCDE",
+			Hostname:       manualHosts[0].Hostname,
+			Platform:       "darwin",
+		})
 		require.NoError(t, err)
-	}
 
-	// list hosts in dynamic label lbl2
-	var listHostsResp listHostsResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
-	assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts))
+		modResp = modifyLabelResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+			&fleet.ModifyLabelPayload{Hosts: []string{sameName.HardwareSerial}}, http.StatusOK, &modResp)
+		assert.Len(t, modResp.Label.HostIDs, 1)
+		assert.NotEqual(t, manualHosts[0].ID, modResp.Label.HostIDs[0])
+		assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+		assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+		assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+		assert.ElementsMatch(t, []uint{sameName.ID}, modResp.Label.HostIDs)
+		assert.EqualValues(t, 1, modResp.Label.HostCount)
 
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id", "after", fmt.Sprintf("%d", lbl2Hosts[0].ID))
-	assert.Len(t, listHostsResp.Hosts, 2)
-	assert.Equal(t, lbl2Hosts[1].ID, listHostsResp.Hosts[0].ID)
-	assert.Equal(t, lbl2Hosts[2].ID, listHostsResp.Hosts[1].ID)
+		// modify manual label 2 adding some hosts
+		modResp = modifyLabelResponse{}
+		newName = "modified_manual_label2"
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+			&fleet.ModifyLabelPayload{Name: &newName, Hosts: []string{manualHosts[0].UUID}}, http.StatusOK, &modResp)
+		assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+		assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+		assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+		assert.ElementsMatch(t, []uint{manualHosts[0].ID}, modResp.Label.HostIDs)
+		assert.EqualValues(t, 1, modResp.Label.HostCount)
+		assert.Equal(t, newName, modResp.Label.Name)
+		manualLbl2.Name = newName
 
-	// list hosts in manual label 1
-	listHostsResp = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", manualLbl1.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id")
-	assert.Len(t, listHostsResp.Hosts, manualLbl1.HostCount)
-	assert.Equal(t, manualHosts[0].ID, listHostsResp.Hosts[0].ID)
-	assert.Equal(t, manualHosts[1].ID, listHostsResp.Hosts[1].ID)
-	assert.Equal(t, manualHosts[2].ID, listHostsResp.Hosts[2].ID)
+		// modify manual label 2 adding some hosts by ID
+		modResp = modifyLabelResponse{}
+		newName = "modified_manual_label2"
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+			&fleet.ModifyLabelPayload{Name: &newName, HostIDs: []uint{manualHosts[1].ID, manualHosts[2].ID}}, http.StatusOK, &modResp)
+		assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+		assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+		assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+		assert.ElementsMatch(t, []uint{manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
+		assert.EqualValues(t, 2, modResp.Label.HostCount)
+		assert.Equal(t, newName, modResp.Label.Name)
+		manualLbl2.Name = newName
 
-	// list hosts in manual label 2
-	listHostsResp = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", manualLbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id")
-	assert.Len(t, listHostsResp.Hosts, 0)
+		// modify manual label 2 clearing its hosts
+		modResp = modifyLabelResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{}, Description: ptr.String("desc")}, http.StatusOK, &modResp)
+		assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+		assert.Equal(t, "desc", modResp.Label.Description)
+		assert.Empty(t, modResp.Label.HostIDs)
+		assert.EqualValues(t, 0, modResp.Label.HostCount)
 
-	// list hosts in dynamic label 2 searching by display_name
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "display_name", "order_direction", "desc")
-	assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts))
-	// first in the list is the last one, as the names are ordered with the index
-	// of creation, and vice-versa
-	assert.Equal(t, lbl2Hosts[len(lbl2Hosts)-1].ID, listHostsResp.Hosts[0].ID)
-	assert.Equal(t, lbl2Hosts[0].ID, listHostsResp.Hosts[len(lbl2Hosts)-1].ID)
+		// list labels
+		dynamicLabels := []fleet.Label{lbl1}
+		manualLabels := []fleet.Label{manualLbl1, manualLbl2}
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(100))
+		assert.Len(t, listResp.Labels, builtInsCount+len(dynamicLabels)+len(manualLabels))
 
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(
-			context.Background(),
-			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
-			lbl2Hosts[0].ID, "a@b.c", "src1")
+		// labels summary
+		s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
+		assert.Len(t, summaryResp.Labels, builtInsCount+len(dynamicLabels)+len(manualLabels))
 
-		return err
+		// next page is empty
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "100", "page", "1")
+		assert.Len(t, listResp.Labels, 0)
+
+		// list labels with invalid query params
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "per_page", strconv.Itoa(builtInsCount+1), "order_key", "id", "after", "1")
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "per_page", strconv.Itoa(builtInsCount+1), "query", "no match query for this endpoint")
+
+		// create another dynamic label
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ReplaceAll(t.Name(), "/", "_"), Query: "select 1"}, http.StatusOK, &createResp)
+		assert.NotZero(t, createResp.Label.ID)
+		lbl2 := createResp.Label.Label
+		dynamicLabels = append(dynamicLabels, lbl2)
+		require.Len(t, dynamicLabels, 2) // to make linter happy (dynamicLabels is not used past this point)
+
+		// add lbl2 hosts to that label
+		for _, h := range lbl2Hosts {
+			err := s.ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+			require.NoError(t, err)
+		}
+
+		// list hosts in dynamic label lbl2
+		var listHostsResp listHostsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
+		assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts))
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id", "after", fmt.Sprintf("%d", lbl2Hosts[0].ID))
+		assert.Len(t, listHostsResp.Hosts, 2)
+		assert.Equal(t, lbl2Hosts[1].ID, listHostsResp.Hosts[0].ID)
+		assert.Equal(t, lbl2Hosts[2].ID, listHostsResp.Hosts[1].ID)
+
+		// list hosts in manual label 1
+		listHostsResp = listHostsResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", manualLbl1.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id")
+		assert.Len(t, listHostsResp.Hosts, manualLbl1.HostCount)
+		assert.Equal(t, manualHosts[0].ID, listHostsResp.Hosts[0].ID)
+		assert.Equal(t, manualHosts[1].ID, listHostsResp.Hosts[1].ID)
+		assert.Equal(t, manualHosts[2].ID, listHostsResp.Hosts[2].ID)
+
+		// list hosts in manual label 2
+		listHostsResp = listHostsResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", manualLbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id")
+		assert.Len(t, listHostsResp.Hosts, 0)
+
+		// list hosts in dynamic label 2 searching by display_name
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "display_name", "order_direction", "desc")
+		assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts))
+		// first in the list is the last one, as the names are ordered with the index
+		// of creation, and vice-versa
+		assert.Equal(t, lbl2Hosts[len(lbl2Hosts)-1].ID, listHostsResp.Hosts[0].ID)
+		assert.Equal(t, lbl2Hosts[0].ID, listHostsResp.Hosts[len(lbl2Hosts)-1].ID)
+
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				context.Background(),
+				`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+				lbl2Hosts[0].ID, "a@b.c", "src1")
+
+			return err
+		})
+
+		// list hosts in label searching by email address
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "query", "a@b.c")
+		assert.Len(t, listHostsResp.Hosts, 1)
+		assert.Equal(t, lbl2Hosts[0].ID, listHostsResp.Hosts[0].ID)
+
+		// list hosts in label searching by email address with leading/trailing whitespace
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "query", "    a@b.c   ")
+		assert.Len(t, listHostsResp.Hosts, 1)
+		assert.Equal(t, lbl2Hosts[0].ID, listHostsResp.Hosts[0].ID)
+
+		// count hosts in label order by display_name
+		var countResp countHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "label_id", fmt.Sprint(lbl2.ID), "order_key", "display_name", "order_direction", "desc")
+		assert.Equal(t, len(lbl2Hosts), countResp.Count)
+
+		// lists hosts in label without hosts
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl1.ID), nil, http.StatusOK, &listHostsResp)
+		assert.Len(t, listHostsResp.Hosts, 0)
+
+		// count hosts in label
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "label_id", fmt.Sprint(lbl1.ID))
+		assert.Equal(t, 0, countResp.Count)
+
+		// lists hosts in invalid label
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID+1), nil, http.StatusOK, &listHostsResp)
+		assert.Len(t, listHostsResp.Hosts, 0)
+
+		// set MDM information on a host
+		require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), lbl2Hosts[0].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, ""))
+		var mdmID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &mdmID,
+				`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
+		})
+		// generate aggregated stats
+		require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+		// list host in label by mdm_id
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "mdm_id", fmt.Sprint(mdmID))
+		require.Len(t, listHostsResp.Hosts, 1)
+		assert.Nil(t, listHostsResp.Software)
+		assert.Nil(t, listHostsResp.MunkiIssue)
+		require.NotNil(t, listHostsResp.MDMSolution)
+		assert.Equal(t, mdmID, listHostsResp.MDMSolution.ID)
+		assert.Equal(t, fleet.WellKnownMDMSimpleMDM, listHostsResp.MDMSolution.Name)
+		assert.Equal(t, "https://simplemdm.com", listHostsResp.MDMSolution.ServerURL)
+
+		// delete a label by id
+		var delIDResp deleteLabelByIDResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl1.ID), nil, http.StatusOK, &delIDResp)
+
+		// delete a non-existing label by id
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID+1), nil, http.StatusNotFound, &delIDResp)
+
+		// delete a label by name
+		var delResp deleteLabelResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusOK, &delResp)
+
+		// delete a non-existing label by name
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusNotFound, &delResp)
+
+		// delete a manual label by id
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", manualLbl1.ID), nil, http.StatusOK, &delIDResp)
+
+		// delete a manual label by name
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(manualLbl2.Name)), nil, http.StatusOK, &delResp)
+
+		// list labels, only the built-ins remain
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
+		assert.Len(t, listResp.Labels, builtInsCount)
+		idsByName := make(map[string]uint, len(listResp.Labels))
+		for _, lbl := range listResp.Labels {
+			_, ok := builtinsMap[lbl.Name]
+			assert.True(t, ok)
+			assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+			idsByName[lbl.Name] = lbl.ID
+		}
+
+		// labels summary, only the built-ins remains
+		s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
+		assert.Len(t, summaryResp.Labels, builtInsCount)
+		for _, lbl := range summaryResp.Labels {
+			_, ok := builtinsMap[lbl.Name]
+			assert.True(t, ok)
+			assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+			assert.Equal(t, idsByName[lbl.Name], lbl.ID)
+		}
+
+		// host summary matches built-ins count
+		var hostSummaryResp getHostSummaryResponse
+		s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &hostSummaryResp)
+		assert.Len(t, hostSummaryResp.BuiltinLabels, builtInsCount)
+		for _, lbl := range hostSummaryResp.BuiltinLabels {
+			_, ok := builtinsMap[lbl.Name]
+			assert.True(t, ok)
+			assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+			assert.Equal(t, idsByName[lbl.Name], lbl.ID)
+		}
+
+		require.Len(t, idsByName, len(builtinsMap))
+		for name := range builtinsMap {
+			id, ok := idsByName[name]
+			require.True(t, ok)
+
+			// attempt to delete by name
+			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(name)), nil, http.StatusUnprocessableEntity, &delResp)
+
+			// attempt to delete by id
+			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", id), nil, http.StatusUnprocessableEntity, &delIDResp)
+		}
 	})
 
-	// list hosts in label searching by email address
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "query", "a@b.c")
-	assert.Len(t, listHostsResp.Hosts, 1)
-	assert.Equal(t, lbl2Hosts[0].ID, listHostsResp.Hosts[0].ID)
+	t.Run("IdP Labels", func(t *testing.T) {
+		// Add some SCIM users
+		mysql.ExecAdhocSQL(
+			t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO scim_users (id, user_name) VALUES (?, ?), (?, ?), (?, ?), (?, ?)",
+					1,
+					"no_groups",
+					2,
+					"one_group",
+					3,
+					"all_the_groups",
+					4,
+					"wrong_groups",
+				)
+				return err
+			},
+		)
+		// Add some SCIM groups
+		mysql.ExecAdhocSQL(
+			t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO scim_groups (id, display_name) VALUES (?, ?), (?, ?), (?, ?)",
+					1,
+					"group_good",
+					2,
+					"group_bad",
+					3,
+					"group_great",
+				)
+				return err
+			},
+		)
+		// Add some SCIM group memberships
+		mysql.ExecAdhocSQL(
+			t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO scim_user_group (scim_user_id, group_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)",
+					2, 1, // "one_group" -> "group_good"
+					3, 1, // "all_the_groups" -> "group_good"
+					3, 2, // "all_the_groups" -> "group_bad"
+					3, 3, // "all_the_groups" -> "group_great"
+					4, 2, // "wrong_groups" -> "group_bad"
+				)
+				return err
+			},
+		)
+		// Add some host->scim user mappings
+		mysql.ExecAdhocSQL(
+			t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)",
+					hosts[0].ID, 1, // host 1 shouldn't be returned because its scim user has no groups
+					hosts[1].ID, 2, // host 2 should be returned because its scim user has the "group_good" group
+					hosts[2].ID, 3, // host 3 should be returned because it has a scim user with the "group_good" group
+					hosts[3].ID, 2, // host 4 should be returned because it has a scim user with the "group_good" group
+					hosts[4].ID, 4, // host 5 shouldn't be returned because its scim user only has the "group_bad" group
+					// host 6 shouldn't be returned because it has no scim user
+				)
+				return err
+			},
+		)
 
-	// list hosts in label searching by email address with leading/trailing whitespace
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "query", "    a@b.c   ")
-	assert.Len(t, listHostsResp.Hosts, 1)
-	assert.Equal(t, lbl2Hosts[0].ID, listHostsResp.Hosts[0].ID)
+		t.Run("IdP Group Label", func(t *testing.T) {
+			// Create a label for an IdP group
+			criteria := &fleet.HostVitalCriteria{
+				Vital: ptr.String("end_user_idp_group"),
+				Value: ptr.String("group_good"),
+			}
 
-	// count hosts in label order by display_name
-	var countResp countHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "label_id", fmt.Sprint(lbl2.ID), "order_key", "display_name", "order_direction", "desc")
-	assert.Equal(t, len(lbl2Hosts), countResp.Count)
+			labelParams := createLabelRequest{
+				fleet.LabelPayload{
+					Name:     "Test IdP Group Label",
+					Criteria: criteria,
+				},
+			}
 
-	// lists hosts in label without hosts
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl1.ID), nil, http.StatusOK, &listHostsResp)
-	assert.Len(t, listHostsResp.Hosts, 0)
+			labelResp := createLabelResponse{}
+			s.DoJSON("POST", "/api/latest/fleet/labels", labelParams, http.StatusOK, &labelResp)
+			require.NotNil(t, labelResp.Label)
 
-	// count hosts in label
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "label_id", fmt.Sprint(lbl1.ID))
-	assert.Equal(t, 0, countResp.Count)
+			filter := fleet.TeamFilter{User: test.UserAdmin}
+			label, _, err := s.ds.Label(context.Background(), labelResp.Label.Label.ID, filter)
+			require.NoError(t, err)
 
-	// lists hosts in invalid label
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID+1), nil, http.StatusOK, &listHostsResp)
-	assert.Len(t, listHostsResp.Hosts, 0)
+			// Verify that the query and values are correct.
+			// Test parsing the criteria
+			query, queryValues, err := label.CalculateHostVitalsQuery()
+			require.NoError(t, err)
+			queryValuesJson, err := json.Marshal(queryValues)
+			require.NoError(t, err)
 
-	// set MDM information on a host
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), lbl2Hosts[0].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, ""))
-	var mdmID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &mdmID,
-			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
+			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+			assert.Equal(t, `["group_good"]`, string(queryValuesJson))
+
+			// Update label membership.
+			_, err = s.ds.UpdateLabelMembershipByHostCriteria(context.Background(), label)
+			require.NoError(t, err)
+
+			// Verify that the label has the correct hosts.
+			// Check that the label has the correct hosts
+			hostsInLabel, err := s.ds.ListHostsInLabel(context.Background(), filter, label.ID, fleet.HostListOptions{})
+			require.NoError(t, err)
+			require.Len(t, hostsInLabel, 3)
+			require.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID, hostsInLabel[2].ID})
+
+			// Check that the label has the correct host count
+			label, _, err = s.ds.Label(context.Background(), labelResp.Label.Label.ID, filter)
+			require.NoError(t, err)
+			assert.Equal(t, 3, label.HostCount)
+		})
 	})
-	// generate aggregated stats
-	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
-
-	// list host in label by mdm_id
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "mdm_id", fmt.Sprint(mdmID))
-	require.Len(t, listHostsResp.Hosts, 1)
-	assert.Nil(t, listHostsResp.Software)
-	assert.Nil(t, listHostsResp.MunkiIssue)
-	require.NotNil(t, listHostsResp.MDMSolution)
-	assert.Equal(t, mdmID, listHostsResp.MDMSolution.ID)
-	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, listHostsResp.MDMSolution.Name)
-	assert.Equal(t, "https://simplemdm.com", listHostsResp.MDMSolution.ServerURL)
-
-	// delete a label by id
-	var delIDResp deleteLabelByIDResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl1.ID), nil, http.StatusOK, &delIDResp)
-
-	// delete a non-existing label by id
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID+1), nil, http.StatusNotFound, &delIDResp)
-
-	// delete a label by name
-	var delResp deleteLabelResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusOK, &delResp)
-
-	// delete a non-existing label by name
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusNotFound, &delResp)
-
-	// delete a manual label by id
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", manualLbl1.ID), nil, http.StatusOK, &delIDResp)
-
-	// delete a manual label by name
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(manualLbl2.Name)), nil, http.StatusOK, &delResp)
-
-	// list labels, only the built-ins remain
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
-	assert.Len(t, listResp.Labels, builtInsCount)
-	idsByName := make(map[string]uint, len(listResp.Labels))
-	for _, lbl := range listResp.Labels {
-		_, ok := builtinsMap[lbl.Name]
-		assert.True(t, ok)
-		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
-		idsByName[lbl.Name] = lbl.ID
-	}
-
-	// labels summary, only the built-ins remains
-	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
-	assert.Len(t, summaryResp.Labels, builtInsCount)
-	for _, lbl := range summaryResp.Labels {
-		_, ok := builtinsMap[lbl.Name]
-		assert.True(t, ok)
-		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
-		assert.Equal(t, idsByName[lbl.Name], lbl.ID)
-	}
-
-	// host summary matches built-ins count
-	var hostSummaryResp getHostSummaryResponse
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &hostSummaryResp)
-	assert.Len(t, hostSummaryResp.BuiltinLabels, builtInsCount)
-	for _, lbl := range hostSummaryResp.BuiltinLabels {
-		_, ok := builtinsMap[lbl.Name]
-		assert.True(t, ok)
-		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
-		assert.Equal(t, idsByName[lbl.Name], lbl.ID)
-	}
-
-	require.Len(t, idsByName, len(builtinsMap))
-	for name := range builtinsMap {
-		id, ok := idsByName[name]
-		require.True(t, ok)
-
-		// attempt to delete by name
-		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(name)), nil, http.StatusUnprocessableEntity, &delResp)
-
-		// attempt to delete by id
-		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", id), nil, http.StatusUnprocessableEntity, &delIDResp)
-	}
 }
 
 // Sanity test to make sure fleet/labels/<all>/hosts and fleet/hosts return the same thing.
