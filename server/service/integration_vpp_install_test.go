@@ -395,7 +395,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// ================================================
 
 	t.Run("successful install and delayed verification", func(t *testing.T) {
-		s.fleetCfg.Server.VPPVerifyRequestDelay = 0 * time.Second // Set to 0 to avoid waiting for the verification delay
 		// Trigger install to the host
 		installResp = installSoftwareResponse{}
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
@@ -495,12 +494,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
-	// Simulate timed out verification
-	// s.fleetCfg.Server.VPPVerifyTimeout = 1 * time.Millisecond
-	// t.Cleanup(func() {
-	// 	s.fleetCfg.Server.VPPVerifyTimeout = 10 * time.Minute
-	// })
-
 	installCmdUUID = processVPPInstallOnClient(false, false, true)
 
 	listResp = listHostsResponse{}
@@ -535,9 +528,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	got1, got2 = gotSW[0], gotSW[1]
 	checkVPPApp(got1, addedApp, installCmdUUID, fleet.SoftwareInstallFailed)
 	checkVPPApp(got2, errApp, failedCmdUUID, fleet.SoftwareInstallFailed)
-
-	// Go back to the default timeout
-	s.fleetCfg.Server.VPPVerifyTimeout = 10 * time.Minute
 
 	// ========================================================
 	// Mark installs as failed when MDM turned off on host
