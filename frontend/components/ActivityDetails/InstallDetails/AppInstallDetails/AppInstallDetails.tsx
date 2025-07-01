@@ -78,21 +78,11 @@ export const getStatusMessage = ({
   }
 
   // Create predicate and subordinate for other statuses
-  let predicate: string;
-  let subordinate: string;
-  if (isStatusNotNow) {
-    predicate = "tried to install";
-    subordinate =
-      " but couldn’t because the host was locked or was running on battery power while in Power Nap. Fleet will try again";
-  } else {
-    predicate = getInstallDetailsStatusPredicate(displayStatus);
-    subordinate = displayStatus === "pending" ? " when it comes online" : "";
-  }
-
   return (
     <>
-      Fleet {predicate} <b>{software_title}</b> on {formattedHost}
-      {subordinate}.
+      Fleet {getInstallDetailsStatusPredicate(displayStatus)}{" "}
+      <b>{software_title}</b> on {formattedHost}
+      {displayStatus === "pending" ? " when it comes online" : ""}.
     </>
   );
 };
@@ -185,8 +175,7 @@ export const AppInstallDetails = ({
   // from the MDM protocol, e.g., "NotNow" or "Acknowledged". We need to display some special
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
   const isStatusNotNow = result?.status === "NotNow";
-  const isStatusAcknowledged =
-    result?.status === "Acknowledged" && !!result?.result;
+  const isStatusAcknowledged = result?.status === "Acknowledged";
 
   const statusMessage = getStatusMessage({
     displayStatus,
