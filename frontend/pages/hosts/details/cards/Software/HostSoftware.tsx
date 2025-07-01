@@ -319,7 +319,7 @@ const HostSoftware = ({
       >
         <CardHeader
           header="Software"
-          subheader="Software installed on your device."
+          subheader="Software installed on your device"
         />
         {renderHostSoftware()}
       </Card>
@@ -328,7 +328,7 @@ const HostSoftware = ({
 
   return (
     <div className={baseClass}>
-      <CardHeader subheader="Software installed on this host." />
+      <CardHeader subheader="Software installed on this host" />
       {renderHostSoftware()}
     </div>
   );

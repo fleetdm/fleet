@@ -43,7 +43,7 @@ import (
 // service when the Fleet server ingests host details.
 func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, installedByProfIdentifier map[string]*fleet.HostMacOSProfile) error {
 	// NOTE: for user-scoped profiles, we allow up to a few hours (see
-	// mysql.hoursToWaitForUserEnrollmentAfterDeviceEnrollment for actual value)
+	// service.hoursToWaitForUserEnrollmentAfterDeviceEnrollment for actual value)
 	// before sending the profile to the host, but the grace period for
 	// verification can be lower (see
 	// fleet.ExpectedMDMProfile.IsWithinGracePeriod for actual value), so it will
