@@ -906,7 +906,7 @@ allow {
   action == write
 }
 
-# Global admins and maintainers can read and write the EULA.
+# Global admins can read, write, and list MDM apple eula information.
 allow {
   object.type == "mdm_apple_eula"
   subject.global_role == admin

@@ -292,9 +292,13 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
+	}
 
-		// check EULA routes
-		_, err = svc.MDMGetEULAMetadata(ctx)
+	// some eula methods read and write access for gitops users. We test them separately
+	// from the other MDM methods.
+	testEULAMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
+		ctx := test.UserContext(ctx, user)
+		_, err := svc.MDMGetEULAMetadata(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
 		err = svc.MDMCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")), false)
 		checkAuthErr(t, err, shouldFailWithAuth)
@@ -305,6 +309,10 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	// Only global admins can access the endpoints.
 	testAuthdMethods(t, test.UserAdmin, false)
 
+	// Global admin and gitops users can access the eula endpoints.
+	testEULAMethods(t, test.UserAdmin, false)
+	testEULAMethods(t, test.UserGitOps, false)
+
 	// All other users should not have access to the endpoints.
 	for _, user := range []*fleet.User{
 		test.UserNoRoles,
@@ -314,6 +322,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		test.UserTeamAdminTeam1,
 	} {
 		testAuthdMethods(t, user, true)
+		testEULAMethods(t, user, true)
 	}
 	// Token authenticated endpoints can be accessed by anyone.
 	ctx = test.UserContext(ctx, test.UserNoRoles)
