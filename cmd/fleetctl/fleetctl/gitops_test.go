@@ -3129,8 +3129,8 @@ org_settings:
 		name             string
 		cfg              string
 		mockSetup        func(t *testing.T, ds *mock.Store)
-		dryRunAssertion  func(t *testing.T, out string, err error)
-		realRunAssertion func(t *testing.T, out string, err error)
+		dryRunAssertion  func(t *testing.T, ds *mock.Store, out string, err error)
+		realRunAssertion func(t *testing.T, ds *mock.Store, out string, err error)
 	}{
 		{
 			name: "valid pdf file (no existing EULA uploaded)",
@@ -3140,17 +3140,19 @@ org_settings:
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
-			dryRunAssertion: func(t *testing.T, out string, err error) {
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.NoError(t, err)
 				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
 			},
-			realRunAssertion: func(t *testing.T, out string, err error) {
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.NoError(t, err)
 				assert.Contains(t, out, "[+] applied EULA")
+				assert.True(t, ds.MDMInsertEULAFuncInvoked)
 			},
 		},
 		{
-			name: "valid pdf file (existing EULA uploaded)",
+			name: "valid new pdf file (different EULA already uploaded)",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
@@ -3160,13 +3162,17 @@ org_settings:
 					}, nil
 				}
 			},
-			dryRunAssertion: func(t *testing.T, out string, err error) {
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.NoError(t, err)
 				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
 			},
-			realRunAssertion: func(t *testing.T, out string, err error) {
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.NoError(t, err)
 				assert.Contains(t, out, "[+] applied EULA")
+				assert.True(t, ds.MDMDeleteEULAFuncInvoked) // deleted old EULA
+				assert.True(t, ds.MDMInsertEULAFuncInvoked) // new EULA was updated
 			},
 		},
 		{
@@ -3177,13 +3183,17 @@ org_settings:
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
-			dryRunAssertion: func(t *testing.T, out string, err error) {
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.NoError(t, err)
 				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
 			},
-			realRunAssertion: func(t *testing.T, out string, err error) {
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.NoError(t, err)
 				assert.Contains(t, out, "[+] applied EULA")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked) // no EULA to delete
+				assert.False(t, ds.MDMInsertEULAFuncInvoked) // no EULA to upload
 			},
 		},
 		{
@@ -3197,13 +3207,15 @@ org_settings:
 					}, nil
 				}
 			},
-			dryRunAssertion: func(t *testing.T, out string, err error) {
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.NoError(t, err)
 				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
 			},
-			realRunAssertion: func(t *testing.T, out string, err error) {
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.NoError(t, err)
 				assert.Contains(t, out, "[+] applied EULA")
+				assert.True(t, ds.MDMDeleteEULAFuncInvoked) // deleted EULA
 			},
 		},
 		{
@@ -3214,10 +3226,10 @@ org_settings:
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
-			dryRunAssertion: func(t *testing.T, out string, err error) {
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.ErrorContains(t, err, "invalid file type")
 			},
-			realRunAssertion: func(t *testing.T, out string, err error) {
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.ErrorContains(t, err, "invalid file type")
 			},
 		},
@@ -3234,13 +3246,15 @@ org_settings:
 					}, nil
 				}
 			},
-			dryRunAssertion: func(t *testing.T, out string, err error) {
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.NoError(t, err)
 				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
 			},
-			realRunAssertion: func(t *testing.T, out string, err error) {
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
 				assert.NoError(t, err)
 				assert.Contains(t, out, "[+] applied EULA")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked) // No new EULA uploaded
 			},
 		},
 	}
@@ -3267,14 +3281,14 @@ org_settings:
 
 			// Dry run
 			out, err := RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
-			tt.dryRunAssertion(t, out.String(), err)
+			tt.dryRunAssertion(t, ds, out.String(), err)
 			if t.Failed() {
 				t.FailNow()
 			}
 
 			// Real run
 			out, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
-			tt.realRunAssertion(t, out.String(), err)
+			tt.realRunAssertion(t, ds, out.String(), err)
 		})
 	}
 }
