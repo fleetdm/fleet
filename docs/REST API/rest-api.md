@@ -1253,37 +1253,6 @@ None.
       }
     ],
     "jira": [],
-    "digicert": [
-      {
-        "name": "DIGICERT_WIFI",
-        "url": "https://one.digicert.com",
-        "api_token": "********",
-        "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
-        "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        "certificate_user_principal_names": [
-          "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        ],
-        "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
-      }
-    ],
-    "ndes_scep_proxy": {
-      "admin_url": "https://example.com/certsrv/mscep_admin/",
-      "password": "********",
-      "url": "https://example.com/certsrv/mscep/mscep.dll",
-      "username": "Administrator@example.com"
-    },
-    "custom_scep_proxy": [
-      {
-        "name": "SCEP_WIFI",
-        "url": "https://example.com/scep",
-        "challenge": "********",
-      },
-      {
-        "name": "SCEP_VPN",
-        "url": "https://example.com/scep",
-        "challenge": "********",
-      }
-    ],
     "zendesk": []
   },
   "logging": {
@@ -1344,7 +1313,7 @@ Modifies the Fleet's configuration with the supplied information.
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
 | gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
-| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `custom_scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
+| integrations             | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
@@ -1564,7 +1533,6 @@ Modifies the Fleet's configuration with the supplied information.
         "enable_software_vulnerabilities": false
       }
     ],
-    "ndes_scep_proxy": null,
     "zendesk": []
   },
   "logging": {
@@ -1898,22 +1866,11 @@ _Available in Fleet Premium._
 
 #### integrations
 
-<!--
-+ [`integrations.jira`](#integrations-jira)
-+ [`integrations.zendesk`](#integrations-zendesk)
-+ [`integrations.google_calendar`](#integrations-google-calendar)
-+ [`integrations.ndes_scep_proxy`](#integrations-ndes_scep_proxy)
--->
-
 | Name            | Type   | Description                                                          |
 |-----------------|--------|----------------------------------------------------------------------|
 | jira            | array  | See [`integrations.jira`](#integrations-jira).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
-| digicert | array | See [`integrations.digicert`](#integrations-digicert). |
-| ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
-| custom_scep_proxy | array | See [`integrations.custom_scep_proxy`](#integrations-scep-proxy). |
-
 
 <br/>
 
@@ -1962,58 +1919,6 @@ _Available in Fleet Premium._
 
 <br/>
 
-##### integrations.digicert
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-`integrations.digicert` is an array of objects with the following structure:
-
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name   | string | Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
-| url   | string | DigiCert instance URL, used as base URL for DigiCert API requests. |
-| api_token        | string | API token used to authenticate requests to DigiCert. |
-| profile_id       | string  | The ID of certificate profile in DigiCert. |
-| certificate_common_name      | string  | The certificate's common name. |
-| certificate_user_principal_names    | array  | The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
-| certificate_seat_id     | string  | The ID of the DigiCert seat. Seats are license units in DigiCert. |
-
-<br/>
-
-> Note that when making changes to the `integrations.digicert` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
-
-##### integrations.ndes_scep_proxy
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-`integrations.ndes_scep_proxy` is an object with the following structure:
-
-| Name      | Type   | Description                                             |
-|-----------|--------|---------------------------------------------------------|
-| url       | string | **Required**. The URL of the NDES SCEP endpoint.        |
-| admin_url | string | **Required**. The URL of the NDES admin endpoint.       |
-| password  | string | **Required**. The password for the NDES admin endpoint. |
-| username  | string | **Required**. The username for the NDES admin endpoint. |
-
-Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
-
-##### integrations.custom_scep_proxy
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-`integrations.custom_scep_proxy` is an array of objects with the following structure:
-
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name   | string | Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
-| url        | boolean | URL of the Simple Certificate Enrollment Protocol (SCEP) server |
-| challenge         | string  | Static challenge password used to authenticate requests to SCEP server. |
-
-<br/>
-
-> Note that when making changes to the `integrations.custom_scep_proxy` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
-
-
 ##### Example request body
 
 ```json
@@ -2034,35 +1939,6 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
       {
         "domain": "https://domain.com",
         "api_key_json": "<API KEY JSON>"
-      }
-    ],
-    "digicert": [
-      {
-        "name": "DIGICERT_WIFI",
-        "url": "https://one.digicert.com",
-        "api_token": "********",
-        "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
-        "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        "certificate_subject_alternative_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
-      }
-    ],
-    "ndes_scep_proxy": {
-      "admin_url": "https://example.com/certsrv/mscep_admin/",
-      "password": "abc123",
-      "url": "https://example.com/certsrv/mscep/mscep.dll",
-      "username": "Administrator@example.com"
-    },
-    "custom_scep_proxy": [
-      {
-        "name": "SCEP_WIFI",
-        "url": "https://example.com/scep",
-        "challenge": "********"
-      },
-      {
-        "name": "SCEP_VPN",
-        "url": "https://example.com/scep",
-        "challenge": "********"
       }
     ]
   }
