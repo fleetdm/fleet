@@ -32,7 +32,23 @@ This Terraform project automates the deployment of Fleet on the Google Cloud Pla
 
 ## Configuration
 
-1.  [Clone the repository](https://github.com/fleetdm/fleet-terraform/tree/e8d559ecba80ab35cb8014212f5bd0a22b545618/gcp) or ensure you have all the files.
+1.  [Clone the repository](https://github.com/fleetdm/fleet-terraform/tree/e8d559ecba80ab35cb8014212f5bd0a22b545618/gcp) or ensure you have all the files. Alternatively, you can consume the project as a module. Below is a minimal example of how to declare the module in your Terraform configuration:
+
+```hcl
+module "fleet" {
+  source             = "github.com/fleetdm/fleet-terraform/gcp"
+  billing_account_id = "123"
+  org_id             = "456"
+  dns_record_name    = "myfleetdeployment.com."
+  dns_zone_name      = "myfleetdeployment.com."
+  project_name       = "fleetgcp"
+
+  fleet_config = {
+    installers_bucket_name = "fleet-installers-bucket"
+  }
+}
+```
+
 2.  Create a `terraform.tfvars` file and paste in the folowing, populated with your specific values:
 
 ```hcl
