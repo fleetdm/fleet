@@ -41,6 +41,7 @@ import (
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 )
@@ -2798,7 +2799,17 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 
 	appCfg.MDM.EnabledAndConfigured = false
 
-	return svc.ds.SaveAppConfig(ctx, appCfg)
+	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+		return ctxerr.Wrap(ctx, err, "saving app config")
+	}
+
+	// If an install doesn't have a verification_at or verification_failed_at, then
+	// mark it as failed
+	if err := svc.ds.MarkAllPendingVPPInstallsAsFailed(ctx, worker.AppleSoftwareJobName); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking all pending vpp installs as failed")
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

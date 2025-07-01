@@ -873,6 +873,7 @@ CREATE TABLE `host_vpp_software_installs` (
   KEY `adam_id` (`adam_id`,`platform`),
   KEY `fk_host_vpp_software_installs_vpp_token_id` (`vpp_token_id`),
   KEY `fk_host_vpp_software_installs_policy_id` (`policy_id`),
+  KEY `idx_host_vpp_software_installs_verification` ((((`verification_at` is null) and (`verification_failed_at` is null)))),
   CONSTRAINT `fk_host_vpp_software_installs_vpp_token_id` FOREIGN KEY (`vpp_token_id`) REFERENCES `vpp_tokens` (`id`) ON DELETE SET NULL,
   CONSTRAINT `host_vpp_software_installs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `host_vpp_software_installs_ibfk_3` FOREIGN KEY (`adam_id`, `platform`) REFERENCES `vpp_apps` (`adam_id`, `platform`) ON DELETE CASCADE,
@@ -977,7 +978,8 @@ CREATE TABLE `jobs` (
   `error` text COLLATE utf8mb4_unicode_ci,
   `not_before` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_jobs_state_not_before_updated_at` (`state`,`not_before`,`updated_at`)
+  KEY `idx_jobs_state_not_before_updated_at` (`state`,`not_before`,`updated_at`),
+  KEY `idx_jobs_name_state` (`name`,`state`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `jobs` VALUES (1,'2024-03-20 00:00:00','2024-03-20 00:00:00','macos_setup_assistant','{\"task\": \"update_all_profiles\"}','queued',0,'','2024-03-20 00:00:00');
