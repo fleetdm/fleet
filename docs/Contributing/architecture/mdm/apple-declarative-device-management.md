@@ -130,6 +130,7 @@ The profiles names must be unique across all platforms and profile types for a g
 * DDM profiles [cannot be of a type that requires assets](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L674-L676), as assets are currently not supported.
 * DDM profiles [cannot have a "status subscription" type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L678-L680).
 * DDM profiles [must be a configuration type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L682-L684).
+* DDM profiles cannot be delivered to a user-channel currently, so user-scoped payloads are not supported (if they pass validation, they will be delivered to the device channel).
 
 ## Special Cases
 
