@@ -411,11 +411,14 @@ func (c *Client) MDMWipeHost(hostID uint) error {
 	return nil
 }
 
-type EULAContent struct {
+type eulaContent struct {
 	Bytes []byte
 }
 
-func (ec *EULAContent) Handle(res *http.Response) error {
+// eulaContent implements the bodyHandler interface so that we can read the
+// response body directly into a byte slice which represents the EULA file content.
+// This handler will be called in the Client.parseResponse method.
+func (ec *eulaContent) Handle(res *http.Response) error {
 	b, err := io.ReadAll(res.Body)
 	ec.Bytes = b
 	return err
@@ -424,7 +427,7 @@ func (ec *EULAContent) Handle(res *http.Response) error {
 func (c *Client) GetEULAContent(token string) ([]byte, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", token)
 	request := getMDMEULARequest{}
-	var responseBody EULAContent
+	var responseBody eulaContent
 	err := c.authenticatedRequest(request, verb, path, &responseBody)
 	return responseBody.Bytes, err
 }
@@ -474,12 +477,7 @@ func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
 	}
 
 	// read file to get the new file bytes
-	file, err := os.Open(eulaPath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	eulaBytes, err := io.ReadAll(file)
+	eulaBytes, err := os.ReadFile(eulaPath)
 	if err != nil {
 		return fmt.Errorf("reading eula file: %w", err)
 	}
@@ -527,7 +525,10 @@ func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
 	if _, err := io.Copy(fw, file); err != nil {
 		return err
 	}
-	w.Close()
+	err = w.Close()
+	if err != nil {
+		return fmt.Errorf("closing writer: %w", err)
+	}
 
 	resp, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
 		b.Bytes(),
