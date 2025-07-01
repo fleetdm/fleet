@@ -100,7 +100,19 @@ The profiles names must be unique across all platforms and profile types for a g
 ## Architecture diagram
 
 ```
-[Placeholder for Automated Device Enrollment Architecture Diagram]
+---
+title: DDM protocol check-in
+---
+sequenceDiagram
+    autonumber
+    participant host as macOS host
+    participant fleet as Fleet server
+
+	activate fleet
+	fleet->>fleet: ReconcileAppleDeclarations cron job
+	fleet->>host: DeclarativeManagement command
+	fleet->>host: APNs Push notification
+	deactivate fleet
 ```
 
 ## Special Cases
