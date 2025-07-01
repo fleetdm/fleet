@@ -95,12 +95,27 @@ fleet:
     debug: false
     json: false
     disableBanner: false
+  mdm:
+    windows:
+      wstepIdentityCertKey: ""
+      wstepIdentityKeyKey: ""
   carving:
     s3:
       bucketName: ""
       prefix: ""
       accessKeyID: ""
       secretKey: s3-bucket
+      endpointURL: ""
+      forceS3PathStyle: false
+      stsAssumeRoleARN: ""
+  softwareInstallers:
+    s3:
+      bucketName: ""
+      prefix: ""
+      accessKeyID: ""
+      secretKey: software-installers
+      endpointURL: ""
+      forceS3PathStyle: false
       stsAssumeRoleARN: ""
   license:
     secretName: ""
