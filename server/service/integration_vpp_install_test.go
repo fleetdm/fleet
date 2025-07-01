@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -172,6 +171,16 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Install attempts
 	// ================================
 
+	checkCommandsInFlight := func(expectedCount int) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var count int
+			err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE command_type = ?", fleet.VerifySoftwareInstallVPPPrefix)
+			require.NoError(t, err)
+			require.Equal(t, expectedCount, count)
+			return nil
+		})
+	}
+
 	processVPPInstallOnClient := func(failOnInstall, appInstallVerified, appInstallTimeout bool) string {
 		var installCmdUUID string
 
@@ -236,6 +245,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 		// Process the verification command (InstalledApplicationList)
 		s.runWorker()
+		// Check that there is now a verify command in flight
+		checkCommandsInFlight(1)
 		cmd, err = mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
@@ -355,11 +366,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Simulate successful installation on the host
 	installCmdUUID := processVPPInstallOnClient(false, true, false)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm_commands")
-		return nil
-	})
-
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
@@ -397,92 +403,92 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Successful install and delayed verification
 	// ================================================
 
-	t.Run("successful install and delayed verification", func(t *testing.T) {
-		// Trigger install to the host
-		installResp = installSoftwareResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
-			http.StatusAccepted, &installResp)
-		countResp = countHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
-		require.Equal(t, 1, countResp.Count)
+	// Trigger install to the host
+	installResp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
 
-		// Install is ACK, but not verified yet
-		installCmdUUID = processVPPInstallOnClient(false, false, false)
+	// Install is ACK, but not verified yet
+	installCmdUUID = processVPPInstallOnClient(false, false, false)
 
-		// We should have 0 installed, because the verification is not done yet
-		listResp = listHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
-		require.Len(t, listResp.Hosts, 0)
-		countResp = countHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
-		require.Equal(t, 0, countResp.Count)
+	// We should have 0 installed, because the verification is not done yet
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 0)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 0, countResp.Count)
 
-		// We should instead have 1 pending
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
-		gotSW = getHostSw.Software
-		require.Len(t, gotSW, 2) // App 1 and App 2
-		checkVPPApp(gotSW[0], addedApp, installCmdUUID, fleet.SoftwareInstallPending)
-		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
-		require.Equal(t, 1, countResp.Count)
-		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
-		require.Len(t, listResp.Hosts, 1)
+	// We should instead have 1 pending
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+	gotSW = getHostSw.Software
+	require.Len(t, gotSW, 2) // App 1 and App 2
+	checkVPPApp(gotSW[0], addedApp, installCmdUUID, fleet.SoftwareInstallPending)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 1)
 
-		// Install is ACK, but not verified yet
-		// Don't update the command UUID because we didn't trigger a new install command
-		// (the command UUID is the same as the one we got when we triggered the install)
-		processVPPInstallOnClient(false, false, false)
+	// Install is ACK, but not verified yet
+	// Don't update the command UUID because we didn't trigger a new install command
+	// (the command UUID is the same as the one we got when we triggered the install)
+	processVPPInstallOnClient(false, false, false)
 
-		// We should have 0 installed, because the verification is not done yet
-		listResp = listHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
-		require.Len(t, listResp.Hosts, 0)
-		countResp = countHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
-		require.Equal(t, 0, countResp.Count)
+	// We should have 0 installed, because the verification is not done yet
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 0)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 0, countResp.Count)
 
-		// We should instead have 1 pending
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
-		gotSW = getHostSw.Software
-		require.Len(t, gotSW, 2) // App 1 and App 2
-		checkVPPApp(gotSW[0], addedApp, installCmdUUID, fleet.SoftwareInstallPending)
-		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
-		require.Equal(t, 1, countResp.Count)
-		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id",
-			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
-		require.Len(t, listResp.Hosts, 1)
+	// We should instead have 1 pending
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+	gotSW = getHostSw.Software
+	require.Len(t, gotSW, 2) // App 1 and App 2
+	checkVPPApp(gotSW[0], addedApp, installCmdUUID, fleet.SoftwareInstallPending)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Len(t, listResp.Hosts, 1)
 
-		// Install is ACK, and now it's verified
-		// Don't update the command UUID because we didn't trigger a new install command
-		// (the command UUID is the same as the one we got when we triggered the install)
-		processVPPInstallOnClient(false, true, false)
+	// Install is ACK, and now it's verified
+	// Don't update the command UUID because we didn't trigger a new install command
+	// (the command UUID is the same as the one we got when we triggered the install)
+	processVPPInstallOnClient(false, true, false)
 
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
-		gotSW = getHostSw.Software
-		require.Len(t, gotSW, 2) // App 1 and App 2
-		checkVPPApp(gotSW[0], addedApp, installCmdUUID, fleet.SoftwareInstalled)
+	checkCommandsInFlight(0)
 
-		s.lastActivityMatches(
-			fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(
-				`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null}`,
-				mdmHost.ID,
-				mdmHost.DisplayName(),
-				addedApp.Name,
-				addedApp.AdamID,
-				installCmdUUID,
-				fleet.SoftwareInstalled,
-			),
-			0,
-		)
-	})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+	gotSW = getHostSw.Software
+	require.Len(t, gotSW, 2) // App 1 and App 2
+	checkVPPApp(gotSW[0], addedApp, installCmdUUID, fleet.SoftwareInstalled)
+
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null}`,
+			mdmHost.ID,
+			mdmHost.DisplayName(),
+			addedApp.Name,
+			addedApp.AdamID,
+			installCmdUUID,
+			fleet.SoftwareInstalled,
+		),
+		0,
+	)
 
 	// ========================================================
 	// Install command succeeds, but verification fails
