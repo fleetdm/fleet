@@ -99,7 +99,7 @@ The profiles names must be unique across all platforms and profile types for a g
 
 ## Architecture diagram
 
-```
+```mermaid
 ---
 title: DDM protocol check-in
 ---
