@@ -48,7 +48,7 @@ controls:
           - Macs on Sonoma
 ```
 
-See full YAML reference [here](https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings).
+See the [full YAML reference](https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings).
 
 The `gitops` command uses the `POST /api/latest/fleet/mdm/profiles/batch` contributor-only API endpoint to set the profiles. It replaces any existing profile with the set provided in the YAML, removing any profile that is not present in the YAML.
 
@@ -110,9 +110,16 @@ sequenceDiagram
 
 	activate fleet
 	fleet->>fleet: ReconcileAppleDeclarations cron job
-	fleet->>host: DeclarativeManagement command
+	fleet->>fleet: DeclarativeManagement command enqueued
 	fleet->>host: APNs Push notification
 	deactivate fleet
+
+	activate host
+	host->>+fleet: MDM protocol check-in
+	fleet->>host: DeclarativeManagement command
+	host->>fleet: DDM message "tokens"
+	fleet->>-host: fleet.MDMAppleDDMTokensResponse
+	deactivate host
 ```
 
 ## Special Cases
