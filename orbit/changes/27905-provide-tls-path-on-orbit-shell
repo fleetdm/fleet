@@ -1,1 +1,2 @@
 * Added missing --tls_server_certs when running orbit shell.
+* Added new flag --fleet-certificate to orbit shell command.
