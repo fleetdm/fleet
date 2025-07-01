@@ -242,11 +242,6 @@ func CheckAssignedEnrollmentProfile(expectedURL string) error {
 		assignedURL = configURL
 	}
 
-	if assignedURL == "" {
-		// This should not happen, but error just in case.
-		return errors.New("parsing profiles output: missing or empty server url")
-	}
-
 	assigned, err := url.Parse(assignedURL)
 	if err != nil {
 		return fmt.Errorf("parsing profiles output: unable to parse server url: %w", err)
