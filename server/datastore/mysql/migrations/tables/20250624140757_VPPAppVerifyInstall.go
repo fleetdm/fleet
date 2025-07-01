@@ -17,8 +17,7 @@ func Up_20250624140757(tx *sql.Tx) error {
 		ADD COLUMN verification_command_uuid VARCHAR(127) NULL,
 		ADD COLUMN verification_at DATETIME(6) NULL,
 		ADD COLUMN verification_failed_at DATETIME(6) NULL,
-		ADD INDEX idx_host_vpp_software_installs_verification_at (verification_at),
-		ADD INDEX idx_host_vpp_software_installs_verification_failed_at (verification_failed_at)
+		ADD INDEX idx_host_vpp_software_installs_verification ((verification_at IS NULL AND verification_failed_at IS NULL))
 		`)
 	if err != nil {
 		return fmt.Errorf("failed to add host_vpp_software_installs.verification_command_uuid: %w", err)
