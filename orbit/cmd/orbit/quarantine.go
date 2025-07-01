@@ -140,10 +140,10 @@ func QuarantineIfNeeded() {
 		wf.LayerALEAuthConnectV4,
 	}
 	
-	layersIPv6 := []wf.LayerID{
+	/*layersIPv6 := []wf.LayerID{
 		wf.LayerALEAuthRecvAcceptV6,
 		wf.LayerALEAuthConnectV6,
-	}
+	}*/
 
 	/* Note: in production code, each rule that is added to the firewall 
 	* 		 should have persistent set to true so that it remains after
@@ -210,11 +210,13 @@ func QuarantineIfNeeded() {
 		// the server does not work.
 	}
 
+	// TODO: production quarantine should support IPv6 fleet server connection
+	// Code for allowing the fleet IPv6 address is here
+	/*
 	for _, layer := range layersIPv6 {
 		 
-		// TODO: production quarantine should support IPv6 fleet server connection
-		// Code for allowing the fleet IPv6 address is here
-		/*
+		
+		
 		if foundIPv6 {
 			// Allow traffic to the fleet server in case it is an ipv6 address
 			guidAllowFleetIPv6, err := windows.GenerateGUID()
@@ -242,7 +244,7 @@ func QuarantineIfNeeded() {
 				log.Error().Msg("Quarantine failed: Failed to add IPv6 fleet server allow rule")
 				return
 			}
-		} */
+		} 
 		// Block all traffic except fleetServerIP
 		guidBlockIPv6, err := windows.GenerateGUID()
 		if err != nil {
@@ -263,7 +265,7 @@ func QuarantineIfNeeded() {
 			log.Error().Msg("Quarantine failed: Failed to add IPv6 blocking rule")
 			return
 		}
-	}
+	}*/
 
 	SaveAllCustomRules(&addedRules)
 	markQuarantined()
