@@ -17,12 +17,14 @@ import {
 } from "utilities/constants";
 import { create } from "lodash";
 import { ITeam, ITeamSummary } from "interfaces/team";
+import Modal from "components/Modal";
 
 const baseClass = "save-as-new-query-modal";
 
 interface ISaveAsNewQueryModal {
   router: InjectedRouter;
   initialQueryData: ICreateQueryRequestBody;
+  onExit: () => void;
 }
 
 interface ISANQFormData {
@@ -33,6 +35,7 @@ interface ISANQFormData {
 const SaveAsNewQueryModal = ({
   router,
   initialQueryData,
+  onExit,
 }: ISaveAsNewQueryModal) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -53,12 +56,12 @@ const SaveAsNewQueryModal = ({
     evt.preventDefault();
     setIsSaving(true);
     const {
-      name,
+      name: queryName,
       team: { id: teamId, name: teamName },
     } = formData;
     const createBody = {
       ...initialQueryData,
-      name,
+      name: queryName,
       team_id: teamId,
     };
     try {
@@ -70,21 +73,18 @@ const SaveAsNewQueryModal = ({
           team_id: response.query.team_id,
         })
       );
-    } catch (createError: { data: IApiError }) {
-      const reason = getErrorReason(createError);
+    } catch (createError: unknown) {
+      // { data: IApiError }
       let errFlash = "Could not create query. Please try again.";
+      const reason = getErrorReason(createError);
       if (reason.includes("already exists")) {
-        let teamErrorText;
-        if (createBody.team_id !== 0) {
-          if (teamName) {
-            teamErrorText = `the ${teamName} team`;
-          } else {
-            teamErrorText = "this team";
-          }
+        let teamText;
+        if (teamId !== 0) {
+          teamText = teamName ? `the ${teamName} team` : "this team";
         } else {
-          teamErrorText = "all teams";
+          teamText = "all teams";
         }
-        errFlash = `A query called "${createBody.name}" already exists for ${teamErrorText}.`;
+        errFlash = `A query called "${queryName}" already exists for ${teamText}.`;
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
         errFlash = INVALID_PLATFORMS_FLASH_MESSAGE;
       }
@@ -92,100 +92,11 @@ const SaveAsNewQueryModal = ({
       renderFlash("error", errFlash);
     }
   };
-  return <div className={`${baseClass}`}></div>;
+  return (
+    <Modal title="Save as new" onExit={onExit}>
+      <></>
+    </Modal>
+  );
 };
 
 export default SaveAsNewQueryModal;
-
-// previous handler in EditQueryForm for reference
-
-// const promptSaveAsNewQuery = () => (
-//   evt: React.MouseEvent<HTMLButtonElement>
-// ) => {
-//   evt.preventDefault();
-
-//   if (savedQueryMode && !lastEditedQueryName) {
-//     return setErrors({
-//       ...errors,
-//       name: "Query name must be present",
-//     });
-//   }
-
-//   let valid = true;
-//   const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
-
-//   valid = isValidated;
-
-//   if (valid) {
-//     const newPlatformString = platformSelector
-//       .getSelectedPlatforms()
-//       .join(",") as CommaSeparatedPlatformString;
-
-//     setIsSaveAsNewLoading(true);
-//     const apiProps = {
-//     };
-//     queryAPI
-//       .create({
-//         name: lastEditedQueryName,
-//         ...apiProps,
-//       })
-//       .then((response: { query: ISchedulableQuery }) => {
-//         setIsSaveAsNewLoading(false);
-//         router.push(
-//           getPathWithQueryParams(PATHS.QUERY_DETAILS(response.query.id), {
-//             team_id: response.query.team_id,
-//           })
-//         );
-//         renderFlash("success", `Successfully added query.`);
-//       })
-//       .catch((createError: { data: IApiError }) => {
-//         const createErrorReason = getErrorReason(createError);
-//         if (createErrorReason.includes("already exists")) {
-//           queryAPI
-//             .create({
-//               name: `Copy of ${lastEditedQueryName}`,
-//               ...apiProps,
-//             })
-//             .then((response: { query: ISchedulableQuery }) => {
-//               setIsSaveAsNewLoading(false);
-//               router.push(
-//                 getPathWithQueryParams(PATHS.EDIT_QUERY(response.query.id), {
-//                   team_id: apiTeamIdForQuery,
-//                 })
-//               );
-//               renderFlash(
-//                 "success",
-//                 `Successfully added query as "Copy of ${lastEditedQueryName}".`
-//               );
-//             })
-//             .catch((createCopyError: { data: IApiError }) => {
-//               if (
-//                 getErrorReason(createCopyError).includes("already exists")
-//               ) {
-//                 let teamErrorText;
-//                 if (apiTeamIdForQuery !== 0) {
-//                   if (teamNameForQuery) {
-//                     teamErrorText = `the ${teamNameForQuery} team`;
-//                   } else {
-//                     teamErrorText = "this team";
-//                   }
-//                 } else {
-//                   teamErrorText = "all teams";
-//                 }
-//                 renderFlash(
-//                   "error",
-//                   `A query called "Copy of ${lastEditedQueryName}" already exists for ${teamErrorText}.`
-//                 );
-//               }
-//               setIsSaveAsNewLoading(false);
-//             });
-//         } else if (createErrorReason.includes(INVALID_PLATFORMS_REASON)) {
-//           setIsSaveAsNewLoading(false);
-//           renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
-//         } else {
-//           setIsSaveAsNewLoading(false);
-//           renderFlash("error", "Could not create query. Please try again.");
-//         }
-//       });
-//   }
-// };

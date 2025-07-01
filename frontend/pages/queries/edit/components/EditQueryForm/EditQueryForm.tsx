@@ -32,8 +32,6 @@ import {
   FREQUENCY_DROPDOWN_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
   LOGGING_TYPE_OPTIONS,
-  INVALID_PLATFORMS_REASON,
-  INVALID_PLATFORMS_FLASH_MESSAGE,
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
@@ -41,7 +39,6 @@ import { getPathWithQueryParams } from "utilities/url";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 
-import { getErrorReason, IApiError } from "interfaces/errors";
 import {
   ISchedulableQuery,
   ICreateQueryRequestBody,
@@ -958,6 +955,7 @@ const EditQueryForm = ({
               ...updateQueryData,
               team_id: apiTeamIdForQuery,
             }}
+            onExit={toggleSaveAsNewQueryModal}
           />
         )}
         {showConfirmSaveChangesModal && (
