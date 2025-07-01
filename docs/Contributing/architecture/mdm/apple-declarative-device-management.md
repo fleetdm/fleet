@@ -81,22 +81,6 @@ The [various endpoint operations are handled in the Fleet implementation](https:
 
 In addition to verifying the DDM profiles from the status response of the DDM protocol, we also [update the statuses from the response of the traditional `DeclarativeManagement` command](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/service/apple_mdm.go#L3486) to do the initial transition from "pending" to "verifying" or "failed" depending on the result of the command. This batch-affects all declarations for the host.
 
-## Database details
-
-The DDM profiles are stored in the `mdm_apple_declarations` table which closely resembles the `mdm_apple_configuration_profiles` table but uses `declaration_uuid` instead of `profile_uuid` as primary key. Note that for historical reasons, the `uuid` primary key column of both these tables and the `mdm_windows_configuration_profiles` table is `VARCHAR(37)` even though a UUID is 36 characters long. This is because a prefix is prepended to the generated UUID to distinguish the type of the profile, so that if you have its UUID, you know in which table to look for it. The [prefixes](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/mdm.go#L18-L20) are "d" for a DDM, "a" for an Apple `.mobileconfig` profile and "w" for a Windows profile.
-
-The profiles names must be unique across all platforms and profile types for a given team (or "no team"), so [the SQL statement to insert new profiles is a bit unusual](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/datastore/mysql/apple_mdm.go#L5078-L5096). That's because distinct tables are used to store the different profile types, so a standard database constraint cannot be used.
-
-## Supported features and limitations
-
-* As mentioned earlier, label restrictions (include any, include all and exclude any) are supported for DDM profiles, same as for other types of profiles.
-* Fleet secrets [are supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L885-L888) and are expanded with their values when the declaration is sent to the host.
-* Fleet _variables_ [are **not** supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L948-L953) for DDM.
-* DDM profiles [cannot include OS updates settings](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L670-L672), as those are handled by Fleet via the "Controls -> OS updates" settings.
-* DDM profiles [cannot be of a type that requires assets](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L674-L676), as assets are currently not supported.
-* DDM profiles [cannot have a "status subscription" type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L678-L680).
-* DDM profiles [must be a configuration type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L682-L684).
-
 ## Architecture diagram
 
 ```mermaid
@@ -118,18 +102,34 @@ sequenceDiagram
 	host->>+fleet: MDM protocol check-in
 	fleet->>host: DeclarativeManagement command
 	host->>fleet: DDM message "tokens"
-	fleet-->>-host: fleet.MDMAppleDDMTokensResponse
+	fleet-->>host: fleet.MDMAppleDDMTokensResponse
 	host->>fleet: DDM message "declaration-items"
-	fleet-->>-host: fleet.MDMAppleDDMDeclarationItemsResponse
+	fleet-->>host: fleet.MDMAppleDDMDeclarationItemsResponse
 	host->>fleet: DDM message "declaration/activation/{id}"
-	fleet-->>-host: custom JSON response based on fleet.MDMAppleDeclaration
+	fleet-->>host: custom JSON response based on fleet.MDMAppleDeclaration
 	host->>fleet: DDM message "declaration/configuration/{id}"
-	fleet-->>-host: custom JSON response based on fleet.MDMAppleDeclaration
-	host-->>-fleet: Acknowledge DeclarativeManagement command (unclear exactly when that happens in the flow)
+	fleet-->>host: custom JSON response based on fleet.MDMAppleDeclaration
+	host-->>fleet: Acknowledge DeclarativeManagement command (unclear exactly when that happens in the flow)
 	host->>fleet: DDM message "status"
-	fleet->>fleet: verify/fail declarations
+	fleet->>-fleet: verify/fail declarations
 	deactivate host
 ```
+
+## Database details
+
+The DDM profiles are stored in the `mdm_apple_declarations` table which closely resembles the `mdm_apple_configuration_profiles` table but uses `declaration_uuid` instead of `profile_uuid` as primary key. Note that for historical reasons, the `uuid` primary key column of both these tables and the `mdm_windows_configuration_profiles` table is `VARCHAR(37)` even though a UUID is 36 characters long. This is because a prefix is prepended to the generated UUID to distinguish the type of the profile, so that if you have its UUID, you know in which table to look for it. The [prefixes](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/mdm.go#L18-L20) are "d" for a DDM, "a" for an Apple `.mobileconfig` profile and "w" for a Windows profile.
+
+The profiles names must be unique across all platforms and profile types for a given team (or "no team"), so [the SQL statement to insert new profiles is a bit unusual](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/datastore/mysql/apple_mdm.go#L5078-L5096). That's because distinct tables are used to store the different profile types, so a standard database constraint cannot be used.
+
+## Supported features and limitations
+
+* As mentioned earlier, label restrictions (include any, include all and exclude any) are supported for DDM profiles, same as for other types of profiles.
+* Fleet secrets [are supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L885-L888) and are expanded with their values when the declaration is sent to the host.
+* Fleet _variables_ [are **not** supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L948-L953) for DDM.
+* DDM profiles [cannot include OS updates settings](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L670-L672), as those are handled by Fleet via the "Controls -> OS updates" settings.
+* DDM profiles [cannot be of a type that requires assets](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L674-L676), as assets are currently not supported.
+* DDM profiles [cannot have a "status subscription" type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L678-L680).
+* DDM profiles [must be a configuration type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L682-L684).
 
 ## Special Cases
 
