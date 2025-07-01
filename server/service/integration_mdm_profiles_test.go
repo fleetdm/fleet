@@ -6927,23 +6927,42 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		globalProfiles[2],
 		scopedMobileconfigForTest("G4-bozo", "G4.user-but-actually-system", &payloadScopeUser),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
-		batchSetMDMAppleProfilesRequest{Profiles: newGlobalProfiles}, http.StatusNoContent)
+	response := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: newGlobalProfiles}, http.StatusConflict)
+	errMsg := extractServerErrorText(response.Body)
+	require.Contains(t, errMsg, "G4.user-but-actually-system")
+	require.Contains(t, errMsg, "(G4.user-but-actually-system) cannot be edited because it was previously delivered to some hosts on the device channel")
+
+	// Test a conflict of a profile on a team with an existing global profile and an implicit scope change
+	// Should error because "G4.user-but-actually-system" conflicts with global
+	// "G4.user-but-actually-system" profile scope
+	newTm1Profiles := [][]byte{
+		tm1Profiles[0], // T1.1
+		tm1Profiles[1], // T1.2
+		tm1Profiles[2], // T1.3.user
+		scopedMobileconfigForTest("G4-bozo", "G4.user-but-actually-system", &payloadScopeUser),
+	}
+	response = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusConflict,
+		"team_id", fmt.Sprint(tm1.ID))
+
+	errMsg = extractServerErrorText(response.Body)
+	require.Contains(t, errMsg, "(G4.user-but-actually-system) cannot be added because a profile with the same identifier on another team")
 
 	// Test a conflict of a profile on a team with an existing global profile
 	// Should error because "G2" conflicts with global "G2" profile
-	newTm1Profiles := [][]byte{
+	newTm1Profiles = [][]byte{
 		tm1Profiles[0], // T1.1
 		tm1Profiles[1], // T1.2
 		tm1Profiles[2], // T1.3.user
 		scopedMobileconfigForTest("G2", "G2", &payloadScopeUser),
 	}
-	response := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+	response = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusConflict,
 		"team_id", fmt.Sprint(tm1.ID))
 
-	errMsg := extractServerErrorText(response.Body)
-	require.Contains(t, errMsg, "profile cannot be added because the profile’s PayloadScope")
+	errMsg = extractServerErrorText(response.Body)
+	require.Contains(t, errMsg, "profile (G2) cannot be added because the profile’s PayloadScope")
 
 	// Test a conflict of a profile on a team versus one with the same identifier but different
 	// scope on a different team.
@@ -6959,7 +6978,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		"team_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
-	require.Contains(t, errMsg, "profile cannot be added because the profile’s PayloadScope")
+	require.Contains(t, errMsg, "profile (T2.3.user) cannot be added because the profile’s PayloadScope")
 
 	// Profile edit of existing profile on team1 with a new scope
 	newTm1Profiles = [][]byte{
@@ -6972,7 +6991,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		"team_id", fmt.Sprint(tm1.ID))
 
 	errMsg = extractServerErrorText(response.Body)
-	require.Contains(t, errMsg, "profile cannot be edited because the profile’s PayloadScope")
+	require.Contains(t, errMsg, "profile (T1.3.user) cannot be edited because the profile’s PayloadScope")
 
 	// Should be able to add these profiles to team1 with the proper scopes
 	newTm1Profiles = [][]byte{
