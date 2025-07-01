@@ -854,6 +854,7 @@ const (
 
 func ListAppleRefetchCommandPrefixes() []string {
 	return []string{
+		RefetchBaseCommandUUIDPrefix,
 		RefetchDeviceCommandUUIDPrefix,
 		RefetchAppsCommandUUIDPrefix,
 		RefetchCertsCommandUUIDPrefix,

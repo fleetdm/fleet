@@ -472,7 +472,7 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 SELECT DISTINCT h.uuid, h.platform
 FROM hosts h
 JOIN mdm_apple_configuration_profiles macp
-	ON h.team_id = macp.team_id OR (h.team_id = 0 AND macp.team_id = 0)
+	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 LEFT JOIN host_mdm_apple_profiles hmap
 	ON h.uuid = hmap.host_uuid
 WHERE
@@ -488,7 +488,7 @@ OR
 SELECT DISTINCT h.uuid, h.platform
 FROM hosts h
 JOIN mdm_windows_configuration_profiles mawp
-	ON h.team_id = mawp.team_id OR (h.team_id = 0 AND mawp.team_id = 0)
+	ON h.team_id = mawp.team_id OR (h.team_id IS NULL AND mawp.team_id = 0)
 LEFT JOIN host_mdm_windows_profiles hmwp
 	ON h.uuid = hmwp.host_uuid
 WHERE

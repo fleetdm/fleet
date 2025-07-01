@@ -6083,7 +6083,6 @@ LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?
 WHERE (h.platform = 'ios' OR h.platform = 'ipados')
 AND TRIM(h.uuid) != ''
 AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
-
 GROUP BY h.id`
 	args := []any{fleet.ListAppleRefetchCommandPrefixes(), interval.Seconds()}
 	hostsStmt, args, err = sqlx.In(hostsStmt, args...)
