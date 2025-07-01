@@ -956,6 +956,10 @@ func main() {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
 
+		// If the server can't be reached, we want to fail quickly on any blocking network calls
+		// so that desktop can be launched as soon as possible.
+		serverIsReachable := orbitClient.Ping() == nil
+
 		// create the notifications middleware that wraps the orbit client
 		// (must be shared by all runners that use a ConfigFetcher).
 		const (
@@ -1044,18 +1048,20 @@ func main() {
 			orbitClient.RegisterConfigReceiver(extRunner)
 		}
 
-		// Run a early check of fleetd configuration to check if orbit needs to
-		// restart before proceeding to start the sub-systems.
+		// Run an early check of fleetd configuration (iff server can be reached)
+		// to check if orbit needs to restart before proceeding to start the sub-systems.
 		//
 		// E.g. the administrator has updated the following agent options for this device:
 		//	- `update_channels`
 		//	- `extensions` were removed/unset
 		//	- `command_line_flags` (osquery startup flags)
-		if err := orbitClient.RunConfigReceivers(); err != nil {
-			log.Error().Msgf("failed initial config fetch: %s", err)
-		} else if orbitClient.RestartTriggered() {
-			log.Info().Msg("exiting after early config fetch")
-			return nil
+		if serverIsReachable {
+			if err := orbitClient.RunConfigReceivers(); err != nil {
+				log.Error().Msgf("failed initial config fetch: %s", err)
+			} else if orbitClient.RestartTriggered() {
+				log.Info().Msg("exiting after early config fetch")
+				return nil
+			}
 		}
 
 		addSubsystem(&g, "config receivers", &wrapSubsystem{
@@ -1095,12 +1101,14 @@ func main() {
 				return fmt.Errorf("initializing client: %w", err)
 			}
 
-			// Check if token is not expired and still good.
-			// If not, rotate the token.
-			expired, _ := trw.HasExpired()
-			if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
-				if err := trw.Rotate(); err != nil {
-					return fmt.Errorf("rotating token: %w", err)
+			// Check if the token is not expired and still good.
+			// If not, rotate the token iff the server is reachable.
+			if serverIsReachable {
+				expired, _ := trw.HasExpired()
+				if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
+					if err := trw.Rotate(); err != nil {
+						return fmt.Errorf("rotating token: %w", err)
+					}
 				}
 			}
 
