@@ -411,6 +411,32 @@ func (c *Client) MDMWipeHost(hostID uint) error {
 	return nil
 }
 
+type EULAContent struct {
+	Bytes []byte
+}
+
+func prettyPrintJSON(v interface{}) string {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func (ec *EULAContent) Handle(res *http.Response) error {
+	b, err := io.ReadAll(res.Body)
+	ec.Bytes = b
+	return err
+}
+
+func (c *Client) GetEULAContent(token string) ([]byte, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", token)
+	request := getMDMEULARequest{}
+	var responseBody EULAContent
+	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	return responseBody.Bytes, err
+}
+
 func (c *Client) GetEULAMetadata() (*fleet.MDMEULA, error) {
 	verb, path := "GET", "/api/latest/fleet/setup_experience/eula/metadata"
 	request := getMDMEULAMetadataRequest{}

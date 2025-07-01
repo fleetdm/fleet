@@ -373,6 +373,17 @@ func (MockClient) Me() (*fleet.User, error) {
 	}, nil
 }
 
+func (MockClient) GetEULAMetadata() (*fleet.MDMEULA, error) {
+	return &fleet.MDMEULA{
+		Name:  "test.pdf",
+		Token: "test-eula-token",
+	}, nil
+}
+
+func (MockClient) GetEULAContent(token string) ([]byte, error) {
+	return []byte("This is the EULA content."), nil
+}
+
 func compareDirs(t *testing.T, sourceDir, targetDir string) {
 	err := filepath.WalkDir(sourceDir, func(srcPath string, d os.DirEntry, walkErr error) error {
 		if d.IsDir() {

@@ -63,6 +63,8 @@ type generateGitopsClient interface {
 	ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
 	GetProfileContents(profileID string) ([]byte, error)
+	GetEULAMetadata() (*fleet.MDMEULA, error)
+	GetEULAContent(token string) ([]byte, error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
 	GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error)
@@ -448,6 +450,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	emptyVal := regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
 	// Add comments to the result.
 	for path, fileToWrite := range cmd.FilesToWrite {
+		// fmt.Println("file Path", path, "file to write", fileToWrite)
 		fullPath := fmt.Sprintf("%s/%s", cmd.CLI.String("dir"), path)
 		var b []byte
 		var err error
@@ -750,8 +753,43 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	return result, nil
 }
 
+func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
+	// Download the eula metadata for the token.
+	eulaMetadata, err := cmd.Client.GetEULAMetadata()
+	if err != nil {
+		// not found is OK, it means the user has not uploaded a EULA yet.
+		if strings.Contains(err.Error(), "Resource Not Found") {
+			return "", nil
+		}
+
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting eula metadata: %s\n", err)
+		return "", err
+	}
+
+	// now we want the eula contents, which is a PDF.
+	eulaContent, err := cmd.Client.GetEULAContent(eulaMetadata.Token)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting contents: %s\n", err)
+		return "", err
+	}
+
+	fileName := fmt.Sprintf("lib/eula/%s", eulaMetadata.Name)
+	cmd.FilesToWrite[fileName] = string(eulaContent)
+	path := fmt.Sprintf("./%s", fileName)
+
+	return path, nil
+}
+
+// This struct is used to represent the MDM configuration that is used with GitOps.
+// It includes an additonal end user license agreement (EULA) field, which is
+// not present in the fleet.MDM struct.
+type GitopsMDM struct {
+	fleet.MDM
+	EndUserLicenseAgreement string `json:"end_user_license_agreement,omitempty"`
+}
+
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
-	t := reflect.TypeOf(fleet.MDM{})
+	t := reflect.TypeOf(GitopsMDM{})
 	result := map[string]interface{}{
 		jsonFieldName(t, "AppleServerURL"):        mdm.AppleServerURL,
 		jsonFieldName(t, "EndUserAuthentication"): mdm.EndUserAuthentication,
@@ -759,6 +797,13 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
 		result[jsonFieldName(t, "VolumePurchasingProgram")] = mdm.VolumePurchasingProgram
+
+		eulaPath, err := cmd.generateEULA()
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating EULA: %s\n", err)
+			return nil, err
+		}
+		result[jsonFieldName(t, "EndUserLicenseAgreement")] = eulaPath
 	}
 
 	if !cmd.CLI.Bool("insecure") {
