@@ -915,7 +915,6 @@ func main() {
 					log.Info().Msg("No cert chain available. Relying on system store.")
 				}
 			}
-
 		}
 
 		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
