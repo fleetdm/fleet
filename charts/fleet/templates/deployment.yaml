@@ -70,6 +70,7 @@ spec:
             value: "{{ .Values.fleet.logging.json }}"
           - name: FLEET_LOGGING_DISABLE_BANNER
             value: "{{ .Values.fleet.logging.disableBanner }}"
+          {{- if ne .Values.fleet.mdm.windows.wstepIdentityCertKey "" }}
           - name: FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES
             valueFrom:
               secretKeyRef:
@@ -80,6 +81,7 @@ spec:
               secretKeyRef:
                 name: "{{ .Values.fleet.secretName }}"
                 key: "{{ .Values.fleet.mdm.windows.wstepIdentityKeyKey }}"
+          {{- end }}
           - name: FLEET_SERVER_TLS
             value: "{{ .Values.fleet.tls.enabled }}"
           {{- if .Values.fleet.tls.enabled }}

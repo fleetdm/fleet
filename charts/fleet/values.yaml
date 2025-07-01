@@ -95,6 +95,10 @@ fleet:
     debug: false
     json: false
     disableBanner: false
+  mdm:
+    windows:
+      wstepIdentityCertKey: ""
+      wstepIdentityKeyKey: ""
   carving:
     s3:
       bucketName: ""
