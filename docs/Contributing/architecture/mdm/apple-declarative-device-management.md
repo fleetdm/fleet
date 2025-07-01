@@ -118,7 +118,16 @@ sequenceDiagram
 	host->>+fleet: MDM protocol check-in
 	fleet->>host: DeclarativeManagement command
 	host->>fleet: DDM message "tokens"
-	fleet->>-host: fleet.MDMAppleDDMTokensResponse
+	fleet-->>-host: fleet.MDMAppleDDMTokensResponse
+	host->>fleet: DDM message "declaration-items"
+	fleet-->>-host: fleet.MDMAppleDDMDeclarationItemsResponse
+	host->>fleet: DDM message "declaration/activation/{id}"
+	fleet-->>-host: custom JSON response based on fleet.MDMAppleDeclaration
+	host->>fleet: DDM message "declaration/configuration/{id}"
+	fleet-->>-host: custom JSON response based on fleet.MDMAppleDeclaration
+	host->>fleet: DDM message "status"
+	fleet-->>fleet: verify/fail declarations
+	host-->>fleet: Acknowledge DeclarativeManagement command
 	deactivate host
 ```
 
