@@ -9,3 +9,9 @@
   hosts:
     - host1
     - host2
+- name: Label C
+  description: Label C description
+  label_membership_type: host_vitals
+  criteria:
+    vital: end_user_idp_group
+    value: some-group

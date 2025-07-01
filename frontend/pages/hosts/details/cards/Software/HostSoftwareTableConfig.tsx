@@ -79,7 +79,6 @@ export const generateSoftwareTableHeaders = ({
           cellProps.row.original
         );
 
-        console.log("isSelfService", isSelfService);
         return (
           <SoftwareNameCell
             name={name}

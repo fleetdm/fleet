@@ -2267,6 +2267,11 @@ software:
 		_, err = scriptFile.WriteString(`echo "Hello, world!"`)
 		require.NoError(t, err)
 
+		// Validate that global config is required when running noTeam
+		_, err = RunAppNoChecks(
+			[]string{"gitops", "-f", noTeamFile.Name(), "--dry-run"})
+		assert.Error(t, err)
+
 		// Dry run
 		ds.SaveAppConfigFuncInvoked = false
 		ds.BatchSetScriptsFuncInvoked = false

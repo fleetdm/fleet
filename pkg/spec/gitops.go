@@ -675,12 +675,27 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 		if l.Name == "" {
 			multiError = multierror.Append(multiError, errors.New("name is required for each label"))
 		}
-		if l.Query == "" && len(l.Hosts) == 0 {
-			multiError = multierror.Append(multiError, errors.New("a SQL query or hosts list is required for each label"))
+		if l.Query == "" && len(l.Hosts) == 0 && l.HostVitalsCriteria == nil {
+			multiError = multierror.Append(multiError, errors.New("a SQL query, hosts list or host vitals criteria is required for each label"))
 		}
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
 			multiError = multierror.Append(multiError, fmt.Errorf("label name must be in ASCII: %s", l.Name))
+		}
+		// Check that host vitals criteria is valid
+		if l.HostVitalsCriteria != nil {
+			criteriaJson, err := json.Marshal(l.HostVitalsCriteria)
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to marshal host vitals criteria for label %s: %v", l.Name, err))
+				continue
+			}
+			label := fleet.Label{
+				Name:               l.Name,
+				HostVitalsCriteria: ptr.RawMessage(criteriaJson),
+			}
+			if _, _, err := label.CalculateHostVitalsQuery(); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("invalid host vitals criteria for label %s: %v", l.Name, err))
+			}
 		}
 	}
 	duplicates := getDuplicateNames(
