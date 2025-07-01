@@ -198,7 +198,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 				// If we are polling to verify the install, we should get an
 				// InstalledApplicationList command instead of an InstallApplication command.
 				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-				cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(
+				_, err = mdmDevice.AcknowledgeInstalledApplicationList(
 					mdmDevice.UUID,
 					cmd.CommandUUID,
 					[]fleet.Software{
@@ -572,6 +572,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			addedApp.AdamID,
 		)
 		require.NotEmpty(t, installCmdUUID)
+		require.NoError(t, err)
 
 		return nil
 	})
@@ -608,6 +609,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
 
+	t.Cleanup(s.appleCoreCertsSetup)
+
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		// We should have cleared out upcoming_activies when disabling MDM
 		var count uint
@@ -625,6 +628,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			mdmHost.ID,
 			addedApp.AdamID,
 		)
+		require.NoError(t, err)
 		require.NotEmpty(t, installCmdUUID)
 
 		return nil
