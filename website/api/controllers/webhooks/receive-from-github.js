@@ -87,6 +87,7 @@ module.exports = {
       'ddribeiro',
       'allenhouchins',
       'harrisonravazzolo',
+      'tux234',
       'KendraAtFleet',
       'ksykulev',
       'onasismunro',
