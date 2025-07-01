@@ -6569,6 +6569,9 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get identity provider (IdP) details](#get-identity-provider-idp-details)
 - [Get Android Enterprise](#get-android-enterprise)
+- [Add certificate authority (CA)](#add-certificate-authority-ca)
+- [Edit certificate authority (CA)](#edit-certificate-authority-ca)
+- [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6745,6 +6748,35 @@ None.
   "android_enterprise_id": "LC0445szuv"
 }
 ```
+
+### Add certificate authority (CA)
+
+Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| type   | string | Type of the certificate authority. Options include `digicert`, `ndes_scep_proxy`, `hydrant`, and `custom_scep_proxy`. |
+| name   | string | Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| Fields for `digicert` type |    |    |
+| url   | string | **Required (if type is `digicert`)** DigiCert instance URL, used as base URL for DigiCert API requests. |
+| api_token        | string | **Required (if type is `digicert`)** API token used to authenticate requests to DigiCert. |
+| profile_id       | string  | **Required (if type is `digicert`)** The ID of certificate profile in DigiCert. |
+| certificate_common_name      | string  | **Required (if type is `digicert`)** The certificate's common name. |
+| certificate_user_principal_names    | array  | Use with type `digicert`. The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
+| certificate_seat_id     | string  | **Required (if type is `digicert`)** The ID of the DigiCert seat. Seats are license units in DigiCert. |
+| Fields for `ndes_scep_proxy` type |    |    |
+| url       | string | **Required (if type is `ndes_scep_proxy`)**. The URL of the NDES SCEP endpoint.        |
+| admin_url | string | **Required (if type is `ndes_scep_proxy`)**. The URL of the NDES admin endpoint.       |
+| password  | string | **Required (if type is `ndes_scep_proxy`)**. The password for the NDES admin endpoint. |
+| username  | string | **Required (if type is `ndes_scep_proxy`)**. The username for the NDES admin endpoint. |
+| Fields for `hydrant` type |    |    |
+| ...        | ... | ... |
+
+| Fields for `custom_scep_proxy` type |    |    |
+| url        | boolean |  **Required (if type is `custom_scep_proxy`)**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
+| challenge         | string  | **Required (if type is `custom_scep_proxy`)**. Static challenge password used to authenticate requests to SCEP server. |
+
+
 
 ---
 
