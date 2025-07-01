@@ -266,17 +266,19 @@ func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
 	if colAlias != "" {
 		colAlias = " AS " + colAlias
 	}
+
 	return fmt.Sprintf(`
-			CASE
-				WHEN %[1]sstatus = :mdm_status_acknowledged THEN
-					:software_status_installed
-				WHEN %[1]sstatus = :mdm_status_error OR %[1]sstatus = :mdm_status_format_error THEN
-					:software_status_failed
-				WHEN %[2]sid IS NOT NULL THEN
-					:software_status_pending
-				ELSE
-					NULL -- not installed via VPP App
-			END %[3]s `, ncrAlias, hvsiAlias, colAlias)
+	CASE
+		WHEN %sverification_at IS NOT NULL THEN
+			:software_status_installed
+		WHEN %sverification_failed_at IS NOT NULL THEN
+			:software_status_failed
+		WHEN %sstatus = :mdm_status_error OR %sstatus = :mdm_status_format_error THEN
+			:software_status_failed
+		ELSE
+		    :software_status_pending	
+	END %s
+	`, hvsiAlias, hvsiAlias, ncrAlias, ncrAlias, colAlias)
 }
 
 func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
@@ -1749,7 +1751,7 @@ WHERE hvsi.verification_command_uuid = ?
 	return result, nil
 }
 
-func (ds *Datastore) UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID, verifyCommandUUID string) error {
+func (ds *Datastore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
 SET verification_command_uuid = ? 
@@ -1763,7 +1765,7 @@ WHERE command_uuid = ?
 	return nil
 }
 
-func (ds *Datastore) UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error {
+func (ds *Datastore) ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
 SET verification_command_uuid = ? 
@@ -1815,4 +1817,59 @@ WHERE command_uuid = ?
 
 		return nil
 	})
+}
+
+func (ds *Datastore) MarkAllPendingVPPInstallsAsFailed(ctx context.Context, jobName string) error {
+	clearUpcomingActivitiesStmt := `
+DELETE ua FROM
+	upcoming_activities ua
+JOIN
+	host_vpp_software_installs hvsi ON hvsi.command_uuid = ua.execution_id
+WHERE ua.activity_type = ? AND hvsi.verification_failed_at IS NULL AND hvsi.verification_at IS NULL
+	`
+
+	installFailStmt := `
+UPDATE host_vpp_software_installs
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
+WHERE verification_failed_at IS NULL AND verification_at IS NULL
+	`
+
+	deletePendingJobsStmt := `
+DELETE FROM jobs
+WHERE name = ?
+AND state = ?
+	`
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, clearUpcomingActivitiesStmt, "vpp_app_install"); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear vpp install upcoming activities")
+		}
+
+		if _, err := tx.ExecContext(ctx, installFailStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+		}
+
+		if _, err := tx.ExecContext(ctx, deletePendingJobsStmt, jobName, fleet.JobStateQueued); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete pending jobs")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
+	installFailStmt := `
+UPDATE host_vpp_software_installs
+SET verification_failed_at = CURRENT_TIMESTAMP(6)
+WHERE
+	verification_failed_at IS NULL
+	AND verification_at IS NULL
+	AND host_id = ?
+	`
+
+	if _, err := tx.ExecContext(ctx, installFailStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+	}
+
+	return nil
 }

@@ -808,7 +808,7 @@ func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID s
 			"Name":         s.Name,
 			"ShortVersion": s.Version,
 			"Identifier":   s.BundleIdentifier,
-			"Installing":   false,
+			"Installing":   !s.Installed,
 		})
 	}
 

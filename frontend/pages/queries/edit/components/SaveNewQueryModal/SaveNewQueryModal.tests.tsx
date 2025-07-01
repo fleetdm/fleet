@@ -9,7 +9,7 @@ import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 import { QueryablePlatform } from "interfaces/platform";
 
-import SaveQueryModal from "./SaveQueryModal";
+import SaveNewQueryModal from "./SaveNewQueryModal";
 
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -38,13 +38,13 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
 
 const mockQuery = createMockQuery();
 
-describe("SaveQueryModal", () => {
+describe("SaveNewQueryModal", () => {
   const defaultProps = {
     queryValue: "SELECT * FROM users",
     apiTeamIdForQuery: 1,
     isLoading: false,
     saveQuery: jest.fn(),
-    toggleSaveQueryModal: jest.fn(),
+    toggleSaveNewQueryModal: jest.fn(),
     backendValidators: {},
     existingQuery: mockQuery,
     queryReportsDisabled: false,
@@ -68,7 +68,7 @@ describe("SaveQueryModal", () => {
       },
     });
 
-    const { user } = render(<SaveQueryModal {...defaultProps} />);
+    const { user } = render(<SaveNewQueryModal {...defaultProps} />);
 
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
     expect(screen.getByLabelText("Description")).toBeInTheDocument();
@@ -94,7 +94,7 @@ describe("SaveQueryModal", () => {
       },
     });
 
-    const { user } = render(<SaveQueryModal {...defaultProps} />);
+    const { user } = render(<SaveNewQueryModal {...defaultProps} />);
 
     const advancedOptionsButton = screen.getByText("Show advanced options");
     await user.click(advancedOptionsButton);
@@ -117,7 +117,7 @@ describe("SaveQueryModal", () => {
       },
     });
 
-    const { user } = render(<SaveQueryModal {...defaultProps} />);
+    const { user } = render(<SaveNewQueryModal {...defaultProps} />);
 
     await user.click(screen.getByText("Save"));
 
@@ -136,7 +136,7 @@ describe("SaveQueryModal", () => {
       },
     });
 
-    render(<SaveQueryModal {...defaultProps} />);
+    render(<SaveNewQueryModal {...defaultProps} />);
 
     // Wait for any queries (that should not be happening) to finish.
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -172,7 +172,7 @@ describe("SaveQueryModal", () => {
       },
     };
 
-    render(<SaveQueryModal {...props} />);
+    render(<SaveNewQueryModal {...props} />);
     const saveButton = screen.getByRole("button", { name: "Save" });
     expect(saveButton).toBeDisabled();
   });
@@ -204,7 +204,7 @@ describe("SaveQueryModal", () => {
         },
       },
     });
-    render(<SaveQueryModal {...props} />);
+    render(<SaveNewQueryModal {...props} />);
     await waitFor(() => {
       expect(screen.getByLabelText("Name")).toBeInTheDocument();
     });
@@ -237,7 +237,7 @@ describe("SaveQueryModal", () => {
     });
 
     it("should show the target selector in All hosts target mode when the query has no labels", async () => {
-      render(<SaveQueryModal {...defaultProps} />);
+      render(<SaveNewQueryModal {...defaultProps} />);
       await waitFor(() => {
         expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeInTheDocument();
@@ -246,7 +246,7 @@ describe("SaveQueryModal", () => {
     });
 
     it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
-      render(<SaveQueryModal {...defaultProps} />);
+      render(<SaveNewQueryModal {...defaultProps} />);
       let allHosts;
       let custom;
       await waitFor(() => {
@@ -268,7 +268,7 @@ describe("SaveQueryModal", () => {
     it("should send labels when saving a new query in Custom target mode", async () => {
       const saveQuery = jest.fn();
       const props = { ...defaultProps, saveQuery };
-      render(<SaveQueryModal {...props} />);
+      render(<SaveNewQueryModal {...props} />);
       await waitFor(() => {
         expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
       });
@@ -287,7 +287,7 @@ describe("SaveQueryModal", () => {
     it("should clear labels when saving a new query in All hosts target mode", async () => {
       const saveQuery = jest.fn();
       const props = { ...defaultProps, saveQuery };
-      render(<SaveQueryModal {...props} />);
+      render(<SaveNewQueryModal {...props} />);
       await waitFor(() => {
         expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
       });
