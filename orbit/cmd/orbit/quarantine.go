@@ -1,5 +1,5 @@
 package main
-
+// TODO: in production code quarantine.go needs to be in a separate package
 import (
 	"net"
 	"net/netip"
@@ -28,7 +28,8 @@ func setFleetUrl(fleetUrl string) {
 }
 
 func isQuarantined() bool {
-	// TODO: check in windows registry
+	// TODO: In this POC I am writing to a file to check if this host is quarantined, in production
+	// code this should be checked in a windows registry key
 	if _, err := os.Stat(".\\I_am_quarantined"); err == nil {
 		return true // File exists
 	}
@@ -145,9 +146,9 @@ func QuarantineIfNeeded() {
 		wf.LayerALEAuthConnectV6,
 	}*/
 
-	/* Note: in production code, each rule that is added to the firewall 
-	* 		 should have persistent set to true so that it remains after
-	* 		 a system restart. For debug recoverability I have not set it. */
+	// Note: in production code, each rule that is added to the firewall 
+	// should have persistent set to true so that it remains after
+	// a system restart. For debug recoverability I have not set it. See line 174.
 	
 	for _, layer := range layersIPv4 {
 		// Block all traffic except fleetServerIP
@@ -211,12 +212,9 @@ func QuarantineIfNeeded() {
 	}
 
 	// TODO: production quarantine should support IPv6 fleet server connection
-	// Code for allowing the fleet IPv6 address is here
+	// Code for allowing the fleet IPv6 address is here:
 	/*
 	for _, layer := range layersIPv6 {
-		 
-		
-		
 		if foundIPv6 {
 			// Allow traffic to the fleet server in case it is an ipv6 address
 			guidAllowFleetIPv6, err := windows.GenerateGUID()

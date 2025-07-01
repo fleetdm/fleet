@@ -26,7 +26,7 @@ type AgentOptions struct {
 	Extensions json.RawMessage `json:"extensions,omitempty"`
 	// UpdateChannels holds the configured channels for fleetd components.
 	UpdateChannels json.RawMessage `json:"update_channels,omitempty"`
-
+	// Quarantine will block all traffic to/from the host except the fleet server.
 	Quarantine bool `json:"quarantine"`
 }
 
