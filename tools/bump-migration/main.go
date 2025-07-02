@@ -14,11 +14,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/siderolabs/go-cmd/pkg/cmd"
 )
 
 func main() {
@@ -68,9 +67,9 @@ func main() {
 	}
 
 	if *regenSchema {
-		s, err := cmd.Run("make", "dump-test-schema")
+		err := exec.Command("make", "dump-test-schema").Run()
 		if err != nil {
-			log.Fatalf("Error regenerating the schema: %v\nOutput:\n%s", err, s)
+			log.Fatalf("Error regenerating the schema: %v", err)
 		}
 	}
 }
