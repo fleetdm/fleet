@@ -12,7 +12,7 @@ Fleet’s DDM architecture centers around the definition of DDM profiles (which 
 
 ## DDM lifecycle
 
-The DDM profiles are managed either via Fleet's UI, the API or `fleetctl gitops`. Then the Fleet server is responsible to deliver these settings to the targeted devices, and then to track the statuses. The following sub-sections expand on those lifecycle steps.
+The DDM profiles are managed either via Fleet's UI, the API or `fleetctl gitops`. After receiving the DDM profiles, the Fleet server is responsible for delivering these settings to the targeted devices, and then tracking the statuses. The following sub-sections expand on those lifecycle steps.
 
 ### Managing DDM profiles
 
@@ -58,7 +58,7 @@ Delivery of the DDM profiles is handled via a cron job, as for other types of pr
 
 The reason we even need a `ReconcileAppleDeclarations` function is so that we can transition the statuses of the profiles on the host from `nil` to "pending" (indicating that we initiated the steps to deliver them), and to ensure we trigger the DDM protocol via the `DeclarativeManagement` command (this is how the DDM protocol is handled - similar to, say, Websockets that are initiated via a standard HTTP request, the [DDM protocol is built on top of the traditional MDM protocol](https://developer.apple.com/documentation/devicemanagement/integrating-declarative-management) and requires that `DeclarativeManagement` command to get started).
 
-Otherwise, the fact that we initiate it only for hosts that have changed DDM profiles is an optimization, sending it for the other hosts would simply detect that no changes were necessary.
+Otherwise, the fact that we initiate it only for hosts that have changed DDM profiles is an optimization, sending it for the other hosts would simply detect that no changes were necessary (and if we did mark them as "pending" here, they would be stuck in this state as the host would never receive those declarations).
 
 There is one more thing happening in `ReconcileAppleDeclarations`, and it's to handle the `resync` field of the `host_mdm_apple_declarations` table. [This was added](https://github.com/fleetdm/fleet/pull/29059) to handle a race where a [declaration is pending install but is currently marked as pending remove](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/datastore/mysql/apple_mdm.go#L5590-L5595). In this case, the install is immediately transitioned to "verified" (as it had to be installed in order to be pending remove), but because the remove might've already happened (and Fleet did not get the status confirmation), the profile is marked as "to resync" for the host to ensure it gets delivered if necessary.
 
@@ -78,6 +78,8 @@ The [various endpoint operations are handled in the Fleet implementation](https:
 * `strings.HasPrefix(Endpoint, "declaration/configuration")`: sends the full JSON of the corresponding declaration (identified by the "Endpoint"), expanding its Fleet secrets as needed.
 * `strings.HasPrefix(Endpoint, "declaration/activation")`: sends the full JSON of the corresponding activation (identified by the "Endpoint"). Activations can be used to conditionally apply configurations based on predicates, but we currently don't use that feature and send an unconditional activation.
 * `Endpoint == "status"`: receives the status report of the DDM profiles on the host. If the declaration is active and valid, it is marked as "verified", and if it is invalid it is marked as "failed". Other rare cases are handled in this code, but those are the main ones. Note that [according the Roberto's research at the time](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/service/apple_mdm.go#L6084-L6093), the host will not send "remove" statuses, instead we detect removal by the fact that the declaration is not in the status report.
+
+Note that the "status" endpoint [can carry other information](https://developer.apple.com/documentation/devicemanagement/status-reports), like changes in dynamic device state (e.g. if a declaration had a subscription requesting that information, such as battery healty, certificates, etc.). We currently only use it to update the declaration's status.
 
 In addition to verifying the DDM profiles from the status response of the DDM protocol, we also [update the statuses from the response of the traditional `DeclarativeManagement` command](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/service/apple_mdm.go#L3486) to do the initial transition from "pending" to "verifying" or "failed" depending on the result of the command. This batch-affects all declarations for the host.
 
