@@ -19,9 +19,7 @@ The Disk Encryption architecture leverages platform-specific encryption technolo
 
 ## Architecture diagram
 
-```
-[Placeholder for Disk Encryption Architecture Diagram]
-```
+See platform-specific diagrams below
 
 ## Platform-specific implementation
 
