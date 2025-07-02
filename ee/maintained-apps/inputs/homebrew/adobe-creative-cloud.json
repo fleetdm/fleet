@@ -1,0 +1,8 @@
+{
+  "name": "Adobe Creative Cloud",
+  "slug": "adobe-creative-cloud/darwin",
+  "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
+  "token": "adobe-creative-cloud",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+} 
