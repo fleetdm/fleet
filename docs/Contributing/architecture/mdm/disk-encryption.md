@@ -187,7 +187,7 @@ initiated, Fleet Desktop will prompt the user to enter their encryption passphra
 used to create a new keyslot, the passphrase for which orbit randomly generates and escrows on the
 server.
 
-```
+```mermaid
 sequenceDiagram
         actor Admin
         participant fleet as Fleet server
