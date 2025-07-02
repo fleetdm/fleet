@@ -72,6 +72,10 @@ type generateGitopsClient interface {
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 	GetLabels() ([]*fleet.LabelSpec, error)
 	Me() (*fleet.User, error)
+	GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error)
+	GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error)
+	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
+	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
