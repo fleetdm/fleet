@@ -61,10 +61,8 @@ sequenceDiagram
 If we're not able to decrypt the key for a host, or there is no stored key for an already encrypted host, the key needs to be rotated. Rotation happens silently by:
 
 1. The server sends a notification to orbit to rotate the disk encryption recovery key
-2. orbit installs and enables an authorization plugin named [Escrow
-   Buddy](https://github.com/macadmins/escrow-buddy) that performs the key rotation the next time
-   the user logs in.
-3. EscrowBuddy stores the encrypted key on disk after the next login
+2. orbit installs and enables an authorization plugin named [Escrow Buddy](https://github.com/macadmins/escrow-buddy) that performs the key rotation the next time the user logs in.
+3. Escrow Buddy stores the encrypted key on disk after the next login
 4. Fleet, via osquery, retrieves the (encrypted) recovery key
 5. A cron job verifies that the retrieved key can be decrypted
 
@@ -85,17 +83,17 @@ sequenceDiagram
         fleet->>fleetd: Return queries including encryption status query
         fleetd->>fleet: return query data including encryption status
         fleet->>fleetd: Enable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted but no<br>key is escrowed
-        fleetd->>host: Install escrowbuddy
-        fleetd->>host: Set escrowbuddy<br>GenerateNewKey=true
+        fleetd->>host: Install Escrow Buddy
+        fleetd->>host: Set Escrow Buddy<br>GenerateNewKey=true
         desktop->>user: prompt user to logout
         user->>host: logout/login
-        host->>host: Store recovery key at <br>/var/db/filevaultprk.dat<br>(triggered by escrowbuddy)
+        host->>host: Store recovery key at <br>/var/db/filevaultprk.dat<br>(triggered by Escrow Buddy)
         fleetd->>fleet: request vitals queries
         fleet->>fleetd: Return vitals queries including query<br>to read /var/db/filevaultprk.dat
         fleetd->>fleetd: execute queries
         fleetd->>fleet: return query data including recovery key
         fleet->>fleetd: Disable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted and a<br>key is escrowed
-        fleetd->>host: Set escrowbuddy<br>GenerateNewKey=false
+        fleetd->>host: Set Escrow Buddy<br>GenerateNewKey=false
         fleet->>fleet: Verify that recovery key is decryptable<br>(hourly cron job)
 ```
 
