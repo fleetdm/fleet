@@ -104,16 +104,35 @@
               <p class="mb-0">
                 {{selectedPayloadCategory.description}} <a target="_blank" :href="selectedPayloadCategory.learnMoreLinkUrl" v-if="selectedPayloadCategory.learnMoreLinkUrl">Learn more</a>
               </p>
+              <div purpose="fleet-note" v-if="selectedPayloadCategory.noteForFleetUsers">
+                <p>
+                  <strong>For Fleet Users:</strong> {{selectedPayloadCategory.noteForFleetUsers}}
+                  <a :href="selectedPayloadCategory.docsLinkForFleetUsers" target="_blank" v-if="selectedPayloadCategory.docsLinkForFleetUsers">Docs</a>
+                </p>
+              </div>
             </div>
-            <div purpose="subcategory-options">
+            <div purpose="subcategory-options" v-if="_.keysIn(selectedPayloadCategory.payloads[0]).includes('payloadGroup')">
+              <div purpose="payload-group" v-for="(group, groupName) in _.groupBy(selectedPayloadCategory.payloads, 'payloadGroup')">
+                <p><strong>{{groupName}}</strong></p>
+                <div purpose="option" v-for="payload in group">
+                  <label :for="payload.uniqueSlug">
+                    <span purpose="custom-checkbox" :class="[selectedPayloadSettings[payload.uniqueSlug] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                    <input type="checkbox" v-model="selectedPayloadSettings[payload.uniqueSlug]" :id="payload.uniqueSlug" @input="clickSelectPayload(payload.uniqueSlug)">
+                    {{payload.name}}
+                    <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" :title="payload.tooltip" v-if="payload.tooltip">
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div purpose="subcategory-options" v-else>
               <div purpose="option" v-for="payload in selectedPayloadCategory.payloads">
 
-                <label :for="payload.uniqueSlug" >
+                <label :for="payload.uniqueSlug">
                   <span purpose="custom-checkbox" :class="[selectedPayloadSettings[payload.uniqueSlug] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
                   <input type="checkbox" v-model="selectedPayloadSettings[payload.uniqueSlug]" :id="payload.uniqueSlug" @input="clickSelectPayload(payload.uniqueSlug)">
                   {{payload.name}}
+                  <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" :title="payload.tooltip" v-if="payload.tooltip">
                 </label>
-                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" :title="payload.tooltip" v-if="payload.tooltip">
               </div>
             </div>
           </div>
@@ -128,11 +147,12 @@
           <ajax-form :handle-submitting="handleSubmittingConfigurationBuilderForm" :form-errors.sync="formErrors" :form-data="configurationBuilderFormData" :form-rules="configurationBuilderFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
             <div purpose="options-container" :class="[selectedPayloads.length > 0 ? 'slide-in' : '' ]">
               <div purpose="payload-category" v-for="category in _.keysIn(selectedPayloadsGroupedByCategory)">
+                <ajax-form :handle-submitting="handleSubmittingSinglePayloadConfigurationBuilderForm" :form-errors.sync="formErrors" :form-data="configurationBuilderFormData" :form-rules="configurationBuilderByCategoryFormRules[category]" :syncing.sync="syncing" :cloud-error.sync="cloudError">
                 <div purpose="category-header">
                   <h2 class="mb-0">{{category}}</h2>
                   <div purpose="download-and-remove-buttons">
                     <a purpose="form-button" @click="clickRemoveOneCategoryPayloadOptions(category)">Remove all</a>
-                    <ajax-button purpose="download-button" :syncing="syncing"><img alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
+                    <ajax-button purpose="download-button" :syncing="syncing" @click="clickSetCurrentSelectedCategory(category)"><img alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
                   </div>
                 </div>
 
@@ -180,6 +200,7 @@
                   </div>
                   <a @click="clickRemovePayloadOption(option)" purpose="remove-button">Remove</a>
                 </div>
+                </ajax-form>
               </div>
             </div>
             <div purpose="bottom-download-bar" :class="[ selectedPayloadCategory ? 'slide-in' : '' ]">
@@ -264,7 +285,7 @@
             <input type="text" :class="[formErrors.uuid ? 'is-invalid' : '']" class="form-control" id="uuid" v-model="downloadProfileFormData.uuid">
             <div class="invalid-feedback">Please enter a UUID for this profile.</div>
           </div>
-          <div purpose="modal-form-option">
+          <div purpose="modal-form-option"  v-if="selectedPlatform === 'macos'">
             <label for="profile-description">Description <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="A unique identifier for this payload, used to track and update the payload during profile replacements. Must be globally unique."></label>
             <textarea  class="form-control" id="description" v-model="downloadProfileFormData.description"></textarea>
           </div>
