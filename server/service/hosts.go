@@ -2785,10 +2785,12 @@ func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	// if the request is token-authenticated ("My device" page), we don't include
-	// software that is not installed but for which there's an installer
-	// available for that host (unless the request filters for self-service
-	// software only).
+	// When accessed via "My device", we default to only showing inventory (excluding software available for install
+	// but not in inventory), unless we're asked to filter to self-service software only.
+	//
+	// Otherwise (e.g. host software UI within Fleet's admin interface), the default is to show both installed and
+	// available-for-install software, to maintain existing API behavior. This behavior can be explicitly overridden
+	// if needed (see opts.IncludeAvailableForInstallExplicitlySet).
 	var includeAvailableForInstall bool
 
 	var host *fleet.Host
