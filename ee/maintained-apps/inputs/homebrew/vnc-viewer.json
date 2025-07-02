@@ -3,5 +3,6 @@
   "unique_identifier": "com.realvnc.vncviewer",
   "token": "vnc-viewer",
   "installer_format": "dmg",
-  "slug": "vnc-viewer/darwin"
+  "slug": "vnc-viewer/darwin",
+  "default_categories": ["Productivity"]
 } 
