@@ -180,7 +180,7 @@ func main() {
 		hostOfflineItem := systray.AddMenuItem(
 			`🛜🚫 Your computer is offline.
 
-It might take up to 5 minutes to reconnect to the Fleet.`,
+It might take up to 5 minutes to reconnect to Fleet.`,
 			"")
 		hostOfflineItem.Disable()
 
