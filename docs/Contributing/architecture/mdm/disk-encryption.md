@@ -115,7 +115,7 @@ and Security](#key-storage-and-security).
 
 ### BitLocker (Windows)
 
-Disk encryption in Windows is performed entirely by orbit.
+Disk encryption in Windows is performed entirely by orbit. 
 
 When disk encryption is enabled, the server sends a notification to orbit, which calls the
 [Win32_EncryptableVolume class](https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume)
@@ -181,11 +181,11 @@ slate for orbit to attempt to encrypt the disk again:
 
 ### LUKS (Linux)
 Fleet can escrow disk encryption keys for Ubuntu, Kubuntu and Fedora Linux hosts that had LUKS2
-encryption enabled during installation. Fleet will initiate the escrow process on hosts running
-eligible operating systems and for which encryption has already been enabled. Once the process is
-initiated, Fleet Desktop will prompt the user to enter their encryption passphrase which is then
-used to create a new keyslot, the passphrase for which orbit randomly generates and escrows on the
-server.
+encryption enabled during installation. Fleet will only initiate the escrow process on hosts running
+eligible operating systems and for which encryption has already been enabled and will not prompt
+users on ineligible hosts. Once the process is initiated, Fleet Desktop will prompt the user to
+enter their encryption passphrase which is then used to create a new keyslot, the passphrase for
+which orbit randomly generates and escrows on the server.
 
 ```mermaid
 sequenceDiagram
