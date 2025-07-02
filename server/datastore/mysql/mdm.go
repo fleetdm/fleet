@@ -1968,22 +1968,20 @@ GROUP BY
 	return counts, nil
 }
 
-func (ds *Datastore) GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error) {
+func (ds *Datastore) IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
 	stmt := `
-SELECT
-    nvq.command_uuid AS command_uuid
-FROM
-    nano_view_queue nvq
-WHERE
-   nvq.active = 1 
-   AND nvq.id = ?
-   AND nvq.request_type = ?
-   AND status != 'Acknowledged'`
-
-	var cmdUUIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, stmt, hostUUID, commandType); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get pending mdm commands by host")
+SELECT EXISTS (
+	SELECT 1
+    FROM host_mdm_commands hmc
+    JOIN hosts h ON hmc.host_id = h.id
+    WHERE
+		h.uuid = ? AND
+		hmc.command_type = ?
+) AS exists_flag
+`
+	var exists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, stmt, hostUUID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check for acknowledged mdm command by host")
 	}
-
-	return cmdUUIDs, nil
+	return exists, nil
 }
