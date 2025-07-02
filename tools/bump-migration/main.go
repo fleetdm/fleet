@@ -2,7 +2,7 @@
 // the code accordingly. If there is a test file for the migration, it is also
 // renamed and updated. It can optionally regenerate the database schema file.
 //
-// This oeration is required when a PR has a database migration that is older
+// This operation is required when a PR has a database migration that is older
 // than an existing migration in the main branch, e.g. because the PR has been
 // pending merge for a while and another PR got merged with a more recent
 // DB migration.
