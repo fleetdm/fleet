@@ -24,10 +24,10 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/open"
-	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/go-github/v37/github"
 	"github.com/mitchellh/go-ps"
 	"github.com/urfave/cli/v2"
@@ -370,37 +370,17 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			client.SetToken(token)
 
-			fmt.Println("Loading standard query library...")
-			var buf []byte
-			if fp := c.String(stdQueryLibFilePath); fp != "" {
-				var err error
-				buf, err = os.ReadFile(fp)
-				if err != nil {
-					return fmt.Errorf("failed to read standard query library file %q: %w", fp, err)
-				}
-			} else {
-				var err error
-				buf, err = downloadStandardQueryLibrary()
-				if err != nil {
-					return fmt.Errorf("failed to download standard query library: %w", err)
-				}
-			}
-
-			specs, err := spec.GroupFromBytes(buf)
-			if err != nil {
-				return err
-			}
-			logf := func(format string, a ...interface{}) {
-				fmt.Fprintf(c.App.Writer, format, a...)
-			}
-			// this only applies standard queries, the base directory is not used,
-			// so pass in the current working directory.
-			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
-			teamsScripts := make(map[string][]fleet.ScriptResponse)
-			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
-			_, _, _, _, err = client.ApplyGroup(c.Context, false, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
-			if err != nil {
-				return err
+			fmt.Println("Loading starter library...")
+			if err := service.ApplyStarterLibrary(
+				c.Context,
+				address,
+				token,
+				kitlog.NewLogfmtLogger(os.Stderr),
+				fleethttp.NewClient,
+				service.NewClient,
+				nil, // No mock ApplyGroup for production code
+			); err != nil {
+				return fmt.Errorf("failed to apply starter library: %w", err)
 			}
 
 			// disable analytics collection and enable software inventory for preview

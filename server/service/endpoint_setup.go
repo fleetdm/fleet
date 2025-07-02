@@ -95,7 +95,7 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 
 			// Apply starter library using the admin token we just created
 			if req.ServerURL != nil {
-				if err := applyStarterLibrary(
+				if err := ApplyStarterLibrary(
 					ctx,
 					*req.ServerURL,
 					session.Key,
@@ -121,11 +121,11 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 	}
 }
 
-// applyStarterLibrary downloads the starter library from GitHub
+// ApplyStarterLibrary downloads the starter library from GitHub
 // and applies it to the Fleet server using an authenticated client.
 // TODO: Move the apply starter library logic to use the serve command as an entry point to simplify and leverage the entire fleet.Service.
 // Entry point: https://github.com/fleetdm/fleet/blob/2dfadc0971c6ba45c19dad2f5f1f4cd0f1b89b20/cmd/fleet/serve.go#L1099-L1100
-func applyStarterLibrary(
+func ApplyStarterLibrary(
 	ctx context.Context,
 	serverURL string,
 	token string,
@@ -176,12 +176,12 @@ func applyStarterLibrary(
 	}
 
 	// Find all script references in the YAML and download them
-	scriptNames := extractScriptNames(specs)
+	scriptNames := ExtractScriptNames(specs)
 	level.Debug(logger).Log("msg", "Found script references in starter library", "count", len(scriptNames))
 
 	// Download scripts and update references in specs
 	if len(scriptNames) > 0 {
-		err = downloadAndUpdateScripts(ctx, specs, scriptNames, tempDir, logger)
+		err = DownloadAndUpdateScripts(ctx, specs, scriptNames, tempDir, logger)
 		if err != nil {
 			return fmt.Errorf("failed to download and update scripts: %w", err)
 		}
@@ -231,8 +231,8 @@ func applyStarterLibrary(
 	return nil
 }
 
-// extractScriptNames extracts all script names from the specs
-func extractScriptNames(specs *spec.Group) []string {
+// ExtractScriptNames extracts all script names from the specs
+func ExtractScriptNames(specs *spec.Group) []string {
 	var scriptNames []string
 	scriptMap := make(map[string]bool) // Use a map to deduplicate script names
 
@@ -256,8 +256,8 @@ func extractScriptNames(specs *spec.Group) []string {
 	return scriptNames
 }
 
-// downloadAndUpdateScripts downloads scripts from URLs and updates the specs to reference local files
-func downloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptNames []string, tempDir string, logger kitlog.Logger) error {
+// DownloadAndUpdateScripts downloads scripts from URLs and updates the specs to reference local files
+func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptNames []string, tempDir string, logger kitlog.Logger) error {
 	// Create a single HTTP client to be reused for all requests
 	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
 
