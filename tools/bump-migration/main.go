@@ -44,6 +44,10 @@ func main() {
 		log.Fatalf("The migration file '%s' does not exist in the expected path, make sure you run this command from the root of the repository: %s", sourceFilename, fullPath)
 	case err != nil:
 		log.Fatalf("Error checking the migration file '%s': %v", sourceFilename, err)
+	default:
+		if strings.HasSuffix(sourceFilename, "_test.go") {
+			log.Fatalf("The migration file '%s' is a test file, please provide the original migration file instead.", sourceFilename)
+		}
 	}
 
 	oldTimestamp, _, ok := strings.Cut(sourceFilename, "_")
