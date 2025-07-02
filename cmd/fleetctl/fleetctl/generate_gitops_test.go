@@ -845,14 +845,17 @@ func TestGenerateControls(t *testing.T) {
 
 	// Generate controls for a team with a bootstrap pacakge.
 	controlsRaw, err = cmd.generateControls(ptr.Uint(3), "some_team", nil)
+	require.NoError(t, err)
 	verifyControlsHasMacosSetup(t, controlsRaw)
 
 	// Generate controls for a team with a setup experience script.
 	controlsRaw, err = cmd.generateControls(ptr.Uint(4), "some_team", nil)
+	require.NoError(t, err)
 	verifyControlsHasMacosSetup(t, controlsRaw)
 
 	// Generate controls for a team with a setup experience profile.
 	controlsRaw, err = cmd.generateControls(ptr.Uint(5), "some_team", nil)
+	require.NoError(t, err)
 	verifyControlsHasMacosSetup(t, controlsRaw)
 }
 
