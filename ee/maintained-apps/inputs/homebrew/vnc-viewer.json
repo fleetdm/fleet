@@ -1,5 +1,5 @@
 {
-  "name": "Real VNC Viewer",
+  "name": "VNC Viewer",
   "unique_identifier": "com.realvnc.vncviewer",
   "token": "vnc-viewer",
   "installer_format": "dmg",
