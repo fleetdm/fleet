@@ -9,7 +9,7 @@ import React, {
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
-import { pull, size } from "lodash";
+import { size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
 import { IAceEditor } from "react-ace/lib/types";
@@ -73,7 +73,7 @@ import LogDestinationIndicator from "components/LogDestinationIndicator";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TargetLabelSelector from "components/TargetLabelSelector";
 
-import SaveQueryModal from "../SaveQueryModal";
+import SaveNewQueryModal from "../SaveNewQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 import DiscardDataOption from "../DiscardDataOption";
 
@@ -156,7 +156,6 @@ const EditQueryForm = ({
     setLastEditedQueryObserverCanRun,
     setLastEditedQueryFrequency,
     setLastEditedQueryAutomationsEnabled,
-    setLastEditedQueryPlatforms,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryLoggingType,
     setLastEditedQueryDiscardData,
@@ -183,11 +182,7 @@ const EditQueryForm = ({
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  // NOTE: SaveQueryModal is only being used to create a new query in this component.
-  // It's easy to confuse with other names like promptSaveQuery, promptSaveAsNewQuery, etc.,
-  // which are used in connection with existing (i.e. previously saved) queries rather
-  // than new queries. Consider renaming some things to distinguish the various flows.
-  const [showSaveQueryModal, setShowSaveQueryModal] = useState(false);
+  const [showSaveNewQueryModal, setShowSaveNewQueryModal] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
   );
@@ -257,8 +252,8 @@ const EditQueryForm = ({
     debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
 
-  const toggleSaveQueryModal = () => {
-    setShowSaveQueryModal(!showSaveQueryModal);
+  const toggleSaveNewQueryModal = () => {
+    setShowSaveNewQueryModal(!showSaveNewQueryModal);
   };
 
   const toggleConfirmSaveChangesModal = () => {
@@ -454,7 +449,7 @@ const EditQueryForm = ({
     }
   };
 
-  const promptSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
     if (savedQueryMode && !lastEditedQueryName) {
@@ -474,7 +469,7 @@ const EditQueryForm = ({
         platformSelector.setSelectedPlatforms(
           platformCompatibility.getCompatiblePlatforms()
         );
-        setShowSaveQueryModal(true);
+        setShowSaveNewQueryModal(true);
       } else {
         const newPlatformString = platformSelector
           .getSelectedPlatforms()
@@ -823,7 +818,7 @@ const EditQueryForm = ({
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangeQuery}
             handleSubmit={
-              confirmChanges ? toggleConfirmSaveChangesModal : promptSaveQuery
+              confirmChanges ? toggleConfirmSaveChangesModal : handleSaveQuery
             }
             wrapEnabled
             focus={!savedQueryMode}
@@ -988,7 +983,7 @@ const EditQueryForm = ({
                         onClick={
                           confirmChanges
                             ? toggleConfirmSaveChangesModal
-                            : promptSaveQuery()
+                            : handleSaveQuery()
                         }
                         disabled={disableSaveFormErrors || disableChildren}
                         isLoading={isQueryUpdating}
@@ -1045,12 +1040,12 @@ const EditQueryForm = ({
             </ReactTooltip>
           </div>
         </form>
-        {showSaveQueryModal && (
-          <SaveQueryModal
+        {showSaveNewQueryModal && (
+          <SaveNewQueryModal
             queryValue={lastEditedQueryBody}
             apiTeamIdForQuery={apiTeamIdForQuery}
             saveQuery={onSubmitNewQuery}
-            toggleSaveQueryModal={toggleSaveQueryModal}
+            toggleSaveNewQueryModal={toggleSaveNewQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}
             queryReportsDisabled={queryReportsDisabled}
@@ -1059,7 +1054,7 @@ const EditQueryForm = ({
         )}
         {showConfirmSaveChangesModal && (
           <ConfirmSaveChangesModal
-            onSaveChanges={promptSaveQuery()}
+            onSaveChanges={handleSaveQuery()}
             isUpdating={isQueryUpdating}
             onClose={toggleConfirmSaveChangesModal}
             showChangedSQLCopy={showChangedSQLCopy}

@@ -2398,3 +2398,43 @@ func TestHostHealth(t *testing.T) {
 		{user: test.UserTeamMaintainerTeam2, object: hostHealth, action: read, allow: false},
 	})
 }
+
+func TestMDMAppleEULA(t *testing.T) {
+	t.Parallel()
+
+	eula := &fleet.MDMEULA{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: eula, action: read, allow: false},
+		{user: test.UserGitOps, object: eula, action: read, allow: true},
+		{user: test.UserGitOps, object: eula, action: write, allow: true},
+
+		{user: test.UserTeamGitOpsTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: eula, action: write, allow: false},
+
+		{user: test.UserAdmin, object: eula, action: read, allow: true},
+		{user: test.UserAdmin, object: eula, action: write, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: eula, action: write, allow: false},
+
+		{user: test.UserObserver, object: eula, action: read, allow: false},
+		{user: test.UserObserver, object: eula, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: eula, action: write, allow: false},
+
+		{user: test.UserMaintainer, object: eula, action: read, allow: false},
+		{user: test.UserMaintainer, object: eula, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: eula, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: eula, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: eula, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: eula, action: write, allow: false},
+	})
+}
