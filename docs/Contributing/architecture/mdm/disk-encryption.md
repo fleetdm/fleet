@@ -25,7 +25,7 @@ See platform-specific diagrams below
 
 ### FileVault (macOS)
 
-For macOS host without disk encryption enabled, encryption involves a two-step process:
+For macOS hosts without disk encryption enabled, encryption involves a two-step process:
 
 1. Sending a profile with two payloads:
    - A Payload to configure how the disk is going to be encrypted
@@ -45,7 +45,7 @@ sequenceDiagram
         actor user as End User
         Admin->>fleet: Enable disk encryption
         host->>fleet: Enroll in Fleet MDM
-        fleet->>host: Encryption and<br>escrow profiles installed
+        fleet->>host: Encryption and<br>escrow profile installed
         fleet->>host: Orbit/osquery installed
         host->>host: Enable Filevault
         desktop->>user: prompt user to logout
@@ -79,7 +79,7 @@ sequenceDiagram
         user->>host: Enable filevault
         Admin->>fleet: Enable disk encryption
         host->>fleet: Enroll in Fleet MDM
-        fleet->>host: Encryption and<br>escrow profiles installed
+        fleet->>host: Encryption and<br>escrow profile installed
         fleet->>host: Orbit/osquery installed
         fleetd->>fleet: request vitals queries
         fleet->>fleetd: Return queries including encryption status query
