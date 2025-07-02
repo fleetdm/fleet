@@ -1,0 +1,46 @@
+{
+  "name": "engineering-metrics-collector",
+  "version": "1.0.0",
+  "description": "Comprehensive GitHub engineering metrics collector - tracks time to first review, time to merge, and GitHub Projects workflow metrics",
+  "type": "module",
+  "main": "src/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "start:print": "node src/index.js --print-only",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",
+    "test:ci": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --ci --coverage --watchAll=false",
+    "lint": "./node_modules/.bin/eslint src/**/*.js",
+    "lint:fix": "./node_modules/.bin/eslint src/**/*.js --fix"
+  },
+  "keywords": [
+    "github",
+    "engineering-metrics",
+    "developer-productivity",
+    "time-to-first-review",
+    "time-to-merge",
+    "github-projects",
+    "workflow-metrics",
+    "bigquery",
+    "analytics"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google-cloud/bigquery": "^8.1.0",
+    "dotenv": "^17.0.0",
+    "octokit": "^5.0.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "eslint": "^9.30.0",
+    "jest": "^30.0.3"
+  },
+  "engines": {
+    "node": "20.18.1"
+  }
+}

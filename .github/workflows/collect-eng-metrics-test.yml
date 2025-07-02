@@ -1,0 +1,49 @@
+name: Collect engineering metrics test
+
+on:
+  push:
+    paths:
+      - '.github/actions/eng-metrics/**'
+  pull_request:
+    paths:
+      - '.github/actions/eng-metrics/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test Engineering Metrics Action
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20]
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # 4.4.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: '.github/actions/eng-metrics/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .github/actions/eng-metrics
+
+      - name: Run linting
+        run: npm run lint
+        working-directory: .github/actions/eng-metrics
+
+      - name: Run tests
+        run: npm test
+        working-directory: .github/actions/eng-metrics
+        env:
+          NODE_ENV: test

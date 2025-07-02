@@ -1,0 +1,44 @@
+name: Collect engineering metrics
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Run at 4am CDT (9am UTC)
+  workflow_dispatch:      # Allow manual triggering
+  pull_request: # TODO: Remove me
+    branches:
+      - main
+
+jobs:
+  collect-metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # 4.4.0
+        with:
+          node-version: '20.18.1'
+          cache: 'npm'
+          cache-dependency-path: .github/actions/eng-metrics/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .github/actions/eng-metrics
+
+      - name: Create service account key file
+        run: |
+          echo '${{ secrets.ENG_METRICS_GCP_SERVICE_ACCOUNT_KEY }}' > service-account-key.json
+          # Verify the file is valid JSON
+          cat service-account-key.json | jq . > /dev/null
+
+      - name: Collect and upload engineering metrics
+        uses: ./.github/actions/eng-metrics
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVICE_ACCOUNT_KEY_PATH: './service-account-key.json'
