@@ -3862,10 +3862,11 @@ func NewInstalledApplicationListResultsHandler(
 
 		if poll {
 			// Queue a job to verify the VPP install.
-			err := worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID())
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: queueing vpp install verification job")
-			}
+			return ctxerr.Wrap(
+				ctx,
+				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID()),
+				"InstalledApplicationList handler: queueing vpp install verification job",
+			)
 		}
 
 		// If we get here, we're in a terminal state, so we can remove the verify command.
