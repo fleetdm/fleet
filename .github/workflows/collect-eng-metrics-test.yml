@@ -2,6 +2,10 @@ name: Collect engineering metrics test
 
 on:
   push:
+    branches:
+      - main
+      - patch-*
+      - prepare-*
     paths:
       - '.github/actions/eng-metrics/**'
   pull_request:

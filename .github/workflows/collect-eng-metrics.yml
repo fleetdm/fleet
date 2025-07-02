@@ -4,9 +4,6 @@ on:
   schedule:
     - cron: '0 9 * * *'  # Run at 4am CDT (9am UTC)
   workflow_dispatch:      # Allow manual triggering
-  pull_request: # TODO: Remove me
-    branches:
-      - main
 
 jobs:
   collect-metrics:
