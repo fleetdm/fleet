@@ -1,0 +1,7 @@
+{
+  "name": "Yubikey Manager",
+  "slug": "yubico-yubikey-manager/darwin",
+  "unique_identifier": "com.yubico.ykman",
+  "token": "yubico-yubikey-manager",
+  "installer_format": "pkg"
+} 
