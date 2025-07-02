@@ -707,6 +707,12 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 	require.Equal(t, expectedAppConfig, TeamSettings)
 }
 
+// For the purpose of testing macos_setup generation,
+// Team 1 has setup experience software with InstallDuringSetup enabled,
+// Team 2 has setup experience software with InstallDuringSetup disabled,
+// Team 3 has a bootstrap package,
+// Team 4 has a setup experience script,
+// Team 5 has an Apple MDM enrollment profile.
 func TestGenerateControls(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
