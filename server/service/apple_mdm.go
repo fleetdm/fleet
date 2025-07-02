@@ -3041,7 +3041,7 @@ type initiateMDMAppleSSOResponse struct {
 func (r initiateMDMAppleSSOResponse) Error() error { return r.Err }
 
 func (r initiateMDMAppleSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
-	setSSOCookie(w, r.sessionID, "/api/v1/fleet/mdm/sso/callback", r.sessionDurationSeconds)
+	setSSOCookie(w, r.sessionID, r.sessionDurationSeconds)
 }
 
 func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -3097,6 +3097,10 @@ type callbackMDMAppleSSOResponse struct {
 func (r callbackMDMAppleSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.redirectURL)
 	w.WriteHeader(http.StatusSeeOther)
+}
+
+func (r callbackMDMAppleSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	deleteSSOCookie(w)
 }
 
 // Error will always be nil because errors are handled by sending a query

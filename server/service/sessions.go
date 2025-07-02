@@ -363,18 +363,18 @@ type initiateSSOResponse struct {
 	sessionDurationSeconds int
 }
 
-const cookieNameSSOSession = "__Secure-FLEETSSOSESSIONID"
+const cookieNameSSOSession = "__Host-FLEETSSOSESSIONID"
 
 func (r initiateSSOResponse) Error() error { return r.Err }
 
 // cookieSecure is defined as a variable for testing purposes.
 var cookieSecure = true
 
-func setSSOCookie(w http.ResponseWriter, sessionID string, path string, cookieDurationSeconds int) {
+func setSSOCookie(w http.ResponseWriter, sessionID string, cookieDurationSeconds int) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     cookieNameSSOSession,
 		Value:    sessionID,
-		Path:     path,
+		Path:     "/",
 		MaxAge:   cookieDurationSeconds,
 		Secure:   cookieSecure,
 		HttpOnly: true,
@@ -382,8 +382,19 @@ func setSSOCookie(w http.ResponseWriter, sessionID string, path string, cookieDu
 	})
 }
 
+func deleteSSOCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieNameSSOSession,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		Secure:   cookieSecure,
+		HttpOnly: true,
+	})
+}
+
 func (r initiateSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
-	setSSOCookie(w, r.sessionID, "/api/v1/fleet/sso/callback", r.sessionDurationSeconds)
+	setSSOCookie(w, r.sessionID, r.sessionDurationSeconds)
 }
 
 func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -535,6 +546,10 @@ func (r callbackSSOResponse) Error() error { return r.Err }
 
 // If html is present we return a web page
 func (r callbackSSOResponse) Html() string { return r.content }
+
+func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	deleteSSOCookie(w)
+}
 
 func makeCallbackSSOEndpoint(urlPrefix string) endpoint_utils.HandlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
