@@ -3493,6 +3493,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 	case "InstallApplication":
 		// this might be a setup experience VPP install, so we'll try to update setup experience status
 		// TODO: consider limiting this to only macOS hosts
+		var fromSetupExperience bool
 		if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
 			HostUUID:      cmdResult.UDID,
 			CommandUUID:   cmdResult.CommandUUID,
@@ -3501,6 +3502,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
 		} else if updated {
 			// TODO: call next step of setup experience?
+			fromSetupExperience = true
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.UDID, "execution_id", cmdResult.CommandUUID)
 		}
 
@@ -3516,7 +3518,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
 			}
-
+			act.FromSetupExperience = fromSetupExperience
 			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
@@ -3833,6 +3835,7 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
+			var fromSetupExperience bool
 			if updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, fleet.SetupExperienceVPPInstallResult{
 				HostUUID:      installedAppResult.HostUUID(),
 				CommandUUID:   install.InstallCommandUUID,
@@ -3840,6 +3843,7 @@ func NewInstalledApplicationListResultsHandler(
 			}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
+				fromSetupExperience = true
 				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", install.InstallCommandUUID)
 			}
 
@@ -3853,7 +3857,7 @@ func NewInstalledApplicationListResultsHandler(
 
 				return ctxerr.Wrap(ctx, err, "fetching data for installed app store app activity")
 			}
-
+			act.FromSetupExperience = fromSetupExperience
 			if err := newActivity(ctx, user, act, ds, logger); err != nil {
 				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
 			}
