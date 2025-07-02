@@ -147,6 +147,7 @@ func (c *Client) GetConfigProfilesSummary(teamID *uint) (*fleet.MDMProfilesSumma
 	return &responseBody.MDMProfilesSummary, nil
 }
 
+// Get the Apple setup assistant profile for the given team, if any.
 func (c *Client) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error) {
 	verb, path := "GET", "/api/latest/fleet/enrollment_profiles/automatic"
 	var query string

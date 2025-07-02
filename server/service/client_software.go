@@ -31,7 +31,7 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 	return responseBody.SoftwareTitles, nil
 }
 
-// ListSoftwareTitles retrieves the software titles installed on hosts.
+// Get the software titles available for the setup experience.
 func (c *Client) GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	verb, path := "GET", "/api/latest/fleet/setup_experience/software"
 	var responseBody getSetupExperienceSoftwareResponse
