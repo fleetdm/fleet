@@ -92,9 +92,7 @@ func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 			Name:            "Script Z.ps1",
 			ScriptContentID: 3,
 		}}, nil
-	case "team_id=2":
-		return nil, nil
-	case "team_id=3":
+	case "team_id=2", "team_id=3", "team_id=4", "team_id=5":
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -145,13 +143,7 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 			},
 		}, nil
 	}
-	if *teamID == 0 {
-		return nil, nil
-	}
-	if *teamID == 2 {
-		return nil, nil
-	}
-	if *teamID == 3 {
+	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
@@ -430,16 +422,7 @@ func (MockClient) GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitle
 			},
 		}, nil
 	}
-	if teamID == 0 {
-		return nil, nil
-	}
-	if teamID == 3 {
-		return nil, nil
-	}
-	if teamID == 4 {
-		return nil, nil
-	}
-	if teamID == 5 {
+	if teamID == 0 || teamID == 3 || teamID == 4 || teamID == 5 {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
@@ -451,16 +434,7 @@ func (MockClient) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fle
 			Name: "Bootstrap Package for Team 1",
 		}, nil
 	}
-	if teamID == 0 {
-		return nil, nil
-	}
-	if teamID == 1 {
-		return nil, nil
-	}
-	if teamID == 4 {
-		return nil, nil
-	}
-	if teamID == 5 {
+	if teamID == 0 || teamID == 1 || teamID == 2 || teamID == 4 || teamID == 5 {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
@@ -472,19 +446,7 @@ func (MockClient) GetSetupExperienceScript(teamID uint) (*fleet.Script, error) {
 			Name: "Setup Experience Script for Team 1",
 		}, nil
 	}
-	if teamID == 0 {
-		return nil, nil
-	}
-	if teamID == 1 {
-		return nil, nil
-	}
-	if teamID == 2 {
-		return nil, nil
-	}
-	if teamID == 3 {
-		return nil, nil
-	}
-	if teamID == 5 {
+	if teamID == 0 || teamID == 1 || teamID == 2 || teamID == 3 || teamID == 5 {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
@@ -496,19 +458,7 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 			Name: "Apple MDM Enrollment Profile for Team 1",
 		}, nil
 	}
-	if teamID == 0 {
-		return nil, nil
-	}
-	if teamID == 1 {
-		return nil, nil
-	}
-	if teamID == 2 {
-		return nil, nil
-	}
-	if teamID == 3 {
-		return nil, nil
-	}
-	if teamID == 4 {
+	if teamID == 0 || teamID == 1 || teamID == 2 || teamID == 3 || teamID == 4 {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
@@ -1123,12 +1073,7 @@ func TestGenerateLabels(t *testing.T) {
 }
 
 func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {
-	_, ok := controlsRaw["macos_setup"]
-	require.True(t, ok, "Expected macos_setup section for no-team controls with EndUserAuthentication enabled")
-	// Check that macos_setup.enable_end_user_authentication is true
-	macosSetup, ok := controlsRaw["macos_setup"].(map[string]interface{})
-	require.True(t, ok, "Expected macos_setup to be a map")
-	enableEndUserAuth, ok := macosSetup["enable_end_user_authentication"].(bool)
-	require.True(t, ok, "Expected macos_setup.enable_end_user_authentication to be a boolean")
-	require.True(t, enableEndUserAuth, "Expected macos_setup.enable_end_user_authentication to be true")
+	macosSetup, ok := controlsRaw["macos_setup"].(string)
+	require.True(t, ok, "Expected macos_setup section to be a string")
+	require.Equal(t, macosSetup, "TODO: update with your macos_setup configuration")
 }

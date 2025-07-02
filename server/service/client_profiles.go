@@ -146,3 +146,20 @@ func (c *Client) GetConfigProfilesSummary(teamID *uint) (*fleet.MDMProfilesSumma
 	}
 	return &responseBody.MDMProfilesSummary, nil
 }
+
+func (c *Client) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error) {
+	verb, path := "GET", "/api/latest/fleet/mdm/enrollment_profiles/automatic"
+	var query string
+	if teamID != 0 {
+		query = fmt.Sprintf("team_id=%d", teamID)
+	}
+	var responseBody createMDMAppleSetupAssistantResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+		if fleet.IsNotFound(err) {
+			// If the profile is not found, return nil instead of an error.
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &responseBody.MDMAppleSetupAssistant, nil
+}

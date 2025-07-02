@@ -251,3 +251,22 @@ func (c *Client) GetScriptContents(scriptID uint) ([]byte, error) {
 	}
 	return nil, nil
 }
+
+// GetSetupExperienceScript retrieves the setup script for the given team, if any.
+func (c *Client) GetSetupExperienceScript(teamID uint) (*fleet.Script, error) {
+	verb, path := "GET", "/api/latest/fleet/setup_experience/script"
+	var query string
+	if teamID != 0 {
+		query = fmt.Sprintf("team_id=%d", teamID)
+	}
+	var responseBody getSetupExperienceScriptResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// If the script is not found, we return nil instead of an error.
+			return nil, nil
+		}
+		return nil, err
+	}
+	return responseBody.Script, nil
+}
