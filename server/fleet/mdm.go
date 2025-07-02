@@ -169,12 +169,13 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 type MDMEULA struct {
 	Name      string    `json:"name"`
 	Bytes     []byte    `json:"bytes"`
+	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
 func (e MDMEULA) AuthzType() string {
-	return "mdm_apple"
+	return "mdm_apple_eula"
 }
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
@@ -845,12 +846,14 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 
 // RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
 const (
-	RefetchBaseCommandUUIDPrefix           = "REFETCH-"
-	RefetchDeviceCommandUUIDPrefix         = RefetchBaseCommandUUIDPrefix + "DEVICE-"
-	RefetchAppsCommandUUIDPrefix           = RefetchBaseCommandUUIDPrefix + "APPS-"
-	RefetchCertsCommandUUIDPrefix          = RefetchBaseCommandUUIDPrefix + "CERTS-"
-	RefetchVPPAppInstallsCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "VPP-INSTALLS-"
+	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
+	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
+	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
+
+// VerifySoftwareInstallVPPPrefix is the prefix used for MDM commands used to verify VPP app installs.
+const VerifySoftwareInstallVPPPrefix = "VERIFY-VPP-INSTALLS-"
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
@@ -1029,4 +1032,4 @@ type MDMCommandResults interface {
 	HostUUID() string
 }
 
-type CommandHandler func(ctx context.Context, results MDMCommandResults) error
+type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error

@@ -62,28 +62,70 @@
       </div>
       <div purpose="feature-cards" class="card-deck">
         <a purpose="feature-card" class="card" href="/device-management">
-          <h5>Multi-platform MDM</h5>
-          <p>Remotely manage, and protect laptops and mobile devices.</p>
+          <div purpose="card-content">
+            <h5>Multi-platform MDM</h5>
+            <p>Remotely manage, and protect laptops and mobile devices.</p>
+          </div>
+          <div purpose="card-chevron">
+            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </a>
         <a purpose="feature-card" class="card" href="/orchestration">
-          <h5>Orchestration</h5>
-          <p>Automate tasks across devices, from app installs to scripts.</p>
+          <div purpose="card-content">
+            <h5>Orchestration</h5>
+            <p>Automate tasks across devices, from app installs to scripts.</p>
+          </div>
+          <div purpose="card-chevron">
+            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </a>
         <a purpose="feature-card" class="card" href="/software-management">
-          <h5>Software management</h5>
-          <p>Inventory, patch, and manage installed software.</p>
+          <div purpose="card-content">
+            <h5>Software management</h5>
+            <p>Inventory, patch, and manage installed software.</p>
+          </div>
+          <div purpose="card-chevron">
+            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </a>
         <a purpose="feature-card" class="card" href="/announcements/large-gaming-company-enhances-server-observability-with-fleet">
-          <h5>Security</h5>
-          <p>Monitor activity, spot anomalies, and get situational awareness.</p>
+          <div purpose="card-content">
+            <h5>Security</h5>
+            <p>Monitor activity, spot anomalies, and get situational awareness.</p>
+          </div>
+          <div purpose="card-chevron">
+            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </a>
         <a purpose="feature-card" class="card" href="/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security">
-          <h5>Vulnerability management</h5>
-          <p>Detect, prioritize, and understand security risks and flaws.</p>
+          <div purpose="card-content">
+            <h5>Vulnerability management</h5>
+            <p>Detect, prioritize, and understand security risks and flaws.</p>
+          </div>
+          <div purpose="card-chevron">
+            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </a>
         <a purpose="feature-card" class="card" href="https://www.linkedin.com/pulse/managing-santa-via-gitops-skip-sync-server-allen-houchins-3ni1c" target="_blank" no-icon>
-          <h5>Binary authorization <span>Coming soon</span></h5>
-          <p>Enforce only trusted, pre-approved software can run.</p>
+          <div purpose="card-content">
+            <h5>Binary authorization <span>Coming soon</span></h5>
+            <p>Enforce only trusted, pre-approved software can run.</p>
+          </div>
+          <div purpose="card-chevron">
+            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </a>
       </div>
 
@@ -182,14 +224,14 @@
                 {{comparisonModeFriendlyNames[comparisonModeForIt]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
               </div>
               <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
+                <div class="dropdown-item" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
+                <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
+                <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
+                <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
+                <div class="dropdown-item" data-compare-with="ansible" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
+                <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
+                <div class="dropdown-item" data-compare-with="puppet" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
+                <div class="dropdown-item" data-compare-with="chef" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
               </div>
             </div>
           </div>
@@ -473,14 +515,14 @@
             {{comparisonModeFriendlyNames[comparisonModeForIt]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
           </div>
           <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurpose">
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
+            <div class="dropdown-item" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
+            <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Omnissa (WS1)</div>
+            <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
+            <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
+            <div class="dropdown-item" data-compare-with="ansible" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
+            <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
+            <div class="dropdown-item" data-compare-with="puppet" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
+            <div class="dropdown-item" data-compare-with="chef" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
           </div>
 
           <div purpose="feature-table">
@@ -840,12 +882,12 @@
                 {{comparisonModeFriendlyNames[comparisonModeForSecurity]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
               </div>
               <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurposeForSecurity">
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('defender')">Defender</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('rapid')">Rapid 7</div>
-                <!-- <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('crowdstrike')">Crowdstrike</div> -->
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('qualys')">Qualys</div>
-                <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tenable')">Tenable</div>
+                <div class="dropdown-item" data-compare-with="defender" @click="clickSwitchComparisonTableColumn('defender')">Defender</div>
+                <div class="dropdown-item" data-compare-with="rapid-7" @click="clickSwitchComparisonTableColumn('rapid')">Rapid 7</div>
+                <!-- <div class="dropdown-item" data-compare-with="crowdstrike" @click="clickSwitchComparisonTableColumn('crowdstrike')">Crowdstrike</div> -->
+                <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
+                <div class="dropdown-item" data-compare-with="qualys" @click="clickSwitchComparisonTableColumn('qualys')">Qualys</div>
+                <div class="dropdown-item" data-compare-with="tenable" @click="clickSwitchComparisonTableColumn('tenable')">Tenable</div>
               </div>
             </div>
           </div>
@@ -1073,12 +1115,12 @@
             {{comparisonModeFriendlyNames[comparisonModeForSecurity]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
           </div>
           <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurposeForSecurity">
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('defender')">Defender</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('rapid')">Rapid 7</div>
-            <!-- <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('crowdstrike')">Crowdstrike</div> -->
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('qualys')">Qualys</div>
-            <div class="dropdown-item" @click="clickSwitchComparisonTableColumn('tenable')">Tenable</div>
+            <div class="dropdown-item" data-compare-with="defender" @click="clickSwitchComparisonTableColumn('defender')">Defender</div>
+            <div class="dropdown-item" data-compare-with="rapid-7" @click="clickSwitchComparisonTableColumn('rapid')">Rapid 7</div>
+            <!-- <div class="dropdown-item" data-compare-with="" @click="clickSwitchComparisonTableColumn('crowdstrike')">Crowdstrike</div> -->
+            <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
+            <div class="dropdown-item" data-compare-with="qualys" @click="clickSwitchComparisonTableColumn('qualys')">Qualys</div>
+            <div class="dropdown-item" data-compare-with="tenable" @click="clickSwitchComparisonTableColumn('tenable')">Tenable</div>
           </div>
           <div purpose="feature-table">
             <div purpose="feature-name"><p>Threat intelligence <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Integrate threat intelligence sources to detect, enrich, or investigate suspicious activity on devices."></p></div>
