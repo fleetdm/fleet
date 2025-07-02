@@ -262,7 +262,8 @@ func (c *Client) GetSetupExperienceScript(teamID uint) (*fleet.Script, error) {
 	var responseBody getSetupExperienceScriptResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
-		if fleet.IsNotFound(err) {
+		var notFoundErr notFoundErr
+		if errors.As(err, &notFoundErr) {
 			// If the script is not found, we return nil instead of an error.
 			return nil, nil
 		}

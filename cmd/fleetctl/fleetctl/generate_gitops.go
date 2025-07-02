@@ -936,7 +936,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 			// See if the team has macOS bootstrap package configured.
 			bootstrapPackage, err := cmd.Client.GetBootstrapPackageMetadata(*teamId, false)
-			if err != nil {
+			if err != nil && !strings.Contains(err.Error(), "bootstrap package for this team does not exist") {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting bootstrap package metadata: %s\n", err)
 				return nil, err
 			}

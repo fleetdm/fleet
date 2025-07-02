@@ -27,6 +27,7 @@ controls:
   macos_settings:
     custom_settings:
     - path: ../lib/team-a/profiles/team-macos-mobileconfig-profile.mobileconfig
+  macos_setup: 'TODO: update with your macos_setup configuration'
   macos_updates:
     deadline: "2020-12-31"
     minimum_version: "95.1"
