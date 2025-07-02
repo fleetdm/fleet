@@ -3787,6 +3787,11 @@ func NewInstalledApplicationListResultsHandler(
 		// Get installs that should be verified by this InstalledApplicationList command
 		installs, err := ds.GetVPPInstallsByVerificationUUID(ctx, installedAppResult.UUID())
 		if err != nil {
+			if fleet.IsNotFound(err) {
+				// Then something weird happened, so log it and exit (we can't do anything here in this case).
+				level.Warn(logger).Log("msg", "no vpp installs found for verification UUID", "command_uuid", installedAppResult.UUID())
+				return nil
+			}
 			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
 		}
 
@@ -3795,7 +3800,7 @@ func NewInstalledApplicationListResultsHandler(
 			installsByBundleID[install.BundleIdentifier] = install
 		}
 
-		// We've already checked the length above, and this is scoped to a single host via the host
+		// We've handled the "no installs found" case above, and this is scoped to a single host via the host
 		// UUID, so this is OK.
 		hostID := installs[0].HostID
 
@@ -3855,20 +3860,21 @@ func NewInstalledApplicationListResultsHandler(
 
 		}
 
-		switch poll {
-		case true:
+		if poll {
+			// Queue a job to verify the VPP install.
 			err := worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID())
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: queueing vpp install verification job")
 			}
-		case false:
-			if err := ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{CommandType: fleet.VerifySoftwareInstallVPPPrefix, HostID: hostID}); err != nil {
-				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: removing host mdm command")
-			}
-
 		}
 
-		return nil
+		// If we get here, we're in a terminal state, so we can remove the verify command.
+		return ctxerr.Wrap(
+			ctx,
+			ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{CommandType: fleet.VerifySoftwareInstallVPPPrefix, HostID: hostID}),
+			"InstalledApplicationList handler: removing host mdm command",
+		)
+
 	}
 }
 
