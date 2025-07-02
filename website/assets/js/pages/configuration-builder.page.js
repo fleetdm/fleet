@@ -54,6 +54,10 @@ parasails.registerPage('configuration-builder', {
     // For the profile builder
     configurationBuilderFormData: {},
     configurationBuilderFormRules: {},
+
+    currentSelectedCategoryForDownload: '',
+    configurationBuilderFormDataByCategory: {},
+    configurationBuilderByCategoryFormRules: {},
     // For the download modal
     downloadProfileFormRules: {
       name: {required: true},
@@ -849,6 +853,180 @@ parasails.registerPage('configuration-builder', {
               },
             ],
           },
+          {
+            subcategoryName: 'SmartScreen',
+            subcategorySlug: 'windows-smartscreen',
+            description: 'Windows Defender SmartScreen provides warning messages to help protect users from potential phishing scams and malicious software.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-smartscreen',
+            payloads: [
+              {
+                name: 'Enable SmartScreen in Microsoft Edge',
+                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                uniqueSlug: 'windows-enable-smartscreen-in-edge',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'Microsoft Edge',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Browser/AllowSmartScreen',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow users to bypass Windows Defender SmartScreen prompts for sites',
+                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                uniqueSlug: 'windows-enable-smartscreen-bypass-in-edge',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'Microsoft Edge',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Browser/PreventSmartScreenPromptOverride',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Enable SmartScreen in File Explorer',
+                tooltip: `Allows IT Admins to configure SmartScreen for Windows.`,
+                uniqueSlug: 'windows-enable-smartscreen-in-shell',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'File explorer',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableSmartScreenInShell',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow users to bypass Windows Defender SmartScreen prompts for files',
+                tooltip: `Allows IT Admins to control whether users can ignore SmartScreen warnings and run malicious files.`,
+                uniqueSlug: 'windows-prevent-override-for-files-in-shell',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'File explorer',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/PreventOverrideForFilesInShell',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Configure app install control',
+                tooltip: `Allows IT Admins to control whether users are allowed to install apps from places other than the Microsoft Store.`,
+                uniqueSlug: 'windows-configure-app-install-control',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'App installation',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Users can download and install files from anywhere on the web',
+                      value: 0
+                    },
+                    {
+                      name: 'Users can only install apps from the Microsoft Store',
+                      value: 1
+                    },
+                    {
+                      name: 'Let users know that there\'s a comparable app in the Store',
+                      value: 2,
+                    },
+                    {
+                      name: 'Warn users before installing apps from outside the Store',
+                      value: 3,
+                    }
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableAppInstallControl',
+                },
+              },
+
+            ]
+          },
+          // {
+          //   subcategoryName: 'BitLocker',
+          //   subcategorySlug: 'windows-bitlocker',
+          //   description: 'Use BitLocker to encrypt drives and protect data on your device.',
+          //   learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp',
+          //   noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
+          //   docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+          //   payloads: [
+          //     {
+          //       name: 'Enable BitLocker for operating system drives',
+          //       uniqueSlug: 'windows-enable-bitlocker-for-os-drives',
+          //       tooltip: 'Require a password to unlock the device',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'int',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption',
+          //         trueValue: 1,
+          //         falseValue: 0,
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce encryption type for operating system drives',
+          //       uniqueSlug: 'windows-enforce-encryption-type-for-os-drives',
+          //       tooltip: 'Require a password to unlock the device',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: [
+          //         {
+          //           type: 'boolean',
+          //           slug: 'enabled',
+          //           label: 'Enable',
+          //         },
+          //         {
+          //           type: 'radio',
+          //           label: 'Encryption type',
+          //           slug: 'enctype'
+          //           options: [
+          //             {
+          //               name: 'Allow user to choose encryption type',
+          //               value: 0
+          //             },
+          //             {
+          //               name: 'Full encryption',
+          //               value: 1
+          //             },
+          //             {
+          //               name: 'Used space only encryption.',
+          //               value: 2,
+          //             },
+          //           ]
+          //         },
+          //       ],
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption',
+          //         outputTemplate: '',
+          //       },
+          //     },
+          //   ],
+          // }
         ]
       },
       {
@@ -1075,6 +1253,7 @@ parasails.registerPage('configuration-builder', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    // Platform select form submission
     handleSubmittingPlatformSelectForm: async function() {
       this.selectedPlatform = this.platformSelectFormData.platform;
       this.step = 'configuration-builder';
@@ -1082,21 +1261,42 @@ parasails.registerPage('configuration-builder', {
     typeFilterSettings: async function() {
       // TODO.
     },
+    // Controls which category is expanded in the left sidebar.
     clickExpandCategory: function(category) {
       this.expandedCategory = category;
     },
+    // Download modal form submission
     handleSubmittingDownloadProfileForm: async function() {
       this.syncing = true;
-      if(this.selectedPlatform === 'windows') {
-        await this.buildWindowsProfile();
-      } else if(this.selectedPlatform === 'macos') {
-        await this.buildMacOSProfile();
+      if(this.currentSelectedCategoryForDownload) {
+        // this.currentSelectedCategoryForDownload = undefined;
+        if(this.selectedPlatform === 'windows') {
+          await this.buildWindowsProfile(this.selectedOptionsInAPayload);
+        } else if(this.selectedPlatform === 'macos') {
+          await this.buildMacOSProfile(this.selectedOptionsInAPayload);
+        }
+      } else {
+        if(this.selectedPlatform === 'windows') {
+          await this.buildWindowsProfile(this.selectedPayloads);
+        } else if(this.selectedPlatform === 'macos') {
+          await this.buildMacOSProfile(this.selectedPayloads);
+        }
       }
     },
-    buildWindowsProfile: function() {
+    // Download modal form submission (single payload)
+    handleSubmittingSinglePayloadDownloadProfileForm: async function() {
+      this.syncing = true;
+
+      if(this.selectedPlatform === 'windows') {
+        await this.buildWindowsProfile(this.selectedPayloads);
+      } else if(this.selectedPlatform === 'macos') {
+        await this.buildMacOSProfile(this.selectedPayloads);
+      }
+    },
+    buildWindowsProfile: function(payloadsToUse) {
       let xmlString = '';
       // Iterate through the selcted payloads
-      for(let payload of this.selectedPayloads) {
+      for(let payload of payloadsToUse) {
         let payloadToAdd = _.clone(payload);
         // Get the selected access type for this payload
         let accessType = this.configurationBuilderFormData[payload.uniqueSlug+'-access-type'];
@@ -1122,7 +1322,7 @@ parasails.registerPage('configuration-builder', {
       URL.revokeObjectURL(xmlDownloadUrl);
       this.syncing = false;
     },
-    buildMacOSProfile: function() {
+    buildMacOSProfile: function(selectedPayloads) {
       let xmlString = `
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1131,9 +1331,10 @@ parasails.registerPage('configuration-builder', {
 <key>PayloadContent</key>
 <array>
 `;
+      let payloadstoUse = _.clone(selectedPayloads);
       // Iterate through the selcted payloads
       // group selected payloads by their payload type value.
-      let payloadsToCreateDictonariesFor = _.groupBy(this.selectedPayloads, 'payloadType');
+      let payloadsToCreateDictonariesFor = _.groupBy(payloadstoUse, 'payloadType');
       for(let optionsInTheSamePayload in payloadsToCreateDictonariesFor) {
         // First build the payloadDisplayName, payloadIdentifier, payloadType, payloadUUID, and payloadVersion keys.
 
@@ -1200,23 +1401,31 @@ parasails.registerPage('configuration-builder', {
       URL.revokeObjectURL(xmlDownloadUrl);
       this.syncing = false;
     },
+    // When users click the "remove all" button at the top of the payload card.
     clickRemoveOneCategoryPayloadOptions: function(category) {
       let optionsToRemove = this.selectedPayloadsGroupedByCategory[category];
       this.selectedPayloadsGroupedByCategory = _.without(this.selectedPayloadsGroupedByCategory, category);
       for(let option of optionsToRemove){
+        if(_.isArray(option.formInput)) {
+          for(let input of option.formInput){
+            delete this.configurationBuilderFormRules[option.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderFormData[option.uniqueSlug+'-'+input.slug];
+          }
+        } else{
+          delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
+          delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
+        }
         let newSelectedPayloads = _.without(this.selectedPayloads, option);
         this.selectedPayloadSettings[option.uniqueSlug] = false;
         this.selectedPayloads = _.uniq(newSelectedPayloads);
-        delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
-        delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
         if(this.selectedPlatform === 'windows') {
           delete this.configurationBuilderFormRules[option.uniqueSlug+'-access-type'];
           delete this.configurationBuilderFormData[option.uniqueSlug+'-access-type'];
         }
       }
-      this.selectedPayloadsGroupedByCategory = _.groupBy(this.payloadOptionsToDisplay, 'category');
-      console.log(this.selectedPayloadsGroupedByCategory);
+      this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
     },
+    // When users click the "remove" button under a single payload option.
     clickRemovePayloadOption: function(option) {
       let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: option.uniqueSlug});
       // check the alsoAutoSetWhenSelected value of the payload we're removing.
@@ -1229,12 +1438,22 @@ parasails.registerPage('configuration-builder', {
         delete this.configurationBuilderFormRules[option.uniqueSlug+'-access-type'];
       }
     },
+    // When users click the download all button.
     handleSubmittingConfigurationBuilderForm: function() {
       if(_.keysIn(this.selectedPayloadsGroupedByCategory).length > 1) {
+        // If there is more than one payload in this profile, show a warning in a modal.
         this.modal = 'multiple-payloads-selected';
       } else {
         this.openDownloadModal();
       }
+    },
+    // When users click the downlaod button on a paylaod card.
+    handleSubmittingSinglePayloadConfigurationBuilderForm: function(category) {
+      let payloadsInThisCategory = _.filter(this.selectedPayloads, (payload)=>{
+        return payload.category === this.currentSelectedCategoryForDownload;
+      });
+      this.selectedOptionsInAPayload = payloadsInThisCategory;
+      this.openDownloadModal();
     },
     openDownloadModal: function() {
       this.modal = 'download-profile';
@@ -1267,14 +1486,16 @@ parasails.registerPage('configuration-builder', {
         });
       }, 400);
     },
+    clickSetCurrentSelectedCategory: async function(category) {
+      this.currentSelectedCategoryForDownload = category;
+      // console.log(category);
+    },
     clickSelectPayload: async function(payloadSlug) {
       if(!this.selectedPayloadSettings[payloadSlug]){
-        // if(this.selectedPlatform === 'windows'){
-        //   payloadsToUse = this.windowsCategoriesAndPayloads;
-        // } else if(this.selectedPlatform === 'macos') {
-        //   payloadsToUse = this.macosCategoriesAndPayloads;
-        // }
         let selectedPayload = _.find(this.selectedPayloadCategory.payloads, {uniqueSlug: payloadSlug}) || {};
+        if(!this.configurationBuilderByCategoryFormRules[selectedPayload.category]) {
+          this.configurationBuilderByCategoryFormRules[selectedPayload.category] = {};
+        }
         if(selectedPayload.alsoAutoSetWhenSelected) {
           for(let autoSelectedPayload of selectedPayload.alsoAutoSetWhenSelected ) {
             let payloadToAddSlug = autoSelectedPayload.dependingOnSettingSlug;
@@ -1291,15 +1512,25 @@ parasails.registerPage('configuration-builder', {
         }
         this.selectedPayloads.push(selectedPayload);
         this.selectedPayloads = _.uniq(this.selectedPayloads);
-        this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-value'] = {required: true};
+        if(_.isArray(selectedPayload.formInput)) {
+          for(let input of selectedPayload.formInput){
+            this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-'+input.slug] = {required: true};
+            this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-'+input.slug] = {required: true};
+          }
+        } else {
+          this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-value'] = {required: true};
+          this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-value'] = {required: true};
+        }
         if(selectedPayload.formInput.type === 'boolean'){
           // default boolean inputs to false.
           this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = false;
         } else if(selectedPayload.formInput.type === 'number') {
           this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = selectedPayload.formInput.defaultValue;
         }
+
         if(this.selectedPlatform === 'windows') {
           this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-access-type'] = {required: true};
+          this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-access-type'] = {required: true};
         }
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
         this.selectedPayloadSettings[payloadSlug] = true;
@@ -1309,7 +1540,15 @@ parasails.registerPage('configuration-builder', {
         let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: payloadSlug});
         // check the alsoAutoSetWhenSelected value of the payload we're removing.
         let newSelectedPayloads = _.without(this.selectedPayloads, payloadToRemove);
-        delete this.configurationBuilderFormRules[payloadSlug+'-value'];
+        if(_.isArray(payloadToRemove.formInput)) {
+          for(let input of payloadToRemove.formInput){
+            delete this.configurationBuilderFormRules[payloadToRemove.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderFormData[payloadToRemove.uniqueSlug+'-'+input.slug];
+          }
+        } else{
+          delete this.configurationBuilderFormRules[payloadToRemove.uniqueSlug+'-value'];
+          delete this.configurationBuilderFormData[payloadToRemove.uniqueSlug+'-value'];
+        }
         if(this.selectedPlatform === 'windows') {
           delete this.configurationBuilderFormRules[payloadSlug+'-access-type'];
         }
