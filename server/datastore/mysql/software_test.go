@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -1457,8 +1458,19 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.DeleteTeam(ctx, team2.ID))
 
-	// this call will remove team2 from the software host counts table
+	// insert a host_software record with software_id 0 to ensure we still calculate results correctly then
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, 0)`, host1.ID)
+		require.NoError(t, err)
+		return nil
+	})
+
+	// this call will remove team2 from the software host counts table,
+	// and would normally log because we have a zero software_id
+	realLogger := ds.logger
+	ds.logger = kitlog.NewNopLogger()
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	ds.logger = realLogger
 
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
 	want = []fleet.Software{

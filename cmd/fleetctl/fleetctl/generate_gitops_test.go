@@ -420,6 +420,11 @@ func (MockClient) GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitle
 					Version:            "13.37",
 				},
 			},
+			{
+				ID:         2,
+				Name:       "My Other Software Package",
+				HashSHA256: ptr.String("software-package-hash"),
+			},
 		}, nil
 	}
 	if teamID == 0 || teamID == 3 || teamID == 4 || teamID == 5 {
