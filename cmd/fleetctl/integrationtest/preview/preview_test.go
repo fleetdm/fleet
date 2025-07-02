@@ -50,7 +50,7 @@ func TestIntegrationsPreview(t *testing.T) {
 
 	// run some sanity checks on the preview environment
 
-	// standard queries must have been loaded
+	// starter library queries must have been loaded
 	queries := fleetctl.RunAppForTest(t, []string{"get", "queries", "--config", configPath, "--json"})
 	n := strings.Count(queries, `"kind":"query"`)
 	require.Greater(t, n, 10)
