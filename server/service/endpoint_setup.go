@@ -201,7 +201,10 @@ func ApplyStarterLibrary(
 	if skipTeamsOnFreeLicense {
 		// Check if license is free
 		appConfig, err := client.GetAppConfig()
-		if err == nil && (appConfig.License == nil || !appConfig.License.IsPremium()) {
+		if err != nil {
+			level.Debug(logger).Log("msg", "Error getting app config", "err", err)
+			// Continue even if there's an error getting the app config
+		} else if appConfig.License == nil || !appConfig.License.IsPremium() {
 			// Remove teams from specs to avoid applying them
 			level.Debug(logger).Log("msg", "Free license detected, skipping teams and team-related content in starter library")
 			specs.Teams = nil
