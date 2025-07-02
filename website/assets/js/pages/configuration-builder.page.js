@@ -1448,7 +1448,7 @@ parasails.registerPage('configuration-builder', {
       }
     },
     // When users click the downlaod button on a paylaod card.
-    handleSubmittingSinglePayloadConfigurationBuilderForm: function(category) {
+    handleSubmittingSinglePayloadConfigurationBuilderForm: function() {
       let payloadsInThisCategory = _.filter(this.selectedPayloads, (payload)=>{
         return payload.category === this.currentSelectedCategoryForDownload;
       });
