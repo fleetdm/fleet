@@ -32,7 +32,7 @@ Existing profiles with `PayloadScope` set to`User` won’t update automatically.
 
 To avoid confusion, please follow these steps:
 -  Check for profiles with `PayloadScope` set to `User`.
--  To keep delivering them to the device channel, change `PayloadScope` to `System` to reflect the actual scope in your `.mobileconfig`.
+-  To keep delivering them to the device channel, change `PayloadScope` to `System` to reflect the actual scope in your `.mobileconfig`. Also, you can remove `PayloadScope` as the default scope in Fleet is `System`. 
 -  To deliver to the user channel, update the identifier(`PayloadIdentifier`) and re-upload the profile.
 
 ### See status
