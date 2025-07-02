@@ -78,8 +78,7 @@ jobs:
       run: |
         ./build/fleetctl preview \
           --disable-open-browser \
-          --preview-config-path ./tools/osquery/in-a-box \
-          --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+          --preview-config-path ./tools/osquery/in-a-box
         sleep 10
         ./build/fleetctl get hosts | tee hosts.txt
         [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
