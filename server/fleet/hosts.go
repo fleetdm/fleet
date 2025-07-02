@@ -387,6 +387,54 @@ type Host struct {
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
 }
 
+type HostForeignVitalGroup struct {
+	Name  string
+	Query string
+}
+
+type HostVitalType int
+
+const (
+	HostVitalTypeDomestic   HostVitalType = iota // Domestic vitals are those that are stored in the host table
+	HostVitalTypeForeign                         // Foreign vitals are those that are stored in a separate table and joined to the host table
+	HostVitalTypeAdditional                      // Additional vitals are those that are stored in the host_additional table as a JSON blob
+)
+
+type HostVital struct {
+	Name              string // Display name of the vital
+	VitalType         HostVitalType
+	DataType          string  // Data type of the vital, e.g. "string", "int", "bool"
+	ForeignVitalGroup *string // For foreign vitals, the group they belong to
+	Path              string  // Path to the vital in the SQL query, for use in generating the WHERE clause
+}
+
+var hostForeignVitalGroups = map[string]HostForeignVitalGroup{
+	"idp": {
+		Name:  "Identity Provider",
+		Query: `RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
+	},
+}
+
+var hostVitals = map[string]HostVital{
+	"end_user_idp_group": {
+		Name:      "IDP Group",
+		VitalType: HostVitalTypeForeign,
+		// A user can be in multiple groups, but we use a join table to specify them,
+		// so we can represent "group" as a string rather than an array and use AND/OR
+		// criteria to filter hosts by group membership.
+		DataType:          "string",
+		ForeignVitalGroup: ptr.String("idp"),
+		Path:              "scim_groups.display_name",
+	},
+	"end_user_idp_department": {
+		Name:              "IDP Department",
+		VitalType:         HostVitalTypeForeign,
+		DataType:          "string",
+		ForeignVitalGroup: ptr.String("idp"),
+		Path:              "scim_users.department",
+	},
+}
+
 type AndroidHost struct {
 	*Host
 	*android.Device
@@ -817,6 +865,7 @@ type HostEndUser struct {
 	IdpUserName      string              `json:"idp_username,omitempty"`
 	IdpFullName      string              `json:"idp_full_name,omitempty"`
 	IdpGroups        []string            `json:"idp_groups,omitempty"`
+	Department       string              `json:"idp_department,omitempty"`
 	IdpInfoUpdatedAt *time.Time          `json:"idp_info_updated_at"`
 	OtherEmails      []HostDeviceMapping `json:"other_emails,omitempty"`
 }

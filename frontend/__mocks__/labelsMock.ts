@@ -1,5 +1,5 @@
 import { ILabel } from "interfaces/label";
-import { IGetLabelResonse } from "services/entities/labels";
+import { IGetLabelResponse } from "services/entities/labels";
 
 const DEFAULT_LABEL_MOCK: ILabel = {
   created_at: "2024-04-12T13:32:00Z",
@@ -14,18 +14,22 @@ const DEFAULT_LABEL_MOCK: ILabel = {
   display_text: "test macsss",
   count: 0,
   host_ids: null,
+  criteria: {
+    vital: "end_user_idp_department",
+    value: " IT admins",
+  },
 };
 
 export const createMockLabel = (overrides?: Partial<ILabel>): ILabel => {
   return { ...DEFAULT_LABEL_MOCK, ...overrides };
 };
 
-const DEFAULT_GET_LABEL_RESPONSE_MOCK: IGetLabelResonse = {
+const DEFAULT_GET_LABEL_RESPONSE_MOCK: IGetLabelResponse = {
   label: createMockLabel(),
 };
 
 export const createMockGetLabelResponse = (
-  overrides?: Partial<IGetLabelResonse>
-): IGetLabelResonse => {
+  overrides?: Partial<IGetLabelResponse>
+): IGetLabelResponse => {
   return { ...DEFAULT_GET_LABEL_RESPONSE_MOCK, ...overrides };
 };

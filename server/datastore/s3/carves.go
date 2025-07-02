@@ -6,11 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -35,7 +36,7 @@ type CarveStore struct {
 
 // NewCarveStore creates a new store with the given config
 func NewCarveStore(config config.S3Config, metadatadb fleet.CarveStore) (*CarveStore, error) {
-	s3store, err := newS3store(config.CarvesToInternalCfg())
+	s3store, err := newS3Store(config.CarvesToInternalCfg())
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +54,7 @@ func (c *CarveStore) generateS3Key(metadata *fleet.CarveMetadata) string {
 // NewCarve initializes a new file carving session
 func (c *CarveStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 	objectKey := c.generateS3Key(metadata)
-	res, err := c.s3client.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
+	res, err := c.s3Client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
 		Bucket: &c.bucket,
 		Key:    &objectKey,
 	})
@@ -84,7 +85,7 @@ func (c *CarveStore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetad
 
 // listS3Carves lists all keys up to a given one or if the passed max number
 // of keys has been reached; keys are returned in a set-like map
-func (c *CarveStore) listS3Carves(lastPrefix string, maxKeys int) (map[string]bool, error) {
+func (c *CarveStore) listS3Carves(ctx context.Context, lastPrefix string, maxKeys int) (map[string]bool, error) {
 	var err error
 	var continuationToken string
 	result := make(map[string]bool)
@@ -95,7 +96,7 @@ func (c *CarveStore) listS3Carves(lastPrefix string, maxKeys int) (map[string]bo
 		lastPrefix = c.prefix + lastPrefix
 	}
 	for {
-		carveFilesPage, err := c.s3client.ListObjectsV2(&s3.ListObjectsV2Input{
+		carveFilesPage, err := c.s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
 			Bucket:            &c.bucket,
 			Prefix:            &c.prefix,
 			ContinuationToken: &continuationToken,
@@ -134,7 +135,7 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 	// List carves in S3 up to a hour+1 prefix
 	lastCarveNextHour := nonExpiredCarves[len(nonExpiredCarves)-1].CreatedAt.Add(time.Hour)
 	lastCarvePrefix := c.prefix + lastCarveNextHour.Format(timePrefixFormat)
-	carveKeys, err := c.listS3Carves(lastCarvePrefix, 2*cleanupSize)
+	carveKeys, err := c.listS3Carves(ctx, lastCarvePrefix, 2*cleanupSize)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "s3 carve cleanup")
 	}
@@ -172,21 +173,23 @@ func (c *CarveStore) ListCarves(ctx context.Context, opt fleet.CarveListOptions)
 
 // listCompletedParts returns a list of the parts in a multipart updaload given a key and uploadID
 // results are wrapped into the s3.CompletedPart struct
-func (c *CarveStore) listCompletedParts(objectKey, uploadID string) ([]*s3.CompletedPart, error) {
-	var res []*s3.CompletedPart
-	var partMarker int64
+func (c *CarveStore) listCompletedParts(ctx context.Context, objectKey, uploadID string) ([]types.CompletedPart, error) {
+	var res []types.CompletedPart
+	var partMarker int32
+
 	for {
-		parts, err := c.s3client.ListParts(&s3.ListPartsInput{
+		partNumberMarker := fmt.Sprint(partMarker)
+		parts, err := c.s3Client.ListParts(ctx, &s3.ListPartsInput{
 			Bucket:           &c.bucket,
 			Key:              &objectKey,
 			UploadId:         &uploadID,
-			PartNumberMarker: &partMarker,
+			PartNumberMarker: &partNumberMarker,
 		})
 		if err != nil {
-			return res, err
+			return nil, err
 		}
 		for _, p := range parts.Parts {
-			res = append(res, &s3.CompletedPart{
+			res = append(res, types.CompletedPart{
 				ETag:       p.ETag,
 				PartNumber: p.PartNumber,
 			})
@@ -194,16 +197,26 @@ func (c *CarveStore) listCompletedParts(objectKey, uploadID string) ([]*s3.Compl
 		if !*parts.IsTruncated {
 			break
 		}
-		partMarker = *parts.NextPartNumberMarker
+		pm, err := strconv.ParseInt(*parts.NextPartNumberMarker, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse next part number marker: %q: %w", *parts.NextPartNumberMarker, err)
+		}
+		partMarker = int32(pm)
 	}
 	return res, nil
 }
 
+const maxPartNumber = 10_000
+
 // NewBlock uploads a new block for a specific carve
 func (c *CarveStore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata, blockID int64, data []byte) error {
+	if blockID < 0 || blockID >= maxPartNumber {
+		return ctxerr.Errorf(ctx, "invalid blockID (must be 0-9_999): %d", blockID)
+	}
+
 	objectKey := c.generateS3Key(metadata)
-	partNumber := blockID + 1 // PartNumber is 1-indexed
-	_, err := c.s3client.UploadPart(&s3.UploadPartInput{
+	partNumber := int32(blockID) + 1 // PartNumber is 1-indexed
+	_, err := c.s3Client.UploadPart(ctx, &s3.UploadPartInput{
 		Body:       bytes.NewReader(data),
 		Bucket:     &c.bucket,
 		Key:        &objectKey,
@@ -221,15 +234,17 @@ func (c *CarveStore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata
 	}
 	if blockID >= metadata.BlockCount-1 {
 		// The last block was reached, multipart upload can be completed
-		parts, err := c.listCompletedParts(objectKey, metadata.SessionId)
+		parts, err := c.listCompletedParts(ctx, objectKey, metadata.SessionId)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "s3 multipart carve upload")
 		}
-		_, err = c.s3client.CompleteMultipartUpload(&s3.CompleteMultipartUploadInput{
-			Bucket:          &c.bucket,
-			Key:             &objectKey,
-			UploadId:        &metadata.SessionId,
-			MultipartUpload: &s3.CompletedMultipartUpload{Parts: parts},
+		_, err = c.s3Client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+			Bucket:   &c.bucket,
+			Key:      &objectKey,
+			UploadId: &metadata.SessionId,
+			MultipartUpload: &types.CompletedMultipartUpload{
+				Parts: parts,
+			},
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "s3 multipart carve upload")
@@ -246,17 +261,17 @@ func (c *CarveStore) GetBlock(ctx context.Context, metadata *fleet.CarveMetadata
 	// no need to cap the rangeEnd to the carve size as S3 will do that by itself
 	rangeStart := blockID * metadata.BlockSize
 	rangeString := fmt.Sprintf("bytes=%d-%d", rangeStart, rangeStart+metadata.BlockSize-1)
-	res, err := c.s3client.GetObject(&s3.GetObjectInput{
+	res, err := c.s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: &c.bucket,
 		Key:    &objectKey,
 		Range:  &rangeString,
 	})
 	if err != nil {
-		var awsErr awserr.Error
-		if errors.As(err, &awsErr) && awsErr.Code() == s3.ErrCodeNoSuchKey {
+		var noSuchKey *types.NoSuchKey
+		if errors.As(err, &noSuchKey) {
 			// The carve does not exists in S3, mark expired
 			metadata.Expired = true
-			if updateErr := c.UpdateCarve(ctx, metadata); err != nil {
+			if updateErr := c.UpdateCarve(ctx, metadata); updateErr != nil {
 				err = ctxerr.Wrap(ctx, err, updateErr.Error())
 			}
 		}

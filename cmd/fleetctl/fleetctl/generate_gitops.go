@@ -63,6 +63,8 @@ type generateGitopsClient interface {
 	ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
 	GetProfileContents(profileID string) ([]byte, error)
+	GetEULAMetadata() (*fleet.MDMEULA, error)
+	GetEULAContent(token string) ([]byte, error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
 	GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error)
@@ -70,6 +72,10 @@ type generateGitopsClient interface {
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 	GetLabels() ([]*fleet.LabelSpec, error)
 	Me() (*fleet.User, error)
+	GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error)
+	GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error)
+	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
+	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -750,8 +756,43 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	return result, nil
 }
 
+func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
+	// Download the eula metadata for the token.
+	eulaMetadata, err := cmd.Client.GetEULAMetadata()
+	if err != nil {
+		// not found is OK, it means the user has not uploaded a EULA yet.
+		if strings.Contains(err.Error(), "Resource Not Found") {
+			return "", nil
+		}
+
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting eula metadata: %s\n", err)
+		return "", err
+	}
+
+	// now we want the eula contents, which is a PDF.
+	eulaContent, err := cmd.Client.GetEULAContent(eulaMetadata.Token)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting eula contents: %s\n", err)
+		return "", err
+	}
+
+	fileName := fmt.Sprintf("lib/eula/%s", eulaMetadata.Name)
+	cmd.FilesToWrite[fileName] = string(eulaContent)
+	path := fmt.Sprintf("./%s", fileName)
+
+	return path, nil
+}
+
+// This struct is used to represent the MDM configuration that is used with GitOps.
+// It includes an additonal end user license agreement (EULA) field, which is
+// not present in the fleet.MDM struct.
+type gitopsMDM struct {
+	fleet.MDM
+	EndUserLicenseAgreement string `json:"end_user_license_agreement,omitempty"`
+}
+
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
-	t := reflect.TypeOf(fleet.MDM{})
+	t := reflect.TypeOf(gitopsMDM{})
 	result := map[string]interface{}{
 		jsonFieldName(t, "AppleServerURL"):        mdm.AppleServerURL,
 		jsonFieldName(t, "EndUserAuthentication"): mdm.EndUserAuthentication,
@@ -759,6 +800,13 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
 		result[jsonFieldName(t, "VolumePurchasingProgram")] = mdm.VolumePurchasingProgram
+
+		eulaPath, err := cmd.generateEULA()
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating EULA: %s\n", err)
+			return nil, err
+		}
+		result[jsonFieldName(t, "EndUserLicenseAgreement")] = eulaPath
 	}
 
 	if !cmd.CLI.Bool("insecure") {
@@ -849,14 +897,16 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 	}
 
-	if teamMdm != nil && cmd.AppConfig.License.IsPremium() {
+	if cmd.AppConfig.License.IsPremium() {
 		mdmT := reflect.TypeOf(fleet.TeamMDM{})
 
-		result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
-		result[jsonFieldName(mdmT, "MacOSUpdates")] = teamMdm.MacOSUpdates
-		result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
-		result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
-		result[jsonFieldName(mdmT, "WindowsUpdates")] = teamMdm.WindowsUpdates
+		if teamMdm != nil {
+			result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
+			result[jsonFieldName(mdmT, "MacOSUpdates")] = teamMdm.MacOSUpdates
+			result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
+			result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
+			result[jsonFieldName(mdmT, "WindowsUpdates")] = teamMdm.WindowsUpdates
+		}
 
 		if teamId == nil || *teamId == 0 {
 			mdmT := reflect.TypeOf(fleet.MDM{})
@@ -867,13 +917,53 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
 		}
 
-		// TODO -- add an IsSet() method to MacOSSSetup to encapsulate this logic.
-		if teamMdm.MacOSSetup.BootstrapPackage.Value != "" || teamMdm.MacOSSetup.EnableEndUserAuthentication || teamMdm.MacOSSetup.MacOSSetupAssistant.Value != "" || teamMdm.MacOSSetup.Script.Value != "" || (teamMdm.MacOSSetup.Software.Valid && len(teamMdm.MacOSSetup.Software.Value) > 0) {
-			result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your macos_setup configuration"
-			cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-				Filename: teamName,
-				Note:     "The macos_setup configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
-			})
+		if teamId != nil {
+			// See if the team has macOS setup software configured.
+			setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(*teamId)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
+				return nil, err
+			}
+			hasSetupSoftware := false
+			for _, software := range setupSoftware {
+				if software.SoftwarePackage.InstallDuringSetup != nil && *software.SoftwarePackage.InstallDuringSetup {
+					hasSetupSoftware = true
+					break
+				}
+			}
+
+			// See if the team has macOS bootstrap package configured.
+			bootstrapPackage, err := cmd.Client.GetBootstrapPackageMetadata(*teamId, false)
+			if err != nil && !strings.Contains(err.Error(), "bootstrap package for this team does not exist") {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting bootstrap package metadata: %s\n", err)
+				return nil, err
+			}
+			hasBootstrapPackage := bootstrapPackage != nil
+
+			// See if the team has a macOS setup scripts configured.
+			setupScript, err := cmd.Client.GetSetupExperienceScript(*teamId)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup script: %s\n", err)
+				return nil, err
+			}
+			hasSetupScript := setupScript != nil
+
+			// See if the team has a macOS enrollment profile configured.
+			enrollmentProfile, err := cmd.Client.GetAppleMDMEnrollmentProfile(*teamId)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting enrollment profile: %s\n", err)
+				return nil, err
+			}
+			hasEnrollmentProfile := enrollmentProfile != nil
+
+			// If the team has any of these configured, we need to generate the macos_setup section.
+			if hasSetupSoftware || hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile || (teamMdm != nil && teamMdm.MacOSSetup.EnableEndUserAuthentication) {
+				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your macos_setup configuration"
+				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
+					Filename: teamName,
+					Note:     "The macos_setup configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
+				})
+			}
 		}
 	}
 
@@ -1279,10 +1369,13 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 		if label.Platform != "" {
 			labelSpec[jsonFieldName(t, "Platform")] = label.Platform
 		}
-		if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic {
-			labelSpec[jsonFieldName(t, "Query")] = label.Query
-		} else {
+		switch label.LabelMembershipType {
+		case fleet.LabelMembershipTypeManual:
 			labelSpec[jsonFieldName(t, "Hosts")] = label.Hosts
+		case fleet.LabelMembershipTypeDynamic:
+			labelSpec[jsonFieldName(t, "Query")] = label.Query
+		case fleet.LabelMembershipTypeHostVitals:
+			labelSpec[jsonFieldName(t, "HostVitalsCriteria")] = label.HostVitalsCriteria
 		}
 
 		result = append(result, labelSpec)
