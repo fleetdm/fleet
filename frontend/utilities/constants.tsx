@@ -4,7 +4,6 @@ import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { ICampaign } from "interfaces/campaign";
-import { Location } from "history";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -459,13 +458,3 @@ export const DATE_FNS_FORMAT_STRINGS = {
 };
 
 export const MAX_SCRIPT_BATCH_TARGETS = 5000;
-
-export const DEFAULT_LOCATION: Location = {
-  pathname: "/",
-  search: "",
-  hash: "",
-  query: {},
-  state: undefined,
-  action: "POP",
-  key: "",
-};

@@ -14,7 +14,6 @@ import {
 import { IPolicyContext, PolicyContext } from "context/policy";
 import { IQueryContext, QueryContext } from "context/query";
 import { IRouterLocation } from "interfaces/routing";
-import { DEFAULT_LOCATION } from "utilities/constants";
 
 export const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -206,8 +205,6 @@ export const createMockLocationExperimental = (
     hostname: "localhost",
     port: "8080",
     protocol: "http:",
-    search: "",
-    query: undefined,
   };
 
   return {

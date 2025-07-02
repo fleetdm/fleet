@@ -16,7 +16,6 @@ import {
 import { IUser, IUserRole } from "interfaces/user";
 import permissions from "utilities/permissions";
 import sort from "utilities/sort";
-import { IRouterLocation } from "interfaces/routing";
 
 type OnTeamChangeFuncShouldStripParam = (
   teamIdForApi: number | undefined
@@ -340,8 +339,6 @@ export const useTeamIdParam = ({
     hash?: string;
     [key: string]: any; // for other location properties that may be passed in
   };
-  // location: IRouterLocation;
-  // location: Pick<Location, "pathname" | "search" | "hash" | "query">;
   router: InjectedRouter;
   includeAllTeams: boolean;
   includeNoTeam: boolean;

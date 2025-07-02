@@ -1,6 +1,5 @@
 import React from "react";
 
-import { Location } from "history";
 import { screen, waitFor, within } from "@testing-library/react";
 import {
   createCustomRenderer,
@@ -94,7 +93,6 @@ describe("EditQueryForm - component", () => {
         location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ name: "" })} // empty name
         isStoredQueryLoading={false}
@@ -163,7 +161,6 @@ describe("EditQueryForm - component", () => {
         location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ name: "Mock query" })}
         isStoredQueryLoading={false}
@@ -227,13 +224,12 @@ describe("EditQueryForm - component", () => {
       },
     });
 
-    const { user } = render(
+    render(
       <EditQueryForm
         router={mockRouter}
         location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ interval: 0 })}
         isStoredQueryLoading={false}
@@ -320,7 +316,6 @@ describe("EditQueryForm - component", () => {
         location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ name: "" })} // empty name
         isStoredQueryLoading={false}
@@ -391,7 +386,6 @@ describe("EditQueryForm - component", () => {
       location: mockLocation,
       queryIdForEdit: 1,
       apiTeamIdForQuery: 1,
-      teamNameForQuery: "Apples",
       showOpenSchemaActionText: true,
       storedQuery: createMockQuery(),
       isStoredQueryLoading: false,
@@ -504,57 +498,6 @@ describe("EditQueryForm - component", () => {
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
       expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
-    });
-
-    it("should send labels when saving a new query in Custom target mode", async () => {
-      // Mock the create query API with a never-returning promise, so we can just
-      // spy on the request without having to mock anything else.
-      const createFn = jest
-        .spyOn(queryAPI, "create")
-        .mockImplementation(() => new Promise(jest.fn()));
-      const testProps = {
-        ...props,
-        storedQuery: createMockQuery({
-          labels_include_any: [{ name: "Fun", id: 1 }],
-        }),
-      };
-      render(<EditQueryForm {...testProps} />);
-      await waitFor(() => {
-        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
-      });
-
-      await userEvent.click(
-        screen.getByRole("button", { name: "Save as new" })
-      );
-
-      expect(createFn.mock.calls[0][0].labels_include_any).toEqual(["Fun"]);
-    });
-
-    it("should clear labels when saving a new query in All hosts target mode", async () => {
-      // Mock the create query API with a never-returning promise, so we can just
-      // spy on the request without having to mock anything else.
-      const createFn = jest
-        .spyOn(queryAPI, "create")
-        .mockImplementation(() => new Promise(jest.fn()));
-      const testProps = {
-        ...props,
-        storedQuery: createMockQuery({
-          labels_include_any: [{ name: "Fun", id: 1 }],
-        }),
-      };
-      render(<EditQueryForm {...testProps} />);
-      let allHosts;
-      await waitFor(() => {
-        allHosts = screen.getByLabelText("All hosts");
-        expect(allHosts).toBeInTheDocument();
-      });
-      allHosts && (await userEvent.click(allHosts));
-
-      await userEvent.click(
-        screen.getByRole("button", { name: "Save as new" })
-      );
-
-      expect(createFn.mock.calls[0][0].labels_include_any).toEqual([]);
     });
   });
 });

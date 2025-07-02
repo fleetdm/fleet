@@ -12,7 +12,7 @@ import { ICreateQueryRequestBody } from "interfaces/schedulable_query";
 import queryAPI from "services/entities/queries";
 import { NotificationContext } from "context/notification";
 
-import { getErrorReason, IApiError } from "interfaces/errors";
+import { getErrorReason } from "interfaces/errors";
 import {
   INVALID_PLATFORMS_FLASH_MESSAGE,
   INVALID_PLATFORMS_REASON,
@@ -20,7 +20,6 @@ import {
 import {
   API_ALL_TEAMS_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
-  ITeam,
   ITeamSummary,
 } from "interfaces/team";
 import Modal from "components/Modal";
@@ -29,7 +28,6 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import TeamsDropdown from "components/TeamsDropdown";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
-import { IRouterLocation } from "interfaces/routing";
 
 const baseClass = "save-as-new-query-modal";
 
@@ -80,9 +78,6 @@ const SaveAsNewQueryModal = ({
   const [isSaving, setIsSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<ISANQFormErrors>({});
 
-  // Get available teams for the dropdown
-  // const userTeams = [] as ITeamSummary[];
-  // const userTeams = currentUser?.teams;
   const { userTeams } = useTeamIdParam({
     router,
     location,
@@ -216,7 +211,7 @@ const SaveAsNewQueryModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            className="save-query-loading"
+            className="save-as-new-query"
             isLoading={isSaving}
             disabled={Object.keys(formErrors).length > 0 || isSaving}
           >

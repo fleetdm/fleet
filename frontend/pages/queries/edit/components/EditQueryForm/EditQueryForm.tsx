@@ -22,7 +22,6 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { NotificationContext } from "context/notification";
 
 import {
   addGravatarUrlToResource,
@@ -47,7 +46,6 @@ import {
 } from "interfaces/schedulable_query";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 
-import queryAPI from "services/entities/queries";
 import labelsAPI, {
   getCustomLabels,
   ILabelsSummaryResponse,
@@ -84,7 +82,6 @@ interface IEditQueryFormProps {
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
   currentTeamId?: number;
-  teamNameForQuery?: string;
   showOpenSchemaActionText: boolean;
   storedQuery: ISchedulableQuery | undefined;
   isStoredQueryLoading: boolean;
@@ -120,7 +117,6 @@ const EditQueryForm = ({
   queryIdForEdit,
   apiTeamIdForQuery,
   currentTeamId,
-  teamNameForQuery,
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
@@ -210,8 +206,6 @@ const EditQueryForm = ({
     platform: platformSelector
       .getSelectedPlatforms()
       .join(",") as CommaSeparatedPlatformString,
-    // name should already be trimmed at this point due to associated onBlurs, but this
-    // doesn't hurt
     observer_can_run: lastEditedQueryObserverCanRun,
     interval: lastEditedQueryFrequency,
     automations_enabled: lastEditedQueryAutomationsEnabled,
@@ -393,7 +387,6 @@ const EditQueryForm = ({
         );
         setShowSaveNewQueryModal(true);
       } else {
-        //
         onUpdate(updateQueryData);
       }
     }
