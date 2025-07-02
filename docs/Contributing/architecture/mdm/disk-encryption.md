@@ -101,10 +101,9 @@ sequenceDiagram
 
 #### Troubleshooting
 The key stored in host_disk_encryption_keys for a given host will be deleted under the following circumstances:
-* MDM re-enrollment or enrollment profile reinstallation, outside of Fleet-initiated MDM SCEP
-  certificate renewal
-* Disk encryption disabled for a host's team
-* Host moved to a team with disk encryption disabled
+- MDM re-enrollment or enrollment profile reinstallation, outside of Fleet-initiated MDM SCEP certificate renewal
+- Disk encryption disabled for a host's team
+- Host moved to a team with disk encryption disabled
 
 If the host is still in an encrypted team after the MDM re-enrollment, or in the case of a team
 change, once the host is moved to a team with encryption enabled, Fleet will initiate one of the processes
@@ -221,10 +220,10 @@ encrypted using Fleet's CA certificate, and thus can only be decrypted if you ha
 key. Additionally, a backup copy of any key that gets escrowed is stored in the
 `host_disk_encryption_keys_archive` table. In the event that a host's encryption key is unavailable
 due to a rotation or other event, it is possible to restore the host's most recently archived key by
-executing the following query againt the Fleet server's MySQL database, replacing HOST_ID with the
+executing the following query against the Fleet server's MySQL database, replacing HOST_ID with the
 ID of the host in question:
 
-```
+```sql
 INSERT INTO host_disk_encryption_keys (host_id, base64_encrypted, base64_encrypted_salt, key_slot, decryptable, created_at)
 SELECT host_id, base64_encrypted, base64_encrypted_salt, key_slot, 1 AS decryptable, created_at FROM host_disk_encryption_keys_archive
 WHERE host_id = HOST_ID ORDER BY created_at DESC LIMIT 1;
