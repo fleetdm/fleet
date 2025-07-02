@@ -1362,13 +1362,14 @@ func (a ActivityTypeDisabledWindowsMDMMigration) Documentation() (activity, deta
 }
 
 type ActivityTypeRanScript struct {
-	HostID            uint    `json:"host_id"`
-	HostDisplayName   string  `json:"host_display_name"`
-	ScriptExecutionID string  `json:"script_execution_id"`
-	ScriptName        string  `json:"script_name"`
-	Async             bool    `json:"async"`
-	PolicyID          *uint   `json:"policy_id"`
-	PolicyName        *string `json:"policy_name"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	ScriptExecutionID   string  `json:"script_execution_id"`
+	ScriptName          string  `json:"script_name"`
+	Async               bool    `json:"async"`
+	PolicyID            *uint   `json:"policy_id"`
+	PolicyName          *string `json:"policy_name"`
+	FromSetupExperience bool    `json:"-"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
@@ -1380,7 +1381,7 @@ func (a ActivityTypeRanScript) HostIDs() []uint {
 }
 
 func (a ActivityTypeRanScript) WasFromAutomation() bool {
-	return a.PolicyID != nil
+	return a.PolicyID != nil || a.FromSetupExperience
 }
 
 func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExample string) {
@@ -2155,15 +2156,16 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
 }
 
 type ActivityInstalledAppStoreApp struct {
-	HostID          uint    `json:"host_id"`
-	HostDisplayName string  `json:"host_display_name"`
-	SoftwareTitle   string  `json:"software_title"`
-	AppStoreID      string  `json:"app_store_id"`
-	CommandUUID     string  `json:"command_uuid"`
-	Status          string  `json:"status,omitempty"`
-	SelfService     bool    `json:"self_service"`
-	PolicyID        *uint   `json:"policy_id"`
-	PolicyName      *string `json:"policy_name"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	AppStoreID          string  `json:"app_store_id"`
+	CommandUUID         string  `json:"command_uuid"`
+	Status              string  `json:"status,omitempty"`
+	SelfService         bool    `json:"self_service"`
+	PolicyID            *uint   `json:"policy_id"`
+	PolicyName          *string `json:"policy_name"`
+	FromSetupExperience bool    `json:"-"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -2175,7 +2177,7 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 }
 
 func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
-	return a.PolicyID != nil
+	return a.PolicyID != nil || a.FromSetupExperience
 }
 
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {

@@ -842,6 +842,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	}
 
 	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?
+	var fromSetupExperience bool
 	if action == "" && fleet.IsSetupExperienceSupported(host.Platform) {
 		// this might be a setup experience script result
 		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceScriptResult{
@@ -852,6 +853,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
+			fromSetupExperience = true
 			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host.UUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
@@ -923,13 +925,14 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				ctx,
 				user,
 				fleet.ActivityTypeRanScript{
-					HostID:            host.ID,
-					HostDisplayName:   host.DisplayName(),
-					ScriptExecutionID: hsr.ExecutionID,
-					ScriptName:        scriptName,
-					Async:             !hsr.SyncRequest,
-					PolicyID:          hsr.PolicyID,
-					PolicyName:        policyName,
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					ScriptExecutionID:   hsr.ExecutionID,
+					ScriptName:          scriptName,
+					Async:               !hsr.SyncRequest,
+					PolicyID:            hsr.PolicyID,
+					PolicyName:          policyName,
+					FromSetupExperience: fromSetupExperience,
 				},
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
