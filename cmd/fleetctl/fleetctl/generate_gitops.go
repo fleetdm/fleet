@@ -925,12 +925,10 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				return nil, err
 			}
 			hasSetupSoftware := false
-			if setupSoftware != nil {
-				for _, software := range setupSoftware {
-					if software.SoftwarePackage.InstallDuringSetup != nil && *software.SoftwarePackage.InstallDuringSetup {
-						hasSetupSoftware = true
-						break
-					}
+			for _, software := range setupSoftware {
+				if software.SoftwarePackage.InstallDuringSetup != nil && *software.SoftwarePackage.InstallDuringSetup {
+					hasSetupSoftware = true
+					break
 				}
 			}
 
