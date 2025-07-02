@@ -67,7 +67,10 @@ func main() {
 	}
 
 	if *regenSchema {
-		err := exec.Command("make", "dump-test-schema").Run()
+		cmd := exec.Command("make", "dump-test-schema")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err := cmd.Run()
 		if err != nil {
 			log.Fatalf("Error regenerating the schema: %v", err)
 		}
