@@ -8,17 +8,17 @@ Declarative Device Management (DDM) is Apple’s [declarative paradigm extension
 
 ## Architecture Overview
 
-Fleet’s DDM architecture centers around the definition of DDM custom settings (JSON configuration profiles), their delivery to targeted hosts, and the state synchronization between the Fleet server and those Apple devices. The system ensures that each MDM-enrolled device receives the appropriate declarations and that the delivery and installation status is tracked over time.
+Fleet’s DDM architecture centers around the definition of DDM profiles (which are a JSON payload), their delivery to targeted hosts, and the state synchronization between the Fleet server and those Apple devices. The system ensures that each MDM-enrolled device receives the appropriate declarations and that the delivery and installation status is tracked over time.
 
 ## DDM lifecycle
 
-The DDM custom settings are managed either via Fleet's UI, the API or `fleetctl gitops`. Then the Fleet server is responsible to deliver these settings to the targeted devices, and then to track the statuses. The following sub-sections expand on those lifecycle steps.
+The DDM profiles are managed either via Fleet's UI, the API or `fleetctl gitops`. Then the Fleet server is responsible to deliver these settings to the targeted devices, and then to track the statuses. The following sub-sections expand on those lifecycle steps.
 
-### Managing DDM custom settings
+### Managing DDM profiles
 
 As for other types of custom settings, DDM profiles are associated with a team (or "No team") and can be applied to the team's hosts conditionally via labels.
 
-Via the UI, all custom settings are set in the "Controls -> OS settings -> Custom settings" page. Apple's "traditional" configuration profiles (`.mobileconfig` files), Apple's DDM `.json` profiles and Windows' `.xml` profiles can all be uploaded and managed here.
+Via the UI, all custom settings are set in the "Controls -> OS settings -> Custom settings" page. Apple's "traditional" profiles (`.mobileconfig` files), Apple's DDM `.json` profiles and Windows' `.xml` profiles can all be uploaded and managed here.
 
 Via the API (which is used by the UI), the following endpoints support DDM profiles:
 * `GET /api/latest/fleet/configuration_profiles` lists all configuration profiles, including DDM profiles. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles).
@@ -52,7 +52,7 @@ See the [full YAML reference](https://fleetdm.com/docs/configuration/yaml-files#
 
 The `gitops` command uses the `POST /api/latest/fleet/mdm/profiles/batch` contributor-only API endpoint to set the profiles. It replaces any existing profile with the set provided in the YAML, removing any profile that is not present in the YAML.
 
-### Delivery of DDM custom settings
+### Delivery of DDM profiles
 
 Delivery of the DDM profiles is handled via a cron job, as for other types of profiles. The `ReconcileAppleDeclarations` function takes care of marking as "pending" the hosts that have declarations that changed (either to install or to remove). However, unlike the `ReconcileAppleProfiles` function that delivers non-declarative `.mobileconfig` profiles, the declarations job only needs to enqueue a [`DeclarativeManagement` MDM command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) next, targeting all hosts with changed DDM profiles, and the DDM protocol will take care of the rest.
 
@@ -62,7 +62,7 @@ Otherwise, the fact that we initiate it only for hosts that have changed DDM pro
 
 There is one more thing happening in `ReconcileAppleDeclarations`, and it's to handle the `resync` field of the `host_mdm_apple_declarations` table. [This was added](https://github.com/fleetdm/fleet/pull/29059) to handle a race where a [declaration is pending install but is currently marked as pending remove](https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/datastore/mysql/apple_mdm.go#L5590-L5595). In this case, the install is immediately transitioned to "verified" (as it had to be installed in order to be pending remove), but because the remove might've already happened (and Fleet did not get the status confirmation), the profile is marked as "to resync" for the host to ensure it gets delivered if necessary.
 
-### Verification of DDM custom settings
+### Verification of DDM profiles
 
 The DDM protocol is handled by the `nanomdm` package, which calls out to a Fleet-implemented `DeclarativeManagement` interface:
 * the `nanomdm` handler is here: https://github.com/fleetdm/fleet/blob/afc37124eedde3a226137cca613adf3a0ff799c7/server/mdm/nanomdm/service/nanomdm/service.go#L198
