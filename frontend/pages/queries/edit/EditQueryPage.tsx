@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
+import { Location } from "history";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
@@ -40,11 +41,12 @@ import EditQueryForm from "./components/EditQueryForm";
 interface IEditQueryPageProps {
   router: InjectedRouter;
   params: Params;
-  location: {
-    pathname: string;
-    query: { host_id: string; team_id?: string };
-    search: string;
-  };
+  location: Location<{ host_id: string; team_id?: string }>;
+  // location: {
+  //   pathname: string;
+  //   query: { host_id: string; team_id?: string };
+  //   search: string;
+  // };
 }
 
 const baseClass = "edit-query-page";
@@ -401,6 +403,7 @@ const EditQueryPage = ({
           </div>
           <EditQueryForm
             router={router}
+            location={location}
             onSubmitNewQuery={onSubmitNewQuery}
             onOsqueryTableSelect={onOsqueryTableSelect}
             onUpdate={onUpdateQuery}

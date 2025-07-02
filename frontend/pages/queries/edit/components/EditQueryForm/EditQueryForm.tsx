@@ -7,6 +7,7 @@ import React, {
   useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
+import { Location } from "history";
 import { useQuery } from "react-query";
 
 import { size } from "lodash";
@@ -79,6 +80,7 @@ const baseClass = "edit-query-form";
 
 interface IEditQueryFormProps {
   router: InjectedRouter;
+  location: Location;
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
   currentTeamId?: number;
@@ -114,6 +116,7 @@ const validateQuerySQL = (query: string) => {
 
 const EditQueryForm = ({
   router,
+  location,
   queryIdForEdit,
   apiTeamIdForQuery,
   currentTeamId,
@@ -180,7 +183,6 @@ const EditQueryForm = ({
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   // handles saving a copy of an existing query as a new query
   const [showSaveAsNewQueryModal, setShowSaveAsNewQueryModal] = useState(false);
-  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
 
   // handles saving a brand new query
   const [showSaveNewQueryModal, setShowSaveNewQueryModal] = useState(false);
@@ -951,6 +953,7 @@ const EditQueryForm = ({
         {showSaveAsNewQueryModal && (
           <SaveAsNewQueryModal
             router={router}
+            location={location}
             initialQueryData={{
               ...updateQueryData,
               team_id: apiTeamIdForQuery,

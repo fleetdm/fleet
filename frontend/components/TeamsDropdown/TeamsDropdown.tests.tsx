@@ -31,7 +31,7 @@ describe("TeamsDropdown - component", () => {
     render(
       <TeamsDropdown
         currentUserTeams={USER_TEAMS}
-        includeAll={false}
+        includeAllTeams={false}
         onChange={noop}
       />
     );
@@ -59,7 +59,7 @@ describe("TeamsDropdown - component", () => {
       renderWithAppContext(
         <TeamsDropdown
           currentUserTeams={USER_TEAMS}
-          includeAll={false}
+          includeAllTeams={false}
           onChange={noop}
         />,
         { contextValue }

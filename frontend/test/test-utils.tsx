@@ -1,5 +1,6 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
+import { Location } from "history";
 import { render, RenderOptions, RenderResult } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event/dist/types/setup/setup";
 import userEvent from "@testing-library/user-event";
@@ -13,6 +14,7 @@ import {
 import { IPolicyContext, PolicyContext } from "context/policy";
 import { IQueryContext, QueryContext } from "context/query";
 import { IRouterLocation } from "interfaces/routing";
+import { DEFAULT_LOCATION } from "utilities/constants";
 
 export const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -181,7 +183,20 @@ export const createMockRouter = (overrides?: Partial<InjectedRouter>) => {
   };
 };
 
-export const createMockLocation = (
+export const createMockLocation = (overrides?: Partial<Location>): Location => {
+  return {
+    pathname: "/",
+    search: "",
+    hash: "",
+    query: {},
+    state: undefined,
+    action: "POP",
+    key: "",
+    ...overrides,
+  };
+};
+
+export const createMockLocationExperimental = (
   overrides?: Partial<IRouterLocation>
 ): IRouterLocation => {
   // Default values for the location object
@@ -191,6 +206,8 @@ export const createMockLocation = (
     hostname: "localhost",
     port: "8080",
     protocol: "http:",
+    search: "",
+    query: undefined,
   };
 
   return {

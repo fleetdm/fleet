@@ -1,6 +1,12 @@
 import React from "react";
+
+import { Location } from "history";
 import { screen, waitFor, within } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  createCustomRenderer,
+  createMockRouter,
+  createMockLocation,
+} from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 import userEvent from "@testing-library/user-event";
@@ -41,6 +47,7 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
 
 const mockQuery = createMockQuery();
 const mockRouter = createMockRouter();
+const mockLocation = createMockLocation();
 
 describe("EditQueryForm - component", () => {
   it("disables save button for missing query name", async () => {
@@ -84,6 +91,7 @@ describe("EditQueryForm - component", () => {
     render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
         teamNameForQuery="Apples"
@@ -152,6 +160,7 @@ describe("EditQueryForm - component", () => {
     const { container, user } = render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
         teamNameForQuery="Apples"
@@ -221,6 +230,7 @@ describe("EditQueryForm - component", () => {
     const { user } = render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
         teamNameForQuery="Apples"
@@ -307,6 +317,7 @@ describe("EditQueryForm - component", () => {
     render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
         teamNameForQuery="Apples"
@@ -377,6 +388,7 @@ describe("EditQueryForm - component", () => {
 
     const props = {
       router: mockRouter,
+      location: mockLocation,
       queryIdForEdit: 1,
       apiTeamIdForQuery: 1,
       teamNameForQuery: "Apples",
