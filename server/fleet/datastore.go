@@ -663,7 +663,8 @@ type Datastore interface {
 	// ReplaceVPPInstallVerificationUUID replaces the verification command UUID for all
 	// VPP app install attempts were related to oldVerifyUUID.
 	ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
-	GetPendingVerifyVPPInstallCommandsByHost(ctx context.Context, hostUUID string) (bool, error)
+	// IsHostPendingVPPInstallVerification checks if a host has a pending VPP install verification command.
+	IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error)
 	// GetVPPInstallsByVerificationUUID gets a HostVPPSoftwareInstall by verification command UUID.
 	GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
 	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that

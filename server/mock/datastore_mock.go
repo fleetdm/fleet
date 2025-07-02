@@ -494,7 +494,7 @@ type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installU
 
 type ReplaceVPPInstallVerificationUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
 
-type GetPendingVerifyVPPInstallCommandsByHostFunc func(ctx context.Context, hostUUID string) (bool, error)
+type IsHostPendingVPPInstallVerificationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
 type GetVPPInstallsByVerificationUUIDFunc func(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error)
 
@@ -1596,7 +1596,7 @@ type DataStore struct {
 
 	UpdateLabelMembershipByHostIDsFunc        UpdateLabelMembershipByHostIDsFunc
 	UpdateLabelMembershipByHostIDsFuncInvoked bool
-	
+
 	UpdateLabelMembershipByHostCriteriaFunc        UpdateLabelMembershipByHostCriteriaFunc
 	UpdateLabelMembershipByHostCriteriaFuncInvoked bool
 
@@ -2119,8 +2119,8 @@ type DataStore struct {
 	ReplaceVPPInstallVerificationUUIDFunc        ReplaceVPPInstallVerificationUUIDFunc
 	ReplaceVPPInstallVerificationUUIDFuncInvoked bool
 
-	GetPendingVerifyVPPInstallCommandsByHostFunc        GetPendingVerifyVPPInstallCommandsByHostFunc
-	GetPendingVerifyVPPInstallCommandsByHostFuncInvoked bool
+	IsHostPendingVPPInstallVerificationFunc        IsHostPendingVPPInstallVerificationFunc
+	IsHostPendingVPPInstallVerificationFuncInvoked bool
 
 	GetVPPInstallsByVerificationUUIDFunc        GetVPPInstallsByVerificationUUIDFunc
 	GetVPPInstallsByVerificationUUIDFuncInvoked bool
@@ -5148,11 +5148,11 @@ func (s *DataStore) ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVe
 	return s.ReplaceVPPInstallVerificationUUIDFunc(ctx, oldVerifyUUID, verifyCommandUUID)
 }
 
-func (s *DataStore) GetPendingVerifyVPPInstallCommandsByHost(ctx context.Context, hostUUID string) (bool, error) {
+func (s *DataStore) IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
 	s.mu.Lock()
-	s.GetPendingVerifyVPPInstallCommandsByHostFuncInvoked = true
+	s.IsHostPendingVPPInstallVerificationFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPendingVerifyVPPInstallCommandsByHostFunc(ctx, hostUUID)
+	return s.IsHostPendingVPPInstallVerificationFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {

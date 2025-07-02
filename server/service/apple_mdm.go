@@ -3524,7 +3524,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
 			// Only send a new InstalledApplicationList command if there's not one in flight
-			commandsPending, err := svc.ds.GetPendingVerifyVPPInstallCommandsByHost(r.Context, cmdResult.UDID)
+			commandsPending, err := svc.ds.IsHostPendingVPPInstallVerification(r.Context, cmdResult.UDID)
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "get pending mdm commands by host")
 			}
@@ -3795,7 +3795,7 @@ func NewInstalledApplicationListResultsHandler(
 			installsByBundleID[install.BundleIdentifier] = install
 		}
 
-		// We've already check the length above, and this is scoped to a single host via the host
+		// We've already checked the length above, and this is scoped to a single host via the host
 		// UUID, so this is OK.
 		hostID := installs[0].HostID
 

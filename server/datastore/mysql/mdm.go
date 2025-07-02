@@ -1968,13 +1968,13 @@ GROUP BY
 	return counts, nil
 }
 
-func (ds *Datastore) GetPendingVerifyVPPInstallCommandsByHost(ctx context.Context, hostUUID string) (bool, error) {
+func (ds *Datastore) IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
 	stmt := `
 SELECT EXISTS (
 	SELECT 1
     FROM host_mdm_commands hmc
     JOIN hosts h ON hmc.host_id = h.id
-    WHERE 
+    WHERE
 		h.uuid = ? AND
 		hmc.command_type = ?
 ) AS exists_flag
