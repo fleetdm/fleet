@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -663,7 +662,7 @@ func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup
 
 		// Insert user-group relationships if any
 		if len(group.ScimUsers) > 0 {
-			if err := insertScimGroupUsers(ctx, tx, ds.logger, group.ID, group.ScimUsers); err != nil {
+			if err := insertScimGroupUsers(ctx, tx, group.ID, group.ScimUsers); err != nil {
 				return err
 			}
 			// this is a new group, but it is associated with existing users -
@@ -678,7 +677,7 @@ func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup
 }
 
 // insertScimGroupUsers inserts the relationships between a SCIM group and its users
-func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, groupID uint, userIDs []uint) error {
+func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, groupID uint, userIDs []uint) error {
 	if len(userIDs) == 0 {
 		return nil
 	}
@@ -687,55 +686,22 @@ func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, logger log.Lo
 	// to the extent these queries are dependent only on the group ID and user IDs, which are integers.
 	// See https://github.com/fleetdm/fleet/pull/30264
 
-	batchSize := 5000
+	batchSize := 10000
 	return common_mysql.BatchProcessSimple(userIDs, batchSize, func(userIDsInBatch []uint) error {
-		var existingRows []struct {
-			ScimUserID uint      `db:"scim_user_id"`
-			GroupID    uint      `db:"group_id"`
-			CreatedAt  time.Time `db:"created_at"`
-		}
-
-		// Check if the user-group relationships already exist
-		selectQuery := fmt.Sprintf(`
-		SELECT scim_user_id, group_id, created_at
-		FROM scim_user_group
-		WHERE group_id = ? AND scim_user_id IN (%s)
-		`, strings.Repeat("?,", len(userIDsInBatch)-1)+"?")
-
-		args := make([]interface{}, len(userIDsInBatch)+1)
-		args[0] = groupID
-		for i, userID := range userIDsInBatch {
-			args[i+1] = userID
-		}
-		if err := sqlx.SelectContext(ctx, tx, &existingRows, selectQuery, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "select existing scim group users")
-		}
-		existingByUserID := make(map[uint]struct{}, len(existingRows))
-		for _, row := range existingRows {
-			existingByUserID[row.ScimUserID] = struct{}{}
-		}
-
 		// Build the batch insert query
 		valueStrings := make([]string, 0, len(userIDsInBatch))
 		valueArgs := make([]interface{}, 0, len(userIDsInBatch)*2)
-		skippedIDs := make([]uint, 0, len(existingByUserID))
 		for _, userID := range userIDsInBatch {
-			// Skip if the user-group relationship already exists
-			if _, exists := existingByUserID[userID]; exists {
-				continue
-			}
 			valueStrings = append(valueStrings, "(?, ?)")
 			valueArgs = append(valueArgs, userID, groupID)
-		}
-		if len(skippedIDs) > 0 {
-			level.Info(logger).Log("msg", "batch insert scim group users: skipping existing records", "group_id", groupID, "user_ids", fmt.Sprintf("%v", skippedIDs))
 		}
 
 		// Construct the batch insert query
 		insertQuery := `
 		INSERT INTO scim_user_group (
 			scim_user_id, group_id
-		) VALUES ` + strings.Join(valueStrings, ",")
+		) VALUES ` + strings.Join(valueStrings, ",") + `
+		ON DUPLICATE KEY UPDATE created_at = scim_user_group.created_at` // no-op update to avoid duplicate key errors
 
 		// Execute the batch insert
 		_, err := tx.ExecContext(ctx, insertQuery, valueArgs...)
@@ -898,7 +864,7 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 
 		// Add new user-group relationships
 		if len(usersToAdd) > 0 {
-			err = insertScimGroupUsers(ctx, tx, ds.logger, group.ID, usersToAdd)
+			err = insertScimGroupUsers(ctx, tx, group.ID, usersToAdd)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "insert new scim group users")
 			}
