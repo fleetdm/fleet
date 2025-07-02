@@ -12556,6 +12556,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			"install_script_output": "ok"
 		}`, *h2.OrbitNodeKey, installUUID2)), http.StatusNoContent)
 
+	// Verify refetch requested is set after successful install
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h2.ID), nil, http.StatusOK, &hostResp)
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
+
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h3.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h3.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
@@ -12568,6 +12573,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			"install_script_output": "failed"
 		}`, *h3.OrbitNodeKey, installUUID3)), http.StatusNoContent)
 
+	// Verify refetch requested is NOT set after failed install
+	var hostRespFailed getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h3.ID), nil, http.StatusOK, &hostRespFailed)
+	require.False(t, hostRespFailed.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
+
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h4.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
@@ -12577,6 +12587,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			"install_uuid": %q,
 			"pre_install_condition_output": ""
 		}`, *h4.OrbitNodeKey, installUUID4a)), http.StatusNoContent)
+
+	// Verify refetch requested is NOT set after failed pre-install condition
+	var hostRespPreInstallFailed getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h4.ID), nil, http.StatusOK, &hostRespPreInstallFailed)
+	require.False(t, hostRespPreInstallFailed.Host.RefetchRequested, "RefetchRequested should be false after failed pre-install condition")
 
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h4.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
@@ -12746,6 +12761,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			"install_script_output": "ok"
 		}`, *h.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
+	// Verify refetch requested is set after successful install
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
+
 	// simulate a lock/unlock on h; this creates the host_mdm_actions table, which reproduces #25144
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil, http.StatusOK)
 	status, err := s.ds.GetHostLockWipeStatus(context.Background(), h)
@@ -12817,6 +12836,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			uninstallExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)
 
+	// Verify refetch requested is set after successful uninstall
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software uninstall")
+
 	// Check activity feed
 	var activitiesResp listActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
@@ -12853,6 +12876,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 1, "output": "not ok"}`, *h.OrbitNodeKey,
 			uninstallExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)
+
+	// Verify refetch requested is NOT set after failed uninstall
+	var hostRespFailedUninstall getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostRespFailedUninstall)
+	require.False(t, hostRespFailedUninstall.Host.RefetchRequested, "RefetchRequested should be false after failed software uninstall")
 
 	// Check activity feed
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
@@ -12989,6 +13017,11 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 		}`, *host1.OrbitNodeKey, installID)),
 		http.StatusNoContent)
 
+	// Verify refetch requested is set after successful install
+	var hostRespInstall getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host1.ID), nil, http.StatusOK, &hostRespInstall)
+	require.True(t, hostRespInstall.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
+
 	// nothing in upcoming activities anymore
 	listUpcomingAct = listHostUpcomingActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
@@ -13046,6 +13079,11 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 			uninstallExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)
 
+	// Verify refetch requested is set after successful uninstall
+	var hostRespUninstall getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host1.ID), nil, http.StatusOK, &hostRespUninstall)
+	require.True(t, hostRespUninstall.Host.RefetchRequested, "RefetchRequested should be true after successful software uninstall")
+
 	// Check activity feed
 	var activitiesResp listActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
@@ -13066,6 +13104,31 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	require.Equal(t, uninstallExecutionID, uninstallResult.ExecutionID)
 	require.Zero(t, *uninstallResult.ExitCode)
 	require.Equal(t, "ok", uninstallResult.Output)
+
+	// Test failed self-service install to verify no refetch is requested
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token2, titleIDSS), nil, http.StatusAccepted)
+
+	// Get install UUID for host2
+	var getHost2SoftwareResp getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHost2SoftwareResp)
+	require.Len(t, getHost2SoftwareResp.Software, 1)
+	failedInstallID := getHost2SoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+
+	// Simulate failed install
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 1,
+			"install_script_output": "failed"
+		}`, *host2.OrbitNodeKey, failedInstallID)),
+		http.StatusNoContent)
+
+	// Verify refetch requested is NOT set after failed install
+	var hostRespFailedSelfService getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &hostRespFailedSelfService)
+	require.False(t, hostRespFailedSelfService.Host.RefetchRequested, "RefetchRequested should be false after failed self-service software install")
 
 	// make sure uninstall endpoint errors properly
 	s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token2, uninstallExecutionID), nil, http.StatusNotFound)
@@ -13156,6 +13219,11 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 			"install_script_output": "failed"
 		}`, *host.OrbitNodeKey, installUUIDs[0])),
 		http.StatusNoContent)
+
+	// Verify refetch requested is NOT set after failed install
+	var hostRespFailedInstall getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostRespFailedInstall)
+	require.False(t, hostRespFailedInstall.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
 	checkResults(result{
 		HostID:                host.ID,
 		InstallUUID:           installUUIDs[0],
@@ -13180,6 +13248,11 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 			"pre_install_condition_output": ""
 		}`, *host.OrbitNodeKey, installUUIDs[1])),
 		http.StatusNoContent)
+
+	// Verify refetch requested is NOT set for failed pre-install condition
+	var hostRespFailedPreInstall getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostRespFailedPreInstall)
+	require.False(t, hostRespFailedPreInstall.Host.RefetchRequested, "RefetchRequested should be false after failed pre-install condition")
 	checkResults(result{
 		HostID:                host.ID,
 		InstallUUID:           installUUIDs[1],
@@ -13207,6 +13280,11 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 			"post_install_script_output": "ok"
 		}`, *host.OrbitNodeKey, installUUIDs[2])),
 		http.StatusNoContent)
+
+	// Verify refetch requested is set after successful install
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
 	checkResults(result{
 		HostID:                  host.ID,
 		InstallUUID:             installUUIDs[2],
