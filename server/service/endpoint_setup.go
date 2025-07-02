@@ -102,7 +102,8 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 					logger,
 					fleethttp.NewClient,
 					NewClient,
-					nil, // No mock ApplyGroup for production code
+					nil,   // No mock ApplyGroup for production code
+					false, // Don't skip teams on free license for normal setup
 				); err != nil {
 					level.Debug(logger).Log("endpoint", "setup", "op", "applyStarterLibrary", "err", err)
 					// Continue even if there's an error applying the starter library
@@ -134,6 +135,8 @@ func ApplyStarterLibrary(
 	clientFactory func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error),
 	// For testing only - if provided, this function will be used instead of client.ApplyGroup
 	mockApplyGroup func(ctx context.Context, specs *spec.Group) error,
+	// If true, teams will be skipped if the license is free
+	skipTeamsOnFreeLicense bool,
 ) error {
 	level.Debug(logger).Log("msg", "Applying starter library")
 
@@ -194,6 +197,40 @@ func ApplyStarterLibrary(
 	}
 	client.SetToken(token)
 
+	// Check if we should skip teams on free license
+	if skipTeamsOnFreeLicense {
+		// Check if license is free
+		appConfig, err := client.GetAppConfig()
+		if err == nil && (appConfig.License == nil || !appConfig.License.IsPremium()) {
+			// Remove teams from specs to avoid applying them
+			level.Debug(logger).Log("msg", "Free license detected, skipping teams and team-related content in starter library")
+			specs.Teams = nil
+
+			// Filter out policies that reference teams
+			if specs.Policies != nil {
+				var filteredPolicies []*fleet.PolicySpec
+				for _, policy := range specs.Policies {
+					// Keep only policies that don't reference a team
+					if policy.Team == "" {
+						filteredPolicies = append(filteredPolicies, policy)
+					}
+				}
+				specs.Policies = filteredPolicies
+			}
+
+			// Note: QuerySpec doesn't have a Team field, so we can't filter queries by team
+
+			// Remove scripts from AppConfig if present
+			if specs.AppConfig != nil {
+				appConfigMap, ok := specs.AppConfig.(map[string]interface{})
+				if ok {
+					// Remove scripts from AppConfig
+					delete(appConfigMap, "scripts")
+				}
+			}
+		}
+	}
+
 	// Log function for ApplyGroup (minimal logging)
 	logf := func(format string, a ...interface{}) {}
 
@@ -207,7 +244,7 @@ func ApplyStarterLibrary(
 			ctx,
 			false,
 			specs,
-			".",
+			tempDir,
 			logf,
 			nil,
 			fleet.ApplyClientSpecOptions{},
@@ -312,6 +349,49 @@ func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptName
 		_, err = io.Copy(file, resp.Body)
 		if err != nil {
 			return fmt.Errorf("failed to write script %s to local file: %w", scriptName, err)
+		}
+	}
+
+	// Read script contents and store them in memory
+	scriptContents := make(map[string][]byte, len(scriptNames))
+	for _, scriptName := range scriptNames {
+		localPath := scriptPaths[scriptName]
+		content, err := os.ReadFile(localPath)
+		if err != nil {
+			return fmt.Errorf("failed to read script %s from local file: %w", scriptName, err)
+		}
+		scriptContents[scriptName] = content
+	}
+
+	// Extract scripts from AppConfig if present
+	appConfigScripts := extractAppCfgScripts(specs.AppConfig)
+	if appConfigScripts != nil {
+		// Replace script paths with actual script contents
+		appScripts := make([]string, 0, len(appConfigScripts))
+		for _, scriptPath := range appConfigScripts {
+			if content, exists := scriptContents[scriptPath]; exists {
+				// Create a temporary file with the script content
+				tempFile, err := os.CreateTemp(tempDir, "script-*")
+				if err != nil {
+					return fmt.Errorf("failed to create temporary script file: %w", err)
+				}
+				if _, err := tempFile.Write(content); err != nil {
+					tempFile.Close()
+					return fmt.Errorf("failed to write script content to temporary file: %w", err)
+				}
+				tempFile.Close()
+
+				// Add the temporary file path to the list
+				appScripts = append(appScripts, tempFile.Name())
+			} else {
+				// Keep the original path if it's not one of our downloaded scripts
+				appScripts = append(appScripts, scriptPath)
+			}
+		}
+
+		// Update the AppConfig with the new script paths
+		if specs.AppConfig != nil {
+			specs.AppConfig.(map[string]interface{})["scripts"] = appScripts
 		}
 	}
 

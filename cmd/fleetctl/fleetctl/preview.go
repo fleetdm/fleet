@@ -36,7 +36,6 @@ import (
 type dockerComposeVersion int
 
 const (
-	standardQueryLibraryUrl   = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
 	licenseKeyFlagName        = "license-key"
 	tagFlagName               = "tag"
 	previewConfigFlagName     = "preview-config"
@@ -45,7 +44,6 @@ const (
 	osquerydChannel           = "osqueryd-channel"
 	updateURL                 = "update-url"
 	updateRootKeys            = "update-roots"
-	stdQueryLibFilePath       = "std-query-lib-file-path"
 	previewConfigPathFlagName = "preview-config-path"
 	disableOpenBrowser        = "disable-open-browser"
 
@@ -142,11 +140,6 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			&cli.StringFlag{
 				Name:  updateRootKeys,
 				Usage: "Use custom update TUF root keys",
-				Value: "",
-			},
-			&cli.StringFlag{
-				Name:  stdQueryLibFilePath,
-				Usage: "Use custom standard query library yml file (used for development/testing)",
 				Value: "",
 			},
 			&cli.StringFlag{
@@ -378,7 +371,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				kitlog.NewLogfmtLogger(os.Stderr),
 				fleethttp.NewClient,
 				service.NewClient,
-				nil, // No mock ApplyGroup for production code
+				nil,  // No mock ApplyGroup for production code
+				true, // Skip teams on free license for preview
 			); err != nil {
 				return fmt.Errorf("failed to apply starter library: %w", err)
 			}
@@ -552,21 +546,6 @@ func downloadFromFleetRepo(
 		}
 	}
 	return nil
-}
-
-func downloadStandardQueryLibrary() ([]byte, error) {
-	resp, err := http.Get(standardQueryLibraryUrl)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status: %d", resp.StatusCode)
-	}
-	buf, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response body: %w", err)
-	}
-	return buf, nil
 }
 
 func waitStartup() error {
