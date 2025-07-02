@@ -2747,6 +2747,31 @@ type getHostSoftwareResponse struct {
 
 func (r getHostSoftwareResponse) Error() error { return r.Err }
 
+func (r getHostSoftwareRequest) DecodeRequest(ctx context.Context, req *http.Request) (interface{}, error) {
+	type defaultDecodeRequest struct {
+		ID uint `url:"id"`
+		fleet.HostSoftwareTitleListOptions
+	}
+
+	defaultDecoder := makeDecoder(defaultDecodeRequest{})
+	decoded, err := defaultDecoder(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	result := decoded.(*defaultDecodeRequest)
+	queryParams := req.URL.Query()
+	_, wasIncludeAvailableForInstallSet := queryParams["include_available_for_install"]
+	result.HostSoftwareTitleListOptions.IncludeAvailableForInstallExplicitlySet = wasIncludeAvailableForInstallSet
+
+	finalResult := getHostSoftwareRequest{
+		ID:                           result.ID,
+		HostSoftwareTitleListOptions: result.HostSoftwareTitleListOptions,
+	}
+
+	return &finalResult, nil
+}
+
 func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostSoftwareRequest)
 	res, meta, err := svc.ListHostSoftware(ctx, req.ID, req.HostSoftwareTitleListOptions)
@@ -2795,6 +2820,10 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "checking mdm enrollment status")
+	}
+
+	if opts.IncludeAvailableForInstallExplicitlySet {
+		includeAvailableForInstall = opts.IncludeAvailableForInstall
 	}
 
 	// cursor-based pagination is not supported
