@@ -2134,6 +2134,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAutoRelease() {
 	t := s.T()
 	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
 
 	teamDevice, enrolledHost, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
@@ -2158,18 +2159,18 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// Can be useful for debugging
-		// switch cmd.Command.RequestType {
-		// case "InstallProfile":
-		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
-		// case "InstallEnterpriseApplication":
-		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
-		// 	} else {
-		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		// 	}
-		// default:
-		// 	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
-		// }
+		switch cmd.Command.RequestType {
+		case "InstallProfile":
+			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		case "InstallEnterpriseApplication":
+			if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+			} else {
+				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+			}
+		default:
+			fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
+		}
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
