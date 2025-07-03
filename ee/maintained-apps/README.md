@@ -108,8 +108,6 @@ These are the default categories assigned to the installer in self-service if no
 - `Developer Tools`
 - `Productivity`
 
-These are the default categories assigned to the installer in self-service if no categories are specified when it is added to a team's library.  Categories can contain any of these values:
-
 ### Validating new additions to the FMA catalog
 
 1. When a pull request (PR) is opened containing changes to `ee/maintained-apps/inputs/`, the [#g-software Product Designer (PD)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer and is responsible for approving the PR if the FMA name is user-friendly.
