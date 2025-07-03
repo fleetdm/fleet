@@ -24,6 +24,17 @@ Fleet UI:
 
 Fleet API: Use the [Add custom OS setting (configuration profile) endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) in the Fleet API.
 
+#### User channel for configuration profiles on macOS
+
+Before version 4.71.0, Fleet didn't support sending configuration profiles (`.mobileconfig`) to the macOS user channel (aka "Payload Scope" in iMazing Profile Creator). Profiles with `PayloadScope` set to `User` were delivered to the device channel by default. From Fleet 4.71.0 onward, both device and user channels are supported. User-scoped profile is delivered to the user that turned on MDM on the host (installed fleetd or enrolled host via automatic enrollment (ADE)). Support for declaration (DDM) profiles is coming soon.
+
+Existing profiles with `PayloadScope` set to`User` won’t update automatically. These are delivered to the device channel and will remain there until you take action.
+
+To avoid confusion, please follow these steps:
+-  Check for profiles with `PayloadScope` set to `User`.
+-  To keep delivering them to the device channel, change `PayloadScope` to `System` to reflect the actual scope in your `.mobileconfig`. Also, you can remove `PayloadScope` as the default scope in Fleet is `System`. 
+-  To deliver to the user channel, update the identifier(`PayloadIdentifier`) and re-upload the profile.
+
 ### See status
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
