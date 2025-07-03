@@ -44,10 +44,9 @@ Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 
 
 On Windows, due to limitations of the MDM protocol, verification of [Win32 and Desktop Bridge app ADMX
 policy](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration)
-CSPs is limited to verifying that the host returned a success status code in response to the MDM
-command to install the CSP. It is possible, however, to query the registry keys defined by the ADMX
-file and set by any related policies to inspect their settings. For instance, if an ADMX file
-defines the following policy:
+CSPs are limited. Fleet only verifies that the host returned a success status code in response to the MDM
+command to install the configuration profile. You can query the registry keys defined by the ADMX
+policy. For instance, if an ADMX file defines the following policy:
 ```
       <policy name="Subteam" class="Machine" displayName="Subteam" key="Software\Policies\employee\Attributes" explainText="Subteam" presentation="String">
          <parentCategory ref="DefaultCategory" />
