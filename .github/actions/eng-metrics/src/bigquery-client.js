@@ -29,7 +29,7 @@ export class BigQueryClient {
     // Check if the key file exists
     if (!fs.existsSync(keyFilePath)) {
       const err = new Error(`Service account key file not found at ${keyFilePath}`);
-      logger.error('Failed to initialize BigQuery client', err);
+      logger.error('Failed to initialize BigQuery client', {}, err);
       throw err;
     }
 
@@ -52,7 +52,7 @@ export class BigQueryClient {
 
       logger.info('BigQuery client initialized');
     } catch (err) {
-      logger.error('Failed to initialize BigQuery client', err);
+      logger.error('Failed to initialize BigQuery client', {}, err);
       throw err;
     }
   }
@@ -108,7 +108,7 @@ export class BigQueryClient {
         logger.info(`Table ${tableId} created`);
       }
     } catch (err) {
-      logger.error(`Error creating table ${datasetId}.${tableId}`, err);
+      logger.error(`Error creating table ${datasetId}.${tableId}`, {}, err);
       throw err;
     }
   }
@@ -271,7 +271,7 @@ export class BigQueryClient {
         return acc;
       }, {});
     } catch (err) {
-      logger.error(`Error checking existing metrics in BigQuery ${datasetId}.${tableId}`, err);
+      logger.error(`Error checking existing metrics in BigQuery ${datasetId}.${tableId}`, {}, err);
       // If there's an error, assume no metrics exist
       return prNumbers.reduce((acc, prNumber) => {
         acc[prNumber] = false;
@@ -339,7 +339,7 @@ export class BigQueryClient {
 
       return apiResponse;
     } catch (err) {
-      logger.error(`Error uploading metrics to BigQuery ${datasetId}.${tableId}`, err);
+      logger.error(`Error uploading metrics to BigQuery ${datasetId}.${tableId}`, {}, err);
 
       // Log more details about the error if it's an insertion error
       if (err.name === 'PartialFailureError' && err.errors && err.errors.length > 0) {

@@ -257,6 +257,7 @@ _([@testuser3](https://github.com/testuser3))_ |
       expect(result).toEqual([]);
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Error parsing product groups file: error-file.md',
+        {},
         expect.any(Error)
       );
     });

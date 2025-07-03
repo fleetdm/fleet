@@ -54,7 +54,7 @@ async function main() {
     // Exit with success
     process.exit(0);
   } catch (err) {
-    logger.error('Error running engineering metrics collector', err);
+    logger.error('Error running engineering metrics collector', {}, err);
 
     // Exit with error
     process.exit(1);

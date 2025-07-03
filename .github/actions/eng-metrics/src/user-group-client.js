@@ -70,7 +70,7 @@ export class UserGroupClient {
       await this.table.create(options);
       logger.info('Created user_group table with clustering on group field');
     } catch (error) {
-      logger.error('Error creating user_group table:', error);
+      logger.error('Error creating user_group table:', {}, error);
       throw error;
     }
   }
@@ -108,7 +108,7 @@ export class UserGroupClient {
         `Successfully synced ${userGroups.length} user group mappings to BigQuery`
       );
     } catch (error) {
-      logger.error('Error syncing user groups:', error);
+      logger.error('Error syncing user groups:', {}, error);
       throw error;
     }
   }
@@ -180,7 +180,7 @@ export class UserGroupClient {
         logger.info('No changes needed - user groups are already up to date');
       }
     } catch (error) {
-      logger.error('Error performing differential sync:', error);
+      logger.error('Error performing differential sync:', {}, error);
       throw error;
     }
   }
@@ -204,7 +204,7 @@ export class UserGroupClient {
         logger.info('Table does not exist yet, no existing entries');
         return [];
       }
-      logger.error('Error getting existing user groups:', error);
+      logger.error('Error getting existing user groups:', {}, error);
       throw error;
     }
   }
@@ -228,7 +228,7 @@ export class UserGroupClient {
 
       logger.info(`Deleted ${userGroupsToDelete.length} user group entries`);
     } catch (error) {
-      logger.error('Error deleting user groups:', error);
+      logger.error('Error deleting user groups:', {}, error);
       throw error;
     }
   }
@@ -292,7 +292,7 @@ export class UserGroupClient {
         `Inserted ${rows.length} user group mappings into BigQuery using streaming insert`
       );
     } catch (error) {
-      logger.error('Error inserting user groups:', error);
+      logger.error('Error inserting user groups:', {}, error);
       throw error;
     }
   }

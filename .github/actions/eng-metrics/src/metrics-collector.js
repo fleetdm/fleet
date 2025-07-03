@@ -71,7 +71,7 @@ export class MetricsCollector {
 
       logger.info('Metrics collector initialized');
     } catch (err) {
-      logger.error('Failed to initialize metrics collector', err);
+      logger.error('Failed to initialize metrics collector', {}, err);
       throw err;
     }
   }
@@ -85,7 +85,7 @@ export class MetricsCollector {
     const [owner, repo] = repository.split('/');
     if (!owner || !repo) {
       const err = new Error(`Invalid repository format: ${repository}`);
-      logger.error(`Error collecting metrics for ${repository}`, err);
+      logger.error(`Error collecting metrics for ${repository}`, {}, err);
       return [];
     }
     logger.info(`Collecting metrics for ${repository}`);
@@ -135,14 +135,14 @@ export class MetricsCollector {
           const prMetrics = await this.collectPRMetrics(pr, timelineEvents, reviewEvents);
           metrics.push(...prMetrics);
         } catch (err) {
-          logger.error(`Error collecting metrics for PR ${repository}#${pr.number}`, err);
+          logger.error(`Error collecting metrics for PR ${repository}#${pr.number}`, {}, err);
         }
       }
 
       logger.info(`Collected ${metrics.length} metrics for ${repository}`);
       return metrics;
     } catch (err) {
-      logger.error(`Error collecting metrics for ${repository}`, err);
+      logger.error(`Error collecting metrics for ${repository}`, {}, err);
       return [];
     }
   }
@@ -170,7 +170,7 @@ export class MetricsCollector {
           metrics.push(pickupTimeMetrics);
         }
       } catch (err) {
-        logger.error(`Error calculating Time to First Review for PR #${pr.number}`, err);
+        logger.error(`Error calculating Time to First Review for PR #${pr.number}`, {}, err);
       }
     }
 
@@ -187,7 +187,7 @@ export class MetricsCollector {
           metrics.push(mergeTimeMetrics);
         }
       } catch (err) {
-        logger.error(`Error calculating Time to Merge for PR #${pr.number}`, err);
+        logger.error(`Error calculating Time to Merge for PR #${pr.number}`, {}, err);
       }
     }
 
@@ -213,7 +213,7 @@ export class MetricsCollector {
       logger.info(`Collected ${allMetrics.length} metrics in total`);
       return allMetrics;
     } catch (err) {
-      logger.error('Error collecting metrics', err);
+      logger.error('Error collecting metrics', {}, err);
       throw err;
     }
   }
@@ -255,7 +255,7 @@ export class MetricsCollector {
 
       logger.info(`Successfully processed ${validUserGroups.length} user group mappings`);
     } catch (err) {
-      logger.error('Error processing user groups', err);
+      logger.error('Error processing user groups', {}, err);
       throw err;
     }
   }
@@ -303,7 +303,7 @@ export class MetricsCollector {
 
       logger.info('Metrics printed successfully');
     } catch (err) {
-      logger.error('Error printing metrics', err);
+      logger.error('Error printing metrics', {}, err);
       throw err;
     }
   }
@@ -421,7 +421,7 @@ export class MetricsCollector {
 
       logger.info('All metrics uploaded successfully');
     } catch (err) {
-      logger.error('Error uploading metrics to BigQuery', err);
+      logger.error('Error uploading metrics to BigQuery', {}, err);
       throw err;
     }
   }
@@ -485,7 +485,7 @@ export class MetricsCollector {
       logger.info('Engineering metrics collection completed successfully');
       return metrics;
     } catch (err) {
-      logger.error('Error running engineering metrics collection', err);
+      logger.error('Error running engineering metrics collection', {}, err);
       throw err;
     }
   }

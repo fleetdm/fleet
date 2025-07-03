@@ -55,15 +55,22 @@ export const validateUsernames = async (githubToken, usernames) => {
       invalidUsernames.push(username);
     }
 
-    // Small delay to avoid hitting rate limits too aggressively
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Small delay to avoid hitting rate limits too aggressively.
+    // 2025/07/03: GitHub's authenticated rate limit is 5000 requests/hour (~1.4 requests/second). This could lead to rate limit errors with larger username lists.
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   if (invalidUsernames.length > 0) {
-    logger.warn(`Found ${invalidUsernames.length} invalid GitHub usernames: ${invalidUsernames.join(', ')}`);
+    logger.warn(
+      `Found ${
+        invalidUsernames.length
+      } invalid GitHub usernames: ${invalidUsernames.join(', ')}`
+    );
   }
 
-  logger.info(`Validated ${validUsernames.length} out of ${usernames.length} GitHub usernames`);
+  logger.info(
+    `Validated ${validUsernames.length} out of ${usernames.length} GitHub usernames`
+  );
   return validUsernames;
 };
 
@@ -75,18 +82,22 @@ export const validateUsernames = async (githubToken, usernames) => {
  */
 export const filterValidUserGroups = async (githubToken, userGroups) => {
   // Get unique usernames for validation
-  const uniqueUsernames = [...new Set(userGroups.map(ug => ug.username))];
+  const uniqueUsernames = [...new Set(userGroups.map((ug) => ug.username))];
 
   // Validate usernames
   const validUsernames = await validateUsernames(githubToken, uniqueUsernames);
   const validUsernameSet = new Set(validUsernames);
 
   // Filter user groups to only include valid usernames
-  const validUserGroups = userGroups.filter(ug => validUsernameSet.has(ug.username));
+  const validUserGroups = userGroups.filter((ug) =>
+    validUsernameSet.has(ug.username)
+  );
 
   const removedCount = userGroups.length - validUserGroups.length;
   if (removedCount > 0) {
-    logger.info(`Removed ${removedCount} user group mappings due to invalid usernames`);
+    logger.info(
+      `Removed ${removedCount} user group mappings due to invalid usernames`
+    );
   }
 
   return validUserGroups;
@@ -94,5 +105,5 @@ export const filterValidUserGroups = async (githubToken, userGroups) => {
 
 export default {
   validateUsernames,
-  filterValidUserGroups
+  filterValidUserGroups,
 };

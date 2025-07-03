@@ -68,7 +68,7 @@ const loadConfigFromFile = (configPath) => {
     const configData = fs.readFileSync(resolvedPath, 'utf8');
     return JSON.parse(configData);
   } catch (err) {
-    logger.error(`Error loading configuration from file: ${configPath}`, err);
+    logger.error(`Error loading configuration from file: ${configPath}`, {}, err);
     return {};
   }
 };

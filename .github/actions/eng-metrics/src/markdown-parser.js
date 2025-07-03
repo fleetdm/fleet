@@ -25,7 +25,7 @@ export const parseProductGroups = (filePath) => {
     const content = fs.readFileSync(resolvedPath, 'utf8');
     return extractUsernamesFromMarkdown(content);
   } catch (err) {
-    logger.error(`Error parsing product groups file: ${filePath}`, err);
+    logger.error(`Error parsing product groups file: ${filePath}`, {}, err);
     return [];
   }
 };
@@ -112,8 +112,7 @@ const extractUsernamesFromSection = (sectionContent, groupName) => {
     .filter(Boolean);
 
   logger.info(
-    `Found ${
-      usernames.length
+    `Found ${usernames.length
     } developers in ${groupName} group: ${usernames.join(', ')}`
   );
 

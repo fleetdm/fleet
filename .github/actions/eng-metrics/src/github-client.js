@@ -85,7 +85,7 @@ export class GitHubClient {
       });
       logger.info('GitHub client initialized');
     } catch (err) {
-      logger.error('Failed to initialize GitHub client', err);
+      logger.error('Failed to initialize GitHub client', {}, err);
       throw err;
     }
   }
@@ -141,7 +141,7 @@ export class GitHubClient {
       logger.info(`Fetched ${pullRequests.length} PRs for ${owner}/${repo}`);
       return pullRequests;
     } catch (err) {
-      logger.error(`Error fetching PRs for ${owner}/${repo}`, err);
+      logger.error(`Error fetching PRs for ${owner}/${repo}`, {}, err);
 
       // Implement basic retry for rate limiting
       if (err.status === 403 && err.response?.headers?.['x-ratelimit-remaining'] === '0') {
@@ -179,7 +179,7 @@ export class GitHubClient {
       logger.info(`Fetched ${response.data.length} review events for ${owner}/${repo}#${prNumber}`);
       return response.data;
     } catch (err) {
-      logger.error(`Error fetching review events for ${owner}/${repo}#${prNumber}`, err);
+      logger.error(`Error fetching review events for ${owner}/${repo}#${prNumber}`, {}, err);
 
       // Implement basic retry for rate limiting
       if (err.status === 403 && err.response?.headers?.['x-ratelimit-remaining'] === '0') {
@@ -269,7 +269,7 @@ export class GitHubClient {
       logger.info(`Fetched ${timelineEvents.length} timeline events for ${owner}/${repo}#${prNumber}`);
       return timelineEvents;
     } catch (err) {
-      logger.error(`Error fetching timeline events for ${owner}/${repo}#${prNumber}`, err);
+      logger.error(`Error fetching timeline events for ${owner}/${repo}#${prNumber}`, {}, err);
 
       // Implement basic retry for rate limiting
       if (err.status === 403 && err.response?.headers?.['x-ratelimit-remaining'] === '0') {
@@ -344,7 +344,7 @@ export class GitHubClient {
         readyEventType
       };
     } catch (err) {
-      logger.error(`Error calculating pickup time for ${pr.html_url}`, err);
+      logger.error(`Error calculating pickup time for ${pr.html_url}`, {}, err);
       return null;
     }
   }
@@ -436,7 +436,7 @@ export class GitHubClient {
 
     // Case: Both ready time and review time are on the same weekend
     if ((readyDay === 0 || readyDay === 6) && (reviewDay === 0 || reviewDay === 6) &&
-        Math.floor(reviewTime / (24 * 60 * 60 * 1000)) - Math.floor(readyTime / (24 * 60 * 60 * 1000)) <= 2) {
+      Math.floor(reviewTime / (24 * 60 * 60 * 1000)) - Math.floor(readyTime / (24 * 60 * 60 * 1000)) <= 2) {
       // Return 0 seconds pickup time
       return 0;
     }
@@ -527,7 +527,7 @@ export class GitHubClient {
         readyEventType
       };
     } catch (err) {
-      logger.error(`Error calculating merge time for ${pr.html_url}`, err);
+      logger.error(`Error calculating merge time for ${pr.html_url}`, {}, err);
       return null;
     }
   }
