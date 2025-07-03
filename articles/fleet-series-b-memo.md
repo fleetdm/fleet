@@ -1,36 +1,27 @@
-# How Fleet raised a $27M Series B - without a pitch deck
+When we set out to raise Fleet's Series B, we decided to skip the usual pitch deck. Instead, our CEO, Mike McNeil, took a leaf out of [Parker Conrad's](https://en.wikipedia.org/wiki/Parker_Conrad) book and wrote a memo—a long-form document explaining what's happening in the market, how Fleet is growing, and what we want to build next.
 
-When Mike decided to raise Fleet’s Series B, he didn’t make a pitch deck.  
-He wrote a memo instead.
+We still included charts, graphs, and key SaaS metrics like revenue growth, net retention, and sales efficiency. But the heart of the memo was the writing. The process helped us understand what we're doing, who we're doing it for, why now is the right time, and how we plan to scale.
 
-That memo laid out what’s happening in the market, how Fleet is growing, and what we want to build next. It helped us raise $27 million from investors who understand open source, infrastructure, and long-term bets.
+The memo helped us raise $27 million in funding. Now that the round is public, we're sharing it in the spirit of openness and transparency for you to use as inspiration in your own projects. 
 
-Today, we’re excited to share our version of that memo publicly.
+[Read the memo](https://fleetdm.com/pdfs/fleet-series-b-memo.pdf)
 
-Fleet is now used to manage millions of laptops and servers across organizations of all sizes. From startups to large enterprises, and anyone in between. Our customers run it on-prem, in the cloud, or behind locked doors. The use cases keep expanding, but the core idea stays the same: give managers and teams a fast, open way to understand and control their devices.
+## What's next for Fleet
 
-We’ve grown steadily by focusing on what real IT and security teams need—not what’s trendy. This round isn’t about changing direction. It’s about doubling down.
+Fleet is now used to manage millions of laptops and servers across enterprise organizations. Our customers run Fleet on-prem or in the cloud. And while the use cases keep expanding, the core idea remains the same: give teams a fast, open way to understand and control their devices.
 
-> *“We didn’t raise this round to change our strategy. We raised it to keep doing what’s working.”*  
-> *— Mike McNeil, CEO of Fleet*
+Our recent funding allows us to:
 
+- Accelerate product development, ensuring Fleet remains flexible, secure, and vendor-neutral.
+- Continue investing in self-hosted deployment support, giving customers full control over their data and compliance posture—especially important as competitors shift to cloud-only models.
+- Scale adoption across global enterprises, supporting traditional laptops, phones, servers, factory robots, production-line computers, and supercomputers.
+- Strengthen partnerships with resellers and MSPs by offering technical support and go-to-market programs—and by shaping our roadmap based on partner feedback.
 
-## What’s next
+If you're already using Fleet, thank you. If you're getting to know us, our [investor memo](https://fleetdm.com/pdfs/fleet-series-b-memo.pdf) is a great place to start.
 
-This funding lets us keep investing in:
-
-- making the open source version better for real-world use  
-- building features for large-scale and air-gapped environments  
-- making it easier to manage devices across platforms, clouds, and networks
-
-We’re hiring. We’re listening. And we’re shipping fast.
-
-If you’re already using Fleet: thank you.  
-If you’re just getting curious: this memo is a good place to start.
-
-<meta name="articleTitle" value="How Fleet raised a $27M Series B - without a pitch deck.">
+<meta name="articleTitle" value="How Fleet raised a $27M Series B without a pitch deck">
 <meta name="authorFullName" value="Irena Reedy">
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2025-07-02">
-<meta name="description" value="When Mike decided to raise Fleet’s Series B, he didn’t make a pitch deck. He wrote a memo instead.">
+<meta name="description" value="When we set out to raise Fleet's Series B, we decided to skip the usual pitch deck in favor of a memo.">
