@@ -625,6 +625,14 @@ Object with the following structure:
 | url | string | body | **Required**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
 | challenge | string | body | **Required**. Static challenge password used to authenticate requests to SCEP server. |
 
+#### hydrant
+
+Object with the following structure:
+
+| url       | string | body | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant. |
+| client_id | string | body | **Required**. The client ID provided by Hydrant.|
+| client_secret  | string | body | **Required**. The client secret provided by Hydrant. |
+
 #### Example
 
 `POST /api/v1/fleet/certificate_authorities`
