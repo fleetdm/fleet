@@ -15,6 +15,10 @@ After this is done, the "Fleet partner" will be shown with a "Pending activation
 
 ![Conditional access pending activation](../website/assets/images/compliance-partner-pending-activation.png)
 
+### "All Company" Intune group requirement
+
+Users for which you want "Conditional Access" on Entra must be members of the `"All Company"` group **on Intune**.
+
 ## Setup integration in Fleet
 
 Now we need to connect and provision Fleet to operate on your Entra ID tenant (activate partner).
@@ -43,6 +47,9 @@ The Company Portal macOS application can be downloaded from https://go.microsoft
 To configure automatic installation on your macOS devices you go to `Software` > `Select the team` > `Add software` > `Custom package`. Upload the `CompanyPortal-Installer.pkg` and check the `Automatic install` option.
 
 !['Company Portal.app' automatic install](../website/assets/images/company-portal-automatic.png)
+
+You should also configure "Company Portal" as software package to deploy during "Setup Experience" for DEP/ABM devices.
+Go to `Controls` > `Setup experience` > `Install software` > `Add software`, select `Company Portal` for macOS and hit `Save`.
 
 ### Label "Company Portal installed"
 
@@ -155,6 +162,8 @@ Once Fleet policies are configured you also need to configure Entra ID "Conditio
 For instance, you can create a policy to "block access to Office 365 on macOS devices reported as non-compliant by Fleet":
 ![Entra ID Conditional Access policy example](../website/assets/images/entra-conditional-access-policy.png)
 
+Make sure to assign Entra users/groups to the created "Conditional Access" policies.
+
 ### Disabling "Conditional Access" on a team
 
 If you need all your hosts on a team to be marked as "Compliant" (e.g. to unblock access to a resource) go to `Policies` > `Select team` > `Automations` > `Conditional access`, uncheck all policies and hit `Save`. The hosts will be marked as "Compliant" the next time they check in with policy results (within one hour, or by refetching manually).
@@ -188,6 +197,15 @@ And here's the error message when trying to re-login:
 
 Clicking on "Check Compliance" redirects the user to https://fleetdm.com/microsoft-compliance-partner/remediate.
 The user will be able to log in again once the failing policies are remediated.
+
+### Disabling "Conditional Access"
+
+If you wish to disable the "Conditional Access" feature temporarily, we recommend turning off the "Conditional Access" policies on Entra.
+On Entra, go to `Protection` > `Conditional Access` > `Policies`, then select the policies and turn them off.
+
+### End users unenrolling from Fleet MDM
+
+If a user unenrolls from Fleet MDM by going to `System Settings` > `Device Management` and hitting `Unenroll` on Fleet's enrollment profile then Fleet will report the "MDM turned off" state to Intune and the device will be automatically marked as non-compliant on Entra (even if it's passing all Fleet policies).
 
 ## GitOps
 
