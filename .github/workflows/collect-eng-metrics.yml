@@ -53,3 +53,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SERVICE_ACCOUNT_KEY_PATH: './service-account-key.json'
+
+      - name: Slack notification
+        if: github.event_name == 'schedule' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Collect engineering metrics result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
