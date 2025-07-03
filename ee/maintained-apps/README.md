@@ -12,11 +12,12 @@ as part of the fix PR.
 ## Adding a new app
 
 1. Decide on a source for the app's metadata. We currently support homebrew as a source for macOS apps.
-2. Find that app's metadata. For homebrew, you can visit https://formulae.brew.sh/ and find the app there.
+2. Find that app's metadata. For homebrew, you can visit [Homebrew formulae](https://formulae.brew.sh/) and find the app there.
 3. Create a new file called `$YOUR_APP_NAME.json` in the `inputs/$SOURCE` directory. For
    example, if you wanted to add Box Drive and use homebrew as the source, you would create the
    file `inputs/homebrew/box-drive.json`.
 4. Fill out the file according to the [breakdown below](#input-file-schema). For our example Box Drive app, it would look like this:
+
    ```json
    {
       "name": "Box Drive",
@@ -34,73 +35,130 @@ as part of the fix PR.
       "post_uninstall_scripts": ["rm /etc/sudoers.d/box_uninstall"]
    }
    ```
-5. Open a PR to the `fleet` repository with the new app file. This will trigger a CI job which will automatically update your PR with the required output files. These files contain important data such as the install and uninstall scripts for the app.
-6. The [#g-software product group](https://fleetdm.com/handbook/company/product-groups#software-group) will review the PR and test the app. Once approved and merged, the app should appear in the Fleet-maintained apps section when adding new software to Fleet.
+
+5. Run the following command to generate output data:
+
+    ```bash
+   go run cmd/maintained-apps/main.go -slug="box-drive/darwin" -debug
+   ```
+
+6. Open a PR to the `fleet` repository with the above changes
+
+7. The [#g-software product group](https://fleetdm.com/handbook/company/product-groups#software-group) will:
+   1. Review the PR and test the app.  Contributors should be aware of the validation requirements below.
+   2. Create an associated issue to track progress and icon additions.
+   3. If validation requirements cannot be met in this PR, the PR will be closed and the associated issue will be prioritized in the g-software group backlog.
+
+8. If approved and merged, the app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet.  The app icon will not appear in Fleet until a following release.  An FMA addition is not considered "Done" until the icon is added in a Fleet release. This behavior will be [improved](https://github.com/fleetdm/fleet/issues/29177) in a future release.
 
 ### Input file schema
 
-#### `name`
+#### `name` (required)
+
 This is the user-facing name of the application.
 
-#### `unique_identifier`
+#### `unique_identifier` (required)
+
 This is the platform-specific unique identifier for the app. On macOS, this is the app's bundle identifier.
 
-#### `token`
+#### `token` (required)
+
 This is the identifier used by homebrew for the app; it is the `token` field on the homebrew API response.
 
-#### `installer_format`
+#### `installer_format` (required)
+
 This is the file format for the app's installer. Currently supported values are:
+
 - `zip`
 - `dmg`
 - `pkg`
 
-To find the app's installer format, you can look at the `url` field on the homebrew API response. The installer's extension should be at the end of this URL. 
+To find the app's installer format, you can look at the `url` field on the homebrew API response. The installer's extension should be at the end of this URL.
 
 Sometimes the file type is not included in the installer's URL. In this case, you can download the installer and use the extension of the downloaded file.
 
-#### `slug`
-The `slug` identifies a specific app and platform combination. It is used to name the manifest files that contain the metadata that Fleet needs to add, install, and uninstall this app. 
+#### `slug` (required)
+
+The `slug` identifies a specific app and platform combination. It is used to name the manifest files that contain the metadata that Fleet needs to add, install, and uninstall this app.  This is what is used when referring to the app in GitOps.
 
 The slug is composed of a filesystem-friendly version of the app name, and an operating system platform identifier, separated by a `/`.
 
 For the app name part, use `-` to separate words if necessary, for example `adobe-acrobat-reader`. 
 
 The platform part can be any of these values:
+
 - `darwin`
 
 For example, use a `slug` of `box-drive/darwin` for Box Drive on macOS.
 
-#### `pre_uninstall_scripts`
+#### `pre_uninstall_scripts` (optional)
+
 These are command lines that will be run _before_ the generated uninstall script is executed.
 
-#### `post_uninstall_scripts`
+#### `post_uninstall_scripts` (optional)
+
 These are command lines that will be run _after_ the generated uninstall script is executed.
 
-### Testing
+#### `default_categories` (required)
 
-Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updates to existing apps, skip to step 6.
+These are the default categories assigned to the installer in self-service if no categories are specified when it is added to a team's library.  Categories can contain any of these values:
 
-1. When a pull request (PR) is opened in `inputs/`, the [#g-software Product Designer (PD)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer.
-2. The PD is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the PD will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
-3. Then, the PD builds the app's `outputs/` on the same PR by running the following command:
+- `Browsers`
+- `Communication`
+- `Developer Tools`
+- `Productivity`
 
-```
-go run cmd/maintained-apps/main.go
-```
+These are the default categories assigned to the installer in self-service if no categories are specified when it is added to a team's library.  Categories can contain any of these values:
 
-4. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
-5. If the app is a new app, add an icon for the app to the PR. To add the icon, add the SVG as a comment to the PR and then ask the contributor to add the SVG to their PR [like this](https://github.com/fleetdm/fleet/pull/28332/files#diff-3728cfaafa50a41f6b017a4ef6ab64f7ce99034a9e90ed46421670f76a2db17f). Also, ask them to update the `index.ts` file [like this](https://github.com/fleetdm/fleet/pull/28332/files#diff-628095892e1d16090be1db6cc1a5c9cebc65248c32a8b1312385394818f2907b).
-6. [Quality Assurance (QA)](https://fleetdm.com/handbook/company/product-groups#software-group) is responsible for testing the app. 
-7. When testing, update the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
+### Validating new additions to the FMA catalog
 
-```
-https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs
-```
+1. When a pull request (PR) is opened containing changes to `ee/maintained-apps/inputs/`, the [#g-software Product Designer (PD)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer and is responsible for approving the PR if the FMA name is user-friendly.
 
-Make sure you replace the `<PR-branch-name>`.
+2. Create a github issue. This issue will be used to track status and icon additions:
+   - add the `:release` label
+   - add it to the `g-software` project (status: Ready)
+   - link the PR
+   - add the below FMA issue template
 
-8. Add and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
+3. Validate the PR:
 
-9. If the tests fail, the PD sets the PR to draft, files a bug that links to the PR, and updates the [testing spreadsheet](https://docs.google.com/spreadsheets/d/1H-At5fczHwV2Shm_vZMh0zuWowV7AD7yzHgA0RVN7nQ/edit?gid=0#gid=0).
-    
-10. If the test is successful, the PD approves and merges the PR.
+   1. Find the app in [Homebrew's GitHub casks](https://github.com/Homebrew/homebrew-cask/tree/main/Casks) and download it locally using `cask.url`.
+
+   2. Install it on a host and run a live query on the host: `SELECT * FROM apps WHERE name LIKE '%App Name%';`
+   3. `name` in the inputs manifest matches osquery `app.name`
+   4. `unique_identifier` in the inputs manifest matches osquery `app.bundle_identifier`
+   5. The version scheme in the homebrew recipe matches osquery `app.bundle_short_version`.  This ensures the FMA can be patched correctly.
+   6. Ensure associated outputs were generated in the PR
+      - `/outputs/<app-name>/darwin.json` created
+      - `/outputs/apps.json` updated
+
+4. If the PR passes validation, set the issue status to `Awaiting QA`.  QA will perform the test criteria.  PR is approved and merged.
+
+5. If tests pass, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
+
+6. Product designer to add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671) and publish the icon as a part of the Software icon Figma component.
+
+#### Testing FMA catalog additions (no icon)
+
+Use the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
+
+   ```bash
+   https://raw.githubusercontent.com/<repository-name>/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs
+   ```
+
+   Make sure you replace the `<PR-branch-name>` and `<repository-name>`
+
+Test criteria:
+
+- [X] App adds successfully to team's library
+- [X] App installs successfully on host
+- [X] App opens succuessfully on host
+- [X] App uninstalls successfully on host
+
+If the tests pass:
+
+- Move issue to `Ready` (icon addition still needed)
+- Approve and merge PR
+
+If the test fail:
+- Remove issue from the `g-software` board, and add issue to the `Drafting` board
