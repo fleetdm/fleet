@@ -579,6 +579,8 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Add DigiCert certificate authority (CA)
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
 `POST /api/v1/fleet/certificate_authorities`
@@ -659,30 +661,22 @@ Object with the following structure:
 
 ### Edit DigiCert certificate authority (CA)
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 `PATCH /api/v1/fleet/certificate_authorities/:id`
 
-When editing CA use fields that are relevant for `type` of CA. E.g. if `type` is `digicert`, specify only fields prefixed with `digicert_`. Fields non-relevant to specified type will be ignored.
+> **Note:** When editing CA specify only object and it's fields that you want to update.
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                                 |
 |---------------- |-------- |------|-------------------------------------------------------------|
-| id   | integer | body | **Required**. The ID of certificate authority. |
-| digicert_url   | string | body | **Required (if type is `digicert`)** DigiCert instance URL, used as base URL for DigiCert API requests. |
-| digicert_api_token        | string | body | **Required (if type is `digicert`)** API token used to authenticate requests to DigiCert. |
-| digicert_profile_id       | string  | body | **Required (if type is `digicert`)** The ID of certificate profile in DigiCert. |
-| digicert_certificate_common_name      | string  | body | **Required (if type is `digicert`)** The certificate's common name. |
-| digicert_certificate_user_principal_names    | array  | body | Use with type `digicert`. The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
-| digicert_certificate_seat_id     | string  | body | **Required (if type is `digicert`)** The ID of the DigiCert seat. Seats are license units in DigiCert. |
-| ndes_url       | string | body | **Required (if type is `ndes_scep_proxy`)**. The URL of the NDES SCEP endpoint.        |
-| ndes_admin_url | string | body | **Required (if type is `ndes_scep_proxy`)**. The URL of the NDES admin endpoint.       |
-| ndes_password  | string | body | **Required (if type is `ndes_scep_proxy`)**. The password for the NDES admin endpoint. |
-| ndes_username  | string | body | **Required (if type is `ndes_scep_proxy`)**. The username for the NDES admin endpoint. |
-| hydrant_url       | string | body | **Required (if type is `hydrant`)**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.        |
-| hydrant_client_id | string | body | **Required (if type is `hydrant`)**. The client ID provided by Hydrant.       |
-| hydrant_client_secret  | string | body | **Required**. The client secret provided by Hydrant. |
-| custom_scep_url        | string | body | **Required (if type is `custom_scep_proxy`)**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
-| custom_scep_challenge         | string  | body | **Required (if type is `custom_scep_proxy`)**. Static challenge password used to authenticate requests to SCEP server. |
+| digicert   | object | body | See [digicert](#digicert) |
+| ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
+| custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
+| hydrant   | object | body | See [hydrant](#hydrant) |
+
+For structure of the objects see [Add certificate authority](#add-certificate-authority-ca) endpoint above.
 
 #### Example
 
@@ -692,7 +686,9 @@ When editing CA use fields that are relevant for `type` of CA. E.g. if `type` is
 
 ```json
 {
-  "digicert_certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "digicert": {
+    "digicert_certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  }
 }
 ```
 
@@ -701,6 +697,8 @@ When editing CA use fields that are relevant for `type` of CA. E.g. if `type` is
 `Status: 200`
 
 ### List certificate authorities (CAs)
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `GET /api/v1/fleet/certificate_authorities`
 
@@ -746,7 +744,9 @@ When editing CA use fields that are relevant for `type` of CA. E.g. if `type` is
 
 ### Get DigiCert certificate authority (CA)
 
-Get details of certificate authority.
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+Get details of the certificate authority.
 
 `GET /api/v1/fleet/certificate_authorities/:id`
 
@@ -780,9 +780,11 @@ Get details of certificate authority.
 }
 ```
 
-### Delete DigiCert certificate authority (CA)
+### Delete certificate authority (CA)
 
-When CA is deleted issued certificates won't be removed on existing hosts.
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+When the CA is deleted, the issued certificates will remain on existing hosts.
 
 `DELETE /api/v1/fleet/certificate_authorities/:id`
 
@@ -798,29 +800,13 @@ When CA is deleted issued certificates won't be removed on existing hosts.
 
 ##### Default response
 
-`Status: 200`
-
-```json
-{
-  "id": 1,
-  "type": "digicert",
-  "name": "WIFI_CERTIFICATE",
-  "digicert_url": "https://one.digicert.com",
-  "digicert_api_token": "********",
-  "digicert_profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
-  "digicert_certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-  "digicert_certificate_user_principal_names": [
-    "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-  ],
-  "digicert_certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
-}
-```
+`Status: 204`
 
 ### Request certificate
 
-Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
+Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
 
-`POST /api/v1/fleet/certificates`
+`POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
 #### Parameters
 
@@ -832,7 +818,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is supp
 
 #### Example
 
-`POST /api/v1/fleet/certificates`
+`POST /api/v1/fleet/certificate_authorities/5/request_certificate`
 
 ##### Request body
 
@@ -840,7 +826,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is supp
 {
   "csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIC/jCCAeYCAQAwITEfMB0GA1UEAwwWQ2lzY29Vc2VyTmV0d29ya0FjY2VzczCC\nASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJZtbxathh+RfK+Z613ar4E\nYSIem8yAvv2JZJtopjD3noy1yF+nGRyF/ocm+FhYvjR5u7teJXlcv24tAAHuWL4U\nuPIql0Slakjdsfl098salkj324lkjmtElWDi6XRjUIXEj1zyCnZTCxGmyHcYB/+f3fyv/\ngZ8SkPqocNOCpX6cSW8hxOlaF9aZUC+xMHRdjQgxQ79hleb5K/n2gCJjiW1sV0Es\nRg+MX0cbPCpahpzlvIAkzA7TTUTOd7ZN+V0GW0fH86uMstrqeW2QUuZmSDC9fNyj\nQhk6n5iURaHXdFjSmyrhW5AVvw1nIblHodhUtD6J+g9kjhBg1frss3ndQtnNrnMC\nAwEAAaCBlzCkldflkjc098dlkj2KoZIhvcNAQkOMYGGMIGDMIGABgNVHREEeTB3ggljaXNjby5j\nb22BEWthYW53YXJAY2lzY28uY29thjRJRDpGbGVldERNOkdVSUQ6Y2FkMTM4OTEt\nMzU3Ni00NzhmLTk1MzAtZmM1Y2VlZTEzZTkwoCEGCisGAQQBgjcUAgOgEwwRa2Fh\nbndhckBjaXNjby5jb20wDQYJKoZIhvcNAQELBQADggEBAH2U6Or14b4O22YjM22k\nXI9QDC5P+sDczcLjivv4MyXQL1ks8R6B1nXCrOmiLPPLaZ09f+UkeMnyuGAxW8Ce\n6LTKquwvlifZ+5TjyANz0I/d9ETLQF2MTphEZd4ySNLtq2RwYyDOBKaxMdW0sUsd\n6M3WyAuTBVgBkTVIqbMJBzFsgXSrr2a0LJEHszOO2BN3yT5muDQsKPJ1uXL7tNUv\n16pGaYpQZR8yGAmWyISHhAyLaJ1N1R8L77SLxdd/Sj7RunNNxqFqaEgIJMgsyu08\nGharLkQcIoW7qPHZuaLa54xMF/s/vfKH6rgGbbCAgw9kw8Klt+6H3OH1FSMeRfZ/\nDWs=\n-----END CERTIFICATE REQUEST-----",
   "idp_oauth_url": "https://idp.oauth.com",
-  "idp_token": "AA598E2A-7952-46E3-B89D-526D45F7E233"
+  "idp_token": "88683de5858044aaacaf4046aeeef778044aaacaf4046"
 }
 ```
 
