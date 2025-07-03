@@ -66,8 +66,9 @@ describe("Config", () => {
     // Reset all mocks
     jest.clearAllMocks();
 
-    // Mock fs.existsSync to return true for config.json
+    // Mock fs.existsSync to return true by default (for config.json and user group file)
     mockFs.existsSync.mockReturnValue(true);
+    mockFs.default.existsSync.mockReturnValue(true);
 
     // Mock fs.readFileSync to return a default config
     mockFs.readFileSync.mockReturnValue(
@@ -78,6 +79,8 @@ describe("Config", () => {
         lookbackDays: 5,
         serviceAccountKeyPath: "./service-account-key.json",
         printOnly: false,
+        userGroupEnabled: true,
+        userGroupFilepath: "../../../handbook/company/product-groups.md",
       })
     );
   });
@@ -246,6 +249,9 @@ describe("Config", () => {
       lookbackDays: 30,
       targetBranch: "main",
       printOnly: false,
+      userGroupEnabled: true,
+      userGroupFilepath: "../../../handbook/company/product-groups.md",
+      excludeBotReviews: true,
       metrics: {
         timeToFirstReview: {
           enabled: true,
@@ -351,6 +357,64 @@ describe("Config", () => {
         ...baseValidConfig,
         repositories: ["owner1/repo1", "invalid-repo", "owner3/repo3"],
       };
+      expect(validateConfig(config)).toBe(false);
+    });
+
+    test("should validate when userGroupEnabled is true and file exists", () => {
+      const config = {
+        ...baseValidConfig,
+        userGroupEnabled: true,
+        userGroupFilepath: "../../../handbook/company/product-groups.md",
+      };
+
+      // Mock file exists - need to reset and set up the mock properly
+      mockFs.existsSync.mockReset();
+      mockFs.default.existsSync.mockReset();
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.default.existsSync.mockReturnValue(true);
+
+      expect(validateConfig(config)).toBe(true);
+    });
+
+    test("should return false when userGroupEnabled is true but file does not exist", () => {
+      const config = {
+        ...baseValidConfig,
+        userGroupEnabled: true,
+        userGroupFilepath: "../../../handbook/company/product-groups.md",
+      };
+
+      // Mock file does not exist
+      mockFs.existsSync.mockReset();
+      mockFs.default.existsSync.mockReset();
+      mockFs.existsSync.mockReturnValue(false);
+      mockFs.default.existsSync.mockReturnValue(false);
+
+      expect(validateConfig(config)).toBe(false);
+    });
+
+    test("should validate when userGroupEnabled is false regardless of file existence", () => {
+      const config = {
+        ...baseValidConfig,
+        userGroupEnabled: false,
+        userGroupFilepath: "../../../handbook/company/product-groups.md",
+      };
+
+      // Mock file does not exist
+      mockFs.existsSync.mockReset();
+      mockFs.default.existsSync.mockReset();
+      mockFs.existsSync.mockReturnValue(false);
+      mockFs.default.existsSync.mockReturnValue(false);
+
+      expect(validateConfig(config)).toBe(true);
+    });
+
+    test("should return false when userGroupEnabled is true but userGroupFilepath is not set", () => {
+      const config = {
+        ...baseValidConfig,
+        userGroupEnabled: true,
+        userGroupFilepath: undefined,
+      };
+
       expect(validateConfig(config)).toBe(false);
     });
   });

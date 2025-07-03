@@ -158,7 +158,7 @@ export class UserGroupClient {
         try {
           await this.deleteUserGroups(toDelete);
         } catch (error) {
-          if (error.message && error.message.includes('streaming buffer')) {
+          if (error.message?.includes('streaming buffer')) {
             logger.warn(
               'Streaming buffer prevents DELETE - this is expected during testing. In production (daily runs), this won\'t occur.'
             );
@@ -200,7 +200,7 @@ export class UserGroupClient {
         username: row.username,
       }));
     } catch (error) {
-      if (error.message && error.message.includes('not found')) {
+      if (error.message?.includes('not found')) {
         logger.info('Table does not exist yet, no existing entries');
         return [];
       }

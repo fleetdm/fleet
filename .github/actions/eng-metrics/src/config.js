@@ -176,6 +176,20 @@ const validateConfig = (config) => {
     }
   }
 
+  // Validate userGroupFilepath when userGroupEnabled is true
+  if (config.userGroupEnabled) {
+    if (!config.userGroupFilepath) {
+      logger.error('userGroupFilepath must be specified when userGroupEnabled is true');
+      return false;
+    }
+
+    const resolvedUserGroupPath = path.resolve(process.cwd(), config.userGroupFilepath);
+    if (!fs.existsSync(resolvedUserGroupPath)) {
+      logger.error(`User group file not found at ${resolvedUserGroupPath}`);
+      return false;
+    }
+  }
+
   return true;
 };
 
