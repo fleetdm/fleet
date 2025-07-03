@@ -1,0 +1,1 @@
+* Use SHA256 of installer file if installer SHA is "no_check" during software batch upload

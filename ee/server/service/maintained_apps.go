@@ -2,10 +2,7 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,9 +82,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 	defer installerTFR.Close()
 
-	h := sha256.New()
-	_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
-	gotHash := hex.EncodeToString(h.Sum(nil))
+	gotHash := maintained_apps.SHA256FromInstallerFile(installerTFR)
 
 	// Validate the bytes we got are what we expected, if a valid SHA is supplied
 	if app.SHA256 != noCheckHash {

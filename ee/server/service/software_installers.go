@@ -1950,6 +1950,16 @@ func (svc *Service) softwareBatchUpload(
 					}
 					installer.Filename = path.Base(parsedURL.Path)
 				}
+				// noCheckHash is used by homebrew to signal that a hash shouldn't be checked
+				// This comes from the manifest and is a special case for maintained apps
+				// we need to generate the SHA256 from the installer file
+				if p.MaintainedApp.SHA256 == noCheckHash {
+					// generate the SHA256 from the installer file
+					if installer.InstallerFile == nil {
+						return fmt.Errorf("maintained app %s requires hash to be generated but no installer file found", p.MaintainedApp.UniqueIdentifier)
+					}
+					p.MaintainedApp.SHA256 = maintained_apps.SHA256FromInstallerFile(installer.InstallerFile)
+				}
 				extension := strings.TrimLeft(filepath.Ext(installer.Filename), ".")
 				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
 				installer.Title = appName
