@@ -28,7 +28,9 @@ export class BigQueryClient {
   initialize(keyFilePath) {
     // Check if the key file exists
     if (!fs.existsSync(keyFilePath)) {
-      const err = new Error(`Service account key file not found at ${keyFilePath}`);
+      const err = new Error(
+        `Service account key file not found at ${keyFilePath}`
+      );
       logger.error('Failed to initialize BigQuery client', {}, err);
       throw err;
     }
@@ -39,15 +41,19 @@ export class BigQueryClient {
       const serviceAccountKey = JSON.parse(keyFileContent);
 
       if (!serviceAccountKey.project_id) {
-        throw new Error('Service account key file must contain a project_id field');
+        throw new Error(
+          'Service account key file must contain a project_id field'
+        );
       }
 
       this.projectId = serviceAccountKey.project_id;
-      logger.info(`Extracted project ID from service account key: ${this.projectId}`);
+      logger.info(
+        `Extracted project ID from service account key: ${this.projectId}`
+      );
 
       this.bigquery = new BigQuery({
         keyFilename: keyFilePath,
-        projectId: this.projectId
+        projectId: this.projectId,
       });
 
       logger.info('BigQuery client initialized');
@@ -101,7 +107,7 @@ export class BigQueryClient {
         const options = {
           schema,
           timePartitioning: tableConfig.timePartitioning,
-          clustering: tableConfig.clustering
+          clustering: tableConfig.clustering,
         };
 
         await table.create(options);
@@ -124,26 +130,28 @@ export class BigQueryClient {
       return {
         timePartitioning: {
           type: 'DAY',
-          field: 'first_review_time'
+          field: 'first_review_time',
         },
         clustering: {
-          fields: ['pr_creator', 'pr_number']
-        }
+          fields: ['pr_creator', 'pr_number'],
+        },
       };
 
     case 'time_to_merge':
       return {
         timePartitioning: {
           type: 'DAY',
-          field: 'merge_time'
+          field: 'merge_time',
         },
         clustering: {
-          fields: ['pr_creator', 'pr_number']
-        }
+          fields: ['pr_creator', 'pr_number'],
+        },
       };
 
     default:
-      throw new Error(`Unknown metric type for table configuration: ${metricType}`);
+      throw new Error(
+        `Unknown metric type for table configuration: ${metricType}`
+      );
     }
   }
 
@@ -165,8 +173,8 @@ export class BigQueryClient {
           { name: 'pr_number', type: 'INTEGER', mode: 'REQUIRED' },
           { name: 'target_branch', type: 'STRING', mode: 'REQUIRED' },
           { name: 'ready_time', type: 'TIMESTAMP', mode: 'REQUIRED' },
-          { name: 'first_review_time', type: 'TIMESTAMP', mode: 'REQUIRED' }
-        ]
+          { name: 'first_review_time', type: 'TIMESTAMP', mode: 'REQUIRED' },
+        ],
       };
 
     case 'time_to_merge':
@@ -180,8 +188,8 @@ export class BigQueryClient {
           { name: 'pr_number', type: 'INTEGER', mode: 'REQUIRED' },
           { name: 'target_branch', type: 'STRING', mode: 'REQUIRED' },
           { name: 'ready_time', type: 'TIMESTAMP', mode: 'REQUIRED' },
-          { name: 'merge_time', type: 'TIMESTAMP', mode: 'REQUIRED' }
-        ]
+          { name: 'merge_time', type: 'TIMESTAMP', mode: 'REQUIRED' },
+        ],
       };
 
     default:
@@ -206,7 +214,7 @@ export class BigQueryClient {
         pr_number: metrics.prNumber,
         target_branch: metrics.targetBranch,
         ready_time: metrics.readyTime.toISOString(),
-        first_review_time: metrics.firstReviewTime.toISOString()
+        first_review_time: metrics.firstReviewTime.toISOString(),
       };
 
     case 'time_to_merge':
@@ -219,7 +227,7 @@ export class BigQueryClient {
         pr_number: metrics.prNumber,
         target_branch: metrics.targetBranch,
         ready_time: metrics.readyTime.toISOString(),
-        merge_time: metrics.mergeTime.toISOString()
+        merge_time: metrics.mergeTime.toISOString(),
       };
 
     default:
@@ -249,15 +257,22 @@ export class BigQueryClient {
         }, {});
       }
 
-      // Create a query to check for existing PR numbers
+      // Create a parameterized query to check for existing PR numbers
       const query = `
         SELECT pr_number
         FROM \`${this.projectId}.${datasetId}.${tableId}\`
-        WHERE pr_number IN (${prNumbers.join(',')})
+        WHERE pr_number IN UNNEST(@prNumbers)
       `;
 
+      const options = {
+        query,
+        params: {
+          prNumbers,
+        },
+      };
+
       // Run the query
-      const [rows] = await this.bigquery.query({ query });
+      const [rows] = await this.bigquery.query(options);
 
       // Create a map of existing PR numbers
       const existingPRs = rows.reduce((acc, row) => {
@@ -271,7 +286,11 @@ export class BigQueryClient {
         return acc;
       }, {});
     } catch (err) {
-      logger.error(`Error checking existing metrics in BigQuery ${datasetId}.${tableId}`, {}, err);
+      logger.error(
+        `Error checking existing metrics in BigQuery ${datasetId}.${tableId}`,
+        {},
+        err
+      );
       // If there's an error, assume no metrics exist
       return prNumbers.reduce((acc, prNumber) => {
         acc[prNumber] = false;
@@ -293,7 +312,9 @@ export class BigQueryClient {
         return;
       }
 
-      logger.info(`Uploading ${metrics.length} metrics to BigQuery table ${tableId}`);
+      logger.info(
+        `Uploading ${metrics.length} metrics to BigQuery table ${tableId}`
+      );
 
       // Get metric type from the first metric to determine schema
       const metricType = metrics[0]?.metricType;
@@ -306,23 +327,35 @@ export class BigQueryClient {
       await this.createTableIfNotExists(datasetId, tableId, schema, metricType);
 
       // Get all PR numbers from the metrics
-      const prNumbers = metrics.map(metric => metric.prNumber);
+      const prNumbers = metrics.map((metric) => metric.prNumber);
 
       // Check which PR numbers already exist in BigQuery
-      const existingMetrics = await this.checkExistingMetrics(datasetId, tableId, prNumbers);
+      const existingMetrics = await this.checkExistingMetrics(
+        datasetId,
+        tableId,
+        prNumbers
+      );
 
       // Filter out metrics that already exist
-      const newMetrics = metrics.filter(metric => !existingMetrics[metric.prNumber]);
+      const newMetrics = metrics.filter(
+        (metric) => !existingMetrics[metric.prNumber]
+      );
 
       if (newMetrics.length === 0) {
         logger.info('All metrics already exist in BigQuery, nothing to upload');
         return;
       }
 
-      logger.info(`Uploading ${newMetrics.length} new metrics to BigQuery (${metrics.length - newMetrics.length} already exist)`);
+      logger.info(
+        `Uploading ${newMetrics.length} new metrics to BigQuery (${
+          metrics.length - newMetrics.length
+        } already exist)`
+      );
 
       // Transform metrics to BigQuery row format
-      const rows = newMetrics.map(metric => this.transformMetricsToRow(metric));
+      const rows = newMetrics.map((metric) =>
+        this.transformMetricsToRow(metric)
+      );
 
       // Get a reference to the table
       const table = this.bigquery.dataset(datasetId).table(tableId);
@@ -330,19 +363,30 @@ export class BigQueryClient {
       // Upload the rows to BigQuery
       const [apiResponse] = await table.insert(rows);
 
-      logger.info(`Successfully uploaded ${newMetrics.length} metrics to BigQuery`, {
-        datasetId,
-        tableId,
-        insertedRows: newMetrics.length,
-        skippedRows: metrics.length - newMetrics.length
-      });
+      logger.info(
+        `Successfully uploaded ${newMetrics.length} metrics to BigQuery`,
+        {
+          datasetId,
+          tableId,
+          insertedRows: newMetrics.length,
+          skippedRows: metrics.length - newMetrics.length,
+        }
+      );
 
       return apiResponse;
     } catch (err) {
-      logger.error(`Error uploading metrics to BigQuery ${datasetId}.${tableId}`, {}, err);
+      logger.error(
+        `Error uploading metrics to BigQuery ${datasetId}.${tableId}`,
+        {},
+        err
+      );
 
       // Log more details about the error if it's an insertion error
-      if (err.name === 'PartialFailureError' && err.errors && err.errors.length > 0) {
+      if (
+        err.name === 'PartialFailureError' &&
+        err.errors &&
+        err.errors.length > 0
+      ) {
         err.errors.forEach((error, index) => {
           logger.error(`Row ${index} error:`, { error });
         });

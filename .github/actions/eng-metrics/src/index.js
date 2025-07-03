@@ -13,7 +13,7 @@ import { loadConfig } from './config.js';
 import { MetricsCollector } from './metrics-collector.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,6 +23,9 @@ const __dirname = dirname(__filename);
  */
 async function main() {
   try {
+    // Set the working directory to one level up from the current file location, which is the root of the action.
+    process.chdir(resolve(__dirname, '..'));
+
     // Parse command line arguments
     const args = process.argv.slice(2);
 
@@ -31,7 +34,9 @@ async function main() {
 
     // Get the configuration path from command line arguments
     // Filter out the --print-only flag if present
-    const configPath = args.filter(arg => arg !== '--print-only')[0] || join(__dirname, '..', 'config.json');
+    const configPath =
+      args.filter((arg) => arg !== '--print-only')[0] ||
+      join(__dirname, '..', 'config.json');
 
     // Load configuration
     const config = loadConfig(configPath);
@@ -46,9 +51,13 @@ async function main() {
     const metrics = await metricsCollector.run();
 
     if (config.printOnly) {
-      logger.info(`Successfully collected and printed ${metrics.length} engineering metrics`);
+      logger.info(
+        `Successfully collected and printed ${metrics.length} engineering metrics`
+      );
     } else {
-      logger.info(`Successfully collected and uploaded ${metrics.length} engineering metrics to BigQuery`);
+      logger.info(
+        `Successfully collected and uploaded ${metrics.length} engineering metrics to BigQuery`
+      );
     }
 
     // Exit with success

@@ -15,7 +15,7 @@ function identifyBotUser(user) {
   const botIndicators = {
     isBot: false,
     confidence: 'low',
-    reasons: []
+    reasons: [],
   };
 
   // Check GitHub's bot flag (most reliable)
@@ -29,21 +29,21 @@ function identifyBotUser(user) {
   // Check username patterns
   const username = user.login.toLowerCase();
   const botPatterns = [
-    /\[bot]/,        // contains '[bot]'
-    /^dependabot/,    // dependabot
-    /^renovate/,      // renovate bot
+    /\[bot]/, // contains '[bot]'
+    /^dependabot/, // dependabot
+    /^renovate/, // renovate bot
     /^github-actions/, // GitHub Actions
-    /^codecov/,       // codecov bot
-    /^coderabbitai/,  // coderabbit AI bot
-    /^sonarcloud/,    // sonarcloud bot
-    /^snyk/,          // snyk bot
-    /^greenkeeper/,   // greenkeeper bot
+    /^codecov/, // codecov bot
+    /^coderabbitai/, // coderabbit AI bot
+    /^sonarcloud/, // sonarcloud bot
+    /^snyk/, // snyk bot
+    /^greenkeeper/, // greenkeeper bot
     /^semantic-release/, // semantic-release bot
-    /^stale/,         // stale bot
-    /^imgbot/,        // imgbot
+    /^stale/, // stale bot
+    /^imgbot/, // imgbot
     /^allcontributors/, // all-contributors bot
-    /^whitesource/,   // whitesource bot
-    /^deepsource/,    // deepsource bot
+    /^whitesource/, // whitesource bot
+    /^deepsource/, // deepsource bot
   ];
 
   for (const pattern of botPatterns) {
@@ -81,7 +81,7 @@ export class GitHubClient {
   initialize(token) {
     try {
       this.octokit = new Octokit({
-        auth: token
+        auth: token,
       });
       logger.info('GitHub client initialized');
     } catch (err) {
@@ -99,9 +99,17 @@ export class GitHubClient {
    * @param {string} targetBranch - Target branch to filter PRs by
    * @returns {Array} Array of pull requests
    */
-  async fetchPullRequests(owner, repo, state = 'all', since, targetBranch = 'main') {
+  async fetchPullRequests(
+    owner,
+    repo,
+    state = 'all',
+    since,
+    targetBranch = 'main'
+  ) {
     try {
-      logger.info(`Fetching ${state} PRs for ${owner}/${repo} since ${since.toISOString()}`);
+      logger.info(
+        `Fetching ${state} PRs for ${owner}/${repo} since ${since.toISOString()}`
+      );
 
       // GitHub API returns paginated results, so we need to fetch all pages
       const pullRequests = [];
@@ -116,11 +124,11 @@ export class GitHubClient {
           sort: 'updated',
           direction: 'desc',
           per_page: 100,
-          page
+          page,
         });
 
         // Filter PRs by update date and target branch
-        const filteredPRs = response.data.filter(pr => {
+        const filteredPRs = response.data.filter((pr) => {
           const prUpdatedAt = new Date(pr.updated_at);
           return prUpdatedAt >= since && pr.base.ref === targetBranch;
         });
@@ -144,14 +152,29 @@ export class GitHubClient {
       logger.error(`Error fetching PRs for ${owner}/${repo}`, {}, err);
 
       // Implement basic retry for rate limiting
-      if (err.status === 403 && err.response?.headers?.['x-ratelimit-remaining'] === '0') {
-        const resetTime = parseInt(err.response.headers['x-ratelimit-reset'], 10) * 1000;
+      if (
+        err.status === 403 &&
+        err.response?.headers?.['x-ratelimit-remaining'] === '0'
+      ) {
+        const resetTime =
+          parseInt(err.response.headers['x-ratelimit-reset'], 10) * 1000;
         const waitTime = resetTime - Date.now();
 
-        if (waitTime > 0 && waitTime < 3600000) { // Only retry if wait time is less than 1 hour
-          logger.info(`Rate limit exceeded. Retrying in ${Math.ceil(waitTime / 1000)} seconds`);
-          await new Promise(resolve => setTimeout(resolve, waitTime + 1000));
-          return this.fetchPullRequests(owner, repo, state, since, targetBranch);
+        if (waitTime > 0 && waitTime < 3600000) {
+          // Only retry if wait time is less than 1 hour
+          logger.info(
+            `Rate limit exceeded. Retrying in ${Math.ceil(
+              waitTime / 1000
+            )} seconds`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitTime + 1000));
+          return this.fetchPullRequests(
+            owner,
+            repo,
+            state,
+            since,
+            targetBranch
+          );
         }
       }
 
@@ -173,22 +196,37 @@ export class GitHubClient {
       const response = await this.octokit.rest.pulls.listReviews({
         owner,
         repo,
-        pull_number: prNumber
+        pull_number: prNumber,
       });
 
-      logger.info(`Fetched ${response.data.length} review events for ${owner}/${repo}#${prNumber}`);
+      logger.info(
+        `Fetched ${response.data.length} review events for ${owner}/${repo}#${prNumber}`
+      );
       return response.data;
     } catch (err) {
-      logger.error(`Error fetching review events for ${owner}/${repo}#${prNumber}`, {}, err);
+      logger.error(
+        `Error fetching review events for ${owner}/${repo}#${prNumber}`,
+        {},
+        err
+      );
 
       // Implement basic retry for rate limiting
-      if (err.status === 403 && err.response?.headers?.['x-ratelimit-remaining'] === '0') {
-        const resetTime = parseInt(err.response.headers['x-ratelimit-reset'], 10) * 1000;
+      if (
+        err.status === 403 &&
+        err.response?.headers?.['x-ratelimit-remaining'] === '0'
+      ) {
+        const resetTime =
+          parseInt(err.response.headers['x-ratelimit-reset'], 10) * 1000;
         const waitTime = resetTime - Date.now();
 
-        if (waitTime > 0 && waitTime < 3600000) { // Only retry if wait time is less than 1 hour
-          logger.info(`Rate limit exceeded. Retrying in ${Math.ceil(waitTime / 1000)} seconds`);
-          await new Promise(resolve => setTimeout(resolve, waitTime + 1000));
+        if (waitTime > 0 && waitTime < 3600000) {
+          // Only retry if wait time is less than 1 hour
+          logger.info(
+            `Rate limit exceeded. Retrying in ${Math.ceil(
+              waitTime / 1000
+            )} seconds`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitTime + 1000));
           return this.fetchPRReviewEvents(owner, repo, prNumber);
         }
       }
@@ -208,12 +246,12 @@ export class GitHubClient {
       return reviewEvents;
     }
 
-    const filteredReviews = reviewEvents.filter(review => {
+    const filteredReviews = reviewEvents.filter((review) => {
       const botAnalysis = identifyBotUser(review.user);
       if (botAnalysis.isBot) {
         logger.debug(`Filtering out bot review from ${review.user.login}`, {
           confidence: botAnalysis.confidence,
-          reasons: botAnalysis.reasons
+          reasons: botAnalysis.reasons,
         });
         return false;
       }
@@ -222,7 +260,9 @@ export class GitHubClient {
 
     const botCount = reviewEvents.length - filteredReviews.length;
     if (botCount > 0) {
-      logger.info(`Filtered out ${botCount} bot reviews from ${reviewEvents.length} total reviews`);
+      logger.info(
+        `Filtered out ${botCount} bot reviews from ${reviewEvents.length} total reviews`
+      );
     }
 
     return filteredReviews;
@@ -250,7 +290,7 @@ export class GitHubClient {
           repo,
           issue_number: prNumber,
           per_page: 100,
-          page
+          page,
         });
 
         if (response.data.length > 0) {
@@ -266,19 +306,34 @@ export class GitHubClient {
         }
       }
 
-      logger.info(`Fetched ${timelineEvents.length} timeline events for ${owner}/${repo}#${prNumber}`);
+      logger.info(
+        `Fetched ${timelineEvents.length} timeline events for ${owner}/${repo}#${prNumber}`
+      );
       return timelineEvents;
     } catch (err) {
-      logger.error(`Error fetching timeline events for ${owner}/${repo}#${prNumber}`, {}, err);
+      logger.error(
+        `Error fetching timeline events for ${owner}/${repo}#${prNumber}`,
+        {},
+        err
+      );
 
       // Implement basic retry for rate limiting
-      if (err.status === 403 && err.response?.headers?.['x-ratelimit-remaining'] === '0') {
-        const resetTime = parseInt(err.response.headers['x-ratelimit-reset'], 10) * 1000;
+      if (
+        err.status === 403 &&
+        err.response?.headers?.['x-ratelimit-remaining'] === '0'
+      ) {
+        const resetTime =
+          parseInt(err.response.headers['x-ratelimit-reset'], 10) * 1000;
         const waitTime = resetTime - Date.now();
 
-        if (waitTime > 0 && waitTime < 3600000) { // Only retry if wait time is less than 1 hour
-          logger.info(`Rate limit exceeded. Retrying in ${Math.ceil(waitTime / 1000)} seconds`);
-          await new Promise(resolve => setTimeout(resolve, waitTime + 1000));
+        if (waitTime > 0 && waitTime < 3600000) {
+          // Only retry if wait time is less than 1 hour
+          logger.info(
+            `Rate limit exceeded. Retrying in ${Math.ceil(
+              waitTime / 1000
+            )} seconds`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitTime + 1000));
           return this.fetchPRTimelineEvents(owner, repo, prNumber);
         }
       }
@@ -296,7 +351,11 @@ export class GitHubClient {
    */
   calculatePickupTime(pr, timelineEvents, reviewEvents) {
     try {
-      const result = this.getReadyAndFirstReview(pr, timelineEvents, reviewEvents);
+      const result = this.getReadyAndFirstReview(
+        pr,
+        timelineEvents,
+        reviewEvents
+      );
       if (!result || !result.firstReviewTime) {
         return null;
       }
@@ -304,28 +363,32 @@ export class GitHubClient {
       const readyTime = relevantReadyEvent.time;
 
       // Calculate pickup time excluding weekends
-      const pickupTimeSeconds = this.calculatePickupTimeExcludingWeekends(readyTime, firstReviewTime);
+      const pickupTimeSeconds = this.calculatePickupTimeExcludingWeekends(
+        readyTime,
+        firstReviewTime
+      );
 
       // If pickup time is negative, something went wrong
       if (pickupTimeSeconds < 0) {
         logger.warn(`Negative pickup time for ${pr.html_url}`, {
           readyTime,
           firstReviewTime,
-          pickupTimeSeconds
+          pickupTimeSeconds,
         });
         return null;
       }
 
       // Log which ready event was used
-      const readyEventType = relevantReadyEvent.event.event === 'created_not_draft'
-        ? 'PR creation (not draft)'
-        : 'ready_for_review event';
+      const readyEventType =
+        relevantReadyEvent.event.event === 'created_not_draft'
+          ? 'PR creation (not draft)'
+          : 'ready_for_review event';
 
       logger.info(`Calculated pickup time for ${pr.html_url}`, {
         pickupTimeSeconds,
         readyEventType,
         readyTime: readyTime.toISOString(),
-        firstReviewTime: firstReviewTime.toISOString()
+        firstReviewTime: firstReviewTime.toISOString(),
       });
 
       // We already have readyEventType defined above, so we can use it here
@@ -341,7 +404,7 @@ export class GitHubClient {
         firstReviewTime,
         reviewDate: firstReviewTime.toISOString().split('T')[0], // YYYY-MM-DD
         pickupTimeSeconds,
-        readyEventType
+        readyEventType,
       };
     } catch (err) {
       logger.error(`Error calculating pickup time for ${pr.html_url}`, {}, err);
@@ -360,20 +423,19 @@ export class GitHubClient {
     const mergeTime = pr.merged_at ? new Date(pr.merged_at) : null;
 
     // Find all ready_for_review events that occurred before merge time (if merged)
-    const readyForReviewEvents = timelineEvents.filter(event =>
-      event.event === 'ready_for_review'
-    ).map(event => ({
-      time: new Date(event.created_at),
-      event
-    })).filter(readyEvent =>
-      !mergeTime || readyEvent.time <= mergeTime
-    );
+    const readyForReviewEvents = timelineEvents
+      .filter((event) => event.event === 'ready_for_review')
+      .map((event) => ({
+        time: new Date(event.created_at),
+        event,
+      }))
+      .filter((readyEvent) => !mergeTime || readyEvent.time <= mergeTime);
 
     // Add PR creation time as a ready event if PR was not created as draft
     if (!pr.draft) {
       readyForReviewEvents.push({
         time: new Date(pr.created_at),
-        event: { event: 'created_not_draft', created_at: pr.created_at }
+        event: { event: 'created_not_draft', created_at: pr.created_at },
       });
     }
 
@@ -388,16 +450,17 @@ export class GitHubClient {
 
     // If there is no review events, the PR may have been merged without a review.
     if (reviewEvents.length === 0) {
-      const relevantReadyEvent = readyForReviewEvents[readyForReviewEvents.length - 1];
+      const relevantReadyEvent =
+        readyForReviewEvents[readyForReviewEvents.length - 1];
       return {
         relevantReadyEvent,
-        firstReviewTime: null
+        firstReviewTime: null,
       };
     }
 
     // Sort review events by submitted_at (ascending)
-    const sortedReviewEvents = [...reviewEvents].sort((a, b) =>
-      new Date(a.submitted_at) - new Date(b.submitted_at)
+    const sortedReviewEvents = [...reviewEvents].sort(
+      (a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)
     );
 
     const firstReview = sortedReviewEvents[0];
@@ -405,18 +468,20 @@ export class GitHubClient {
 
     // Find the most recent ready event that occurred before the first review
     const relevantReadyEvent = readyForReviewEvents
-      .filter(readyEvent => readyEvent.time < firstReviewTime)
+      .filter((readyEvent) => readyEvent.time < firstReviewTime)
       .pop();
 
     // If no ready event occurred before the first review, return null
     if (!relevantReadyEvent) {
-      logger.warn(`No ready_for_review event found before first review for ${pr.html_url}`);
+      logger.warn(
+        `No ready_for_review event found before first review for ${pr.html_url}`
+      );
       return null;
     }
 
     return {
       relevantReadyEvent,
-      firstReviewTime
+      firstReviewTime,
     };
   }
 
@@ -435,31 +500,40 @@ export class GitHubClient {
     const reviewDay = reviewTime.getUTCDay();
 
     // Case: Both ready time and review time are on the same weekend
-    if ((readyDay === 0 || readyDay === 6) && (reviewDay === 0 || reviewDay === 6) &&
-      Math.floor(reviewTime / (24 * 60 * 60 * 1000)) - Math.floor(readyTime / (24 * 60 * 60 * 1000)) <= 2) {
+    if (
+      (readyDay === 0 || readyDay === 6) &&
+      (reviewDay === 0 || reviewDay === 6) &&
+      Math.floor(reviewTime / (24 * 60 * 60 * 1000)) -
+        Math.floor(readyTime / (24 * 60 * 60 * 1000)) <=
+        2
+    ) {
       // Return 0 seconds pickup time
       return 0;
     }
 
     // Set to start of Monday if ready time is on weekend
-    if (readyDay === 0) { // Sunday
+    if (readyDay === 0) {
+      // Sunday
       readyTime.setUTCDate(readyTime.getUTCDate() + 1);
       readyTime.setUTCHours(0, 0, 0, 0);
-    } else if (readyDay === 6) { // Saturday
+    } else if (readyDay === 6) {
+      // Saturday
       readyTime.setUTCDate(readyTime.getUTCDate() + 2);
       readyTime.setUTCHours(0, 0, 0, 0);
     }
     // Set to start of Saturday if review time is on Sunday
-    if (reviewDay === 0) { // Sunday
+    if (reviewDay === 0) {
+      // Sunday
       reviewTime.setUTCDate(reviewTime.getUTCDate() - 1);
       reviewTime.setUTCHours(0, 0, 0, 0);
-    } else if (reviewDay === 6) { // Saturday
+    } else if (reviewDay === 6) {
+      // Saturday
       reviewTime.setUTCHours(0, 0, 0, 0);
     }
 
     // Calculate raw time difference in milliseconds
     const weekendDays = countWeekendDays(readyTime, reviewTime);
-    const diffMs = reviewTime - readyTime - (weekendDays * 24 * 60 * 60 * 1000);
+    const diffMs = reviewTime - readyTime - weekendDays * 24 * 60 * 60 * 1000;
 
     // Ensure we don't return negative values
     return Math.max(0, Math.floor(diffMs / 1000));
@@ -480,7 +554,11 @@ export class GitHubClient {
       }
 
       // Find the ready time using the same algorithm as we use for Time to First Review
-      const result = this.getReadyAndFirstReview(pr, timelineEvents, reviewEvents);
+      const result = this.getReadyAndFirstReview(
+        pr,
+        timelineEvents,
+        reviewEvents
+      );
       if (!result) {
         return null;
       }
@@ -489,28 +567,32 @@ export class GitHubClient {
       const mergeTime = new Date(pr.merged_at);
 
       // Calculate merge time excluding weekends
-      const mergeTimeSeconds = this.calculatePickupTimeExcludingWeekends(readyTime, mergeTime);
+      const mergeTimeSeconds = this.calculatePickupTimeExcludingWeekends(
+        readyTime,
+        mergeTime
+      );
 
       // If merge time is negative, something went wrong
       if (mergeTimeSeconds < 0) {
         logger.warn(`Negative merge time for ${pr.html_url}`, {
           readyTime,
           mergeTime,
-          mergeTimeSeconds
+          mergeTimeSeconds,
         });
         return null;
       }
 
       // Log which ready event was used
-      const readyEventType = relevantReadyEvent.event.event === 'created_not_draft'
-        ? 'PR creation (not draft)'
-        : 'ready_for_review event';
+      const readyEventType =
+        relevantReadyEvent.event.event === 'created_not_draft'
+          ? 'PR creation (not draft)'
+          : 'ready_for_review event';
 
       logger.info(`Calculated merge time for ${pr.html_url}`, {
         mergeTimeSeconds,
         readyEventType,
         readyTime: readyTime.toISOString(),
-        mergeTime: mergeTime.toISOString()
+        mergeTime: mergeTime.toISOString(),
       });
 
       return {
@@ -524,7 +606,7 @@ export class GitHubClient {
         mergeTime,
         mergeDate: mergeTime.toISOString().split('T')[0], // YYYY-MM-DD
         mergeTimeSeconds,
-        readyEventType
+        readyEventType,
       };
     } catch (err) {
       logger.error(`Error calculating merge time for ${pr.html_url}`, {}, err);
@@ -546,7 +628,7 @@ function countWeekendDays(startDate, endDate) {
   // Make sure start dates and end dates are not on weekends. We just want to count the weekend days between them.
   if (startDate.getUTCDay() === 0) {
     startDate.setUTCDate(startDate.getUTCDate() + 1);
-  } else if (startDate.getDay() === 6) {
+  } else if (startDate.getUTCDay() === 6) {
     startDate.setUTCDate(startDate.getUTCDate() + 2);
   }
   if (endDate.getUTCDay() === 0) {
@@ -560,7 +642,8 @@ function countWeekendDays(startDate, endDate) {
 
   while (current <= endDate) {
     const day = current.getUTCDay();
-    if (day === 0 || day === 6) { // Sunday (0) or Saturday (6)
+    if (day === 0 || day === 6) {
+      // Sunday (0) or Saturday (6)
       count++;
     }
     current.setUTCDate(current.getUTCDate() + 1);

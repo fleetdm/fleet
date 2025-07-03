@@ -216,15 +216,26 @@ export class UserGroupClient {
    */
   async deleteUserGroups(userGroupsToDelete) {
     try {
-      // Build WHERE clause for deletion
-      const conditions = userGroupsToDelete
-        .map(
-          (ug) => `(\`group\` = '${ug.group}' AND username = '${ug.username}')`
-        )
-        .join(' OR ');
+      const groups = userGroupsToDelete.map((ug) => ug.group);
+      const usernames = userGroupsToDelete.map((ug) => ug.username);
 
-      const query = `DELETE FROM \`${this.projectId}.${this.datasetId}.${this.tableId}\` WHERE ${conditions}`;
-      await this.bigquery.query({ query });
+      const query = `
+        DELETE
+        FROM \`${this.projectId}.${this.datasetId}.${this.tableId}\`
+        WHERE EXISTS (SELECT 1
+                      FROM UNNEST(@groups) AS g WITH OFFSET AS pos
+          JOIN UNNEST(@usernames) AS u WITH OFFSET AS upos
+                ON pos = upos
+                WHERE \`group\` = g AND username = u
+                )
+      `;
+
+      const options = {
+        query,
+        params: { groups, usernames },
+      };
+
+      await this.bigquery.query(options);
 
       logger.info(`Deleted ${userGroupsToDelete.length} user group entries`);
     } catch (error) {

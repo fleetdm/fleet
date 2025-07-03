@@ -5,15 +5,12 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import logger from './logger.js';
 
 // Load environment variables from .env file
 dotenv.config();
 
-// Get the directory name of the current module
-path.dirname(fileURLToPath(import.meta.url));
 /**
  * Default configuration values
  */
@@ -41,13 +38,13 @@ const DEFAULT_CONFIG = {
   metrics: {
     timeToFirstReview: {
       enabled: true,
-      tableName: 'pr_first_review'
+      tableName: 'pr_first_review',
     },
     timeToMerge: {
       enabled: true,
-      tableName: 'pr_merge'
-    }
-  }
+      tableName: 'pr_merge',
+    },
+  },
 };
 
 /**
@@ -68,7 +65,11 @@ const loadConfigFromFile = (configPath) => {
     const configData = fs.readFileSync(resolvedPath, 'utf8');
     return JSON.parse(configData);
   } catch (err) {
-    logger.error(`Error loading configuration from file: ${configPath}`, {}, err);
+    logger.error(
+      `Error loading configuration from file: ${configPath}`,
+      {},
+      err
+    );
     return {};
   }
 };
@@ -83,30 +84,40 @@ const loadConfigFromEnv = () => {
 
   // Parse repositories from environment variable if provided
   if (process.env.REPOSITORIES) {
-    config.repositories = process.env.REPOSITORIES.split(',').map(repo => repo.trim());
+    config.repositories = process.env.REPOSITORIES.split(',').map((repo) =>
+      repo.trim()
+    );
   }
 
   // Add other environment variables if they are defined
   if (process.env.GITHUB_TOKEN) config.githubToken = process.env.GITHUB_TOKEN;
-  if (process.env.BIGQUERY_DATASET_ID) config.bigQueryDatasetId = process.env.BIGQUERY_DATASET_ID;
-  if (process.env.SERVICE_ACCOUNT_KEY_PATH) config.serviceAccountKeyPath = process.env.SERVICE_ACCOUNT_KEY_PATH;
-  if (process.env.TARGET_BRANCH) config.targetBranch = process.env.TARGET_BRANCH;
-  if (process.env.PRINT_ONLY) config.printOnly = process.env.PRINT_ONLY === 'true';
-  if (process.env.USER_GROUP_ENABLED) config.userGroupEnabled = process.env.USER_GROUP_ENABLED === 'true';
-  if (process.env.USER_GROUP_FILEPATH) config.userGroupFilepath = process.env.USER_GROUP_FILEPATH;
+  if (process.env.BIGQUERY_DATASET_ID)
+    config.bigQueryDatasetId = process.env.BIGQUERY_DATASET_ID;
+  if (process.env.SERVICE_ACCOUNT_KEY_PATH)
+    config.serviceAccountKeyPath = process.env.SERVICE_ACCOUNT_KEY_PATH;
+  if (process.env.TARGET_BRANCH)
+    config.targetBranch = process.env.TARGET_BRANCH;
+  if (process.env.PRINT_ONLY)
+    config.printOnly = process.env.PRINT_ONLY === 'true';
+  if (process.env.USER_GROUP_ENABLED)
+    config.userGroupEnabled = process.env.USER_GROUP_ENABLED === 'true';
+  if (process.env.USER_GROUP_FILEPATH)
+    config.userGroupFilepath = process.env.USER_GROUP_FILEPATH;
 
   // Handle metrics configuration from environment variables
   if (process.env.ENABLED_METRICS) {
-    const enabledMetrics = process.env.ENABLED_METRICS.split(',').map(metric => metric.trim());
+    const enabledMetrics = process.env.ENABLED_METRICS.split(
+      ','
+    ).map((metric) => metric.trim());
     config.metrics = {
       timeToFirstReview: {
         enabled: enabledMetrics.includes('time_to_first_review'),
-        tableName: process.env.TIME_TO_FIRST_REVIEW_TABLE || 'pr_first_review'
+        tableName: process.env.TIME_TO_FIRST_REVIEW_TABLE || 'pr_first_review',
       },
       timeToMerge: {
         enabled: enabledMetrics.includes('time_to_merge'),
-        tableName: process.env.TIME_TO_MERGE_TABLE || 'pr_merge'
-      }
+        tableName: process.env.TIME_TO_MERGE_TABLE || 'pr_merge',
+      },
     };
   }
 
@@ -120,20 +131,19 @@ const loadConfigFromEnv = () => {
  */
 const validateConfig = (config) => {
   // Always required fields
-  const requiredFields = [
-    'repositories',
-    'githubToken'
-  ];
+  const requiredFields = ['repositories', 'githubToken'];
 
   // Fields required only when not in print-only mode
   if (!config.printOnly) {
     requiredFields.push('serviceAccountKeyPath');
   }
 
-  const missingFields = requiredFields.filter(field => !config[field]);
+  const missingFields = requiredFields.filter((field) => !config[field]);
 
   if (missingFields.length > 0) {
-    logger.error(`Missing required configuration fields: ${missingFields.join(', ')}`);
+    logger.error(
+      `Missing required configuration fields: ${missingFields.join(', ')}`
+    );
     return false;
   }
 
@@ -144,7 +154,7 @@ const validateConfig = (config) => {
   }
 
   // Validate repository format (owner/repo)
-  const invalidRepos = config.repositories.filter(repo => {
+  const invalidRepos = config.repositories.filter((repo) => {
     return typeof repo !== 'string' || !repo.includes('/');
   });
 
@@ -160,7 +170,9 @@ const validateConfig = (config) => {
   }
 
   // Validate that at least one metric is enabled
-  const enabledMetrics = Object.values(config.metrics).filter(metric => metric.enabled);
+  const enabledMetrics = Object.values(config.metrics).filter(
+    (metric) => metric.enabled
+  );
   if (enabledMetrics.length === 0) {
     logger.error('At least one metric must be enabled');
     return false;
@@ -169,7 +181,10 @@ const validateConfig = (config) => {
   // Validate metric configurations
   for (const [metricName, metricConfig] of Object.entries(config.metrics)) {
     if (metricConfig.enabled) {
-      if (!metricConfig.tableName || typeof metricConfig.tableName !== 'string') {
+      if (
+        !metricConfig.tableName ||
+        typeof metricConfig.tableName !== 'string'
+      ) {
         logger.error(`Metric ${metricName} must have a valid tableName`);
         return false;
       }
@@ -179,11 +194,16 @@ const validateConfig = (config) => {
   // Validate userGroupFilepath when userGroupEnabled is true
   if (config.userGroupEnabled) {
     if (!config.userGroupFilepath) {
-      logger.error('userGroupFilepath must be specified when userGroupEnabled is true');
+      logger.error(
+        'userGroupFilepath must be specified when userGroupEnabled is true'
+      );
       return false;
     }
 
-    const resolvedUserGroupPath = path.resolve(process.cwd(), config.userGroupFilepath);
+    const resolvedUserGroupPath = path.resolve(
+      process.cwd(),
+      config.userGroupFilepath
+    );
     if (!fs.existsSync(resolvedUserGroupPath)) {
       logger.error(`User group file not found at ${resolvedUserGroupPath}`);
       return false;
@@ -209,11 +229,11 @@ export const loadConfig = (configPath = 'config.json') => {
   const config = {
     ...DEFAULT_CONFIG,
     ...fileConfig,
-    ...envConfig
+    ...envConfig,
   };
 
   // Filter out undefined values
-  Object.keys(config).forEach(key => {
+  Object.keys(config).forEach((key) => {
     if (config[key] === undefined) {
       delete config[key];
     }
@@ -231,11 +251,16 @@ export const loadConfig = (configPath = 'config.json') => {
     targetBranch: config.targetBranch,
     printOnly: config.printOnly,
     metrics: Object.fromEntries(
-      Object.entries(config.metrics).map(([key, value]) => [key, { enabled: value.enabled, tableName: value.tableName }])
+      Object.entries(config.metrics).map(([key, value]) => [
+        key,
+        { enabled: value.enabled, tableName: value.tableName },
+      ])
     ),
-    ...(config.printOnly ? {} : {
-      bigQueryDatasetId: config.bigQueryDatasetId
-    })
+    ...(config.printOnly
+      ? {}
+      : {
+        bigQueryDatasetId: config.bigQueryDatasetId,
+      }),
   });
 
   return config;
@@ -244,5 +269,5 @@ export const loadConfig = (configPath = 'config.json') => {
 export { validateConfig };
 
 export default {
-  loadConfig
+  loadConfig,
 };
