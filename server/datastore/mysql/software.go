@@ -1865,6 +1865,10 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get min/max software_id")
 	}
+	if minMax.Min == 0 {
+		minMax.Min = 1
+		level.Warn(ds.logger).Log("msg", "software_id 0 found in host_software table; performing counts without those entries")
+	}
 
 	for minSoftwareID, maxSoftwareID := minMax.Min-1, minMax.Min-1+countHostSoftwareBatchSize; minSoftwareID < minMax.Max; minSoftwareID, maxSoftwareID = maxSoftwareID, maxSoftwareID+countHostSoftwareBatchSize {
 
