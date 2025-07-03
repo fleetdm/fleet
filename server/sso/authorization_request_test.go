@@ -81,7 +81,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 1*time.Hour, store.sessionLifetime)
-	require.NotEmpty(t, sessionID)
+	require.NotEmpty(t, sessionID2)
 	require.NotEqual(t, sessionID, sessionID2)
 }
 

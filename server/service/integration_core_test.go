@@ -9083,23 +9083,20 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 func (s *integrationTestSuite) TestSSODisabled() {
 	t := s.T()
 
-	var initiateResp initiateSSOResponse
-	s.DoJSON("POST", "/api/v1/fleet/sso", struct{}{}, http.StatusBadRequest, &initiateResp)
-
-	var callbackResp callbackSSOResponse
+	s.DoRawNoAuth("POST", "/api/v1/fleet/sso", nil, http.StatusBadRequest)
 
 	// callback without SAML response
-	s.DoJSON("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest, &callbackResp)
+	s.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest)
 
 	// callback with invalid SAML response
-	s.DoJSON("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest, &callbackResp)
+	s.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest)
 
 	// callback with valid SAML response
 	validResponse := `<?xml version="1.0" encoding="UTF-8"?>
-<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" Destination="https://localhost:8080/api/v1/kolide/sso/callback" ID="_52f2515c5319f2adf3f072d9d9f2b6881493305396746" InResponseTo="4982b430-73e1-4ad2-885a-4a775a91f820" IssueInstant="2017-04-27T15:03:16.747Z" Version="2.0">
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" Destination="https://localhost:8080/api/v1/fleet/sso/callback" ID="_52f2515c5319f2adf3f072d9d9f2b6881493305396746" InResponseTo="4982b430-73e1-4ad2-885a-4a775a91f820" IssueInstant="2017-04-27T15:03:16.747Z" Version="2.0">
 </samlp:Response>`
-	samlResponse := base64.URLEncoding.EncodeToString([]byte(validResponse))
-	res := s.DoRaw("POST", fmt.Sprintf("/api/v1/fleet/sso/callback?SAMLResponse=%s", samlResponse), nil, http.StatusOK)
+	samlResponse := base64.StdEncoding.EncodeToString([]byte(validResponse))
+	res := s.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+url.QueryEscape(samlResponse), nil, http.StatusOK)
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
