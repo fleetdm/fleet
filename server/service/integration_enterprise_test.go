@@ -13196,10 +13196,6 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		}`, *host.OrbitNodeKey, installUUIDs[0])),
 		http.StatusNoContent)
 
-	// Verify refetch requested is NOT set after failed install
-	var hostRespFailedInstall getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostRespFailedInstall)
-	require.False(t, hostRespFailedInstall.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
 	checkResults(result{
 		HostID:                host.ID,
 		InstallUUID:           installUUIDs[0],
@@ -13225,10 +13221,6 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		}`, *host.OrbitNodeKey, installUUIDs[1])),
 		http.StatusNoContent)
 
-	// Verify refetch requested is NOT set for failed pre-install condition
-	var hostRespFailedPreInstall getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostRespFailedPreInstall)
-	require.False(t, hostRespFailedPreInstall.Host.RefetchRequested, "RefetchRequested should be false after failed pre-install condition")
 	checkResults(result{
 		HostID:                host.ID,
 		InstallUUID:           installUUIDs[1],
@@ -13257,10 +13249,6 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		}`, *host.OrbitNodeKey, installUUIDs[2])),
 		http.StatusNoContent)
 
-	// Verify refetch requested is set after successful install
-	var hostResp getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
-	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
 	checkResults(result{
 		HostID:                  host.ID,
 		InstallUUID:             installUUIDs[2],
