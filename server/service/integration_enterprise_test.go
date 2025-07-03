@@ -12833,7 +12833,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
 	require.Equal(t, uninstallExecutionID, orbitResp.Notifications.PendingScriptExecutionIDs[0])
 
-	// Verify refetch requested is set after successful uninstall
+	// Refetch should not be requested yet as the uninstall is still pending
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
 	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should not be true yet")
 
