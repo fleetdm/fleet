@@ -28,7 +28,7 @@ export interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
 
 const generateDropdownOptions = (
   teams: ITeamSummary[] | undefined,
-  includeAll: boolean,
+  includeAllTeams: boolean,
   includeNoTeams?: boolean
 ): INumberDropdownOption[] => {
   if (!teams) {
@@ -45,7 +45,7 @@ const generateDropdownOptions = (
     (o) =>
       !(
         (o.label === APP_CONTEXT_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
-        (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAll)
+        (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAllTeams)
       )
   );
 

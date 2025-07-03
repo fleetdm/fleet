@@ -27,7 +27,7 @@ describe("TeamsDropdown - component", () => {
     expect(selectedTeam).toBeInTheDocument();
   });
 
-  it("renders the first team option when includeAll is false and when no selectedTeamId is given", () => {
+  it("renders the first team option when includeAllTeams is false and when no selectedTeamId is given", () => {
     render(
       <TeamsDropdown
         currentUserTeams={USER_TEAMS}
@@ -55,7 +55,7 @@ describe("TeamsDropdown - component", () => {
       expect(selectedTeam).toBeInTheDocument();
     });
 
-    it("renders the first team option when includeAll is false and when no selectedTeamId is given", () => {
+    it("renders the first team option when includeAllTeams is false and when no selectedTeamId is given", () => {
       renderWithAppContext(
         <TeamsDropdown
           currentUserTeams={USER_TEAMS}
