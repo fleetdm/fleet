@@ -52,24 +52,18 @@ func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error
 }
 
 func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verificationCommandUUID string) error {
-	pendingCmds, err := v.Datastore.GetAcknowledgedMDMCommandsByHost(ctx, hostUUID, "InstalledApplicationList")
+	level.Debug(v.Log).Log("msg", "verifying VPP installs", "host_uuid", hostUUID, "verification_command_uuid", verificationCommandUUID)
+	newListCmdUUID := fleet.VerifySoftwareInstallVPPPrefix + uuid.NewString()
+	err := v.Commander.InstalledApplicationList(ctx, []string{hostUUID}, newListCmdUUID, true)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get pending mdm commands by host")
+		return ctxerr.Wrap(ctx, err, "sending installed application list command in verify")
 	}
-	level.Debug(v.Log).Log("msg", "verifying VPP installs", "host_uuid", hostUUID, "verification_command_uuid", verificationCommandUUID, "pending_cmds_count", len(pendingCmds))
-	// Only send a new list command if none are in flight. If there's one in
-	// flight, the install will be verified by that one.
-	if len(pendingCmds) == 0 {
-		newListCmdUUID := fleet.VerifySoftwareInstallVPPPrefix + uuid.NewString()
-		if err := v.Datastore.ReplaceVPPInstallVerificationUUID(ctx, verificationCommandUUID, newListCmdUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "update install record")
-		}
-		err := v.Commander.InstalledApplicationList(ctx, []string{hostUUID}, newListCmdUUID, true)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "sending installed application list command in verify")
-		}
-		level.Debug(v.Log).Log("msg", "new installed application list command sent", "uuid", newListCmdUUID)
+
+	if err := v.Datastore.ReplaceVPPInstallVerificationUUID(ctx, verificationCommandUUID, newListCmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "update install record")
 	}
+
+	level.Debug(v.Log).Log("msg", "new installed application list command sent", "uuid", newListCmdUUID)
 
 	return nil
 }

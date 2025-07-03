@@ -934,6 +934,8 @@ module.exports.routes = {
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
   'GET /learn-more-about/yaml-software-setup-experience': '/docs/configuration/yaml-files#self-service-labels-categories-and-setup-experience',
+  'GET /learn-more-about/microsoft-compliance-partner': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
 
   // Sitemap
   // =============================================================================================================
