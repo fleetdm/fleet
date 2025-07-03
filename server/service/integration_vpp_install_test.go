@@ -771,15 +771,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	installCmdUUID = processVPPInstallOnClient(iosDevice, opts)
 
 	// Verify successful installation
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var result struct {
-			VerificationAt          *time.Time `db:"verification_at"`
-			VerificationCommandUUID string     `db:"verification_command_uuid"`
-		}
-		err := sqlx.GetContext(context.Background(), q, &result, "SELECT verification_at, verification_command_uuid FROM host_vpp_software_installs WHERE host_id = ?", iosHost.ID)
-		fmt.Printf("result: %+v\n", result)
-		return err
-	})
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
