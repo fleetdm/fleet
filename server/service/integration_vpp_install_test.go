@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -63,9 +64,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
-	// Insert/deletion flow for macOS app
-	// Add an app store app to team 1
-	addedApp := &fleet.VPPApp{
+	// Add macOS and iOS apps to team 1
+	macOSApp := &fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
 				AdamID:   "1",
@@ -77,12 +77,33 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		IconURL:          "https://example.com/images/1",
 		LatestVersion:    "1.0.0",
 	}
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, SelfService: true, AutomaticInstall: true}, http.StatusOK, &addAppResp)
 
-	s.lastActivityOfTypeMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+	iOSApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.IOSPlatform,
+			},
+		},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		IconURL:          "https://example.com/images/2",
+		LatestVersion:    "2.0.0",
+	}
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: macOSApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true}`, team.Name,
-			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, addedApp.Platform), 0)
+			macOSApp.Name, getSoftwareTitleIDFromApp(macOSApp), macOSApp.AdamID, team.ID, macOSApp.Platform), 0)
+
+	// Add iOS app to team
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iOSApp.AdamID, Platform: iOSApp.Platform}, http.StatusOK, &addAppResp)
+
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": false}`, team.Name,
+			iOSApp.Name, getSoftwareTitleIDFromApp(iOSApp), iOSApp.AdamID, team.ID, iOSApp.Platform), 0)
 
 	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
 		foundInstallFleetdCommand := false
@@ -102,7 +123,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.Equal(t, wantCommand, foundInstallFleetdCommand)
 	}
 
-	// Create a couple of hosts
+	// Create hosts for testing
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
@@ -113,6 +134,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	selfServiceToken := "selfservicetoken"
 	updateDeviceTokenForHost(t, s.ds, selfServiceHost.ID, selfServiceToken)
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, selfServiceDevice.SerialNumber)
+
+	// Create and enroll an iOS device
 	// ensure a valid alternate device token for self-service status access checking later
 	updateDeviceTokenForHost(t, s.ds, mdmHost.ID, "foobar")
 
@@ -134,7 +157,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		IconURL:          "https://example.com/images/2",
 		LatestVersion:    "2.0.0",
 	}
-	expectedApps := []*fleet.VPPApp{addedApp, errApp}
+	expectedApps := []*fleet.VPPApp{macOSApp, errApp, iOSApp}
+	expectedAppsByBundleID := map[string]*fleet.VPPApp{
+		macOSApp.BundleIdentifier: macOSApp,
+		errApp.BundleIdentifier:   errApp,
+		iOSApp.BundleIdentifier:   iOSApp,
+	}
+	addedApp := expectedApps[0]
 
 	var listSw listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID),
@@ -181,34 +210,44 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		})
 	}
 
-	processVPPInstallOnClient := func(failOnInstall, appInstallVerified, appInstallTimeout bool) string {
+	type vppInstallOpts struct {
+		failOnInstall      bool
+		appInstallVerified bool
+		appInstallTimeout  bool
+		bundleID           string
+	}
+
+	processVPPInstallOnClient := func(mdmClient *mdmtest.TestAppleMDMClient, opts vppInstallOpts) string {
 		var installCmdUUID string
 
 		// Process the InstallApplication command
 		s.runWorker()
-		cmd, err := mdmDevice.Idle()
+		cmd, err := mdmClient.Idle()
 		require.NoError(t, err)
+
+		app, ok := expectedAppsByBundleID[opts.bundleID]
+		require.Truef(t, ok, "unexpected bundle ID: %s", opts.bundleID)
 		for cmd != nil {
 			var fullCmd micromdm.CommandPayload
 			switch cmd.Command.RequestType {
 			case "InstallApplication":
 				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 				installCmdUUID = cmd.CommandUUID
-				if failOnInstall {
+				if opts.failOnInstall {
 					t.Logf("Failed command UUID: %s", installCmdUUID)
-					cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
+					cmd, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
 					require.NoError(t, err)
 					continue
 				}
 
-				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
 				require.NoError(t, err)
 			case "InstalledApplicationList":
 				// If we are polling to verify the install, we should get an
 				// InstalledApplicationList command instead of an InstallApplication command.
 				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-				_, err = mdmDevice.AcknowledgeInstalledApplicationList(
-					mdmDevice.UUID,
+				_, err = mdmClient.AcknowledgeInstalledApplicationList(
+					mdmClient.UUID,
 					cmd.CommandUUID,
 					[]fleet.Software{
 						{
@@ -218,10 +257,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 							Installed:        false,
 						},
 						{
-							Name:             addedApp.Name,
-							BundleIdentifier: addedApp.BundleIdentifier,
-							Version:          addedApp.LatestVersion,
-							Installed:        appInstallVerified,
+							Name:             app.Name,
+							BundleIdentifier: app.BundleIdentifier,
+							Version:          app.LatestVersion,
+							Installed:        opts.appInstallVerified,
 						},
 					},
 				)
@@ -232,11 +271,11 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			}
 		}
 
-		if failOnInstall {
+		if opts.failOnInstall {
 			return installCmdUUID
 		}
 
-		if appInstallTimeout {
+		if opts.appInstallTimeout {
 			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(context.Background(), "UPDATE nano_command_results SET updated_at = ? WHERE command_uuid = ?", time.Now().Add(-11*time.Minute), installCmdUUID)
 				return err
@@ -247,15 +286,15 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		s.runWorker()
 		// Check that there is now a verify command in flight
 		checkCommandsInFlight(1)
-		cmd, err = mdmDevice.Idle()
+		cmd, err = mdmClient.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
 			var fullCmd micromdm.CommandPayload
 			switch cmd.Command.RequestType {
 			case "InstalledApplicationList":
 				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-				cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(
-					mdmDevice.UUID,
+				cmd, err = mdmClient.AcknowledgeInstalledApplicationList(
+					mdmClient.UUID,
 					cmd.CommandUUID,
 					[]fleet.Software{
 						{
@@ -265,10 +304,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 							Installed:        false,
 						},
 						{
-							Name:             addedApp.Name,
-							BundleIdentifier: addedApp.BundleIdentifier,
-							Version:          addedApp.LatestVersion,
-							Installed:        appInstallVerified,
+							Name:             app.Name,
+							BundleIdentifier: app.BundleIdentifier,
+							Version:          app.LatestVersion,
+							Installed:        opts.appInstallVerified,
 						},
 					},
 				)
@@ -315,7 +354,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate failed installation on the host
-	failedCmdUUID := processVPPInstallOnClient(true, false, false)
+	opts := vppInstallOpts{
+		failOnInstall:      true,
+		appInstallVerified: false,
+		appInstallTimeout:  false,
+		bundleID:           addedApp.BundleIdentifier,
+	}
+	failedCmdUUID := processVPPInstallOnClient(mdmDevice, opts)
 
 	// We should have cleared out upcoming_activies since the install failed
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -364,7 +409,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Simulate successful installation on the host
-	installCmdUUID := processVPPInstallOnClient(false, true, false)
+	opts.appInstallTimeout = false
+	opts.failOnInstall = false
+	opts.appInstallVerified = true
+	installCmdUUID := processVPPInstallOnClient(mdmDevice, opts)
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
@@ -428,7 +476,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Install is ACK, but not verified yet
-	installCmdUUID = processVPPInstallOnClient(false, false, false)
+	opts.appInstallTimeout = false
+	opts.appInstallVerified = false
+	opts.failOnInstall = false
+	installCmdUUID = processVPPInstallOnClient(mdmDevice, opts)
 
 	// We should have 0 installed, because the verification is not done yet
 	listResp = listHostsResponse{}
@@ -455,7 +506,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Install is ACK, but not verified yet
 	// Don't update the command UUID because we didn't trigger a new install command
 	// (the command UUID is the same as the one we got when we triggered the install)
-	processVPPInstallOnClient(false, false, false)
+	processVPPInstallOnClient(mdmDevice, opts)
 
 	// We should have 0 installed, because the verification is not done yet
 	listResp = listHostsResponse{}
@@ -482,7 +533,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Install is ACK, and now it's verified
 	// Don't update the command UUID because we didn't trigger a new install command
 	// (the command UUID is the same as the one we got when we triggered the install)
-	processVPPInstallOnClient(false, true, false)
+	opts.appInstallVerified = true
+	processVPPInstallOnClient(mdmDevice, opts)
 
 	checkCommandsInFlight(0)
 
@@ -518,7 +570,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
-	installCmdUUID = processVPPInstallOnClient(false, false, true)
+	opts.failOnInstall = false
+	opts.appInstallVerified = false
+	opts.appInstallTimeout = true
+	installCmdUUID = processVPPInstallOnClient(mdmDevice, opts)
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
@@ -659,4 +714,116 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 0, countResp.Count)
+
+	// Re-enable MDM
+	s.appleCoreCertsSetup()
+
+	// ========================================================
+	// Test iOS VPP app installation
+	// ========================================================
+
+	// Enroll iOS device, add serial number to fake Apple server, and transfer to team
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		&addHostsToTeamRequest{HostIDs: []uint{iosHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	var iosTitleID uint
+	for _, sw := range listSw.SoftwareTitles {
+		if sw.Name == iOSApp.Name && sw.Source == "apps" {
+			iosTitleID = sw.ID
+			break
+		}
+	}
+	require.NotZero(t, iosTitleID)
+
+	// Trigger install to the iOS device
+	installResp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, iosTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+
+	// Verify pending status
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	// Simulate successful installation on iOS device
+	opts.appInstallTimeout = false
+	opts.appInstallVerified = true
+	opts.failOnInstall = false
+	opts.bundleID = iOSApp.BundleIdentifier
+	installCmdUUID = processVPPInstallOnClient(iosDevice, opts)
+
+	// Verify successful installation
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var result struct {
+			VerificationAt          *time.Time `db:"verification_at"`
+			VerificationCommandUUID string     `db:"verification_command_uuid"`
+		}
+		err := sqlx.GetContext(context.Background(), q, &result, "SELECT verification_at, verification_command_uuid FROM host_vpp_software_installs WHERE host_id = ?", iosHost.ID)
+		fmt.Printf("result: %+v\n", result)
+		return err
+	})
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, iosHost.ID, listResp.Hosts[0].ID)
+
+	// Verify activity log entry
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null}`,
+			iosHost.ID,
+			iosHost.DisplayName(),
+			iOSApp.Name,
+			iOSApp.AdamID,
+			installCmdUUID,
+			fleet.SoftwareInstalled,
+		),
+		0,
+	)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var refetchRequested bool
+		err := sqlx.GetContext(context.Background(), q, &refetchRequested, "SELECT refetch_requested FROM hosts WHERE id = ?", iosHost.ID)
+		require.NoError(t, err)
+		require.True(t, refetchRequested)
+		return nil
+	})
+
+	s.runWorker()
+	cmd, err := iosDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			require.True(t, strings.HasPrefix(cmd.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix))
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
+				iosDevice.UUID,
+				cmd.CommandUUID,
+				[]fleet.Software{
+					{
+						Name:             "RandomApp",
+						BundleIdentifier: "com.example.randomapp",
+						Version:          "9.9.9",
+						Installed:        false,
+					},
+					{
+						Name:             iOSApp.Name,
+						BundleIdentifier: iOSApp.BundleIdentifier,
+						Version:          iOSApp.LatestVersion,
+						Installed:        true,
+					},
+				},
+			)
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+		}
+	}
 }
