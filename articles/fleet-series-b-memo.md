@@ -1,3 +1,5 @@
+# How Fleet raised a $27M Series B without a pitch deck
+
 When we set out to raise Fleet's Series B, we decided to skip the usual pitch deck. Instead, our CEO, Mike McNeil, took a leaf out of [Parker Conrad's](https://en.wikipedia.org/wiki/Parker_Conrad) book and wrote a memo—a long-form document explaining what's happening in the market, how Fleet is growing, and what we want to build next.
 
 We still included charts, graphs, and key SaaS metrics like revenue growth, net retention, and sales efficiency. But the heart of the memo was the writing. The process helped us understand what we're doing, who we're doing it for, why now is the right time, and how we plan to scale.
