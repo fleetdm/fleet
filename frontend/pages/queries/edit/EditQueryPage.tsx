@@ -42,11 +42,6 @@ interface IEditQueryPageProps {
   router: InjectedRouter;
   params: Params;
   location: Location<{ host_id: string; team_id?: string }>;
-  // location: {
-  //   pathname: string;
-  //   query: { host_id: string; team_id?: string };
-  //   search: string;
-  // };
 }
 
 const baseClass = "edit-query-page";
