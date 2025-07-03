@@ -21,6 +21,7 @@ export const COLORS = {
   "ui-blue-25": "#D9D9FE",
   "ui-blue-10": "#F1F0FF",
   "tooltip-bg": "#3E4771",
+  "ui-light-grey": "#FAFAFA",
 
   // Notifications & status
   "status-success": "#3DB67B",
