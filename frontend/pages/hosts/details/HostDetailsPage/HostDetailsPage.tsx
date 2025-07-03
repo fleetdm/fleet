@@ -970,7 +970,10 @@ const HostDetailsPage = ({
                 softwareUpdatedAt={host.software_updated_at}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
-                queryParams={parseHostSoftwareQueryParams(location.query)}
+                queryParams={{
+                  ...parseHostSoftwareQueryParams(location.query),
+                  include_available_for_install: false,
+                }}
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
@@ -1013,7 +1016,10 @@ const HostDetailsPage = ({
               softwareUpdatedAt={host.software_updated_at}
               isSoftwareEnabled={featuresConfig?.enable_software_inventory}
               router={router}
-              queryParams={parseHostSoftwareQueryParams(location.query)}
+              queryParams={{
+                ...parseHostSoftwareQueryParams(location.query),
+                include_available_for_install: false,
+              }}
               pathname={location.pathname}
               onShowSoftwareDetails={setSelectedSoftwareDetails}
               hostTeamId={host.team_id || 0}
