@@ -12544,6 +12544,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	err = s.ds.AddHostsToTeam(context.Background(), teamID, []uint{h2.ID, h3.ID, h4.ID})
 	require.NoError(t, err)
 
+	// cancel pending refetches so we can see when refetches are queued
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), h2.ID, false))
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), h3.ID, false))
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), h4.ID, false))
+
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h2.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h2.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
@@ -12761,10 +12766,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			"install_script_output": "ok"
 		}`, *h.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
-	// Verify refetch requested is set after successful install
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
-	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
-
 	// simulate a lock/unlock on h; this creates the host_mdm_actions table, which reproduces #25144
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil, http.StatusOK)
 	status, err := s.ds.GetHostLockWipeStatus(context.Background(), h)
@@ -12782,6 +12783,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 
 	token := "secret_token"
 	createDeviceTokenForHost(t, s.ds, h.ID, token)
+
+	// Remove pending refresh so we can see if uninstall sets it
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), h.ID, false))
 
 	// Do uninstall on h
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusAccepted, &resp)
@@ -12829,6 +12833,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
 	require.Equal(t, uninstallExecutionID, orbitResp.Notifications.PendingScriptExecutionIDs[0])
 
+	// Verify refetch requested is set after successful uninstall
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
+	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should not be true yet")
+
 	// Host sends successful uninstall result
 	var orbitPostScriptResp orbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
@@ -12859,6 +12867,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
 	require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastUninstall)
 	assert.Nil(t, getHostSoftwareResp.Software[0].Status)
+
+	// Remove pending refresh so we can see if failed uninstall sets it
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), h.ID, false))
 
 	// Uninstall again, but this time with a failed result
 	beforeUninstall := time.Now()
