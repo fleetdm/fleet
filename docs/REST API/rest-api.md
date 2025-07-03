@@ -1813,6 +1813,7 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
+| end_user_authentication   | object  | See [`mdm.end_user_authentication`](#mdm-end-user-authentication). |
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
 
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
@@ -1927,7 +1928,17 @@ _Available in Fleet Premium._
 | idp_name                          | string  | **Required.** A human friendly name for the identity provider that will provide single sign-on authentication.                                                              |
 | metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. Must be either https or http. |
 | metadata                          | string  | Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided.                                                                   |
+| oauth_ropc                          | object  | See [mdm.end_user_authentication.oauth_ropc](#mdm-end-user-authentication-oauth-ropc).                                                                   |
 
+##### mdm.end_user_authentication.oauth_ropc
+
+`oauth_ropc` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------|
+| client_id                         | string  | **Required**. The identity provider (IdP) provides client ID to identify Fleet with the IdP.                          |
+| client_secret                     | string  | **Required.** The client secret is provided by the identity provider (IdP) to authenticate Fleet with the IdP.                              |
+| token_endpoint_url                | string  | **Required.** Token endpoint URL provided by the identity provider.                                                                          |
 <br/>
 
 ##### Example request body
