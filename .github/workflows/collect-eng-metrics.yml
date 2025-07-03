@@ -4,6 +4,18 @@ on:
   schedule:
     - cron: '0 9 * * *'  # Run at 4am CDT (9am UTC)
   workflow_dispatch:      # Allow manual triggering
+  pull_request:
+    branches:
+      - main # TODO: remove
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+permissions:
+  contents: read          # fetch repo metadata
+  pull-requests: read     # read PR timelines
 
 jobs:
   collect-metrics:
@@ -31,8 +43,12 @@ jobs:
       - name: Create service account key file
         run: |
           echo '${{ secrets.ENG_METRICS_GCP_SERVICE_ACCOUNT_KEY }}' > service-account-key.json
-          # Verify the file is valid JSON
-          cat service-account-key.json | jq . > /dev/null
+          # Verify the file is valid JSON and is a top-level object
+          if ! jq 'type == "object"' service-account-key.json | grep -q true; then
+            echo "Error: service-account-key.json is either invalid JSON or not a JSON object"
+            echo "Is ENG_METRICS_GCP_SERVICE_ACCOUNT_KEY secret properly set?"
+            exit 1
+          fi
 
       - name: Collect and upload engineering metrics
         uses: ./.github/actions/eng-metrics

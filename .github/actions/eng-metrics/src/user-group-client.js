@@ -26,7 +26,7 @@ export class UserGroupClient {
     if (!printOnly) {
       this.bigquery = new BigQuery({
         projectId,
-        keyFilename: serviceAccountKeyPath
+        keyFilename: serviceAccountKeyPath,
       });
       this.dataset = this.bigquery.dataset(datasetId);
       this.table = this.dataset.table(this.tableId);
@@ -39,7 +39,9 @@ export class UserGroupClient {
    */
   async createUserGroupTable() {
     if (this.printOnly) {
-      logger.info('[USER GROUPS] Print-only mode: would create user_group table with schema:');
+      logger.info(
+        '[USER GROUPS] Print-only mode: would create user_group table with schema:'
+      );
       logger.info('[USER GROUPS]   - group (STRING, cluster key)');
       logger.info('[USER GROUPS]   - username (STRING)');
       return;
@@ -55,14 +57,14 @@ export class UserGroupClient {
 
       const schema = [
         { name: 'group', type: 'STRING', mode: 'REQUIRED' },
-        { name: 'username', type: 'STRING', mode: 'REQUIRED' }
+        { name: 'username', type: 'STRING', mode: 'REQUIRED' },
       ];
 
       const options = {
         schema,
         clustering: {
-          fields: ['group']
-        }
+          fields: ['group'],
+        },
       };
 
       await this.table.create(options);
@@ -92,17 +94,19 @@ export class UserGroupClient {
 
       // Ensure table exists first
       await this.createUserGroupTable();
-      
+
       // Small delay to ensure table is ready
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Refresh table reference
       this.table = this.dataset.table(this.tableId);
-      
+
       // Get existing entries and perform differential sync
       await this.syncUserGroupsDifferential(userGroups);
 
-      logger.info(`Successfully synced ${userGroups.length} user group mappings to BigQuery`);
+      logger.info(
+        `Successfully synced ${userGroups.length} user group mappings to BigQuery`
+      );
     } catch (error) {
       logger.error('Error syncing user groups:', error);
       throw error;
@@ -116,7 +120,9 @@ export class UserGroupClient {
    */
   async syncUserGroupsDifferential(newUserGroups) {
     if (this.printOnly) {
-      logger.info('[USER GROUPS] Print-only mode: would perform differential sync');
+      logger.info(
+        '[USER GROUPS] Print-only mode: would perform differential sync'
+      );
       this.printDifferentialSync(newUserGroups);
       return;
     }
@@ -124,42 +130,55 @@ export class UserGroupClient {
     try {
       // Get existing entries from the table
       const existingUserGroups = await this.getExistingUserGroups();
-      
+
       // Create sets for comparison
-      const existingSet = new Set(existingUserGroups.map(ug => `${ug.group}:${ug.username}`));
-      const newSet = new Set(newUserGroups.map(ug => `${ug.group}:${ug.username}`));
-      
+      const existingSet = new Set(
+        existingUserGroups.map((ug) => `${ug.group}:${ug.username}`)
+      );
+      const newSet = new Set(
+        newUserGroups.map((ug) => `${ug.group}:${ug.username}`)
+      );
+
       // Find entries to insert (in new but not in existing)
-      const toInsert = newUserGroups.filter(ug => !existingSet.has(`${ug.group}:${ug.username}`));
-      
+      const toInsert = newUserGroups.filter(
+        (ug) => !existingSet.has(`${ug.group}:${ug.username}`)
+      );
+
       // Find entries to delete (in existing but not in new)
-      const toDelete = existingUserGroups.filter(ug => !newSet.has(`${ug.group}:${ug.username}`));
-      
-      logger.info(`Differential sync: ${toInsert.length} to insert, ${toDelete.length} to delete`);
-      
+      const toDelete = existingUserGroups.filter(
+        (ug) => !newSet.has(`${ug.group}:${ug.username}`)
+      );
+
+      logger.info(
+        `Differential sync: ${toInsert.length} to insert, ${toDelete.length} to delete`
+      );
+
       // Handle deletions with streaming buffer awareness
       if (toDelete.length > 0) {
         try {
           await this.deleteUserGroups(toDelete);
         } catch (error) {
           if (error.message && error.message.includes('streaming buffer')) {
-            logger.warn('Streaming buffer prevents DELETE - this is expected during testing. In production (daily runs), this won\'t occur.');
-            logger.info('Skipping deletions for now. Data will be consistent on next daily run.');
+            logger.warn(
+              'Streaming buffer prevents DELETE - this is expected during testing. In production (daily runs), this won\'t occur.'
+            );
+            logger.info(
+              'Skipping deletions for now. Data will be consistent on next daily run.'
+            );
           } else {
             throw error;
           }
         }
       }
-      
+
       // Insert new entries using load job (no streaming buffer issues for inserts)
       if (toInsert.length > 0) {
         await this.insertUserGroups(toInsert);
       }
-      
+
       if (toInsert.length === 0 && toDelete.length === 0) {
         logger.info('No changes needed - user groups are already up to date');
       }
-      
     } catch (error) {
       logger.error('Error performing differential sync:', error);
       throw error;
@@ -174,11 +193,11 @@ export class UserGroupClient {
     try {
       const query = `SELECT \`group\`, username FROM \`${this.projectId}.${this.datasetId}.${this.tableId}\``;
       const [rows] = await this.bigquery.query({ query });
-      
+
       logger.info(`Found ${rows.length} existing user group entries`);
-      return rows.map(row => ({
+      return rows.map((row) => ({
         group: row.group,
-        username: row.username
+        username: row.username,
       }));
     } catch (error) {
       if (error.message && error.message.includes('not found')) {
@@ -198,13 +217,15 @@ export class UserGroupClient {
   async deleteUserGroups(userGroupsToDelete) {
     try {
       // Build WHERE clause for deletion
-      const conditions = userGroupsToDelete.map(ug =>
-        `(\`group\` = '${ug.group}' AND username = '${ug.username}')`
-      ).join(' OR ');
-      
+      const conditions = userGroupsToDelete
+        .map(
+          (ug) => `(\`group\` = '${ug.group}' AND username = '${ug.username}')`
+        )
+        .join(' OR ');
+
       const query = `DELETE FROM \`${this.projectId}.${this.datasetId}.${this.tableId}\` WHERE ${conditions}`;
       await this.bigquery.query({ query });
-      
+
       logger.info(`Deleted ${userGroupsToDelete.length} user group entries`);
     } catch (error) {
       logger.error('Error deleting user groups:', error);
@@ -217,11 +238,17 @@ export class UserGroupClient {
    * @param {Array<{group: string, username: string}>} newUserGroups
    */
   async printDifferentialSync(newUserGroups) {
-    logger.info('[USER GROUPS] Print-only mode: would perform differential sync');
+    logger.info(
+      '[USER GROUPS] Print-only mode: would perform differential sync'
+    );
     logger.info('[USER GROUPS] Would check existing entries in table');
-    logger.info(`[USER GROUPS] Would compare with ${newUserGroups.length} new entries`);
-    logger.info('[USER GROUPS] Would insert only new entries and delete removed entries');
-    
+    logger.info(
+      `[USER GROUPS] Would compare with ${newUserGroups.length} new entries`
+    );
+    logger.info(
+      '[USER GROUPS] Would insert only new entries and delete removed entries'
+    );
+
     // Group users by their groups for better display
     const groupedUsers = newUserGroups.reduce((acc, ug) => {
       if (!acc[ug.group]) {
@@ -244,22 +271,26 @@ export class UserGroupClient {
    */
   async insertUserGroups(userGroups) {
     if (this.printOnly) {
-      logger.info(`[USER GROUPS] Print-only mode: would insert ${userGroups.length} records`);
+      logger.info(
+        `[USER GROUPS] Print-only mode: would insert ${userGroups.length} records`
+      );
       return;
     }
 
     try {
       // Transform data for BigQuery streaming insert
-      const rows = userGroups.map(ug => ({
+      const rows = userGroups.map((ug) => ({
         group: ug.group,
-        username: ug.username
+        username: ug.username,
       }));
 
       // Use streaming insert - simpler and appropriate for small user group datasets
       // Streaming buffer issues only occur during rapid testing, not daily production runs
       await this.table.insert(rows);
-      
-      logger.info(`Inserted ${rows.length} user group mappings into BigQuery using load job`);
+
+      logger.info(
+        `Inserted ${rows.length} user group mappings into BigQuery using streaming insert`
+      );
     } catch (error) {
       logger.error('Error inserting user groups:', error);
       throw error;
@@ -271,7 +302,9 @@ export class UserGroupClient {
    * @param {Array<{group: string, username: string}>} userGroups - Array of user group mappings
    */
   printUserGroupsData(userGroups) {
-    logger.info('[USER GROUPS] Print-only mode enabled - no BigQuery updates will be performed');
+    logger.info(
+      '[USER GROUPS] Print-only mode enabled - no BigQuery updates will be performed'
+    );
     logger.info('');
 
     if (userGroups.length === 0) {
@@ -294,11 +327,13 @@ export class UserGroupClient {
     }
 
     logger.info('');
-    logger.info(`[USER GROUPS] Would insert ${userGroups.length} records into user_group table:`);
+    logger.info(
+      `[USER GROUPS] Would insert ${userGroups.length} records into user_group table:`
+    );
 
     // Count users per group
-    const groupCounts = Object.entries(groupedUsers).map(([group, usernames]) =>
-      `  ${group}: ${usernames.length} users`
+    const groupCounts = Object.entries(groupedUsers).map(
+      ([group, usernames]) => `  ${group}: ${usernames.length} users`
     );
     logger.info(groupCounts.join('\n'));
 
@@ -315,13 +350,14 @@ export class UserGroupClient {
       if (sampleRecords.length >= 6) break; // Limit sample output
     }
 
-    sampleRecords.forEach(record => logger.info(record));
+    sampleRecords.forEach((record) => logger.info(record));
 
     if (userGroups.length > sampleRecords.length) {
-      logger.info(`... and ${userGroups.length - sampleRecords.length} more records`);
+      logger.info(
+        `... and ${userGroups.length - sampleRecords.length} more records`
+      );
     }
   }
-
 }
 
 export default UserGroupClient;

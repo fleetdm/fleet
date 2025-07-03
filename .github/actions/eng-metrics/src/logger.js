@@ -10,7 +10,7 @@ const LOG_LEVELS = {
   DEBUG: 'debug',
   INFO: 'info',
   WARN: 'warn',
-  ERROR: 'error'
+  ERROR: 'error',
 };
 
 /**
@@ -26,14 +26,14 @@ const createLogEntry = (level, message, data = {}, error = null) => {
     timestamp: new Date().toISOString(),
     level,
     message,
-    ...data
+    ...(Object.keys(data).length > 0 && { data }),
   };
 
   if (error) {
     logEntry.error = {
       name: error.name,
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
     };
   }
 
@@ -49,7 +49,22 @@ const createLogEntry = (level, message, data = {}, error = null) => {
  */
 const log = (level, message, data = {}, error = null) => {
   const logEntry = createLogEntry(level, message, data, error);
-  console.log(JSON.stringify(logEntry));
+  try {
+    console.log(JSON.stringify(logEntry));
+  } catch (serializationError) {
+    console.log(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        message: 'Failed to serialize log entry',
+        originalMessage: message,
+        error: {
+          name: serializationError.name,
+          message: serializationError.message,
+        },
+      })
+    );
+  }
 };
 
 /**
@@ -93,5 +108,5 @@ export default {
   debug,
   info,
   warn,
-  error
+  error,
 };

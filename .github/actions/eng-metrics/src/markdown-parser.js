@@ -42,13 +42,16 @@ const extractUsernamesFromMarkdown = (content) => {
   const groupMappings = {
     'MDM group': 'mdm',
     'Orchestration group': 'orchestration',
-    'Software group': 'software'
+    'Software group': 'software',
   };
 
   // For each group, find its section and extract usernames
   for (const [sectionName, groupName] of Object.entries(groupMappings)) {
     // Find the section for this group
-    const sectionRegex = new RegExp(`### ${sectionName}([\\s\\S]*?)(?=### |$)`, 'i');
+    const sectionRegex = new RegExp(
+      `### ${sectionName}([\\s\\S]*?)(?=### |$)`,
+      'i'
+    );
     const sectionMatch = content.match(sectionRegex);
 
     if (sectionMatch) {
@@ -60,7 +63,9 @@ const extractUsernamesFromMarkdown = (content) => {
     }
   }
 
-  logger.info(`Extracted ${userGroups.length} user-group mappings from markdown`);
+  logger.info(
+    `Extracted ${userGroups.length} user-group mappings from markdown`
+  );
   return userGroups;
 };
 
@@ -75,7 +80,9 @@ const extractUsernamesFromSection = (sectionContent, groupName) => {
 
   // Look for the Developer row in the table
   // The pattern needs to handle multi-line content in the cell
-  const developerRowMatch = sectionContent.match(/\|\s*Developer\s*\|\s*([\s\S]*?)(?=\n\||\n\n|$)/);
+  const developerRowMatch = sectionContent.match(
+    /\|\s*Developer\s*\|\s*([\s\S]*?)(?=\n\||\n\n|$)/
+  );
 
   if (!developerRowMatch) {
     logger.warn(`No Developer row found in ${groupName} group section`);
@@ -85,21 +92,30 @@ const extractUsernamesFromSection = (sectionContent, groupName) => {
   const developerCell = developerRowMatch[1];
 
   // Extract GitHub usernames from the developer cell
-  // Look for patterns like _([@username](https://github.com/username))_
-  const usernameMatches = developerCell.match(/_\(\[@([a-zA-Z0-9-]+)]\([^)]+\)\)_/g);
+  // Look for patterns like [@username](https://github.com/username)
+  // Note: This match could fail with slight variations in formatting (extra spaces, different brackets, etc.).
+  const usernameMatches = developerCell.match(/\[@([a-zA-Z0-9-]+)]\([^)]+\)/g);
 
   if (!usernameMatches) {
-    logger.warn(`No GitHub usernames found in ${groupName} group Developer row`);
+    logger.warn(
+      `No GitHub usernames found in ${groupName} group Developer row`
+    );
     return userGroups;
   }
 
-  const usernames = usernameMatches.map(match => {
-    // Extract username from _([@username](url))_ format
-    const usernameMatch = match.match(/_\(\[@([a-zA-Z0-9-]+)]/);
-    return usernameMatch ? usernameMatch[1] : null;
-  }).filter(Boolean);
+  const usernames = usernameMatches
+    .map((match) => {
+      // Extract username from _([@username](url))_ format
+      const usernameMatch = match.match(/\[@([a-zA-Z0-9-]+)]/);
+      return usernameMatch ? usernameMatch[1] : null;
+    })
+    .filter(Boolean);
 
-  logger.info(`Found ${usernames.length} developers in ${groupName} group: ${usernames.join(', ')}`);
+  logger.info(
+    `Found ${
+      usernames.length
+    } developers in ${groupName} group: ${usernames.join(', ')}`
+  );
 
   // Create user group mappings for both the specific group and engineering
   for (const username of usernames) {
@@ -119,7 +135,11 @@ const extractUsernamesFromSection = (sectionContent, groupName) => {
  * @returns {boolean} True if structure is valid, false otherwise
  */
 export const validateMarkdownStructure = (content) => {
-  const requiredSections = ['MDM group', 'Orchestration group', 'Software group'];
+  const requiredSections = [
+    'MDM group',
+    'Orchestration group',
+    'Software group',
+  ];
 
   for (const section of requiredSections) {
     if (!content.includes(`### ${section}`)) {
@@ -133,5 +153,5 @@ export const validateMarkdownStructure = (content) => {
 
 export default {
   parseProductGroups,
-  validateMarkdownStructure
+  validateMarkdownStructure,
 };

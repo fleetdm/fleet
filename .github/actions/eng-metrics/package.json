@@ -28,8 +28,6 @@
     "bigquery",
     "analytics"
   ],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@google-cloud/bigquery": "^8.1.0",
     "dotenv": "^17.0.0",
