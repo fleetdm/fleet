@@ -39,7 +39,7 @@ as part of the fix PR.
 5. Run the following command to generate output data:
 
     ```bash
-   go run cmd/maintained-apps/main.go -slug="box-drive/darwin" -debug
+   go run cmd/maintained-apps/main.go --slug="box-drive/darwin" --debug
    ```
 
 6. Open a PR to the `fleet` repository with the above changes
