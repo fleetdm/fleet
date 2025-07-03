@@ -170,7 +170,7 @@ const Avatar = ({
 
   if (useFleetAvatar) {
     avatar = <FleetAvatar className={avatarClasses} />;
-  } else if (useApiOnlyAvatar && gravatar_url) {
+  } else if (useApiOnlyAvatar && !gravatar_url) {
     avatar = <APIOnlyAvatar className={avatarClasses} />;
   } else {
     avatar = (
