@@ -912,6 +912,13 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
 			}
+
+			// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
+			if activityStatus == "uninstalled" {
+				if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+					return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
+				}
+			}
 		default:
 			// TODO(sarah): We may need to special case lock/unlock script results here?
 			var policyName *string
@@ -1351,6 +1358,13 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
+		}
+
+		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
+		if status == fleet.SoftwareInstalled {
+			if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
+			}
 		}
 	}
 	return nil

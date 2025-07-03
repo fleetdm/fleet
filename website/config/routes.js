@@ -936,6 +936,7 @@ module.exports.routes = {
   'GET /learn-more-about/yaml-software-setup-experience': '/docs/configuration/yaml-files#self-service-labels-categories-and-setup-experience',
   'GET /learn-more-about/microsoft-compliance-partner': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
 
   // Sitemap
   // =============================================================================================================
