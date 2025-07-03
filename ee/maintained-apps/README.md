@@ -101,7 +101,7 @@ These are command lines that will be run _after_ the generated uninstall script 
 
 #### `default_categories` (required)
 
-These are the default categories assigned to the installer in self-service if no categories are specified when it is added to a team's library.  Categories can contain any of these values:
+These are the default categories assigned to the installer in [self-service](https://fleetdm.com/guides/software-self-service) if no categories are specified when it is added to a team's library.  Categories can contain any of these values:
 
 - `Browsers`
 - `Communication`
