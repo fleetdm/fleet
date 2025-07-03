@@ -596,7 +596,7 @@ Only one of the objects is allowed in a single request.
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
 
-#### digicert
+##### digicert
 
 Object with the following structure:
 
@@ -608,7 +608,7 @@ Object with the following structure:
 | certificate_user_principal_names | array | body | Use with type `digicert`. The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
 | certificate_seat_id | string | body | **Required** The ID of the DigiCert seat. Seats are license units in DigiCert. |
 
-#### ndes_scep_proxy
+##### ndes_scep_proxy
 
 Object with the following structure:
 
@@ -617,7 +617,7 @@ Object with the following structure:
 | password | string | body | **Required**. The password for the NDES admin endpoint. |
 | username | string | body | **Required**. The username for the NDES admin endpoint. |
 
-#### custom_scep_proxy
+##### custom_scep_proxy
 
 Object with the following structure:
 
@@ -625,7 +625,7 @@ Object with the following structure:
 | url | string | body | **Required**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
 | challenge | string | body | **Required**. Static challenge password used to authenticate requests to SCEP server. |
 
-#### hydrant
+##### hydrant
 
 Object with the following structure:
 
