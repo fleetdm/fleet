@@ -97,7 +97,7 @@ const ActivityItem = ({
   onShowDetails = noop,
   onCancel = noop,
 }: IActivityItemProps) => {
-  const { actor_email, actor_api_only } = activity;
+  const { actor_email } = activity;
   const { gravatar_url } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
