@@ -95,8 +95,14 @@ func FilenameFromResponse(resp *http.Response) string {
 	return filename
 }
 
-func SHA256FromInstallerFile(installerTFR *fleet.TempFileReader) string {
+func SHA256FromInstallerFile(installerTFR *fleet.TempFileReader) (string, error) {
 	h := sha256.New()
 	_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
-	return hex.EncodeToString(h.Sum(nil))
+	gotHash := hex.EncodeToString(h.Sum(nil))
+
+	if err := installerTFR.Rewind(); err != nil {
+		return "", fmt.Errorf("rewind installer reader: %w", err)
+	}
+
+	return gotHash, nil
 }

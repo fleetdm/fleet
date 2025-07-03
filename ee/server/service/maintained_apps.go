@@ -82,7 +82,10 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 	defer installerTFR.Close()
 
-	gotHash := maintained_apps.SHA256FromInstallerFile(installerTFR)
+	gotHash, err := maintained_apps.SHA256FromInstallerFile(installerTFR)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "calculating SHA256 hash")
+	}
 
 	// Validate the bytes we got are what we expected, if a valid SHA is supplied
 	if app.SHA256 != noCheckHash {
@@ -93,9 +96,6 @@ func (svc *Service) AddFleetMaintainedApp(
 		app.SHA256 = gotHash
 	}
 
-	if err := installerTFR.Rewind(); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "rewind installer reader")
-	}
 	extension := strings.TrimLeft(filepath.Ext(filename), ".")
 
 	installScript = file.Dos2UnixNewlines(installScript)

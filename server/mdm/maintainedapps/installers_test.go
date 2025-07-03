@@ -57,6 +57,7 @@ func TestSHA256FromInstallerFile(t *testing.T) {
 		return tfr
 	}
 
-	sha256 := SHA256FromInstallerFile(tmpFileReader("installer1"))
+	sha256, err := SHA256FromInstallerFile(tmpFileReader("installer1"))
+	require.NoError(t, err)
 	require.Equal(t, "026ac8ee705035f2422eeba7fdea15df563e4f4687ce3abc9a306d2de261f8de", sha256)
 }
