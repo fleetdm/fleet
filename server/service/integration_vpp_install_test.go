@@ -397,11 +397,12 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		return nil
 	})
 
-	// req := getDistributedQueriesRequest{NodeKey: *mdmHost.NodeKey}
-	// var dqResp getDistributedQueriesResponse
-	// s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
-	// require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
-	// require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+	s.lq.On("QueriesForHost", mdmHost.ID).Return(map[string]string{fmt.Sprintf("%d", mdmHost.ID): "select 1 from osquery;"}, nil)
+
+	req := getDistributedQueriesRequest{NodeKey: *mdmHost.NodeKey}
+	var dqResp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 
 	// Check list host software
 	getHostSw := getHostSoftwareResponse{}
