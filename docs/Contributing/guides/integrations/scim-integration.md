@@ -45,6 +45,7 @@ Authorization: Bearer <API key>
 Run test using [Runscope](https://www.runscope.com/). See [instructions](https://developer.okta.com/docs/guides/scim-provisioning-integration-prepare/main/#test-your-scim-api).
 
 ## Entra ID integration
+
 - [SCIM guide](https://learn.microsoft.com/en-us/entra/identity/app-provisioning/use-scim-to-provision-users-and-groups)
 - [SCIM validator](https://scimvalidator.microsoft.com/)
   - Note: only test attributes implemented by Fleet
