@@ -22,6 +22,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestPolicies(t *testing.T) {
@@ -78,6 +79,7 @@ func TestPolicies(t *testing.T) {
 		{"PolicyLabels", testPolicyLabels},
 		{"DeletePolicyWithSoftwareActivatesNextActivity", testDeletePolicyWithSoftwareActivatesNextActivity},
 		{"DeletePolicyWithScriptActivatesNextActivity", testDeletePolicyWithScriptActivatesNextActivity},
+		{"SimultaneousSavePolicy", testSimultaneousSavePolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6337,4 +6339,44 @@ func testDeletePolicyWithScriptActivatesNextActivity(t *testing.T, ds *Datastore
 
 	checkUpcomingActivities(t, ds, hostNoTm, scriptExec.ExecutionID)
 	checkUpcomingActivities(t, ds, hostTm)
+}
+
+// The UI can send simultaneous PATCH requests for policies (e.g. "Manage automations" page)
+// This is testing that the backend retries upon finding deadlocks.
+// Deadlocks will happen because all transactions may be trying to clear `policy_membership` for the same
+// host.
+func testSimultaneousSavePolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	var policies []*fleet.Policy
+	for i := range 10 {
+		policies = append(policies, newTestPolicy(t, ds, user1, fmt.Sprintf("policy%d", i), "darwin", &team1.ID))
+	}
+	host1 := newTestHostWithPlatform(t, ds, "host1", "darwin", &team1.ID)
+
+	// Record results for host1 for all policies
+	host1Results := make(map[uint]*bool)
+	for _, policy := range policies {
+		host1Results[policy.ID] = ptr.Bool(true)
+	}
+	err = ds.RecordPolicyQueryExecutions(ctx, host1, host1Results, time.Now(), false)
+	require.NoError(t, err)
+
+	// Run simultaneous
+	var g errgroup.Group
+	for i := range 10 {
+		g.Go(func() error {
+			policy := policies[i]
+			policy.Query += "just changing something here"
+			// NOTE: shouldRemoveAllPolicyMemberships is true when the user updates
+			// software item associated to an installer, so we set it to true here to
+			// simulate that.
+			return ds.SavePolicy(context.Background(), policy, true, true)
+		})
+	}
+
+	err = g.Wait()
+	require.NoError(t, err)
 }
