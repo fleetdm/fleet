@@ -447,22 +447,21 @@ html, body {
 
     [purpose='glass-header-btn'] {
       color: #FFFFFF;
-      height: 32px;
+      height: 36px;
       position: relative;
       font-size: 14px;
       font-weight: 700;
       line-height: 1;
-      padding: 16px;
-      box-shadow: 1px 1px 2px rgba(25, 33, 71, 0.24);
-      border-radius: 4px;
+      padding: 16px 12px;
+      border-radius: 8px;
       background-color: @core-vibrant-red;
       text-decoration: none;
       white-space: nowrap;
     }
     [purpose='header-nav-btn'][aria-expanded='true'] {
-      font-weight: 700;
+      // font-weight: 700;
       outline: none;
-      color: @core-fleet-black-75;
+      color: @core-fleet-black;
     }
     [purpose='header-nav-btn']:before {
       display: block;
@@ -479,8 +478,7 @@ html, body {
       white-space: nowrap;
       text-decoration: none;
       &:hover {
-        color: @core-fleet-black-75;
-        font-weight: 700;
+        color: @core-fleet-black;
         text-decoration: none;
       }
     }
@@ -489,18 +487,22 @@ html, body {
       font-weight: 400;
       cursor: pointer;
       display: inline-block;
-      padding: 6px 16px;
+      padding: 4px 8px;
       text-decoration: none;
+      width: auto;
+      margin-right: 24px;
     }
     [purpose='header-nav-btn']:hover {
-      font-weight: 700;
+      // font-weight: 700;
+      color: @core-fleet-black;
       text-decoration: none;
     }
     &:focus {
       outline-color: none;
     }
     .current-section {
-      font-weight: 700;
+      // font-weight: 700;
+      color: @core-fleet-black;
       svg {
         path {
           fill: #6a67fe;
@@ -508,9 +510,9 @@ html, body {
       }
     }
     [purpose='gh-button'] {
-      padding: 0px 20px;
-      min-width: 140px;
-      width: 140px;
+      min-width: 98.5px;
+      width: 98.5px;
+      margin-right: 16px;
     }
     [purpose='header-dropdown'] {
       box-shadow: 0px 6px 20px 0px rgba(0, 0, 0, 0.10);

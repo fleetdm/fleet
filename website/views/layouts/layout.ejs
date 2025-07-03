@@ -203,7 +203,7 @@
               <%/* Desktop Navigation bar */%>
               <div purpose="header-nav" class="d-none d-lg-flex align-items-center justify-content-around">
                 <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" href="/device-management" >Multi platform</a>
+                  <a purpose="header-nav-btn" button-text="Multi platform" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" href="/device-management">Multi platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item" data-dropdown-option="device-management" href="/device-management">Device management <small>+ MDM</small></a>
                     <a class="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">Orchestration <small>+ monitoring</small></a>
@@ -211,10 +211,10 @@
                     <a class="dropdown-item" data-dropdown-option="integrations" href="/integrations">Integrations</a>
                   </div>
                 </div>
-                <a purpose="header-nav-btn" button-text="Documentation" class="<%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" style="width: 74px;" href="/docs">Docs</a>
-                <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
-                <div purpose="dropdown-button" class="btn-group" style="width: 55px;">
-                  <a purpose="header-nav-btn" button-text="Community" href="/testimonials" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" >More</a>
+                <a purpose="header-nav-btn" button-text="Docs" class="<%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" style="width: 55px;" href="/docs">Docs</a>
+                <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="width: 72px; text-decoration: none; line-height: 23px;">Pricing</a>
+                <div purpose="dropdown-button" class="btn-group" >
+                  <a purpose="header-nav-btn" button-text="More" href="/testimonials" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" >More</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item" data-dropdown-option="announcements" href="/announcements">News</a>
                     <a class="dropdown-item" data-dropdown-option="testimonials" href="/testimonials">Case studies</a>
