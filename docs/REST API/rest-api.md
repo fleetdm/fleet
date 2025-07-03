@@ -600,38 +600,46 @@ Only one of the objects is allowed in a single request.
 
 Object with the following structure:
 
-| name | string | body | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
-| url | string | body | **Required** DigiCert instance URL, used as base URL for DigiCert API requests. |
-| api_token | string | body | **Required** API token used to authenticate requests to DigiCert. |
-| profile_id | string | body | **Required** The ID of certificate profile in DigiCert. |
-| certificate_common_name | string | body | **Required** The certificate's common name. |
-| certificate_user_principal_names | array | body | Use with type `digicert`. The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
-| certificate_seat_id | string | body | **Required** The ID of the DigiCert seat. Seats are license units in DigiCert. |
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| url | string | **Required** DigiCert instance URL, used as base URL for DigiCert API requests. |
+| api_token | string | **Required** API token used to authenticate requests to DigiCert. |
+| profile_id | string | **Required** The ID of certificate profile in DigiCert. |
+| certificate_common_name | string | **Required** The certificate's common name. |
+| certificate_user_principal_names | array | Use with type `digicert`. The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
+| certificate_seat_id | string | **Required** The ID of the DigiCert seat. Seats are license units in DigiCert. |
 
 ##### ndes_scep_proxy
 
 Object with the following structure:
 
-| url | string | body | **Required**. The URL of the NDES SCEP endpoint. |
-| admin_url | string | body | **Required**. The URL of the NDES admin endpoint. |
-| password | string | body | **Required**. The password for the NDES admin endpoint. |
-| username | string | body | **Required**. The username for the NDES admin endpoint. |
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| url | string | **Required**. The URL of the NDES SCEP endpoint. |
+| admin_url | string | **Required**. The URL of the NDES admin endpoint. |
+| password | string | **Required**. The password for the NDES admin endpoint. |
+| username | string | **Required**. The username for the NDES admin endpoint. |
 
 ##### custom_scep_proxy
 
 Object with the following structure:
 
-| name | string | body | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
-| url | string | body | **Required**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
-| challenge | string | body | **Required**. Static challenge password used to authenticate requests to SCEP server. |
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| url | string | **Required**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
+| challenge | string | **Required**. Static challenge password used to authenticate requests to SCEP server. |
 
 ##### hydrant
 
 Object with the following structure:
 
-| url       | string | body | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant. |
-| client_id | string | body | **Required**. The client ID provided by Hydrant.|
-| client_secret  | string | body | **Required**. The client secret provided by Hydrant. |
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant. |
+| client_id | string | **Required**. The client ID provided by Hydrant.|
+| client_secret  | string | **Required**. The client secret provided by Hydrant. |
 
 #### Example
 
