@@ -42,7 +42,7 @@ const getIntegrationSettingsNavItems = (
     {
       title: "Single sign-on options",
       urlSection: "sso",
-      path: PATHS.ADMIN_ORGANIZATION_SSO,
+      path: PATHS.ADMIN_INTEGRATIONS_SSO,
       Card: Sso,
     },
 
@@ -61,7 +61,7 @@ const getIntegrationSettingsNavItems = (
     {
       title: "Host status webhook",
       urlSection: "host-status-webhook",
-      path: PATHS.ADMIN_ORGANIZATION_HOST_STATUS_WEBHOOK,
+      path: PATHS.ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK,
       Card: GlobalHostStatusWebhook,
     },
   ];
