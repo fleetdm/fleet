@@ -3869,6 +3869,11 @@ func NewInstalledApplicationListResultsHandler(
 			)
 		}
 
+		// Request host refetch to get the most up to date software data ASAP.
+		if err := ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
+		}
+
 		// If we get here, we're in a terminal state, so we can remove the verify command.
 		return ctxerr.Wrap(
 			ctx,

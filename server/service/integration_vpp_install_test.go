@@ -389,6 +389,20 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		0,
 	)
 
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var refetchRequested bool
+		err := sqlx.GetContext(context.Background(), q, &refetchRequested, "SELECT refetch_requested FROM hosts WHERE id = ?", mdmHost.ID)
+		require.NoError(t, err)
+		require.True(t, refetchRequested)
+		return nil
+	})
+
+	// req := getDistributedQueriesRequest{NodeKey: *mdmHost.NodeKey}
+	// var dqResp getDistributedQueriesResponse
+	// s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	// require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
+	// require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+
 	// Check list host software
 	getHostSw := getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
