@@ -337,6 +337,9 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Install command failed
 	// ================================
 
+	// Cancel any pending refetch requests
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), mdmHost.ID, false))
+
 	// Trigger install to the host
 	installResp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
@@ -395,6 +398,11 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		0,
 	)
 
+	// No refetch requested since the install failed
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
+	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
+
 	// ================================================
 	// Successful install and immediate verification
 	// ================================================
@@ -437,13 +445,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		0,
 	)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var refetchRequested bool
-		err := sqlx.GetContext(context.Background(), q, &refetchRequested, "SELECT refetch_requested FROM hosts WHERE id = ?", mdmHost.ID)
-		require.NoError(t, err)
-		require.True(t, refetchRequested)
-		return nil
-	})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
 
 	s.lq.On("QueriesForHost", mdmHost.ID).Return(map[string]string{fmt.Sprintf("%d", mdmHost.ID): "select 1 from osquery;"}, nil)
 
@@ -451,6 +454,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	var dqResp getDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), mdmHost.ID, false))
 
 	// Check list host software
 	getHostSw := getHostSoftwareResponse{}
@@ -557,6 +561,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		0,
 	)
 
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
+
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), mdmHost.ID, false))
+
 	// ========================================================
 	// Install command succeeds, but verification fails
 	// ========================================================
@@ -598,6 +609,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		),
 		0,
 	)
+
+	// No refetch requested since the install failed
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
+	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
 
 	// Check list host software
 	getHostSw = getHostSoftwareResponse{}
@@ -786,14 +801,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		0,
 	)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var refetchRequested bool
-		err := sqlx.GetContext(context.Background(), q, &refetchRequested, "SELECT refetch_requested FROM hosts WHERE id = ?", iosHost.ID)
-		require.NoError(t, err)
-		require.True(t, refetchRequested)
-		return nil
-	})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", iosHost.ID), nil, http.StatusOK, &hostResp)
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
 
+	// Verify that an InstalledApplicationList command was sent, but NOT the VPP verify type.
 	s.runWorker()
 	cmd, err := iosDevice.Idle()
 	require.NoError(t, err)

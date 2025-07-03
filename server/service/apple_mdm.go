@@ -3804,7 +3804,7 @@ func NewInstalledApplicationListResultsHandler(
 		// UUID, so this is OK.
 		hostID := installs[0].HostID
 
-		var poll bool
+		var poll, shouldRefetch bool
 		for _, a := range installedApps {
 			install, ok := installsByBundleID[a.BundleIdentifier]
 			if !ok {
@@ -3819,6 +3819,7 @@ func NewInstalledApplicationListResultsHandler(
 				}
 
 				terminalStatus = fleet.MDMAppleStatusAcknowledged
+				shouldRefetch = true
 			case install.InstallCommandAckAt != nil && time.Since(*install.InstallCommandAckAt) > verifyTimeout:
 				if err := ds.SetVPPInstallAsFailed(ctx, install.HostID, install.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
@@ -3869,9 +3870,11 @@ func NewInstalledApplicationListResultsHandler(
 			)
 		}
 
-		// Request host refetch to get the most up to date software data ASAP.
-		if err := ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
-			return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
+		if shouldRefetch {
+			// Request host refetch to get the most up to date software data ASAP.
+			if err := ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
+			}
 		}
 
 		// If we get here, we're in a terminal state, so we can remove the verify command.
