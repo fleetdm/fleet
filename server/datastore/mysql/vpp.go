@@ -1729,6 +1729,7 @@ FROM vpp_apps`
 func (ds *Datastore) GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
 	stmt := `
 SELECT
+	hvsi.host_id AS host_id,
 	hvsi.command_uuid AS command_uuid,
 	hvsi.host_id AS host_id,
 	ncr.updated_at AS ack_at,
@@ -1758,11 +1759,23 @@ SET verification_command_uuid = ?
 WHERE command_uuid = ?
 	`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, verifyCommandUUID, installUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "update vpp install verification command")
-	}
+	hostCmdStmt := `
+INSERT INTO host_mdm_commands
+	(host_id, command_type)
+VALUES ((SELECT host_id FROM host_vpp_software_installs WHERE command_uuid = ?), ?)
+	`
 
-	return nil
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmt, verifyCommandUUID, installUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update vpp install verification command")
+		}
+
+		if _, err := tx.ExecContext(ctx, hostCmdStmt, installUUID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert verify host mdm command")
+		}
+
+		return nil
+	})
 }
 
 func (ds *Datastore) ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error {
