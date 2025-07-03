@@ -3779,13 +3779,8 @@ func NewInstalledApplicationListResultsHandler(
 
 		installedApps := installedAppResult.AvailableApps()
 
-		if len(installedApps) == 0 {
-			// Nothing to do
-			return nil
-		}
-
-		// Get installs that should be verified by this InstalledApplicationList command
-		installs, err := ds.GetVPPInstallsByVerificationUUID(ctx, installedAppResult.UUID())
+		// Get expectedInstalls that should be verified by this InstalledApplicationList command
+		expectedInstalls, err := ds.GetVPPInstallsByVerificationUUID(ctx, installedAppResult.UUID())
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				// Then something weird happened, so log it and exit (we can't do anything here in this case).
@@ -3795,33 +3790,32 @@ func NewInstalledApplicationListResultsHandler(
 			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
 		}
 
-		installsByBundleID := map[string]*fleet.HostVPPSoftwareInstall{}
-		for _, install := range installs {
+		installsByBundleID := map[string]fleet.Software{}
+		for _, install := range installedApps {
 			installsByBundleID[install.BundleIdentifier] = install
 		}
 
 		// We've handled the "no installs found" case above, and this is scoped to a single host via the host
 		// UUID, so this is OK.
-		hostID := installs[0].HostID
+		hostID := expectedInstalls[0].HostID
 
 		var poll, shouldRefetch bool
-		for _, a := range installedApps {
-			install, ok := installsByBundleID[a.BundleIdentifier]
-			if !ok {
-				continue
-			}
+		for _, expectedInstall := range expectedInstalls {
+			// If we don't find the app in the result, then we need to poll for it (within the timeout).
+			// These are not pointers, so no need to check `ok` here.
+			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
 
 			var terminalStatus string
 			switch {
-			case a.Installed:
-				if err := ds.SetVPPInstallAsVerified(ctx, install.HostID, install.InstallCommandUUID); err != nil {
+			case appFromResult.Installed:
+				if err := ds.SetVPPInstallAsVerified(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
 				terminalStatus = fleet.MDMAppleStatusAcknowledged
 				shouldRefetch = true
-			case install.InstallCommandAckAt != nil && time.Since(*install.InstallCommandAckAt) > verifyTimeout:
-				if err := ds.SetVPPInstallAsFailed(ctx, install.HostID, install.InstallCommandUUID); err != nil {
+			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
+				if err := ds.SetVPPInstallAsFailed(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
 
@@ -3836,16 +3830,16 @@ func NewInstalledApplicationListResultsHandler(
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
 			if updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, fleet.SetupExperienceVPPInstallResult{
 				HostUUID:      installedAppResult.HostUUID(),
-				CommandUUID:   install.InstallCommandUUID,
+				CommandUUID:   expectedInstall.InstallCommandUUID,
 				CommandStatus: terminalStatus,
 			}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
-				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", install.InstallCommandUUID)
+				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
 			}
 
 			// create an activity for installing only if we're in a terminal state
-			user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: install.InstallCommandUUID, Status: terminalStatus})
+			user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus})
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// Then this isn't a VPP install, so no activity generated
@@ -3883,7 +3877,6 @@ func NewInstalledApplicationListResultsHandler(
 			ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{CommandType: fleet.VerifySoftwareInstallVPPPrefix, HostID: hostID}),
 			"InstalledApplicationList handler: removing host mdm command",
 		)
-
 	}
 }
 
