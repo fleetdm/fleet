@@ -862,10 +862,11 @@ None.
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
-      "entity_id": "",
-      "metadata": "",
-      "metadata_url": "",
-      "idp_name": ""
+      "oauth_ropc": {
+        "client_id": "c58bd938-b49a-476a-892f-c4e543ad0f13",
+        "client_secret": "4343186974234aae99eb96d9ad588db741a81d8318494fee87e18b516fbdf7f9",
+        "endpoint_token_url": "https://login.microsoftonline.com/c58bd938-b49a-476a-892f-c4e543ad0f13/oauth2/v2.0/token"
+      }
     },
     "macos_migration": {
       "enable": false,
