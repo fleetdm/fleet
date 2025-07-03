@@ -320,7 +320,8 @@ Custom SCEP proxy:
 
 ## How to deploy certificates to a user's login keychain
 
-You can also upload a certificate to be installed in the login keychain of the currently logged-in user on a macOS host using a user-scoped configuration profile.
+You can also upload a certificate to be installed in the login keychain of the managed user on a
+macOS host using a user-scoped configuration profile.
 
 1. **Add your CA as before**
   Use the above steps to add integrate your CA with Fleet.

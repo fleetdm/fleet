@@ -50,8 +50,8 @@ Currently, Fleet supports hosts with one local user. If the host has multiple lo
 to Fleet during ADE or installs the enrollment profile during BYOD enrollment, User1's local user will get
 certificates.
 
-For configration profiles the default **PayloadScope** is **System**. You must assign **PayloadScope** to be
-**User** in your configuation profile to apply it to the user channel.
+For configuration profiles the default **PayloadScope** is **System**. You must assign **PayloadScope** to be
+**User** in your configuration profile to apply it to the user channel.
 
 Finally, only **.mobileconfig** configuration profiles are supported for the user channel. Support for declaration (DDM) profiles is coming soon.
 
