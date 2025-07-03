@@ -48,7 +48,7 @@ To configure automatic installation on your macOS devices you go to `Software` >
 
 !['Company Portal.app' automatic install](../website/assets/images/company-portal-automatic.png)
 
-You should also configure "Company Portal" as software package to deploy during "Setup Experience" for DEP/ABM devices.
+You should also configure "Company Portal" as a software package to deploy during "Setup Experience" for DEP/ABM devices.
 Go to `Controls` > `Setup experience` > `Install software` > `Add software`, select `Company Portal` for macOS and hit `Save`.
 
 ### Label "Company Portal installed"
