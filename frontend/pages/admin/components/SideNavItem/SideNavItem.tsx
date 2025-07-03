@@ -11,15 +11,13 @@ interface ISideNavItemProps {
 const baseClass = "side-nav-item";
 
 const SideNavItem = ({ title, path, isActive }: ISideNavItemProps) => {
-  const linkClassnames = classnames(`${baseClass}__nav-link`, {
-    "active-nav": isActive,
+  const wrapperClasses = classnames(baseClass, {
+    [`${baseClass}--active`]: isActive,
   });
 
   return (
-    <li className={baseClass}>
-      <Link className={linkClassnames} to={path}>
-        {title}
-      </Link>
+    <li className={wrapperClasses}>
+      <Link to={path}>{title}</Link>
     </li>
   );
 };

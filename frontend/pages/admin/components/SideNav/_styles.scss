@@ -10,11 +10,14 @@
     // TODO: find a way to calculate these sticky positions this and use variables.
     //  will be tedious to update otherwise.
     top: 217px;
-    width: 178px;
-    margin: 0;
-    padding: 0 110px 0 0;
+    width: 260px;
+    padding: 0 64px 0 0;
     list-style: none;
     font-size: $x-small;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    margin: 0;
   }
 
   &__card-container {
