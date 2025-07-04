@@ -34,9 +34,9 @@ const CategoriesMenu = ({
             className={classNames(`${baseClass}__category-link`, {
               [`${baseClass}__category-link--active`]: isActive,
             })}
+            key={cat.value ?? "all"}
           >
             <LinkWithContext
-              key={cat.value ?? "all"}
               withParams={{
                 type: "query",
                 names: ["query", "page", "category_id"],
