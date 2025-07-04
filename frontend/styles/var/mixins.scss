@@ -401,3 +401,52 @@ $max-width: 2560px;
     transform: rotate(315deg);
   }
 }
+
+@mixin side-nav-list {
+  position: -webkit-sticky;
+  position: sticky;
+  // this is the spacing needed to make the sticky form nav position correctly when scrolling
+  // TODO: find a way to calculate these sticky positions this and use variables.
+  //  will be tedious to update otherwise.
+  top: 217px;
+  width: 260px;
+  padding: 0 64px 0 0;
+  list-style: none;
+  font-size: $x-small;
+  display: flex;
+  flex-direction: column;
+  gap: $pad-small;
+  margin: 0;
+}
+
+@mixin side-nav-item {
+  white-space: nowrap;
+  height: 32px;
+  border-radius: 4px;
+
+  a {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 16px;
+    color: $core-fleet-black;
+    font-weight: $regular;
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      color: $core-vibrant-blue;
+    }
+  }
+
+  &--active {
+    background-color: $ui-fleet-black-5;
+    a {
+      font-weight: $bold;
+      color: $ui-fleet-black-75;
+      * > .__react_component_tooltip {
+        font-weight: initial;
+      }
+    }
+  }
+}
