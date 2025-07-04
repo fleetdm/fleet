@@ -1533,7 +1533,7 @@ WHERE
 			hsi.host_id = ? AND hsi.software_installer_id = ? AND hsi.canceled = 0)`
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostLastInstall, stmt, hostID, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get lastest past install")
+		return nil, ctxerr.Wrap(ctx, err, "get latest past install")
 	}
 
 	return &hostLastInstall, nil

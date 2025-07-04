@@ -253,10 +253,7 @@ const ConditionalAccess = () => {
     setIsUpdating(true);
     try {
       await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
-      renderFlash(
-        "success",
-        "Successfully disconnected from Miscrosoft Entra."
-      );
+      renderFlash("success", "Successfully disconnected from Microsoft Entra.");
       toggleDeleteConditionalAccessModal();
       refetchConfig();
     } catch {

@@ -1087,7 +1087,7 @@ const ManagePolicyPage = ({
         <>
           Select a team to manage
           <br />
-          condtional access.
+          conditional access.
         </>
       );
     } else if (
