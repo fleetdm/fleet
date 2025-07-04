@@ -408,7 +408,6 @@ func TestNeedFieldsPresent(t *testing.T) {
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			},
@@ -425,7 +424,6 @@ func TestShortIDPName(t *testing.T) {
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				// A customer once found the Fleet server erroring when they used "SSO" for their IdP name.
 				IDPName: "SSO",
@@ -442,9 +440,8 @@ func TestMissingMetadata(t *testing.T) {
 		SSOSettings: &fleet.SSOSettings{
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:  "fleet",
-				IssuerURI: "http://issuer.idp.com",
-				IDPName:   "onelogin",
+				EntityID: "fleet",
+				IDPName:  "onelogin",
 			},
 		},
 	}
@@ -487,7 +484,6 @@ func TestJITProvisioning(t *testing.T) {
 			EnableJITProvisioning: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				IDPName:     "onelogin",
 				MetadataURL: "http://isser.metadata.com",
 			},
@@ -1060,7 +1056,6 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
@@ -1068,7 +1063,6 @@ func TestMDMAppleConfig(t *testing.T) {
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "fleet",
-					IssuerURI:   "http://issuer.idp.com",
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
@@ -1095,7 +1089,6 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "f",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
@@ -1105,9 +1098,8 @@ func TestMDMAppleConfig(t *testing.T) {
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:  "fleet",
-				IssuerURI: "http://issuer.idp.com",
-				IDPName:   "onelogin",
+				EntityID: "fleet",
+				IDPName:  "onelogin",
 			}}},
 			expectedError: "either metadata or metadata_url must be defined",
 		}, {
@@ -1116,7 +1108,6 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				Metadata:    "not-empty",
 				MetadataURL: "not-empty",
 				IDPName:     "onelogin",
@@ -1127,9 +1118,8 @@ func TestMDMAppleConfig(t *testing.T) {
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:  "fleet",
-				IssuerURI: "http://issuer.idp.com",
-				Metadata:  "not-empty",
+				EntityID: "fleet",
+				Metadata: "not-empty",
 			}}},
 			expectedError: "idp_name required",
 		}, {

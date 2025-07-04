@@ -96,7 +96,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 			"mdm": {
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
-					"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 					"idp_name": "SimpleSAML",
 					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 				},
@@ -237,7 +236,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 			       }],
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
-					"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 					"idp_name": "SimpleSAML",
 					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 				},
@@ -3115,7 +3113,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			"mdm": {
 				"macos_updates": { "minimum_version": null, "deadline": null },
 				"macos_setup": { "enable_end_user_authentication": false },
-				"end_user_authentication": { "entity_id": "", "idp_name": "", "metadata_url": "", "issuer_uri": "", "metadata": "" }
+				"end_user_authentication": { "entity_id": "", "idp_name": "", "metadata_url": "", "metadata": "" }
 			}
 		}`), http.StatusOK, &acResp)
 	})

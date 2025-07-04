@@ -355,7 +355,6 @@ Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testin
 ### Configuration
 
 Configure SSO on the **Integration settings** page with the following:
-
 ```
 Identity Provider Name: SimpleSAML
 Entity ID: https://localhost:8080
@@ -363,7 +362,6 @@ Metadata URL: http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php
 ```
 
 The identity provider is configured with these users:
-
 ```
 Username: sso_user
 Email: sso_user@example.com
@@ -406,6 +404,12 @@ Password: user123#
 Use the Fleet UI to invite one of these users with the associated email. Be sure the "Enable single sign-on" box is checked for that user. Now, after accepting the invitation, you should be able to log in as that user by clicking "Sign on with SimpleSAML" on the login page.
 
 To add additional users, modify [tools/saml/users.php](https://github.com/fleetdm/fleet/tree/main/tools/saml/users.php) and restart the `simplesaml` container.
+
+### Testing IdP initiated login
+
+To test the "IdP initiated flow" with SimpleSAML you can visit the following URL on your browser:
+http://127.0.0.1:9080/simplesaml/saml2/idp/SSOService.php?spentityid=sso.test.com
+After login, SimpleSAML should redirect the user to Fleet.
 
 <meta name="pageOrderInSection" value="200">
 

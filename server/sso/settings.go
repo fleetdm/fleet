@@ -7,93 +7,34 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	dsigtypes "github.com/russellhaering/goxmldsig/types"
 )
 
-type Metadata struct {
-	XMLName          xml.Name         `xml:"urn:oasis:names:tc:SAML:2.0:metadata EntityDescriptor"`
-	EntityID         string           `xml:"entityID,attr"`
-	IDPSSODescriptor IDPSSODescriptor `xml:"IDPSSODescriptor"`
-}
+// GetMetadata returns the parsed IdP metadata from the config.MetadataURL or config.Metadata.
+// If config.MetadataURL is set, then it's used to request the metadata.
+// If config.MetadataURL is not set, then config.Metadata is used.
+func GetMetadata(config *fleet.SSOProviderSettings) (*saml.EntityDescriptor, error) {
+	if config.MetadataURL == "" && config.Metadata == "" {
+		return nil, fmt.Errorf("missing metadata for idp %q", config.IDPName)
+	}
 
-type IDPSSODescriptor struct {
-	XMLName             xml.Name              `xml:"urn:oasis:names:tc:SAML:2.0:metadata IDPSSODescriptor"`
-	KeyDescriptors      []KeyDescriptor       `xml:"KeyDescriptor"`
-	NameIDFormats       []NameIDFormat        `xml:"NameIDFormat"`
-	SingleSignOnService []SingleSignOnService `xml:"SingleSignOnService"`
-	Attributes          []Attribute           `xml:"Attribute"`
-}
-
-type KeyDescriptor struct {
-	XMLName xml.Name          `xml:"urn:oasis:names:tc:SAML:2.0:metadata KeyDescriptor"`
-	Use     string            `xml:"use,attr"`
-	KeyInfo dsigtypes.KeyInfo `xml:"KeyInfo"`
-}
-
-type NameIDFormat struct {
-	XMLName xml.Name `xml:"urn:oasis:names:tc:SAML:2.0:metadata NameIDFormat"`
-	Value   string   `xml:",chardata"`
-}
-
-type SingleSignOnService struct {
-	XMLName  xml.Name `xml:"urn:oasis:names:tc:SAML:2.0:metadata SingleSignOnService"`
-	Binding  string   `xml:"Binding,attr"`
-	Location string   `xml:"Location,attr"`
-}
-
-const (
-	PasswordProtectedTransport = "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport"
-	RedirectBinding            = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
-)
-
-type Settings struct {
-	Metadata *Metadata
-	// AssertionConsumerServiceURL is the call back on the service provider which responds
-	// to the IDP
-	AssertionConsumerServiceURL string
-	SessionStore                SessionStore
-	// SessionTTL determines how long (in seconds) a user has to complete SSO before the session is purged from Fleet
-	SessionTTL  uint
-	OriginalURL string
-}
-
-func GetMetadata(config *fleet.SSOProviderSettings) (*Metadata, error) {
+	var xmlMetadata []byte
 	if config.MetadataURL != "" {
-		metadata, err := getMetadata(config.MetadataURL)
+		var err error
+		xmlMetadata, err = getMetadata(config.MetadataURL)
 		if err != nil {
 			return nil, err
 		}
-		return metadata, nil
+	} else {
+		xmlMetadata = []byte(config.Metadata)
 	}
 
-	if config.Metadata != "" {
-		metadata, err := parseMetadata(config.Metadata)
-		if err != nil {
-			return nil, err
-		}
-		return metadata, nil
-	}
-
-	return nil, fmt.Errorf("missing metadata for idp %s", config.IDPName)
+	return ParseMetadata(xmlMetadata)
 }
 
-// parseMetadata writes metadata xml to a struct
-func parseMetadata(metadata string) (*Metadata, error) {
-	var md Metadata
-	err := xml.Unmarshal([]byte(metadata), &md)
-	if err != nil {
-		return nil, err
-	}
-	return &md, nil
-}
-
-// getMetadata retrieves information describing how to interact with a particular
-// IDP via a remote URL. metadataURL is the location where the metadata is located
-// and timeout defines how long to wait to get a response form the metadata
-// server.
-func getMetadata(metadataURL string) (*Metadata, error) {
+func getMetadata(metadataURL string) ([]byte, error) {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
 	request, err := http.NewRequest(http.MethodGet, metadataURL, nil)
 	if err != nil {
@@ -108,14 +49,17 @@ func getMetadata(metadataURL string) (*Metadata, error) {
 		return nil, fmt.Errorf("SAML metadata server at %s returned %s", metadataURL, resp.Status)
 	}
 	xmlData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return xmlData, nil
+}
 
-	if err != nil {
+// ParseMetadata parses SSO IdP metadata from the given raw XML bytes.
+func ParseMetadata(xmlMetadata []byte) (*saml.EntityDescriptor, error) {
+	var entityDescriptor saml.EntityDescriptor
+	if err := xml.Unmarshal(xmlMetadata, &entityDescriptor); err != nil {
 		return nil, err
 	}
-	var md Metadata
-	err = xml.Unmarshal(xmlData, &md)
-	if err != nil {
-		return nil, err
-	}
-	return &md, nil
+	return &entityDescriptor, nil
 }
