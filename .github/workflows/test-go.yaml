@@ -11,6 +11,8 @@ on:
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
+      - 'tools/osquery/in-a-box/docker-compose.yml'
+      - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
   pull_request:
@@ -19,6 +21,8 @@ on:
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
+      - 'tools/osquery/in-a-box/docker-compose.yml'
+      - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
   workflow_dispatch: # Manual

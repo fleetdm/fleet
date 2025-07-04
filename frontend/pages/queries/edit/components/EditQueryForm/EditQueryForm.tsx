@@ -7,9 +7,10 @@ import React, {
   useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
+import { Location } from "history";
 import { useQuery } from "react-query";
 
-import { pull, size } from "lodash";
+import { size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
 import { IAceEditor } from "react-ace/lib/types";
@@ -21,7 +22,6 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { NotificationContext } from "context/notification";
 
 import {
   addGravatarUrlToResource,
@@ -32,8 +32,6 @@ import {
   FREQUENCY_DROPDOWN_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
   LOGGING_TYPE_OPTIONS,
-  INVALID_PLATFORMS_REASON,
-  INVALID_PLATFORMS_FLASH_MESSAGE,
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
@@ -41,7 +39,6 @@ import { getPathWithQueryParams } from "utilities/url";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 
-import { getErrorReason, IApiError } from "interfaces/errors";
 import {
   ISchedulableQuery,
   ICreateQueryRequestBody,
@@ -49,7 +46,6 @@ import {
 } from "interfaces/schedulable_query";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 
-import queryAPI from "services/entities/queries";
 import labelsAPI, {
   getCustomLabels,
   ILabelsSummaryResponse,
@@ -73,18 +69,19 @@ import LogDestinationIndicator from "components/LogDestinationIndicator";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TargetLabelSelector from "components/TargetLabelSelector";
 
-import SaveQueryModal from "../SaveQueryModal";
+import SaveNewQueryModal from "../SaveNewQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 import DiscardDataOption from "../DiscardDataOption";
+import SaveAsNewQueryModal from "../SaveAsNewQueryModal";
 
 const baseClass = "edit-query-form";
 
 interface IEditQueryFormProps {
   router: InjectedRouter;
+  location: Location;
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
   currentTeamId?: number;
-  teamNameForQuery?: string;
   showOpenSchemaActionText: boolean;
   storedQuery: ISchedulableQuery | undefined;
   isStoredQueryLoading: boolean;
@@ -116,10 +113,10 @@ const validateQuerySQL = (query: string) => {
 
 const EditQueryForm = ({
   router,
+  location,
   queryIdForEdit,
   apiTeamIdForQuery,
   currentTeamId,
-  teamNameForQuery,
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
@@ -156,13 +153,11 @@ const EditQueryForm = ({
     setLastEditedQueryObserverCanRun,
     setLastEditedQueryFrequency,
     setLastEditedQueryAutomationsEnabled,
-    setLastEditedQueryPlatforms,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryLoggingType,
     setLastEditedQueryDiscardData,
     setEditingExistingQuery,
   } = useContext(QueryContext);
-
   const {
     currentUser,
     isOnlyObserver,
@@ -176,24 +171,22 @@ const EditQueryForm = ({
     config,
     isPremiumTier,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const savedQueryMode = !!queryIdForEdit;
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
-  // NOTE: SaveQueryModal is only being used to create a new query in this component.
-  // It's easy to confuse with other names like promptSaveQuery, promptSaveAsNewQuery, etc.,
-  // which are used in connection with existing (i.e. previously saved) queries rather
-  // than new queries. Consider renaming some things to distinguish the various flows.
-  const [showSaveQueryModal, setShowSaveQueryModal] = useState(false);
+  // handles saving a copy of an existing query as a new query
+  const [showSaveAsNewQueryModal, setShowSaveAsNewQueryModal] = useState(false);
+
+  // handles saving a brand new query
+  const [showSaveNewQueryModal, setShowSaveNewQueryModal] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
   );
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [queryWasChanged, setQueryWasChanged] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("");
@@ -206,6 +199,26 @@ const EditQueryForm = ({
     undefined,
     undefined
   );
+  const updateQueryData = {
+    name: lastEditedQueryName.trim(),
+    description: lastEditedQueryDescription,
+    query: lastEditedQueryBody,
+    platform: platformSelector
+      .getSelectedPlatforms()
+      .join(",") as CommaSeparatedPlatformString,
+    observer_can_run: lastEditedQueryObserverCanRun,
+    interval: lastEditedQueryFrequency,
+    automations_enabled: lastEditedQueryAutomationsEnabled,
+    min_osquery_version: lastEditedQueryMinOsqueryVersion,
+    logging: lastEditedQueryLoggingType,
+    discard_data: lastEditedQueryDiscardData,
+    labels_include_any:
+      selectedTargetType === "Custom"
+        ? Object.entries(selectedLabels)
+            .filter(([, selected]) => selected)
+            .map(([labelName]) => labelName)
+        : [],
+  };
 
   useEffect(() => {
     setSelectedTargetType(
@@ -257,12 +270,16 @@ const EditQueryForm = ({
     debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
 
-  const toggleSaveQueryModal = () => {
-    setShowSaveQueryModal(!showSaveQueryModal);
+  const toggleSaveNewQueryModal = () => {
+    setShowSaveNewQueryModal(!showSaveNewQueryModal);
   };
 
   const toggleConfirmSaveChangesModal = () => {
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
+  };
+
+  const toggleSaveAsNewQueryModal = () => {
+    setShowSaveAsNewQueryModal(!showSaveAsNewQueryModal);
   };
 
   const onLoad = (editor: IAceEditor) => {
@@ -348,113 +365,7 @@ const EditQueryForm = ({
     [setLastEditedQueryLoggingType]
   );
 
-  const promptSaveAsNewQuery = () => (
-    evt: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    evt.preventDefault();
-
-    if (savedQueryMode && !lastEditedQueryName) {
-      return setErrors({
-        ...errors,
-        name: "Query name must be present",
-      });
-    }
-
-    let valid = true;
-    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
-
-    valid = isValidated;
-
-    if (valid) {
-      const newPlatformString = platformSelector
-        .getSelectedPlatforms()
-        .join(",") as CommaSeparatedPlatformString;
-
-      setIsSaveAsNewLoading(true);
-      const apiProps = {
-        description: lastEditedQueryDescription,
-        query: lastEditedQueryBody,
-        team_id: apiTeamIdForQuery,
-        observer_can_run: lastEditedQueryObserverCanRun,
-        interval: lastEditedQueryFrequency,
-        automations_enabled: lastEditedQueryAutomationsEnabled,
-        platform: newPlatformString,
-        min_osquery_version: lastEditedQueryMinOsqueryVersion,
-        logging: lastEditedQueryLoggingType,
-        labels_include_any:
-          selectedTargetType === "Custom"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [],
-      };
-      queryAPI
-        .create({
-          name: lastEditedQueryName,
-          ...apiProps,
-        })
-        .then((response: { query: ISchedulableQuery }) => {
-          setIsSaveAsNewLoading(false);
-          router.push(
-            getPathWithQueryParams(PATHS.QUERY_DETAILS(response.query.id), {
-              team_id: response.query.team_id,
-            })
-          );
-          renderFlash("success", `Successfully added query.`);
-        })
-        .catch((createError: { data: IApiError }) => {
-          const createErrorReason = getErrorReason(createError);
-          if (createErrorReason.includes("already exists")) {
-            queryAPI
-              .create({
-                name: `Copy of ${lastEditedQueryName}`,
-                ...apiProps,
-              })
-              .then((response: { query: ISchedulableQuery }) => {
-                setIsSaveAsNewLoading(false);
-                router.push(
-                  getPathWithQueryParams(PATHS.EDIT_QUERY(response.query.id), {
-                    team_id: apiTeamIdForQuery,
-                  })
-                );
-                renderFlash(
-                  "success",
-                  `Successfully added query as "Copy of ${lastEditedQueryName}".`
-                );
-              })
-              .catch((createCopyError: { data: IApiError }) => {
-                if (
-                  getErrorReason(createCopyError).includes("already exists")
-                ) {
-                  let teamErrorText;
-                  if (apiTeamIdForQuery !== 0) {
-                    if (teamNameForQuery) {
-                      teamErrorText = `the ${teamNameForQuery} team`;
-                    } else {
-                      teamErrorText = "this team";
-                    }
-                  } else {
-                    teamErrorText = "all teams";
-                  }
-                  renderFlash(
-                    "error",
-                    `A query called "Copy of ${lastEditedQueryName}" already exists for ${teamErrorText}.`
-                  );
-                }
-                setIsSaveAsNewLoading(false);
-              });
-          } else if (createErrorReason.includes(INVALID_PLATFORMS_REASON)) {
-            setIsSaveAsNewLoading(false);
-            renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
-          } else {
-            setIsSaveAsNewLoading(false);
-            renderFlash("error", "Could not create query. Please try again.");
-          }
-        });
-    }
-  };
-
-  const promptSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
     if (savedQueryMode && !lastEditedQueryName) {
@@ -474,32 +385,9 @@ const EditQueryForm = ({
         platformSelector.setSelectedPlatforms(
           platformCompatibility.getCompatiblePlatforms()
         );
-        setShowSaveQueryModal(true);
+        setShowSaveNewQueryModal(true);
       } else {
-        const newPlatformString = platformSelector
-          .getSelectedPlatforms()
-          .join(",") as CommaSeparatedPlatformString;
-
-        onUpdate({
-          // name should already be trimmed at this point due to associated onBlurs, but this
-          // doesn't hurt
-          name: lastEditedQueryName.trim(),
-          description: lastEditedQueryDescription,
-          query: lastEditedQueryBody,
-          observer_can_run: lastEditedQueryObserverCanRun,
-          interval: lastEditedQueryFrequency,
-          automations_enabled: lastEditedQueryAutomationsEnabled,
-          platform: newPlatformString,
-          min_osquery_version: lastEditedQueryMinOsqueryVersion,
-          logging: lastEditedQueryLoggingType,
-          discard_data: lastEditedQueryDiscardData,
-          labels_include_any:
-            selectedTargetType === "Custom"
-              ? Object.entries(selectedLabels)
-                  .filter(([, selected]) => selected)
-                  .map(([labelName]) => labelName)
-              : [],
-        });
+        onUpdate(updateQueryData);
       }
     }
   };
@@ -823,7 +711,7 @@ const EditQueryForm = ({
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangeQuery}
             handleSubmit={
-              confirmChanges ? toggleConfirmSaveChangesModal : promptSaveQuery
+              confirmChanges ? toggleConfirmSaveChangesModal : handleSaveQuery
             }
             wrapEnabled
             focus={!savedQueryMode}
@@ -885,6 +773,9 @@ const EditQueryForm = ({
                     <b>
                       <LogDestinationIndicator
                         logDestination={config?.logging.result.plugin || ""}
+                        filesystemDestination={
+                          config?.logging.result.config?.result_log_file
+                        }
                         excludeTooltip
                       />
                     </b>
@@ -966,10 +857,8 @@ const EditQueryForm = ({
                     renderChildren={(disableChildren) => (
                       <Button
                         variant="text-link"
-                        onClick={promptSaveAsNewQuery()}
+                        onClick={toggleSaveAsNewQueryModal}
                         disabled={disableSaveFormErrors || disableChildren}
-                        className="save-as-new-loading"
-                        isLoading={isSaveAsNewLoading}
                       >
                         Save as new
                       </Button>
@@ -985,7 +874,7 @@ const EditQueryForm = ({
                         onClick={
                           confirmChanges
                             ? toggleConfirmSaveChangesModal
-                            : promptSaveQuery()
+                            : handleSaveQuery()
                         }
                         disabled={disableSaveFormErrors || disableChildren}
                         isLoading={isQueryUpdating}
@@ -1042,21 +931,32 @@ const EditQueryForm = ({
             </ReactTooltip>
           </div>
         </form>
-        {showSaveQueryModal && (
-          <SaveQueryModal
+        {showSaveNewQueryModal && (
+          <SaveNewQueryModal
             queryValue={lastEditedQueryBody}
             apiTeamIdForQuery={apiTeamIdForQuery}
             saveQuery={onSubmitNewQuery}
-            toggleSaveQueryModal={toggleSaveQueryModal}
+            toggleSaveNewQueryModal={toggleSaveNewQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}
             queryReportsDisabled={queryReportsDisabled}
             platformSelector={platformSelector}
           />
         )}
+        {showSaveAsNewQueryModal && (
+          <SaveAsNewQueryModal
+            router={router}
+            location={location}
+            initialQueryData={{
+              ...updateQueryData,
+              team_id: apiTeamIdForQuery,
+            }}
+            onExit={toggleSaveAsNewQueryModal}
+          />
+        )}
         {showConfirmSaveChangesModal && (
           <ConfirmSaveChangesModal
-            onSaveChanges={promptSaveQuery()}
+            onSaveChanges={handleSaveQuery()}
             isUpdating={isQueryUpdating}
             onClose={toggleConfirmSaveChangesModal}
             showChangedSQLCopy={showChangedSQLCopy}

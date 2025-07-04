@@ -1,0 +1,1 @@
+* Added missing team_name property on /api/v1/fleet/hosts/identifier/:id endpoint.

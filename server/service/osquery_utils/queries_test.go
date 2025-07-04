@@ -2243,3 +2243,26 @@ func TestLuksVerifyQueryIngester(t *testing.T) {
 		})
 	}
 }
+
+func TestUserIngestNoUID(t *testing.T) {
+	ctx := context.Background()
+	host := fleet.Host{ID: 1}
+	ds := new(mock.Store)
+	savedUsers := 0
+
+	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+		savedUsers = len(users)
+		return nil
+	}
+
+	input := []map[string]string{
+		{"uid": "1000", "shell": "/bin/sh"},
+		// Missing uid
+		{"shell": "/bin/sh"},
+	}
+
+	err := usersQuery.DirectIngestFunc(ctx, nil, &host, ds, input)
+	require.NoError(t, err)
+	// Saved the good user, ignored the one missing a uid
+	require.Equal(t, 1, savedUsers)
+}

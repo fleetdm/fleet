@@ -10,9 +10,6 @@ export default {
   getPolicyInterpretationFromSQL: (sql: string): Promise<IAutofillPolicy> => {
     const { AUTOFILL_POLICY } = endpoints;
 
-    // API expects JSON object with key "sql"
-    const data = JSON.stringify({ sql });
-
-    return sendRequest("POST", AUTOFILL_POLICY, data);
+    return sendRequest("POST", AUTOFILL_POLICY, { sql });
   },
 };

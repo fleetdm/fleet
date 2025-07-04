@@ -90,8 +90,12 @@ export default {
   SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
 
   // Label pages
+  NEW_LABEL: `${URL_PREFIX}/labels/new`,
+  // deprecated - now handled by `/new` route
   LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,
+  // deprecated - now handled by `/new` route
   LABEL_NEW_MANUAL: `${URL_PREFIX}/labels/new/manual`,
+
   LABEL_EDIT: (labelId: number) => `${URL_PREFIX}/labels/${labelId}`,
 
   EDIT_PACK: (packId: number): string => {
@@ -123,14 +127,23 @@ export default {
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
-  HOST_DETAILS: (id: number): string => {
+  HOST_DETAILS_PAGE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}`;
+  },
+  HOST_DETAILS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/details`;
   },
   HOST_SCRIPTS: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/scripts`;
   },
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;
+  },
+  HOST_INVENTORY: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/software/inventory`;
+  },
+  HOST_LIBRARY: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/software/library`;
   },
   HOST_QUERIES: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/queries`;
@@ -176,7 +189,6 @@ export default {
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
   MANAGE_SCHEDULE: `${URL_PREFIX}/schedule/manage`,
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
-  NEW_LABEL: `${URL_PREFIX}/labels/new`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,

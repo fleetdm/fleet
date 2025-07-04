@@ -3,7 +3,7 @@
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 imageRepository: fleetdm/fleet
-imageTag: v4.68.1 # Version of Fleet to deploy
+imageTag: v4.70.0 # Version of Fleet to deploy
 # imagePullSecrets is optional.
 # imagePullSecrets:
 #   - name: docker
@@ -95,20 +95,36 @@ fleet:
     debug: false
     json: false
     disableBanner: false
+  mdm:
+    windows:
+      wstepIdentityCertKey: ""
+      wstepIdentityKeyKey: ""
   carving:
     s3:
       bucketName: ""
       prefix: ""
       accessKeyID: ""
       secretKey: s3-bucket
+      endpointURL: ""
+      forceS3PathStyle: false
+      stsAssumeRoleARN: ""
+  softwareInstallers:
+    s3:
+      bucketName: ""
+      prefix: ""
+      accessKeyID: ""
+      secretKey: software-installers
+      endpointURL: ""
+      forceS3PathStyle: false
       stsAssumeRoleARN: ""
   license:
     secretName: ""
     licenseKey: license-key
   extraVolumes: []
   extraVolumeMounts: []
-  # Currently only passes runAsUser and runAsGroup
+  # Currently only passes runAsNonRoot, runAsUser, runAsGroup
   securityContext:
+    runAsNonRoot: true
     runAsUser: 3333
     runAsGroup: 3333
 # Whether to make fleet vulnerability processing run in a dedicated container
@@ -202,6 +218,33 @@ database:
     # keyKey: client.key
     config: ""
     serverName: ""
+
+## Section: database_read_replica:
+# All of the connection settings for MySQL read replica
+# Commented options are optional. Uncomment to use.
+# database_read_replica:
+#  # Name of the Secret resource containing MySQL password and TLS secrets
+#  address: 127.0.0.1:3306
+#  database: fleet
+#  username: fleet-ro
+#  ## Password configuration. Pick whether you'd like to load from secret or from an accessible mount path.
+#  ## Added from Secret
+#  secretName: mysql-ro
+#  passwordKey: mysql-ro-password
+#  ## Added from Mount Path
+#  passwordPath: /path/to/password
+#  maxOpenConns: 50
+#  maxIdleConns: 50
+#  connMaxLifetime: 0
+#  tls:
+#    enabled: false
+#    ## Commented options below are optional.  Uncomment to use.
+#    # caCertKey: ca.cert
+#    ## Client certificates require both the certKey and keyKey
+#    # certKey: client.cert
+#    # keyKey: client.key
+#    config: ""
+#    serverName: ""
 
 ## Section: cache
 # All of the connection settings for Redis

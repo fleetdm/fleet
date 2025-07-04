@@ -135,7 +135,7 @@ module.exports.custom = {
     'it-and-security': 'allenhouchins',
 
     // 🫧 Articles and release notes
-    'articles': 'mikermcneil',
+    'articles': 'rachaelshaw',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -182,15 +182,14 @@ module.exports.custom = {
     '.gitignore': 'sampfluger88',// « what files should not be checked in?
 
     // 🌐 Handbook
-    //'handbook': 'mikermcneil', Covered in CODEOWNERS (#16972 2024-02-19)
+    //'handbook': 'samfp', Covered in CODEOWNERS (#16972 2024-02-19)
 
 
     // 🌐 GitHub issue templates
     '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
     // 💝 Fleet-maintained apps
-    'ee/maintained-apps/inputs': 'mostlikelee',
-    'ee/maintained-apps/outputs': 'eugkuo',
+    'ee/maintained-apps/inputs': 'rachelelysia',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -424,11 +423,17 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
+
   // Microsoft compliance proxy
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
   // cloudCustomerCompliancePartnerSharedSecret: '…',
 
-  //…
+
+  // Android proxy
+  // androidEnterpriseProjectId: '…',
+  // androidEnterpriseServiceAccountEmailAddress: '…',
+  // androidEnterpriseServiceAccountPrivateKey: '…',
+
 
 };

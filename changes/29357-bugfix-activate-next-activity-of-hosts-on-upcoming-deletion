@@ -1,1 +1,0 @@
-* Fixed a bug where deleting an upcoming activity did not ensure the upcoming activities queue made progress in some cases.
