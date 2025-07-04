@@ -5,7 +5,7 @@ _Available in Fleet Premium_
 Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
 Fleet will automatically renew certificates 30 days before expiration. If an end user is on vacation (offline more than 30 days), their certificate might expire and they'll lose access to Wi-Fi or VPN. To get them reconnected, ask your end users to momentarily connect to a different network so that Fleet can deliver a new certificate.
- 
+
 > For information on adding a certificate authority (CA) via GitOps, see the [GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files#integrations).
 
 ## DigiCert
@@ -290,7 +290,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 ## How the SCEP proxy works
 
-Fleet acts as a middleman between the host and the NDES or custom SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or custom SCEP server, retrieves the certificate, and sends it back to the host. 
+Fleet acts as a middleman between the host and the NDES or custom SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or custom SCEP server, retrieves the certificate, and sends it back to the host.
 
 Certificates will appear in the System Keychain on macOS. During the profile installation, the OS generates several temporary certificates needed for the SCEP protocol. These certificates may be briefly visible in the Keychain Access app on macOS. The CA certificate must also be installed and marked as trusted on the device for the issued certificate to appear as trusted. The IT admin can send the CA certificate in a separate [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc)
 
@@ -305,17 +305,34 @@ NDES SCEP proxy:
 
 Custom SCEP proxy:
 
-- Generates a one-time passcode that is added to the URL in the SCEP profile. 
-  - When a host makes a certificate request via the URL, the passcode is validated by Fleet prior to retrieving a certificate from the custom SCEP server. 
+- Generates a one-time passcode that is added to the URL in the SCEP profile.
+  - When a host makes a certificate request via the URL, the passcode is validated by Fleet prior to retrieving a certificate from the custom SCEP server.
   - This Fleet-managed passcode is valid for 60 minutes. Fleet automatically resends the SCEP profile
     to the host with a new passcode if the host requests a certificate after the passcode has expired.
-  - The static challenge configured for the custom SCEP server remains in the SCEP profile. 
+  - The static challenge configured for the custom SCEP server remains in the SCEP profile.
 
 
 
 ## Assumptions and limitations
+
 * NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
+
+## How to deploy certificates to a user's login keychain
+
+You can also upload a certificate to be installed in the login keychain of the managed user on a
+macOS host using a user-scoped configuration profile.
+
+1. **Add your CA as before**
+  Use the above steps to add integrate your CA with Fleet.
+1. **Create a certificate payload**
+  Use your preferred tool (e.g., Apple Configurator or a `.mobileconfig` generator) to create a configuration profile that includes your certificate.
+2. **Ensure the payload is scoped to the user**
+  In the payload, set the `PayloadScope` to `User`. This tells macOS to install the certificate in the user’s login keychain instead of the system keychain.
+3. **Upload the configuration profile to Fleet**
+  Navigate to **Controls > OS settings > Custom settings** in the Fleet UI. Upload the `.mobileconfig` profile you created.
+4. **Assign the profile to the correct hosts**
+  Use Fleet’s targeting filters to assign the profile to the appropriate hosts. The certificate will be installed in the login keychain of the user currently logged in on each device.
 
 <meta name="articleTitle" value="Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, or custom SCEP)">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
