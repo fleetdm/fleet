@@ -27,9 +27,10 @@ describe("Integrations Page", () => {
         <IntegrationsPage router={mockRouter} params={{ section: "mdm" }} />
       );
 
+      // sidenave label, sidenav tooltip, and card header
       expect(
         screen.getAllByText("Mobile device management (MDM)")
-      ).toHaveLength(2);
+      ).toHaveLength(3);
     });
   });
   describe("Conditional access", () => {
@@ -52,7 +53,7 @@ describe("Integrations Page", () => {
 
       expect(screen.queryByText("Conditional access")).toBeNull();
     });
-    // TODO - get working
+
     it("renders the Conditional access sidenav for managed cloud Fleet instances", () => {
       const mockRouter = createMockRouter();
       const mockConfig = createMockConfig();
@@ -68,7 +69,8 @@ describe("Integrations Page", () => {
 
       render(<IntegrationsPage router={mockRouter} params={{}} />);
 
-      expect(screen.queryByText("Conditional access")).toBeInTheDocument();
+      // sidenave label, sidenav tooltip
+      expect(screen.getAllByText("Conditional access")).toHaveLength(2);
     });
   });
 });
