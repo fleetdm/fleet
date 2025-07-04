@@ -36,12 +36,10 @@
 
   // Adjusts for edge cases of extra long MDM server URL and used by email
   .info-flex {
-    display: flex;
-    flex-direction: column;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template: auto / 1fr 1fr;
     gap: $pad-medium $pad-xxlarge;
     max-height: 350px;
-    align-content: flex-start;
 
     .data-set {
       min-width: none;
@@ -50,20 +48,6 @@
     dd,
     .component__tooltip-wrapper__element {
       max-width: 350px;
-    }
-
-    @media (min-width: $break-md) {
-      dd,
-      .component__tooltip-wrapper__element {
-        max-width: 245px;
-      }
-    }
-
-    @media (min-width: $break-lg) {
-      dd,
-      .component__tooltip-wrapper__element {
-        max-width: 500px;
-      }
     }
   }
 
