@@ -1412,6 +1412,8 @@ type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint
 
 type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
+type CertBySerialNumberFunc func(ctx context.Context, serialNumber uint64) (string, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3497,6 +3499,9 @@ type DataStore struct {
 
 	SetHostConditionalAccessStatusFunc        SetHostConditionalAccessStatusFunc
 	SetHostConditionalAccessStatusFuncInvoked bool
+
+	CertBySerialNumberFunc        CertBySerialNumberFunc
+	CertBySerialNumberFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8364,4 +8369,11 @@ func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID u
 	s.SetHostConditionalAccessStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostConditionalAccessStatusFunc(ctx, hostID, managed, compliant)
+}
+
+func (s *DataStore) CertBySerialNumber(ctx context.Context, serialNumber uint64) (string, error) {
+	s.mu.Lock()
+	s.CertBySerialNumberFuncInvoked = true
+	s.mu.Unlock()
+	return s.CertBySerialNumberFunc(ctx, serialNumber)
 }
