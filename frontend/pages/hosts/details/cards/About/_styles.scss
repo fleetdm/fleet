@@ -53,8 +53,6 @@
     }
 
     @media (min-width: $break-md) {
-      max-height: 250px;
-
       dd,
       .component__tooltip-wrapper__element {
         max-width: 245px;
@@ -62,8 +60,6 @@
     }
 
     @media (min-width: $break-lg) {
-      max-height: 200px;
-
       dd,
       .component__tooltip-wrapper__element {
         max-width: 500px;
