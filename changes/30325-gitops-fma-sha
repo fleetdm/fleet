@@ -1,0 +1,1 @@
+* Fixed a bug where Fleet-maintained app updates via GitOps wouldn't pull the latest version of Google Chrome on each run, and would display an invalid SHA256 hash in the UI and API
