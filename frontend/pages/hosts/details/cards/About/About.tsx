@@ -60,14 +60,17 @@ const About = ({
           title="Serial number"
           value={<TooltipTruncatedText value={aboutData.hardware_serial} />}
         />
-        <DataSet title="Private IP address" value={aboutData.primary_ip} />
+        <DataSet
+          title="Private IP address"
+          value={<TooltipTruncatedText value={aboutData.primary_ip} />}
+        />
         <DataSet
           title={
             <TooltipWrapper tipContent="The IP address the host uses to connect to Fleet.">
               Public IP address
             </TooltipWrapper>
           }
-          value={aboutData.public_ip}
+          value={<TooltipTruncatedText value={aboutData.public_ip} />}
         />
       </>
     );
@@ -163,7 +166,7 @@ const About = ({
       includeShadow
     >
       <CardHeader header="About" />
-      <div className="info-flex">
+      <div className={`${baseClass}__info-grid`}>
         <DataSet
           title="Added to Fleet"
           value={
