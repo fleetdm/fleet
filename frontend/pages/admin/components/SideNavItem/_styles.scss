@@ -1,28 +1,3 @@
 .side-nav-item {
-  white-space: nowrap;
-  height: 32px;
-  border-radius: 4px;
-
-  a {
-    display: flex;
-    align-items: center;
-    height: 100%;
-    padding: 0 16px;
-    color: $core-fleet-black;
-    font-weight: $regular;
-    text-decoration: none;
-    cursor: pointer;
-
-    &:hover {
-      color: $core-vibrant-blue;
-    }
-  }
-
-  &--active {
-    background-color: $ui-fleet-black-5;
-    a {
-      font-weight: $bold;
-      color: $ui-fleet-black-75;
-    }
-  }
+  @include side-nav-item;
 }
