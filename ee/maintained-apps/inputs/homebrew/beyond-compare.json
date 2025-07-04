@@ -1,0 +1,8 @@
+{
+  "name": "Beyond Compare",
+  "slug": "beyond-compare/darwin",
+  "unique_identifier": "com.scootersoftware.BeyondCompare",
+  "token": "beyond-compare",
+  "installer_format": "zip",
+  "default_categories": ["Developer tools"]
+} 
