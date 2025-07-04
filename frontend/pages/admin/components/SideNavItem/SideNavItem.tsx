@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router";
 import classnames from "classnames";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 interface ISideNavItemProps {
   title: string;
@@ -17,7 +18,9 @@ const SideNavItem = ({ title, path, isActive }: ISideNavItemProps) => {
 
   return (
     <li className={wrapperClasses}>
-      <Link to={path}>{title}</Link>
+      <Link to={path}>
+        <TooltipTruncatedText value={title} tooltipPosition="right" />
+      </Link>
     </li>
   );
 };

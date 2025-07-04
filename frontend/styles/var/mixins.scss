@@ -444,6 +444,9 @@ $max-width: 2560px;
     a {
       font-weight: $bold;
       color: $ui-fleet-black-75;
+      * > .__react_component_tooltip {
+        font-weight: initial;
+      }
     }
   }
 }

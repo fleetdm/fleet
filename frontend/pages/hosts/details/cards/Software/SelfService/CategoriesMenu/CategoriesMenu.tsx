@@ -2,6 +2,8 @@ import React from "react";
 import classNames from "classnames";
 
 import LinkWithContext from "components/LinkWithContext";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+
 import { parseHostSoftwareQueryParams } from "../../HostSoftware";
 import { ICategory } from "../helpers";
 
@@ -46,7 +48,7 @@ const CategoriesMenu = ({
               }}
               to={location.pathname}
             >
-              <span data-text="">{cat.label}</span>
+              <TooltipTruncatedText value={cat.label} tooltipPosition="right" />
             </LinkWithContext>
           </li>
         );
