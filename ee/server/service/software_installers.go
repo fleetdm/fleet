@@ -1678,7 +1678,6 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	}
 
 	payload.URL = app.InstallerURL
-	payload.SHA256 = app.SHA256
 	payload.InstallScript = app.InstallScript
 	payload.UninstallScript = app.UninstallScript
 	payload.FleetMaintained = true

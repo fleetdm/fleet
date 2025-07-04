@@ -11859,6 +11859,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		UniqueIdentifier: "com.1password.1password",
 	})
 	require.NoError(t, err)
+	maintained2, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Google Chrome",
+		Slug:             "google-chrome/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.google.Chrome",
+	})
+	require.NoError(t, err)
 
 	// basic fleet maintained app
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
@@ -11869,6 +11876,19 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
 	require.NotNil(t, packages[0].URL)
+	require.Nil(t, packages[0].TeamID)
+
+	// maintained app with no_check for sha
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
+		{Slug: &maintained2.Slug},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.NotNil(t, packages[0].URL)
+	require.NotNil(t, packages[0].HashSHA256)
+	require.NotEqual(t, "no_check", packages[0].HashSHA256)
 	require.Nil(t, packages[0].TeamID)
 
 	// with a team
