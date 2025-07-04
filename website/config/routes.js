@@ -400,7 +400,7 @@ module.exports.routes = {
     action: 'view-software-management',
     locals: {
       pageTitleForMeta: 'Software management',
-      pageDescriptionForMeta: 'Pick from a curated app library or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.',
+      pageDescriptionForMeta: 'Pick from a curated software catalog or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.',
       currentSection: 'platform',
     }
   },
@@ -461,7 +461,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /app-library': {
+  'GET /software-catalog': {
     action: 'view-app-library',
     locals: {
       pageTitleForMeta: 'Software',
@@ -469,7 +469,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /app-library/:appIdentifier': {
+  'GET /software-catalog/:appIdentifier': {
     action: 'view-app-details',// Meta title and description set in view action
   },
 
@@ -723,7 +723,12 @@ module.exports.routes = {
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
-
+  'GET /app-library': '/software-catalog',
+  'GET /app-library/:appIdentifier': {
+    fn: (req,res)=> {
+      return res.redirect('/software-catalog/'+req.param('appIdentifier'));
+    }
+  },
   // Release note article redirects.
   'GET /releases/fleet-3.10.0': '/releases/fleet-3-10-0',
   'GET /releases/fleet-3.12.0': '/releases/fleet-3-12-0',
@@ -845,6 +850,7 @@ module.exports.routes = {
   'GET /vulnerability-management': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/software-management'+originalQueryString);},
   'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
   'GET /observability': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
+
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
