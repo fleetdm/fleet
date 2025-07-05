@@ -77,6 +77,17 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	for sha1, incoming := range incomingBySHA1 {
 		incomingSources := incomingSourcesBySHA1[sha1]
 		existingSources := existingSourcesBySHA1[sha1]
+
+		// sort by keychain (user/system) and username to ensure consistent ordering
+		sliceSortFunc := func(a, b certSourceToSet) int {
+			if a.Source != b.Source {
+				return strings.Compare(string(a.Source), string(b.Source))
+			}
+			return strings.Compare(a.Username, b.Username)
+		}
+		slices.SortFunc(incomingSources, sliceSortFunc)
+		slices.SortFunc(existingSources, sliceSortFunc)
+
 		if !slices.Equal(incomingSources, existingSources) {
 			toSetSourcesBySHA1[sha1] = incomingSources
 		}
