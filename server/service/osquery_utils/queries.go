@@ -1333,20 +1333,17 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 
 				// Skip some install paths where binaries live but can't be well correlated to programs
 				if skipInstallPaths[path] {
-					fmt.Println("Skipping install path:", path)
 					continue
 				}
 
 				for _, prefetchResult := range prefetchResults {
 					prefetchPath := strings.ToLower(prefetchResult["executable_path"])
 					if strings.Contains(prefetchPath, path) {
-						fmt.Println("found prefetch for install path:", path, "->", prefetchPath, prefetchResult["last_opened_at"])
 						// Some programs will have multiple prefetch entries matching their install
 						// path, so we compare the last_opened_at values and keep the more recent.
 						result["last_opened_at"] = maxString(result["last_opened_at"], prefetchResult["last_opened_at"])
 					}
 				}
-				fmt.Println("Final last_opened_at for", result["installed_path"], ":", result["last_opened_at"])
 			}
 
 			return mainSoftwareResults
