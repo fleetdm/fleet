@@ -141,7 +141,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 
 		if len(toSetSourcesBySHA1) > 0 {
 			// must reload the DB IDs to insert the host_certificates_sources rows
-			certIDsBySHA1, err := loadHostCertIDsForSHA1DB(ctx, tx, slices.Collect(maps.Keys(toSetSourcesBySHA1)))
+			certIDsBySHA1, err := loadHostCertIDsForSHA1DB(ctx, tx, hostID, slices.Collect(maps.Keys(toSetSourcesBySHA1)))
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "load host certs ids")
 			}
@@ -172,7 +172,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	})
 }
 
-func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, sha1s []string) (map[string]uint, error) {
+func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostID uint, sha1s []string) (map[string]uint, error) {
 	if len(sha1s) == 0 {
 		return nil, nil
 	}
@@ -190,10 +190,11 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, sha1s
 	FROM
 		host_certificates hc
 	WHERE
-		hc.sha1_sum IN (?)`
+		hc.sha1_sum IN (?) AND hc.host_id = ?`
 
 	var certs []*fleet.HostCertificateRecord
-	stmt, args, err := sqlx.In(stmt, binarySHA1s)
+	stmt, args, err := sqlx.In(stmt, binarySHA1s, hostID)
+
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building load host cert ids query")
 	}
