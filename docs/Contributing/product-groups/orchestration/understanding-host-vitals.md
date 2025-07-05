@@ -950,6 +950,21 @@ SELECT
 FROM chocolatey_packages
 ```
 
+## software_windows_last_opened_at
+
+- Description: A software override query[^1] to append last_opened_at information to Windows software entries.
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT
+		  MAX(last_run_time) AS last_opened_at,
+		  REGEX_MATCH(accessed_files, "VOLUME[^\\]+([^,]+"||filename||")", 1) AS executable_path
+		FROM prefetch
+		GROUP BY executable_path
+```
+
 ## system_info
 
 - Platforms: all
