@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -29,16 +30,17 @@ func TestBatchHostnamesSmall(t *testing.T) {
 
 func TestBatchHostnamesLarge(t *testing.T) {
 	large := []string{}
-	for i := 0; i < 230000; i++ {
+	for i := range 110_000 {
 		large = append(large, strconv.Itoa(i))
 	}
 	batched := batchHostnames(large)
-	require.Equal(t, 5, len(batched))
-	assert.Equal(t, large[:50000], batched[0])
-	assert.Equal(t, large[50000:100000], batched[1])
-	assert.Equal(t, large[100000:150000], batched[2])
-	assert.Equal(t, large[150000:200000], batched[3])
-	assert.Equal(t, large[200000:230000], batched[4])
+	require.Equal(t, 6, len(batched))
+	assert.Equal(t, large[:20_000], batched[0])
+	assert.Equal(t, large[20_000:40_000], batched[1])
+	assert.Equal(t, large[40_000:60_000], batched[2])
+	assert.Equal(t, large[60_000:80_000], batched[3])
+	assert.Equal(t, large[80_000:100_000], batched[4])
+	assert.Equal(t, large[100_000:110_000], batched[5])
 }
 
 func TestBatchHostIdsSmall(t *testing.T) {
@@ -94,6 +96,8 @@ func TestLabels(t *testing.T) {
 		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
+		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
+		{"UpdateLabelMembershipByHostCriteria", testUpdateLabelMembershipByHostCriteria},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -530,6 +534,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryVerifying,
 			Checksum:          []byte("csum"),
+			Scope:             fleet.PayloadScopeSystem,
 		},
 	}))
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 1) // h1
@@ -549,6 +554,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryVerifying,
 			Checksum:          []byte("csum"),
+			Scope:             fleet.PayloadScopeSystem,
 		},
 	}))
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 1) // h1
@@ -627,6 +633,14 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 	require.Len(t, labels, 2)
 	for _, l := range labels {
 		assert.True(t, l.HostCount > 0)
+	}
+
+	// If an empty team filter is used, all hosts should be returned.
+	labelsNoTeamFilter, err := db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	require.Nil(t, err)
+	require.Len(t, labelsNoTeamFilter, 2)
+	for _, l := range labelsNoTeamFilter {
+		assert.True(t, l.HostCount == 0)
 	}
 
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
@@ -1952,4 +1966,174 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.Hostname, labelSpec.Hosts[0])
 	require.Equal(t, host2.Hostname, labelSpec.Hosts[1])
 	require.Equal(t, host3.Hostname, labelSpec.Hosts[2])
+}
+
+func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("1"),
+		NodeKey:        ptr.String("1"),
+		UUID:           "1",
+		Hostname:       "foo.local",
+		HardwareSerial: "hwd1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("2"),
+		NodeKey:        ptr.String("2"),
+		UUID:           "2",
+		Hostname:       "bar.local",
+		HardwareSerial: "hwd2",
+		Platform:       "windows",
+	})
+	require.NoError(t, err)
+	host3, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("3"),
+		NodeKey:        ptr.String("3"),
+		UUID:           "uuid3",
+		Hostname:       "baz.local",
+		HardwareSerial: "hwd3",
+		Platform:       "windows",
+	})
+	require.NoError(t, err)
+
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "label1",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts: []string{
+				"foo.local",
+				"hwd2",
+				"uuid3",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 3)
+	require.Equal(t, host1.ID, hosts[0].ID)
+	require.Equal(t, host2.ID, hosts[1].ID)
+	require.Equal(t, host3.ID, hosts[2].ID)
+}
+
+type TestHostVitalsLabel struct {
+	fleet.Label
+}
+
+func (t *TestHostVitalsLabel) CalculateHostVitalsQuery() (string, []interface{}, error) {
+	return "SELECT %s FROM %s JOIN host_users ON (host_users.host_id = hosts.id) WHERE host_users.username = ?", []interface{}{"user1"}, nil
+}
+
+func (t *TestHostVitalsLabel) GetLabel() *fleet.Label {
+	return &t.Label
+}
+
+func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hosts := make([]*fleet.Host, 4)
+	for i := 1; i <= 4; i++ {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  ptr.String(fmt.Sprintf("%d", i)),
+			NodeKey:        ptr.String(fmt.Sprintf("%d", i)),
+			UUID:           fmt.Sprintf("uuid%d", i),
+			Hostname:       fmt.Sprintf("host%d.local", i),
+			HardwareSerial: fmt.Sprintf("hwd%d", i),
+			Platform:       "darwin",
+		})
+		require.NoError(t, err)
+		hosts[i-1] = host
+	}
+	// Add users to the hosts
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+		INSERT INTO host_users (host_id, uid, username) VALUES 
+		(?, ?, ?), 
+		(?, ?, ?), 
+		(?, ?, ?), 
+		(?, ?, ?),
+		(?, ?, ?)`,
+			hosts[0].ID, 1, "user1",
+			hosts[1].ID, 2, "user2",
+			hosts[2].ID, 1, "user1",
+			hosts[2].ID, 3, "user3",
+			hosts[3].ID, 3, "user3")
+		return err
+	})
+
+	criteria, err := json.Marshal(&fleet.HostVitalCriteria{
+		Vital: ptr.String("username"),
+		Value: ptr.String("user1"),
+	})
+	require.NoError(t, err)
+
+	var id uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		result, err := q.ExecContext(context.Background(),
+			"INSERT INTO labels (name, description, platform, label_type, label_membership_type) VALUES (?, ?, ?, ?, ?)",
+			"test host vitals label", "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals)
+		if err != nil {
+			return err
+		}
+		id64, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+		id = uint(id64) // nolint:gosec
+		return nil
+	})
+
+	label := &TestHostVitalsLabel{
+		Label: fleet.Label{
+			ID:                  id,
+			Name:                "Test Host Vitals Label",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  ptr.RawMessage(criteria),
+		},
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	updatedLabel, err := ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+	require.NoError(t, err)
+	require.Equal(t, 2, updatedLabel.HostCount)
+
+	// Check that the label has the correct hosts
+	hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hostsInLabel, 2) // Only hosts 1 and 3 should match the criteria (user1)
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[2].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID})
+
+	// Update host users.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+		INSERT INTO host_users (host_id, uid, username) VALUES 
+		(?, ?, ?), 
+		(?, ?, ?),
+		(?, ?, ?) ON DUPLICATE KEY UPDATE username = VALUES(username), uid = VALUES(uid)`,
+			hosts[0].ID, 2, "user2",
+			hosts[1].ID, 1, "user1",
+			hosts[3].ID, 1, "user1")
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+		DELETE FROM host_users WHERE host_id = ? AND uid = ?`,
+			hosts[0].ID, 1) // Remove user1 from host 1
+		return err
+	})
+	updatedLabel, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+	require.NoError(t, err)
+	require.Equal(t, 3, updatedLabel.HostCount)
+
+	// Check that the label has the correct hosts
+	hostsInLabel, err = ds.ListHostsInLabel(ctx, filter, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hostsInLabel, 3) // Only hosts 2, 3 and 4 should match the criteria (user1)
+	require.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID, hostsInLabel[2].ID})
 }

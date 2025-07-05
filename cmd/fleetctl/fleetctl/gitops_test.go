@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	digicert_mock "github.com/fleetdm/fleet/v4/server/mock/digicert"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
@@ -2264,6 +2267,11 @@ software:
 		_, err = scriptFile.WriteString(`echo "Hello, world!"`)
 		require.NoError(t, err)
 
+		// Validate that global config is required when running noTeam
+		_, err = RunAppNoChecks(
+			[]string{"gitops", "-f", noTeamFile.Name(), "--dry-run"})
+		assert.Error(t, err)
+
 		// Dry run
 		ds.SaveAppConfigFuncInvoked = false
 		ds.BatchSetScriptsFuncInvoked = false
@@ -3017,4 +3025,270 @@ func TestGitOpsMDMAuthSettings(t *testing.T) {
 	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.Metadata)
 	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.MetadataURL)
 	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IDPName)
+}
+
+func TestGitOpsTeamConditionalAccess(t *testing.T) {
+	teamName := "TestTeamConditionalAccess"
+
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+	}
+
+	// Create integration with conditional access enabled.
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: teamName, Config: fleet.TeamConfig{
+		Integrations: fleet.TeamIntegrations{
+			ConditionalAccessEnabled: optjson.SetBool(true),
+		},
+	}})
+	require.NoError(t, err)
+	require.NotNil(t, *savedTeams[teamName])
+
+	// Do a GitOps run with conditional access not set.
+	t.Setenv("TEST_TEAM_NAME", teamName)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
+	require.NoError(t, err)
+
+	team, err := ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.NotNil(t, team)
+	require.True(t, team.Config.Integrations.ConditionalAccessEnabled.Set)
+	require.False(t, team.Config.Integrations.ConditionalAccessEnabled.Value)
+}
+
+func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+	}
+
+	appConfig := fleet.AppConfig{
+		Integrations: fleet.Integrations{
+			ConditionalAccessEnabled: optjson.SetBool(true),
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with conditional access not set.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+	require.True(t, appConfig.Integrations.ConditionalAccessEnabled.Set)
+	require.False(t, appConfig.Integrations.ConditionalAccessEnabled.Value)
+}
+
+func TestGitOpsEULASetting(t *testing.T) {
+	createGlobalGitOpsConfig := func(mdm string) string {
+		return fmt.Sprintf(`
+controls:
+queries:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: "https://foo.example.com"
+  org_info:
+    org_name: GitOps Test
+  secrets:
+    - secret: "global"
+  mdm:
+    %s
+`, mdm)
+	}
+
+	// Create a temporary PDF file
+	pdfContent := []byte("%PDF-1\npdf-test")
+	tmpPDF, err := os.CreateTemp(t.TempDir(), "*.pdf")
+	require.NoError(t, err)
+	// Write a minimal valid PDF header so the file is recognized as a PDF.
+	_, err = tmpPDF.Write(pdfContent)
+	require.NoError(t, err)
+	pdfPath, err := filepath.Abs(tmpPDF.Name())
+	require.NoError(t, err)
+
+	// Create an invalid temp PDF file
+	tmpInvalidPDF, err := os.CreateTemp(t.TempDir(), "*.txt")
+	require.NoError(t, err)
+	_, err = tmpPDF.Write([]byte("not-a-pdf"))
+	require.NoError(t, err)
+	invalidPDFPath, err := filepath.Abs(tmpInvalidPDF.Name())
+	require.NoError(t, err)
+
+	cases := []struct {
+		name             string
+		cfg              string
+		mockSetup        func(t *testing.T, ds *mock.Store)
+		dryRunAssertion  func(t *testing.T, ds *mock.Store, out string, err error)
+		realRunAssertion func(t *testing.T, ds *mock.Store, out string, err error)
+	}{
+		{
+			name: "valid pdf file (no existing EULA uploaded)",
+			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
+			mockSetup: func(t *testing.T, ds *mock.Store) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+					return nil, &notFoundError{} // No existing EULA
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] applied EULA")
+				assert.True(t, ds.MDMInsertEULAFuncInvoked)
+			},
+		},
+		{
+			name: "valid new pdf file (different EULA already uploaded)",
+			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
+			mockSetup: func(t *testing.T, ds *mock.Store) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+					return &fleet.MDMEULA{
+						Name:  pdfPath,
+						Token: "test-token",
+					}, nil
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] applied EULA")
+				assert.True(t, ds.MDMDeleteEULAFuncInvoked) // deleted old EULA
+				assert.True(t, ds.MDMInsertEULAFuncInvoked) // new EULA was updated
+			},
+		},
+		{
+			name: "no EULA specified (no existing EULA uploaded)",
+			cfg:  createGlobalGitOpsConfig(""),
+			mockSetup: func(t *testing.T, ds *mock.Store) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+					return nil, &notFoundError{} // No existing EULA
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] applied EULA")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked) // no EULA to delete
+				assert.False(t, ds.MDMInsertEULAFuncInvoked) // no EULA to upload
+			},
+		},
+		{
+			name: "deleting existing EULA",
+			cfg:  createGlobalGitOpsConfig(""),
+			mockSetup: func(t *testing.T, ds *mock.Store) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+					return &fleet.MDMEULA{
+						Name:  pdfPath,
+						Token: "test-token",
+					}, nil
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] applied EULA")
+				assert.True(t, ds.MDMDeleteEULAFuncInvoked) // deleted EULA
+			},
+		},
+		{
+			name: "not a PDF file",
+			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
+			mockSetup: func(t *testing.T, ds *mock.Store) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+					return nil, &notFoundError{} // No existing EULA
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.ErrorContains(t, err, "invalid file type")
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.ErrorContains(t, err, "invalid file type")
+			},
+		},
+		{
+			name: "uploading the same EULA again",
+			cfg:  createGlobalGitOpsConfig(""),
+			mockSetup: func(t *testing.T, ds *mock.Store) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+					hash := sha256.Sum256(pdfContent) // Simulate same EULA
+					return &fleet.MDMEULA{
+						Name:   pdfPath,
+						Token:  "test-token",
+						Sha256: hash[:], // Simulate same EULA
+					}, nil
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] applied EULA")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked) // No new EULA uploaded
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+			// these mocks are used for all tests
+			ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
+				return nil
+			}
+			ds.MDMDeleteEULAFunc = func(ctx context.Context, token string) error {
+				return nil
+			}
+
+			// these mocks are defined in the individual test cases
+			tt.mockSetup(t, ds)
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = tmpFile.WriteString(tt.cfg)
+			require.NoError(t, err)
+
+			// Dry run
+			out, err := RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+			tt.dryRunAssertion(t, ds, out.String(), err)
+			if t.Failed() {
+				t.FailNow()
+			}
+
+			// Real run
+			out, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+			tt.realRunAssertion(t, ds, out.String(), err)
+		})
+	}
 }

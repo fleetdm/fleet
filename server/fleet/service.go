@@ -985,9 +985,9 @@ type Service interface {
 	// be used by clients to display information.
 	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
 	// MDMCreateEULA adds a new EULA file.
-	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
+	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
 	// MDMAppleDelete EULA removes an EULA entry.
-	MDMDeleteEULA(ctx context.Context, token string) error
+	MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
@@ -1151,6 +1151,9 @@ type Service interface {
 	// GetScriptResult returns the result of a script run
 	GetScriptResult(ctx context.Context, execID string) (*HostScriptResult, error)
 
+	// GetSelfServiceUninstallScriptResult returns the result of a script run if it's a self-service uninstall for the specified host
+	GetSelfServiceUninstallScriptResult(ctx context.Context, host *Host, execID string) (*HostScriptResult, error)
+
 	// NewScript creates a new (saved) script with its content provided by the
 	// io.Reader r.
 	NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*Script, error)
@@ -1183,7 +1186,7 @@ type Service interface {
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
-	WipeHost(ctx context.Context, hostID uint) error
+	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software installers
@@ -1244,6 +1247,19 @@ type Service interface {
 
 	// ScimDetails returns the details of last access to Fleet's SCIM endpoints
 	ScimDetails(ctx context.Context) (ScimDetails, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Microsoft Conditional Access
+
+	// ConditionalAccessMicrosoftCreateIntegration kicks-off the integration with Entra
+	// and returns the consent URL to redirect the admin to.
+	ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID string) (adminConsentURL string, err error)
+	// ConditionalAccessMicrosoftGet returns the current (currently unique) integration.
+	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
+	// ConditionalAccessMicrosoftConfirm finalizes the integration (marks integration as done).
+	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error)
+	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
+	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 }
 
 type KeyValueStore interface {

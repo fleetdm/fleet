@@ -24,6 +24,69 @@ import {
   INSTALL_DETAILS_STATUS_ICONS,
 } from "../constants";
 
+interface IGetStatusMessageProps {
+  displayStatus: SoftwareInstallStatus | "pending";
+  isStatusNotNow: boolean;
+  isStatusAcknowledged: boolean;
+  software_title: string;
+  host_display_name: string;
+}
+
+export const getStatusMessage = ({
+  displayStatus,
+  isStatusNotNow,
+  isStatusAcknowledged,
+  software_title,
+  host_display_name,
+}: IGetStatusMessageProps) => {
+  const formattedHost = host_display_name ? (
+    <b>{host_display_name}</b>
+  ) : (
+    "the host"
+  );
+
+  // Handle NotNow case separately
+  if (isStatusNotNow) {
+    return (
+      <>
+        Fleet tried to install <b>{software_title}</b> on {formattedHost} but
+        couldn&apos;t because the host was locked or was running on battery
+        power while in Power Nap. Fleet will try again.
+      </>
+    );
+  }
+
+  // VPP Verify command pending state
+  if (displayStatus === "pending_install" && isStatusAcknowledged) {
+    return (
+      <>
+        The MDM command (request) to install <b>{software_title}</b> on{" "}
+        {formattedHost} was acknowledged but the installation has not been
+        verified. To re-check, select <b>Refetch</b> for this host.
+      </>
+    );
+  }
+
+  // VPP failed state
+  if (displayStatus === "failed_install") {
+    return (
+      <>
+        The MDM command (request) to install <b>{software_title}</b> on{" "}
+        {formattedHost} failed. Please re-attempt this installation.
+      </>
+    );
+  }
+
+  // Create predicate and subordinate for other statuses
+  return (
+    <>
+      Fleet {getInstallDetailsStatusPredicate(displayStatus)}{" "}
+      <b>{software_title}</b> on {formattedHost}
+      {displayStatus === "pending" ? " when it comes online" : ""}.
+    </>
+  );
+};
+
 const baseClass = "app-install-details";
 
 export type IAppInstallDetails = Pick<
@@ -112,22 +175,15 @@ export const AppInstallDetails = ({
   // from the MDM protocol, e.g., "NotNow" or "Acknowledged". We need to display some special
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
   const isStatusNotNow = result?.status === "NotNow";
-  let predicate: string;
-  let subordinate: string;
-  if (isStatusNotNow) {
-    predicate = "tried to install";
-    subordinate =
-      " but couldn’t because the host was locked or was running on battery power while in Power Nap. Fleet will try again";
-  } else {
-    predicate = getInstallDetailsStatusPredicate(displayStatus);
-    subordinate = status === "pending" ? " when it comes online" : "";
-  }
+  const isStatusAcknowledged = result?.status === "Acknowledged";
 
-  const formattedHost = host_display_name ? (
-    <b>{host_display_name}</b>
-  ) : (
-    "the host"
-  );
+  const statusMessage = getStatusMessage({
+    displayStatus,
+    isStatusNotNow,
+    isStatusAcknowledged,
+    software_title,
+    host_display_name,
+  });
 
   const showCommandPayload = !!result?.payload;
   const showCommandResponse =
@@ -138,22 +194,16 @@ export const AppInstallDetails = ({
       <div className={`${baseClass}__software-install-details`}>
         <div className={`${baseClass}__status-message`}>
           {!!iconName && <Icon name={iconName} />}
-          <span>
-            Fleet {predicate} <b>{software_title}</b> on {formattedHost}
-            {subordinate}.
-          </span>
+          <span>{statusMessage}</span>
         </div>
-        {showCommandPayload && (
-          <Textarea label="Request payload:" variant="code">
-            {result.payload}
+        {showCommandResponse && (
+          <Textarea label="MDM command output:" variant="code">
+            {result.result}
           </Textarea>
         )}
-        {showCommandResponse && (
-          <Textarea
-            label={<>The response from {formattedHost}:</>}
-            variant="code"
-          >
-            {result.result}
+        {showCommandPayload && (
+          <Textarea label="MDM command:" variant="code">
+            {result.payload}
           </Textarea>
         )}
       </div>

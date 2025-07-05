@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -967,4 +968,81 @@ func TestBatchScriptExecute(t *testing.T) {
 		require.ErrorContains(t, err, "ok")
 		require.Equal(t, []uint{3, 4}, requestedHostIds)
 	})
+}
+
+func TestWipeHostRequestDecodeBody(t *testing.T) {
+	ctx := context.Background()
+
+	testCases := []struct {
+		name          string
+		body          io.Reader
+		expectedError string
+		expectation   func(t *testing.T, req *wipeHostRequest)
+	}{
+		{
+			name: "empty body",
+			body: strings.NewReader(""),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.Nil(t, req.Metadata)
+			},
+		},
+		{
+			name: "doWipe",
+			body: strings.NewReader(`{"windows": {"wipe_type": "doWipe"}}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.NotNil(t, req.Metadata)
+				require.NotNil(t, req.Metadata.Windows)
+				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipe, req.Metadata.Windows.WipeType)
+			},
+		},
+		{
+			name: "doWipeProtected",
+			body: strings.NewReader(`{"windows": {"wipe_type": "doWipeProtected"}}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.NotNil(t, req.Metadata)
+				require.NotNil(t, req.Metadata.Windows)
+				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipeProtected, req.Metadata.Windows.WipeType)
+			},
+		},
+		{
+			name:          "invalid wipe type",
+			body:          strings.NewReader(`{"windows": {"wipe_type": "doWipeProtectedII"}}`),
+			expectedError: "failed to unmarshal request body",
+		},
+		{
+			name: "empty payload",
+			body: strings.NewReader(`{}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.NotNil(t, req.Metadata)
+				require.Nil(t, req.Metadata.Windows)
+			},
+		},
+		{
+			name: "windows field is null",
+			body: strings.NewReader(`{"windows": null}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.NotNil(t, req.Metadata)
+				require.Nil(t, req.Metadata.Windows)
+			},
+		},
+		{
+			name:          "empty wipe type",
+			body:          strings.NewReader(`{"windows": {"wipe_type": null}}`),
+			expectedError: "failed to unmarshal request body",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sut := wipeHostRequest{}
+			err := sut.DecodeBody(ctx, tc.body, nil, nil)
+
+			if tc.expectedError != "" {
+				require.ErrorContains(t, err, tc.expectedError)
+			} else {
+				require.NoError(t, err)
+				tc.expectation(t, &sut)
+			}
+		})
+	}
 }

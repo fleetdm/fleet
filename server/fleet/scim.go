@@ -12,6 +12,7 @@ type ScimUser struct {
 	UserName   string    `db:"user_name"`
 	GivenName  *string   `db:"given_name"`
 	FamilyName *string   `db:"family_name"`
+	Department *string   `db:"department"`
 	Active     *bool     `db:"active"`
 	UpdatedAt  time.Time `db:"updated_at"`
 	Emails     []ScimUserEmail

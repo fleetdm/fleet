@@ -4,7 +4,7 @@ import classnames from "classnames";
 const baseClass = "card-header";
 
 interface ICardHeaderProps {
-  header: JSX.Element | string;
+  header?: JSX.Element | string;
   subheader?: JSX.Element | string;
   className?: string;
 }
@@ -16,7 +16,7 @@ const CardHeader = ({ header, subheader, className }: ICardHeaderProps) => {
 
   return (
     <div className={classNames}>
-      <h2 className={`${baseClass}__header`}>{header}</h2>
+      {header && <h2 className={`${baseClass}__header`}>{header}</h2>}
       {subheader && <p className={`${baseClass}__subheader`}>{subheader}</p>}
     </div>
   );

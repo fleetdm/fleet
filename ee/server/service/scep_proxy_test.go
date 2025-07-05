@@ -70,7 +70,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 		require.NoError(t, err)
 		byteData := make([]byte, len(datUTF16)*2)
 		for i, v := range datUTF16 {
-			binary.BigEndian.PutUint16(byteData[i*2:], v)
+			binary.LittleEndian.PutUint16(byteData[i*2:], v)
 		}
 		return byteData
 	}
@@ -119,7 +119,6 @@ func TestValidateNDESSCEPURL(t *testing.T) {
 	proxy.URL = srv.URL + "/bozo"
 	err = svc.ValidateSCEPURL(context.Background(), proxy.URL)
 	assert.ErrorContains(t, err, "could not retrieve CA certificate")
-
 }
 
 // utf16FromString returns the UTF-16 encoding of the UTF-8 string s, with a terminating NUL added.

@@ -24,6 +24,7 @@ interface IManageQueryAutomationsModalProps {
   automatedQueryIds: number[];
   logDestination: LogDestination;
   webhookDestination?: string;
+  filesystemDestination?: string;
 }
 
 interface ICheckedQuery {
@@ -69,6 +70,7 @@ const ManageQueryAutomationsModal = ({
   availableQueries,
   logDestination,
   webhookDestination,
+  filesystemDestination,
 }: IManageQueryAutomationsModalProps): JSX.Element => {
   // TODO: Error handling, if any
   // const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -167,6 +169,7 @@ const ManageQueryAutomationsModal = ({
             <LogDestinationIndicator
               logDestination={logDestination}
               webhookDestination={webhookDestination}
+              filesystemDestination={filesystemDestination}
             />
           </div>
           <div className={`${baseClass}__configure form-field__help-text`}>

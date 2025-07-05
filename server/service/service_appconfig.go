@@ -25,12 +25,9 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	}
 
 	// Set up a default enroll secret
-	secret := svc.config.Packaging.GlobalEnrollSecret
-	if secret == "" {
-		secret, err = server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
-		}
+	secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
 	}
 	secrets := []*fleet.EnrollSecret{
 		{
@@ -85,6 +82,14 @@ func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 	}
 
 	lic, _ := license.FromContext(ctx)
+
+	// Currently we use the presence of Microsoft Compliance Partner settings
+	// (only configured in cloud instances) to determine if a Fleet instance
+	// is a cloud managed instance.
+	if svc.config.MicrosoftCompliancePartner.IsSet() {
+		lic.ManagedCloud = true
+	}
+
 	return lic, nil
 }
 

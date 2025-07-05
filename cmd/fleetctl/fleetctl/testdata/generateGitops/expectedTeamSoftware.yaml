@@ -12,6 +12,7 @@ packages:
     self_service: true
     uninstall_script:
       path: ../lib/some-team/scripts/my-software-package-darwin-uninstall
+    url: https://example.com/download/my-software.pkg
 app_store_apps:
   - app_store_id: com.example.team-software
     labels_exclude_any:

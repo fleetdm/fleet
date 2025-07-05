@@ -1925,15 +1925,15 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			HostUUID: darwinHosts[0].UUID, ProfileUUID: darwinGlobalProfiles[0].ProfileUUID, ProfileIdentifier: darwinGlobalProfiles[0].Identifier,
-			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
+			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
 		},
 		{
 			HostUUID: darwinHosts[0].UUID, ProfileUUID: darwinGlobalProfiles[1].ProfileUUID, ProfileIdentifier: darwinGlobalProfiles[1].Identifier,
-			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
+			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
 		},
 		{
 			HostUUID: darwinHosts[0].UUID, ProfileUUID: darwinGlobalProfiles[2].ProfileUUID, ProfileIdentifier: darwinGlobalProfiles[2].Identifier,
-			Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
+			Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
 		},
 	})
 	require.NoError(t, err)
@@ -5707,6 +5707,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				VariablesUpdatedAt: &overrideEarliestInstallDate,
 				Status:             &fleet.MDMDeliveryVerified,
 				OperationType:      fleet.MDMOperationTypeInstall,
+				Scope:              fleet.PayloadScopeSystem,
 			},
 			{
 				ProfileUUID:       profiles[1].ProfileUUID,
@@ -5716,6 +5717,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				CommandUUID:       uuid.NewString(),
 				Status:            &fleet.MDMDeliveryVerified,
 				OperationType:     fleet.MDMOperationTypeInstall,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 		})
 		require.NoError(t, err)
@@ -6754,9 +6756,10 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 func testMDMEULA(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	eula := &fleet.MDMEULA{
-		Token: uuid.New().String(),
-		Name:  "eula.pdf",
-		Bytes: []byte("contents"),
+		Token:  uuid.New().String(),
+		Name:   "eula.pdf",
+		Bytes:  []byte("contents"),
+		Sha256: []byte("test-sha256"),
 	}
 
 	err := ds.MDMInsertEULA(ctx, eula)

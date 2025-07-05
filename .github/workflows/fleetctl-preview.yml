@@ -3,6 +3,9 @@ name: Test fleetctl preview
 
 on:
   workflow_dispatch: # Manual
+  pull_request:
+    paths:
+      - '.github/workflows/fleetctl-preview.yml'
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
 
@@ -35,10 +38,10 @@ jobs:
     - name: Test fleetctl preview
       run: |
         npm install -g fleetctl
-        fleetctl preview
+        fleetctl preview --disable-open-browser
         sleep 10
         fleetctl get hosts | tee hosts.txt
-        [ $( cat hosts.txt | grep online | wc -l) -eq 9 ]
+        [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
       shell: bash
 
     - name: Get fleet logs

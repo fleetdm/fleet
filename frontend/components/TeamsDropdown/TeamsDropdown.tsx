@@ -9,6 +9,8 @@ import Select, {
 
 import { COLORS } from "styles/var/colors";
 import { PADDING } from "styles/var/padding";
+import { FONT_SIZES, FONT_WEIGHTS } from "styles/var/fonts";
+
 import classnames from "classnames";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -26,7 +28,7 @@ export interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
 
 const generateDropdownOptions = (
   teams: ITeamSummary[] | undefined,
-  includeAll: boolean,
+  includeAllTeams: boolean,
   includeNoTeams?: boolean
 ): INumberDropdownOption[] => {
   if (!teams) {
@@ -43,7 +45,7 @@ const generateDropdownOptions = (
     (o) =>
       !(
         (o.label === APP_CONTEXT_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
-        (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAll)
+        (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAllTeams)
       )
   );
 
@@ -63,12 +65,14 @@ const getOptionBackgroundColor = (
 interface ITeamsDropdownProps {
   currentUserTeams: ITeamSummary[];
   selectedTeamId?: number;
-  includeAll?: boolean; // Include the "All Teams" option;
+  includeAllTeams?: boolean;
   includeNoTeams?: boolean;
   isDisabled?: boolean;
   onChange: (newSelectedValue: number) => void;
   onOpen?: () => void;
   onClose?: () => void;
+  /** Indicates that this teams dropdown should be styled as a form field */
+  asFormField?: boolean;
 }
 
 const baseClass = "team-dropdown";
@@ -76,16 +80,22 @@ const baseClass = "team-dropdown";
 const TeamsDropdown = ({
   currentUserTeams,
   selectedTeamId,
-  includeAll = true,
+  includeAllTeams = true,
   includeNoTeams = false,
   isDisabled = false,
   onChange,
   onOpen,
   onClose,
+  asFormField = false,
 }: ITeamsDropdownProps): JSX.Element => {
   const teamOptions: INumberDropdownOption[] = useMemo(
-    () => generateDropdownOptions(currentUserTeams, includeAll, includeNoTeams),
-    [currentUserTeams, includeAll, includeNoTeams]
+    () =>
+      generateDropdownOptions(
+        currentUserTeams,
+        includeAllTeams,
+        includeNoTeams
+      ),
+    [currentUserTeams, includeAllTeams, includeNoTeams]
   );
 
   const selectedValue = teamOptions.find(
@@ -118,16 +128,32 @@ const TeamsDropdown = ({
     );
   };
 
+  const [variableControlStyles, variableSingleValueStyles] = asFormField
+    ? [
+        {
+          padding: ".5rem 1rem",
+          backgroundColor: COLORS["ui-light-grey"],
+        },
+        {},
+      ]
+    : [
+        {
+          padding: "8px 0",
+          backgroundColor: "initial",
+          border: 0,
+        },
+        {
+          fontSize: "24px",
+        },
+      ];
+
   // see https://react-select.com/styles#the-styles-prop
-  // `provided` here corresponds to `baseStyles` in the docs
   const customStyles: StylesConfig<INumberDropdownOption, false> = {
-    control: (provided, state) => ({
-      ...provided,
+    control: (baseStyles, state) => ({
+      ...baseStyles,
+      ...variableControlStyles,
       display: "flex",
       flexDirection: "row",
-      padding: "8px 0",
-      backgroundColor: "initial",
-      border: 0,
       borderRadius: "4px",
       boxShadow: "none",
       cursor: "pointer",
@@ -143,9 +169,6 @@ const TeamsDropdown = ({
       // When tabbing
       // Relies on --is-focused for styling as &:focus-visible cannot be applied
       "&.team-dropdown__control--is-focused": {
-        ".team-dropdown__single-value": {
-          color: COLORS["core-vibrant-blue-over"],
-        },
         ".team-dropdown__indicator path": {
           stroke: COLORS["core-vibrant-blue-over"],
         },
@@ -174,9 +197,9 @@ const TeamsDropdown = ({
         },
       }),
     }),
-    singleValue: (provided) => ({
-      ...provided,
-      fontSize: "24px",
+    singleValue: (baseStyles) => ({
+      ...baseStyles,
+      ...variableSingleValueStyles,
       lineHeight: "normal",
       paddingLeft: 0,
       paddingRight: "8px",
@@ -184,8 +207,8 @@ const TeamsDropdown = ({
       // omit grid-column-end for automatic width
       gridArea: "1/1/2",
     }),
-    dropdownIndicator: (provided) => ({
-      ...provided,
+    dropdownIndicator: (baseStyles) => ({
+      ...baseStyles,
       display: "flex",
       padding: "2px",
       margin: "0 5px",
@@ -193,8 +216,8 @@ const TeamsDropdown = ({
         transition: "transform 0.25s ease",
       },
     }),
-    menu: (provided) => ({
-      ...provided,
+    menu: (baseStyles) => ({
+      ...baseStyles,
       boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
       borderRadius: "4px",
       zIndex: 6,
@@ -208,16 +231,29 @@ const TeamsDropdown = ({
       animation: "fade-in 150ms ease-out",
     }),
     // Placeholder is never shown on teams dropdown
-    menuList: (provided) => ({
-      ...provided,
+    menuList: (baseStyles) => ({
+      ...baseStyles,
       padding: PADDING["pad-small"],
+      ".team-dropdown__menu-notice--no-options": {
+        textAlign: "left",
+        color: COLORS["ui-fleet-black-50"],
+        fontSize: FONT_SIZES["xx-small"],
+        fontWeight: FONT_WEIGHTS.regular,
+      },
     }),
-    valueContainer: (provided) => ({
-      ...provided,
+    valueContainer: (baseStyles) => ({
+      ...baseStyles,
       padding: 0,
     }),
-    option: (provided, state) => ({
-      ...provided,
+    input: (baseStyles) => ({
+      ...baseStyles,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      margin: 0,
+    }),
+    option: (baseStyles, state) => ({
+      ...baseStyles,
       padding: "10px 8px",
       fontSize: "14px",
       borderRadius: "4px",
@@ -241,37 +277,34 @@ const TeamsDropdown = ({
     }),
   };
 
-  const renderDropdown = () => {
-    if (teamOptions.length) {
-      return (
-        <Select<INumberDropdownOption, false>
-          options={teamOptions}
-          placeholder="All teams"
-          onChange={(newValue) => {
-            if (newValue) {
-              onChange(newValue.value);
-            }
-            // If newValue is null or undefined, we don't call onChange
-          }}
-          isDisabled={isDisabled}
-          isSearchable={false}
-          styles={customStyles}
-          components={{
-            DropdownIndicator: CustomDropdownIndicator,
-            IndicatorSeparator: () => null,
-          }}
-          value={teamOptions.find((option) => option.value === selectedValue)}
-          isOptionSelected={() => false} // Hides any styling on selected option
-          className={baseClass}
-          classNamePrefix={baseClass}
-          onMenuOpen={onOpen}
-          onMenuClose={onClose}
-        />
-      );
-    }
-  };
-
-  return <div className={dropdownWrapperClasses}>{renderDropdown()}</div>;
+  return (
+    <div className={dropdownWrapperClasses}>
+      <Select<INumberDropdownOption, false>
+        options={teamOptions}
+        placeholder="All teams"
+        onChange={(newValue) => {
+          if (newValue) {
+            onChange(newValue.value);
+          }
+          // If newValue is null or undefined, we don't call onChange
+        }}
+        isDisabled={isDisabled}
+        isSearchable
+        noOptionsMessage={() => "No matching teams"}
+        styles={customStyles}
+        components={{
+          DropdownIndicator: CustomDropdownIndicator,
+          IndicatorSeparator: () => null,
+        }}
+        value={teamOptions.find((option) => option.value === selectedValue)}
+        isOptionSelected={() => false} // Hides any styling on selected option
+        className={baseClass}
+        classNamePrefix={baseClass}
+        onMenuOpen={onOpen}
+        onMenuClose={onClose}
+      />
+    </div>
+  );
 };
 
 export default TeamsDropdown;

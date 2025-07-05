@@ -1,6 +1,6 @@
 {
   "name": "fleetctl",
-  "version": "v4.68.0",
+  "version": "v4.69.0",
   "description": "Installer for the fleetctl CLI tool",
   "bin": {
     "fleetctl": "./run.js"

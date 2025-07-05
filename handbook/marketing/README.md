@@ -124,7 +124,7 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
 
   - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
   - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
-  - Click on the "Fleet Device Management" brand kit and order preapproved stickers from the templates.
+  - Click on the "Fleet Device Management" brand kit and order pre-approved stickers from the templates.
   - Total sticker quantity should be ~10% of total event attendees.
   - Complete the checkout process. Ensure the address matches the expected receiving address.
 
@@ -133,47 +133,14 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
   - Pens and sticky note pads are ordered through TODO.
 
 
-### Upload contacts to Salesforce after an event
+### Monitor the help-create-contact channel
 
-1. [Create a new lead source](https://fleetdm.lightning.force.com/lightning/setup/ObjectManager/Contact/FieldsAndRelationships/LeadSource/view) with naming convention "[Retired]Events - {Event name}". 
-2. Add the new lead source name to the .csv of leads before uploading to Salesforce.
-    a. Add a new column header labeled "Lead source" and add the new lead source name to each row in the CSV.
-
-
-3. Navigate to the [contact import wizard](https://fleetdm.lightning.force.com/one/one.app#eyJjb21wb25lbnREZWYiOiJvbmU6YWxvaGFQYWdlIiwiYXR0cmlidXRlcyI6eyJhZGRyZXNzIjoiL2RhdGFJbXBvcnRlci9kYXRhSW1wb3J0ZXIuYXBwP29iamVjdFNlbGVjdGlvbj1BY2NvdW50In0sInN0YXRlIjp7fX0%3D):
-    a. Select the standard object "Accounts and Contacts".
-    b. Select "Add new and update existing records" (Do not change the matching rules). 
-    c. Upload the CSV.
-    d. Verify the data is mapped to the correct Salesforce fields and start the Import.
-
-
-### Optimize ads through experimentation
-
-Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
-
-Here's how:
-1. Remove all but the top 5 performing ads in [each LinkedIn campaign in the "Evergreen awareness" campaign group](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678329963%5D).
-2. Replace the ad in [each Linkedin campaign in the "ABM maneuvers" campaign group](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B633848103%5D) so that it matches the top performer.
-
-<!-- TODO: either delete this or expand
-[**LinkedIn**:](https://www.linkedin.com/campaignmanager/) Ad experimentation on LinkedIn Campaign Manager for better click-through rate (CTR)
-1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
-2. Test one intro text change for two weeks
-3. Pause the ad with the lower CTR
-4. Duplicate best-performing ad
-5. Test headline change for two weeks
-6. Pause the ad with the lower CTR
-7. Repeat this process
-
-[**Google Ads**:](https://ads.google.com/home/) Ad experimentation on Google Ads for better click-through rate (CTR)
-1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
-2. Test one headline change for two weeks
-3. Pause the ad with the lower CTR
-4. Duplicate best-performing ad
-5. Test one description change for two weeks
-6. Pause the ad with the lower CTR
-7. Repeat this process
--->
+When Fleeties need a contact created in Fleet's CRM but are unable to do so in the moment, they'll send a message to the ["#help-create-contact" channel](https://fleetdm.slack.com/archives/C091MLXQKQV) in Slack. Use the following steps to add the profile to Fleet's CRM:
+1. Add the `:eyes` emoji (👀) to the Slack thread. 
+2. Log in to Salesforce and navigate to the contact tab, click "New".
+3. Create the contact from research and the context left in the channel. If the account doesn't exist, then it will also need to be created and researched.
+4. Add any additional context to the "Description" field. 
+5. Once the contact and account exist in Salesforce, reply to the thread with the contact URL from Salesforce and add the `white-check-mark` emoji (✅) to indicate you're done.
 
 
 ### Process pending swag requests from the website
@@ -210,15 +177,6 @@ Swag requests are received in the form of issues and will be fulfilled based on 
 - Ask if we could send the contributor any swag
 - If yes, follow the steps to fulfill a swag request.
 
-
-### Run a new ad or change an existing ad
-
-Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-digital-experience), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
-1. [Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
-2. During the call, they compare existing ads against the planned updates within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-3. [Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
-
-> **Do changes to keywords or targeting require a design review?** Currently, all changes to these things require discussion with our product marketer.
 
 ### Engage with the community
 

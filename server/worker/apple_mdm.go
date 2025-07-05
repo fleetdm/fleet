@@ -60,10 +60,12 @@ type appleMDMArgs struct {
 	// associated with the device.
 	//
 	// FIXME: Rename this to IdPAccountUUID or something similar.
-	EnrollReference        string   `json:"enroll_reference,omitempty"`
-	EnrollmentCommands     []string `json:"enrollment_commands,omitempty"`
-	Platform               string   `json:"platform,omitempty"`
-	UseWorkerDeviceRelease bool     `json:"use_worker_device_release,omitempty"`
+	EnrollReference        string     `json:"enroll_reference,omitempty"`
+	EnrollmentCommands     []string   `json:"enrollment_commands,omitempty"`
+	Platform               string     `json:"platform,omitempty"`
+	UseWorkerDeviceRelease bool       `json:"use_worker_device_release,omitempty"`
+	ReleaseDeviceAttempt   int        `json:"release_device_attempt,omitempty"`    // number of attempts to release the device
+	ReleaseDeviceStartedAt *time.Time `json:"release_device_started_at,omitempty"` // time when the release device task first started
 }
 
 // Run executes the apple_mdm job.
@@ -268,13 +270,12 @@ func (a *AppleMDM) getIdPDisplayName(ctx context.Context, acct *fleet.MDMIdPAcco
 	return scimUser.DisplayName(), nil
 }
 
-// This job is deprecated for macos because releasing devices is now done via
-// the orbit endpoint /setup_experience/status that is polled by a swift dialog
-// UI window during the setup process (unless there are no setup experience
-// items, in which case this worker job is used), and automatically releases
-// the device once all pending setup tasks are done. However, it must remain
-// implemented for iOS and iPadOS and in case there are such jobs to process
-// after a Fleet migration to a new version.
+// This job is used only for iDevices or for macos devices that don't use any
+// setup experience items (software installs, script exec) - see
+// appleMDMArgs.UseWorkerDeviceRelease. Otherwise releasing devices is now done
+// via the orbit endpoint /setup_experience/status that is polled by a swift
+// dialog UI window during the setup process, and automatically releases the
+// device once all pending setup tasks are done.
 func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArgs) error {
 	// Edge cases:
 	//   - if the device goes offline for a long time, should we go ahead and
@@ -289,18 +290,47 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	// We opted "yes" to all those, and we want to release after a few minutes,
 	// not hours, so we'll allow only a couple retries.
 
+	const (
+		maxWaitTime         = 15 * time.Minute
+		minAttempts         = 10
+		maxAttempts         = 30
+		nextAttemptMinDelay = 30 * time.Second
+	)
+
+	args.ReleaseDeviceAttempt++
+	if args.ReleaseDeviceStartedAt == nil {
+		now := time.Now().UTC()
+		args.ReleaseDeviceStartedAt = &now
+	}
+
 	level.Debug(a.Log).Log(
 		"task", "runPostDEPReleaseDevice",
 		"msg", fmt.Sprintf("awaiting commands %v and profiles to settle for host %s", args.EnrollmentCommands, args.HostUUID),
+		"attempt", args.ReleaseDeviceAttempt,
+		"started_at", args.ReleaseDeviceStartedAt.Format(time.RFC3339),
 	)
 
-	if retryNum, _ := ctx.Value(retryNumberCtxKey).(int); retryNum > 2 {
-		// give up and release the device
-		a.Log.Log("info", "releasing device after too many attempts", "host_uuid", args.HostUUID, "retries", retryNum)
+	// if we've reached the minimum number of attempts and the maximum time to
+	// wait, we release the device even if some commands or profiles are still
+	// pending. We also release in case it reached the maximum number of
+	// attempts, to prevent an issue with clock skew where the wait delay does
+	// not appear to be reached.
+	if (args.ReleaseDeviceAttempt >= minAttempts && time.Since(*args.ReleaseDeviceStartedAt) >= maxWaitTime) ||
+		(args.ReleaseDeviceAttempt >= maxAttempts) {
+		a.Log.Log("info", "releasing device after too many attempts or too long wait", "host_uuid", args.HostUUID, "attempts", args.ReleaseDeviceAttempt)
 		if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {
-			return ctxerr.Wrapf(ctx, err, "failed to enqueue DeviceConfigured command after %d retries", retryNum)
+			return ctxerr.Wrapf(ctx, err, "failed to enqueue DeviceConfigured command after %d attempts", args.ReleaseDeviceAttempt)
 		}
 		return nil
+	}
+
+	reenqueueTask := func() error {
+		// re-enqueue the same job, but now
+		// ReleaseDeviceAttempt/ReleaseDeviceStartedAt have been incremented/set,
+		// and run it not before a delay so it doesn't run again until the next
+		// worker cycle.
+		_, err := QueueJobWithDelay(ctx, a.Datastore, appleMDMJobName, args, nextAttemptMinDelay)
+		return err
 	}
 
 	for _, cmdUUID := range args.EnrollmentCommands {
@@ -326,7 +356,10 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		if !completed {
 			// DEP enrollment commands are not done being delivered to that device,
 			// cannot release it now.
-			return fmt.Errorf("device not ready for release, still awaiting result for command %s, will retry", cmdUUID)
+			if err := reenqueueTask(); err != nil {
+				return fmt.Errorf("failed to re-enqueue task: %w", err)
+			}
+			return nil
 		}
 		level.Debug(a.Log).Log(
 			"task", "runPostDEPReleaseDevice",
@@ -347,10 +380,21 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			continue
 		}
 
+		// NOTE: user-scoped profiles are ignored because they are not sent by Fleet
+		// until after the device is released - there is no user-channel available
+		// on the host until after the release, and after the user actually created
+		// the user account.
+		if prof.Scope == fleet.PayloadScopeUser {
+			continue
+		}
+
 		// if it has any pending profiles, then its profiles are not done being
 		// delivered (installed or removed).
 		if prof.Status == nil || *prof.Status == fleet.MDMDeliveryPending {
-			return fmt.Errorf("device not ready for release, profile %s is still pending, will retry", prof.Identifier)
+			if err := reenqueueTask(); err != nil {
+				return fmt.Errorf("failed to re-enqueue task: %w", err)
+			}
+			return nil
 		}
 		level.Debug(a.Log).Log(
 			"task", "runPostDEPReleaseDevice",

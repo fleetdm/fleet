@@ -27,11 +27,23 @@ SELECT
 		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1
+		serial, sha1, "system" as source,
+		path
 	FROM
 		certificates
 	WHERE
-		path = '/Library/Keychains/System.keychain';
+		path = '/Library/Keychains/System.keychain'
+	UNION
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, "user" as source,
+		path
+	FROM
+		certificates
+	WHERE
+		path LIKE '/Users/%/Library/Keychains/login.keychain-db';
 ```
 
 ## chromeos_profile_user_info
@@ -41,6 +53,20 @@ SELECT
 - Query:
 ```sql
 SELECT email FROM users
+```
+
+## conditional_access_microsoft_device_id
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'app_sso_platform'
+```
+
+- Query:
+```sql
+SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
 ```
 
 ## disk_encryption_darwin
@@ -149,12 +175,49 @@ select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles'
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles') AND NOT EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_user_profiles');
 ```
 
 - Query:
 ```sql
-SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";
+SELECT display_name, identifier, install_date FROM macos_profiles WHERE type = "Configuration";
+```
+
+## mdm_config_profiles_darwin_with_user
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles') AND EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_user_profiles')
+```
+
+- Query:
+```
+<dynamically generated>
+```
+
+## mdm_config_profiles_windows
+
+- Platforms: windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm_bridge'
+```
+
+- Query:
+```
+<dynamically generated>
+```
+
+## mdm_device_id_windows
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT name, data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\OMADM\MDMDeviceID\DeviceClientId';
 ```
 
 ## mdm_disk_encryption_key_file_darwin

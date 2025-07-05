@@ -547,6 +547,7 @@ var hostRefs = []string{
 	"host_scim_user",
 	"batch_script_execution_host_results",
 	"host_mdm_commands",
+	"microsoft_compliance_partner_host_statuses",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -1100,7 +1101,11 @@ func (ds *Datastore) applyHostFilters(
 			switch {
 			case fleet.IsNotFound(err):
 				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
-				if err != nil {
+				if fleet.IsNotFound(err) {
+					// Neither installer nor VPP app exists → immediately return 0 hosts safelysts
+					softwareFilter = "FALSE"
+					break
+				} else if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
 				}
 				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
@@ -1181,6 +1186,33 @@ func (ds *Datastore) applyHostFilters(
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
 	}
 
+	// Join on the batch_script_execution_host_results and host_script_results tables if the
+	// BatchScriptExecutionIDFilter is set. This allows us to filter hosts based on the status of
+	// batch script executions.
+	batchScriptExecutionJoin := ""
+	batchScriptExecutionIDFilter := "TRUE"
+	if opt.BatchScriptExecutionIDFilter != nil {
+		batchScriptExecutionJoin = `LEFT JOIN batch_script_execution_host_results bsehr ON h.id = bsehr.host_id`
+		batchScriptExecutionIDFilter = `bsehr.batch_execution_id = ?`
+		whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
+		if opt.BatchScriptExecutionStatusFilter.IsValid() {
+			batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
+			switch opt.BatchScriptExecutionStatusFilter {
+			case fleet.BatchScriptExecutionRan:
+				batchScriptExecutionIDFilter += ` AND hsr.exit_code = 0`
+			case fleet.BatchScriptExecutionPending:
+				// Pending can mean "waiting for execution" or "waiting for results".
+				batchScriptExecutionJoin += ` LEFT JOIN upcoming_activities ua ON ua.execution_id = bsehr.host_execution_id`
+				batchScriptExecutionIDFilter += ` AND ((ua.execution_id IS NOT NULL) OR (hsr.host_id is NOT NULL AND hsr.exit_code IS NULL AND hsr.canceled = 0 AND bsehr.error IS NULL))`
+			case fleet.BatchScriptExecutionErrored:
+				// TODO - remove exit code condition when we split up "errored" and "failed"
+				batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL OR hsr.exit_code > 0`
+			case fleet.BatchScriptExecutionCancelled:
+				batchScriptExecutionIDFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 1`
+			}
+		}
+	}
+
 	sqlStmt += fmt.Sprintf(
 		`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -1198,7 +1230,8 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
-		WHERE TRUE AND %s AND %s AND %s AND %s
+	%s
+		WHERE TRUE AND %s AND %s AND %s AND %s AND %s
     `,
 
 		// JOINs
@@ -1213,12 +1246,14 @@ func (ds *Datastore) applyHostFilters(
 		connectedToFleetJoin,
 		mdmAppleProfilesStatusJoin,
 		mdmAppleDeclarationsStatusJoin,
+		batchScriptExecutionJoin,
 
 		// Conditions
 		ds.whereFilterHostsByTeams(filter, "h"),
 		softwareFilter,
 		munkiFilter,
 		lowDiskSpaceFilter,
+		batchScriptExecutionIDFilter,
 	)
 
 	now := ds.clock.Now()
@@ -1262,7 +1297,6 @@ func (ds *Datastore) applyHostFilters(
 	params := selectParams
 	params = append(params, joinParams...)
 	params = append(params, whereParams...)
-
 	return sqlStmt, params, nil
 }
 
@@ -2919,6 +2953,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
+      t.name AS team_name,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
@@ -2926,6 +2961,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
     ` + hostMDMSelect + `
     FROM hosts h
+    LEFT JOIN teams t ON t.id = h.team_id
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
@@ -2970,6 +3006,9 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 				}
 				if err := cleanupQueryResultsOnTeamChange(ctx, tx, hostIDsBatch); err != nil {
 					return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete query results")
+				}
+				if err := cleanupConditionalAccessOnTeamChange(ctx, tx, hostIDsBatch); err != nil {
+					return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete conditional access")
 				}
 
 				query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDsBatch)

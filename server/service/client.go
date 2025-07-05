@@ -449,6 +449,11 @@ func (c *Client) ApplyGroup(
 		if opts.DryRun {
 			logfn("[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
+			for _, label := range specs.Labels {
+				if label.LabelType == fleet.LabelTypeBuiltIn {
+					return nil, nil, nil, nil, errors.New("Cannot import built-in labels. Please remove labels with a label_type of builtin and try again.")
+				}
+			}
 			if err := c.ApplyLabels(specs.Labels); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying labels: %w", err)
 			}
@@ -1618,6 +1623,7 @@ func (c *Client) DoGitOps(
 		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
 		group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
 		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
+		var eulaPath string
 
 		// Labels
 		if config.Labels == nil || len(config.Labels) > 0 {
@@ -1655,6 +1661,9 @@ func (c *Client) DoGitOps(
 		}
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
 			integrations.(map[string]interface{})["google_calendar"] = []interface{}{}
+		}
+		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
+			integrations.(map[string]interface{})["conditional_access_enabled"] = false
 		}
 		if ndesSCEPProxy, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; !ok || ndesSCEPProxy == nil {
 			// Per backend patterns.md, best practice is to clear a JSON config field with `null`
@@ -1788,7 +1797,24 @@ func (c *Client) DoGitOps(
 				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
 			}
 		}
+		// check for the eula in the mdmAppConfig. If it exists we want to delete it
+		// from the app config so it will not be applied to the group/team though the
+		// ApplyGroup method. It will be applied separately.
+		if endUserLicenseAgreement, ok := mdmAppConfig["end_user_license_agreement"].(string); ok && len(endUserLicenseAgreement) > 0 {
+			eulaPath = endUserLicenseAgreement
+			delete(mdmAppConfig, "end_user_license_agreement")
+		}
+
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
+
+		// we want to apply the EULA only for the global settings
+		if appConfig.License.IsPremium() && appConfig.MDM.EnabledAndConfigured {
+			err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
 	} else if !config.IsNoTeam() {
 		team = make(map[string]interface{})
 		team["name"] = *config.TeamName
@@ -1842,12 +1868,22 @@ func (c *Client) DoGitOps(
 		if !ok {
 			return nil, nil, errors.New("team_settings.integrations config is not a map")
 		}
+
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
 			integrations.(map[string]interface{})["google_calendar"] = map[string]interface{}{}
 		} else {
 			_, ok = googleCal.(map[string]interface{})
 			if !ok {
 				return nil, nil, errors.New("team_settings.integrations.google_calendar config is not a map")
+			}
+		}
+
+		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
+			integrations.(map[string]interface{})["conditional_access_enabled"] = false
+		} else {
+			_, ok = conditionalAccessEnabled.(bool)
+			if !ok {
+				return nil, nil, errors.New("team_settings.integrations.conditional_access_enabled config is not a bool")
 			}
 		}
 
@@ -2416,6 +2452,28 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 			}
 		}
 	}
+	return nil
+}
+
+func (c *Client) doGitOpsEULA(eulaPath string, logFn func(format string, args ...interface{}), dryRun bool) error {
+	if eulaPath == "" {
+		err := c.DeleteEULAIfNeeded(dryRun)
+		if err != nil {
+			return fmt.Errorf("error deleting EULA: %w", err)
+		}
+	} else {
+		err := c.UploadEULAIfNeeded(eulaPath, dryRun)
+		if err != nil {
+			return fmt.Errorf("error uploading EULA: %w", err)
+		}
+	}
+
+	if dryRun {
+		logFn("[+] would've applied EULA\n")
+	} else {
+		logFn("[+] applied EULA\n")
+	}
+
 	return nil
 }
 

@@ -27,6 +27,7 @@ controls:
   macos_settings:
     custom_settings:
     - path: ../lib/team-a/profiles/team-macos-mobileconfig-profile.mobileconfig
+  macos_setup: 'TODO: update with your macos_setup configuration'
   macos_updates:
     deadline: "2020-12-31"
     minimum_version: "95.1"
@@ -39,6 +40,7 @@ controls:
 name: Team A
 policies:
 - calendar_events_enabled: false
+  conditional_access_enabled: true
   critical: false
   description: This is a team policy
   name: Team Policy
@@ -63,7 +65,7 @@ software:
     - Label C
     - Label D
   packages:
-  - hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 1.0.0, 2.0.0
+  - hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 13.37
     install_script:
       path: ../lib/team-a/scripts/my-software-package-darwin-install
     labels_include_any:
@@ -76,6 +78,7 @@ software:
     self_service: true
     uninstall_script:
       path: ../lib/team-a/scripts/my-software-package-darwin-uninstall
+    url: https://example.com/download/my-software.pkg
 team_settings:
   features:
     enable_host_users: true
@@ -84,6 +87,7 @@ team_settings:
     host_expiry_enabled: false
     host_expiry_window: 1
   integrations:
+    conditional_access_enabled: true
     google_calendar:
       enable_calendar_events: true
       webhook_url: https://some-team-google-calendar-webhook.com

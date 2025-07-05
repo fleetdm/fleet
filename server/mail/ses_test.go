@@ -1,11 +1,12 @@
 package mail
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 )
@@ -52,7 +53,7 @@ type mockSESSender struct {
 	shouldErr bool
 }
 
-func (m mockSESSender) SendRawEmail(input *ses.SendRawEmailInput) (*ses.SendRawEmailOutput, error) {
+func (m mockSESSender) SendRawEmail(ctx context.Context, input *ses.SendRawEmailInput, optFns ...func(*ses.Options)) (*ses.SendRawEmailOutput, error) {
 	if m.shouldErr {
 		return nil, errors.New("some error")
 	}
@@ -143,7 +144,7 @@ func Test_sesSender_SendEmail(t *testing.T) {
 				client:    tt.fields.client,
 				sourceArn: tt.fields.sourceArn,
 			}
-			tt.wantErr(t, s.SendEmail(tt.args.e), fmt.Sprintf("SendEmail(%v)", tt.args.e))
+			tt.wantErr(t, s.SendEmail(context.Background(), tt.args.e), fmt.Sprintf("SendEmail(%v)", tt.args.e))
 		})
 	}
 }

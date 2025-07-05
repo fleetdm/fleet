@@ -1,0 +1,1 @@
+* Extended `POST /api/v1/fleet/hosts/:id/wipe` endpoint to allow users to specify the type of remote wipe for windows hosts.

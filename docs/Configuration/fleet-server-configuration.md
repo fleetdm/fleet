@@ -633,6 +633,20 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
 
 ## Auth
 
+## auth_sso_session_validity_period
+
+How long an SSO authentication process can take between initiation and callback. Applies to both users logging into the Fleet web UI and end users during MDM enrollment.
+
+> Note: Once logged in, `session_duration` determines how long a user stays logged into Fleet.
+
+- Default value: `5m` (5 minutes)
+- Environment variable: `FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD`
+- Config file format:
+  ```yaml
+  auth:
+    sso_session_validity_period: 10m
+  ```
+
 ### auth_bcrypt_cost
 
 The bcrypt cost to use when hashing user passwords.
@@ -681,7 +695,7 @@ Size of generated app tokens.
 
 How long invite tokens should be valid for.
 
-- Default value: `5 days`
+- Default value: `5d` (5 days)
 - Environment variable: `FLEET_APP_INVITE_TOKEN_VALIDITY_PERIOD`
 - Config file format:
   ```yaml
@@ -1249,6 +1263,30 @@ to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
   ```yaml
   filesystem:
      max_backups: 0
+  ```
+
+## Webhook
+
+To use webhook logging for query results, the following two Fleet config values must *both* be set:
+
+### Set log method to 'webhook' by
+- Command line flag: `--osquery_result_log_plugin="webhook"`,
+- Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN="webhook"`, or
+- Config file:
+  ```yaml
+  osquery:
+    result_log_plugin: "webhook"
+  ```
+
+and
+
+### Set the desired result URL by
+- Command line flag: `--webhook_result_url="<target_result_url>"`,
+- Environment variable: `FLEET_WEBHOOK_RESULT_URL="<target_result_url>"`, or
+- Config file:
+  ```yaml
+  webhook:
+    result_url: "<target_result_url>"
   ```
 
 ## Firehose
@@ -1856,8 +1894,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
 - `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
-The value of the Content-Type header to use in Kafka REST Proxy API calls. More information about available versions
-can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.html#content-types). _Note: only JSON format is supported_
+The value of the Content-Type header to use in [Kafka REST Proxy API calls](https://docs.confluent.io/platform/current/kafka-rest/api.html#content-types). _Note: only JSON format is supported_
 
 - Default value: application/vnd.kafka.json.v1+json
 - Environment variable: `FLEET_KAFKAREST_CONTENT_TYPE_VALUE`
@@ -2100,10 +2137,8 @@ or running S3 locally with localstack. Leave this blank to use the default S3 se
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
-will use virtual hosted bucket addressing when possible
+will use [virtual hosted bucket addressing](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) when possible
 (`http://BUCKET.s3.amazonaws.com/KEY`).
-
-See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
 
 - Default value: false
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE`
@@ -2705,7 +2740,7 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please [upload your APNs certificate and ABM token](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ### mdm.apple_scep_signer_validity_days
 

@@ -23,6 +23,8 @@ export interface IHostCertificate {
     organizational_unit: string;
     common_name: string;
   };
+  source: string;
+  username: string;
 }
 
 export const CERTIFICATES_DEFAULT_SORT: IListSort = {

@@ -92,6 +92,8 @@ func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 			Name:            "Script Z.ps1",
 			ScriptContentID: 3,
 		}}, nil
+	case "team_id=2", "team_id=3", "team_id=4", "team_id=5":
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
 	}
@@ -141,7 +143,7 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 			},
 		}, nil
 	}
-	if *teamID == 0 {
+	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
@@ -201,31 +203,18 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 	case "available_for_install=1&team_id=1":
 		return []fleet.SoftwareTitleListResult{
 			{
-				ID:   1,
-				Name: "My Software Package",
-				Versions: []fleet.SoftwareVersion{{
-					ID:      1,
-					Version: "1.0.0",
-				}, {
-					ID:      2,
-					Version: "2.0.0",
-				}},
+				ID:         1,
+				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
 					Name:     "my-software.pkg",
 					Platform: "darwin",
+					Version:  "13.37",
 				},
 			},
 			{
 				ID:   2,
 				Name: "My App Store App",
-				Versions: []fleet.SoftwareVersion{{
-					ID:      3,
-					Version: "5.6.7",
-				}, {
-					ID:      4,
-					Version: "8.9.10",
-				}},
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID: "com.example.team-software",
 				},
@@ -255,6 +244,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}, {
 						LabelName: "Label B",
 					}},
+					ConditionalAccessEnabled: true,
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
@@ -265,12 +255,13 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	return []*fleet.Policy{
 		{
 			PolicyData: fleet.PolicyData{
-				ID:          1,
-				Name:        "Team Policy",
-				Query:       "SELECT * FROM team_policy WHERE id = 1",
-				Resolution:  ptr.String("Do a team thing"),
-				Description: "This is a team policy",
-				Platform:    "linux,windows",
+				ID:                       1,
+				Name:                     "Team Policy",
+				Query:                    "SELECT * FROM team_policy WHERE id = 1",
+				Resolution:               ptr.String("Do a team thing"),
+				Description:              "This is a team policy",
+				Platform:                 "linux,windows",
+				ConditionalAccessEnabled: true,
 			},
 			RunScript: &fleet.PolicyScript{
 				ID: 1,
@@ -338,6 +329,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				UninstallScript:   "baz",
 				SelfService:       true,
 				Platform:          "darwin",
+				URL:               "https://example.com/download/my-software.pkg",
 			},
 		}, nil
 	case 2:
@@ -371,6 +363,11 @@ func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
 		Description:         "Label B description",
 		LabelMembershipType: fleet.LabelMembershipTypeManual,
 		Hosts:               []string{"host1", "host2"},
+	}, {
+		Name:                "Label C",
+		Description:         "Label C description",
+		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+		HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital": "end_user_idp_group", "value": "some-group"}`)),
 	}}, nil
 }
 
@@ -381,6 +378,95 @@ func (MockClient) Me() (*fleet.User, error) {
 		Email:      "test@example.com",
 		GlobalRole: ptr.String("admin"),
 	}, nil
+}
+
+func (MockClient) GetEULAMetadata() (*fleet.MDMEULA, error) {
+	return &fleet.MDMEULA{
+		Name:  "test.pdf",
+		Token: "test-eula-token",
+	}, nil
+}
+
+func (MockClient) GetEULAContent(token string) ([]byte, error) {
+	return []byte("This is the EULA content."), nil
+}
+
+func (MockClient) GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID == 1 {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:         1,
+				Name:       "My Software Package",
+				HashSHA256: ptr.String("software-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					InstallDuringSetup: ptr.Bool(true),
+					Name:               "my-software.pkg",
+					Platform:           "darwin",
+					Version:            "13.37",
+				},
+			},
+		}, nil
+	}
+	if teamID == 2 {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:         1,
+				Name:       "My Software Package",
+				HashSHA256: ptr.String("software-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					InstallDuringSetup: ptr.Bool(false),
+					Name:               "my-software.pkg",
+					Platform:           "darwin",
+					Version:            "13.37",
+				},
+			},
+			{
+				ID:         2,
+				Name:       "My Other Software Package",
+				HashSHA256: ptr.String("software-package-hash"),
+			},
+		}, nil
+	}
+	if teamID == 0 || teamID == 3 || teamID == 4 || teamID == 5 {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
+}
+
+func (MockClient) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
+	if teamID == 3 {
+		return &fleet.MDMAppleBootstrapPackage{
+			Name: "Bootstrap Package for Team 1",
+		}, nil
+	}
+	if teamID == 0 || teamID == 1 || teamID == 2 || teamID == 4 || teamID == 5 {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
+}
+
+func (MockClient) GetSetupExperienceScript(teamID uint) (*fleet.Script, error) {
+	if teamID == 4 {
+		return &fleet.Script{
+			Name: "Setup Experience Script for Team 1",
+		}, nil
+	}
+	if teamID == 0 || teamID == 1 || teamID == 2 || teamID == 3 || teamID == 5 {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
+}
+
+func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error) {
+	if teamID == 5 {
+		return &fleet.MDMAppleSetupAssistant{
+			Name: "Apple MDM Enrollment Profile for Team 1",
+		}, nil
+	}
+	if teamID == 0 || teamID == 1 || teamID == 2 || teamID == 3 || teamID == 4 {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
 }
 
 func compareDirs(t *testing.T, sourceDir, targetDir string) {
@@ -626,6 +712,12 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 	require.Equal(t, expectedAppConfig, TeamSettings)
 }
 
+// For the purpose of testing macos_setup generation,
+// Team 1 has setup experience software with InstallDuringSetup enabled,
+// Team 2 has setup experience software with InstallDuringSetup disabled,
+// Team 3 has a bootstrap package,
+// Team 4 has a setup experience script,
+// Team 5 has an Apple MDM enrollment profile.
 func TestGenerateControls(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
@@ -673,24 +765,6 @@ func TestGenerateControls(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedControls, controls)
 
-	// Generate controls for a team.
-	// Note that nested keys here may be strings,
-	// so we'll JSON marshal and unmarshal to a map for comparison.
-	controlsRaw, err = cmd.generateControls(ptr.Uint(1), "some_team", nil)
-	require.NoError(t, err)
-	require.NotNil(t, controlsRaw)
-	b, err = yaml.Marshal(controlsRaw)
-	require.NoError(t, err)
-	fmt.Println("Controls raw:\n", string(b)) // Debugging line
-	err = yaml.Unmarshal(b, &controls)
-	require.NoError(t, err)
-
-	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamControls.yaml")
-	require.NoError(t, err)
-	err = yaml.Unmarshal(b, &expectedControls)
-	require.NoError(t, err)
-
 	if fileContents, ok := cmd.FilesToWrite["lib/profiles/global-macos-mobileconfig-profile.mobileconfig"]; ok {
 		require.Equal(t, "<xml>global macos mobileconfig profile</xml>", fileContents)
 	} else {
@@ -709,6 +783,50 @@ func TestGenerateControls(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
+	// Generate controls for no-team, sending in an MDM config with "EndUserAuthentication" disabled.
+	// Mocks for no team don't return any scripts, bootstrap, software, or profiles,
+	// so it should _not_ generate a macos_setup config.
+	mdmConfig = fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableEndUserAuthentication: false,
+		},
+	}
+	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
+	require.NoError(t, err)
+	// Check that the controls do not contain a macos_setup section
+	_, ok := controlsRaw["macos_setup"]
+	require.False(t, ok, "Expected no macos_setup section for no-team controls")
+
+	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled.
+	mdmConfig = fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableEndUserAuthentication: true,
+		},
+	}
+	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
+	require.NoError(t, err)
+	// Check that the controls do contain a macos_setup section
+	verifyControlsHasMacosSetup(t, controlsRaw)
+
+	// Generate controls for a team.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	// Note that this team has setup experience software, so we expect a macos_setup section.
+	controlsRaw, err = cmd.generateControls(ptr.Uint(1), "some_team", nil)
+	require.NoError(t, err)
+	require.NotNil(t, controlsRaw)
+	b, err = yaml.Marshal(controlsRaw)
+	require.NoError(t, err)
+	fmt.Println("Controls raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &controls)
+	require.NoError(t, err)
+
+	// Get the expected controls YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamControls.yaml")
+	require.NoError(t, err)
+	err = yaml.Unmarshal(b, &expectedControls)
+	require.NoError(t, err)
+
 	if fileContents, ok := cmd.FilesToWrite["lib/some_team/profiles/team-macos-mobileconfig-profile.mobileconfig"]; ok {
 		require.Equal(t, "<xml>test mobileconfig profile</xml>", fileContents)
 	} else {
@@ -723,6 +841,27 @@ func TestGenerateControls(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedControls, controls)
+
+	// Generate controls for a team with software but none that installs during setup.
+	controlsRaw, err = cmd.generateControls(ptr.Uint(2), "some_team", nil)
+	require.NoError(t, err)
+	require.NotNil(t, controlsRaw)
+	require.False(t, ok, "Expected no macos_setup section for no-team controls")
+
+	// Generate controls for a team with a bootstrap pacakge.
+	controlsRaw, err = cmd.generateControls(ptr.Uint(3), "some_team", nil)
+	require.NoError(t, err)
+	verifyControlsHasMacosSetup(t, controlsRaw)
+
+	// Generate controls for a team with a setup experience script.
+	controlsRaw, err = cmd.generateControls(ptr.Uint(4), "some_team", nil)
+	require.NoError(t, err)
+	verifyControlsHasMacosSetup(t, controlsRaw)
+
+	// Generate controls for a team with a setup experience profile.
+	controlsRaw, err = cmd.generateControls(ptr.Uint(5), "some_team", nil)
+	require.NoError(t, err)
+	verifyControlsHasMacosSetup(t, controlsRaw)
 }
 
 func TestGenerateSoftware(t *testing.T) {
@@ -945,4 +1084,10 @@ func TestGenerateLabels(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedlabels, labels)
+}
+
+func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {
+	macosSetup, ok := controlsRaw["macos_setup"].(string)
+	require.True(t, ok, "Expected macos_setup section to be a string")
+	require.Equal(t, macosSetup, "TODO: update with your macos_setup configuration")
 }

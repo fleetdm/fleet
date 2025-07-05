@@ -11,6 +11,7 @@
   var showAdminLinks;// Shows links to admin pages to admin users.
   var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
   var hideStartCTA;
+  var showConfigurationProfileLayout;
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
   var defaultMetaDescription = 'Open-source '+(['it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(primaryBuyingSituation) ? 'IT' : ['security-misc','security-vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
@@ -131,8 +132,9 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %> collapse"  id="navbarToggleExternalContent">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : showConfigurationProfileLayout ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
       <%// Page header%>
+      <% if(!showConfigurationProfileLayout) {%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
         <div purpose="header-background">
           <% if(!hideHeaderLinks) { %>
@@ -159,23 +161,24 @@
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/observability">Orchestration &nbsp; <small>(+ monitoring)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/integrations">Integrations</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="device-management" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="orchestration" href="/orchestration">Orchestration &nbsp; <small>(+ monitoring)</small></a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="software-management" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="integrations" href="/integrations">Integrations</a>
                   </div>
                   <hr>
                   <a purpose="mobile-dropdown-link" class="d-flex align-items-center" href="/docs">Docs</a>
                   <hr>
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Stories</a>
                   <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" href="/announcements">News</a>
-                    <a purpose="mobile-dropdown-link" href="/support">Ask around</a>
-                    <a purpose="mobile-dropdown-link" target="_blank" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml">Share your story</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="announcements" href="/announcements">News</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="support" href="/support">Ask around</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="meetups" href="/meetups">Meetups</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="share-your-story" target="_blank" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml">Share your story</a>
                     <span class="mt-2 mb-2">COMPANY</span>
                     <div purpose="indented-mobile-links">
-                      <a purpose="mobile-dropdown-link" href="/handbook">The handbook</a>
-                      <a purpose="mobile-dropdown-link" href="/testimonials">What people are saying</a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/handbook">The handbook</a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="testimonials" href="/testimonials">Testimonials</a>
                     </div>
                   </div>
                   <hr>
@@ -194,7 +197,7 @@
                     </div>
                   <%}%>
                   <%if(!hideGetStartedButton){%>
-                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 152px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/contact">Schedule a demo</a>
+                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 152px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/contact" no-underline>Schedule a demo</a>
                   <% }%>
                 </div>
               </div>
@@ -203,10 +206,10 @@
                 <div purpose="dropdown-button" class="btn-group">
                   <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" href="/device-management" >Multi platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" href="/device-management">Device management <small>+ MDM</small></a>
-                    <a class="dropdown-item" href="/observability">Orchestration <small>+ monitoring</small></a>
-                    <a class="dropdown-item" href="/software-management">Software management <small>+ CVEs, usage, app library</small></a>
-                    <a class="dropdown-item" href="/integrations">Integrations</a>
+                    <a class="dropdown-item" data-dropdown-option="device-management" href="/device-management">Device management <small>+ MDM</small></a>
+                    <a class="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">Orchestration <small>+ monitoring</small></a>
+                    <a class="dropdown-item" data-dropdown-option="software-management" href="/software-management">Software management <small>+ CVEs, usage, app library</small></a>
+                    <a class="dropdown-item" data-dropdown-option="integrations" href="/integrations">Integrations</a>
                   </div>
                 </div>
                 <div purpose="dropdown-button" class="btn-group" style="width: 74px;">
@@ -215,13 +218,14 @@
                 <div purpose="dropdown-button" class="btn-group" style="width: 89px;">
                   <a purpose="header-nav-btn" button-text="Community" href="/testimonials" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" >Stories</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" href="/announcements">News</a>
-                    <a class="dropdown-item" href="/support">Ask around</a>
-                    <a class="dropdown-item" href="/contact">Schedule a demo</a><!-- «« included here in the desktop hover nav because unlike the mobile nav (which has 'Take a tour' as a primary CTA), there is no option to do that on desktop from other pages otherwise -->
-                    <a class="dropdown-item" target="_blank" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml">Share your story</a>
+                    <a class="dropdown-item" data-dropdown-option="announcements" href="/announcements">News</a>
+                    <a class="dropdown-item" data-dropdown-option="support" href="/support">Ask around</a>
+                    <a class="dropdown-item" data-dropdown-option="meetups" href="/meetups">Meetups</a>
+                    <a class="dropdown-item" data-dropdown-option="contact" href="/contact">Schedule a demo</a><!-- «« included here in the desktop hover nav because unlike the mobile nav (which has 'Take a tour' as a primary CTA), there is no option to do that on desktop from other pages otherwise -->
+                    <a class="dropdown-item" data-dropdown-option="share-your-story" target="_blank" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml">Share your story</a>
                     <span class="muted dropdown-header">COMPANY</span>
-                    <a class="dropdown-item" href="/handbook">The handbook</a>
-                    <a class="dropdown-item" href="/testimonials">What people are saying</a>
+                    <a class="dropdown-item" data-dropdown-option="handbook" href="/handbook">The handbook</a>
+                    <a class="dropdown-item" data-dropdown-option="testimonials" href="/testimonials">Testimonials</a>
                   </div>
                 </div>
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
@@ -230,7 +234,7 @@
                   allowtransparency="true" frameborder="0" scrolling="0" width="140" height="20"></iframe>
                 </span>
                 <%if(!hideGetStartedButton){%>
-                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/register">Try it yourself</a>
+                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/register" no-underline>Try it yourself</a>
                 <% }%>
                 <% if(_.has(me, 'id')) {%>
                 <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
@@ -263,9 +267,10 @@
           <%} %>
         </div>
       </div>
+      <% } %>
 
       <%- body %>
-
+      <% if(!showConfigurationProfileLayout) {%>
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
       <% if(!hideFooterLinks) { %>
         <div class="invisible container-fluid" purpose="page-footer" data-hide-until-rendered data-nosnippet>
@@ -279,7 +284,7 @@
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Multi platform</strong>
               <a href="/device-management">Device management</a>
-              <a href="/observability">Orchestration</a>
+              <a href="/orchestration">Orchestration</a>
               <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>
@@ -384,6 +389,7 @@
             </div>
           </div>
       <% } %>
+      <% } %>
     <%if(!hideStartCTA){%>
       <%- partial('../partials/continue.partial.ejs') %>
     <%}%>
@@ -449,6 +455,7 @@
     <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/configuration-builder.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
@@ -470,6 +477,8 @@
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
     <script src="/js/pages/meetups.page.js"></script>
+    <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
+    <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
     <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/os-settings.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>

@@ -162,10 +162,13 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 
 //goland:noinspection GoErrorStringFormat
 var sendingMFAEmail = errors.New("sending MFA email")
-var noMFASupported = errors.New("client with no MFA email support")
-var mfaNotSupportedForClient = endpoint_utils.BadRequestErr(
-	"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
-	noMFASupported,
+
+var (
+	noMFASupported           = errors.New("client with no MFA email support")
+	mfaNotSupportedForClient = endpoint_utils.BadRequestErr(
+		"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
+		noMFASupported,
+	)
 )
 
 func (svc *Service) Login(ctx context.Context, email, password string, supportsEmailVerification bool) (*fleet.User, *fleet.Session, error) {
@@ -411,6 +414,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 redirectURL,
+		SessionTTL:                  uint(svc.config.Auth.SsoSessionValidityPeriod.Seconds()),
 	}
 
 	// If issuer is not explicitly set, default to host name.
@@ -704,7 +708,7 @@ func (svc *Service) makeMFAEmail(ctx context.Context, user fleet.User) error {
 		},
 	}
 
-	return svc.mailService.SendEmail(email)
+	return svc.mailService.SendEmail(ctx, email)
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {

@@ -1,10 +1,10 @@
 # https://github.com/fleetdm/fleet/pull/13084
 - 
-  task: "Complete Digital Experience KPIs and send weekly update"
+  task: "Complete Digital Experience KPIs"
   startedOn: "2024-08-30" 
   frequency: "Weekly"
   description: "Complete Digital Experience KPIs for this week"
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
+  moreInfoUrl: 
   dri: "SFriendLee"
 - 
   task: "Confirm consultant hours"
@@ -184,11 +184,11 @@
     repo: "confidential"
 -
   task: "Vanta check" # TODO tie this to a responsibility
-  startedOn: "2024-04-01"
-  frequency: "Monthly"
-  description: "Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time."
+  startedOn: "2025-06-09"
+  frequency: "Weekly"
+  description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
   moreInfoUrl:
-  dri: "sampfluger88"
+  dri: "hollidayn"
   autoIssue:
     labels: [ "#g-digital-experience" ]
     repo: "confidential"
@@ -253,4 +253,14 @@
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
+-
+  task: "Check for new versions of osquery schema"
+  startedOn: "2025-06-03"
+  frequency: "Monthly"
+  description: "Make sure the website is using the latest version of the osquery schema."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-for-new-versions-of-osquery-schema"
+  dri: "eashaw"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "fleet"
 

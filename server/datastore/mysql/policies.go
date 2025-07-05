@@ -25,7 +25,7 @@ const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
-	p.vpp_apps_teams_id
+	p.vpp_apps_teams_id, p.conditional_access_enabled
 `
 
 var (
@@ -298,7 +298,7 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 //
 // Currently, SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return savePolicy(ctx, tx, ds.logger, p, shouldRemoveAllPolicyMemberships, removePolicyStats)
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -325,11 +325,14 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 	p.Name = norm.NFC.String(p.Name)
 	updateStmt := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, calendar_events_enabled = ?, software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?, checksum = ` + policiesChecksumComputedColumn() + `
+			SET name = ?, query = ?, description = ?, resolution = ?,
+			platforms = ?, critical = ?, calendar_events_enabled = ?,
+			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
+			conditional_access_enabled = ?, checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -965,11 +968,15 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, software_installer_id, script_id, vpp_apps_teams_id, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (
+				name, query, description, team_id, resolution, author_id,
+				platforms, critical, calendar_events_enabled, software_installer_id,
+				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
-		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
+		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID, args.ConditionalAccessEnabled,
 	)
 	switch {
 	case err == nil:
@@ -1216,8 +1223,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			software_installer_id,
 		    vpp_apps_teams_id,
 		    script_id,
+			conditional_access_enabled,
 			checksum
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1228,7 +1236,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			calendar_events_enabled = VALUES(calendar_events_enabled),
 			software_installer_id = VALUES(software_installer_id),
 			vpp_apps_teams_id = VALUES(vpp_apps_teams_id),
-			script_id = VALUES(script_id)
+			script_id = VALUES(script_id),
+			conditional_access_enabled = VALUES(conditional_access_enabled)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1252,7 +1261,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					ctx,
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
-					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID,
+					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -1458,6 +1467,18 @@ func cleanupQueryResultsOnTeamChange(ctx context.Context, tx sqlx.ExtContext, ho
 	}
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec cleanup query results query")
+	}
+	return nil
+}
+
+func cleanupConditionalAccessOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	const cleanupQuery = `DELETE FROM microsoft_compliance_partner_host_statuses WHERE host_id IN (?)`
+	query, args, err := sqlx.In(cleanupQuery, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build cleanup conditional access")
+	}
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec cleanup query conditional access")
 	}
 	return nil
 }
@@ -1984,6 +2005,17 @@ func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fl
 		return nil, ctxerr.Wrap(ctx, err, "get calendar policies")
 	}
 	return policies, nil
+}
+
+func (ds *Datastore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error) {
+	// Currently, the "Conditional access" feature is for macOS hosts only.
+	query := `SELECT id FROM policies WHERE team_id = ? AND conditional_access_enabled AND (platforms LIKE '%darwin%' OR platforms = '');`
+	var policyIDs []uint
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyIDs, query, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies for conditional access")
+	}
+	return policyIDs, nil
 }
 
 func (ds *Datastore) GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
