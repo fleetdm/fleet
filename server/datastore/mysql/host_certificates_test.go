@@ -4,15 +4,18 @@ import (
 	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,6 +29,8 @@ func TestHostCertificates(t *testing.T) {
 	}{
 		{"UpdateAndList", testUpdateAndListHostCertificates},
 		{"Update with host_mdm_managed_certificates to update", testUpdatingHostMDMManagedCertificates},
+		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
+		{"loadHostCertIDsForSHA1DB isolation", testLoadHostCertIDsForSHA1DBIsolation},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -317,4 +322,297 @@ func generateTestHostCertificateRecord(t *testing.T, hostID uint, template *x509
 	require.NotNil(t, parsed)
 
 	return fleet.NewHostCertificateRecord(hostID, parsed)
+}
+
+func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
+	// This test verifies the fix for commit 4726d838848aa294aca1036c8376d69f27f5f1e0
+	// "Don't look at other hosts' certs when deciding what to replace"
+	//
+	// The bug was in loadHostCertIDsForSHA1DB function which was querying:
+	//   SELECT ... FROM host_certificates WHERE sha1_sum IN (?)
+	// instead of:
+	//   SELECT ... FROM host_certificates WHERE sha1_sum IN (?) AND host_id = ?
+	//
+	// This caused certificate sources to be updated for the wrong host when
+	// multiple hosts had certificates with the same SHA1 sum.
+	//
+	// Test Coverage:
+	// 1. Creates two hosts with identical certificates (same SHA1)
+	// 2. Updates certificate sources for one host
+	// 3. Verifies the other host's certificate sources remain unchanged
+	// 4. Tests bidirectional isolation (host2 -> host1)
+	// 5. Tests multiple sources for same certificate on same host
+
+	ctx := context.Background()
+
+	// Create two hosts
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host1-osquery-id"),
+		NodeKey:         ptr.String("host1-node-key"),
+		UUID:            "host1-uuid",
+		Hostname:        "host1",
+	})
+	require.NoError(t, err)
+
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host2-osquery-id"),
+		NodeKey:         ptr.String("host2-node-key"),
+		UUID:            "host2-uuid",
+		Hostname:        "host2",
+	})
+	require.NoError(t, err)
+
+	// Create identical certificates for both hosts (same SHA1 sum)
+	// This simulates the real-world scenario where multiple hosts have the same certificate
+	// installed (e.g., a company root CA certificate)
+	sharedCert := x509.Certificate{
+		Subject: pkix.Name{
+			Country:            []string{"US"},
+			CommonName:         "shared.example.com",
+			Organization:       []string{"Shared Org"},
+			OrganizationalUnit: []string{"Engineering"},
+		},
+		Issuer: pkix.Name{
+			Country:      []string{"US"},
+			CommonName:   "issuer.example.com",
+			Organization: []string{"Issuer"},
+		},
+		SerialNumber: big.NewInt(12345),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+		BasicConstraintsValid: true,
+	}
+
+	// Generate certificate records for both hosts using the same certificate data
+	// We need to create the certificate bytes once and reuse them to ensure same SHA1
+	certBytes, _, err := GenerateTestCertBytes(&sharedCert)
+	require.NoError(t, err)
+
+	block, _ := pem.Decode(certBytes)
+	parsed, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	host1Cert := fleet.NewHostCertificateRecord(host1.ID, parsed)
+	host1Cert.Source = fleet.SystemHostCertificate
+	host1Cert.Username = ""
+
+	host2Cert := fleet.NewHostCertificateRecord(host2.ID, parsed)
+	host2Cert.Source = fleet.SystemHostCertificate
+	host2Cert.Username = ""
+
+	// Verify both certificates have the same SHA1 sum (critical for reproducing the bug)
+	require.Equal(t, host1Cert.SHA1Sum, host2Cert.SHA1Sum,
+		"Both certificates must have the same SHA1 sum to reproduce the bug")
+
+	// Initial setup: Add the same certificate to both hosts
+	err = ds.UpdateHostCertificates(ctx, host1.ID, host1.UUID, []*fleet.HostCertificateRecord{host1Cert})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2Cert})
+	require.NoError(t, err)
+
+	// Verify both hosts have the certificate with SystemHostCertificate source
+	host1Certs, _, err := ds.ListHostCertificates(ctx, host1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, host1Certs, 1)
+	require.Equal(t, fleet.SystemHostCertificate, host1Certs[0].Source)
+	require.Equal(t, "", host1Certs[0].Username)
+
+	host2Certs, _, err := ds.ListHostCertificates(ctx, host2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, host2Certs, 1)
+	require.Equal(t, fleet.SystemHostCertificate, host2Certs[0].Source)
+	require.Equal(t, "", host2Certs[0].Username)
+
+	// THE CRITICAL TEST CASE:
+	// Update host1's certificate to have a different source (UserHostCertificate)
+	// Before the fix, this would incorrectly update host2's certificate source as well
+	// because loadHostCertIDsForSHA1DB would find both certificates (same SHA1) and
+	// return the first one found, which could be from either host.
+	host1CertUpdated := fleet.NewHostCertificateRecord(host1.ID, parsed)
+	host1CertUpdated.Source = fleet.UserHostCertificate
+	host1CertUpdated.Username = "testuser"
+
+	err = ds.UpdateHostCertificates(ctx, host1.ID, host1.UUID, []*fleet.HostCertificateRecord{host1CertUpdated})
+	require.NoError(t, err)
+
+	// Verify host1's certificate source was updated
+	host1CertsAfter, _, err := ds.ListHostCertificates(ctx, host1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, host1CertsAfter, 1)
+	require.Equal(t, fleet.UserHostCertificate, host1CertsAfter[0].Source)
+	require.Equal(t, "testuser", host1CertsAfter[0].Username)
+
+	// THE KEY ASSERTION: host2's certificate source should NOT have changed
+	// This would fail before the fix because loadHostCertIDsForSHA1DB would
+	// incorrectly match certificates from both hosts
+	host2CertsAfter, _, err := ds.ListHostCertificates(ctx, host2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, host2CertsAfter, 1)
+	require.Equal(t, fleet.SystemHostCertificate, host2CertsAfter[0].Source,
+		"host2's certificate source should remain unchanged when host1's certificate is updated")
+	require.Equal(t, "", host2CertsAfter[0].Username)
+
+	// Additional verification: Update host2's certificate to a different source
+	// and verify that host1's certificate remains unchanged
+	host2CertUpdated := fleet.NewHostCertificateRecord(host2.ID, parsed)
+	host2CertUpdated.Source = fleet.UserHostCertificate
+	host2CertUpdated.Username = "anotheruser"
+
+	err = ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated})
+	require.NoError(t, err)
+
+	// Verify host2's certificate source was updated
+	host2CertsFinal, _, err := ds.ListHostCertificates(ctx, host2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, host2CertsFinal, 1)
+	require.Equal(t, fleet.UserHostCertificate, host2CertsFinal[0].Source)
+	require.Equal(t, "anotheruser", host2CertsFinal[0].Username)
+
+	// Verify host1's certificate source was NOT changed by host2's update
+	host1CertsFinal, _, err := ds.ListHostCertificates(ctx, host1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, host1CertsFinal, 1)
+	require.Equal(t, fleet.UserHostCertificate, host1CertsFinal[0].Source,
+		"host1's certificate source should remain unchanged when host2's certificate is updated")
+	require.Equal(t, "testuser", host1CertsFinal[0].Username)
+
+	// Test edge case: Multiple certificate sources for the same certificate on the same host
+	// This ensures the fix handles the more complex case where a single host has multiple
+	// sources for the same certificate
+	host1CertMultiSource1 := fleet.NewHostCertificateRecord(host1.ID, parsed)
+	host1CertMultiSource1.Source = fleet.SystemHostCertificate
+	host1CertMultiSource1.Username = ""
+
+	host1CertMultiSource2 := fleet.NewHostCertificateRecord(host1.ID, parsed)
+	host1CertMultiSource2.Source = fleet.UserHostCertificate
+	host1CertMultiSource2.Username = "multiuser"
+
+	err = ds.UpdateHostCertificates(ctx, host1.ID, host1.UUID, []*fleet.HostCertificateRecord{host1CertMultiSource1, host1CertMultiSource2})
+	require.NoError(t, err)
+
+	// Verify host1 now has the certificate with both sources
+	host1CertsMulti, _, err := ds.ListHostCertificates(ctx, host1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, host1CertsMulti, 2)
+
+	// Verify host2 still has only its original certificate source
+	host2CertsMulti, _, err := ds.ListHostCertificates(ctx, host2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, host2CertsMulti, 1)
+	require.Equal(t, fleet.UserHostCertificate, host2CertsMulti[0].Source)
+	require.Equal(t, "anotheruser", host2CertsMulti[0].Username)
+}
+
+func testLoadHostCertIDsForSHA1DBIsolation(t *testing.T, ds *Datastore) {
+	// This test directly tests the loadHostCertIDsForSHA1DB function to ensure
+	// it only returns certificate IDs for the specified host, not all hosts
+	//
+	// Test Coverage:
+	// 1. Creates two hosts with identical certificates (same SHA1)
+	// 2. Directly calls loadHostCertIDsForSHA1DB for each host
+	// 3. Verifies each host only gets its own certificate IDs
+	// 4. Verifies certificate IDs are different even with same SHA1
+	// 5. Tests that non-existent hosts return no results
+	ctx := context.Background()
+
+	// Create two hosts
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("unit-test-host1"),
+		NodeKey:         ptr.String("unit-test-host1-key"),
+		UUID:            "unit-test-host1-uuid",
+		Hostname:        "unit-test-host1",
+	})
+	require.NoError(t, err)
+
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("unit-test-host2"),
+		NodeKey:         ptr.String("unit-test-host2-key"),
+		UUID:            "unit-test-host2-uuid",
+		Hostname:        "unit-test-host2",
+	})
+	require.NoError(t, err)
+
+	// Create a certificate
+	cert := x509.Certificate{
+		Subject: pkix.Name{
+			Country:    []string{"US"},
+			CommonName: "unit-test.example.com",
+		},
+		SerialNumber:          big.NewInt(99999),
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-time.Hour).UTC(),
+		NotAfter:              time.Now().Add(24 * time.Hour).UTC(),
+		BasicConstraintsValid: true,
+	}
+
+	// Generate certificate data
+	certBytes, _, err := GenerateTestCertBytes(&cert)
+	require.NoError(t, err)
+
+	block, _ := pem.Decode(certBytes)
+	parsed, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	// Create certificate records for both hosts
+	host1Cert := fleet.NewHostCertificateRecord(host1.ID, parsed)
+	host2Cert := fleet.NewHostCertificateRecord(host2.ID, parsed)
+
+	// Insert certificates for both hosts
+	err = ds.UpdateHostCertificates(ctx, host1.ID, host1.UUID, []*fleet.HostCertificateRecord{host1Cert})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2Cert})
+	require.NoError(t, err)
+
+	// Get the SHA1 sum
+	sha1String := strings.ToUpper(hex.EncodeToString(host1Cert.SHA1Sum))
+
+	// Test loadHostCertIDsForSHA1DB function directly
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Test that querying for host1 returns only host1's certificate ID
+		certIDsHost1, err := loadHostCertIDsForSHA1DB(ctx, tx, host1.ID, []string{sha1String})
+		require.NoError(t, err)
+		require.Len(t, certIDsHost1, 1)
+		require.Contains(t, certIDsHost1, sha1String)
+
+		// Test that querying for host2 returns only host2's certificate ID
+		certIDsHost2, err := loadHostCertIDsForSHA1DB(ctx, tx, host2.ID, []string{sha1String})
+		require.NoError(t, err)
+		require.Len(t, certIDsHost2, 1)
+		require.Contains(t, certIDsHost2, sha1String)
+
+		// The certificate IDs should be different even though the SHA1 is the same
+		require.NotEqual(t, certIDsHost1[sha1String], certIDsHost2[sha1String],
+			"Certificate IDs should be different for different hosts even with same SHA1")
+
+		// Test that querying for a non-existent host returns no results
+		host3ID := uint(99999)
+		certIDsHost3, err := loadHostCertIDsForSHA1DB(ctx, tx, host3ID, []string{sha1String})
+		require.NoError(t, err)
+		require.Len(t, certIDsHost3, 0)
+
+		return nil
+	})
+	require.NoError(t, err)
 }
