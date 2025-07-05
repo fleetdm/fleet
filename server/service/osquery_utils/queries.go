@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/mdm"
 	"net"
 	"net/url"
 	"regexp"
@@ -20,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -1263,6 +1263,74 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			return mainSoftwareResults
 		},
 	},
+	// windows_last_opened_at collects last opened at information from prefetch files on Windows
+	// hosts. Joining this within the main software query is not performant enough to do on the
+	// device (resulted in denylisted queries during testing), so we do it on the server instead.
+	"windows_last_opened_at": {
+		Query: `
+		SELECT
+		  MAX(last_run_time) AS last_opened_at,
+		  REGEX_MATCH(accessed_files, "VOLUME[^\\]+([^,]+"||filename||")", 1) AS executable_path
+		FROM prefetch
+		GROUP BY executable_path
+	`,
+		Description: "A software override query[^1] to append last_opened_at information to Windows software entries.",
+		Platforms:   []string{"windows"},
+		SoftwareProcessResults: func(mainSoftwareResults, prefetchResults []map[string]string) []map[string]string {
+			if len(prefetchResults) == 0 {
+				return mainSoftwareResults
+			}
+
+			skipInstallPaths := map[string]bool{
+				"":                      true,
+				"\\":                    true,
+				"\\windows\\system32\\": true,
+			}
+
+			for _, result := range mainSoftwareResults {
+				if result["source"] != "programs" {
+					// Only override last_opened_at for software from the programs source.
+					continue
+				}
+
+				installPath := strings.ToLower(result["installed_path"])
+				// Remove the drive letter from the path
+				volume, path, found := strings.Cut(installPath, ":")
+				if !found || len(volume) != 1 || len(path) == 0 {
+					continue
+				}
+
+				// Skip some install paths where binaries live but can't be well correlated to programs
+				if skipInstallPaths[path] {
+					fmt.Println("Skipping install path:", path)
+					continue
+				}
+
+				for _, prefetchResult := range prefetchResults {
+					prefetchPath := strings.ToLower(prefetchResult["executable_path"])
+					if strings.Contains(prefetchPath, path) {
+						fmt.Println("found prefetch for install path:", path, "->", prefetchPath, prefetchResult["last_opened_at"])
+						// Some programs will have multiple prefetch entries matching their install
+						// path, so we compare the last_opened_at values and keep the more recent.
+						result["last_opened_at"] = maxString(result["last_opened_at"], prefetchResult["last_opened_at"])
+					}
+				}
+				fmt.Println("Final last_opened_at for", result["installed_path"], ":", result["last_opened_at"])
+			}
+
+			return mainSoftwareResults
+		},
+	},
+}
+
+// Convert the strings to integers and return the larger one.
+func maxString(a, b string) string {
+	intA, _ := strconv.Atoi(a)
+	intB, _ := strconv.Atoi(b)
+	if intA > intB {
+		return a
+	}
+	return b
 }
 
 var usersQuery = DetailQuery{

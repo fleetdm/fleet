@@ -10,7 +10,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"regexp"
 	"slices"
 	"sort"
@@ -21,6 +20,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -2233,6 +2233,26 @@ func TestLuksVerifyQueryIngester(t *testing.T) {
 				tc.setUp(t, ds)
 			}
 			tc.expectations(t, ds, sut(ctx, logger, tc.host, ds, tc.rows))
+		})
+	}
+}
+
+func TestMaxString(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		a    string
+		b    string
+		want string
+	}{
+		{a: "", b: "", want: ""},
+		{a: "1", b: "", want: "1"},
+		{a: "", b: "2", want: "2"},
+		{a: "1751737544", b: "1751737555", want: "1751737555"},
+	}
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("a=%s,b=%s", tc.a, tc.b), func(t *testing.T) {
+			got := maxString(tc.a, tc.b)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }
