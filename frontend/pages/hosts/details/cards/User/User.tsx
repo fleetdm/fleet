@@ -50,7 +50,8 @@ const User = ({
   const otherEmailsDisplayValues = generateOtherEmailsValues(endUsers);
 
   const endUser = endUsers[0];
-  const showUsername = platform === "darwin";
+  const showUsername =
+    platform === "darwin" || platform === "ipados" || platform === "ios";
   const showFullName = showUsername && userNameDisplayValues.length > 0;
   const showGroups = showUsername && userNameDisplayValues.length > 0;
   const showChromeProfiles = chromeProfilesDisplayValues.length > 0;
