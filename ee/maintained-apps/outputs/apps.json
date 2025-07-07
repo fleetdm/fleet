@@ -135,6 +135,13 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "Omnissa Horizon Client",
+      "slug": "omnissa-horizon-client/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnissa.horizon.client.mac",
+      "description": ""
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
