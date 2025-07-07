@@ -21,6 +21,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -209,9 +210,9 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 	}
 
 	// PEM-encode the cert and keys
-	scepCACertPEM := apple_mdm.EncodeCertPEM(scepCACert)
-	scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepCAKey)
-	apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
+	scepCACertPEM := certificate.EncodeCertPEM(scepCACert)
+	scepCAKeyPEM := certificate.EncodePrivateKeyPEM(scepCAKey)
+	apnsKeyPEM := certificate.EncodePrivateKeyPEM(apnsKey)
 
 	return &fleet.AppleCSR{
 		APNsKey:  apnsKeyPEM,
@@ -2525,9 +2526,9 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		// Store our config assets encrypted
 		var assets []fleet.MDMConfigAsset
 		for k, v := range map[fleet.MDMAssetName][]byte{
-			fleet.MDMAssetCACert:  apple_mdm.EncodeCertPEM(scepCert),
-			fleet.MDMAssetCAKey:   apple_mdm.EncodePrivateKeyPEM(scepKey),
-			fleet.MDMAssetAPNSKey: apple_mdm.EncodePrivateKeyPEM(apnsRSAKey),
+			fleet.MDMAssetCACert:  certificate.EncodeCertPEM(scepCert),
+			fleet.MDMAssetCAKey:   certificate.EncodePrivateKeyPEM(scepKey),
+			fleet.MDMAssetAPNSKey: certificate.EncodePrivateKeyPEM(apnsRSAKey),
 		} {
 			assets = append(assets, fleet.MDMConfigAsset{
 				Name:  k,
