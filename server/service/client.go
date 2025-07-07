@@ -1797,13 +1797,17 @@ func (c *Client) DoGitOps(
 				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
 			}
 		}
-		// check for the eula in the mdmAppConfig. If it exists we want to delete it
-		// from the app config so it will not be applied to the group/team though the
-		// ApplyGroup method. It will be applied separately.
-		if endUserLicenseAgreement, ok := mdmAppConfig["end_user_license_agreement"].(string); ok && len(endUserLicenseAgreement) > 0 {
-			eulaPath = endUserLicenseAgreement
-			delete(mdmAppConfig, "end_user_license_agreement")
+
+		// check for the eula in the mdmAppConfig. If it exists we want to assign it
+		// to eulaPath so that it will be applied later. We always delete it from
+		// mdmAppConfig so it will not be applied to the group/team though the
+		// ApplyGroup method.
+		if endUserLicenseAgreement, exists := mdmAppConfig["end_user_license_agreement"]; !exists || endUserLicenseAgreement == nil || (endUserLicenseAgreement == "") {
+			eulaPath = ""
+		} else if eulaStr, ok := endUserLicenseAgreement.(string); ok && len(eulaStr) > 0 {
+			eulaPath = eulaStr
 		}
+		delete(mdmAppConfig, "end_user_license_agreement")
 
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 
