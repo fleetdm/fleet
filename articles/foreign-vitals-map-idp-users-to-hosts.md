@@ -4,10 +4,9 @@
 
 _Available in Fleet Premium._
 
-To add IdP host vitals, like the end user's groups and full name, follow steps for your IdP. 
+To add IdP host vitals, like the end user's groups, department, and full name, follow steps for your IdP.
 
 Fleet currently supports [Okta](#okta). [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), more are coming soon.
-
 
 ## Okta
 
@@ -41,9 +40,8 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
 9. Back in Okta, select **Save**.
 10. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
-11. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes.
+11. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping.png)
-
 
 #### Step 3: Map users and groups to hosts in Fleet
 
@@ -84,15 +82,13 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 #### Step 3: Map users and groups to hosts in Fleet
 
 1. From the side menu, select **Attribute mapping** and then select **Provision Microsoft Entra ID Groups**.
-2. Ensure that the attributes `displayName`, `members`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and they are required as well. Delete the rest of the attributes, select **Save**, and after it's
-    saved, select close icon on the top right corner.
 ![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes.png)    
-3. Select **Provision Microsoft Entra ID Users**.
-4. Ensure that the attributes `userName`, `givenName`, `familyName`, `active`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName` `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon in the top right corner.
+2. Select **Provision Microsoft Entra ID Users**.
+3. Ensure that the attributes `userName`, `givenName`, `familyName`, `department`, `active`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName` `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon in the top right corner.
 ![Entra SCIM attributes mapping for users](../website/assets/images/articles/entra-user-scim-attributes.png)  
-5. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
-6. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
-7. From the side menu, select **Overview** and select **Start provisioning**.
+4. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
+5. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
+6. From the side menu, select **Overview** and select **Start provisioning**.
 
 It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To speed this up, you can use the "Provision on demand" option in Microsoft Entra ID.
 
@@ -250,7 +246,7 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 
 After following the steps above, you should be able to see the latest requests from your IdP to Fleet if you navigate to **Settings > Integrations > Identity Provider (IdP)**. 
 
-To verify that user information is added to a host, go to the host that has IdP username assigned, and verify that **Full name (IdP)** and **Groups (IdP)** are populated correctly.
+To verify that user information is added to a host, go to the host that has IdP username assigned, and verify that **Full name (IdP)**, **Department (IdP)**, and **Groups (IdP)** are populated correctly.
 
 > Currently, the IdP username is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the [end user authenticates](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-setup) with the IdP and the DEP profile has `await_device_configured` set to `true` (default in the [automatic enrollment profile](https://fleetdm.com/guides/macos-setup-experience#step-1-create-an-automatic-enrollment-profile)).
 
