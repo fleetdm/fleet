@@ -450,7 +450,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'boolean',
-                  settingKey: 'AllowSignedApp',
+                  settingKey: 'BlockAllIncoming',
                   trueValue: '<true/>',
                   falseValue: '<false/>',
                 },
