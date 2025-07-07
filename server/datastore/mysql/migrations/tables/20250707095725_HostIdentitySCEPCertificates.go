@@ -14,7 +14,7 @@ func Up_20250707095725(tx *sql.Tx) error {
 	// In SCEP (Simple Certificate Enrollment Protocol) implementations, it's common practice to reserve serial number 1 for the CA (Certificate Authority) certificate itself or for other system-level certificates.
 	_, err := tx.Exec(`
 		CREATE TABLE host_identity_scep_serials (
-			serial bigint NOT NULL AUTO_INCREMENT,
+			serial bigint unsigned NOT NULL AUTO_INCREMENT,
 			created_at DATETIME(6) NULL DEFAULT NOW(6),
 			PRIMARY KEY (serial)
 		) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -26,7 +26,7 @@ func Up_20250707095725(tx *sql.Tx) error {
 	// Create host_identity_scep_certificates table
 	_, err = tx.Exec(`
 		CREATE TABLE host_identity_scep_certificates (
-			serial bigint NOT NULL,
+			serial bigint unsigned NOT NULL,
 			host_id int unsigned NULL,
 			name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 			not_valid_before datetime NOT NULL,

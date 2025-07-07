@@ -499,7 +499,7 @@ CREATE TABLE `host_emails` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_identity_scep_certificates` (
-  `serial` bigint NOT NULL,
+  `serial` bigint unsigned NOT NULL,
   `host_id` int unsigned DEFAULT NULL,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `not_valid_before` datetime NOT NULL,
@@ -519,7 +519,7 @@ CREATE TABLE `host_identity_scep_certificates` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_identity_scep_serials` (
-  `serial` bigint NOT NULL AUTO_INCREMENT,
+  `serial` bigint unsigned NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`serial`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

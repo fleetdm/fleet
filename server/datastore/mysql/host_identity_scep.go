@@ -94,7 +94,10 @@ func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 	if !ok {
 		return errors.New("public key not in ECDSA format")
 	}
-	pubKeyRaw := append([]byte{0x04}, append(key.X.Bytes(), key.Y.Bytes()...)...)
+	pubKeyRaw, err := fleet.CreateECDSAPublicKeyRaw(key)
+	if err != nil {
+		return fmt.Errorf("creating public key raw: %w", err)
+	}
 	certPEM := certificate.EncodeCertPEM(crt)
 
 	return common_mysql.WithRetryTxx(context.Background(), d.db, func(tx sqlx.ExtContext) error {
@@ -123,4 +126,18 @@ func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 		)
 		return err
 	}, d.logger)
+}
+
+func (ds *Datastore) GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*fleet.HostIdentityCertificate, error) {
+	var hostIdentityCert fleet.HostIdentityCertificate
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostIdentityCert, `
+		SELECT serial, host_id, name, not_valid_after, public_key_raw
+		FROM host_identity_scep_certificates
+		WHERE serial = ?
+			AND not_valid_after > NOW()
+			AND revoked = 0`, serialNumber)
+	if err != nil {
+		return nil, err
+	}
+	return &hostIdentityCert, nil
 }
