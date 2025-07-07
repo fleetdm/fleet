@@ -38,11 +38,12 @@ describe("Integrations Page", () => {
   //       <IntegrationsPage router={mockRouter} params={{ section: "mdm" }} />
   //     );
 
+  // sidenav label, sidenav tooltip, and card header
   //     await waitForLoadingToFinish(container);
 
   //     expect(
   //       screen.getAllByText("Mobile device management (MDM)")
-  //     ).toHaveLength(2);
+  //     ).toHaveLength(3);
   //   });
   // });
   describe("Conditional access", () => {
