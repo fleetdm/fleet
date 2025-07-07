@@ -4246,9 +4246,9 @@ func (s *integrationTestSuite) TestLabels() {
 	t := s.T()
 
 	// create some hosts to use for manual labels
-	hosts := s.createHosts(t, "debian", "linux", "fedora", "darwin", "darwin", "darwin")
+	hosts := s.createHosts(t, "debian", "linux", "fedora", "darwin", "darwin", "darwin", "darwin")
 	manualHosts := hosts[:3]
-	lbl2Hosts := hosts[3:]
+	lbl2Hosts := hosts[3:6]
 
 	t.Run("Manual and Dynamic Labels", func(t *testing.T) {
 		// list labels, has the built-in ones
@@ -4626,15 +4626,22 @@ func (s *integrationTestSuite) TestLabels() {
 			t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(
 					context.Background(),
-					"INSERT INTO scim_users (id, user_name) VALUES (?, ?), (?, ?), (?, ?), (?, ?)",
+					"INSERT INTO scim_users (id, user_name, department) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?)",
 					1,
-					"no_groups",
+					"no_groups_no_department",
+					nil,
 					2,
-					"one_group",
+					"one_group_good_department",
+					"department_good",
 					3,
-					"all_the_groups",
+					"all_the_groups_good_department",
+					"department_good",
 					4,
-					"wrong_groups",
+					"wrong_groups_wrong_department",
+					"department_other",
+					5,
+					"no_groups_with_department",
+					"department_other_2",
 				)
 				return err
 			},
@@ -4675,13 +4682,13 @@ func (s *integrationTestSuite) TestLabels() {
 			t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(
 					context.Background(),
-					"INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)",
-					hosts[0].ID, 1, // host 1 shouldn't be returned because its scim user has no groups
-					hosts[1].ID, 2, // host 2 should be returned because its scim user has the "group_good" group
-					hosts[2].ID, 3, // host 3 should be returned because it has a scim user with the "group_good" group
-					hosts[3].ID, 2, // host 4 should be returned because it has a scim user with the "group_good" group
-					hosts[4].ID, 4, // host 5 shouldn't be returned because its scim user only has the "group_bad" group
-					// host 6 shouldn't be returned because it has no scim user
+					"INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)",
+					hosts[0].ID, 1,
+					hosts[1].ID, 2,
+					hosts[2].ID, 3,
+					hosts[3].ID, 2,
+					hosts[4].ID, 4,
+					hosts[6].ID, 5,
 				)
 				return err
 			},
@@ -4716,7 +4723,7 @@ func (s *integrationTestSuite) TestLabels() {
 			queryValuesJson, err := json.Marshal(queryValues)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
 			assert.Equal(t, `["group_good"]`, string(queryValuesJson))
 
 			// Update label membership.
@@ -4725,6 +4732,14 @@ func (s *integrationTestSuite) TestLabels() {
 
 			// Verify that the label has the correct hosts.
 			// Check that the label has the correct hosts
+			//
+			// host 1 shouldn't be returned because its scim user has no groups
+			// host 2 should be returned because its scim user has the "group_good" group
+			// host 3 should be returned because it has a scim user with the "group_good" group
+			// host 4 should be returned because it has a scim user with the "group_good" group
+			// host 5 shouldn't be returned because its scim user only has the "group_bad" group
+			// host 6 shouldn't be returned because it has no scim user
+			//
 			hostsInLabel, err := s.ds.ListHostsInLabel(context.Background(), filter, label.ID, fleet.HostListOptions{})
 			require.NoError(t, err)
 			require.Len(t, hostsInLabel, 3)
@@ -4734,6 +4749,91 @@ func (s *integrationTestSuite) TestLabels() {
 			label, _, err = s.ds.Label(context.Background(), labelResp.Label.Label.ID, filter)
 			require.NoError(t, err)
 			assert.Equal(t, 3, label.HostCount)
+		})
+
+		t.Run("IdP Department Label", func(t *testing.T) {
+			// Create a label for an IdP department
+			criteria := &fleet.HostVitalCriteria{
+				Vital: ptr.String("end_user_idp_department"),
+				Value: ptr.String("department_good"),
+			}
+
+			labelParams := createLabelRequest{
+				fleet.LabelPayload{
+					Name:     "Test IdP Department Label",
+					Criteria: criteria,
+				},
+			}
+
+			labelResp := createLabelResponse{}
+			s.DoJSON("POST", "/api/latest/fleet/labels", labelParams, http.StatusOK, &labelResp)
+			require.NotNil(t, labelResp.Label)
+
+			filter := fleet.TeamFilter{User: test.UserAdmin}
+			label, _, err := s.ds.Label(context.Background(), labelResp.Label.Label.ID, filter)
+			require.NoError(t, err)
+
+			// Verify that the query and values are correct.
+			// Test parsing the criteria
+			query, queryValues, err := label.CalculateHostVitalsQuery()
+			require.NoError(t, err)
+			queryValuesJson, err := json.Marshal(queryValues)
+			require.NoError(t, err)
+
+			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id", query)
+			assert.Equal(t, `["department_good"]`, string(queryValuesJson))
+
+			// Update label membership.
+			_, err = s.ds.UpdateLabelMembershipByHostCriteria(context.Background(), label)
+			require.NoError(t, err)
+
+			// Verify that the label has the correct hosts.
+			hostsInLabel, err := s.ds.ListHostsInLabel(context.Background(), filter, label.ID, fleet.HostListOptions{})
+			require.NoError(t, err)
+			require.Len(t, hostsInLabel, 3)
+			require.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID, hostsInLabel[2].ID})
+
+			// Check that the label has the correct host count
+			label, _, err = s.ds.Label(context.Background(), labelResp.Label.Label.ID, filter)
+			require.NoError(t, err)
+			assert.Equal(t, 3, label.HostCount)
+
+			t.Run("No Groups", func(t *testing.T) {
+				// Create a label for IdP department to test users with department but no groups
+				criteria := &fleet.HostVitalCriteria{
+					Vital: ptr.String("end_user_idp_department"),
+					Value: ptr.String("department_other_2"),
+				}
+				labelParams := createLabelRequest{
+					fleet.LabelPayload{
+						Name:     "Test IdP Department Label 2",
+						Criteria: criteria,
+					},
+				}
+
+				labelResp := createLabelResponse{}
+				s.DoJSON("POST", "/api/latest/fleet/labels", labelParams, http.StatusOK, &labelResp)
+				require.NotNil(t, labelResp.Label)
+
+				label, _, err = s.ds.Label(context.Background(), labelResp.Label.Label.ID, filter)
+				require.NoError(t, err)
+
+				// Update label membership.
+				_, err = s.ds.UpdateLabelMembershipByHostCriteria(context.Background(), label)
+				require.NoError(t, err)
+
+				// Verify that the label has the correct hosts.
+				hostsInLabel, err := s.ds.ListHostsInLabel(context.Background(), filter, label.ID, fleet.HostListOptions{})
+				require.NoError(t, err)
+				require.Len(t, hostsInLabel, 1)
+				// host 7 is mapped to user 5 which matches the department but has no groups.
+				require.ElementsMatch(t, []uint{hosts[6].ID}, []uint{hostsInLabel[0].ID})
+
+				// Check that the label has the correct host count
+				label, _, err = s.ds.Label(context.Background(), label.ID, filter)
+				require.NoError(t, err)
+				assert.Equal(t, 1, label.HostCount)
+			})
 		})
 	})
 }
