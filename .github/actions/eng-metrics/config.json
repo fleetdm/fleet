@@ -1,0 +1,22 @@
+{
+  "repositories": [
+    "fleetdm/fleet"
+  ],
+  "targetBranch": "main",
+  "bigQueryDatasetId": "github_metrics",
+  "lookbackDays": 5,
+  "serviceAccountKeyPath": "./service-account-key.json",
+  "printOnly": false,
+  "userGroupEnabled": true,
+  "userGroupFilepath": "../../../handbook/company/product-groups.md",
+  "metrics": {
+    "timeToFirstReview": {
+      "enabled": true,
+      "tableName": "pr_first_review"
+    },
+    "timeToMerge": {
+      "enabled": true,
+      "tableName": "pr_merge"
+    }
+  }
+}

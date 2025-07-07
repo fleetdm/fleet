@@ -130,7 +130,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 	ssoSettings := fleet.SSOProviderSettings{
 		EntityID:    "foo",
 		MetadataURL: "https://example.com/metadata.xml",
-		IssuerURI:   "https://example.com",
 	}
 	appConfig := &fleet.AppConfig{MDM: fleet.MDM{
 		EnabledAndConfigured:  true,

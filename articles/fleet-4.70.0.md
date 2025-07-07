@@ -37,12 +37,14 @@ Users managing many [teams in Fleet](https://fleetdm.com/guides/teams) can now s
 ## Changes
 
 ### Security Engineers
+- Added support for Microsoft Entra ID conditional access. 
 - Updated vulnerabilities feed to fall back to non-primary CVSSv2/v3 sources when primary (NVD) data is not available, instead of omitting scores entirely.
 - Updated custom SCEP proxy implementation to include one-time challenges.
 - Added the `source` and `username` fields for host certificates, reporting 'system' or 'user' based on which keychain it was from (for `macOS`, it will be 'user' if coming from the "login" keychain), and the corresponding `username` if the source is 'user'.
 - Updated certificates card on the host details and my device page to show a new keychain column.
 
 ### IT Admins
+- Added support for Microsoft Entra ID conditional access. 
 - Enabled Android MDM support. The functionality is limited to turning on Android MDM and enrolling a BYOD device. 
 > **NOTE:** If your server was already using Android via the experimental DEV_ANDROID_ENABLED=1 flag, please turn off Android MDM before updating your Fleet server.
 - Added support for filtering the hosts page for hosts with any of the 3 batch script execution statuses.
@@ -94,6 +96,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2025-06-27">
+<meta name="publishedOn" value="2025-06-30">
 <meta name="articleTitle" value="Fleet 4.70.0 | Entra ID conditional access, Android work profiles, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.70.0-1600x900@2x.png">

@@ -56,9 +56,9 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
-/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
-/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
+/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB @ddribeiro
+/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB @ddribeiro
+/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB @ddribeiro
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.

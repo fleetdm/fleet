@@ -1,9 +1,0 @@
-name,version,source,bundle_identifier,release,vendor_old,arch,vendor
-example-ubuntu-software,1.0,Package (deb),,Stable,ExampleVendorOld,x86_64,ExampleVendor
-another-ubuntu-software,2.0,Package (deb),,Beta,AnotherVendorOld,arm64,AnotherVendor
-LibreOffice,7.4.0,Package (deb),,,,,
-Open Ticket Request System (OTRS) ITSM,6.0.32,Package (deb),,,,,
-Open Ticket Request System (OTRS),7.0.40,Package (deb),,,,,
-YugabyteDB,2.1.10,Package (deb),,,,,
-MongoDB,4.4.4,Package (deb),,,,,
-Mozilla Firefox,1.5.2,Package (deb),,,,,

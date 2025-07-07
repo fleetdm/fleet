@@ -410,3 +410,142 @@ func (c *Client) MDMWipeHost(hostID uint) error {
 	}
 	return nil
 }
+
+type eulaContent struct {
+	Bytes []byte
+}
+
+// eulaContent implements the bodyHandler interface so that we can read the
+// response body directly into a byte slice which represents the EULA file content.
+// This handler will be called in the Client.parseResponse method.
+func (ec *eulaContent) Handle(res *http.Response) error {
+	b, err := io.ReadAll(res.Body)
+	ec.Bytes = b
+	return err
+}
+
+func (c *Client) GetEULAContent(token string) ([]byte, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", token)
+	request := getMDMEULARequest{}
+	var responseBody eulaContent
+	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	return responseBody.Bytes, err
+}
+
+func (c *Client) GetEULAMetadata() (*fleet.MDMEULA, error) {
+	verb, path := "GET", "/api/latest/fleet/setup_experience/eula/metadata"
+	request := getMDMEULAMetadataRequest{}
+	var responseBody getMDMEULAMetadataResponse
+	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	return responseBody.MDMEULA, err
+}
+
+func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
+	eula, err := c.GetEULAMetadata()
+	switch {
+	case errors.As(err, &notFoundErr{}):
+		// not found is OK, it means there is nothing to delete
+		return nil
+	case err != nil:
+		return fmt.Errorf("getting eula metadata: %w", err)
+	}
+
+	err = c.DeleteEULA(eula.Token, dryRun)
+	if err != nil {
+		return fmt.Errorf("deleting eula: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) DeleteEULA(token string, dryRun bool) error {
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", token)
+	request := deleteMDMEULARequest{}
+	var responseBody deleteMDMEULAResponse
+	err := c.authenticatedRequestWithQuery(request, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
+	return err
+}
+
+func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
+	isFirstTime := false
+	oldMeta, err := c.GetEULAMetadata()
+	if err != nil {
+		// not found is OK, it means this is our first time uploading a eula
+		if !errors.As(err, &notFoundErr{}) {
+			return fmt.Errorf("getting eula metadata: %w", err)
+		}
+		isFirstTime = true
+	}
+
+	// read file to get the new file bytes
+	eulaBytes, err := os.ReadFile(eulaPath)
+	if err != nil {
+		return fmt.Errorf("reading eula file: %w", err)
+	}
+
+	if !isFirstTime {
+		newChecksum := sha256.Sum256(eulaBytes)
+
+		// compare checksums, if they're equal then we can skip the eula upload
+		if bytes.Equal(oldMeta.Sha256, newChecksum[:]) && oldMeta.Name == filepath.Base(eulaPath) {
+			return nil
+		}
+
+		// similar to the expected UI experience, delete the old eula first
+		err = c.DeleteEULA(oldMeta.Token, dryRun)
+		if err != nil {
+			return fmt.Errorf("deleting old eula: %w", err)
+		}
+	}
+
+	if err := c.UploadEULA(eulaPath, dryRun); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
+	verb, path := "POST", "/api/latest/fleet/setup_experience/eula"
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the eula field
+	fw, err := w.CreateFormFile("eula", filepath.Base(eulaPath))
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Open(eulaPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if _, err := io.Copy(fw, file); err != nil {
+		return err
+	}
+	err = w.Close()
+	if err != nil {
+		return fmt.Errorf("closing writer: %w", err)
+	}
+
+	resp, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
+		b.Bytes(),
+		map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", c.token),
+		})
+	if err != nil {
+		return fmt.Errorf("do multipart request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var eulaResponse createMDMEULAResponse
+	if err := c.parseResponse(verb, path, resp, &eulaResponse); err != nil {
+		return fmt.Errorf("parse response: %w", err)
+	}
+
+	return nil
+}

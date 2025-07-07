@@ -32,7 +32,7 @@ const tableHeaders = [
   { id: "last_fetched", sortType: "caseInsensitive" },
   { id: "uid", sortType: "alphanumeric" },
   { id: "json_result", sortType: "caseInsensitive" },
-  { id: 'edge","case', sortType: "caseInsensitve" },
+  { id: 'edge","case', sortType: "caseInsensitive" },
 ];
 
 describe("convertToCSV - utility", () => {
