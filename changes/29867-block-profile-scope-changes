@@ -1,0 +1,1 @@
+* Updated Apple profile verification code to disallow uploading profiles with the same identifier but differing PayloadScopes

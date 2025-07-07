@@ -52,7 +52,7 @@
     "react-table": "7.7.0",
     "react-tabs": "3.2.3",
     "react-tooltip": "4.2.21",
-    "react-tooltip-5": "npm:react-tooltip@5.21.3",
+    "react-tooltip-5": "npm:react-tooltip@5.29.1",
     "remark-gfm": "3.0.1",
     "sass": "1.83.4",
     "select": "1.1.2",

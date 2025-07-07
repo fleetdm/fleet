@@ -2370,7 +2370,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	}
 
 	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
-		require.Empty(t, payload)
+		require.ElementsMatch(t, payload, []*fleet.MDMAppleProfilePayload{{ProfileUUID: p6, ProfileIdentifier: "com.remove.profile.six", HostUUID: hostUUID2, Scope: fleet.PayloadScopeUser}})
 		return nil
 	}
 
@@ -2493,6 +2493,17 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		cmdUUIDByProfileUUIDRemove := make(map[string]string)
 		copies := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(payload))
 		for i, p := range payload {
+			// clear the command UUID (in a copy so that it does not affect the
+			// pointed-to struct) from the payload for the subsequent checks
+			copyp := *p
+			copyp.CommandUUID = ""
+			copies[i] = &copyp
+
+			// Host with no user enrollment, so install fails
+			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+				continue
+			}
+
 			if p.OperationType == fleet.MDMOperationTypeInstall {
 				existing, ok := cmdUUIDByProfileUUIDInstall[p.ProfileUUID]
 				if ok {
@@ -2510,11 +2521,6 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				}
 			}
 
-			// clear the command UUID (in a copy so that it does not affect the
-			// pointed-to struct) from the payload for the subsequent checks
-			copyp := *p
-			copyp.CommandUUID = ""
-			copies[i] = &copyp
 		}
 
 		require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -2575,14 +2581,15 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				Status:            &fleet.MDMDeliveryPending,
 				Scope:             fleet.PayloadScopeUser,
 			},
-			// This host has no user enrollment so the profile is sent to the device enrollment
+			// This host has no user enrollment so the profile is errored
 			{
 				ProfileUUID:       p5,
 				ProfileIdentifier: "com.add.profile.five",
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
-				Status:            &fleet.MDMDeliveryPending,
-				Scope:             fleet.PayloadScopeSystem,
+				Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll.",
+				Status:            &fleet.MDMDeliveryFailed,
+				Scope:             fleet.PayloadScopeUser,
 			},
 			// This host has a user enrollment so the profile is removed from it
 			{
@@ -2593,6 +2600,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				Status:            &fleet.MDMDeliveryPending,
 				Scope:             fleet.PayloadScopeUser,
 			},
+			// Note that host2 has no user enrollment so the profile is not marked for removal
+			// from it
 		}, copies)
 		return nil
 	}
@@ -2692,7 +2701,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
 			failedCount++
 
-			require.Len(t, payload, 6) // the 6 install ops
+			require.Len(t, payload, 5) // the 5 install ops
 			require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 				{
 					ProfileUUID:       p1,
@@ -2737,15 +2746,6 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					CommandUUID:       "",
 					Scope:             fleet.PayloadScopeUser,
 				},
-				{
-					ProfileUUID:       p5,
-					ProfileIdentifier: "com.add.profile.five",
-					HostUUID:          hostUUID2,
-					OperationType:     fleet.MDMOperationTypeInstall,
-					Status:            nil,
-					CommandUUID:       "",
-					Scope:             fleet.PayloadScopeSystem,
-				},
 			}, payload)
 		}
 
@@ -2764,6 +2764,10 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	ds.ListMDMAppleProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 		return nil, nil
 	}
+	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
+		require.Empty(t, payload)
+		return nil
+	}
 	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
 		if failedCall {
 			failedCheck(payload)
@@ -2779,6 +2783,17 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		cmdUUIDByProfileUUIDRemove := make(map[string]string)
 		copies := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(payload))
 		for i, p := range payload {
+			// clear the command UUID (in a copy so that it does not affect the
+			// pointed-to struct) from the payload for the subsequent checks
+			copyp := *p
+			copyp.CommandUUID = ""
+			copies[i] = &copyp
+
+			// Host with no user enrollment, so install fails
+			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+				continue
+			}
+
 			if p.OperationType == fleet.MDMOperationTypeInstall {
 				existing, ok := cmdUUIDByProfileUUIDInstall[p.ProfileUUID]
 				if ok {
@@ -2795,12 +2810,6 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					cmdUUIDByProfileUUIDRemove[p.ProfileUUID] = p.CommandUUID
 				}
 			}
-
-			// clear the command UUID (in a copy so that it does not affect the
-			// pointed-to struct) from the payload for the subsequent checks
-			copyp := *p
-			copyp.CommandUUID = ""
-			copies[i] = &copyp
 		}
 
 		require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -2850,8 +2859,9 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				ProfileIdentifier: "com.add.profile.five",
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
-				Status:            &fleet.MDMDeliveryPending,
-				Scope:             fleet.PayloadScopeSystem,
+				Status:            &fleet.MDMDeliveryFailed,
+				Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll.",
+				Scope:             fleet.PayloadScopeUser,
 			},
 		}, copies)
 		return nil
@@ -2971,6 +2981,10 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		profilesToInstall, _ := ds.ListMDMAppleProfilesToInstallFunc(ctx)
 		hostUUIDs = make([]string, 0, len(profilesToInstall))
 		for _, p := range profilesToInstall {
+			// This host will error before this point - should not be updated by the variable failure
+			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+				continue
+			}
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
 		}
 
@@ -3721,7 +3735,9 @@ func TestMDMApplePreassignEndpoints(t *testing.T) {
 }
 
 // Helper for creating scoped mobileconfigs. scope is optional and if set to nil is not included in
-// the mobileconfig so that default behavior is used.
+// the mobileconfig so that default behavior is used. Note that because Fleet enforces that all
+// profiles sharing a given identifier have the same scope, it's a good idea to use a unique
+// identifier in your test or perhaps one with the scope in its name
 func scopedMobileconfigForTest(name, identifier string, scope *fleet.PayloadScope, vars ...string) []byte {
 	var varsStr strings.Builder
 	for i, v := range vars {

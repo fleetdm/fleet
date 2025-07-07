@@ -1678,7 +1678,9 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	}
 
 	payload.URL = app.InstallerURL
-	payload.SHA256 = app.SHA256
+	if app.SHA256 != noCheckHash {
+		payload.SHA256 = app.SHA256
+	}
 	payload.InstallScript = app.InstallScript
 	payload.UninstallScript = app.UninstallScript
 	payload.FleetMaintained = true
@@ -1949,6 +1951,19 @@ func (svc *Service) softwareBatchUpload(
 						return fmt.Errorf("Error with maintained app, parsing URL: %v\n", err)
 					}
 					installer.Filename = path.Base(parsedURL.Path)
+				}
+				// noCheckHash is used by homebrew to signal that a hash shouldn't be checked
+				// This comes from the manifest and is a special case for maintained apps
+				// we need to generate the SHA256 from the installer file
+				if p.MaintainedApp.SHA256 == noCheckHash {
+					// generate the SHA256 from the installer file
+					if installer.InstallerFile == nil {
+						return fmt.Errorf("maintained app %s requires hash to be generated but no installer file found", p.MaintainedApp.UniqueIdentifier)
+					}
+					p.MaintainedApp.SHA256, err = maintained_apps.SHA256FromInstallerFile(installer.InstallerFile)
+					if err != nil {
+						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
+					}
 				}
 				extension := strings.TrimLeft(filepath.Ext(installer.Filename), ".")
 				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
