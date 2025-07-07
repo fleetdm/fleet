@@ -1623,6 +1623,7 @@ func (c *Client) DoGitOps(
 		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
 		group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
 		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
+		var eulaPath string
 
 		// Labels
 		if config.Labels == nil || len(config.Labels) > 0 {
@@ -1796,7 +1797,28 @@ func (c *Client) DoGitOps(
 				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
 			}
 		}
+
+		// check for the eula in the mdmAppConfig. If it exists we want to assign it
+		// to eulaPath so that it will be applied later. We always delete it from
+		// mdmAppConfig so it will not be applied to the group/team though the
+		// ApplyGroup method.
+		if endUserLicenseAgreement, exists := mdmAppConfig["end_user_license_agreement"]; !exists || endUserLicenseAgreement == nil || (endUserLicenseAgreement == "") {
+			eulaPath = ""
+		} else if eulaStr, ok := endUserLicenseAgreement.(string); ok && len(eulaStr) > 0 {
+			eulaPath = eulaStr
+		}
+		delete(mdmAppConfig, "end_user_license_agreement")
+
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
+
+		// we want to apply the EULA only for the global settings
+		if appConfig.License.IsPremium() && appConfig.MDM.EnabledAndConfigured {
+			err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
 	} else if !config.IsNoTeam() {
 		team = make(map[string]interface{})
 		team["name"] = *config.TeamName
@@ -2434,6 +2456,28 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 			}
 		}
 	}
+	return nil
+}
+
+func (c *Client) doGitOpsEULA(eulaPath string, logFn func(format string, args ...interface{}), dryRun bool) error {
+	if eulaPath == "" {
+		err := c.DeleteEULAIfNeeded(dryRun)
+		if err != nil {
+			return fmt.Errorf("error deleting EULA: %w", err)
+		}
+	} else {
+		err := c.UploadEULAIfNeeded(eulaPath, dryRun)
+		if err != nil {
+			return fmt.Errorf("error uploading EULA: %w", err)
+		}
+	}
+
+	if dryRun {
+		logFn("[+] would've applied EULA\n")
+	} else {
+		logFn("[+] applied EULA\n")
+	}
+
 	return nil
 }
 

@@ -706,7 +706,7 @@ func newWorkerIntegrationsSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 	}
-	vppVerify := &worker.VPPVerification{
+	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
 		Log:       logger,
 		Commander: commander,
@@ -1549,7 +1549,7 @@ func newMaintainedAppSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMaintainedApps)
-		defaultInterval = 24 * time.Hour
+		defaultInterval = 1 * time.Hour
 		priorJobDiff    = -(defaultInterval - 30*time.Second)
 	)
 

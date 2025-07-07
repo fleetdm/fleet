@@ -411,7 +411,7 @@ type HostVital struct {
 var hostForeignVitalGroups = map[string]HostForeignVitalGroup{
 	"idp": {
 		Name:  "Identity Provider",
-		Query: `RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
+		Query: `RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
 	},
 }
 
@@ -1313,6 +1313,14 @@ type HostDiskEncryptionKey struct {
 	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue      string    `json:"key" db:"-"`
 	ClientError         string    `json:"-" db:"client_error"`
+}
+
+type HostArchivedDiskEncryptionKey struct {
+	HostID              uint      `json:"-" db:"host_id"`
+	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
+	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
+	KeySlot             *uint     `json:"-" db:"key_slot"`
+	CreatedAt           time.Time `json:"created_at" db:"created_at"`
 }
 
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed

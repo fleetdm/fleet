@@ -52,7 +52,6 @@ import (
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
-	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -1471,9 +1470,6 @@ func (svc *Service) UploadMDMAppleInstaller(ctx context.Context, name string, si
 	}
 
 	token := uuid.New().String()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
 
 	url := svc.installerURL(token, appConfig)
 
@@ -3037,53 +3033,61 @@ type initiateMDMAppleSSORequest struct{}
 type initiateMDMAppleSSOResponse struct {
 	URL string `json:"url,omitempty"`
 	Err error  `json:"error,omitempty"`
+
+	sessionID              string
+	sessionDurationSeconds int
 }
 
 func (r initiateMDMAppleSSOResponse) Error() error { return r.Err }
 
+func (r initiateMDMAppleSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	setSSOCookie(w, r.sessionID, r.sessionDurationSeconds)
+}
+
 func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx)
+	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx)
 	if err != nil {
 		return initiateMDMAppleSSOResponse{Err: err}, nil
 	}
 
-	return initiateMDMAppleSSOResponse{URL: idpProviderURL}, nil
+	return initiateMDMAppleSSOResponse{
+		URL: idpProviderURL,
+
+		sessionID:              sessionID,
+		sessionDurationSeconds: sessionDurationSeconds,
+	}, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", fleet.ErrMissingLicense
+	return "", 0, "", fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // POST /mdm/sso/callback
 ////////////////////////////////////////////////////////////////////////////////
 
-type callbackMDMAppleSSORequest struct{}
+type callbackMDMAppleSSORequest struct {
+	sessionID    string
+	samlResponse []byte
+}
 
 // TODO: these errors will result in JSON being returned, but we should
 // redirect to the UI and let the UI display an error instead. The errors are
 // rare enough (malformed data coming from the SSO provider) so they shouldn't
 // affect many users.
 func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	err := r.ParseForm()
+	sessionID, samlResponse, err := decodeCallbackRequest(ctx, r)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "failed to parse form",
-			InternalErr: err,
-		}, "decode sso callback")
+		return nil, err
 	}
-	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "failed to decode SAMLResponse",
-			InternalErr: err,
-		}, "decoding sso callback")
-	}
-	return authResponse, nil
+	return &callbackMDMAppleSSORequest{
+		sessionID:    sessionID,
+		samlResponse: samlResponse,
+	}, nil
 }
 
 type callbackMDMAppleSSOResponse struct {
@@ -3095,18 +3099,24 @@ func (r callbackMDMAppleSSOResponse) HijackRender(ctx context.Context, w http.Re
 	w.WriteHeader(http.StatusSeeOther)
 }
 
+func (r callbackMDMAppleSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	deleteSSOCookie(w)
+}
+
 // Error will always be nil because errors are handled by sending a query
-// parameter in the URL response, this way the UI is able to display an erorr
+// parameter in the URL response, this way the UI is able to display an error
 // message.
 func (r callbackMDMAppleSSOResponse) Error() error { return nil }
 
 func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	auth := request.(fleet.Auth)
-	redirectURL := svc.InitiateMDMAppleSSOCallback(ctx, auth)
-	return callbackMDMAppleSSOResponse{redirectURL: redirectURL}, nil
+	callbackRequest := request.(*callbackMDMAppleSSORequest)
+	redirectURL := svc.MDMAppleSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
+	return callbackMDMAppleSSOResponse{
+		redirectURL: redirectURL,
+	}, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) string {
+func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -3159,7 +3169,7 @@ type MDMAppleCheckinAndCommandService struct {
 	logger          kitlog.Logger
 	commander       *apple_mdm.MDMAppleCommander
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
-	commandHandlers map[string][]fleet.CommandHandler
+	commandHandlers map[string][]fleet.MDMCommandResultsHandler
 }
 
 func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
@@ -3169,11 +3179,11 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 		commander:       commander,
 		logger:          logger,
 		mdmLifecycle:    mdmLifecycle,
-		commandHandlers: map[string][]fleet.CommandHandler{},
+		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
 	}
 }
 
-func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType string, handler fleet.CommandHandler) {
+func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType string, handler fleet.MDMCommandResultsHandler) {
 	svc.commandHandlers[commandType] = append(svc.commandHandlers[commandType], handler)
 }
 
@@ -3445,7 +3455,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	// Check if this is a result of a "refetch" command sent to iPhones/iPads
 	// to fetch their device information periodically.
-	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) && !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchVPPAppInstallsCommandUUIDPrefix) {
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) && !strings.HasPrefix(cmdResult.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix) {
 		return svc.handleRefetch(r, cmdResult)
 	}
 
@@ -3493,6 +3503,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 	case "InstallApplication":
 		// this might be a setup experience VPP install, so we'll try to update setup experience status
 		// TODO: consider limiting this to only macOS hosts
+		var fromSetupExperience bool
 		if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
 			HostUUID:      cmdResult.UDID,
 			CommandUUID:   cmdResult.CommandUUID,
@@ -3501,6 +3512,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
 		} else if updated {
 			// TODO: call next step of setup experience?
+			fromSetupExperience = true
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.UDID, "execution_id", cmdResult.CommandUUID)
 		}
 
@@ -3516,7 +3528,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
 			}
-
+			act.FromSetupExperience = fromSetupExperience
 			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
@@ -3524,19 +3536,19 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
 			// Only send a new InstalledApplicationList command if there's not one in flight
-			ackCmds, err := svc.ds.GetAcknowledgedMDMCommandsByHost(r.Context, cmdResult.UDID, "InstalledApplicationList")
+			commandsPending, err := svc.ds.IsHostPendingVPPInstallVerification(r.Context, cmdResult.UDID)
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "get pending mdm commands by host")
 			}
-			if len(ackCmds) == 0 {
+			if !commandsPending {
 				cmdUUID := uuid.NewString()
-				cmdUUID = fleet.RefetchVPPAppInstallsCommandUUIDPrefix + cmdUUID
+				cmdUUID = fleet.VerifySoftwareInstallVPPPrefix + cmdUUID
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID, true); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
 				}
 
 				// update the install record
-				if err := svc.ds.UpdateVPPInstallVerificationCommand(r.Context, cmdResult.CommandUUID, cmdUUID); err != nil {
+				if err := svc.ds.AssociateVPPInstallToVerificationUUID(r.Context, cmdResult.CommandUUID, cmdUUID); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "update install record")
 				}
 
@@ -3765,7 +3777,7 @@ func NewInstalledApplicationListResultsHandler(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 	verifyTimeout, verifyRequestDelay time.Duration,
-) func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
+) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
 		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
 		if !ok {
@@ -3773,69 +3785,75 @@ func NewInstalledApplicationListResultsHandler(
 		}
 
 		// Then it's not a command sent by Fleet, so skip it
-		if !strings.HasPrefix(installedAppResult.UUID(), fleet.RefetchVPPAppInstallsCommandUUIDPrefix) {
+		if !strings.HasPrefix(installedAppResult.UUID(), fleet.VerifySoftwareInstallVPPPrefix) {
 			return nil
 		}
 
 		installedApps := installedAppResult.AvailableApps()
 
-		if len(installedApps) == 0 {
-			// Nothing to do
-			return nil
-		}
-
-		// Get installs that should be verified by this InstalledApplicationList command
-		installs, err := ds.GetVPPInstallsByVerificationUUID(ctx, installedAppResult.UUID())
+		// Get expectedInstalls that should be verified by this InstalledApplicationList command
+		expectedInstalls, err := ds.GetVPPInstallsByVerificationUUID(ctx, installedAppResult.UUID())
 		if err != nil {
+			if fleet.IsNotFound(err) {
+				// Then something weird happened, so log it and exit (we can't do anything here in this case).
+				level.Warn(logger).Log("msg", "no vpp installs found for verification UUID", "command_uuid", installedAppResult.UUID())
+				return nil
+			}
 			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
 		}
 
-		installsByBundleID := map[string]*fleet.HostVPPSoftwareInstall{}
-		for _, install := range installs {
+		installsByBundleID := map[string]fleet.Software{}
+		for _, install := range installedApps {
 			installsByBundleID[install.BundleIdentifier] = install
 		}
 
-		var poll bool
-		for _, a := range installedApps {
-			install, ok := installsByBundleID[a.BundleIdentifier]
-			if !ok {
-				continue
-			}
+		// We've handled the "no installs found" case above, and this is scoped to a single host via the host
+		// UUID, so this is OK.
+		hostID := expectedInstalls[0].HostID
 
-			var terminal bool
+		var poll, shouldRefetch bool
+		for _, expectedInstall := range expectedInstalls {
+			// If we don't find the app in the result, then we need to poll for it (within the timeout).
+			// These are not pointers, so no need to check `ok` here.
+			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
+
+			var terminalStatus string
 			switch {
-			case a.Installed:
-				if err := ds.SetVPPInstallAsVerified(ctx, install.HostID, install.InstallCommandUUID); err != nil {
+			case appFromResult.Installed:
+				if err := ds.SetVPPInstallAsVerified(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
-				terminal = true
-			case install.InstallCommandAckAt != nil && time.Since(*install.InstallCommandAckAt) > verifyTimeout:
-				if err := ds.SetVPPInstallAsFailed(ctx, install.HostID, install.InstallCommandUUID); err != nil {
+				terminalStatus = fleet.MDMAppleStatusAcknowledged
+				shouldRefetch = true
+			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
+				if err := ds.SetVPPInstallAsFailed(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
 
-				terminal = true
+				terminalStatus = fleet.MDMAppleStatusError
 			}
 
-			if !terminal {
+			if terminalStatus == "" {
 				poll = true
 				continue
 			}
 
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
+			var fromSetupExperience bool
 			if updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, fleet.SetupExperienceVPPInstallResult{
 				HostUUID:      installedAppResult.HostUUID(),
-				CommandUUID:   install.InstallCommandUUID,
-				CommandStatus: install.InstallCommandStatus,
+				CommandUUID:   expectedInstall.InstallCommandUUID,
+				CommandStatus: terminalStatus,
 			}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
-				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", install.InstallCommandUUID)
+				fromSetupExperience = true
+				level.Debug(logger).Log("msg", "setup experience script result updated", "host_uuid", installedAppResult.HostUUID(), "execution_id", expectedInstall.InstallCommandUUID)
 			}
 
 			// create an activity for installing only if we're in a terminal state
-			user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: install.InstallCommandUUID, Status: install.InstallCommandStatus})
+			user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus})
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// Then this isn't a VPP install, so no activity generated
@@ -3844,7 +3862,7 @@ func NewInstalledApplicationListResultsHandler(
 
 				return ctxerr.Wrap(ctx, err, "fetching data for installed app store app activity")
 			}
-
+			act.FromSetupExperience = fromSetupExperience
 			if err := newActivity(ctx, user, act, ds, logger); err != nil {
 				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
 			}
@@ -3852,13 +3870,27 @@ func NewInstalledApplicationListResultsHandler(
 		}
 
 		if poll {
-			err := worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID())
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: queueing vpp install verification job")
+			// Queue a job to verify the VPP install.
+			return ctxerr.Wrap(
+				ctx,
+				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID()),
+				"InstalledApplicationList handler: queueing vpp install verification job",
+			)
+		}
+
+		if shouldRefetch {
+			// Request host refetch to get the most up to date software data ASAP.
+			if err := ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
 			}
 		}
 
-		return nil
+		// If we get here, we're in a terminal state, so we can remove the verify command.
+		return ctxerr.Wrap(
+			ctx,
+			ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{CommandType: fleet.VerifySoftwareInstallVPPPrefix, HostID: hostID}),
+			"InstalledApplicationList handler: removing host mdm command",
+		)
 	}
 }
 
@@ -4234,6 +4266,7 @@ func ReconcileAppleProfiles(
 			// and the checksums match (the profiles are exactly
 			// the same) we don't send another InstallProfile
 			// command.
+
 			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
 				hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
@@ -4288,25 +4321,36 @@ func ReconcileAppleProfiles(
 			installTargets[p.ProfileUUID] = target
 		}
 
-		sentToUserChannel := false
 		if p.Scope == fleet.PayloadScopeUser {
 			userEnrollmentID, err := getHostUserEnrollmentID(p.HostUUID)
 			if err != nil {
 				return err
 			}
 			if userEnrollmentID == "" {
-				level.Warn(logger).Log("msg", "host does not have a user enrollment, falling back to system enrollment for user scoped profile",
+				level.Warn(logger).Log("msg", "host does not have a user enrollment, failing profile installation",
 					"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
-			} else {
-				sentToUserChannel = true
-				target.enrollmentIDs = append(target.enrollmentIDs, userEnrollmentID)
+				hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
+					ProfileUUID:       p.ProfileUUID,
+					HostUUID:          p.HostUUID,
+					OperationType:     fleet.MDMOperationTypeInstall,
+					Status:            &fleet.MDMDeliveryFailed,
+					Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll.",
+					CommandUUID:       "",
+					ProfileIdentifier: p.ProfileIdentifier,
+					ProfileName:       p.ProfileName,
+					Checksum:          p.Checksum,
+					SecretsUpdatedAt:  p.SecretsUpdatedAt,
+					Scope:             p.Scope,
+				}
+				hostProfiles = append(hostProfiles, hostProfile)
+				continue
 			}
-		}
 
-		if !sentToUserChannel {
-			p.Scope = fleet.PayloadScopeSystem
+			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollmentID)
+		} else {
 			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
 		}
+		toGetContents[p.ProfileUUID] = true
 
 		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 			ProfileUUID:       p.ProfileUUID,
@@ -4362,8 +4406,10 @@ func ReconcileAppleProfiles(
 			if userEnrollmentID == "" {
 				level.Warn(logger).Log("msg", "host does not have a user enrollment, cannot remove user scoped profile",
 					"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
+				hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 				continue
 			}
+
 			target.enrollmentIDs = append(target.enrollmentIDs, userEnrollmentID)
 		} else {
 			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
@@ -4393,11 +4439,16 @@ func ReconcileAppleProfiles(
 	// Create a map of command UUIDs to host IDs
 	commandUUIDToHostIDsCleanupMap := make(map[string][]string)
 	for _, hp := range hostProfilesToCleanup {
-		commandUUIDToHostIDsCleanupMap[hp.CommandUUID] = append(commandUUIDToHostIDsCleanupMap[hp.CommandUUID], hp.HostUUID)
+		// Certain failure scenarios may leave the profile without a command UUID, so skip those
+		if hp.CommandUUID != "" {
+			commandUUIDToHostIDsCleanupMap[hp.CommandUUID] = append(commandUUIDToHostIDsCleanupMap[hp.CommandUUID], hp.HostUUID)
+		}
 	}
 	// We need to delete commands from the nano queue so they don't get sent to device.
-	if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting nano commands without results")
+	if len(commandUUIDToHostIDsCleanupMap) > 0 {
+		if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting nano commands without results")
+		}
 	}
 	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
