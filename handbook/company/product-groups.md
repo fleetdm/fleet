@@ -252,7 +252,7 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 [Estimation points](https://fleetdm.com/handbook/company/communications#estimation-points) are used if a task has already gone through drafting.
 
 | T-shirt size | Time | Story points |
-|:---|:-----------------------------|
+|:---|:-----------------------------|:-|
 | XXS | Trivial; ≤1 day for 1 contributor | 1-3 |
 | XS | ≤1 week for 1 contributor | 3-8 |
 | S  | 1 sprint for 1 contributor | 15-25 |
