@@ -842,6 +842,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	}
 
 	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?
+	var fromSetupExperience bool
 	if action == "" && fleet.IsSetupExperienceSupported(host.Platform) {
 		// this might be a setup experience script result
 		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceScriptResult{
@@ -852,6 +853,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
+			fromSetupExperience = true
 			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host.UUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
@@ -910,6 +912,13 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
 			}
+
+			// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
+			if activityStatus == "uninstalled" {
+				if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+					return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
+				}
+			}
 		default:
 			// TODO(sarah): We may need to special case lock/unlock script results here?
 			var policyName *string
@@ -923,13 +932,14 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				ctx,
 				user,
 				fleet.ActivityTypeRanScript{
-					HostID:            host.ID,
-					HostDisplayName:   host.DisplayName(),
-					ScriptExecutionID: hsr.ExecutionID,
-					ScriptName:        scriptName,
-					Async:             !hsr.SyncRequest,
-					PolicyID:          hsr.PolicyID,
-					PolicyName:        policyName,
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					ScriptExecutionID:   hsr.ExecutionID,
+					ScriptName:          scriptName,
+					Async:               !hsr.SyncRequest,
+					PolicyID:            hsr.PolicyID,
+					PolicyName:          policyName,
+					FromSetupExperience: fromSetupExperience,
 				},
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
@@ -1291,7 +1301,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
-
+	var fromSetupExperience bool
 	if fleet.IsSetupExperienceSupported(host.Platform) {
 		// this might be a setup experience software install result
 		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceSoftwareInstallResult{
@@ -1302,6 +1312,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			// TODO: call next step of setup experience?
+			fromSetupExperience = true
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
 		}
 	}
@@ -1334,18 +1345,26 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			ctx,
 			user,
 			fleet.ActivityTypeInstalledSoftware{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-				SoftwareTitle:   hsi.SoftwareTitle,
-				SoftwarePackage: hsi.SoftwarePackage,
-				InstallUUID:     result.InstallUUID,
-				Status:          string(status),
-				SelfService:     hsi.SelfService,
-				PolicyID:        hsi.PolicyID,
-				PolicyName:      policyName,
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       hsi.SoftwareTitle,
+				SoftwarePackage:     hsi.SoftwarePackage,
+				InstallUUID:         result.InstallUUID,
+				Status:              string(status),
+				SelfService:         hsi.SelfService,
+				PolicyID:            hsi.PolicyID,
+				PolicyName:          policyName,
+				FromSetupExperience: fromSetupExperience,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
+		}
+
+		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
+		if status == fleet.SoftwareInstalled {
+			if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
+			}
 		}
 	}
 	return nil

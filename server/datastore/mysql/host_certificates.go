@@ -77,6 +77,17 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	for sha1, incoming := range incomingBySHA1 {
 		incomingSources := incomingSourcesBySHA1[sha1]
 		existingSources := existingSourcesBySHA1[sha1]
+
+		// sort by keychain (user/system) and username to ensure consistent ordering
+		sliceSortFunc := func(a, b certSourceToSet) int {
+			if a.Source != b.Source {
+				return strings.Compare(string(a.Source), string(b.Source))
+			}
+			return strings.Compare(a.Username, b.Username)
+		}
+		slices.SortFunc(incomingSources, sliceSortFunc)
+		slices.SortFunc(existingSources, sliceSortFunc)
+
 		if !slices.Equal(incomingSources, existingSources) {
 			toSetSourcesBySHA1[sha1] = incomingSources
 		}
@@ -141,7 +152,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 
 		if len(toSetSourcesBySHA1) > 0 {
 			// must reload the DB IDs to insert the host_certificates_sources rows
-			certIDsBySHA1, err := loadHostCertIDsForSHA1DB(ctx, tx, slices.Collect(maps.Keys(toSetSourcesBySHA1)))
+			certIDsBySHA1, err := loadHostCertIDsForSHA1DB(ctx, tx, hostID, slices.Collect(maps.Keys(toSetSourcesBySHA1)))
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "load host certs ids")
 			}
@@ -172,7 +183,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	})
 }
 
-func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, sha1s []string) (map[string]uint, error) {
+func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostID uint, sha1s []string) (map[string]uint, error) {
 	if len(sha1s) == 0 {
 		return nil, nil
 	}
@@ -190,10 +201,11 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, sha1s
 	FROM
 		host_certificates hc
 	WHERE
-		hc.sha1_sum IN (?)`
+		hc.sha1_sum IN (?) AND hc.host_id = ?`
 
 	var certs []*fleet.HostCertificateRecord
-	stmt, args, err := sqlx.In(stmt, binarySHA1s)
+	stmt, args, err := sqlx.In(stmt, binarySHA1s, hostID)
+
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building load host cert ids query")
 	}

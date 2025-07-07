@@ -193,6 +193,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   order_key: string;
   order_direction: "asc" | "desc";
   available_for_install?: boolean;
+  include_available_for_install?: boolean;
   vulnerable?: boolean;
   min_cvss_score?: number;
   max_cvss_score?: number;

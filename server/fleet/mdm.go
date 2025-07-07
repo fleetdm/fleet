@@ -169,12 +169,13 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 type MDMEULA struct {
 	Name      string    `json:"name"`
 	Bytes     []byte    `json:"bytes"`
+	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
 func (e MDMEULA) AuthzType() string {
-	return "mdm_apple"
+	return "mdm_apple_eula"
 }
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
@@ -850,6 +851,15 @@ const (
 	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
 	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
+
+func ListAppleRefetchCommandPrefixes() []string {
+	return []string{
+		RefetchBaseCommandUUIDPrefix,
+		RefetchDeviceCommandUUIDPrefix,
+		RefetchAppsCommandUUIDPrefix,
+		RefetchCertsCommandUUIDPrefix,
+	}
+}
 
 // VerifySoftwareInstallVPPPrefix is the prefix used for MDM commands used to verify VPP app installs.
 const VerifySoftwareInstallVPPPrefix = "VERIFY-VPP-INSTALLS-"

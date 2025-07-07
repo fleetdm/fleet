@@ -462,7 +462,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	return summary, nil
 }
 
-func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
+func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSeeker, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -489,10 +489,18 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
 	}
 
+	if dryRun {
+		return nil
+	}
+
+	hash := sha256.New()
+	_, _ = hash.Write(bytes)
+
 	eula := &fleet.MDMEULA{
-		Name:  name,
-		Token: uuid.New().String(),
-		Bytes: bytes,
+		Name:   name,
+		Token:  uuid.New().String(),
+		Sha256: hash.Sum(nil),
+		Bytes:  bytes,
 	}
 
 	if err := svc.ds.MDMInsertEULA(ctx, eula); err != nil {
@@ -510,9 +518,13 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 	return svc.ds.MDMGetEULABytes(ctx, token)
 }
 
-func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
+func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	if err := svc.ds.MDMDeleteEULA(ctx, token); err != nil {
@@ -672,7 +684,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	return nil
 }
 
-func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
@@ -681,47 +693,54 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting app config")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
-	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
 	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
-	// Note: enable_end_user_authentication is a team-specific setting. This means some teams may not use SSO even if it is configured.
-	if settings.IsEmpty() {
+	//
+	// Note: enable_end_user_authentication is a team-specific setting,
+	// this means some teams may not use SSO even if it is configured.
+	if mdmSSOSettings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
-		return "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
 	}
 
-	metadata, err := sso.GetMetadata(&settings)
+	serverURL := appConfig.MDMUrl()
+	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback"
+
+	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(ctx,
+		mdmSSOSettings.EntityID,
+		acsURL,
+		&mdmSSOSettings,
+	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	authSettings := sso.Settings{
-		Metadata:                    metadata,
-		AssertionConsumerServiceURL: appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
-		SessionStore:                svc.ssoSessionStore,
-		SessionTTL:                  uint(svc.config.Auth.SsoSessionValidityPeriod.Seconds()),
-		OriginalURL:                 "/api/v1/fleet/mdm/sso/callback",
-	}
-
-	idpURL, err := sso.CreateAuthorizationRequest(&authSettings, settings.EntityID)
+	// originalURL is unused in the MDM flow.
+	originalURL := "/"
+	sessionDurationSeconds = int(svc.config.Auth.SsoSessionValidityPeriod.Seconds())
+	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
+		samlProvider, svc.ssoSessionStore, originalURL,
+		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateMDMAppleSSO creating authorization")
 	}
 
-	return idpURL, nil
+	return sessionID, sessionDurationSeconds, idpURL, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) string {
+func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
 	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
-	profileToken, enrollmentRef, eulaToken, err := svc.mdmSSOHandleCallbackAuth(ctx, auth)
+	profileToken, enrollmentRef, eulaToken, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
@@ -739,7 +758,11 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
 }
 
-func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (profileToken string, enrollmentReference string,
+func (svc *Service) mdmSSOHandleCallbackAuth(
+	ctx context.Context,
+	sessionID string,
+	samlResponse []byte,
+) (profileToken string, enrollmentReference string,
 	eulaToken string, err error,
 ) {
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -747,27 +770,41 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
-	_, metadata, err := svc.ssoSessionStore.Fullfill(auth.RequestID())
+	serverURL := appConfig.MDMUrl()
+	acsURL, err := url.Parse(serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback")
 	if err != nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "validate request in session")
+		return "", "", "", ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
 
-	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+
 	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
-	if settings.IsEmpty() {
+	//
+	// Note: enable_end_user_authentication is a team-specific setting,
+	// this means some teams may not use SSO even if it is configured.
+	if mdmSSOSettings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
 
-	err = sso.ValidateAudiences(
-		*metadata,
-		auth,
-		settings.EntityID,
+	expectedAudiences := []string{
+		mdmSSOSettings.EntityID,
 		appConfig.MDMUrl(),
-		appConfig.MDMUrl()+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
+		appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
+	}
+	samlProvider, requestID, err := sso.SAMLProviderFromSession(
+		ctx, sessionID, svc.ssoSessionStore, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
 	)
 	if err != nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "validating sso response")
+		return "", "", "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
+	}
+
+	// Parse and verify SAMLResponse (verifies fields, expected IDs and signature).
+	auth, err := sso.ParseAndVerifySAMLResponse(samlProvider, samlResponse, requestID, acsURL)
+	if err != nil {
+		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
+		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
+		return "", "", "", ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
 	}
 
 	// Store information for automatic account population/creation

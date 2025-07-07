@@ -1,0 +1,2 @@
+- Fixed issue with macOS MDM migration where fleetd did not fallback to parsing the
+  `ConfigurationURL` when `ConfigurationWebURL` was not set in the MDM enrollment profile.

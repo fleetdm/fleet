@@ -253,7 +253,7 @@ A completed open position entry should look something like this:
 
 This section is about hiring a new core team member, or fleetie, for an already approved position. 
 
-> **To hire an already approved position at Fleet**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) and complete the steps for the hiring manager.
+> **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
 
 
 ## Create a 30-60-90 day plan
