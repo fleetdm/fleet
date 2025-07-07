@@ -132,7 +132,7 @@ const TitleVersionsTable = ({
       isAllPagesSelected={false}
       defaultSortHeader={DEFAULT_SORT_HEADER}
       defaultSortDirection={DEFAULT_SORT_DIRECTION}
-      pageSize={DEFAULT_PAGE_SIZE}
+      pageSize={10}
       isClientSidePagination
       disableMultiRowSelect
       onSelectSingleRow={handleRowSelect}
