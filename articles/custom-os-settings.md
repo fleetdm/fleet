@@ -40,7 +40,20 @@ In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, 
 
 In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
 
-Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the profile's status to update to "Pending."
+Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the
+profile's status to update to "Pending."
+
+## How user scoped configuration profiles are assigned
+
+Currently, Fleet supports hosts with one local user. If the host has multiple local users
+(eg. User1 and User2), the profile is delivered to the user that turns on MDM on the host. For example, if User1 enrolls
+to Fleet during ADE or installs the enrollment profile during BYOD enrollment, User1's local user will get
+certificates.
+
+For configuration profiles the default **PayloadScope** is **System**. You must assign **PayloadScope** to be
+**User** in your configuration profile to apply it to the user channel.
+
+Finally, only **.mobileconfig** configuration profiles are supported for the user channel. Support for declaration (DDM) profiles is coming soon.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
