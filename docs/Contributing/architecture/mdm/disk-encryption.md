@@ -32,8 +32,8 @@ For macOS hosts without disk encryption enabled, encryption involves a two-step 
    - A Payload to configure the escrow of the encryption key
 
 2. Retrieving the disk encryption key:
-   - Via osquery, we grab the (encrypted) disk encryption key
-   - In a cron job, we verify that we're able to decrypt the key
+   - Via osquery, Fleet grabs the (encrypted) disk encryption key
+   - In a cron job, Fleet verify that it is able to decrypt the key
 
 ```mermaid
 sequenceDiagram
@@ -58,7 +58,7 @@ sequenceDiagram
         fleet->>fleet: Verify that recovery key is decryptable<br>(hourly cron job)
 ```
 
-If we're not able to decrypt the key for a host, or there is no stored key for an already encrypted host, the key needs to be rotated. Rotation happens silently by:
+If Fleet is not able to decrypt the key for a host, or there is no stored key for an already encrypted host, the key needs to be rotated. Rotation happens silently by:
 
 1. The server sends a notification to orbit to rotate the disk encryption recovery key
 2. orbit installs and enables an authorization plugin named [Escrow Buddy](https://github.com/macadmins/escrow-buddy) that performs the key rotation the next time the user logs in.
@@ -99,7 +99,7 @@ sequenceDiagram
 
 #### Troubleshooting
 The key stored in host_disk_encryption_keys for a given host will be deleted under the following circumstances:
-- MDM re-enrollment or enrollment profile reinstallation, outside of Fleet-initiated MDM SCEP certificate renewal
+- MDM re-enrollment or enrollment profile reinstallation, outside Fleet-initiated MDM SCEP certificate renewal
 - Disk encryption disabled for a host's team
 - Host moved to a team with disk encryption disabled
 
@@ -112,7 +112,7 @@ and Security](#key-storage-and-security).
 
 ### BitLocker (Windows)
 
-Disk encryption in Windows is performed entirely by orbit. 
+Disk encryption on Windows is performed entirely by orbit. 
 
 When disk encryption is enabled, the server sends a notification to orbit, which calls the
 [Win32_EncryptableVolume class](https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume)
@@ -155,11 +155,11 @@ sequenceDiagram
 #### Troubleshooting
 
 A number of disk encryption related registry settings can interfere with Fleet's ability to encrypt the disk
-and escrow the key in various ways such as disallowing encryption methods used by Fleet or requiring
+and escrow the key in various ways, such as disallowing encryption methods used by Fleet or requiring
 a non-standard TPM Platform Validation Profile. These settings can also potentially disallow disk
 encryption entirely either explicitly or implicitly via conflicting settings. Because of the number
-of settings and their possible values it is not practical to cover them all however a good place to
-begin investigating is the Full Volume Encryption policies key in the registry which can be viewed
+of settings and their possible values it is impractical to cover them all however, a good place to
+begin investigating is the "Full Volume Encryption" policies key in the registry, which can be viewed
 using the following query. Pay careful attention to keys like FDVEncryptionType and OSEncryptionType
 which have been observed on customer systems causing conflicts:
 
@@ -177,7 +177,7 @@ slate for orbit to attempt to encrypt the disk again:
 `manage-bde -off C:`
 
 ### LUKS (Linux)
-Fleet can escrow disk encryption keys for Ubuntu, Kubuntu and Fedora Linux hosts that had LUKS2
+Fleet can escrow disk encryption keys for Ubuntu, Kubuntu, and Fedora Linux hosts that had LUKS2
 encryption enabled during installation. Fleet will only initiate the escrow process on hosts running
 eligible operating systems and for which encryption has already been enabled and will not prompt
 users on ineligible hosts. Once the process is initiated, Fleet Desktop will prompt the user to
@@ -228,7 +228,7 @@ WHERE host_id = HOST_ID ORDER BY created_at DESC LIMIT 1;
 ```
 
 Please note that this key is not guaranteed to work and restoration should be a last resort option.
-In many cases Fleet triggers key rotation when the existing key may not work
+In many cases, Fleet triggers key rotation when the existing key may not work
 
 ## Related resources
 
