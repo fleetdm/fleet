@@ -198,6 +198,68 @@
                       {{ configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'Yes' : 'No' }}
                     </label>
                   </div>
+                  <div purpose="option-value" v-else-if="['select'].includes(option.formInput.type)">
+                    <select :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" class="form-control" style="width: 300px;">
+                      <option selected value="undefined" >Select an option</option>
+                      <option :value="formInput.value" style="text-transform: uppercase;" v-for="formInput in option.formInput.options">{{formInput.name}}</option>
+                    </select>
+                    <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please select an option</div>
+                  </div>
+                  <div purpose="option-value" class="w-100" v-else-if="['multifield'].includes(option.formInput.type)">
+                    <div purpose="multifield-option" v-for="input in option.formInput.inputs">
+                      <% // Number input %>
+                      <div purpose="option-value" v-if="['number'].includes(input.type)">
+                        <div class="d-flex flex-row align-items-center">
+                        <input :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" :type="input.type" placeholder="0" :min="input.minValue" :max="input.maxValue">
+                        <span purpose="unit-label" v-if="input.unitLabel">{{input.unitLabel}}</span>
+                        </div>
+                        <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-'+input.slug] && input.unitLabel">Please enter a number of {{input.unitLabel}}</div>
+                        <div class="invalid-feedback d-block" v-else-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please enter a value</div>
+                      </div>
+                      <% // Text input %>
+                      <div purpose="option-value" v-if="['text'].includes(input.type)">
+                        <input :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" :type="input.type" placeholder="Please enter a value" >
+                        <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please enter a value</div>
+                      </div>
+                      <% // Radio input %>
+                      <div purpose="option-value" v-else-if="['radio'].includes(input.type)" :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']">
+                        <label purpose="form-option" class="form-control" :class="[configurationBuilderFormData[option.uniqueSlug+'-'+input.slug] === formInput.value ? 'selected' : '']" v-for="formInput of input.options">
+                          <input type="radio" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" :value="formInput.value" @input="clickClearOneFormError(option.uniqueSlug+'-'+input.slug)">
+                          <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+                          {{formInput.name}}
+                        </label>
+                        <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please select an option</div>
+                      </div>
+                      <%// Checkbox input %>
+                      <div purpose="option-value" v-else-if="['boolean'].includes(input.type)">
+                        <label purpose="form-option" class="form-control">
+                          <input type="checkbox" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" @input="clickClearOneFormError(option.uniqueSlug+'-'+input.slug)">
+                          <span purpose="custom-switch" :class="[configurationBuilderFormData[option.uniqueSlug+'-'+input.slug] ? 'checked' : '']"><span purpose="custom-switch-status"></span></span>
+                          {{ configurationBuilderFormData[option.uniqueSlug+'-'+input.slug] ? 'Yes' : 'No' }}
+                        </label>
+                      </div>
+                      <%// Checkbox input %>
+                      <div purpose="option-value" v-else-if="['booleanWithLabel'].includes(input.type)">
+                        <div class="d-flex flex-row justify-content-between">
+                          <p>{{input.label}}</p>
+                          <label purpose="form-option" class="form-control">
+                          <input type="checkbox" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" @input="clickClearOneFormError(option.uniqueSlug+'-'+input.slug)">
+                          <span purpose="custom-switch" :class="[configurationBuilderFormData[option.uniqueSlug+'-'+input.slug] ? 'checked' : '']"><span purpose="custom-switch-status"></span></span>
+                          </label>
+                        </div>
+
+                      </div>
+                      <div purpose="option-value" v-else-if="['select'].includes(input.type)">
+                        <div class="d-flex flex-row justify-content-between">
+                        <p>{{input.label}}</p>
+                        <select :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" class="form-control" style="width: 120px;">
+                          <option :value="formInput.value" style="text-transform: uppercase;" v-for="formInput in input.options">{{formInput.name}}</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please select an option</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   <a @click="clickRemovePayloadOption(option)" purpose="remove-button">Remove</a>
                 </div>
                 </ajax-form>

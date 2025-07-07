@@ -963,70 +963,735 @@ parasails.registerPage('configuration-builder', {
 
             ]
           },
-          // {
-          //   subcategoryName: 'BitLocker',
-          //   subcategorySlug: 'windows-bitlocker',
-          //   description: 'Use BitLocker to encrypt drives and protect data on your device.',
-          //   learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp',
-          //   noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
-          //   docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
-          //   payloads: [
-          //     {
-          //       name: 'Enable BitLocker for operating system drives',
-          //       uniqueSlug: 'windows-enable-bitlocker-for-os-drives',
-          //       tooltip: 'Require a password to unlock the device',
-          //       category: 'BitLocker',
-          //       supportedAccessTypes: ['add', 'replace'],
-          //       formInput: {
-          //         type: 'boolean',
-          //       },
-          //       formOutput: {
-          //         settingFormat: 'int',
-          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption',
-          //         trueValue: 1,
-          //         falseValue: 0,
-          //       },
-          //     },
-          //     {
-          //       name: 'Enforce encryption type for operating system drives',
-          //       uniqueSlug: 'windows-enforce-encryption-type-for-os-drives',
-          //       tooltip: 'Require a password to unlock the device',
-          //       category: 'BitLocker',
-          //       supportedAccessTypes: ['add', 'replace'],
-          //       formInput: [
-          //         {
-          //           type: 'boolean',
-          //           slug: 'enabled',
-          //           label: 'Enable',
-          //         },
-          //         {
-          //           type: 'radio',
-          //           label: 'Encryption type',
-          //           slug: 'enctype'
-          //           options: [
-          //             {
-          //               name: 'Allow user to choose encryption type',
-          //               value: 0
-          //             },
-          //             {
-          //               name: 'Full encryption',
-          //               value: 1
-          //             },
-          //             {
-          //               name: 'Used space only encryption.',
-          //               value: 2,
-          //             },
-          //           ]
-          //         },
-          //       ],
-          //       formOutput: {
-          //         settingFormat: 'chr',
-          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption',
-          //         outputTemplate: '',
-          //       },
-          //     },
-          //   ],
-          // }
+          {
+            subcategoryName: 'BitLocker',
+            subcategorySlug: 'windows-bitlocker',
+            description: 'Use BitLocker to encrypt drives and protect data on your device.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp',
+            noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
+            docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+            payloads: [
+              {
+                name: 'Enable BitLocker for operating system drives',
+                uniqueSlug: 'windows-enable-bitlocker-for-os-drives',
+                tooltip: 'Require encryption to be turned on using BitLocker.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Enforce encryption type for operating system drives',
+                uniqueSlug: 'windows-enforce-encryption-type-for-os-drives',
+                tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                      trueValue: '<enabled/>',
+                      falseValue: '<enabled/>',
+                    },
+                    {
+                      type: 'radio',
+                      label: 'Encryption type',
+                      slug: 'encryptionType',
+                      options: [
+                        {
+                          name: 'Allow user to choose encryption type',
+                          value: 0
+                        },
+                        {
+                          name: 'Full encryption',
+                          value: 1
+                        },
+                        {
+                          name: 'Used space only encryption.',
+                          value: 2,
+                        },
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesEncryptionType',
+                  outputTemplate: `<%= enabled %><data id="OSEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enforce startup authentication',
+                uniqueSlug: 'windows-enforce-startup-authentication',
+                tooltip: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM).',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'select',
+                      label: 'TPM startup',
+                      slug: 'tpmStartup',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Optional',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'TPM startup key',
+                      slug: 'tpmStartupKey',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Optional',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'TPM startup PIN',
+                      slug: 'tpmStartupPin',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Optional',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'TPM startup key and PIN',
+                      slug: 'tpmStartupKeyAndPin',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Optional',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      slug: 'allowBitlockerWithoutTpm',
+                      label: 'Allow BitLocker without a compatible TPM',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication',
+                  outputTemplate:`<%= enabled %><data id="ConfigureNonTPMStartupKeyUsage_Name" value="<%= allowBitlockerWithoutTpm %>"/><data id="ConfigureTPMStartupKeyUsageDropDown_Name" value="<%= tpmStartupKey %>"/><data id="ConfigurePINUsageDropDown_Name" value="<%= tpmStartupPin %>"/><data id="ConfigureTPMPINKeyUsageDropDown_Name" value="<%= tpmStartupKeyAndPin %>"/><data id="ConfigureTPMUsageDropDown_Name" value="<%= tpmStartup %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enforce enhanced startup PINs',
+                uniqueSlug: 'windows-enforce-enhanced-startup-pin',
+                tooltip: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM).',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesEnhancedPIN',
+                  trueValue: '<enabled/>',
+                  falseValue: '<disabled/>',
+                },
+              },
+              {
+                name: 'Enforce recovery options for operating system drives',
+                uniqueSlug: 'windows-enforce-system-drive-recovery-options',
+                tooltip: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Configure 256-bit recovery key',
+                      slug: 'recoveryKey',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Allowed',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'Configure 48-digit recovery password',
+                      slug: 'recoveryPassword',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Allowed',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Store BitLocker recovery information on Active Directory',
+                      slug: 'storeOnActiveDirectory',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Choose what recovery information to store on Active Directory',
+                      slug: 'whatToStoreOnActiveDirectory',
+                      options: [
+                        {
+                          name: 'Store recovery passwords and key packages.',
+                          value: 1
+                        },
+                        {
+                          name: 'Store recovery passwords only.',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Do not enable BitLocker until recovery information is stored to Active Directory',
+                      slug: 'doNotEnableUntilStored',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Allow data recovery agent',
+                      slug: 'allowDataRecoveryAgent',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Omit recovery options from BitLocker setup wizard',
+                      slug: 'hideRecoveryPage',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesRecoveryOptions',
+                  outputTemplate:`<%= enabled %><data id="OSAllowDRA_Name" value="<%= allowDataRecoveryAgent %>"/><data id="OSRecoveryPasswordUsageDropDown_Name" value="<%= recoveryPassword %>"/><data id="OSRecoveryKeyUsageDropDown_Name" value="<%= recoveryKey %>"/><data id="OSHideRecoveryPage_Name" value="<%= hideRecoveryPage %>"/><data id="OSActiveDirectoryBackup_Name" value="<%= storeOnActiveDirectory %>"/><data id="OSActiveDirectoryBackupDropDown_Name" value="<%= whatToStoreOnActiveDirectory %>"/><data id="OSRequireActiveDirectoryBackup_Name" value="<%= doNotEnableUntilStored %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enable BitLocker for fixed data drives',
+                uniqueSlug: 'windows-enable-bitlocker-for-fixed-data-drives',
+                tooltip: 'This policy setting determines whether BitLocker protection is required for fixed data drives to be writable on a computer.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption',
+                  trueValue: '<enabled/>',
+                  falseValue: '<disabled/>',
+                },
+              },
+              {
+                name: 'Enforce encryption type for fixed data drives',
+                uniqueSlug: 'windows-enforce-encryption-type-for-fixed-data-drives',
+                tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress. ',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                      trueValue: '<enabled/>',
+                      falseValue: '<enabled/>',
+                    },
+                    {
+                      type: 'radio',
+                      label: 'Encryption type',
+                      slug: 'encryptionType',
+                      options: [
+                        {
+                          name: 'Allow user to choose encryption type',
+                          value: 0
+                        },
+                        {
+                          name: 'Full encryption',
+                          value: 1
+                        },
+                        {
+                          name: 'Used space only encryption.',
+                          value: 2,
+                        },
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesEncryptionType',
+                  outputTemplate: `<%= enabled %><data id="FDVEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enforce recovery options for operating system drives',
+                uniqueSlug: 'windows-enforce-fixed-data-drive-recovery-options',
+                tooltip: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Configure 256-bit recovery key',
+                      slug: 'recoveryKey',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Allowed',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'Configure 48-digit recovery password',
+                      slug: 'recoveryPassword',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Allowed',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Store BitLocker recovery information on Active Directory',
+                      slug: 'storeOnActiveDirectory',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Choose what recovery information to store on Active Directory',
+                      slug: 'whatToStoreOnActiveDirectory',
+                      options: [
+                        {
+                          name: 'Store recovery passwords and key packages.',
+                          value: 1
+                        },
+                        {
+                          name: 'Store recovery passwords only.',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Do not enable BitLocker until recovery information is stored to Active Directory',
+                      slug: 'doNotEnableUntilStored',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Allow data recovery agent',
+                      slug: 'allowDataRecoveryAgent',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Omit recovery options from BitLocker setup wizard',
+                      slug: 'hideRecoveryPage',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRecoveryOptions',
+                  outputTemplate:`<%= enabled %><data id="FDVAllowDRA_Name" value="<%= allowDataRecoveryAgent %>"/><data id="FDVRecoveryPasswordUsageDropDown_Name" value="<%= recoveryPassword %>"/><data id="FDVRecoveryKeyUsageDropDown_Name" value="<%= recoveryKey %>"/><data id="FDVHideRecoveryPage_Name" value="<%= hideRecoveryPage %>"/><data id="FDVActiveDirectoryBackup_Name" value="<%= storeOnActiveDirectory %>"/><data id="FDVActiveDirectoryBackupDropDown_Name" value="<%= whatToStoreOnActiveDirectory %>"/><data id="FDVRequireActiveDirectoryBackup_Name" value="<%= doNotEnableUntilStored %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Deny write access to fixed data drives not protected by BitLocker',
+                uniqueSlug: 'windows-deny-wrtie-access-to-fixed-data-drives',
+                tooltip: 'This policy setting determines whether BitLocker protection is required for fixed data drives to be writable on a computer. If you enable this policy setting, all fixed data drives that aren\'t BitLocker-protected will be mounted as read-only.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption',
+                  trueValue: '<enabled/>',
+                  falseValue: '<disabled/>',
+                },
+              },
+              {
+                name: 'Enable BitLocker for removable data drives',
+                uniqueSlug: 'windows-enable-bitlocker-for-removeable-data-drives',
+                tooltip: 'This policy setting controls the use of BitLocker on removable data drives.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Allow users to apply BitLocker protection on removable data drives',
+                      slug: 'allowApplyBitlocker',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Allow users to suspend and decrypt BitLocker on removable data drives',
+                      slug: 'allowDisableBitlocker',
+                    },
+                  ],
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesConfigureBDE',
+                  outputTemplate:`<%= enabled %><data id="RDVAllowBDE_Name" value="<%= allowApplyBitlocker %>"/><data id="RDVDisableBDE_Name" value="<%= allowDisableBitlocker %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enforce encryption type for removable data drives',
+                uniqueSlug: 'windows-enforce-encryption-type-for-removeable-drives',
+                tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress. ',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                      trueValue: '<enabled/>',
+                      falseValue: '<enabled/>',
+                    },
+                    {
+                      type: 'radio',
+                      label: 'Encryption type',
+                      slug: 'encryptionType',
+                      options: [
+                        {
+                          name: 'Allow user to choose encryption type',
+                          value: 0
+                        },
+                        {
+                          name: 'Full encryption',
+                          value: 1
+                        },
+                        {
+                          name: 'Used space only encryption.',
+                          value: 2,
+                        },
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesEncryptionType',
+                  outputTemplate: `<%= enabled %><data id="RDVEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Deny write access to removable data drives not protected by BitLocker',
+                uniqueSlug: 'windows-deny-write-access-to-removeable-data-drives',
+                tooltip: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Deny write access to devices configured in another organization',
+                      slug: 'crossOrg',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesRequireEncryption',
+                  outputTemplate: `<%= enabled %><data id="RDVCrossOrg" value="<%= crossOrg %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enforce encryption method',
+                uniqueSlug: 'windows-enforce-encryption-method',
+                tooltip: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Operating system drives',
+                      slug: 'osEncryptionType',
+                      options: [
+                        {
+                          name: 'AES-CBC 128',
+                          value: 3
+                        },
+                        {
+                          name: 'AES-CBC 256',
+                          value: 4,
+                        },
+                        {
+                          name: 'XTS-AES 128',
+                          value: 6,
+                        },
+                        {
+                          name: 'XTS-AES 256',
+                          value: 7,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'Fixed data drives',
+                      slug: 'fixedDriveEncryptionType',
+                      options: [
+                        {
+                          name: 'AES-CBC 128',
+                          value: 3
+                        },
+                        {
+                          name: 'AES-CBC 256',
+                          value: 4,
+                        },
+                        {
+                          name: 'XTS-AES 128',
+                          value: 6,
+                        },
+                        {
+                          name: 'XTS-AES 256',
+                          value: 7,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'Removable data drives',
+                      slug: 'removeableDriveEncryptionType',
+                      options: [
+                        {
+                          name: 'AES-CBC 128',
+                          value: 3
+                        },
+                        {
+                          name: 'AES-CBC 256',
+                          value: 4,
+                        },
+                        {
+                          name: 'XTS-AES 128',
+                          value: 6,
+                        },
+                        {
+                          name: 'XTS-AES 256',
+                          value: 7,
+                        },
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/EncryptionMethodByDriveType',
+                  outputTemplate: `<%= enabled %><data id="EncryptionMethodWithXtsOsDropDown_Name" value="<%= osEncryptionType %>"/><data id="EncryptionMethodWithXtsFdvDropDown_Name" value="<%= fixedDriveEncryptionType %>"/><data id="EncryptionMethodWithXtsRdvDropDown_Name" value="<%= removeableDriveEncryptionType %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Configure recovery password rotation',
+                uniqueSlug: 'windows-configure-recover-password-roration',
+                tooltip: 'Allows Admin to configure Numeric Recovery Password Rotation upon use for OS and fixed drives on Entra ID and hybrid domain joined devices.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'radio',
+                  label: 'Encryption type',
+                  options: [
+                    {
+                      name: 'Disable password rotation',
+                      value: 0
+                    },
+                    {
+                      name: 'Enable password rotation for Azure AD-joined devices',
+                      value: 1
+                    },
+                    {
+                      name: 'Enable password rotation for Azure AD-joined and hybrid-joined devices',
+                      value: 2,
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/ConfigureRecoveryPasswordRotation',
+                },
+              },
+            ],
+          }
         ]
       },
       {
@@ -1300,14 +1965,34 @@ parasails.registerPage('configuration-builder', {
         let payloadToAdd = _.clone(payload);
         // Get the selected access type for this payload
         let accessType = this.configurationBuilderFormData[payload.uniqueSlug+'-access-type'];
-        // Get the selected value for this payload
-        let value = this.configurationBuilderFormData[payload.uniqueSlug+'-value'];
-        // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
-        if(payload.formInput.type === 'boolean'){
-          if(value) {
-            value = payload.formOutput.trueValue;
-          } else {
-            value = payload.formOutput.falseValue;
+        let value;
+        if(payload.formInput.type === 'multifield') {
+          // If the payload's formInput type is multifield, we'll need to combine the values for this payload.
+          // build a dictionary of formData where each key is the input's slug.
+          if(!payload.formOutput.outputTemplate){
+            throw new Error('Consistency violation, a multifield form input is missing a template value', payload);
+          }
+          let formDataForThisPayload = {};
+          for(let input of payload.formInput.inputs) {
+            if(payload.formOutput.valuesToTransform && payload.formOutput.valuesToTransform[input.slug]){
+              formDataForThisPayload[input.slug] = payload.formOutput.valuesToTransform[input.slug][this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug]];
+            } else {
+              formDataForThisPayload[input.slug] = this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug];
+            }
+          }
+          // Now we'll pass the formData into the formOutput's template string.
+          let templateToUse = _.template(payload.formOutput.outputTemplate);
+          value = _.trim(templateToUse(formDataForThisPayload));
+        } else {
+          // Get the selected value for this payload
+          value = this.configurationBuilderFormData[payload.uniqueSlug+'-value'];
+          // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
+          if(payload.formInput.type === 'boolean'){
+            if(value) {
+              value = payload.formOutput.trueValue;
+            } else {
+              value = payload.formOutput.falseValue;
+            }
           }
         }
         payloadToAdd.formData = {accessType, value};
@@ -1406,8 +2091,8 @@ parasails.registerPage('configuration-builder', {
       let optionsToRemove = this.selectedPayloadsGroupedByCategory[category];
       this.selectedPayloadsGroupedByCategory = _.without(this.selectedPayloadsGroupedByCategory, category);
       for(let option of optionsToRemove){
-        if(_.isArray(option.formInput)) {
-          for(let input of option.formInput){
+        if(option.formInput.type === 'multifield') {
+          for(let input of option.formInput.inputs){
             delete this.configurationBuilderFormRules[option.uniqueSlug+'-'+input.slug];
             delete this.configurationBuilderFormData[option.uniqueSlug+'-'+input.slug];
           }
@@ -1512,20 +2197,27 @@ parasails.registerPage('configuration-builder', {
         }
         this.selectedPayloads.push(selectedPayload);
         this.selectedPayloads = _.uniq(this.selectedPayloads);
-        if(_.isArray(selectedPayload.formInput)) {
-          for(let input of selectedPayload.formInput){
+        if(selectedPayload.formInput.type === 'multifield') {
+          for(let input of selectedPayload.formInput.inputs){
             this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-'+input.slug] = {required: true};
             this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-'+input.slug] = {required: true};
+            if(input.type === 'boolean' || input.type === 'booleanWithLabel'){
+              // default boolean inputs to false.
+              this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-'+input.slug] = false;
+            } else if(input.type === 'number') {
+              this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-'+input.slug] = input.defaultValue;
+            }
+
           }
         } else {
           this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-value'] = {required: true};
           this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-value'] = {required: true};
-        }
-        if(selectedPayload.formInput.type === 'boolean'){
-          // default boolean inputs to false.
-          this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = false;
-        } else if(selectedPayload.formInput.type === 'number') {
-          this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = selectedPayload.formInput.defaultValue;
+          if(selectedPayload.formInput.type === 'boolean'){
+            // default boolean inputs to false.
+            this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = false;
+          } else if(selectedPayload.formInput.type === 'number') {
+            this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = selectedPayload.formInput.defaultValue;
+          }
         }
 
         if(this.selectedPlatform === 'windows') {
@@ -1540,12 +2232,12 @@ parasails.registerPage('configuration-builder', {
         let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: payloadSlug});
         // check the alsoAutoSetWhenSelected value of the payload we're removing.
         let newSelectedPayloads = _.without(this.selectedPayloads, payloadToRemove);
-        if(_.isArray(payloadToRemove.formInput)) {
-          for(let input of payloadToRemove.formInput){
+        if(payloadToRemove.formInput.type === 'multifield') {
+          for(let input of payloadToRemove.formInput.inputs){
             delete this.configurationBuilderFormRules[payloadToRemove.uniqueSlug+'-'+input.slug];
             delete this.configurationBuilderFormData[payloadToRemove.uniqueSlug+'-'+input.slug];
           }
-        } else{
+        } else {
           delete this.configurationBuilderFormRules[payloadToRemove.uniqueSlug+'-value'];
           delete this.configurationBuilderFormData[payloadToRemove.uniqueSlug+'-value'];
         }
