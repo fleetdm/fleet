@@ -494,7 +494,7 @@ type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installU
 
 type ReplaceVPPInstallVerificationUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
 
-type GetAcknowledgedMDMCommandsByHostFunc func(ctx context.Context, hostUUID string, commandType string) ([]string, error)
+type IsHostPendingVPPInstallVerificationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
 type GetVPPInstallsByVerificationUUIDFunc func(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error)
 
@@ -711,6 +711,8 @@ type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.Host
 type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
 
 type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
+
+type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error)
 
 type IsHostPendingEscrowFunc func(ctx context.Context, hostID uint) bool
 
@@ -1596,7 +1598,7 @@ type DataStore struct {
 
 	UpdateLabelMembershipByHostIDsFunc        UpdateLabelMembershipByHostIDsFunc
 	UpdateLabelMembershipByHostIDsFuncInvoked bool
-	
+
 	UpdateLabelMembershipByHostCriteriaFunc        UpdateLabelMembershipByHostCriteriaFunc
 	UpdateLabelMembershipByHostCriteriaFuncInvoked bool
 
@@ -2119,8 +2121,8 @@ type DataStore struct {
 	ReplaceVPPInstallVerificationUUIDFunc        ReplaceVPPInstallVerificationUUIDFunc
 	ReplaceVPPInstallVerificationUUIDFuncInvoked bool
 
-	GetAcknowledgedMDMCommandsByHostFunc        GetAcknowledgedMDMCommandsByHostFunc
-	GetAcknowledgedMDMCommandsByHostFuncInvoked bool
+	IsHostPendingVPPInstallVerificationFunc        IsHostPendingVPPInstallVerificationFunc
+	IsHostPendingVPPInstallVerificationFuncInvoked bool
 
 	GetVPPInstallsByVerificationUUIDFunc        GetVPPInstallsByVerificationUUIDFunc
 	GetVPPInstallsByVerificationUUIDFuncInvoked bool
@@ -2445,6 +2447,9 @@ type DataStore struct {
 
 	GetHostDiskEncryptionKeyFunc        GetHostDiskEncryptionKeyFunc
 	GetHostDiskEncryptionKeyFuncInvoked bool
+
+	GetHostArchivedDiskEncryptionKeyFunc        GetHostArchivedDiskEncryptionKeyFunc
+	GetHostArchivedDiskEncryptionKeyFuncInvoked bool
 
 	IsHostPendingEscrowFunc        IsHostPendingEscrowFunc
 	IsHostPendingEscrowFuncInvoked bool
@@ -5148,11 +5153,11 @@ func (s *DataStore) ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVe
 	return s.ReplaceVPPInstallVerificationUUIDFunc(ctx, oldVerifyUUID, verifyCommandUUID)
 }
 
-func (s *DataStore) GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID string, commandType string) ([]string, error) {
+func (s *DataStore) IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
 	s.mu.Lock()
-	s.GetAcknowledgedMDMCommandsByHostFuncInvoked = true
+	s.IsHostPendingVPPInstallVerificationFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetAcknowledgedMDMCommandsByHostFunc(ctx, hostUUID, commandType)
+	return s.IsHostPendingVPPInstallVerificationFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
@@ -5909,6 +5914,13 @@ func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (
 	s.GetHostDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+	s.mu.Lock()
+	s.GetHostArchivedDiskEncryptionKeyFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostArchivedDiskEncryptionKeyFunc(ctx, host)
 }
 
 func (s *DataStore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
