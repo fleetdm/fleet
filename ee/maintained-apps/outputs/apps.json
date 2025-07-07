@@ -100,6 +100,13 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "iTerm2",
+      "slug": "iterm2/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.googlecode.iterm2",
+      "description": ""
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
