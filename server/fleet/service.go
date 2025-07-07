@@ -175,22 +175,22 @@ type Service interface {
 	// InitiateSSO is used to initiate an SSO session and returns a URL that can be used in a redirect to the IDP.
 	// Arguments: redirectURL is the URL of the protected resource that the user was trying to access when they were
 	// prompted to log in.
-	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
+	InitiateSSO(ctx context.Context, redirectURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitiateMDMAppleSSO initiates SSO for MDM flows, this method is
 	// different from InitiateSSO because it receives a different
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
-	InitiateMDMAppleSSO(ctx context.Context) (string, error)
+	InitiateMDMAppleSSO(ctx context.Context) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
-	// InitSSOCallback handles the IDP response and ensures the credentials
-	// are valid
-	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
+	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
+	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.
+	InitSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (auth Auth, redirectURL string, err error)
 
-	// InitiateMDMAppleSSOCallback handles the IDP response and ensures the
-	// credentials are valid, then responds with an URL to the Fleet UI to
+	// MDMAppleSSOCallback handles the IdP SAMLResponse and ensures the
+	// credentials are valid, then responds with a URL to the Fleet UI to
 	// handle next steps based on the query parameters provided.
-	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) string
+	MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO

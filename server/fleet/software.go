@@ -270,10 +270,12 @@ type HostSoftwareTitleListOptions struct {
 	// AvailableForInstall.
 	SelfServiceOnly bool `query:"self_service,optional"`
 
-	// IncludeAvailableForInstall is not a query argument, it is set in the
-	// service layer to indicate to the datastore if software available for
-	// install (but not currently installed on the host) should be returned.
-	IncludeAvailableForInstall bool
+	IncludeAvailableForInstall bool `query:"include_available_for_install,optional"`
+	// IncludeAvailableForInstall was exposed as a query string parameter
+	// In order not to introduce a breaking change we have to mark this parameter as optional.
+	// However, instead of using *bool and modifying a lot of downstream code and tests
+	// Use this indicator
+	IncludeAvailableForInstallExplicitlySet bool
 
 	// OnlyAvailableForInstall is set via a query argument that limits the
 	// returned software titles to only those that are available for install on

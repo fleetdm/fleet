@@ -1,0 +1,1 @@
+- Fixed an issue where macos_setup would not always be exported by `fleetctl generate-gitops` when it should have been

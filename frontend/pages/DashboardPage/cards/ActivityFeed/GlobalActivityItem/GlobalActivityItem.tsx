@@ -1489,8 +1489,6 @@ const GlobalActivityItem = ({
     );
 
     switch (activity.type) {
-      case ActivityType.UserLoggedIn:
-        return <b>{activity.actor_email} </b>;
       case ActivityType.UserChangedGlobalRole:
       case ActivityType.UserChangedTeamRole:
         return activity.actor_id === activity.details?.user_id ? (

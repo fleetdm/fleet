@@ -1,5 +1,7 @@
 import URL_PREFIX from "./url_prefix";
 
+const INTEGRATIONS_PREFIX = `${URL_PREFIX}/settings/integrations`;
+
 // Note: changes to paths.ts should change page_titles.ts respectively
 export default {
   ROOT: `${URL_PREFIX}/`,
@@ -36,31 +38,32 @@ export default {
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
 
   // Integrations pages
-  ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
-  ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
-  ADMIN_INTEGRATIONS_MDM: `${URL_PREFIX}/settings/integrations/mdm`,
-  ADMIN_INTEGRATIONS_MDM_APPLE: `${URL_PREFIX}/settings/integrations/mdm/apple`,
-  ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
-  ADMIN_INTEGRATIONS_MDM_ANDROID: `${URL_PREFIX}/settings/integrations/mdm/android`,
-  ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${URL_PREFIX}/settings/integrations/mdm/abm`,
-  ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
-  ADMIN_INTEGRATIONS_SCEP: `${URL_PREFIX}/settings/integrations/mdm/scep`,
-  ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
-  ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${URL_PREFIX}/settings/integrations/change-management`,
-  ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS: `${URL_PREFIX}/settings/integrations/conditional-access`,
-  ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES: `${URL_PREFIX}/settings/integrations/certificates`,
-  ADMIN_INTEGRATIONS_IDENTITY_PROVIDER: `${URL_PREFIX}/settings/integrations/identity-provider`,
-  ADMIN_INTEGRATIONS_VPP: `${URL_PREFIX}/settings/integrations/mdm/vpp`,
-  ADMIN_INTEGRATIONS_VPP_SETUP: `${URL_PREFIX}/settings/integrations/vpp/setup`,
+
+  ADMIN_INTEGRATIONS: INTEGRATIONS_PREFIX,
+  ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${INTEGRATIONS_PREFIX}/ticket-destinations`,
+  ADMIN_INTEGRATIONS_MDM: `${INTEGRATIONS_PREFIX}/mdm`,
+  ADMIN_INTEGRATIONS_MDM_APPLE: `${INTEGRATIONS_PREFIX}/mdm/apple`,
+  ADMIN_INTEGRATIONS_MDM_WINDOWS: `${INTEGRATIONS_PREFIX}/mdm/windows`,
+  ADMIN_INTEGRATIONS_MDM_ANDROID: `${INTEGRATIONS_PREFIX}/mdm/android`,
+  ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${INTEGRATIONS_PREFIX}/mdm/abm`,
+  ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${INTEGRATIONS_PREFIX}/automatic-enrollment/windows`,
+  ADMIN_INTEGRATIONS_SCEP: `${INTEGRATIONS_PREFIX}/mdm/scep`,
+  ADMIN_INTEGRATIONS_CALENDARS: `${INTEGRATIONS_PREFIX}/calendars`,
+  ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${INTEGRATIONS_PREFIX}/change-management`,
+  ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS: `${INTEGRATIONS_PREFIX}/conditional-access`,
+  ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES: `${INTEGRATIONS_PREFIX}/certificates`,
+  ADMIN_INTEGRATIONS_IDENTITY_PROVIDER: `${INTEGRATIONS_PREFIX}/identity-provider`,
+  ADMIN_INTEGRATIONS_VPP: `${INTEGRATIONS_PREFIX}/mdm/vpp`,
+  ADMIN_INTEGRATIONS_VPP_SETUP: `${INTEGRATIONS_PREFIX}/vpp/setup`,
+  ADMIN_INTEGRATIONS_SSO: `${INTEGRATIONS_PREFIX}/sso`,
+  ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK: `${INTEGRATIONS_PREFIX}/host-status-webhook`,
 
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ADMIN_ORGANIZATION: `${URL_PREFIX}/settings/organization`,
   ADMIN_ORGANIZATION_INFO: `${URL_PREFIX}/settings/organization/info`,
   ADMIN_ORGANIZATION_WEBADDRESS: `${URL_PREFIX}/settings/organization/webaddress`,
-  ADMIN_ORGANIZATION_SSO: `${URL_PREFIX}/settings/organization/sso`,
   ADMIN_ORGANIZATION_SMTP: `${URL_PREFIX}/settings/organization/smtp`,
   ADMIN_ORGANIZATION_AGENTS: `${URL_PREFIX}/settings/organization/agents`,
-  ADMIN_ORGANIZATION_HOST_STATUS_WEBHOOK: `${URL_PREFIX}/settings/organization/host-status-webhook`,
   ADMIN_ORGANIZATION_STATISTICS: `${URL_PREFIX}/settings/organization/statistics`,
   ADMIN_ORGANIZATION_ADVANCED: `${URL_PREFIX}/settings/organization/advanced`,
   ADMIN_ORGANIZATION_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,

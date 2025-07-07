@@ -682,12 +682,15 @@ func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, groupID uint,
 		return nil
 	}
 
+	// TODO: We could consider using string interpolation without placeholders for better performance
+	// to the extent these queries are dependent only on the group ID and user IDs, which are integers.
+	// See https://github.com/fleetdm/fleet/pull/30264
+
 	batchSize := 10000
 	return common_mysql.BatchProcessSimple(userIDs, batchSize, func(userIDsInBatch []uint) error {
 		// Build the batch insert query
 		valueStrings := make([]string, 0, len(userIDsInBatch))
 		valueArgs := make([]interface{}, 0, len(userIDsInBatch)*2)
-
 		for _, userID := range userIDsInBatch {
 			valueStrings = append(valueStrings, "(?, ?)")
 			valueArgs = append(valueArgs, userID, groupID)
@@ -697,7 +700,8 @@ func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, groupID uint,
 		insertQuery := `
 		INSERT INTO scim_user_group (
 			scim_user_id, group_id
-		) VALUES ` + strings.Join(valueStrings, ",")
+		) VALUES ` + strings.Join(valueStrings, ",") + `
+		ON DUPLICATE KEY UPDATE created_at = scim_user_group.created_at` // no-op update to avoid duplicate key errors
 
 		// Execute the batch insert
 		_, err := tx.ExecContext(ctx, insertQuery, valueArgs...)

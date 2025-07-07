@@ -73,7 +73,7 @@ type MDMAppleEnrollmentProfile struct {
 	//
 	// DEPProfile is nil when Type is MDMAppleEnrollmentTypeManual.
 	DEPProfile *json.RawMessage `json:"dep_profile" db:"dep_profile"`
-	// EnrollmentURL is the URL where an enrollement is served.
+	// EnrollmentURL is the URL where an enrollment is served.
 	EnrollmentURL string `json:"enrollment_url" db:"-"`
 
 	UpdateCreateTimestamps

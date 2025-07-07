@@ -10,7 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-// Auth contains methods to fetch information from a valid SSO auth response
+// Auth contains methods to fetch information from a valid SSO SAMLResponse
 type Auth interface {
 	// UserID returns the Subject Name Identifier associated with the request,
 	// this can be an email address, an entity identifier, or any other valid
@@ -23,8 +23,6 @@ type Auth interface {
 	// isn't a defined spec for this, so the return value is in a best-effort
 	// basis
 	UserDisplayName() string
-	// RequestID returns the request id associated with this SSO session
-	RequestID() string
 	// AssertionAttributes returns the attributes of the SAML response.
 	AssertionAttributes() []SAMLAttribute
 }
