@@ -1549,7 +1549,7 @@ func newMaintainedAppSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMaintainedApps)
-		defaultInterval = 24 * time.Hour
+		defaultInterval = 1 * time.Hour
 		priorJobDiff    = -(defaultInterval - 30*time.Second)
 	)
 

@@ -663,9 +663,8 @@ type Datastore interface {
 	// ReplaceVPPInstallVerificationUUID replaces the verification command UUID for all
 	// VPP app install attempts were related to oldVerifyUUID.
 	ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
-	// GetAcknowledgedMDMCommandsByHost gets all commands of the given type that are in the
-	// "Acknowledged" state.
-	GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error)
+	// IsHostPendingVPPInstallVerification checks if a host has a pending VPP install verification command.
+	IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error)
 	// GetVPPInstallsByVerificationUUID gets a HostVPPSoftwareInstall by verification command UUID.
 	GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
 	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
@@ -988,6 +987,8 @@ type Datastore interface {
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
+	// GetHostArchivedDiskEncryptionKey returns the archived disk encryption key for a given host.
+	GetHostArchivedDiskEncryptionKey(ctx context.Context, host *Host) (*HostArchivedDiskEncryptionKey, error)
 	IsHostPendingEscrow(ctx context.Context, hostID uint) bool
 	ClearPendingEscrow(ctx context.Context, hostID uint) error
 	ReportEscrowError(ctx context.Context, hostID uint, err string) error
