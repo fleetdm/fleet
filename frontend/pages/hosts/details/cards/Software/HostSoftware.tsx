@@ -42,13 +42,18 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
 }
 
+interface HostSoftwareQueryParams
+  extends ReturnType<typeof parseHostSoftwareQueryParams> {
+  include_available_for_install?: boolean;
+}
+
 interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
   platform: HostPlatform;
   softwareUpdatedAt?: string;
   router: InjectedRouter;
-  queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
+  queryParams: HostSoftwareQueryParams;
   pathname: string;
   hostTeamId: number;
   onShowSoftwareDetails: (software: IHostSoftware) => void;
@@ -71,6 +76,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   exploit?: string;
   min_cvss_score?: string;
   max_cvss_score?: string;
+  self_service?: string;
   category_id?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
@@ -86,6 +92,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   const categoryId = queryParams?.category_id
     ? parseInt(queryParams.category_id, 10)
     : undefined;
+  const selfService = queryParams?.self_service === "true";
 
   return {
     page,
@@ -96,6 +103,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     vulnerable: softwareVulnFilters.vulnerable,
     min_cvss_score: softwareVulnFilters.minCvssScore,
     max_cvss_score: softwareVulnFilters.maxCvssScore,
+    self_service: selfService,
     exploit: softwareVulnFilters.exploit,
     available_for_install: false, // always false for host software
     category_id: categoryId,
@@ -286,7 +294,12 @@ const HostSoftware = ({
             searchQuery={queryParams.query}
             page={queryParams.page}
             pagePath={pathname}
-            vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
+            vulnFilters={getSoftwareVulnFiltersFromQueryParams({
+              vulnerable: queryParams.vulnerable,
+              exploit: queryParams.exploit,
+              min_cvss_score: queryParams.min_cvss_score,
+              max_cvss_score: queryParams.max_cvss_score,
+            })}
             onAddFiltersClick={toggleSoftwareFiltersModal}
             pathPrefix={pathname}
             // for my device software details modal toggling
@@ -298,7 +311,12 @@ const HostSoftware = ({
           <SoftwareFiltersModal
             onExit={toggleSoftwareFiltersModal}
             onSubmit={onApplyVulnFilters}
-            vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
+            vulnFilters={getSoftwareVulnFiltersFromQueryParams({
+              vulnerable: queryParams.vulnerable,
+              exploit: queryParams.exploit,
+              min_cvss_score: queryParams.min_cvss_score,
+              max_cvss_score: queryParams.max_cvss_score,
+            })}
             isPremiumTier={isPremiumTier || false}
           />
         )}
@@ -316,7 +334,7 @@ const HostSoftware = ({
       >
         <CardHeader
           header="Software"
-          subheader="Software installed on your device."
+          subheader="Software installed on your device"
         />
         {renderHostSoftware()}
       </Card>
@@ -325,7 +343,7 @@ const HostSoftware = ({
 
   return (
     <div className={baseClass}>
-      <CardHeader subheader="Software installed on this host." />
+      <CardHeader subheader="Software installed on this host" />
       {renderHostSoftware()}
     </div>
   );

@@ -73,7 +73,7 @@ type MDMAppleEnrollmentProfile struct {
 	//
 	// DEPProfile is nil when Type is MDMAppleEnrollmentTypeManual.
 	DEPProfile *json.RawMessage `json:"dep_profile" db:"dep_profile"`
-	// EnrollmentURL is the URL where an enrollement is served.
+	// EnrollmentURL is the URL where an enrollment is served.
 	EnrollmentURL string `json:"enrollment_url" db:"-"`
 
 	UpdateCreateTimestamps
@@ -347,6 +347,7 @@ type MDMAppleProfilePayload struct {
 	CommandUUID       string             `db:"command_uuid"`
 	IgnoreError       bool               `db:"ignore_error"`
 	Scope             PayloadScope       `db:"scope"`
+	DeviceEnrolledAt  *time.Time         `db:"device_enrolled_at"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and

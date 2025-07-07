@@ -211,8 +211,9 @@ INSERT INTO software_installers (
 	user_id,
 	user_name,
 	user_email,
-	fleet_maintained_app_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?)`
+	fleet_maintained_app_id,
+ 	url
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -233,6 +234,7 @@ INSERT INTO software_installers (
 			payload.UserID,
 			payload.UserID,
 			payload.FleetMaintainedAppID,
+			payload.URL,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -1531,7 +1533,7 @@ WHERE
 			hsi.host_id = ? AND hsi.software_installer_id = ? AND hsi.canceled = 0)`
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostLastInstall, stmt, hostID, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get lastest past install")
+		return nil, ctxerr.Wrap(ctx, err, "get latest past install")
 	}
 
 	return &hostLastInstall, nil

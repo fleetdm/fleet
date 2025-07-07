@@ -27,8 +27,8 @@ describe("InstallStatusCell - component", () => {
           status: "installed",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -44,8 +44,8 @@ describe("InstallStatusCell - component", () => {
           status: "pending_install",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
         isHostOnline
       />
     );
@@ -58,21 +58,21 @@ describe("InstallStatusCell - component", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders 'Install pending' status with tooltip if host is offline", async () => {
+  it("renders 'Install (pending)' status with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={createMockHostSoftware({
           status: "pending_install",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
-    expect(screen.getByText("Install pending")).toBeInTheDocument();
+    expect(screen.getByText("Install (pending)")).toBeInTheDocument();
 
-    await user.hover(screen.getByText("Install pending"));
+    await user.hover(screen.getByText("Install (pending)"));
     expect(
       screen.getByText(/Fleet will install software/i)
     ).toBeInTheDocument();
@@ -85,8 +85,8 @@ describe("InstallStatusCell - component", () => {
           status: "pending_uninstall",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
         isHostOnline
       />
     );
@@ -99,21 +99,21 @@ describe("InstallStatusCell - component", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders 'Uninstall pending' status with tooltip if host is offline", async () => {
+  it("renders 'Uninstall (pending)' status with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={createMockHostSoftware({
           status: "pending_uninstall",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
-    expect(screen.getByText("Uninstall pending")).toBeInTheDocument();
+    expect(screen.getByText("Uninstall (pending)")).toBeInTheDocument();
 
-    await user.hover(screen.getByText("Uninstall pending"));
+    await user.hover(screen.getByText("Uninstall (pending)"));
     expect(
       screen.getByText(/Fleet will uninstall software/i)
     ).toBeInTheDocument();
@@ -126,8 +126,8 @@ describe("InstallStatusCell - component", () => {
           status: "failed_install",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -144,8 +144,8 @@ describe("InstallStatusCell - component", () => {
           status: "failed_uninstall",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -164,8 +164,8 @@ describe("InstallStatusCell - component", () => {
           status: null,
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -182,8 +182,8 @@ describe("InstallStatusCell - component", () => {
           status: null,
           software_package: { ...testSoftwarePackage, self_service: false },
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -204,8 +204,8 @@ describe("InstallStatusCell - component", () => {
             self_service: true,
           },
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -222,8 +222,8 @@ describe("InstallStatusCell - component", () => {
           status: null,
           app_store_app: createMockHostAppStoreApp({ self_service: true }),
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -243,8 +243,8 @@ describe("InstallStatusCell - component", () => {
           app_store_app: null,
           software_package: null,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 

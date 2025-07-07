@@ -362,8 +362,8 @@ interface SignatureInformation {
   hash_sha256: string | null;
 }
 export interface ISoftwareLastUninstall {
-  install_uuid: string;
-  installed_at: string;
+  script_execution_id: string;
+  uninstalled_at: string;
 }
 
 export interface ISoftwareInstallVersion {
@@ -383,6 +383,7 @@ export interface IHostSoftwarePackage {
   last_install: ISoftwareLastInstall | null;
   last_uninstall: ISoftwareLastUninstall | null;
   categories?: SoftwareCategory[];
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
 }
 
 export interface IHostAppStoreApp {
@@ -392,6 +393,7 @@ export interface IHostAppStoreApp {
   version: string;
   last_install: IAppLastInstall | null;
   categories?: SoftwareCategory[];
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
 }
 
 export interface IHostSoftware {

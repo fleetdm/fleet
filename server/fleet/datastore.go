@@ -197,6 +197,9 @@ type Datastore interface {
 	// UpdateLabelMembershipByHostIDs updates the label membership for the given label ID with host
 	// IDs, applied in batches
 	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
+	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label
+	// based on its host vitals criteria.
+	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
 
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
@@ -651,6 +654,24 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
+	// AssociateVPPInstallToVerificationUUID updates the verification command UUID associated with the
+	// given install attempt (InstallApplication command)
+	AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error
+	// SetVPPInstallAsVerified marks the VPP app install attempt as "verified" (Fleet has validated
+	// that it's installed on the device).
+	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error
+	// ReplaceVPPInstallVerificationUUID replaces the verification command UUID for all
+	// VPP app install attempts were related to oldVerifyUUID.
+	ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+	// IsHostPendingVPPInstallVerification checks if a host has a pending VPP install verification command.
+	IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error)
+	// GetVPPInstallsByVerificationUUID gets a HostVPPSoftwareInstall by verification command UUID.
+	GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
+	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
+	// it was installed on the host).
+	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error
+	MarkAllPendingVPPInstallsAsFailed(ctx context.Context, jobName string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
@@ -966,6 +987,8 @@ type Datastore interface {
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
+	// GetHostArchivedDiskEncryptionKey returns the archived disk encryption key for a given host.
+	GetHostArchivedDiskEncryptionKey(ctx context.Context, host *Host) (*HostArchivedDiskEncryptionKey, error)
 	IsHostPendingEscrow(ctx context.Context, hostID uint) bool
 	ClearPendingEscrow(ctx context.Context, hostID uint) error
 	ReportEscrowError(ctx context.Context, hostID uint, err string) error
@@ -1235,6 +1258,11 @@ type Datastore interface {
 	// GetNanoMDMUserEnrollment returns the active nano user channel enrollment information for the device
 	// id. Right now only one user channel enrollment is supported per device
 	GetNanoMDMUserEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
+
+	// GetNanoMDMUserEnrollmentUsername returns the short username of the user
+	// channel enrollment for the device id. Right now only one user channel
+	// enrollment is supported per device.
+	GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error)
 
 	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
 	// MDM protocol seen time for the host with the given UUID
@@ -2245,6 +2273,9 @@ type ProfileVerificationStore interface {
 	// ExpandEmbeddedSecrets expands the fleet secrets in a
 	// document using the secrets stored in the datastore.
 	ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error)
+	// GetHostMDMWindowsProfiles returns the current MDM profile status for the given
+	// Windows host
+	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
 }
 
 var _ ProfileVerificationStore = (Datastore)(nil)

@@ -83,8 +83,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
-			level.Warn(logger).Log("msg", "failed to ingest app", "err", err, "name", input.Name)
-			continue
+			return nil, ctxerr.Wrap(ctx, err, "ingesting winget app")
 		}
 
 		manifestApps = append(manifestApps, outApp)

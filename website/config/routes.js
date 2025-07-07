@@ -27,6 +27,7 @@ module.exports.routes = {
       pageTitleForMeta: 'Contact us',
       pageDescriptionForMeta: 'Get in touch with our team.',
       hideFooterLinks: true,
+      currentSection: 'community',
     }
   },
 
@@ -98,6 +99,14 @@ module.exports.routes = {
   'GET /articles': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /articles/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
       currentSection: 'community',
     }
@@ -402,7 +411,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Support',
       pageDescriptionForMeta: 'Ask a question, chat with engineers, or get in touch with the Fleet team.',
-      currentSection: 'documentation',
+      currentSection: 'community',
     }
   },
 
@@ -449,7 +458,8 @@ module.exports.routes = {
     action: 'view-testimonials',
     locals: {
       pageTitleForMeta: 'What people are saying',
-      pageDescriptionForMeta: 'See what people are saying about Fleet.'
+      pageDescriptionForMeta: 'See what people are saying about Fleet.',
+      currentSection: 'community',
     }
   },
 
@@ -470,6 +480,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Meetups',
       pageDescriptionForMeta: 'See upcoming meetup locations.',
+      currentSection: 'community',
     }
   },
 
@@ -790,6 +801,9 @@ module.exports.routes = {
   'GET /announcements/nvd-api-2.0': '/announcements/nvd-api-2-0',
   'GET /releases/osquery-5.11.0': '/releases/osquery-5-11-0',
   'GET /releases/osquery-5.8.1': '/releases/osquery-5-8-1',
+  'GET /announcements/one-agent-fewer-tools-fewer-gaps': '/articles/one-agent-fewer-tools-fewer-gaps',
+  'GET /announcements/i-work-in-operations-i-deployed-fleet-in-minutes': '/articles/i-work-in-operations-i-deployed-fleet-in-minutes',
+  'GET /announcements/not-everything-runs-in-kubernete': '/articles/not-everything-runs-in-kubernete',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -922,6 +936,10 @@ module.exports.routes = {
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
+  'GET /learn-more-about/yaml-software-setup-experience': '/docs/configuration/yaml-files#self-service-labels-categories-and-setup-experience',
+  'GET /learn-more-about/microsoft-compliance-partner': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
 
   // Sitemap
   // =============================================================================================================

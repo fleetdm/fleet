@@ -146,7 +146,7 @@ const ManageControlsPage = ({
             currentUserTeams={userTeams}
             selectedTeamId={currentTeamId}
             onChange={handleTeamChange}
-            includeAll={false}
+            includeAllTeams={false}
             includeNoTeams
           />
         );

@@ -67,9 +67,11 @@ A streamlined flow for pulling the latest version of a Fleet-maintained app is [
 
 ## Manage apps with GitOps
 
-To manage Fleet-maintained apps using Fleet's best practice GitOps, check out the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/using-fleet/gitops#software). There is a `fleet_maintained_apps` key you can use to specify via slug a list of apps. This makes it even more simple to add additional apps available for your fleet.
+To manage Fleet-maintained apps using Fleet's best practice GitOps, check out `fleet_maintained_apps`, found under the
+`software` key, in the
+[GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
 
-> Note: with GitOps enabled, any Fleet-maintained apps added using the web UI will not persist.
+> Note: with GitOps enabled, any Fleet-maintained apps added using the web UI will not persist if not also added in YAML.
 
 ## How does Fleet maintain these apps?
 

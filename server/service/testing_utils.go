@@ -318,7 +318,7 @@ type mockMailService struct {
 	Invoked     bool
 }
 
-func (svc *mockMailService) SendEmail(e fleet.Email) error {
+func (svc *mockMailService) SendEmail(ctx context.Context, e fleet.Email) error {
 	svc.Invoked = true
 	return svc.SendEmailFn(e)
 }
@@ -406,13 +406,15 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		scepStorage := opts[0].SCEPStorage
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
 				mdmStorage,
 				scepStorage,
 				logger,
-				NewMDMAppleCheckinAndCommandService(ds, commander, logger),
+				checkInAndCommand,
 				&MDMAppleDDMService{
 					ds:     ds,
 					logger: logger,

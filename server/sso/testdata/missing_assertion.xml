@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<saml2p:Response xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" Destination="https://localhost:8080/api/v1/kolide/sso/callback" ID="_83579a9008ef726f87c52aad4b6dcc04" InResponseTo="SGJhi1g5D4/npOwXaw8t6A==" IssueInstant="2017-07-18T14:47:08.035Z" Version="2.0">
+  <saml2:Issuer xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">https://accounts.google.com/o/saml2?idpid=C0171bstf</saml2:Issuer>
+  <saml2p:Status>
+    <saml2p:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>
+  </saml2p:Status>
+</saml2p:Response>

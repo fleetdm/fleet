@@ -591,6 +591,8 @@ SET
 WHERE
 	host_uuid = ?
 	AND operation_type = ?
+	-- do not increment retry unnecessarily if the status is already null, no MDM command was sent
+	AND status IS NOT NULL
 	AND %s IN(?)`
 
 	args := []interface{}{
@@ -864,7 +866,7 @@ func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.
 	stmt := `
 -- profiles without labels
 SELECT
-    macp.profile_uuid AS profile_uuid,
+	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
 	0 AS count_profile_labels,
 	0 AS count_non_broken_labels,
@@ -1272,7 +1274,7 @@ func batchSetProfileLabelAssociationsDB(
 func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
 	// Currently, there can only be one EULA in the database, and we're
 	// hardcoding it's id to be 1 in order to enforce this restriction.
-	stmt := "SELECT name, created_at, token FROM eulas WHERE id = 1"
+	stmt := "SELECT name, created_at, token, sha256 FROM eulas WHERE id = 1"
 	var eula fleet.MDMEULA
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt); err != nil {
 		if err == sql.ErrNoRows {
@@ -1299,11 +1301,11 @@ func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) err
 	// We're intentionally hardcoding the id to be 1 because we only want to
 	// allow one EULA.
 	stmt := `
-          INSERT INTO eulas (id, name, bytes, token)
-	  VALUES (1, ?, ?, ?)
+          INSERT INTO eulas (id, name, bytes, token, sha256)
+	  VALUES (1, ?, ?, ?, ?)
 	`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token, eula.Sha256)
 	if err != nil {
 		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMEULA", eula.Token))
@@ -1553,7 +1555,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 
 	// NOTE: if you change any of the conditions in this query, please
 	// update the `hostMDMSelect` constant too, which has a
-	// `connected_to_fleet` condition, and any relevant filters.
+	// `connected_to_fleet` condition, any relevant filters, and the
+	// query used in isAppleHostConnectedToFleetMDM.
 	const appleStmt = `
 	  SELECT ne.id
 	  FROM nano_enrollments ne
@@ -1570,7 +1573,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 
 	// NOTE: if you change any of the conditions in this query, please
 	// update the `hostMDMSelect` constant too, which has a
-	// `connected_to_fleet` condition, and any relevant filters.
+	// `connected_to_fleet` condition, and any relevant filters, and the
+	// query used in isWindowsHostConnectedToFleetMDM.
 	const winStmt = `
 	  SELECT mwe.host_uuid
 	  FROM mdm_windows_enrollments mwe
@@ -1588,11 +1592,13 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 }
 
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
-	mp, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{host})
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
+	if host.Platform == "windows" {
+		return isWindowsHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
+	} else if host.Platform == "darwin" || host.Platform == "ipados" || host.Platform == "ios" {
+		return isAppleHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
 	}
-	return mp[host.UUID], nil
+
+	return false, nil
 }
 
 func batchSetProfileVariableAssociationsDB(
@@ -1960,4 +1966,22 @@ GROUP BY
 	}
 
 	return counts, nil
+}
+
+func (ds *Datastore) IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
+	stmt := `
+SELECT EXISTS (
+	SELECT 1
+    FROM host_mdm_commands hmc
+    JOIN hosts h ON hmc.host_id = h.id
+    WHERE
+		h.uuid = ? AND
+		hmc.command_type = ?
+) AS exists_flag
+`
+	var exists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, stmt, hostUUID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check for acknowledged mdm command by host")
+	}
+	return exists, nil
 }

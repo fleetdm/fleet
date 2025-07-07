@@ -115,9 +115,7 @@ At Fleet, we collaborate with [core team members](#creating-a-new-position), [co
 
 > Hiring restrictions
 >
->**Incompatible former employers**: Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevent us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [Digital Experience spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
->
->**Incompatible locations**: Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
+> Fleet maintains a list of **incompatible locations** and companies with whom Fleet has **do-not-solicit terms** that prevent us from making offers to employees that reside in certian locations or have partnered with certain companies.  These lists are in the ["🚫 Hiring restrictions" spreadsheet](https://docs.google.com/spreadsheets/d/1tIUzzwdro6rx9jMhLmThJ-0ZGZPgiSJXTJwbnAJkNrU/edit?gid=921044344#gid=921044344).
 
 
 ### Recruiting
@@ -197,9 +195,9 @@ Core team members:
 
 ## Creating a new role at Fleet
 
-Do you need to create a completely new role at Fleet? Use these steps to open up a completely new position on the core team and hire a [fleetie](https://fleetdm.com/handbook/company/leadership#core-team-members-fleeties) for that role.
+> Are you making a planned hire (i.e. filling a role that is already in the ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0))? Create a [🛸 Teammate pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=pre-onboarding.md&title=YYYY_MM_DD%20Pre-onboarding:%20TEAM_MEMBER_NAME) 
 
-> Are you making a planned hire (i.e. hiring for a role that already exists)? Create a [🛸 Teammate pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=pre-onboarding.md&title=YYYY_MM_DD%20Pre-onboarding:%20TEAM_MEMBER_NAME) 
+Do you need to create a completely new role at Fleet? Use these steps to open up a completely new position on the core team and hire a [fleetie](https://fleetdm.com/handbook/company/leadership#core-team-members-fleeties) for that role.
 
 1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department. Set the start date to the first Monday of the next month (This position is still only proposed (not approved), but would make it easier for the approver to have the date set).
 2. **Propose job description:** Copy, personalize, and publish the job description:
@@ -246,16 +244,16 @@ A completed open position entry should look something like this:
 > The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged. A link will be added in the ["Open positions" section](https://fleetdm.com/handbook/company#open-positions) of the company handbook page.
 
 3. **Link to pull request in "Fleeties:"** Include a link to your GitHub pull request in the "Job description" column for the new row you just added in "Fleeties".
-4. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will start a `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
+4. **Get it approved and merged:**  When you submit your proposed job description, the Head of Digital Experience will be automatically tagged for review.  He will work with the CEO, CFO, and the rest of [the E-group](https://fleetdm.com/handbook/company/communications#e-group) to [approve the new position](https://fleetdm.com/handbook/digital-experience#approve-a-new-position) or postpone for now.
 
-- _**Why bother with approvals?**  We avoid canceling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
+> _**Why bother with approvals?**  We avoid canceling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
 
 
 ## Hiring a new team member
 
-This section is about hiring a new core team member, or fleetie, for an already planned position. 
+This section is about hiring a new core team member, or fleetie, for an already approved position. 
 
-> **To hire an already planned position at Fleet**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) and complete the steps for the hiring manager.
+> **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
 
 
 ## Create a 30-60-90 day plan
