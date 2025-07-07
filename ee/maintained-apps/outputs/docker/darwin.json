@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.42.1",
+      "version": "4.43.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';"
       },
-      "installer_url": "https://desktop.docker.com/mac/main/arm64/196648/Docker.dmg",
+      "installer_url": "https://desktop.docker.com/mac/main/arm64/198352/Docker.dmg",
       "install_script_ref": "284fa03f",
       "uninstall_script_ref": "34a73868",
-      "sha256": "a56166ddefca020b44bc6eaf782cded1913c456d853e62f09a5a41f05f672648",
+      "sha256": "ccf08ef603a7cf935ff12f48fe83793c88dc403fe0ae3314d6f3d3ae0dc99e2f",
       "default_categories": [
         "Developer tools"
       ]
