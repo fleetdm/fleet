@@ -253,7 +253,7 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 
 | T-shirt size | Time | Story points |
 |:---|:-----------------------------|:-|
-| XXS | Trivial; ≤1 day for 1 contributor | 1-3 |
+| XXS | ≤1 day for 1 contributor | 1-3 |
 | XS | ≤1 week for 1 contributor | 3-8 |
 | S  | 1 sprint for 1 contributor | 15-25 |
 | M  | 1 sprint for 2 contributors | 30-50 |
