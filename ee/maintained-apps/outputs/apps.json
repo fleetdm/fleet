@@ -135,6 +135,13 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "P4V",
+      "slug": "p4v/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.perforce.p4v",
+      "description": ""
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",

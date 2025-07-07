@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "2025.2",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.perforce.p4v';"
+      },
+      "installer_url": "https://filehost.perforce.com/perforce/r25.2/bin.macosx12u/P4V.dmg",
+      "install_script_ref": "22927d10",
+      "uninstall_script_ref": "ca69b7a7",
+      "sha256": "c7130099d50b5dbb9c9578e9cc5158f7d632877d2644be0bf5592deb12773a04",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "22927d10": "#!/bin/sh\n\n# variables\nAPPDIR=\"/Applications/\"\nTMPDIR=$(dirname \"$(realpath $INSTALLER_PATH)\")\n# functions\n\nquit_application() {\n  local bundle_id=\"$1\"\n  local timeout_duration=10\n\n  # check if the application is running\n  if ! osascript -e \"application id \\\"$bundle_id\\\" is running\" 2\u003e/dev/null; then\n    return\n  fi\n\n  local console_user\n  console_user=$(stat -f \"%Su\" /dev/console)\n  if [[ $EUID -eq 0 \u0026\u0026 \"$console_user\" == \"root\" ]]; then\n    echo \"Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'.\"\n    return\n  fi\n\n  echo \"Quitting application '$bundle_id'...\"\n\n  # try to quit the application within the timeout period\n  local quit_success=false\n  SECONDS=0\n  while (( SECONDS \u003c timeout_duration )); do\n    if osascript -e \"tell application id \\\"$bundle_id\\\" to quit\" \u003e/dev/null 2\u003e\u00261; then\n      if ! pgrep -f \"$bundle_id\" \u003e/dev/null 2\u003e\u00261; then\n        echo \"Application '$bundle_id' quit successfully.\"\n        quit_success=true\n        break\n      fi\n    fi\n    sleep 1\n  done\n\n  if [[ \"$quit_success\" = false ]]; then\n    echo \"Application '$bundle_id' did not quit.\"\n  fi\n}\n\n\n# extract contents\nMOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)\nhdiutil attach -plist -nobrowse -readonly -mountpoint \"$MOUNT_POINT\" \"$INSTALLER_PATH\"\nsudo cp -R \"$MOUNT_POINT\"/* \"$TMPDIR\"\nhdiutil detach \"$MOUNT_POINT\"\n# copy to the applications folder\nquit_application 'com.perforce.p4v'\nif [ -d \"$APPDIR/p4v.app\" ]; then\n\tsudo mv \"$APPDIR/p4v.app\" \"$TMPDIR/p4v.app.bkp\"\nfi\nsudo cp -R \"$TMPDIR/p4v.app\" \"$APPDIR\"\n# copy to the applications folder\nquit_application 'com.perforce.p4v'\nif [ -d \"$APPDIR/p4merge.app\" ]; then\n\tsudo mv \"$APPDIR/p4merge.app\" \"$TMPDIR/p4merge.app.bkp\"\nfi\nsudo cp -R \"$TMPDIR/p4merge.app\" \"$APPDIR\"\n# copy to the applications folder\nquit_application 'com.perforce.p4v'\nif [ -d \"$APPDIR/p4admin.app\" ]; then\n\tsudo mv \"$APPDIR/p4admin.app\" \"$TMPDIR/p4admin.app.bkp\"\nfi\nsudo cp -R \"$TMPDIR/p4admin.app\" \"$APPDIR\"\n",
+    "ca69b7a7": "#!/bin/sh\n\n# variables\nAPPDIR=\"/Applications/\"\nLOGGED_IN_USER=$(scutil \u003c\u003c\u003c \"show State:/Users/ConsoleUser\" | awk '/Name :/ { print $3 }')\n# functions\n\ntrash() {\n  local logged_in_user=\"$1\"\n  local target_file=\"$2\"\n  local timestamp=\"$(date +%Y-%m-%d-%s)\"\n  local rand=\"$(jot -r 1 0 99999)\"\n\n  # replace ~ with /Users/$logged_in_user\n  if [[ \"$target_file\" == ~* ]]; then\n    target_file=\"/Users/$logged_in_user${target_file:1}\"\n  fi\n\n  local trash=\"/Users/$logged_in_user/.Trash\"\n  local file_name=\"$(basename \"${target_file}\")\"\n\n  if [[ -e \"$target_file\" ]]; then\n    echo \"removing $target_file.\"\n    mv -f \"$target_file\" \"$trash/${file_name}_${timestamp}_${rand}\"\n  else\n    echo \"$target_file doesn't exist.\"\n  fi\n}\n\nsudo rm -rf \"$APPDIR/p4v.app\"\nsudo rm -rf \"$APPDIR/p4merge.app\"\nsudo rm -rf \"$APPDIR/p4admin.app\"\nsudo rm -rf 'p4v'\nsudo rm -rf 'p4admin'\nsudo rm -rf 'p4merge'\ntrash $LOGGED_IN_USER '~/Library/Preferences/com.perforce.p4v'\ntrash $LOGGED_IN_USER '~/Library/Preferences/com.perforce.p4v.plist'\ntrash $LOGGED_IN_USER '~/Library/Saved Application State/com.perforce.p4v.savedState'\n"
+  }
+}
