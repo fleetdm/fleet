@@ -27,6 +27,7 @@ module.exports.routes = {
       pageTitleForMeta: 'Contact us',
       pageDescriptionForMeta: 'Get in touch with our team.',
       hideFooterLinks: true,
+      currentSection: 'community',
     }
   },
 
@@ -410,7 +411,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Support',
       pageDescriptionForMeta: 'Ask a question, chat with engineers, or get in touch with the Fleet team.',
-      currentSection: 'documentation',
+      currentSection: 'community',
     }
   },
 
@@ -457,7 +458,8 @@ module.exports.routes = {
     action: 'view-testimonials',
     locals: {
       pageTitleForMeta: 'What people are saying',
-      pageDescriptionForMeta: 'See what people are saying about Fleet.'
+      pageDescriptionForMeta: 'See what people are saying about Fleet.',
+      currentSection: 'community',
     }
   },
 
@@ -478,6 +480,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Meetups',
       pageDescriptionForMeta: 'See upcoming meetup locations.',
+      currentSection: 'community',
     }
   },
 
@@ -934,6 +937,9 @@ module.exports.routes = {
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
   'GET /learn-more-about/yaml-software-setup-experience': '/docs/configuration/yaml-files#self-service-labels-categories-and-setup-experience',
+  'GET /learn-more-about/microsoft-compliance-partner': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
 
   // Sitemap
   // =============================================================================================================

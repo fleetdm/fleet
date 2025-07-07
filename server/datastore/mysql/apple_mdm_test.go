@@ -6222,14 +6222,14 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	// Update commands already sent to the devices and check that they are returned.
 	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
 		HostID:      iOS0.ID,
-		CommandType: "my-command",
+		CommandType: fleet.RefetchAppsCommandUUIDPrefix,
 	}}))
 	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	require.Equal(t, devices[0].UUID, "iOS0_UUID")
 	require.Len(t, devices[0].CommandsAlreadySent, 1)
-	assert.Equal(t, "my-command", devices[0].CommandsAlreadySent[0])
+	assert.Equal(t, fleet.RefetchAppsCommandUUIDPrefix, devices[0].CommandsAlreadySent[0])
 }
 
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {

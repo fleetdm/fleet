@@ -496,6 +496,27 @@
             </div>
 
             <div purpose="table-row">
+              <div purpose="feature-name">
+                <p>Import / export</p>
+              </div>
+              <div purpose="fleet-column">
+                <p>Interoperable</p>
+              </div>
+              <div purpose="comparison-column" v-if="comparisonModeForIt === 'sccm'">
+                <p>Windows only</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'jamf'">
+                <p>Apple only</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="['tanium', 'intune', 'omnissa'].includes(comparisonModeForIt)">
+                <p>Proprietary</p>
+              </div>
+              <div purpose="comparison-column" v-else>
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+
+            <div purpose="table-row">
               <div purpose="feature-name"><p>Open source</p></div>
               <div purpose="fleet-column"><p>Free and paid version</p></div>
               <div purpose="comparison-column" v-if="['puppet', 'chef', 'ansible'].includes(comparisonModeForIt)">
@@ -845,6 +866,33 @@
               </div>
               <div purpose="feature-status" v-else>
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
+              </div>
+            </div>
+          </div>
+
+          <div purpose="feature-table">
+            <div purpose="feature-name">
+              <p>Import / export</p>
+            </div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <p>Interoperable</p>
+              </div>
+            </div>
+            <div purpose="feature-table-row">
+              <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
+              <div purpose="feature-status" v-if="comparisonModeForIt === 'sccm'">
+                <p>Windows only</p>
+              </div>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'jamf'">
+                <p>Apple only</p>
+              </div>
+              <div purpose="feature-status" v-else-if="['tanium', 'intune', 'omnissa'].includes(comparisonModeForIt)">
+                <p>Proprietary</p>
+              </div>
+              <div purpose="feature-status" v-else>
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
           </div>
@@ -1408,7 +1456,7 @@
 
         <div purpose="button-row">
           <a purpose="cta-button" href="/pricing">Compare all features</a>
-          <animated-arrow-button href="/testimonials">What are people saying?</animated-arrow-button>
+          <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
         </div>
       </div>
 

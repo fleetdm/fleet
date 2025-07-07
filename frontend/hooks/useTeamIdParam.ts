@@ -337,6 +337,7 @@ export const useTeamIdParam = ({
     search: string;
     query: { team_id?: string };
     hash?: string;
+    [key: string]: any; // for other location properties that may be passed in
   };
   router: InjectedRouter;
   includeAllTeams: boolean;
