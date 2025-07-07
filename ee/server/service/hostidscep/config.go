@@ -9,11 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 )
 
-func InitAssets(ds fleet.Datastore, license *fleet.LicenseInfo) error {
-	if !license.IsPremium() {
-		return nil
-	}
-
+func initAssets(ds fleet.Datastore) error {
 	// Check if we have existing certs and keys
 	expectedAssets := []fleet.MDMAssetName{
 		fleet.MDMAssetHostIdentityCACert,

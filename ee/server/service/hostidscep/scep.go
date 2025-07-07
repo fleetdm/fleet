@@ -3,7 +3,9 @@ package hostidscep
 import (
 	"context"
 	"crypto/rsa"
+	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -25,9 +27,13 @@ const (
 func RegisterSCEP(
 	mux *http.ServeMux,
 	scepStorage scep_depot.Depot,
-	mdmStorage fleet.MDMAppleStore, // TODO: Use a different interface that makes sense
+	ds fleet.Datastore,
 	logger kitlog.Logger,
 ) error {
+	err := initAssets(ds)
+	if err != nil {
+		return fmt.Errorf("initializing host identity assets: %w", err)
+	}
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
 		scep_depot.WithValidityDays(scepValidityDays),
@@ -36,7 +42,7 @@ func RegisterSCEP(
 	// TODO: challenge middleware
 	// signer = scepserver.StaticChallengeMiddleware(scepChallenge, signer)
 	scepService := NewSCEPService(
-		mdmStorage,
+		ds,
 		signer,
 		kitlog.With(logger, "component", "host-id-scep"),
 	)
@@ -89,11 +95,15 @@ func (svc *service) GetCACaps(_ context.Context) ([]byte, error) {
 }
 
 func (svc *service) GetCACert(ctx context.Context, _ string) ([]byte, int, error) {
-	cert, err := assets.CAKeyPair(ctx, svc.ds)
+	cert, err := caKeyPair(ctx, svc.ds)
 	if err != nil {
-		return nil, 0, ctxerr.Wrap(ctx, err, "parsing SCEP certificate")
+		return nil, 0, ctxerr.Wrap(ctx, err, "retrieving host identity SCEP CA certificate (GetCACert)")
 	}
 	return cert.Leaf.Raw, 1, nil
+}
+
+func caKeyPair(ctx context.Context, ds fleet.MDMAssetRetriever) (*tls.Certificate, error) {
+	return assets.KeyPair(ctx, ds, fleet.MDMAssetHostIdentityCACert, fleet.MDMAssetHostIdentityCAKey)
 }
 
 func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, error) {
@@ -105,9 +115,9 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		return nil, err
 	}
 
-	cert, err := assets.CAKeyPair(ctx, svc.ds)
+	cert, err := caKeyPair(ctx, svc.ds)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing SCEP certificate")
+		return nil, ctxerr.Wrap(ctx, err, "retrieving host identity SCEP CA certificate")
 	}
 
 	pk, ok := cert.PrivateKey.(*rsa.PrivateKey)
@@ -126,19 +136,25 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if err != nil {
 		svc.logger.Log("msg", "failed to sign CSR", "err", err)
 		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
+		if certRep == nil {
+			return nil, err
+		}
 		return certRep.Raw, err
 	}
 
 	certRep, err := msg.Success(cert.Leaf, pk, crt)
+	if certRep == nil {
+		return nil, err
+	}
 	return certRep.Raw, err
 }
 
-func (svc *service) GetNextCACert(ctx context.Context) ([]byte, error) {
+func (svc *service) GetNextCACert(_ context.Context) ([]byte, error) {
 	return nil, errors.New("not implemented")
 }
 
 // NewSCEPService creates a new scep service
-func NewSCEPService(ds fleet.MDMAssetRetriever, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
 	return &service{
 		ds:     ds,
 		signer: signer,

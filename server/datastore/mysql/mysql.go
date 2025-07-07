@@ -183,10 +183,16 @@ func (ds *Datastore) deleteCachedStmt(query string) {
 	}
 }
 
-// NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
+// NewSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
 	return newSCEPDepot(ds.primary.DB, ds)
+}
+
+// NewHostIdentitySCEPDepot returns a scep_depot.Depot for host identity certs that uses the Datastore
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewHostIdentitySCEPDepot(logger log.Logger) (scep_depot.Depot, error) {
+	return newHostIdentitySCEPDepot(ds.primary, ds, logger)
 }
 
 type entity struct {
