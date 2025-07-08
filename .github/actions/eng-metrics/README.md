@@ -298,6 +298,138 @@ npm test
 npm run lint
 ```
 
+## Grafana queries
+
+Snapshot of Grafana query for Time to First Review (2025/07/08). Replace `engineering-metrics-XXXXXX` with the right project.
+
+```sql
+WITH daily AS (
+    SELECT
+        DATE(first_review_time, "America/Chicago") AS day,
+        COUNT(*) AS pr_count,
+        SUM(pickup_time_seconds) AS total_seconds
+    FROM
+        `engineering-metrics-XXXXXX.github_metrics.pr_first_review`
+    WHERE
+        first_review_time BETWEEN TIMESTAMP_SUB(TIMESTAMP_MILLIS($__from), INTERVAL 6 DAY)
+            AND TIMESTAMP_MILLIS($__to)
+      AND (
+        -- No filters selected: show all
+        (
+            ('${user:csv}' = '' OR '${user:csv}' = '__all')
+                AND ('${user_group:value}' = '' OR '${user_group:value}' = '__all')
+            )
+            OR (
+            -- Only user filter applied
+            ('${user:csv}' != '__all' AND '${user:csv}' != '')
+                AND ('${user_group:value}' = '' OR '${user_group:value}' = '__all')
+                AND pr_creator IN UNNEST(SPLIT('${user:csv}', ','))
+            )
+            OR (
+            -- Only user_group filter applied
+            ('${user_group:value}' != '__all' AND '${user_group:value}' != '')
+                AND ('${user:csv}' = '' OR '${user:csv}' = '__all')
+                AND pr_creator IN UNNEST(SPLIT('${user_group:value}', ';'))
+            )
+            OR (
+            -- Both filters applied → take intersection
+            ('${user:csv}' != '__all' AND '${user:csv}' != '')
+                AND ('${user_group:value}' != '__all' AND '${user_group:value}' != '')
+                AND pr_creator IN (
+                SELECT val FROM UNNEST(SPLIT('${user:csv}', ',')) val
+                INTERSECT DISTINCT
+                SELECT val FROM UNNEST(SPLIT('${user_group:value}', ';')) val
+            )
+            )
+        )
+    GROUP BY
+        day
+),
+     calendar AS (
+         -- Build list of days in the visible Grafana range
+         SELECT
+             day
+         FROM
+             UNNEST(
+                     GENERATE_DATE_ARRAY(
+                             DATE(TIMESTAMP_MILLIS($__from)),
+                             DATE(TIMESTAMP_MILLIS($__to))
+                     )
+             ) AS day
+     ),
+     rolling_avg AS (
+         SELECT
+             c.day,
+             TIMESTAMP(CONCAT(CAST(c.day AS STRING), ' 12:00:00')) AS time,
+             -- True 7-day weighted average
+             (
+                 SELECT
+                     SUM(d.total_seconds)
+                 FROM
+                     daily d
+                 WHERE
+                     d.day BETWEEN DATE_SUB(c.day, INTERVAL 6 DAY)
+                         AND c.day
+             ) / (
+                 SELECT
+                     SUM(d.pr_count)
+                 FROM
+                     daily d
+                 WHERE
+                     d.day BETWEEN DATE_SUB(c.day, INTERVAL 6 DAY)
+                         AND c.day
+             ) / 3600 AS moving_avg_hours
+         FROM
+             calendar c
+     )
+SELECT
+    r.time,
+    r.moving_avg_hours,
+    (
+        -- Optional: attach PR numbers per window
+        SELECT
+            ARRAY_AGG(DISTINCT pr_number)
+        FROM
+            `engineering-metrics-XXXXXX.github_metrics.pr_first_review` p
+        WHERE
+            DATE(p.first_review_time, "America/Chicago") BETWEEN DATE(DATE_SUB(r.time, INTERVAL 6 DAY))
+                AND DATE(r.time)
+          AND (
+            -- No filters selected: show all
+            (
+                ('${user:csv}' = '' OR '${user:csv}' = '__all')
+                    AND ('${user_group:value}' = '' OR '${user_group:value}' = '__all')
+                )
+                OR (
+                -- Only user filter applied
+                ('${user:csv}' != '__all' AND '${user:csv}' != '')
+                    AND ('${user_group:value}' = '' OR '${user_group:value}' = '__all')
+                    AND pr_creator IN UNNEST(SPLIT('${user:csv}', ','))
+                )
+                OR (
+                -- Only user_group filter applied
+                ('${user_group:value}' != '__all' AND '${user_group:value}' != '')
+                    AND ('${user:csv}' = '' OR '${user:csv}' = '__all')
+                    AND pr_creator IN UNNEST(SPLIT('${user_group:value}', ';'))
+                )
+                OR (
+                -- Both filters applied → take intersection
+                ('${user:csv}' != '__all' AND '${user:csv}' != '')
+                    AND ('${user_group:value}' != '__all' AND '${user_group:value}' != '')
+                    AND pr_creator IN (
+                    SELECT val FROM UNNEST(SPLIT('${user:csv}', ',')) val
+                    INTERSECT DISTINCT
+                    SELECT val FROM UNNEST(SPLIT('${user_group:value}', ';')) val
+                )
+                )
+            )
+    ) AS pr_numbers_window
+FROM
+    rolling_avg r
+ORDER BY
+    r.time
+```
+
 ## Contributing
 
 When contributing to this project, please:
