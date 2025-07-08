@@ -50,17 +50,6 @@ func Up_20250707095725(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250707095725(tx *sql.Tx) error {
-	// Drop tables in reverse order due to foreign key constraint
-	_, err := tx.Exec(`DROP TABLE IF EXISTS host_identity_scep_certificates`)
-	if err != nil {
-		return fmt.Errorf("failed to drop host_identity_scep_certificates table: %w", err)
-	}
-
-	_, err = tx.Exec(`DROP TABLE IF EXISTS host_identity_scep_serials`)
-	if err != nil {
-		return fmt.Errorf("failed to drop host_identity_scep_serials table: %w", err)
-	}
-
+func Down_20250707095725(_ *sql.Tx) error {
 	return nil
 }

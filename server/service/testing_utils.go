@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidscep"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -473,7 +473,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 
 	if len(opts) > 0 && opts[0].HostIdentitySCEPStorage != nil {
-		require.NoError(t, hostidscep.RegisterSCEP(rootMux, opts[0].HostIdentitySCEPStorage, ds, logger))
+		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentitySCEPStorage, ds, logger))
 	}
 
 	server := httptest.NewUnstartedServer(rootMux)

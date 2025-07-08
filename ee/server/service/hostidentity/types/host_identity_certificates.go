@@ -1,4 +1,4 @@
-package fleet
+package types
 
 import (
 	"crypto/ecdsa"

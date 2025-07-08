@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -1412,7 +1413,7 @@ type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint
 
 type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
-type GetHostIdentityCertBySerialNumberFunc func(ctx context.Context, serialNumber uint64) (*fleet.HostIdentityCertificate, error)
+type GetHostIdentityCertBySerialNumberFunc func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -8371,7 +8372,7 @@ func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID u
 	return s.SetHostConditionalAccessStatusFunc(ctx, hostID, managed, compliant)
 }
 
-func (s *DataStore) GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*fleet.HostIdentityCertificate, error) {
+func (s *DataStore) GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
 	s.mu.Lock()
 	s.GetHostIdentityCertBySerialNumberFuncInvoked = true
 	s.mu.Unlock()

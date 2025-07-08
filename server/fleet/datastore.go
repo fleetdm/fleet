@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -2208,7 +2209,7 @@ type Datastore interface {
 	// Host identity certificates
 
 	// GetHostIdentityCertBySerialNumber gets the unrevoked valid cert corresponding to the provided serial number.
-	GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*HostIdentityCertificate, error)
+	GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
 }
 
 type AndroidDatastore interface {

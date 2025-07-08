@@ -25,7 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidscep"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -1200,7 +1200,7 @@ the way that the Fleet server works.
 					if err != nil {
 						initFatal(err, "setup host identity SCEP depot")
 					}
-					if err = hostidscep.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger); err != nil {
+					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger); err != nil {
 						initFatal(err, "setup host identity SCEP")
 					}
 				} else {
