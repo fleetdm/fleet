@@ -15,6 +15,7 @@ Together, these mechanisms establish a strong trust foundation for authenticated
 
 **Also known as:**
 
+* Fleet host identity
 * Hardware-backed device identity
 * TPM-based request signing
 * Secure request signing with TPM
@@ -136,7 +137,7 @@ The TPM implementation automatically selects the best available ECC curve for th
 1. **Preferred**: ECC P-384 (NIST P-384) with SHA-384 - modern, fast, and stronger than Apple MDM's RSA 2048
 2. **Fallback**: ECC P-256 (NIST P-256) with SHA-256 - still stronger than RSA 2048
 
-The implementation tests P-384 support by attempting to create a test key, falling back to P-256 if unsupported.
+The implementation determines TPM's P-384 support by attempting to create a test key, and falling back to P-256 if unsupported.
 
 ### Key storage
 
@@ -145,7 +146,7 @@ Keys are saved as to the filesystem using [TPM 2.0 Key Files](https://www.hansen
 - Public key blob
 - Parent key template
 
-Filename used is `httpsig_tpm.pem`
+Filename used is `host_identity_tpm.pem`
 
 ## SCEP certificate enrollment
 
@@ -164,7 +165,7 @@ The SCEP enrollment process follows these steps:
 5. **SCEP Request**: Send the CSR to the SCEP server with challenge authentication
   * challenge is the enrollment secret
 6. **Certificate Retrieval**: Decrypt and parse the issued certificate
-7. **Certificate Storage**: Save the certificate as `httpsig.crt` in the specified directory
+7. **Certificate Storage**: Save the certificate as `host_identity.crt` in the specified directory
 
 #### Key usage separation
 
@@ -202,7 +203,7 @@ Both direct and proxy signing use the same HTTP signature fields:
 - **`@query`**: Query params (i.e., foo=bar)
 - **`content-digest`**: SHA-256 digest of request body
 
-> **Note**: We did not include the scheme (e.g., http, https) as part of the signature to prevent potential hard-to-debug issues with proxies and HTTP forwarding. We did not include Content-Type header because not all requests have this header.
+> **Note**: We did not include the scheme (e.g., http, https) as part of the signature to prevent potential hard-to-debug issues with proxies and HTTP forwarding. We did not include Content-Type header in the signature because not all requests have this header.
 
 Additional metadata included:
 - **`keyid`**: Identifier for the signing key, which maps to identity certificate's serial number
@@ -243,9 +244,11 @@ The `created` and `nonce` fields can be used in the future to prevent replay att
 
 ## Configuration
 
-New configuration option for `fleetctl package`: `--fleet-managed-client-certificate`
+New configuration option for orbit and `fleetctl package`: `--fleet-managed-client-certificate`
 
-Server configuration option: TBD.
+Server configuration option: none. The SCEP endpoint is always available on the server with Premium license and configured server private key. The server verifies that:
+- requests with HTTP message signatures match the certificate public key and the host node key
+- requests without HTTP message signatures do not have associated host identity certificates
 
 ## Future enhancements
 
@@ -253,12 +256,14 @@ As this an initial implementation, future features may include:
 
 1. **One-time enrollment secret**: This provides additional security to make sure an unauthorized device cannot get an identity certificate and enroll in Fleet.
 2. **Key Rotation/Renewal**: Automatic key rotation policies and certificate renewal
-3. **Multiple Key Support**: Support for multiple signing keys and certificates, like a separate key for WiFi/VPN.
-4. **Hardware Attestation**: TPM-based device attestation and platform integrity
+3. **Rate limits**: Limit the rate/number of certificates issues for the same host. This guards against agent issues.
+4. **Fleet server visibility**: Allow IT admin to see which hosts have host identity certificates. For example, we can add a field to `orbit_info` table and IT admin could set up a policy to make sure all hosts have certificates.
 5. **Windows Support**: TPM support for Windows platforms using TBS (TPM Base Services)
 6. **Apple Secure Enclave**: Integration with Apple's Secure Enclave for macOS devices
-7. **SCEP Extensions**: Support for additional SCEP features and external CA integrations
-8. **ACME**: Use ACME protocol instead of SCEP to get a certificate.
+7. **Multiple Key Support**: Support for multiple signing keys and certificates, like a separate key for WiFi/VPN.
+8. **Hardware Attestation**: TPM-based device attestation and platform integrity
+9. **SCEP Extensions**: Support for additional SCEP features and external CA integrations
+10. **ACME**: Use ACME protocol instead of SCEP to get a certificate.
 
 ## Troubleshooting
 
@@ -271,7 +276,7 @@ As this an initial implementation, future features may include:
 
 2. **Permission Denied**
    - Add user to `tss` group for TPM access
-   - Check device file permissions (`/dev/tpm*`)
+   - Check device file permissions (`/dev/tpmrm0`)
 
 3. **Key Creation Failures**
    - Verify TPM is not locked or in failure mode
