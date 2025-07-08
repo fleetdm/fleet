@@ -19,6 +19,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const maxCommonNameLength = 255
+
 // HostIdentitySCEPDepot is a MySQL-backed SCEP certificate depot.
 type HostIdentitySCEPDepot struct {
 	db     *sqlx.DB
@@ -57,6 +59,7 @@ func (d *HostIdentitySCEPDepot) CA(_ []byte) ([]*x509.Certificate, *rsa.PrivateK
 
 // Serial allocates and returns a new (increasing) serial number.
 func (d *HostIdentitySCEPDepot) Serial() (*big.Int, error) {
+	// Insert an empty row to generate a new auto-incremented serial number
 	result, err := d.db.Exec(`INSERT INTO host_identity_scep_serials () VALUES ();`)
 	if err != nil {
 		return nil, err
@@ -79,8 +82,7 @@ func (d *HostIdentitySCEPDepot) HasCN(cn string, allowTime int, cert *x509.Certi
 // If the provided certificate has empty crt.Subject.CommonName,
 // then the hex sha256 of the crt.Raw is used as name.
 func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
-	const maxCNLength = 255
-	if crt.Subject.CommonName == "" || len(crt.Subject.CommonName) > maxCNLength {
+	if crt.Subject.CommonName == "" || len(crt.Subject.CommonName) > maxCommonNameLength {
 		return errors.New("common name empty or too long")
 	}
 	if !crt.SerialNumber.IsInt64() {

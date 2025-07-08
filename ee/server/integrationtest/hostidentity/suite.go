@@ -1,4 +1,4 @@
-package hostidscep
+package hostidentity
 
 import (
 	"os"

@@ -1,4 +1,4 @@
-package hostidscep
+package hostidentity
 
 import (
 	"crypto/ecdsa"
@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const enrollmentSecret = "test_secret"
+const testEnrollmentSecret = "test_secret"
 
 func TestHostIdentitySCEP(t *testing.T) {
 	s := SetUpSuite(t, "integrationtest.HostIdentitySCEP")
@@ -58,7 +58,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
 	// Create an enrollment secret
 	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{
 		{
-			Secret: enrollmentSecret,
+			Secret: testEnrollmentSecret,
 		},
 	})
 	require.NoError(t, err)
@@ -87,7 +87,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
 			},
 			SignatureAlgorithm: x509.ECDSAWithSHA256,
 		},
-		ChallengePassword: enrollmentSecret,
+		ChallengePassword: testEnrollmentSecret,
 	}
 
 	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, eccPrivateKey)
@@ -95,33 +95,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
 	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
 
-	// Create temporary RSA key for SCEP envelope (required by SCEP protocol)
-	tempRSAKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	// Create self-signed certificate for SCEP protocol using RSA key
-	deviceCertTemplate := x509.Certificate{
-		Subject: pkix.Name{
-			CommonName: "test-host-identity",
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-	}
-
-	deviceCertDerBytes, err := x509.CreateCertificate(
-		rand.Reader,
-		&deviceCertTemplate,
-		&deviceCertTemplate,
-		&tempRSAKey.PublicKey,
-		tempRSAKey,
-	)
-	require.NoError(t, err)
-
-	deviceCert, err := x509.ParseCertificate(deviceCertDerBytes)
-	require.NoError(t, err)
+	tempRSAKey, deviceCert := createTempRSAKeyAndCert(t, "test-host-identity")
 
 	// Create SCEP PKI message
 	pkiMsgReq := &scep.PKIMessage{
@@ -183,6 +157,37 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
 	assert.Equal(t, curve, storedPubKey.Curve, "Stored public key should use the expected elliptic curve")
 }
 
+func createTempRSAKeyAndCert(t *testing.T, commonName string) (*rsa.PrivateKey, *x509.Certificate) {
+	// Create temporary RSA key for SCEP envelope (required by SCEP protocol)
+	tempRSAKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	// Create self-signed certificate for SCEP protocol using RSA key
+	deviceCertTemplate := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName: commonName,
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		BasicConstraintsValid: true,
+	}
+
+	deviceCertDerBytes, err := x509.CreateCertificate(
+		rand.Reader,
+		&deviceCertTemplate,
+		&deviceCertTemplate,
+		&tempRSAKey.PublicKey,
+		tempRSAKey,
+	)
+	require.NoError(t, err)
+
+	deviceCert, err := x509.ParseCertificate(deviceCertDerBytes)
+	require.NoError(t, err)
+	return tempRSAKey, deviceCert
+}
+
 func testGetCertFailures(t *testing.T, s *Suite) {
 	cases := []struct {
 		name   string
@@ -207,7 +212,7 @@ func testGetCertFailures(t *testing.T, s *Suite) {
 		{
 			name: "CN longer than 255 characters",
 			config: SCEPFailureConfig{
-				ChallengePassword: enrollmentSecret,
+				ChallengePassword: testEnrollmentSecret,
 				CommonName:        strings.Repeat("a", 256),
 				UseECC:            true,
 			},
@@ -215,7 +220,7 @@ func testGetCertFailures(t *testing.T, s *Suite) {
 		{
 			name: "non-ECC algorithm used",
 			config: SCEPFailureConfig{
-				ChallengePassword: enrollmentSecret,
+				ChallengePassword: testEnrollmentSecret,
 				CommonName:        "test-host-identity",
 				UseECC:            false,
 			},
@@ -241,7 +246,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 	// Create an enrollment secret
 	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{
 		{
-			Secret: enrollmentSecret,
+			Secret: testEnrollmentSecret,
 		},
 	})
 	require.NoError(t, err)
@@ -268,7 +273,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 		privateKey = eccKey
 		sigAlg = x509.ECDSAWithSHA256
 	} else {
-		// Create RSA private key (should fail)
+		// Create RSA private key to test non-ECC algorithm rejection (should fail)
 		rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		require.NoError(t, err)
 		privateKey = rsaKey
@@ -291,33 +296,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
 
-	// Create temporary RSA key for SCEP envelope
-	tempRSAKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	// Create self-signed certificate for SCEP protocol
-	deviceCertTemplate := x509.Certificate{
-		Subject: pkix.Name{
-			CommonName: config.CommonName,
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-	}
-
-	deviceCertDerBytes, err := x509.CreateCertificate(
-		rand.Reader,
-		&deviceCertTemplate,
-		&deviceCertTemplate,
-		&tempRSAKey.PublicKey,
-		tempRSAKey,
-	)
-	require.NoError(t, err)
-
-	deviceCert, err := x509.ParseCertificate(deviceCertDerBytes)
-	require.NoError(t, err)
+	tempRSAKey, deviceCert := createTempRSAKeyAndCert(t, config.CommonName)
 
 	// Create SCEP PKI message
 	pkiMsgReq := &scep.PKIMessage{
@@ -340,5 +319,4 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 
 	// Verify failure response
 	assert.Equal(t, scep.FAILURE, pkiMsgResp.PKIStatus, "SCEP request should fail")
-	assert.NotEqual(t, scep.SUCCESS, pkiMsgResp.PKIStatus, "SCEP request should not succeed")
 }
