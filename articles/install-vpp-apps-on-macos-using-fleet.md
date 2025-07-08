@@ -74,7 +74,7 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
    instructing it to install the app. If the host is offline, the upcoming install will show up in
    the **Details** > **Activity** > **Upcoming** tab of this page. Once Fleet has verified
    that the app is on the host, the app will show up as **Installed** in the **Software** > **Library** tab.
-   After the app is installed, Fleet will automatically refetch the host vitals, which will update the
+   After the app is installed, Fleet will automatically refetch the host's vitals, which will update the
    software inventory.
 
 > Currently, VPP apps can't be uninstalled from devices via Fleet. Please see: [Uninstall App Store apps #20729](https://github.com/fleetdm/fleet/issues/20729).

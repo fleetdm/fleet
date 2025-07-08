@@ -32,7 +32,7 @@ SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_comp
 
 When a host fails the selected policy, this will trigger the software to be installed on the host.
 
-Once the software is installed, Fleet will automatically refetch the hosts vitals and update the software inventory.
+Once the software is installed, Fleet will automatically refetch the host's vitals and update the software inventory.
 
 If the software install fails, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
 
