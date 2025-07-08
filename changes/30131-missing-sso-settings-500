@@ -1,0 +1,1 @@
+- Fixed SSO settings page returning 500 when SSO settings are undefined
