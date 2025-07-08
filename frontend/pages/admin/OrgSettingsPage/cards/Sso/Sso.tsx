@@ -88,15 +88,15 @@ const Sso = ({
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<ISsoFormData>({
-    enableSso: appConfig.sso_settings.enable_sso ?? false,
-    idpName: appConfig.sso_settings.idp_name ?? "",
-    entityId: appConfig.sso_settings.entity_id ?? "",
-    idpImageUrl: appConfig.sso_settings.idp_image_url ?? "",
-    metadata: appConfig.sso_settings.metadata ?? "",
-    metadataUrl: appConfig.sso_settings.metadata_url ?? "",
-    enableSsoIdpLogin: appConfig.sso_settings.enable_sso_idp_login ?? false,
+    enableSso: appConfig.sso_settings?.enable_sso ?? false,
+    idpName: appConfig.sso_settings?.idp_name ?? "",
+    entityId: appConfig.sso_settings?.entity_id ?? "",
+    idpImageUrl: appConfig.sso_settings?.idp_image_url ?? "",
+    metadata: appConfig.sso_settings?.metadata ?? "",
+    metadataUrl: appConfig.sso_settings?.metadata_url ?? "",
+    enableSsoIdpLogin: appConfig.sso_settings?.enable_sso_idp_login ?? false,
     enableJitProvisioning:
-      appConfig.sso_settings.enable_jit_provisioning ?? false,
+      appConfig.sso_settings?.enable_jit_provisioning ?? false,
   });
 
   const {
@@ -153,8 +153,9 @@ const Sso = ({
         enable_sso: enableSso,
         enable_sso_idp_login: enableSsoIdpLogin,
         enable_jit_provisioning: enableJitProvisioning,
-        issuer_uri: appConfig.sso_settings.issuer_uri,
-        enable_jit_role_sync: appConfig.sso_settings.enable_jit_role_sync,
+        issuer_uri: appConfig.sso_settings?.issuer_uri ?? "",
+        enable_jit_role_sync:
+          appConfig.sso_settings?.enable_jit_role_sync ?? false,
       },
     };
 
