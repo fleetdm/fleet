@@ -303,8 +303,28 @@ npm run lint
 Snapshot of Grafana query for Time to First Review (2025/07/08). Replace `engineering-metrics-XXXXXX` with the right project.
 
 ```sql
+-- Process user/group variables
+WITH parameters AS (
+  SELECT
+    ARRAY(
+      SELECT
+        TRIM(u)
+      FROM
+        UNNEST(SPLIT('${user:csv}', ',')) u
+      WHERE
+        u NOT IN ('', '__all')
+    ) AS users,
+    ARRAY(
+      SELECT
+        TRIM(g)
+      FROM
+        UNNEST(SPLIT('${user_group:value}', ';')) g
+      WHERE
+        g NOT IN ('', '__all')
+    ) AS `groups`
+),
 -- Centralized time/pr_creator filter
-WITH filtered_pr AS (
+filtered_pr AS (
   SELECT
     first_review_time,
     pr_creator,
@@ -312,66 +332,43 @@ WITH filtered_pr AS (
     pr_number
   FROM
     `engineering-metrics-XXXXXX.github_metrics.pr_first_review`
+    CROSS JOIN parameters p
   WHERE
     first_review_time BETWEEN TIMESTAMP_SUB(TIMESTAMP_MILLIS($__from), INTERVAL 7 DAY) -- added 6+1 day just in case to be safe
     AND TIMESTAMP_MILLIS($__to)
     AND (
       -- No filters selected → show all
       (
-        (
-          '${user:csv}' = ''
-          OR '${user:csv}' = '__all'
-        )
-        AND (
-          '${user_group:value}' = ''
-          OR '${user_group:value}' = '__all'
-        )
+        ARRAY_LENGTH(p.users) = 0
+        AND ARRAY_LENGTH(p.groups) = 0
       )
-      OR -- Only user filter
-      (
-        (
-          '${user:csv}' != '__all'
-          AND '${user:csv}' != ''
-        )
-        AND (
-          '${user_group:value}' = ''
-          OR '${user_group:value}' = '__all'
-        )
-        AND pr_creator IN UNNEST(SPLIT('${user:csv}', ','))
+      OR (
+        -- Only user filter
+        ARRAY_LENGTH(p.users) > 0
+        AND ARRAY_LENGTH(p.groups) = 0
+        AND pr_creator IN UNNEST(p.users)
       )
-      OR -- Only user-group filter
-      (
-        (
-          '${user_group:value}' != '__all'
-          AND '${user_group:value}' != ''
-        )
-        AND (
-          '${user:csv}' = ''
-          OR '${user:csv}' = '__all'
-        )
-        AND pr_creator IN UNNEST(SPLIT('${user_group:value}', ';'))
+      OR (
+        -- Only group filter
+        ARRAY_LENGTH(p.groups) > 0
+        AND ARRAY_LENGTH(p.users) = 0
+        AND pr_creator IN UNNEST(p.groups)
       )
-      OR -- Both filters → intersection
-      (
-        (
-          '${user:csv}' != '__all'
-          AND '${user:csv}' != ''
-        )
-        AND (
-          '${user_group:value}' != '__all'
-          AND '${user_group:value}' != ''
-        )
+      OR (
+        -- Both filters → intersection
+        ARRAY_LENGTH(p.users) > 0
+        AND ARRAY_LENGTH(p.groups) > 0
         AND pr_creator IN (
           SELECT
-            val
+            u
           FROM
-            UNNEST(SPLIT('${user:csv}', ',')) val
+            UNNEST(p.users) AS u
           INTERSECT
           DISTINCT
           SELECT
-            val
+            g
           FROM
-            UNNEST(SPLIT('${user_group:value}', ';')) val
+            UNNEST(p.groups) AS g
         )
       )
     )
