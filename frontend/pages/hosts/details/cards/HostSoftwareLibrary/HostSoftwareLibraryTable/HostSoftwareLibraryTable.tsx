@@ -82,7 +82,7 @@ const HostSoftwareLibraryTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
-        self_service: selfService ? "true" : undefined,
+        ...(selfService && { self_service: "true" }),
       };
 
       return newQueryParam;
@@ -122,7 +122,7 @@ const HostSoftwareLibraryTable = ({
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
-      selfService: value === "selfService" || undefined,
+      ...(value === "selfService" && { selfService: true }),
     };
 
     router.replace(
