@@ -1,7 +1,6 @@
 package hostidscep
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/smallstep/scep"
@@ -50,7 +50,16 @@ func testGetCert(t *testing.T, s *Suite) {
 }
 
 func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
-	ctx := context.Background()
+	ctx := t.Context()
+
+	// Create an enrollment secret
+	const enrollmentSecret = "test_secret"
+	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{
+		{
+			Secret: enrollmentSecret,
+		},
+	})
+	require.NoError(t, err)
 
 	// Create ECC private key with specified curve
 	eccPrivateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
@@ -76,6 +85,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
 			},
 			SignatureAlgorithm: x509.ECDSAWithSHA256,
 		},
+		ChallengePassword: enrollmentSecret,
 	}
 
 	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, eccPrivateKey)

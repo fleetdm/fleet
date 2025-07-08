@@ -104,12 +104,16 @@ func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 		// Revoke existing certs for this host id.
 		// Note: Because the challenge is shared, it is possible for a bad actor to revoke a cert for an existing host
 		// if they have the challenge and the host identifier (CN).
-		_, err := tx.ExecContext(context.Background(), `
+		result, err := tx.ExecContext(context.Background(), `
 			UPDATE host_identity_scep_certificates 
 			SET revoked = 1 
 			WHERE name = ?`, name)
 		if err != nil {
 			return err
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected > 0 {
+			d.logger.Log("msg", "revoked existing host identity certificate", "name", name)
 		}
 
 		_, err = tx.ExecContext(context.Background(), `

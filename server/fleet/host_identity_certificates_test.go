@@ -49,7 +49,7 @@ func TestHostIdentityCertificate_PublicKey(t *testing.T) {
 
 		_, err = cert.UnmarshalPublicKey()
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown curve")
+		assert.Contains(t, err.Error(), "unsupported EC point format")
 	})
 
 	t.Run("invalid format - wrong prefix", func(t *testing.T) {
@@ -78,7 +78,7 @@ func TestHostIdentityCertificate_PublicKey(t *testing.T) {
 
 		_, err := cert.UnmarshalPublicKey()
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown curve")
+		assert.Contains(t, err.Error(), "unsupported EC point format")
 	})
 
 	t.Run("unsupported key length", func(t *testing.T) {

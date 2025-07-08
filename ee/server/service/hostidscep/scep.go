@@ -4,14 +4,14 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
-	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/log"
@@ -26,7 +26,7 @@ const (
 // RegisterSCEP registers the HTTP handler for SCEP service needed for fleetd enrollment.
 func RegisterSCEP(
 	mux *http.ServeMux,
-	scepStorage scep_depot.Depot,
+	scepStorage scepdepot.Depot,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 ) error {
@@ -34,13 +34,13 @@ func RegisterSCEP(
 	if err != nil {
 		return fmt.Errorf("initializing host identity assets: %w", err)
 	}
-	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
+	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scepdepot.NewSigner(
 		scepStorage,
-		scep_depot.WithValidityDays(scepValidityDays),
+		scepdepot.WithValidityDays(scepValidityDays),
+		scepdepot.WithAllowRenewalDays(scepValidityDays/2),
 	))
 
-	// TODO: challenge middleware
-	// signer = scepserver.StaticChallengeMiddleware(scepChallenge, signer)
+	signer = challengeMiddleware(ds, signer)
 	scepService := NewSCEPService(
 		ds,
 		signer,
@@ -51,9 +51,32 @@ func RegisterSCEP(
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
+
+	// Note: Monitoring (APM/OpenTel) is missing for this SCEP server.
+	// In addition, the scepserver error handler does not send errors to APM/Sentry/Redis.
+	// It should be enhanced to do so if/when we start monitoring error traces.
+	// This note also applies to the other SCEP servers we use.
+	// That is why we're not using ctxerr wrappers here.
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
 	mux.Handle(scepPath, scepHandler)
 	return nil
+}
+
+// challengeMiddleware checks that ChallengePassword matches an enrollment secret
+func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
+	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
+		if m.ChallengePassword == "" {
+			return nil, errors.New("missing challenge")
+		}
+		_, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
+		switch {
+		case fleet.IsNotFound(err):
+			return nil, errors.New("invalid challenge")
+		case err != nil:
+			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
+		}
+		return next.SignCSRContext(ctx, m)
+	}
 }
 
 var _ scepserver.Service = (*service)(nil)
@@ -97,7 +120,7 @@ func (svc *service) GetCACaps(_ context.Context) ([]byte, error) {
 func (svc *service) GetCACert(ctx context.Context, _ string) ([]byte, int, error) {
 	cert, err := caKeyPair(ctx, svc.ds)
 	if err != nil {
-		return nil, 0, ctxerr.Wrap(ctx, err, "retrieving host identity SCEP CA certificate (GetCACert)")
+		return nil, 0, fmt.Errorf("retrieving host identity SCEP CA certificate (GetCACert): %w", err)
 	}
 	return cert.Leaf.Raw, 1, nil
 }
@@ -117,7 +140,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 
 	cert, err := caKeyPair(ctx, svc.ds)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieving host identity SCEP CA certificate")
+		return nil, fmt.Errorf("retrieving host identity SCEP CA certificate: %w", err)
 	}
 
 	pk, ok := cert.PrivateKey.(*rsa.PrivateKey)

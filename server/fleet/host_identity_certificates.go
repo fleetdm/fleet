@@ -18,13 +18,13 @@ type HostIdentityCertificate struct {
 }
 
 func (h *HostIdentityCertificate) UnmarshalPublicKey() (*ecdsa.PublicKey, error) {
+	if len(h.PublicKeyRaw) == 0 || h.PublicKeyRaw[0] != 4 { // 0x04 means this is the raw representation
+		return nil, errors.New("unsupported EC point format")
+	}
+
 	curve, err := guessCurve(h.PublicKeyRaw)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(h.PublicKeyRaw) == 0 || h.PublicKeyRaw[0] != 4 { // 0x04 means this is the raw representation
-		return nil, errors.New("unsupported EC point format")
 	}
 
 	byteLen := (len(h.PublicKeyRaw) - 1) / 2
