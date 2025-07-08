@@ -14,6 +14,7 @@ export const COLORS = {
   "ui-fleet-black-33": "#B3B6C1",
   "ui-fleet-black-25": "#C5C7D1",
   "ui-fleet-black-10": "#E2E4EA",
+  "ui-fleet-black-5": "#F4F4F6",
   "ui-off-white": "#F9FAFC",
   "ui-blue-hover": "#5D5AE7",
   "ui-blue-pressed": "#4B4AB4",

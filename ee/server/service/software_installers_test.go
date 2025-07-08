@@ -219,6 +219,25 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.NotEmpty(t, payload.UninstallScript)
 	assert.True(t, payload.FleetMaintained)
 
+	// when SHA256 is no_check
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "Google Chrome",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.google.Chrome",
+			Slug:             "google-chrome/darwin",
+		}, nil
+	}
+	payload = fleet.SoftwareInstallerPayload{Slug: ptr.String("google-chrome/darwin")}
+	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	assert.Contains(t, payload.URL, "google.com")
+	assert.Empty(t, payload.SHA256)
+	assert.NotEmpty(t, payload.InstallScript)
+	assert.NotEmpty(t, payload.UninstallScript)
+	assert.True(t, payload.FleetMaintained)
+
 	// when a slug empty, we no-op and return the payload as is
 	payload = fleet.SoftwareInstallerPayload{URL: "https://fleetdm.com"}
 	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
