@@ -306,7 +306,10 @@ Snapshot of Grafana query for Time to First Review (2025/07/08). Replace `engine
 -- Centralized time/pr_creator filter
 WITH filtered_pr AS (
   SELECT
-    *
+    first_review_time,
+    pr_creator,
+    pickup_time_seconds,
+    pr_number
   FROM
     `engineering-metrics-XXXXXX.github_metrics.pr_first_review`
   WHERE
