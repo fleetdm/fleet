@@ -960,7 +960,7 @@ FROM chocolatey_packages
 ```sql
 SELECT
 		  MAX(last_run_time) AS last_opened_at,
-		  REGEX_MATCH(accessed_files, "VOLUME[^\\]+([^,]+"||filename||")", 1) AS executable_path
+		  REGEX_MATCH(accessed_files, "VOLUME[^\\]+([^,]+" || REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(filename, '\', '\\'), '.', '\.'), '*', '\*'), '+', '\+'), '?', '\?'), '[', '\['), ']', '\]'), '{', '\{'), '}', '\}'), '(', '\('), ')', '\)'), '|', '\|') || ")", 1) AS executable_path
 		FROM prefetch
 		GROUP BY executable_path
 ```
