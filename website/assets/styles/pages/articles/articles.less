@@ -117,6 +117,7 @@
   }
 
   [purpose='search'] {
+    width: 256px;
     // Note: We're using classes here to override the default Docsearch styles;
     button {
       width: 100%;
@@ -201,6 +202,102 @@
     }
   }
 
+  [purpose='sidebar-and-articles'] {
+    display: flex;
+    flex-direction: row-reverse;
+  }
+  [purpose='sidebar'] {
+    margin-left: 16px;
+    min-width: 256px;
+  }
+  [purpose='nav-links'] {
+    display: flex;
+    flex-direction: column;
+    margin-top: 16px;
+    a {
+      margin-bottom: 12px;
+      display: block;
+      color: var(--text-text-brand, #192147);
+
+      /* Body SM (FKA Card text) */
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 20px; /* 142.857% */
+      text-decoration: none;
+    }
+  }
+
+
+
+  [purpose='sidebar-cta'] {
+    margin-top: 40px;
+    border: 1px solid @core-fleet-black-10;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    [purpose='sidebar-cta-image'] {
+      height: 144px;
+      background-image: url('/images/cta-cloud-city-256x145@2x.png');
+      background-size: contain;
+      background-color: #EAF8FD;
+      // background-position: -240px;
+      // background-position-x: bottom;
+    }
+    [purpose='sidebar-cta-content'] {
+      flex-direction: column;
+      align-items: center;
+      padding: 0px 24px 24px 24px;
+      flex-grow: 1;
+      h2 {
+        color: var(--Fleet-Black-100, #192147);
+        text-align: center;
+
+        /* Title S (FKA h4) */
+        font-family: Inter;
+        font-size: 20px;
+        font-style: normal;
+        font-weight: 800;
+        line-height: 24px; /* 120% */
+        padding: 0;
+        margin-bottom: 4px;
+      }
+      p {
+        margin-bottom: 12px;
+        color: var(--Fleet-Black-75, #515774);
+        text-align: center;
+
+        /* Body SM (FKA Card text) */
+        font-family: Inter;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 20px; /* 142.857% */
+      }
+    }
+    [purpose='cta-logos'] {
+      margin-top: 8px;
+      img {
+        height: 16px;
+        margin-right: 16px;
+      }
+    }
+    [purpose='continue-button'] {
+      font-size: 14px;
+      padding: 6px 12px;
+      width: 131px;
+      margin-bottom: 8px;
+      &:hover {
+        color: #FFF;
+      }
+    }
+  }
+
+  [purpose='article-rows'] {
+    padding-right: 32px;
+    width: 100%;
+  }
   [purpose='article-row'] {
     padding: 24px 0px;
     border-bottom: 1px solid #E2E4EA;
@@ -400,7 +497,7 @@
     }
     [purpose='category-title'] {
       padding-bottom: 40px;
-      margin-right: 35px;
+      // margin-right: 35px;
     }
     [purpose='articles'] {
       [purpose='article-card'] {
@@ -445,6 +542,27 @@
           padding-left: 6px;
         }
       }
+    }
+    [purpose='search'] {
+      width: 100%;
+    }
+    [purpose='sidebar-and-articles'] {
+      display: flex;
+      flex-direction: column;
+    }
+    [purpose='sidebar'] {
+      margin-left: 0px;
+    }
+    [purpose='article-rows'] {
+      padding-right: 0px;
+      width: 100%;
+    }
+    [purpose='nav-links'] {
+      margin-top: 0px;
+      margin-bottom: 40px;
+    }
+    [purpose='sidebar-cta'] {
+      display: none;
     }
     [purpose='articles'] {
       [purpose='article-card'] {

@@ -29,24 +29,62 @@
           </div>
         </div>
       </div>
-    <div purpose="article-rows" v-if="['guides', 'announcements', 'releases', 'articles'].includes(category)">
-      <a :href="article.url" purpose="article-row" class="d-flex flex-lg-row flex-row justify-content-between" v-for="article in articles">
-        <div purpose="article-name-and-description" class="d-flex flex-column">
-          <div class="d-flex flex-column">
-            <p purpose="article-name">{{article.meta.articleTitle}}</p>
+
+    <div purpose="sidebar-and-articles">
+      <div purpose="sidebar">
+        <div purpose="nav-links">
+          <a href="/announcements">News</a>
+          <a href="/success-stories">Case studies</a>
+          <a href="/articles">Articles</a>
+          <a href="/releases">Releases</a>
+        </div>
+        <div purpose="sidebar-cta" class="flex-column justify-content-between">
+          <div purpose="sidebar-cta-image" ></div>
+          <div purpose="sidebar-cta-content" class="d-flex flex-column justify-content-center text-center">
+            <% if(!me){ %>
+            <h2>Try it out</h2>
+            <p>See what Fleet can do</p>
+            <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
+            <% } else if (['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) {%>
+            <h2>Tried Fleet yet?</h2>
+            <p>Continue getting started with Fleet</p>
+            <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+            <% } else if (me.psychologicalStage === '4 - Has use case') {%>
+            <h2>Feeling confident?</h2>
+            <p>Get set up with Fleet</p>
+            <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+            <% } else if (['5 - Personally confident', '6 - Has team buy-in'].includes(me.psychologicalStage)) {%>
+              <h2>Talk to the team</h2>
+              <p>Let’s get you set up!</p>
+              <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+            <%}%>
+            <div purpose="cta-logos" class="d-flex flex-row align-items-center justify-content-end">
+              <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo">
+              <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
+              <img class="mr-0" src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
+             </div>
           </div>
-          <div purpose="article-description" v-if="article.meta.description"><p>{{article.meta.description}}</p></div>
-          <div purpose="publish-date"><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp></div>
         </div>
-        <div class="d-flex flex-column justify-content-center">
-          <svg purpose="animated-arrow" style="stroke: #192147;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-            <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-            <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-      </a>
+      </div>
+      <div purpose="article-rows">
+        <a :href="article.url" purpose="article-row" class="d-flex flex-lg-row flex-row justify-content-between" v-for="article in articles">
+          <div purpose="article-name-and-description" class="d-flex flex-column">
+            <div class="d-flex flex-column">
+              <p purpose="article-name">{{article.meta.articleTitle}}</p>
+            </div>
+            <div purpose="article-description" v-if="article.meta.description"><p>{{article.meta.description}}</p></div>
+            <div purpose="publish-date"><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp></div>
+          </div>
+          <div class="d-flex flex-column justify-content-center">
+            <svg purpose="animated-arrow" style="stroke: #192147;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+              <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+              <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </a>
+      </div>
     </div>
-    <div purpose="articles" class="card-deck d-flex justify-content-center" v-else>
+<!--     <div purpose="articles" class="card-deck d-flex justify-content-center" v-else>
       <div purpose="article-card" class="card" v-for="article in articles">
         <a purpose="article-card-link" :href="article.url">
           <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/blog-fleet-logo-white-background-800x450@2x.png']" alt="Article hero image">
@@ -66,7 +104,7 @@
       </div>
       <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
       </div>
-    </div>
+    </div> -->
   </div>
 
 </div>
