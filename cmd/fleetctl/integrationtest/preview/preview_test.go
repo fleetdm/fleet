@@ -1,7 +1,6 @@
 package preview
 
 import (
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -19,11 +18,6 @@ func TestPreviewFailsOnInvalidLicenseKey(t *testing.T) {
 
 func TestIntegrationsPreview(t *testing.T) {
 	nettest.Run(t)
-
-	// Skip the test if FULL_INTEGRATION_TEST is not set to avoid Docker dependency
-	if os.Getenv("FULL_INTEGRATION_TEST") != "1" {
-		t.Skip("Skipping full integration test that requires Docker. Set FULL_INTEGRATION_TEST=1 to run.")
-	}
 
 	t.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
 	fleetctl.TestOverridePreviewDirectory = t.TempDir()
