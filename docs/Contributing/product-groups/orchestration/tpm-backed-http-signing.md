@@ -1,5 +1,7 @@
 # TPM-backed HTTP signing for fleetd requests
 
+> **⚠️ Proof of Concept**: This is currently a Proof of Concept (POC) implementation in the `victor/29935-tpm-agent` branch. Additional features and refinements are currently being added.
+
 ## Overview
 
 TPM-backed HTTP signing is a security feature that uses the device’s TPM 2.0 (Trusted Platform Module) hardware to securely generate and store cryptographic keys for signing HTTP requests. By ensuring that private keys never leave the TPM's secure boundary, this feature provides hardware-backed assurance that requests to the Fleet server originate from the same physical device that initially enrolled.
@@ -21,8 +23,6 @@ Together, these mechanisms establish a strong trust foundation for authenticated
 * Secure request signing with TPM
 * Trusted device authentication
 
-> **Note**: This is currently a Proof of Concept (POC) implementation, in victor/29935-tpm-agent branch. Additional features and refinements will be added soon.
-
 ## Architecture
 
 ### Reference links
@@ -30,7 +30,7 @@ Together, these mechanisms establish a strong trust foundation for authenticated
 - [TPM 2.0 Library specification](https://trustedcomputinggroup.org/resource/tpm-library-specification/)
 - [TPM 2.0 Key Files](https://www.hansenpartnership.com/draft-bottomley-tpm2-keys.html) - de facto standard used by OpenConnect VPN and other tools
 - [RFC 9421 - HTTP Message Signatures](https://datatracker.ietf.org/doc/html/rfc9421)
-- [RFC 8894 - Siimple Certificate Enrolment Protocol](https://datatracker.ietf.org/doc/html/rfc8894) (SCEP)
+- [RFC 8894 - Simple Certificate Enrolment Protocol](https://datatracker.ietf.org/doc/html/rfc8894) (SCEP)
 
 ### Components
 
@@ -244,11 +244,27 @@ The `created` and `nonce` fields can be used in the future to prevent replay att
 
 ## Configuration
 
-New configuration option for orbit and `fleetctl package`: `--fleet-managed-client-certificate`
+### Client configuration
 
-Server configuration option: none. The SCEP endpoint is always available on the server with Premium license and configured server private key. The server verifies that:
-- requests with HTTP message signatures match the certificate public key and the host node key
-- requests without HTTP message signatures do not have associated host identity certificates
+Enable TPM-backed HTTP signing when packaging or running fleetd:
+
+```bash
+# Package with TPM signing enabled
+fleetctl package --fleet-managed-client-certificate ...
+
+# Run orbit with TPM signing enabled
+orbit --fleet-managed-client-certificate ...
+```
+
+### Server configuration
+
+No additional server configuration is required. The SCEP endpoint is automatically available on Fleet servers with:
+- **Premium license**
+- **Configured server private key**
+
+The server automatically verifies that:
+- Requests with HTTP message signatures match the certificate public key and the host node key
+- Requests without HTTP message signatures do not have associated host identity certificates
 
 ## Future enhancements
 
@@ -267,34 +283,34 @@ As this an initial implementation, future features may include:
 
 ## Troubleshooting
 
-### Common issues
+### TPM hardware issues
 
-1. **TPM Device Not Found**
+1. **TPM device not found**
    - Verify TPM is enabled in BIOS/UEFI
    - Check kernel TPM driver is loaded
    - Ensure device files exist with proper permissions
 
-2. **Permission Denied**
+2. **Permission denied**
    - Add user to `tss` group for TPM access
    - Check device file permissions (`/dev/tpmrm0`)
 
-3. **Key Creation Failures**
+3. **Key creation failures**
    - Verify TPM is not locked or in failure mode
    - Clear TPM if necessary (will lose existing keys)
    - Check available TPM resources
 
-### Debug logging
+### Certificate enrollment issues
 
-Enable fleetd/server debug logging to troubleshoot issues.
-
-### SCEP-specific troubleshooting
-
-1. **SCEP Server Connection Issues**
+1. **SCEP server connection issues**
    - Verify SCEP server URL is accessible (and your Fleet server has this feature)
    - Check network connectivity and firewall rules
 
-2. **Challenge Password Authentication**
+2. **Challenge password authentication**
    - Confirm challenge password is correct (a valid enrollment key)
 
-3. **Certificate Enrollment Failures**
+3. **Certificate enrollment failures**
    - Review SCEP server logs for rejection reasons
+
+### General debugging
+
+Enable fleetd/server debug logging to troubleshoot issues.
