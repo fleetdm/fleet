@@ -7,6 +7,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Most of the code for the host identity feature is located at ./ee/server/service/hostidentity
+
 func (ds *Datastore) GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
 	var hostIdentityCert types.HostIdentityCertificate
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostIdentityCert, `
