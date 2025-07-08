@@ -123,10 +123,16 @@ const SoftwareDetailsContent = ({
   if (!installed_versions || installed_versions.length === 0) {
     return (
       <div className={`${baseClass}__software-details`}>
-        <DataSet
-          title="Type"
-          value={formatSoftwareType({ source: software.source })}
-        />
+        <Card
+          className={`${baseClass}__version-details`}
+          color="grey"
+          borderRadiusSize="medium"
+        >
+          <DataSet
+            title="Type"
+            value={formatSoftwareType({ source: software.source })}
+          />
+        </Card>
       </div>
     );
   }
