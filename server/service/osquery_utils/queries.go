@@ -1298,10 +1298,12 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	// hosts. Joining this within the main software query is not performant enough to do on the
 	// device (resulted in denylisted queries during testing), so we do it on the server instead.
 	"windows_last_opened_at": {
+		// Note the REPLACE() calls in the REGEX_MATCH() are to escape characters that have special
+		// meaning in regular expressions.
 		Query: `
 		SELECT
 		  MAX(last_run_time) AS last_opened_at,
-		  REGEX_MATCH(accessed_files, "VOLUME[^\\]+([^,]+"||filename||")", 1) AS executable_path
+		  REGEX_MATCH(accessed_files, "VOLUME[^\\]+([^,]+" || REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(filename, '\', '\\'), '.', '\.'), '*', '\*'), '+', '\+'), '?', '\?'), '[', '\['), ']', '\]'), '{', '\{'), '}', '\}'), '(', '\('), ')', '\)'), '|', '\|') || ")", 1) AS executable_path
 		FROM prefetch
 		GROUP BY executable_path
 	`,
@@ -1312,10 +1314,9 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 				return mainSoftwareResults
 			}
 
-			skipInstallPaths := map[string]bool{
-				"":                      true,
-				"\\":                    true,
-				"\\windows\\system32\\": true,
+			skipInstallPaths := map[string]struct{}{
+				"\\":                    {},
+				"\\windows\\system32\\": {},
 			}
 
 			for _, result := range mainSoftwareResults {
@@ -1332,13 +1333,13 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 				}
 
 				// Skip some install paths where binaries live but can't be well correlated to programs
-				if skipInstallPaths[path] {
+				if _, found := skipInstallPaths[path]; found {
 					continue
 				}
 
 				for _, prefetchResult := range prefetchResults {
 					prefetchPath := strings.ToLower(prefetchResult["executable_path"])
-					if strings.Contains(prefetchPath, path) {
+					if strings.HasPrefix(prefetchPath, path) {
 						// Some programs will have multiple prefetch entries matching their install
 						// path, so we compare the last_opened_at values and keep the more recent.
 						result["last_opened_at"] = maxString(result["last_opened_at"], prefetchResult["last_opened_at"])
