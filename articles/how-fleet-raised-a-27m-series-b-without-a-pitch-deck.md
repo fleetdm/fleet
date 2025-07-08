@@ -6,7 +6,11 @@ We still included charts, graphs, and key SaaS metrics like revenue growth, net 
 
 The memo helped us raise $27 million in funding. Now that the round is public, we're sharing it in the spirit of openness and transparency for you to use as inspiration in your own projects.
 
-[Read the memo](https://fleetdm.com/pdfs/fleet-series-b-memo.pdf)
+<div class="d-none d-md-block" purpose="embedded-document">
+    <iframe src="/pdfs/fleet-series-b-memo.pdf">
+    </iframe>
+</div>
+<a class="d-md-none d-block" href="/pdfs/fleet-series-b-memo.pdf" target="_blank">Read the memo</a>
 
 ## What's next for Fleet
 
