@@ -112,13 +112,16 @@ const ManagePolicyPage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
-    isFreeTier,
     isPremiumTier,
     config: globalConfigFromContext,
     setConfig,
     setFilteredPoliciesPath,
     filteredPoliciesPath,
   } = useContext(AppContext);
+  // const isPrimoMode =
+  //   globalConfigFromContext?.partnerships?.enable_primo || false;
+  const isPrimoMode = true;
+
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
   const {
@@ -896,7 +899,25 @@ const ManagePolicyPage = ({
   // Show CTA buttons if there are no errors
   const showCtaButtons = !policiesErrors;
 
-  const automationsConfig = !isAllTeamsSelected ? teamConfig : globalConfig;
+  /**
+  all teams? -> global
+  no team?
+    primo? -> global
+    not primo? -> undefined
+  other teams -> teamConfig
+   */
+
+  let automationsConfig;
+  if (isAllTeamsSelected) {
+    automationsConfig = globalConfig;
+  } else if (teamIdForApi === API_NO_TEAM_ID) {
+    if (isPrimoMode) {
+      automationsConfig = globalConfig;
+    }
+  } else {
+    automationsConfig = teamConfig;
+  }
+
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
   const showAutomationsDropdown = canManageAutomations;
 
@@ -1051,7 +1072,7 @@ const ManagePolicyPage = ({
       ? globalConfig?.integrations.conditional_access_enabled
       : teamConfig?.integrations.conditional_access_enabled) ?? false;
 
-  const getAutomationsDropdownOptions = (configPresent: boolean) => {
+  const getAutomationsDropdownOptions = (includeOtherWorkflows: boolean) => {
     let disabledInstallTooltipContent: TooltipContent;
     let disabledCalendarTooltipContent: TooltipContent;
     let disabledRunScriptTooltipContent: TooltipContent;
@@ -1138,7 +1159,7 @@ const ManagePolicyPage = ({
     }
 
     // Maintainers do not have access to other workflows
-    if (configPresent && !isGlobalMaintainer && !isTeamMaintainer) {
+    if (includeOtherWorkflows && !isGlobalMaintainer && !isTeamMaintainer) {
       options.push({
         label: "Other",
         value: "other_workflows",
@@ -1162,7 +1183,7 @@ const ManagePolicyPage = ({
           placeholder="Manage automations"
           options={
             hasPoliciesToAutomateOrDelete
-              ? getAutomationsDropdownOptions(!!automationsConfig)
+              ? getAutomationsDropdownOptions(isAllTeamsSelected || isPrimoMode) // include "Other workflows" when all teams is selected and when in Primo mode
               : []
           }
           variant="button"
@@ -1266,15 +1287,21 @@ const ManagePolicyPage = ({
           <p>{teamsDropdownHelpText}</p>
         </div>
         {renderMainTable()}
-        {globalConfig && automationsConfig && showOtherWorkflowsModal && (
+        {automationsConfig && showOtherWorkflowsModal && (
+          /**
+           how to make this work when "No teams" is selected and in Primo mode:
+            
+            automationsConfig
+              
+          */
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
-            availableIntegrations={globalConfig.integrations}
-            availablePolicies={policiesAvailableToAutomate}
+            availableIntegrations={automationsConfig.integrations}
+            availablePolicies={policiesAvailableToAutomate} // todo: confirm
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
-            onSubmit={onUpdateOtherWorkflows}
-            teamId={currentTeamId ?? 0}
+            onSubmit={onUpdateOtherWorkflows} // todo: confirm
+            teamId={currentTeamId ?? 0} // todo: confirm
             gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
