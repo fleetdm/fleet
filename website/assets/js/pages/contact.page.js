@@ -70,6 +70,10 @@ parasails.registerPage('contact', {
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
       this.psychologicalStage = this.me.psychologicalStage;
     }
+
+    if (window.location.hash === '#message') {// prefill from URL bar
+      this.formToDisplay = 'contact';
+    }
   },
   mounted: async function() {
     //…
