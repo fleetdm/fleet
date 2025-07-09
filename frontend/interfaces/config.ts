@@ -135,7 +135,7 @@ export interface IConfig {
     verify_ssl_certs: boolean;
     enable_start_tls: boolean;
   };
-  sso_settings: {
+  sso_settings?: {
     entity_id: string;
     issuer_uri: string;
     idp_image_url: string;
