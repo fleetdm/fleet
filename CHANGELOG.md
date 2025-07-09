@@ -1,3 +1,11 @@
+## Fleet 4.70.1 (Jul 09, 2025)
+
+### Bug fixes
+
+* Fixed host certificate source recording (including associated performance/database load issues) when multiple hosts share the same certificate on user keychains with differing usernames.
+- Fixed fleetctl panic caused by missing SSO settings during gitops generate.
+- Fixed SSO settings page returning 500 when SSO settings are undefined.
+
 ## Fleet 4.70.0 (Jun 25, 2025)
 
 ### Security Engineers
