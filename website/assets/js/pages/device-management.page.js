@@ -13,7 +13,8 @@ parasails.registerPage('device-management-page', {
       tanium: 'Tanium',
       ansible: 'Ansible',
       puppet: 'Puppet',
-      chef: 'Chef'
+      chef: 'Chef',
+      patchmypc: 'PatchMyPC'
     }
   },
 
