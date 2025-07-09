@@ -14,7 +14,8 @@
       "slug": "box-drive/darwin",
       "unique_identifier": "com.box.desktop",
       "token": "box-drive",
-      "installer_format": "pkg"
+      "installer_format": "pkg",
+      "default_categories": ["Productivity"]
    }
    ```
 
@@ -91,23 +92,16 @@ These are the default categories assigned to the installer in [self-service](htt
    1. The PD is responsible for approving the name and default category
    2. The EM is repsonsible for validating or assigning a validator
 
-2. Ensure an associate issue exists for the PR.  If not create one using the `Add Fleet-maintained app` issue template, move the issue to the `g-software` project and set the status to `In Review`.  Ensure the PR is linked to the issue.
+2. Ensure an associated issue exists for the PR.  If not create one using the `Add Fleet-maintained app` issue template, move the issue to the `g-software` project and set the status to `In Review`.  Ensure the PR is linked to the issue.
 
 3. Validate the PR:
 
    1. Find the app in [Homebrew's GitHub casks](https://github.com/Homebrew/homebrew-cask/tree/main/Casks) and download it locally using `cask.url`.
-
    2. Install it on a host and run a live query on the host: `SELECT * FROM apps WHERE name LIKE '%App Name%';`
-   3. Validate:
+   3. Validate and check off items in the `Validation` section of the issue.
 
-      - `name` in the inputs manifest matches `app.name`
-      - `unique_identifier` in the inputs manifest matches `app.bundle_identifier`
-      - The version scheme in the homebrew recipe matches `app.bundle_short_version`
-      - Ensure associated outputs were generated in the PR
-        - `/outputs/<app-name>/darwin.json` created
-        - `/outputs/apps.json` updated
 
-4. If the PR passes validation set the issue status to `Awaiting QA`.  The validator will perform the test criteria.  If tests fail, add feedback in the PR comments.  The test failure can be addressed in the PR or closed.  If tests pass, the PR is approved and merged.
+4. If the PR passes validation, set the issue status to `Awaiting QA`.  The validator will also perform the test criteria and check off QA tasks in the issue.  If tests fail, add feedback in the PR comments.  If the test failure(s) cannot be addressed by the contributor, close the PR and move the issue to the Drafting board for prioritization.  If tests pass, the PR is approved and merged.
 
 5. Product designer is notified in the issue to add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671) and publish the icon as a part of the Software icon Figma component.
 

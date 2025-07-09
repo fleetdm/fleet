@@ -14,12 +14,17 @@ assignees: 'marko-lisica'
 
 ---
 
-### Validation / QA
+### Validation
 
-- [ ] Outputs generated
+- [ ] The following outputs are generated
+        - `/outputs/<app-name>/darwin.json` created
+        - `/outputs/apps.json` updated
 - [ ] Manifest name matches osquery `app.name` (macOS) or `programs.name` (Windows)
 - [ ] Manifest version scheme matches osquery `app.short_bundle_version` (macOS) or `programs.version` (Windows) version scheme
 - [ ] Manifest `unique_identifier` matches osquery `app.bundle_identifier` (macOS only)
+
+### QA
+
 - [ ] App adds successfully to team's library
 - [ ] App installs successfully on host
 - [ ] App opens successfully on host
