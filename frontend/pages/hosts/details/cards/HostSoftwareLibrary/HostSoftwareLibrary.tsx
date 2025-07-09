@@ -34,6 +34,7 @@ import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDet
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
 import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
+import { getUiStatus } from "../Software/helpers";
 
 const baseClass = "host-software-library-card";
 
@@ -124,6 +125,16 @@ const HostSoftwareLibrary = ({
   const [hostSoftwareLibraryRes, setHostSoftwareLibraryRes] = useState<
     IGetHostSoftwareResponse | undefined
   >(undefined);
+
+  const enhancedSoftware = useMemo(() => {
+    if (!hostSoftwareLibraryRes) return [];
+    return hostSoftwareLibraryRes.software.map((software) => ({
+      ...software,
+      ui_status: getUiStatus(software, isHostOnline),
+    }));
+  }, [hostSoftwareLibraryRes, isHostOnline]);
+
+  console.log("enhancedSoftware", enhancedSoftware);
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
@@ -394,6 +405,7 @@ const HostSoftwareLibrary = ({
   const isLoading = hostSoftwareLibraryLoading;
   const isError = hostSoftwareLibraryError;
   const data = hostSoftwareLibraryRes;
+  const enhancedData = enhancedSoftware;
 
   const renderHostSoftware = () => {
     if (isLoading) {
@@ -408,6 +420,7 @@ const HostSoftwareLibrary = ({
       <HostSoftwareLibraryTable
         isLoading={hostSoftwareLibraryFetching}
         data={data}
+        enhancedData={enhancedData}
         platform={platform}
         router={router}
         tableConfig={tableConfig}

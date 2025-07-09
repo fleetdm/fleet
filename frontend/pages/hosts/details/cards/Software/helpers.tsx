@@ -1,5 +1,6 @@
 import { QueryParams } from "utilities/url";
 import { flatMap } from "lodash";
+import { IHostSoftware } from "interfaces/software";
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams
 export const getHostSoftwareFilterFromQueryParams = (
@@ -90,4 +91,64 @@ export const compareVersions = (v1: string, v2: string): number => {
   });
 
   return result;
+};
+
+// INSTALLER UTILITIES
+
+const getInstallerVersion = (software: IHostSoftware) => {
+  if (software.software_package && software.software_package.version) {
+    return software.software_package.version;
+  }
+  if (software.app_store_app && software.app_store_app.version) {
+    return software.app_store_app.version;
+  }
+  return null;
+};
+
+// TODO: Confirm with Marko the heirarchy of statuses
+// UI_STATUS UTILITIES
+export const getUiStatus = (software: IHostSoftware, isHostOnline: boolean) => {
+  const { status, installed_versions } = software;
+
+  const installerVersion = getInstallerVersion(software);
+
+  // If the installation has failed, return 'failed_install'
+  if (status === "failed_install") return "failed_install";
+
+  // If the uninstallation has failed, return 'failed_uninstall'
+  if (status === "failed_uninstall") return "failed_uninstall";
+
+  // If installation is pending
+  if (status === "pending_install") {
+    // If there are installed versions, it means an update is in progress
+    if (installed_versions && installed_versions.length > 0) {
+      // Return 'updating' if host is online, otherwise 'pending_update'
+      return isHostOnline ? "updating" : "pending_update";
+    }
+    // If no installed versions, return 'installing' if host is online, else 'pending_install'
+    return isHostOnline ? "installing" : "pending_install";
+  }
+
+  // If uninstallation is pending
+  if (status === "pending_uninstall") {
+    // Return 'uninstalling' if host is online, else 'pending_uninstall'
+    return isHostOnline ? "uninstalling" : "pending_uninstall";
+  }
+
+  // Check if any installed version is less than the installer version, indicating an update is available
+  if (
+    installerVersion &&
+    installed_versions &&
+    installed_versions.some(
+      (iv) => compareVersions(iv.version, installerVersion) === -1
+    )
+  ) {
+    return "update_available";
+  }
+
+  // If there are installed versions and none need updating, return 'installed'
+  if (installed_versions && installed_versions.length > 0) return "installed";
+
+  // Default fallback status when no other conditions are met
+  return "uninstalled"; // fallback
 };

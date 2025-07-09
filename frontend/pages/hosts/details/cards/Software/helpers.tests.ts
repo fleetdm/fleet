@@ -64,4 +64,8 @@ describe("compareVersions", () => {
     expect(compareVersions("1.01.0", "1.1.0")).toBe(0);
     expect(compareVersions("01.1.0", "1.1.0")).toBe(0);
   });
+
+  it("compares build number in parentheses", () => {
+    expect(compareVersions("6.1.11 (39163)", "6.1.11 (30000)")).toBe(1);
+  });
 });
