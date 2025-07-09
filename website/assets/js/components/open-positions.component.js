@@ -52,7 +52,7 @@ parasails.registerComponent('open-positions', {
         <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
         <div class="d-block">
           <p>
-            Fleet currently has no open positions. Interested in changing our mind? <a target="_blank" href="/contact#message">Message us your Linkedin profile</a>.
+            Fleet currently has no open positions. Interested in changing our mind? <a href="/contact#message">Message us your Linkedin profile</a>.
           </p>
         </div>
       </blockquote>
