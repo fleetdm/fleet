@@ -1,0 +1,1 @@
+- Fixed fleetctl panic caused by missing SSO settings during gitops generate

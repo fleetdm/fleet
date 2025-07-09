@@ -591,6 +591,36 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.Equal(t, expectedAppConfig, orgSettings)
 }
 
+func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	appConfig.SSOSettings = nil
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
+	}
+
+	// Generate the org settings.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	require.NotNil(t, orgSettingsRaw)
+	var orgSettings map[string]any
+	b, err := yaml.Marshal(orgSettingsRaw)
+	require.NoError(t, err)
+	err = yaml.Unmarshal(b, &orgSettings)
+	require.NoError(t, err)
+}
+
 func TestGenerateOrgSettingsInsecure(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
