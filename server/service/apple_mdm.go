@@ -3873,6 +3873,9 @@ func NewInstalledApplicationListResultsHandler(
 
 		}
 
+		fmt.Printf("shouldRefetch: %v\n", shouldRefetch)
+		fmt.Printf("poll: %v\n", poll)
+
 		if poll {
 			// Queue a job to verify the VPP install.
 			return ctxerr.Wrap(

@@ -1739,6 +1739,7 @@ FROM nano_command_results ncr
 JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
 JOIN vpp_apps va ON va.adam_id = hvsi.adam_id AND va.platform = hvsi.platform
 WHERE ncr.id = ?
+AND ncr.status = 'Acknowledged'
 AND hvsi.verification_at IS NULL
 AND hvsi.verification_failed_at IS NULL
 	`
