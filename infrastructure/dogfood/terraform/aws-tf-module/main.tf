@@ -167,9 +167,9 @@ module "main" {
     #   container_port   = 8080
     # }]
     software_installers = {
-      bucket_prefix  = "${local.customer}-software-installers-"
-      create_kms_key = true
-      kms_alias      = "${local.customer}-software-installers"
+      bucket_prefix                      = "${local.customer}-software-installers-"
+      create_kms_key                     = true
+      kms_alias                          = "${local.customer}-software-installers"
       enable_bucket_versioning           = true
       expire_noncurrent_versions         = true
       noncurrent_version_expiration_days = 30
