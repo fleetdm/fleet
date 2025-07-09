@@ -1,2 +1,0 @@
-- Fixed issue where attempting to lock an MDM-unenrolled macOS host was not returning the expected
-  error.
