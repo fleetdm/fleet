@@ -1,0 +1,3 @@
+path_filters:
+    - "!ee/maintained-apps/inputs/**"
+    - "!ee/maintained-apps/outputs/**"
