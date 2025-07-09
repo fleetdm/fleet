@@ -71,9 +71,9 @@ locals {
     FLEET_DEV_ANDROID_ENABLED             = "1"
     FLEET_DEV_ANDROID_SERVICE_CREDENTIALS = var.android_service_credentials
     # Webhook Results & Status Logging Destination
-    FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
-    FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
-    FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
+    # FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
+    # FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
+    # FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
@@ -142,6 +142,7 @@ module "main" {
     }
     extra_iam_policies = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
     extra_environment_variables = merge(
+      module.firehose-logging.fleet_extra_environment_variables,
       module.osquery-carve.fleet_extra_environment_variables,
       module.ses.fleet_extra_environment_variables,
       local.extra_environment_variables,
