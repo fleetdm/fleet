@@ -109,7 +109,7 @@ module.exports = {
     //  ║ ║ ║ ╠═╣║╣ ╠╦╝   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝╠═╣║ ╦║╣ ╚═╗
     //  ╚═╝ ╩ ╩ ╩╚═╝╩╚═  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
     for (let appPage of sails.config.builtStaticContent.appLibrary) {
-      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/app-library/${appPage.identifier}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/software-catalog/${appPage.identifier}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     sitemapXml += '</urlset>';
