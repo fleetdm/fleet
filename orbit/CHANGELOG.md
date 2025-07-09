@@ -1,15 +1,14 @@
 ## Orbit 1.45.0 (Jul 09, 2025)
 
-* Added feature for showing an informational message on fleet desktop if host becomes offline.
+* Added feature for showing an informational message on Fleet Desktop if the host cannot connect to Fleet.
 
 * Added new flag `--fleet-certificate` to `sudo orbit shell` command (which sets osquery's `--tls_server_certs` flag).
 
-* Fixed issue with macOS MDM migration where fleetd did not fallback to parsing the
-  `ConfigurationURL` when `ConfigurationWebURL` was not set in the MDM enrollment profile.
+* Fixed issue with macOS MDM migration where fleetd did not fallback to parsing the `ConfigurationURL` when `ConfigurationWebURL` was not set in the MDM enrollment profile.
 
 * Added the `macos_user_profiles` osquery extension table on darwin.
 
-* Fixed an issue where Orbit would attempt to launch Fleet Desktop on Linux systems without a logged-in GUI user
+* Fixed an issue where Orbit would attempt to launch Fleet Desktop on Linux systems without a logged-in GUI user.
 
 ## Orbit 1.44.0 (Jun 26, 2025)
 
