@@ -2,7 +2,7 @@
 name: 📦 New Fleet-maintained app
 about: Request to add an app to the Fleet-maintained app catalog
 title: ''
-labels: ':product,#g-software,fma'
+labels: ':release,#g-software,fma'
 assignees: ''
 
 ---
