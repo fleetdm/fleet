@@ -141,7 +141,7 @@ If the tests pass:
 
 If testing fails:
 
-- Remove issue from the `g-software` board, and add issue to the `Drafting` board
+- Remove issue from the `g-software` release board, and add issue to the `Drafting` board. Remove the `:release` tag and add the `:product` tag.
 
 ## Updating existing apps in the FMA catalog
 
