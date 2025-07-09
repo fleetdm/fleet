@@ -4108,9 +4108,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 
 	type vppInstallOpts struct {
 		failOnInstall      bool
-		appInstallVerified bool
 		appInstallTimeout  bool
-		bundleID           string
 		softwareResultList []fleet.Software
 	}
 
