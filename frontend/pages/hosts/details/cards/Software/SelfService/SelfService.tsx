@@ -68,6 +68,7 @@ export interface ISoftwareSelfServiceProps {
   router: InjectedRouter;
   onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
+  refetchHostDetails: () => void;
 }
 
 const SoftwareSelfService = ({
@@ -79,6 +80,7 @@ const SoftwareSelfService = ({
   router,
   onShowInstallDetails,
   onShowUninstallDetails,
+  refetchHostDetails,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -146,6 +148,12 @@ const SoftwareSelfService = ({
             )
             .map((software) => String(software.id))
         );
+
+        // Refresh host details if the number of pending installs or uninstalls has decreased
+        // To update the software library information
+        if (newPendingSet.size < pendingSoftwareSetRef.current.size) {
+          refetchHostDetails();
+        }
 
         // Compare new set with the previous set
         const setsAreEqual =
