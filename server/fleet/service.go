@@ -834,6 +834,10 @@ type Service interface {
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
 
+	// TODO EJM
+	GetMDMAppleAccountEnrollmentProfile(ctx context.Context) (profile []byte, err error)
+	SkipAuth(ctx context.Context)
+
 	// ReconcileMDMAppleEnrollRef reconciles the enrollment reference for the
 	// specified device. It performs several related tasks:
 	//

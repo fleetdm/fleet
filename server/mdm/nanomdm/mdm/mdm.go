@@ -18,6 +18,14 @@ type Enrollment struct {
 	EnrollmentUserID      string `plist:",omitempty"`
 }
 
+// TODO EJM
+func (e Enrollment) Identifier() string {
+	if e.UDID != "" {
+		return e.UDID
+	}
+	return e.EnrollmentID
+}
+
 // EnrollID contains the custom enrollment IDs derived from enrollment
 // data. It's populated by services. Usually this is the main/core
 // service so that middleware or storage layers that use the Request

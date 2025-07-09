@@ -755,7 +755,9 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 		q.Add("eula_token", eulaToken)
 	}
 
-	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
+	// TODO EJM
+	// return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
+	return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef)
 }
 
 func (svc *Service) mdmSSOHandleCallbackAuth(
