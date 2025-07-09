@@ -1,3 +1,5 @@
+variable "entra_api_key" {}
+
 resource "aws_secretsmanager_secret" "entra_conditional_access" {
   name = "dogfood-entra-conditional-access"
 }
