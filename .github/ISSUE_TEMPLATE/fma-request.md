@@ -1,9 +1,9 @@
 ---
 name: 📦 New Fleet-maintained app
 about: Request to add an app to the Fleet-maintained app catalog
-title: ''
+title: 'New FMA: <App Name>'
 labels: ':release,#g-software,fma'
-assignees: ''
+assignees: 'marko-lisica'
 
 ---
 
@@ -17,9 +17,9 @@ assignees: ''
 ### Validation / QA
 
 - [ ] Outputs generated
-- [ ] Manifest name matches osquery `app.name`
-- [ ] Manifest version scheme matches osquery `app.short_bundle_version` version scheme
-- [ ] Manifest `unique_identifier` matches osquery `app.bundle_identifier`
+- [ ] Manifest name matches osquery `app.name` (macOS) or `programs.name` (Windows)
+- [ ] Manifest version scheme matches osquery `app.short_bundle_version` (macOS) or `programs.version` (Windows) version scheme
+- [ ] Manifest `unique_identifier` matches osquery `app.bundle_identifier` (macOS only)
 - [ ] App adds successfully to team's library
 - [ ] App installs successfully on host
 - [ ] App opens succuessfully on host

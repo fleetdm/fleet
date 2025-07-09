@@ -32,7 +32,7 @@
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
-6. Open a PR to the `fleet` repository with the above changes.  Connect it to the issue by adding `For #ISSUE_NUMBER` in the description.
+6. Open a PR to the `fleet` repository with the above changes.  Connect it to the issue by adding `Fixes #ISSUE_NUMBER` in the description.
 
 7. The [#g-software product group](https://fleetdm.com/handbook/company/product-groups#software-group) will:
    1. Review the PR and test the app.  Contributors should be aware of the validation requirements below.
@@ -147,7 +147,7 @@ If the tests pass:
 - Move issue to `Ready` (icon addition still needed)
 - Approve and merge PR
 
-If the test fail:
+If testing fails:
 
 - Remove issue from the `g-software` board, and add issue to the `Drafting` board
 
