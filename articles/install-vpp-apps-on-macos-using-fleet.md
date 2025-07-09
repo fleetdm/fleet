@@ -100,7 +100,7 @@ banner at the top of page reminding you to renew your token. You can do this wit
 
 To remove VPP tokens from Fleet:
 
-1. **Navigate to the MDM integration settings page**: Click your avatar on the far right of the main navigation menu, and then **Settings > Integrations > "Mobile device management (MDM)"** Scroll to the "Volume Purchasing Program (VPP)" section, and click "Edit".
+1. **Navigate to the MDM integration settings page**: Click your avatar on the far right of the main navigation menu, and then **Settings > Integrations > "Mobile device management (MDM)"**. Scroll to the "Volume Purchasing Program (VPP)" section, and click "Edit".
 
 2. **Delete the token**: Find the VPP token that you want to delete in the table. Click the "Actions" dropdown for that token, and then click "Delete". Click "Delete" in the confirmation modal to finish deleting the token.
 
