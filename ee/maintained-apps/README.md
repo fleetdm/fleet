@@ -1,22 +1,12 @@
 # Fleet-maintained apps (FMA)
 
-## Freezing an existing app
+## Adding a new app (macOS)
 
-Add `"frozen": true` to the appropriate input JSON file to pause automated updates to the corresponding output manifest.
-To aid in testing, manifests will still be generated for frozen inputs if the output file doesn't exist.
-
-Apps should be frozen when updating the manifest would introduce regressions on ability to install/uninstall the app.
-Frozen apps should have bugs filed, and fixes for those bugs should unfreeze the app and bump it to the latest version
-as part of the fix PR.
-
-## Adding a new app
-
-1. Decide on a source for the app's metadata. We currently support homebrew as a source for macOS apps.
-2. Find that app's metadata. For homebrew, you can visit [Homebrew formulae](https://formulae.brew.sh/) and find the app there.
-3. Create a new file called `$YOUR_APP_NAME.json` in the `inputs/$SOURCE` directory. For
-   example, if you wanted to add Box Drive and use homebrew as the source, you would create the
-   file `inputs/homebrew/box-drive.json`.
-4. Fill out the file according to the [breakdown below](#input-file-schema). For our example Box Drive app, it would look like this:
+1. Create a new issue using the `New Fleet-maintained app` issue template
+2. Find the app's metadata in it's [Homebrew formulae](https://formulae.brew.sh/)
+3. Create a new mainfiest file called `$YOUR_APP_NAME.json` in the `inputs/homebrew/` directory. For
+   example, if you wanted to add Box Drive, create the file `inputs/homebrew/box-drive.json`.
+4. Fill out the file according to the [input schema below](#input-file-schema). For our example Box Drive app, it would look like this:
 
    ```json
    {
@@ -36,20 +26,19 @@ as part of the fix PR.
    }
    ```
 
-5. Run the following command to generate output data:
+5. Run the following command to generate the app's output data:
 
     ```bash
-   go run cmd/maintained-apps/main.go --slug="box-drive/darwin" --debug
+   go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
-6. Open a PR to the `fleet` repository with the above changes
+6. Open a PR to the `fleet` repository with the above changes.  Connect it to the issue by adding `For #ISSUE_NUMBER` in the description.
 
 7. The [#g-software product group](https://fleetdm.com/handbook/company/product-groups#software-group) will:
    1. Review the PR and test the app.  Contributors should be aware of the validation requirements below.
-   2. Create an associated issue to track progress and icon additions.
-   3. If validation requirements cannot be met in this PR, the PR will be closed and the associated issue will be prioritized in the g-software group backlog.
+   2. If validation requirements cannot be met in this PR, the PR will be closed and the associated issue will be prioritized in the g-software group backlog.
 
-8. If approved and merged, the app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet.  The app icon will not appear in Fleet until a following release.  An FMA addition is not considered "Done" until the icon is added in a Fleet release. This behavior will be [improved](https://github.com/fleetdm/fleet/issues/29177) in a future release.
+8. If the app passes testing, it is approved and merged.  The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet.  The app icon will not appear in Fleet until a following release.  App icon progress is tracked in the issue.  An FMA addition is not considered "Done" until the icon is added in a Fleet release. This behavior will be [improved](https://github.com/fleetdm/fleet/issues/29177) in a future release.
 
 ### Input file schema
 
@@ -85,11 +74,7 @@ The slug is composed of a filesystem-friendly version of the app name, and an op
 
 For the app name part, use `-` to separate words if necessary, for example `adobe-acrobat-reader`. 
 
-The platform part can be any of these values:
-
-- `darwin`
-
-For example, use a `slug` of `box-drive/darwin` for Box Drive on macOS.
+Use `darwin` as the platform part.  For example, use a `slug` of `box-drive/darwin` for Box Drive on macOS.
 
 #### `pre_uninstall_scripts` (optional)
 
@@ -110,31 +95,35 @@ These are the default categories assigned to the installer in [self-service](htt
 
 ### Validating new additions to the FMA catalog
 
-1. When a pull request (PR) is opened containing changes to `ee/maintained-apps/inputs/`, the [#g-software Product Designer (PD)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer and is responsible for approving the PR if the FMA name is user-friendly.
+1. When a pull request (PR) is opened containing changes to `ee/maintained-apps/inputs/`, the [#g-software Product Designer (PD) and Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) are automatically added as reviewers.
+   1. The PD is responsible for approving the name and default category
+   2. The EM is repsonsible for validating or assigning a validator
 
-2. Create a github issue. This issue will be used to track status and icon additions:
-   - add the `:release` label
-   - add it to the `g-software` project (status: Ready)
-   - link the PR
-   - add the below FMA issue template
+2. Ensure an associate issue exists for the PR.  If not create one using the `Add Fleet-maintained app` issue template, move the issue to the `g-software` project and set the status to `In Review`.  Ensure the PR is linked to the issue.
 
 3. Validate the PR:
 
    1. Find the app in [Homebrew's GitHub casks](https://github.com/Homebrew/homebrew-cask/tree/main/Casks) and download it locally using `cask.url`.
 
    2. Install it on a host and run a live query on the host: `SELECT * FROM apps WHERE name LIKE '%App Name%';`
-   3. `name` in the inputs manifest matches osquery `app.name`
-   4. `unique_identifier` in the inputs manifest matches osquery `app.bundle_identifier`
-   5. The version scheme in the homebrew recipe matches osquery `app.bundle_short_version`.  This ensures the FMA can be patched correctly.
-   6. Ensure associated outputs were generated in the PR
-      - `/outputs/<app-name>/darwin.json` created
-      - `/outputs/apps.json` updated
+   3. Validate:
 
-4. If the PR passes validation, set the issue status to `Awaiting QA`.  QA will perform the test criteria.  PR is approved and merged.
+      - `name` in the inputs manifest matches `app.name`
+      - `unique_identifier` in the inputs manifest matches `app.bundle_identifier`
+      - The version scheme in the homebrew recipe matches `app.bundle_short_version`
+      - Ensure associated outputs were generated in the PR
+        - `/outputs/<app-name>/darwin.json` created
+        - `/outputs/apps.json` updated
 
-5. If tests pass, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
+4. If the PR passes validation set the issue status to `Awaiting QA`.  The validator will perform the test criteria.  If tests fail, add feedback in the PR comments.  The test failure can be addressed in the PR or closed.  If tests pass, the PR is approved and merged.
 
-6. Product designer to add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671) and publish the icon as a part of the Software icon Figma component.
+5. Product designer is notified in the issue to add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671) and publish the icon as a part of the Software icon Figma component.
+
+6. The validator is responsible for adding the icon to Fleet
+
+7. QA ensures the icon is added to Fleet
+
+8. @eashaw is notified in the issue to add the icon to the website [fleetdm.com/app-library](https://fleetdm.com/app-library).
 
 #### Testing FMA catalog additions (no icon)
 
@@ -159,4 +148,51 @@ If the tests pass:
 - Approve and merge PR
 
 If the test fail:
+
 - Remove issue from the `g-software` board, and add issue to the `Drafting` board
+
+## Updating existing apps in the FMA catalog
+
+Fleet-maintained apps need to be updated as frequently as possible while maintaining reliability.  This is currently a balancing act as both scenarios below result in customer workflow blocking bugs:
+
+- App vendor updates to installers can break install/uninstall scripts
+- App vendors will deprecate download links for older installers
+
+A Github action periodically creates a PR that updates one or more apps in the catalog by:
+
+- Bumping versions
+- Regenerating install/uninstall scripts
+
+Each app updated in the PR must be validated independently.  Only merge the PR if all apps changed meet the following criteria:
+
+- [X] App can be downloaded using manifest URL
+- [X] App installs successfully on host using manifest install script
+- [X] App exists on host
+- [X] App uninstalls successfully on host using manifest uninstall script
+
+If an app does not pass test criteria:
+
+- [Freeze the app](#freezing-an-existing-app)
+- File a bug for tracking
+
+## Freezing an existing app
+
+If any app fails validation:
+
+1. Do not merge the PR as-is.
+2. Add `"frozen": true"` to the failing app's input file (e.g.,`inputs/homebrew/<app>.json`).
+3. Revert its corresponding output manifest file (e.g., `outputs/<slug>.json`) to the version in the `main` branch:
+
+   ```bash
+   git checkout origin/main -- ee/maintained-apps/outputs/<slug>.json
+   ```
+
+4. Validate changes in the frozen input file by running the following.  This should output no errors and generate no changes.
+
+   ```bash
+   go run cmd/maintained-apps/main.go --slug="<slug>" --debug
+   ```
+
+5. Commit both the input change and the output file revert to the same PR.
+
+
