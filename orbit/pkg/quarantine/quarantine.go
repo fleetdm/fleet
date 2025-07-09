@@ -1,9 +1,12 @@
-package main
+// +build windows
+
+package quarantine
+
 // TODO: in production code quarantine.go needs to be in a separate package
 import (
+	"encoding/json"
 	"net"
 	"net/netip"
-	"encoding/json"
 	"os"
 	"runtime"
 	"strings"
@@ -16,13 +19,13 @@ import (
 var _fleetUrl string
 
 type QuarantineInfo struct {
-	Sublayers	[]windows.GUID `json:"sublayers"`
-	Rules		[]windows.GUID `json:"rules"`
+	Sublayers []windows.GUID `json:"sublayers"`
+	Rules     []windows.GUID `json:"rules"`
 }
 
 func setFleetUrl(fleetUrl string) {
 	temp := strings.Split(fleetUrl, "://")[1]
-	temp  = strings.Split(temp, ":")[0]
+	temp = strings.Split(temp, ":")[0]
 	_fleetUrl = temp
 	log.Debug().Msg("Quarantine: received fleet url: " + _fleetUrl)
 }
@@ -56,10 +59,10 @@ func QuarantineIfNeeded() {
 		log.Info().Msg("Quarantine is only supported on Windows currently")
 		return
 	}
-	
+
 	fwSession, err := wf.New(&wf.Options{
-		Name:		"Quarantine Firewall Session",
-		Dynamic:	false,
+		Name:    "Quarantine Firewall Session",
+		Dynamic: false,
 	})
 	if err != nil {
 		log.Error().Msg("Quarantine failed: Failed to start firewall session")
@@ -68,7 +71,7 @@ func QuarantineIfNeeded() {
 
 	fleetServerIPLookup, err := net.LookupIP(_fleetUrl)
 	if err != nil {
-		log.Error().Msg("Quarantine failed: Failed to find IP of fleet server: " +  _fleetUrl)
+		log.Error().Msg("Quarantine failed: Failed to find IP of fleet server: " + _fleetUrl)
 		log.Error().Msg(err.Error())
 		return
 	}
@@ -76,7 +79,7 @@ func QuarantineIfNeeded() {
 	for _, ip := range fleetServerIPLookup {
 		ipv4 := ip.To4()
 		if ipv4 == nil {
-			continue 
+			continue
 		}
 		var ok bool
 		fleetServerIPv4, ok = netip.AddrFromSlice(ipv4)
@@ -85,7 +88,7 @@ func QuarantineIfNeeded() {
 			return
 		}
 	}
-	
+
 	// TODO: production quarantine should support IPv6 fleet server connection
 	// Code to find both ipv4 and ipv6 addresses of the fleet server.
 	/*var fleetServerIPv4, fleetServerIPv6 netip.Addr
@@ -115,9 +118,9 @@ func QuarantineIfNeeded() {
 	if foundIPv6 {
 		log.Debug().Msg("found fleet-url ipv6")
 	}*/
-	
+
 	addedRules := QuarantineInfo{make([]windows.GUID, 0), make([]windows.GUID, 0)}
-	
+
 	guidSublayer, err := windows.GenerateGUID()
 	if err != nil {
 		log.Error().Msg("Quarantine failed: Failed to generate windows GUID")
@@ -125,9 +128,9 @@ func QuarantineIfNeeded() {
 	}
 	sublayerID := wf.SublayerID(guidSublayer)
 	err = fwSession.AddSublayer(&wf.Sublayer{
-		ID:		sublayerID,
-		Name:	"Quarantine killswitch",
-		Weight:	0xffff,
+		ID:     sublayerID,
+		Name:   "Quarantine killswitch",
+		Weight: 0xffff,
 	})
 	if err != nil {
 		log.Error().Msg("Quarantine failed: Failed to add sublayer")
@@ -140,16 +143,16 @@ func QuarantineIfNeeded() {
 		wf.LayerALEAuthRecvAcceptV4,
 		wf.LayerALEAuthConnectV4,
 	}
-	
+
 	/*layersIPv6 := []wf.LayerID{
 		wf.LayerALEAuthRecvAcceptV6,
 		wf.LayerALEAuthConnectV6,
 	}*/
 
-	// Note: in production code, each rule that is added to the firewall 
+	// Note: in production code, each rule that is added to the firewall
 	// should have persistent set to true so that it remains after
 	// a system restart. For debug recoverability I have not set it. See line 174.
-	
+
 	for _, layer := range layersIPv4 {
 		// Block all traffic except fleetServerIP
 		guidBlockExceptFleet, err := windows.GenerateGUID()
@@ -159,18 +162,18 @@ func QuarantineIfNeeded() {
 		}
 		addedRules.Rules = append(addedRules.Rules, guidBlockExceptFleet)
 		err = fwSession.AddRule(&wf.Rule{
-			ID:			wf.RuleID(guidBlockExceptFleet),
-			Name:		"Block everything",
-			Layer:		layer,
-			Weight:		1000,
-			Conditions:	[]*wf.Match{
+			ID:     wf.RuleID(guidBlockExceptFleet),
+			Name:   "Block everything",
+			Layer:  layer,
+			Weight: 1000,
+			Conditions: []*wf.Match{
 				&wf.Match{
-					Field:	wf.FieldIPRemoteAddress,
-					Op:		wf.MatchTypeNotEqual,
-					Value:	fleetServerIPv4,
+					Field: wf.FieldIPRemoteAddress,
+					Op:    wf.MatchTypeNotEqual,
+					Value: fleetServerIPv4,
 				},
 			},
-			Action:		wf.ActionBlock,
+			Action: wf.ActionBlock,
 			// Persistent: true
 		})
 		if err != nil {
@@ -188,18 +191,18 @@ func QuarantineIfNeeded() {
 		}
 		addedRules.Rules = append(addedRules.Rules, guidDns)
 		err = fwSession.AddRule(&wf.Rule{
-			ID:			wf.RuleID(guidDns),
-			Name:		"Allow DNS port",
-			Layer:		layer,
-			Weight:		900,
-			Conditions:	[]*wf.Match{
+			ID:     wf.RuleID(guidDns),
+			Name:   "Allow DNS port",
+			Layer:  layer,
+			Weight: 900,
+			Conditions: []*wf.Match{
 				&wf.Match{
-					Field:	wf.FieldIPRemotePort,
-					Op:		wf.MatchTypeEqual,
-					Value:	uint16(53),
+					Field: wf.FieldIPRemotePort,
+					Op:    wf.MatchTypeEqual,
+					Value: uint16(53),
 				},
 			},
-			Action:		wf.ActionPermit,
+			Action: wf.ActionPermit,
 			// Persistent: true
 		})
 		if err != nil {
@@ -214,56 +217,56 @@ func QuarantineIfNeeded() {
 	// TODO: production quarantine should support IPv6 fleet server connection
 	// Code for allowing the fleet IPv6 address is here:
 	/*
-	for _, layer := range layersIPv6 {
-		if foundIPv6 {
-			// Allow traffic to the fleet server in case it is an ipv6 address
-			guidAllowFleetIPv6, err := windows.GenerateGUID()
+		for _, layer := range layersIPv6 {
+			if foundIPv6 {
+				// Allow traffic to the fleet server in case it is an ipv6 address
+				guidAllowFleetIPv6, err := windows.GenerateGUID()
+				if err != nil {
+					log.Error().Msg("Quarantine failed: Failed to generate windows GUID")
+					return
+				}
+				addedRules.Rules = append(addedRules.Rules, guidAllowFleetIPv6)
+				err = fwSession.AddRule(&wf.Rule{
+					ID:			wf.RuleID(guidAllowFleetIPv6),
+					Name:		"Allow ipv6 fleet server",
+					Layer:		layer,
+					Weight:		800,
+					Conditions:	[]*wf.Match{
+						&wf.Match{
+							Field:	wf.FieldIPRemoteAddress,
+							Op:		wf.MatchTypeNotEqual,
+							Value:	fleetServerIPv6,
+						},
+					},
+					Action:		wf.ActionPermit,
+					// Persistent: true
+				})
+				if err != nil {
+					log.Error().Msg("Quarantine failed: Failed to add IPv6 fleet server allow rule")
+					return
+				}
+			}
+			// Block all traffic except fleetServerIP
+			guidBlockIPv6, err := windows.GenerateGUID()
 			if err != nil {
 				log.Error().Msg("Quarantine failed: Failed to generate windows GUID")
 				return
 			}
-			addedRules.Rules = append(addedRules.Rules, guidAllowFleetIPv6)
+			addedRules.Rules = append(addedRules.Rules, guidBlockIPv6)
 			err = fwSession.AddRule(&wf.Rule{
-				ID:			wf.RuleID(guidAllowFleetIPv6),
-				Name:		"Allow ipv6 fleet server",
+				ID:			wf.RuleID(guidBlockIPv6),
+				Name:		"Block everything ipv6",
 				Layer:		layer,
-				Weight:		800,
-				Conditions:	[]*wf.Match{
-					&wf.Match{
-						Field:	wf.FieldIPRemoteAddress,
-						Op:		wf.MatchTypeNotEqual,
-						Value:	fleetServerIPv6,
-					},
-				},
-				Action:		wf.ActionPermit,
+				Weight:		100,
+				Conditions: nil,
+				Action:		wf.ActionBlock,
 				// Persistent: true
 			})
 			if err != nil {
-				log.Error().Msg("Quarantine failed: Failed to add IPv6 fleet server allow rule")
+				log.Error().Msg("Quarantine failed: Failed to add IPv6 blocking rule")
 				return
 			}
-		} 
-		// Block all traffic except fleetServerIP
-		guidBlockIPv6, err := windows.GenerateGUID()
-		if err != nil {
-			log.Error().Msg("Quarantine failed: Failed to generate windows GUID")
-			return
-		}
-		addedRules.Rules = append(addedRules.Rules, guidBlockIPv6)
-		err = fwSession.AddRule(&wf.Rule{
-			ID:			wf.RuleID(guidBlockIPv6),
-			Name:		"Block everything ipv6",
-			Layer:		layer,
-			Weight:		100,
-			Conditions: nil,
-			Action:		wf.ActionBlock,
-			// Persistent: true
-		})
-		if err != nil {
-			log.Error().Msg("Quarantine failed: Failed to add IPv6 blocking rule")
-			return
-		}
-	}*/
+		}*/
 
 	SaveAllCustomRules(&addedRules)
 	markQuarantined()
@@ -275,8 +278,8 @@ func UnquarantineIfNeeded() {
 	}
 
 	fwSession, err := wf.New(&wf.Options{
-		Name:		"UnQuarantine WPF session",
-		Dynamic:	false,
+		Name:    "UnQuarantine WPF session",
+		Dynamic: false,
 	})
 	if err != nil {
 		log.Error().Msg("Unquarantine failed: Failed to start WFP session: ")
@@ -288,23 +291,29 @@ func UnquarantineIfNeeded() {
 }
 
 func PrintAllCustomRules(customRules QuarantineInfo) {
-	//log.Println("Subalyers:")
+	// log.Println("Subalyers:")
 	for _, id := range customRules.Sublayers {
 		log.Debug().Msg(id.String())
 	}
-	//log.Println("Rules:")
+	// log.Println("Rules:")
 	for _, id := range customRules.Rules {
 		log.Debug().Msg(id.String())
 	}
 }
 
 func RemoveAllCustomRules(fwSession *wf.Session, customRules QuarantineInfo) {
-	//log.Println("Remove all custom rules")
+	// log.Println("Remove all custom rules")
 	for _, id := range customRules.Sublayers {
-		fwSession.DeleteSublayer(wf.SublayerID(id))
+		err := fwSession.DeleteSublayer(wf.SublayerID(id))
+		if err != nil {
+			log.Error().Msg("Quarantine failed: Failed to delete sublayer")
+		}
 	}
 	for _, id := range customRules.Rules {
-		fwSession.DeleteRule(wf.RuleID(id))
+		err := fwSession.DeleteRule(wf.RuleID(id))
+		if err != nil {
+			log.Error().Msg("Quarantine failed: Failed to delete sublayer")
+		}
 	}
 }
 
@@ -323,7 +332,7 @@ func SaveAllCustomRules(customRules *QuarantineInfo) {
 	}
 }
 
-func LoadAllCustomRules() (QuarantineInfo) {
+func LoadAllCustomRules() QuarantineInfo {
 	ruleFile, err := os.Open(".\\quarantine_rules.json")
 	if err != nil {
 		log.Error().Msg("Quarantine failed: Error opening file quarantine_rules.json: ")

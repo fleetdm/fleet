@@ -40,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/quarantine"
 	setupexperience "github.com/fleetdm/fleet/v4/orbit/pkg/setup_experience"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
@@ -2174,12 +2175,12 @@ type quarantineReceiver struct{}
 func (q *quarantineReceiver) Run(c *fleet.OrbitConfig) error {
 	if !c.Quarantine {
 		log.Debug().Msg("This host is not quarantined")
-		UnquarantineIfNeeded()
+		quarantine.UnquarantineIfNeeded()
 		return nil
 	}
 
 	log.Info().Msg("This host is quarantined!")
 	// TODO: add updateUrl to quarantine allow list for agent updates
-	QuarantineIfNeeded()
+	quarantine.QuarantineIfNeeded()
 	return nil
 }
