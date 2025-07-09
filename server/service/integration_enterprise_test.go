@@ -3836,16 +3836,13 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.NotNil(t, acResp)
-	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
-
-	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"server_url": "https://localhost:8080"
+		},
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
 			"enable_jit_provisioning": false
@@ -3855,10 +3852,10 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
 
 	// users can't be created if SSO is disabled
-	auth, body := s.LoginSSOUser("sso_user", "user123#")
+	body := s.LoginSSOUser("sso_user", "user123#")
 	require.Contains(t, body, "/login?status=account_invalid")
 	// ensure theresn't a user in the DB
-	_, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	_, err := s.ds.UserByEmail(context.Background(), "sso_user@example.com")
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 
@@ -3870,7 +3867,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
 			"enable_jit_provisioning": true
@@ -3880,12 +3876,12 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
 
 	// a new user is created and redirected accordingly
-	auth, body = s.LoginSSOUser("sso_user", "user123#")
+	body = s.LoginSSOUser("sso_user", "user123#")
 	// a successful redirect has this content
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
-	user, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	user, err := s.ds.UserByEmail(context.Background(), "sso_user@example.com")
 	require.NoError(t, err)
-	require.Equal(t, auth.UserID(), user.Email)
+	require.Equal(t, "sso_user@example.com", user.Email)
 
 	// a new activity item is created
 	activitiesResp := listActivitiesResponse{}
@@ -3894,7 +3890,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NotEmpty(t, activitiesResp.Activities)
 	require.Condition(t, func() bool {
 		for _, a := range activitiesResp.Activities {
-			if (a.Type == fleet.ActivityTypeUserAddedBySSO{}.ActivityName()) && *a.ActorEmail == auth.UserID() {
+			if (a.Type == fleet.ActivityTypeUserAddedBySSO{}.ActivityName()) && *a.ActorEmail == "sso_user@example.com" {
 				return true
 			}
 		}
@@ -3909,47 +3905,44 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NoError(t, err)
 	// Login should NOT change the role to the default (global observer) because SSO attributes
 	// are not set for this user (see ../../tools/saml/users.php).
-	auth, body = s.LoginSSOUser("sso_user", "user123#")
-	assert.Equal(t, "sso_user@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 1", auth.UserDisplayName())
+	body = s.LoginSSOUser("sso_user", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 	user, err = s.ds.UserByEmail(context.Background(), "sso_user@example.com")
 	require.NoError(t, err)
 	require.NotNil(t, user.GlobalRole)
 	require.Equal(t, *user.GlobalRole, "admin")
+	require.Equal(t, "SSO User 1", user.Name)
 
 	// A user with pre-configured roles can be created
 	// see `tools/saml/users.php` for details.
-	auth, body = s.LoginSSOUser("sso_user_3_global_admin", "user123#")
-	assert.Equal(t, "sso_user_3_global_admin@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 3", auth.UserDisplayName())
-	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
-		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
-		Values: []fleet.SAMLAttributeValue{{
-			Value: "admin",
-		}},
-	})
+	body = s.LoginSSOUser("sso_user_3_global_admin", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user3, err := s.ds.UserByEmail(context.Background(), "sso_user_3_global_admin@example.com")
+	require.NoError(t, err)
+	require.Equal(t, "sso_user_3_global_admin@example.com", user3.Email)
+	require.Equal(t, "SSO User 3", user3.Name)
+	require.NotNil(t, user3.GlobalRole)
+	require.Equal(t, fleet.RoleAdmin, *user3.GlobalRole)
 
 	// Test that roles are updated for an existing user when SSO attributes are set.
 
 	// Change role to global maintainer first.
-	user3, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	user3, err = s.ds.UserByEmail(context.Background(), "sso_user_3_global_admin@example.com")
 	require.NoError(t, err)
-	require.Equal(t, auth.UserID(), user3.Email)
+	require.Equal(t, "sso_user_3_global_admin@example.com", user3.Email)
 	user3.GlobalRole = ptr.String("maintainer")
 	err = s.ds.SaveUser(context.Background(), user3)
 	require.NoError(t, err)
 
 	// Login should change the role to the configured role in the SSO attributes (global admin).
-	auth, body = s.LoginSSOUser("sso_user_3_global_admin", "user123#")
-	assert.Equal(t, "sso_user_3_global_admin@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 3", auth.UserDisplayName())
+	body = s.LoginSSOUser("sso_user_3_global_admin", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 	user3, err = s.ds.UserByEmail(context.Background(), "sso_user_3_global_admin@example.com")
 	require.NoError(t, err)
+	require.Equal(t, "sso_user_3_global_admin@example.com", user3.Email)
+	require.Equal(t, "SSO User 3", user3.Name)
 	require.NotNil(t, user3.GlobalRole)
-	require.Equal(t, *user3.GlobalRole, "admin")
+	require.Equal(t, fleet.RoleAdmin, *user3.GlobalRole)
 
 	// We cannot use NewTeam and must use adhoc SQL because the teams.id is
 	// auto-incremented and other tests cause it to be different than what we need (ID=1).
@@ -3969,64 +3962,47 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 
 	// A user with pre-configured roles can be created,
 	// see `tools/saml/users.php` for details.
-	auth, body = s.LoginSSOUser("sso_user_4_team_maintainer", "user123#")
-	assert.Equal(t, "sso_user_4_team_maintainer@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 4", auth.UserDisplayName())
-	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
-		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
-		Values: []fleet.SAMLAttributeValue{{
-			Value: "maintainer",
-		}},
-	})
+	body = s.LoginSSOUser("sso_user_4_team_maintainer", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user4, err := s.ds.UserByEmail(context.Background(), "sso_user_4_team_maintainer@example.com")
+	require.NoError(t, err)
+	require.Equal(t, "sso_user_4_team_maintainer@example.com", user4.Email)
+	require.Equal(t, "SSO User 4", user4.Name)
+	require.Nil(t, user4.GlobalRole)
+	require.Len(t, user4.Teams, 1)
+	require.Equal(t, uint(1), user4.Teams[0].ID)
+	require.Equal(t, fleet.RoleMaintainer, user4.Teams[0].Role)
 
 	// A user with pre-configured roles can be created,
 	// see `tools/saml/users.php` for details.
-	auth, body = s.LoginSSOUser("sso_user_5_team_admin", "user123#")
-	assert.Equal(t, "sso_user_5_team_admin@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 5", auth.UserDisplayName())
-	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
-		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
-		Values: []fleet.SAMLAttributeValue{{
-			Value: "admin",
-		}},
-	})
-	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
-	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
-		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
-		Values: []fleet.SAMLAttributeValue{{
-			Value: "null",
-		}},
-	})
-	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
-	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
-		Name: "FLEET_JIT_USER_ROLE_TEAM_2",
-		Values: []fleet.SAMLAttributeValue{{
-			Value: "null",
-		}},
-	})
+	// This user has the following configuration (the last two are ignored by Fleet):
+	//	- 'FLEET_JIT_USER_ROLE_TEAM_1' => 'admin',
+	//	- 'FLEET_JIT_USER_ROLE_GLOBAL' => 'null',
+	//	- 'FLEET_JIT_USER_ROLE_TEAM_2' => 'null',
+	body = s.LoginSSOUser("sso_user_5_team_admin", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user5, err := s.ds.UserByEmail(context.Background(), "sso_user_5_team_admin@example.com")
+	require.NoError(t, err)
+	assert.Equal(t, "sso_user_5_team_admin@example.com", user5.Email)
+	assert.Equal(t, "SSO User 5", user5.Name)
+	require.Nil(t, user5.GlobalRole)
+	require.Len(t, user5.Teams, 1)
+	require.Equal(t, uint(1), user5.Teams[0].ID)
+	require.Equal(t, fleet.RoleAdmin, user5.Teams[0].Role)
 
 	// A user with pre-configured roles can be created,
 	// see `tools/saml/users.php` for details.
-	auth, body = s.LoginSSOUser("sso_user_6_global_observer", "user123#")
-	assert.Equal(t, "sso_user_6_global_observer@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 6", auth.UserDisplayName())
-	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
-	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
-		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
-		Values: []fleet.SAMLAttributeValue{{
-			Value: "null",
-		}},
-	})
-	// FLEET_JIT_USER_ROLE_* attributes with value `null` are ignored by Fleet.
-	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
-		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
-		Values: []fleet.SAMLAttributeValue{{
-			Value: "null",
-		}},
-	})
+	// This user has the following configuration (all ignored by Fleet thus added as global observer):
+	//	- 'FLEET_JIT_USER_ROLE_GLOBAL' => 'null',
+	//	- 'FLEET_JIT_USER_ROLE_TEAM_1' => 'null',
+	body = s.LoginSSOUser("sso_user_6_global_observer", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user6, err := s.ds.UserByEmail(context.Background(), "sso_user_6_global_observer@example.com")
+	require.NoError(t, err)
+	assert.Equal(t, "sso_user_6_global_observer@example.com", user6.Email)
+	assert.Equal(t, "SSO User 6", user6.Name)
+	require.NotNil(t, user6.GlobalRole)
+	require.Equal(t, fleet.RoleObserver, *user6.GlobalRole)
 }
 
 func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
@@ -11852,6 +11828,22 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	//////////////////////////
 	// Do a request with a fleet maintained app
 	//////////////////////////
+	oldTransport := http.DefaultTransport
+	onePassMockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("mocked content")); err != nil {
+			// Handle the error, e.g., log it or fail the test
+			t.Fatalf("failed to write response: %v", err)
+		}
+	}))
+	defer onePassMockServer.Close()
+	mockTransport := &mockRoundTripper{
+		mockServer:  onePassMockServer.URL,
+		origBaseURL: "https://downloads.1password.com",
+		next:        http.DefaultTransport,
+	}
+	http.DefaultTransport = mockTransport
+	// https://downloads.1password.com/mac/1Password-8.10.82-aarch64.zip
 	maintained1, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "1Password",
 		Slug:             "1password/darwin",
@@ -11896,6 +11888,50 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Len(t, meta.LabelsIncludeAny, 1)
 	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
 	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
+
+	// maintained app with no_check for sha
+	// https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg
+	maintained2, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Google Chrome",
+		Slug:             "google-chrome/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.google.Chrome",
+	})
+	require.NoError(t, err)
+
+	chromeBytes := []byte("chrome installer content")
+	h := sha256.New()
+	_, err = h.Write(chromeBytes)
+	require.NoError(t, err)
+	chromeSHA := hex.EncodeToString(h.Sum(nil))
+	chromeMockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(chromeBytes); err != nil {
+			// Handle the error, e.g., log it or fail the test
+			t.Fatalf("failed to write response: %v", err)
+		}
+	}))
+	defer chromeMockServer.Close()
+	mockTransport = &mockRoundTripper{
+		mockServer:  chromeMockServer.URL,
+		origBaseURL: "https://dl.google.com",
+		next:        http.DefaultTransport,
+	}
+	http.DefaultTransport = mockTransport
+
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
+		{Slug: &maintained2.Slug},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.NotNil(t, packages[0].URL)
+	// Given that the manifest returns no_check for chrome, the SHA should be taken of the downloaded file.
+	require.Equal(t, chromeSHA, packages[0].HashSHA256)
+	require.Nil(t, packages[0].TeamID)
+
+	http.DefaultTransport = oldTransport
 }
 
 func waitBatchSetSoftwareInstallersCompleted(t *testing.T, s *integrationEnterpriseTestSuite, teamName string, requestUUID string) []fleet.SoftwarePackageResponse {
@@ -17777,6 +17813,29 @@ done
 	for _, v := range []bool{hitDebURL, hitExeURL, hitPkgURL} {
 		require.True(t, v)
 	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestSSOIdPInitiatedLogin() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+        "server_settings": {
+          "server_url": "https://localhost:8080"
+        },
+		"sso_settings": {
+			"enable_sso": true,
+			"enable_jit_provisioning": true,
+			"enable_sso_idp_login": true,
+			"entity_id": "sso.test.com",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php"
+		}
+	}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	body := s.LoginSSOUserIDPInitiated("sso_user2", "user123#", "sso.test.com")
+	require.Contains(t, body, "Redirecting to Fleet at / ...")
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategories() {
