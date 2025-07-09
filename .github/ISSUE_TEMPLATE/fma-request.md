@@ -22,7 +22,7 @@ assignees: 'marko-lisica'
 - [ ] Manifest `unique_identifier` matches osquery `app.bundle_identifier` (macOS only)
 - [ ] App adds successfully to team's library
 - [ ] App installs successfully on host
-- [ ] App opens succuessfully on host
+- [ ] App opens successfully on host
 - [ ] App uninstalls successfully on host
 
 ### Icon
