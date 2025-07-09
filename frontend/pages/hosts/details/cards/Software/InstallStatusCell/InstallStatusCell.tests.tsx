@@ -23,10 +23,13 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Installed' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "installed",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "installed",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "installed",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -40,10 +43,13 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Installing...' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "pending_install",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_install",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "installing",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
         isHostOnline
@@ -61,10 +67,13 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Install (pending)' status with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "pending_install",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_install",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "pending_install",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -81,10 +90,13 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Uninstalling...' status with tooltip if host is online", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "pending_uninstall",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_uninstall",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "uninstalling",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
         isHostOnline
@@ -102,10 +114,13 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Uninstall (pending)' status with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "pending_uninstall",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_uninstall",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "pending_uninstall",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -122,10 +137,13 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Failed' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "failed_install",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "failed_install",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -140,10 +158,13 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Failed (uninstall)' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "failed_uninstall",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_uninstall",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "failed_uninstall",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -160,10 +181,13 @@ describe("InstallStatusCell - component", () => {
   it("renders '---' for package available for install", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: null,
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "uninstalled",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -178,10 +202,13 @@ describe("InstallStatusCell - component", () => {
   it("renders '---' for App Store app that's available for install", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: null,
-          software_package: { ...testSoftwarePackage, self_service: false },
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            software_package: { ...testSoftwarePackage, self_service: false },
+          }),
+          ui_status: "uninstalled",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -196,14 +223,17 @@ describe("InstallStatusCell - component", () => {
   it("renders '---' even for package with self_service true", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: null,
-          software_package: {
-            ...testSoftwarePackage,
-            name: "SelfService Software",
-            self_service: true,
-          },
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            software_package: {
+              ...testSoftwarePackage,
+              name: "SelfService Software",
+              self_service: true,
+            },
+          }),
+          ui_status: "uninstalled",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -218,10 +248,13 @@ describe("InstallStatusCell - component", () => {
   it("renders '---' even for App Store app with self_service true", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: null,
-          app_store_app: createMockHostAppStoreApp({ self_service: true }),
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            app_store_app: createMockHostAppStoreApp({ self_service: true }),
+          }),
+          ui_status: "uninstalled",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -238,11 +271,14 @@ describe("InstallStatusCell - component", () => {
   it("renders placeholder for missing status and packages", () => {
     render(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: null,
-          app_store_app: null,
-          software_package: null,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            app_store_app: null,
+            software_package: null,
+          }),
+          ui_status: "uninstalled",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />

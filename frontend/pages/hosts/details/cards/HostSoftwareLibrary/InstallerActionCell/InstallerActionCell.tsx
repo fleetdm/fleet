@@ -4,10 +4,10 @@ import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import {
-  IHostSoftware,
   IHostSoftwarePackage,
   IHostAppStoreApp,
   SoftwareInstallStatus,
+  IHostSoftwareWithUiStatus,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
 import {
@@ -32,7 +32,7 @@ interface DisplayActionItems {
 }
 
 interface IInstallerActionCellProps {
-  software: IHostSoftware;
+  software: IHostSoftwareWithUiStatus;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (softwareId: number) => void;
   baseClass: string;
@@ -95,7 +95,7 @@ export const InstallerActionCell = ({
   hostScriptsEnabled,
   hostMDMEnrolled,
 }: IInstallerActionCellProps) => {
-  const { id, status, software_package, app_store_app } = software;
+  const { id, status, software_package, app_store_app, ui_status } = software;
   const {
     installDisabled,
     installTooltip,
@@ -112,14 +112,19 @@ export const InstallerActionCell = ({
 
   const displayActionItems: DisplayActionItems = {
     install: {
-      text: getInstallButtonText(status),
-      icon: getInstallButtonIcon(status),
+      text: getInstallButtonText(ui_status),
+      icon: getInstallButtonIcon(ui_status),
     },
     uninstall: {
-      text: getUninstallButtonText(status),
-      icon: getUninstallButtonIcon(status),
+      text: getUninstallButtonText(ui_status),
+      icon: getUninstallButtonIcon(ui_status),
     },
   };
+
+  const canUninstallSoftware =
+    !app_store_app &&
+    software.installed_versions &&
+    software.installed_versions.length > 0;
 
   return (
     <div className={`${baseClass}__item-actions`}>
@@ -149,33 +154,31 @@ export const InstallerActionCell = ({
         </TooltipWrapper>
       </div>
       <div className={`${baseClass}__item-action`}>
-        {app_store_app
-          ? null
-          : software_package && (
-              <TooltipWrapper
-                tipContent={uninstallTooltip}
-                underline={false}
-                showArrow
-                position="top"
-              >
-                <Button
-                  variant="text-icon"
-                  type="button"
-                  className={`${baseClass}__item-action-button`}
-                  onClick={() => onClickUninstallAction(id)}
-                  disabled={uninstallDisabled}
-                >
-                  <Icon
-                    name={displayActionItems.uninstall.icon}
-                    color="core-fleet-blue"
-                    size="small"
-                  />
-                  <span data-testid={`${baseClass}__uninstall-button--test`}>
-                    {displayActionItems.uninstall.text}
-                  </span>
-                </Button>
-              </TooltipWrapper>
-            )}
+        {canUninstallSoftware && software_package && (
+          <TooltipWrapper
+            tipContent={uninstallTooltip}
+            underline={false}
+            showArrow
+            position="top"
+          >
+            <Button
+              variant="text-icon"
+              type="button"
+              className={`${baseClass}__item-action-button`}
+              onClick={() => onClickUninstallAction(id)}
+              disabled={uninstallDisabled}
+            >
+              <Icon
+                name={displayActionItems.uninstall.icon}
+                color="core-fleet-blue"
+                size="small"
+              />
+              <span data-testid={`${baseClass}__uninstall-button--test`}>
+                {displayActionItems.uninstall.text}
+              </span>
+            </Button>
+          </TooltipWrapper>
+        )}
       </div>
     </div>
   );

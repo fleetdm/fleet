@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
 
+import { IHostSoftwareWithStatus } from "interfaces/software";
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 
@@ -30,6 +31,7 @@ const baseClass = "host-sw-library-table";
 interface IHostSoftwareLibraryTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
+  enhancedData?: IHostSoftwareWithUiStatus[];
   platform: HostPlatform;
   isLoading: boolean;
   router: InjectedRouter;
@@ -44,6 +46,7 @@ interface IHostSoftwareLibraryTableProps {
 const HostSoftwareLibraryTable = ({
   tableConfig,
   data,
+  enhancedData,
   platform,
   isLoading,
   router,
@@ -194,7 +197,7 @@ const HostSoftwareLibraryTable = ({
       <TableContainer
         renderCount={memoizedSoftwareCount}
         columnConfigs={tableConfig}
-        data={data?.software || []}
+        data={enhancedData || []}
         isLoading={isLoading}
         defaultSortHeader={sortHeader}
         defaultSortDirection={sortDirection}
