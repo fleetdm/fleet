@@ -55,8 +55,12 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ isSelfService, isAppStoreApp, lastInstalledAt }) =>
-      isAppStoreApp ? (
+    tooltip: ({ isSelfService, isAppStoreApp, lastInstalledAt }) => {
+      if (!lastInstalledAt) {
+        return undefined;
+      }
+
+      return isAppStoreApp ? (
         <>
           The host acknowledged the MDM
           <br />
@@ -64,11 +68,12 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
         </>
       ) : (
         <>
-          Software was installed
-          {!isSelfService && " (install script finished with exit code 0)"}
-          {lastInstalledAt && ` ${dateAgo(lastInstalledAt)}`}.
+          Software was installed{" "}
+          {!isSelfService && "(install script finished with exit code 0) "}
+          {dateAgo(lastInstalledAt)}.
         </>
-      ),
+      );
+    },
   },
   pending_install: {
     iconName: "pending-outline",
@@ -176,6 +181,29 @@ const getEmptyCellTooltip = (hasAppStoreApp: boolean, softwareName?: string) =>
     </>
   );
 
+const getDisplayStatus = (software: IHostSoftware) => {
+  const hasInstalledVersions =
+    Array.isArray(software.installed_versions) &&
+    software.installed_versions.length > 0;
+
+  console.log("software", software);
+  console.log("hasInstalledVersions", hasInstalledVersions);
+  const status = software.status as
+    | keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS
+    | undefined;
+
+  // Installed source of truth is not fleet install status but installed_versions
+  if (status !== "installed") {
+    return status;
+  }
+
+  if (hasInstalledVersions) {
+    return "installed";
+  }
+
+  return null;
+};
+
 const InstallStatusCell = ({
   software,
   onShowSoftwareDetails,
@@ -189,13 +217,10 @@ const InstallStatusCell = ({
   const lastInstall = getLastInstall(software);
   const lastUninstall = getLastUninstall(software);
   const softwareName = getSoftwareName(software);
-
-  const displayStatus = software.status as
-    | keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS
-    | null;
+  const displayStatus = getDisplayStatus(software);
 
   // Status is null
-  if (displayStatus === null) {
+  if (!displayStatus) {
     return (
       <TextCell
         grey
