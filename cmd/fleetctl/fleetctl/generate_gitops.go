@@ -622,10 +622,15 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	if (orgSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(cmd.AppConfig.SSOSettings); err != nil {
 		return nil, err
 	}
+
 	return orgSettings, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSettings) (map[string]interface{}, error) {
+	if ssoSettings == nil {
+		return map[string]any{}, nil
+	}
+
 	t := reflect.TypeOf(fleet.SSOSettings{})
 	result := map[string]interface{}{
 		jsonFieldName(t, "EnableSSO"):         ssoSettings.EnableSSO,
