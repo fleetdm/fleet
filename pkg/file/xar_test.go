@@ -264,7 +264,7 @@ func TestParsePackageInfoFiles(t *testing.T) {
 			},
 		},
 		{
-			file:               "packageInfo-subEthaEdit-modded.xml",
+			file:               "packageinfo-subEthaEdit-modded.xml",
 			expectedName:       "SubEthaEdit",
 			expectedVersion:    "5.2.4",
 			expectedBundleID:   "de.codingmonkeys.SubEthaEdit.MacFULL",
