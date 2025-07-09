@@ -276,7 +276,7 @@ func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
 		WHEN %sstatus = :mdm_status_error OR %sstatus = :mdm_status_format_error THEN
 			:software_status_failed
 		ELSE
-		    :software_status_pending	
+		    :software_status_pending
 	END %s
 	`, hvsiAlias, hvsiAlias, ncrAlias, ncrAlias, colAlias)
 }
@@ -1738,7 +1738,9 @@ SELECT
 FROM nano_command_results ncr
 JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
 JOIN vpp_apps va ON va.adam_id = hvsi.adam_id AND va.platform = hvsi.platform
-WHERE hvsi.verification_command_uuid = ?
+WHERE ncr.id = ?
+AND hvsi.verification_at IS NULL
+AND hvsi.verification_failed_at IS NULL
 	`
 
 	var result []*fleet.HostVPPSoftwareInstall
@@ -1755,7 +1757,7 @@ WHERE hvsi.verification_command_uuid = ?
 func (ds *Datastore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
-SET verification_command_uuid = ? 
+SET verification_command_uuid = ?
 WHERE command_uuid = ?
 	`
 
@@ -1781,7 +1783,7 @@ VALUES ((SELECT host_id FROM host_vpp_software_installs WHERE command_uuid = ?),
 func (ds *Datastore) ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
-SET verification_command_uuid = ? 
+SET verification_command_uuid = ?
 WHERE verification_command_uuid = ?
 	`
 

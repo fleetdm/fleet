@@ -9,6 +9,7 @@ import (
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/google/uuid"
 )
 
 const (
@@ -863,6 +864,11 @@ func ListAppleRefetchCommandPrefixes() []string {
 
 // VerifySoftwareInstallVPPPrefix is the prefix used for MDM commands used to verify VPP app installs.
 const VerifySoftwareInstallVPPPrefix = "VERIFY-VPP-INSTALLS-"
+
+// VerifySoftwareInstallCommandUUID returns a UUID for a MDM command used to verify VPP app installs.
+func VerifySoftwareInstallCommandUUID() string {
+	return VerifySoftwareInstallVPPPrefix + uuid.NewString()
+}
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {

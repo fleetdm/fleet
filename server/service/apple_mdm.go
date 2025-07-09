@@ -3501,24 +3501,25 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
-		// this might be a setup experience VPP install, so we'll try to update setup experience status
-		// TODO: consider limiting this to only macOS hosts
-		var fromSetupExperience bool
-		if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
-			HostUUID:      cmdResult.UDID,
-			CommandUUID:   cmdResult.CommandUUID,
-			CommandStatus: cmdResult.Status,
-		}, true); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
-		} else if updated {
-			// TODO: call next step of setup experience?
-			fromSetupExperience = true
-			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.UDID, "execution_id", cmdResult.CommandUUID)
-		}
 
-		// create an activity for installing only if we're in a terminal state
+		// create an activity for installing only if we're in a terminal error state
 		if cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+
+			// this might be a setup experience VPP install, so we'll try to update setup experience status
+			// TODO: consider limiting this to only macOS hosts
+			var fromSetupExperience bool
+			if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
+				HostUUID:      cmdResult.UDID,
+				CommandUUID:   cmdResult.CommandUUID,
+				CommandStatus: cmdResult.Status,
+			}, true); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
+			} else if updated {
+				// TODO: call next step of setup experience?
+				fromSetupExperience = true
+				level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.UDID, "execution_id", cmdResult.CommandUUID)
+			}
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
 				if fleet.IsNotFound(err) {
@@ -3534,6 +3535,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 		}
 
+		// If the command succeeded, then start the install verification process.
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
 			// Only send a new InstalledApplicationList command if there's not one in flight
 			commandsPending, err := svc.ds.IsHostPendingVPPInstallVerification(r.Context, cmdResult.UDID)
@@ -3541,8 +3543,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "get pending mdm commands by host")
 			}
 			if !commandsPending {
-				cmdUUID := uuid.NewString()
-				cmdUUID = fleet.VerifySoftwareInstallVPPPrefix + cmdUUID
+				cmdUUID := fleet.VerifySoftwareInstallCommandUUID()
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID, true); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
 				}
@@ -3792,7 +3793,7 @@ func NewInstalledApplicationListResultsHandler(
 		installedApps := installedAppResult.AvailableApps()
 
 		// Get expectedInstalls that should be verified by this InstalledApplicationList command
-		expectedInstalls, err := ds.GetVPPInstallsByVerificationUUID(ctx, installedAppResult.UUID())
+		expectedInstalls, err := ds.GetVPPInstallsByVerificationUUID(ctx, installedAppResult.HostUUID())
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				// Then something weird happened, so log it and exit (we can't do anything here in this case).
@@ -3813,9 +3814,12 @@ func NewInstalledApplicationListResultsHandler(
 
 		var poll, shouldRefetch bool
 		for _, expectedInstall := range expectedInstalls {
+			fmt.Printf("processing expectedInstall: %+v\n", expectedInstall)
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
 			// These are not pointers, so no need to check `ok` here.
 			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
+
+			fmt.Printf("got appFromResult: %+v\n", appFromResult)
 
 			var terminalStatus string
 			switch {
