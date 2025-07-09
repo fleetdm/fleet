@@ -39,6 +39,8 @@ func MicrosoftVersionFromReleaseNotes(args ...interface{}) (string, error) {
 					return shortVersion, nil
 				}
 			}
+		} else {
+			return "", errors.New("expected a string version")
 		}
 	}
 	return "", errors.New("input version not provided")
