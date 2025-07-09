@@ -1,0 +1,12 @@
+- name: g-mdm-workstations
+  description: Workstations for team MDM
+  label_membership_type: manual
+  platform: darwin
+  hosts:
+    - "H9VR94419J"
+    - "JNJ62C26Y3"
+    - "R641592WRN"
+    - "QN9P4G276H"
+    - "C27H69XCH4"
+    - "C30270MQ9J"
+    - "R75J5T7LKX"
