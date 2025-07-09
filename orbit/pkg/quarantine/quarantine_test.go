@@ -37,33 +37,31 @@ import (
 )
 
 func TestIsQuarantinedWhenQuarantined(t *testing.T) {
-	// In a typical case, all test should be run in parallel
-	// but this specific test the file creation would create
+	// In a typical case, all tests should be run in parallel
+	// but in this specific test the file creation would create
 	// a race condition.
 	// t.Parallel()
 
 	filename := filepath.Join(".", "I_am_quarantined")
-
 	f, err := os.Create(filename)
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
 	f.Close()
-
 	defer os.Remove(filename)
 
 	assert.True(t, isQuarantined(), "expected isQuarantined to return true")
 }
 
 func TestIsQuarantinedWhenNotQuarantined(t *testing.T) {
-	// In a typical case, all test should be run in parallel
-	// but this specific test the file creation would create
+	// In a typical case, all tests should be run in parallel
+	// but in this specific test the file creation would create
 	// a race condition.
 	// t.Parallel()
 
 	// Removing the file just in case it exists
 	filename := filepath.Join(".", "I_am_quarantined")
-	defer os.Remove(filename)
+	os.Remove(filename)
 
 	assert.False(t, isQuarantined(), "expected isQuarantined to return true")
 }
