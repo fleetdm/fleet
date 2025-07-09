@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -93,6 +94,8 @@ func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 			ScriptContentID: 3,
 		}}, nil
 	case "team_id=2", "team_id=3", "team_id=4", "team_id=5":
+		return nil, nil
+	case "team_id=6":
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -1090,4 +1093,49 @@ func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{
 	macosSetup, ok := controlsRaw["macos_setup"].(string)
 	require.True(t, ok, "Expected macos_setup section to be a string")
 	require.Equal(t, macosSetup, "TODO: update with your macos_setup configuration")
+}
+
+func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	appConfig.MDM.EnabledAndConfigured = false
+	appConfig.MDM.WindowsEnabledAndConfigured = false
+	appConfig.MDM.AppleBusinessManager = optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{}
+	appConfig.MDM.AppleServerURL = ""
+	appConfig.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{}
+	appConfig.MDM.VolumePurchasingProgram = optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{}
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
+		ScriptList:   make(map[uint]string),
+	}
+	// teamId=6 is unhandled for MDM APIs to make sure the APIs to get MDM stuff
+	// aren't called if MDM is not enabled and configured.
+	controlsRaw, err := cmd.generateControls(ptr.Uint(6), "some_team", nil)
+	require.NoError(t, err)
+	require.Contains(t, controlsRaw, "scripts") // Uploading scripts does not require MDM turned on.
+	require.Empty(t, controlsRaw["scripts"])
+
+	// teamId=6 is unhandled for MDM APIs to make sure the APIs to get MDM stuff
+	// aren't called if MDM is not enabled and configured.
+	mdmRaw, err := cmd.generateMDM(&appConfig.MDM)
+	require.NoError(t, err)
+	// Verify all keys are set to empty.
+	for _, key := range []string{
+		"apple_business_manager",
+		"apple_server_url",
+		"end_user_authentication",
+		"end_user_license_agreement",
+		"volume_purchasing_program",
+	} {
+		require.Contains(t, mdmRaw, key)
+		require.Empty(t, mdmRaw[key])
+	}
 }

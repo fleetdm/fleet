@@ -801,10 +801,14 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
 		result[jsonFieldName(t, "VolumePurchasingProgram")] = mdm.VolumePurchasingProgram
 
-		eulaPath, err := cmd.generateEULA()
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating EULA: %s\n", err)
-			return nil, err
+		var eulaPath string
+		if cmd.AppConfig.MDM.EnabledAndConfigured {
+			var err error
+			eulaPath, err = cmd.generateEULA()
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating EULA: %s\n", err)
+				return nil, err
+			}
 		}
 		result[jsonFieldName(t, "EndUserLicenseAgreement")] = eulaPath
 	}
@@ -879,20 +883,22 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		result[jsonFieldName(t, "Scripts")] = scripts
 	}
 
-	profiles, err := cmd.generateProfiles(teamId, teamName)
-	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
-		return nil, err
-	}
-	if profiles != nil {
-		if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
-			result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
-				"custom_settings": profiles["apple_profiles"],
-			}
+	if cmd.AppConfig.MDM.EnabledAndConfigured {
+		profiles, err := cmd.generateProfiles(teamId, teamName)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
+			return nil, err
 		}
-		if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-			result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-				"custom_settings": profiles["windows_profiles"],
+		if profiles != nil {
+			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
+				result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
+					"custom_settings": profiles["apple_profiles"],
+				}
+			}
+			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
+				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
+					"custom_settings": profiles["windows_profiles"],
+				}
 			}
 		}
 	}
@@ -917,7 +923,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
 		}
 
-		if teamId != nil {
+		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
 			// See if the team has macOS setup software configured.
 			setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(*teamId)
 			if err != nil {
@@ -975,10 +981,6 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 	// Get profiles.
 	profiles, err := cmd.Client.ListConfigurationProfiles(teamId)
 	if err != nil {
-		if strings.Contains(err.Error(), fleet.MDMNotConfiguredMessage) {
-			return nil, nil
-		}
-
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting profiles: %v\n", err)
 		return nil, err
 	}
