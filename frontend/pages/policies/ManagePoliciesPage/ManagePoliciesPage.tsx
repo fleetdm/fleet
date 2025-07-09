@@ -534,7 +534,9 @@ const ManagePolicyPage = ({
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
       // TODO - need to change this?
-      !isAllTeamsSelected ? refetchTeamConfig() : refetchGlobalConfig();
+      isAllTeamsSelected || isPrimoMode
+        ? refetchGlobalConfig()
+        : refetchTeamConfig();
     }
   };
 
@@ -1300,7 +1302,7 @@ const ManagePolicyPage = ({
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
             availableIntegrations={automationsConfig.integrations}
-            availablePolicies={policiesAvailableToAutomate} // approach - leave as no team, have update target all teams
+            availablePolicies={policiesAvailableToAutomate} // approach - policies in  have update target all teams
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows} // approach - update as if All teams
