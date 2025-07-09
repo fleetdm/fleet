@@ -4,5 +4,6 @@
   "unique_identifier": "com.microsoft.Excel",
   "token": "microsoft-excel",
   "installer_format": "pkg",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "version_ref": "MicrosoftVersionFromReleaseNotes"
 }
