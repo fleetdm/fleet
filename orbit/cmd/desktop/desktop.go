@@ -177,12 +177,10 @@ func main() {
 		myDeviceItem.Disable()
 		myDeviceItem.Hide()
 
-		hostOfflineItem := systray.AddMenuItem(
-			`🛜🚫 Your computer is offline.
-
-It might take up to 5 minutes to reconnect to Fleet.`,
-			"")
-		hostOfflineItem.Disable()
+		hostOfflineItemOne := systray.AddMenuItem("🛜🚫 Your computer is offline.", "")
+		hostOfflineItemTwo := systray.AddMenuItem("It might take up to 5 minutes to reconnect to Fleet.", "")
+		hostOfflineItemOne.Disable()
+		hostOfflineItemTwo.Disable()
 
 		selfServiceItem := systray.AddMenuItem("Self-service", "")
 		selfServiceItem.Disable()
@@ -191,6 +189,7 @@ It might take up to 5 minutes to reconnect to Fleet.`,
 
 		transparencyItem := systray.AddMenuItem("About Fleet", "")
 		transparencyItem.Disable()
+		transparencyItem.Hide()
 
 		tokenReader := token.Reader{Path: identifierPath}
 		if _, err := tokenReader.Read(); err != nil {
@@ -238,7 +237,8 @@ It might take up to 5 minutes to reconnect to Fleet.`,
 			migrateMDMItem.Disable()
 			migrateMDMItem.Hide()
 
-			hostOfflineItem.Hide()
+			hostOfflineItemOne.Hide()
+			hostOfflineItemTwo.Hide()
 		}
 
 		reportError := func(err error, info map[string]any) {
@@ -302,7 +302,8 @@ It might take up to 5 minutes to reconnect to Fleet.`,
 						transparencyItem.Enable()
 						transparencyItem.Show()
 
-						hostOfflineItem.Hide()
+						hostOfflineItemOne.Hide()
+						hostOfflineItemTwo.Hide()
 
 						// Hide Self-Service for Free tier
 						if errors.Is(err, service.ErrMissingLicense) || (summary.SelfService != nil && !*summary.SelfService) {
@@ -363,21 +364,26 @@ It might take up to 5 minutes to reconnect to Fleet.`,
 				sum, err := client.DesktopSummary(tokenReader.GetCached())
 				switch {
 				case err == nil:
-					hostOfflineItem.Hide()
+					hostOfflineItemOne.Hide()
+					hostOfflineItemTwo.Hide()
 				case errors.Is(err, service.ErrMissingLicense):
 					myDeviceItem.SetTitle("My device")
 					myDeviceItem.Show()
-					hostOfflineItem.Hide()
+					hostOfflineItemOne.Hide()
+					hostOfflineItemTwo.Hide()
 					continue
 				case errors.Is(err, service.ErrUnauthenticated):
 					disableTray()
-					hostOfflineItem.Hide()
+					hostOfflineItemOne.Hide()
+					hostOfflineItemTwo.Hide()
 					<-checkToken()
 					continue
 				default:
 					myDeviceItem.Hide()
 					transparencyItem.Disable()
-					hostOfflineItem.Show()
+					transparencyItem.Hide()
+					hostOfflineItemOne.Show()
+					hostOfflineItemTwo.Show()
 					log.Error().Err(err).Msg("get desktop summary")
 					continue
 				}
