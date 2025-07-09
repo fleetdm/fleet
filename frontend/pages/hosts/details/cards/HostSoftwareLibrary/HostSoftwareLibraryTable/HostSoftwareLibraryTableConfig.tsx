@@ -17,18 +17,35 @@ import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import InstallerActionCell from "../InstallerActionCell";
 import InstallStatusCell from "../../Software/InstallStatusCell";
 
-type ISoftwareTableConfig = Column<IHostSoftware>;
-type ITableHeaderProps = IHeaderProps<IHostSoftware>;
-type ITableStringCellProps = IStringCellProps<IHostSoftware>;
+export type IUiStatus =
+  | "installed"
+  | "uninstalled"
+  | "installing"
+  | "uninstalling"
+  | "updating"
+  | "pending_install"
+  | "pending_uninstall"
+  | "pending_update"
+  | "failed_install"
+  | "failed_uninstall"
+  | "update_available";
+
+export interface IHostSoftwareUi extends IHostSoftware {
+  ui_status: IUiStatus;
+}
+
+type ISoftwareTableConfig = Column<IHostSoftwareUi>;
+type ITableHeaderProps = IHeaderProps<IHostSoftwareUi>;
+type ITableStringCellProps = IStringCellProps<IHostSoftwareUi>;
 type IInstalledStatusCellProps = CellProps<
-  IHostSoftware,
-  IHostSoftware["status"]
+  IHostSoftwareUi,
+  IHostSoftwareUi["ui_status"]
 >;
 type IVersionsCellProps = CellProps<
-  IHostSoftware,
-  IHostSoftware["installed_versions"]
+  IHostSoftwareUi,
+  IHostSoftwareUi["installed_versions"]
 >;
-type IActionCellProps = CellProps<IHostSoftware, IHostSoftware["status"]>;
+type IActionCellProps = CellProps<IHostSoftwareUi, IHostSoftwareUi["status"]>;
 
 interface IHostSWLibraryTableHeaders {
   userHasSWWritePermission: boolean;
@@ -107,7 +124,7 @@ export const generateHostSWLibraryTableHeaders = ({
     {
       Header: () => <HeaderCell disableSortBy value="Status" />,
       disableSortBy: true,
-      accessor: "status",
+      accessor: "ui_status",
       Cell: ({ row: { original } }: IInstalledStatusCellProps) => {
         return (
           <InstallStatusCell
@@ -152,7 +169,7 @@ export const generateHostSWLibraryTableHeaders = ({
     },
     {
       Header: "Actions",
-      accessor: (originalRow) => originalRow.status,
+      accessor: (originalRow) => originalRow.ui_status,
       disableSortBy: true,
       Cell: (cellProps: IActionCellProps) => {
         return (

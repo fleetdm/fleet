@@ -47,6 +47,7 @@ import {
   ICategory,
 } from "./helpers";
 import CategoriesMenu from "./CategoriesMenu";
+import { getUiStatus } from "../helpers";
 
 const baseClass = "software-self-service";
 
@@ -88,6 +89,14 @@ const SoftwareSelfService = ({
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
+
+  const enhancedSoftware = useMemo(() => {
+    if (!selfServiceData) return [];
+    return selfServiceData.software.map((software) => ({
+      ...software,
+      ui_status: getUiStatus(software, true),
+    }));
+  }, [selfServiceData]);
 
   const selectedSoftware = useRef<{
     softwareId: number;
@@ -377,7 +386,7 @@ const SoftwareSelfService = ({
           <TableContainer
             columnConfigs={tableConfig}
             data={filterSoftwareByCategory(
-              selfServiceData?.software || [],
+              enhancedSoftware || [],
               queryParams.category_id
             )}
             isLoading={isFetching}
