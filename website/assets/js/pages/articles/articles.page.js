@@ -80,6 +80,8 @@ parasails.registerPage('articles', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-
+    clickGotoStart: function() {
+      this.goto('/register');
+    },
   }
 });

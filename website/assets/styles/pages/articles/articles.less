@@ -232,64 +232,73 @@
 
 
   [purpose='sidebar-cta'] {
-    margin-top: 40px;
-    border: 1px solid @core-fleet-black-10;
-    border-radius: 16px;
-    overflow: hidden;
-    display: flex;
-    [purpose='sidebar-cta-image'] {
-      height: 144px;
-      background-image: url('/images/cta-cloud-city-256x145@2x.png');
-      background-size: contain;
-      background-color: #EAF8FD;
-      // background-position: -240px;
-      // background-position-x: bottom;
+    padding: 0px;
+    border-radius: 12px;
+    border: 1px solid #E2E4EA;
+    background: #FFF;
+    min-height: 290px;
+    text-align: center;
+    cursor: pointer;
+    margin-top: 24px;
+    margin-bottom: 8px;
+    max-width: 256px;
+    a {
+      text-decoration: none;
     }
-    [purpose='sidebar-cta-content'] {
+    &:hover {
+      box-shadow: 0px 0px 0px 3px rgba(0, 0, 0, 0.03);
+    }
+    [purpose='cta-image'] {
+      height: 145px;
+      background-image: url('/images/cloud-city-cta-256x145@2x.png');
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      background-size: 100% 145px;
+      background-position: center bottom;
+    }
+    [purpose='cta-text'] {
+      display: flex;
       flex-direction: column;
+      justify-content: center;
       align-items: center;
       padding: 0px 24px 24px 24px;
-      flex-grow: 1;
-      h2 {
-        color: var(--Fleet-Black-100, #192147);
+      h4 {
+        color: #192147;
         text-align: center;
-
-        /* Title S (FKA h4) */
-        font-family: Inter;
         font-size: 20px;
-        font-style: normal;
         font-weight: 800;
-        line-height: 24px; /* 120% */
-        padding: 0;
-        margin-bottom: 4px;
+        line-height: 120%;
+        margin-bottom: 0px;
       }
       p {
-        margin-bottom: 12px;
-        color: var(--Fleet-Black-75, #515774);
+        color: #515774;
         text-align: center;
-
-        /* Body SM (FKA Card text) */
-        font-family: Inter;
         font-size: 14px;
-        font-style: normal;
         font-weight: 400;
-        line-height: 20px; /* 142.857% */
+        line-height: 150%;
+        margin-bottom: 8px;
       }
     }
-    [purpose='cta-logos'] {
-      margin-top: 8px;
+    [purpose='cta-button'] {
+      display: flex;
+      width: 140px;
+      height: 36px;
+      padding: 16px 32px;
+      justify-content: center;
+      align-items: center;
+      color: #FFF;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 150%;
+      margin-bottom: 16px;
+    }
+    [purpose='cta-platform-icons'] {
       img {
         height: 16px;
-        margin-right: 16px;
-      }
-    }
-    [purpose='continue-button'] {
-      font-size: 14px;
-      padding: 6px 12px;
-      width: 131px;
-      margin-bottom: 8px;
-      &:hover {
-        color: #FFF;
+        &:not(:last-of-type) {
+          margin-right: 16px;
+        }
       }
     }
   }

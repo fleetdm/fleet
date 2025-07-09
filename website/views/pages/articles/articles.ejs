@@ -38,32 +38,34 @@
           <a href="/articles">Articles</a>
           <a href="/releases">Releases</a>
         </div>
-        <div purpose="sidebar-cta" class="flex-column justify-content-between">
-          <div purpose="sidebar-cta-image" ></div>
-          <div purpose="sidebar-cta-content" class="d-flex flex-column justify-content-center text-center">
-            <% if(!me){ %>
-            <h2>Try it out</h2>
-            <p>See what Fleet can do</p>
-            <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
+        <div purpose="sidebar-cta">
+          <a href="<% if(typeof me === 'undefined') {%>/register<% } else { %>/start<% } %>">
+          <div purpose="cta-image"></div>
+          <div purpose="cta-text">
+            <% if(typeof me === 'undefined'){ %>
+              <h4>Try it out</h4>
+              <p>See what Fleet can do</p>
+              <a purpose="cta-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
             <% } else if (['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) {%>
-            <h2>Tried Fleet yet?</h2>
-            <p>Continue getting started with Fleet</p>
-            <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+              <h4>Tried Fleet yet?</h4>
+              <p>Continue getting started with Fleet</p>
+              <a purpose="cta-button" class="btn btn-primary" href="/start">Continue</a>
             <% } else if (me.psychologicalStage === '4 - Has use case') {%>
-            <h2>Feeling confident?</h2>
-            <p>Get set up with Fleet</p>
-            <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+              <h4>Feeling confident?</h4>
+              <p>Get set up with Fleet</p>
+              <a purpose="cta-button" class="btn btn-primary" hredf="/start">Continue</a>
             <% } else if (['5 - Personally confident', '6 - Has team buy-in'].includes(me.psychologicalStage)) {%>
-              <h2>Talk to the team</h2>
+              <h4>Talk to the team</h4>
               <p>Let’s get you set up!</p>
-              <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+              <a purpose="cta-button" class="btn btn-primary" href="/start">Continue</a>
             <%}%>
-            <div purpose="cta-logos" class="d-flex flex-row align-items-center justify-content-end">
-              <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo">
-              <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-              <img class="mr-0" src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
-             </div>
+            <div purpose="cta-platform-icons" class="d-flex flex-row justify-content-between align-items-center">
+              <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS" />
+              <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows" />
+              <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux" />
+            </div>
           </div>
+          </a>
         </div>
       </div>
       <div purpose="article-rows">
