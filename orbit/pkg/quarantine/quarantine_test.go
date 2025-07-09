@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package quarantine
@@ -30,10 +31,10 @@ package quarantine
 // - Other traffic that might be necessary
 
 import (
+	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestIsQuarantinedWhenQuarantined(t *testing.T) {
@@ -63,5 +64,5 @@ func TestIsQuarantinedWhenNotQuarantined(t *testing.T) {
 	filename := filepath.Join(".", "I_am_quarantined")
 	os.Remove(filename)
 
-	assert.False(t, isQuarantined(), "expected isQuarantined to return true")
+	assert.False(t, isQuarantined(), "expected isQuarantined to return false")
 }

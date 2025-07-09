@@ -2,7 +2,6 @@
 
 package quarantine
 
-// TODO: in production code quarantine.go needs to be in a separate package
 import (
 	"encoding/json"
 	"net"
