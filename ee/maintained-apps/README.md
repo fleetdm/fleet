@@ -14,15 +14,7 @@
       "slug": "box-drive/darwin",
       "unique_identifier": "com.box.desktop",
       "token": "box-drive",
-      "installer_format": "pkg",
-      "pre_uninstall_scripts": [
-         "(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER fileproviderctl domain remove -A com.box.desktop.boxfileprovider)",
-         "(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER /Applications/Box.app/Contents/MacOS/fpe/streem --remove-fpe-domain-and-archive-unsynced-content Box)",
-         "(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER /Applications/Box.app/Contents/MacOS/fpe/streem --remove-fpe-domain-and-preserve-unsynced-content Box)",
-         "(cd /Users/$LOGGED_IN_USER; defaults delete com.box.desktop)",
-         "echo \"${LOGGED_IN_USER} ALL = (root) NOPASSWD: /Library/Application\\ Support/Box/uninstall_box_drive_r\" >> /etc/sudoers.d/box_uninstall"
-      ],
-      "post_uninstall_scripts": ["rm /etc/sudoers.d/box_uninstall"]
+      "installer_format": "pkg"
    }
    ```
 
@@ -78,11 +70,11 @@ Use `darwin` as the platform part.  For example, use a `slug` of `box-drive/darw
 
 #### `pre_uninstall_scripts` (optional)
 
-These are command lines that will be run _before_ the generated uninstall script is executed.
+These are command lines that will be run _before_ the generated uninstall script is executed, e.g. for [Box](inputs/homebrew/box-drive.json).
 
 #### `post_uninstall_scripts` (optional)
 
-These are command lines that will be run _after_ the generated uninstall script is executed.
+These are command lines that will be run _after_ the generated uninstall script is executed, e.g. for [Box](inputs/homebrew/box-drive.json).
 
 #### `default_categories` (required)
 
@@ -119,7 +111,7 @@ These are the default categories assigned to the installer in [self-service](htt
 
 5. Product designer is notified in the issue to add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671) and publish the icon as a part of the Software icon Figma component.
 
-6. The validator is responsible for adding the icon to Fleet
+6. The validator is responsible for adding the icon to Fleet (e.g. the TypeScript components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files))
 
 7. QA ensures the icon is added to Fleet
 
