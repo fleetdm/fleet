@@ -20,14 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
-	// ===============================
-	// Initial setup
-	// ===============================
-
+func (s *integrationMDMTestSuite) setVPPTokenForTeam(teamID uint) {
 	t := s.T()
-	s.setSkipWorkerJobs(t)
-
 	// Valid token
 	orgName := "Fleet Device Management Inc."
 	token := "mycooltoken"
@@ -45,6 +39,27 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
 	require.NoError(t, resp.Err)
 
+	// Associate team to the VPP token.
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{teamID}}, http.StatusOK, &resPatchVPP)
+
+}
+
+func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
+	// ===============================
+	// Initial setup
+	// ===============================
+
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	// Create a team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.setVPPTokenForTeam(team.ID)
+
 	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
 		var titleID uint
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -54,15 +69,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 		return titleID
 	}
-
-	// Create a team
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
-	team := newTeamResp.Team
-
-	// Associate team to the VPP token.
-	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// Add macOS and iOS apps to team 1
 	macOSApp := &fleet.VPPApp{

@@ -3792,8 +3792,7 @@ func NewInstalledApplicationListResultsHandler(
 
 		installedApps := installedAppResult.AvailableApps()
 
-		// Get expectedInstalls that should be verified by this InstalledApplicationList command
-		expectedInstalls, err := ds.GetVPPInstallsByVerificationUUID(ctx, installedAppResult.HostUUID())
+		expectedInstalls, err := ds.GetUnverifiedVPPInstallsForHost(ctx, installedAppResult.HostUUID())
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				// Then something weird happened, so log it and exit (we can't do anything here in this case).
@@ -3814,24 +3813,21 @@ func NewInstalledApplicationListResultsHandler(
 
 		var poll, shouldRefetch bool
 		for _, expectedInstall := range expectedInstalls {
-			fmt.Printf("processing expectedInstall: %+v\n", expectedInstall)
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
 			// These are not pointers, so no need to check `ok` here.
 			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
 
-			fmt.Printf("got appFromResult: %+v\n", appFromResult)
-
 			var terminalStatus string
 			switch {
 			case appFromResult.Installed:
-				if err := ds.SetVPPInstallAsVerified(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID); err != nil {
+				if err := ds.SetVPPInstallAsVerified(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
 				terminalStatus = fleet.MDMAppleStatusAcknowledged
 				shouldRefetch = true
 			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
-				if err := ds.SetVPPInstallAsFailed(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID); err != nil {
+				if err := ds.SetVPPInstallAsFailed(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
 
@@ -3872,9 +3868,6 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 		}
-
-		fmt.Printf("shouldRefetch: %v\n", shouldRefetch)
-		fmt.Printf("poll: %v\n", poll)
 
 		if poll {
 			// Queue a job to verify the VPP install.
