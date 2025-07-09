@@ -57,6 +57,7 @@ interface IHostInstallersProps {
   hostScriptsEnabled?: boolean;
   hostMDMEnrolled?: boolean;
   isHostOnline?: boolean;
+  refetchHostDetails: () => void;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -107,6 +108,7 @@ const HostSoftwareLibrary = ({
   isSoftwareEnabled = false,
   hostMDMEnrolled,
   isHostOnline = false,
+  refetchHostDetails,
 }: IHostInstallersProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const {
@@ -177,6 +179,12 @@ const HostSoftwareLibrary = ({
             )
             .map((software) => String(software.id))
         );
+
+        // Refresh host details if the number of pending installs or uninstalls has decreased
+        // To update the software library information of the newly installed/uninstalled software
+        if (newPendingSet.size < pendingSoftwareSetRef.current.size) {
+          refetchHostDetails();
+        }
 
         // Compare new set with the previous set
         const setsAreEqual =
