@@ -1,6 +1,7 @@
 package externalrefs
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -31,5 +32,5 @@ func MicrosoftVersionFromReleaseNotes(args ...interface{}) (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("input version not provided")
+	return "", errors.New("input version not provided")
 }

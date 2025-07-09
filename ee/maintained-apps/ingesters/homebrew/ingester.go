@@ -144,7 +144,11 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 
 	out.Name = app.Name
 	if app.VersionRef != "" {
-		version, err := externalrefs.Funcs[app.VersionRef](cask.Version)
+		versionFunc, exists := externalrefs.Funcs[app.VersionRef]
+		if !exists {
+			return nil, ctxerr.NewWithData(ctx, "unknown version reference function", map[string]any{"version_ref": app.VersionRef, "unique_identifier": app.UniqueIdentifier})
+		}
+		version, err := versionFunc(cask.Version)
 		if err != nil {
 			return nil, ctxerr.WrapWithData(ctx, err, "getting version for maintained app", map[string]any{"unique_identifier": app.UniqueIdentifier})
 		}
