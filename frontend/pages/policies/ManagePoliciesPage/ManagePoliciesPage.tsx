@@ -118,9 +118,8 @@ const ManagePolicyPage = ({
     setFilteredPoliciesPath,
     filteredPoliciesPath,
   } = useContext(AppContext);
-  // const isPrimoMode =
-  //   globalConfigFromContext?.partnerships?.enable_primo || false;
-  const isPrimoMode = true;
+  const isPrimoMode =
+    globalConfigFromContext?.partnerships?.enable_primo || false;
 
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
@@ -326,10 +325,10 @@ const ManagePolicyPage = ({
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       select: (data: ILoadTeamPoliciesResponse) => data.policies || [],
       onSuccess: (data) => {
-        const allPoliciesAvailableToAutomate = data.filter(
+        const teamPoliciesAvailableToAutomate = data.filter(
           (policy: IPolicy) => policy.team_id === currentTeamId
         );
-        setPoliciesAvailableToAutomate(allPoliciesAvailableToAutomate || []);
+        setPoliciesAvailableToAutomate(teamPoliciesAvailableToAutomate || []);
       },
     }
   );
@@ -522,15 +521,19 @@ const ManagePolicyPage = ({
   }) => {
     setIsUpdatingPolicies(true);
     try {
-      await (!isAllTeamsSelected
-        ? teamsAPI.update(requestBody, teamIdForApi)
-        : configAPI.update(requestBody));
+      if (isAllTeamsSelected || isPrimoMode) {
+        // primo mode updates as global, though sources available policies from No team
+        await configAPI.update(requestBody);
+      } else {
+        await teamsAPI.update(requestBody, teamIdForApi);
+      }
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
       renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
+      // TODO - need to change this?
       !isAllTeamsSelected ? refetchTeamConfig() : refetchGlobalConfig();
     }
   };
@@ -1225,7 +1228,7 @@ const ManagePolicyPage = ({
   }
 
   const renderHeader = () => {
-    if (isPremiumTier && !globalConfigFromContext?.partnerships?.enable_primo) {
+    if (isPremiumTier && !isPrimoMode) {
       if ((userTeams && userTeams.length > 1) || isOnGlobalTeam) {
         return (
           <TeamsDropdown
@@ -1297,11 +1300,11 @@ const ManagePolicyPage = ({
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
             availableIntegrations={automationsConfig.integrations}
-            availablePolicies={policiesAvailableToAutomate} // todo: confirm
+            availablePolicies={policiesAvailableToAutomate} // approach - leave as no team, have update target all teams
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
-            onSubmit={onUpdateOtherWorkflows} // todo: confirm
-            teamId={currentTeamId ?? 0} // todo: confirm
+            onSubmit={onUpdateOtherWorkflows} // approach - update as if All teams
+            teamId={currentTeamId ?? 0} // todo: confirm - primoMode same as all teams
             gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
