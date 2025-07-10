@@ -67,15 +67,15 @@ locals {
     # ELASTIC_APM_SERVER_URL                     = var.elastic_url
     # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     # ELASTIC_APM_SERVICE_NAME                   = "dogfood"
-    FLEET_CALENDAR_PERIODICITY            = var.fleet_calendar_periodicity
-    FLEET_DEV_ANDROID_ENABLED             = "1"
-    FLEET_DEV_ANDROID_SERVICE_CREDENTIALS = var.android_service_credentials
+    FLEET_CALENDAR_PERIODICITY = var.fleet_calendar_periodicity
     # Webhook Results & Status Logging Destination
     FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
     FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
     FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
+  }
+  entra_conditional_access_secrets = {
     # Entra Conditional Access Proxy API Key
-    # FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY = aws_secretsmanager_secret.entra_conditional_access.arn
+    FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY = aws_secretsmanager_secret.entra_conditional_access.arn
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
@@ -156,6 +156,7 @@ module "main" {
       module.cloudfront-software-installers.extra_execution_iam_policies,
     ) #, module.saml_auth_proxy.fleet_extra_execution_policies)
     extra_secrets = merge(
+      local.entra_conditional_access_secrets,
       module.mdm.extra_secrets,
       local.sentry_secrets,
       module.cloudfront-software-installers.extra_secrets
