@@ -60,7 +60,15 @@ module.exports = {
 
     if (false) {
       // FUTURE: handle more webhook events here
-    } else if (eventName === 'receive-new-customer-data') {
+    } else if (eventName === 'crm-opportunity-stage-updated') {
+      //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┬ ┬┌┐┌┬┌┬┐┬ ┬     ┌─┐┌┬┐┌─┐┌─┐┌─┐
+      //  ║  ╠╦╝║║║───  │ │├─┘├─┘│ │├┬┘ │ │ │││││ │ └┬┘───  └─┐ │ ├─┤│ ┬├┤
+      //  ╚═╝╩╚═╩ ╩     └─┘┴  ┴  └─┘┴└─ ┴ └─┘┘└┘┴ ┴  ┴      └─┘ ┴ ┴ ┴└─┘└─┘
+      //  ┌─┐┌┐┌  ┬ ┬┌─┐┌┬┐┌─┐┌┬┐┌─┐
+      //  │ ││││  │ │├─┘ ││├─┤ │ ├┤
+      //  └─┘┘└┘  └─┘┴  ─┴┘┴ ┴ ┴ └─┘
+      // TODO
+    } else if (eventName === 'receive-new-customer-data') {// FUTURE: rename this event to match naming convention of others ("crm-account-marketing-stage-updated")
       //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬ ┬┌┐┌┌┬┐    ┌┬┐┌─┐┬─┐┬┌─┌─┐┌┬┐┬┌┐┌┌─┐  ┌─┐┌┬┐┌─┐┌─┐┌─┐
       //  ║  ╠╦╝║║║───  ├─┤│  │  │ ││ ││││ │───  │││├─┤├┬┘├┴┐├┤  │ │││││ ┬  └─┐ │ ├─┤│ ┬├┤
       //  ╚═╝╩╚═╩ ╩     ┴ ┴└─┘└─┘└─┘└─┘┘└┘ ┴     ┴ ┴┴ ┴┴└─┴ ┴└─┘ ┴ ┴┘└┘└─┘  └─┘ ┴ ┴ ┴└─┘└─┘
@@ -148,7 +156,7 @@ module.exports = {
           },
         }).retry();
       }
-    } else if(eventName === 'update-placeholder-campaign-urn') {
+    } else if(eventName === 'update-placeholder-campaign-urn') {// FUTURE: rename this event to match naming convention of others  ("crm-account-marketing-stage-updated-part2-hack")
       //  ┌─  ┬ ┬┌─┐┬┬─┐┌┬┐  ┬ ┬┌─┐┌─┐┬┌─  ─┐
       //  │   │││├┤ │├┬┘ ││  ├─┤├─┤│  ├┴┐   │
       //  └─  └┴┘└─┘┴┴└──┴┘  ┴ ┴┴ ┴└─┘┴ ┴  ─┘
