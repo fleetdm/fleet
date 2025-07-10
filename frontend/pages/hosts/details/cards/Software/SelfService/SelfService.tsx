@@ -116,11 +116,11 @@ const SoftwareSelfService = ({
         scope: "device_software",
         id: deviceToken,
         page: queryParams.page,
-        query: queryParams.query,
+        query: "", // Search is now client-side to reduce API calls
         ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
       },
     ];
-  }, [deviceToken, queryParams.page, queryParams.query]);
+  }, [deviceToken, queryParams.page]);
 
   // Fetch self-service software (regular API call)
   const { isLoading, isError, isFetching } = useQuery<
@@ -399,6 +399,9 @@ const SoftwareSelfService = ({
             pageIndex={0}
             disableNextPage={selfServiceData?.meta.has_next_results === false}
             pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
+            searchQuery={queryParams.query} // Search is now client-side to reduce API calls
+            searchQueryColumn="name"
+            isClientSideFilter
             isClientSidePagination
             emptyComponent={() => {
               return isEmptySearch ? (
@@ -422,7 +425,6 @@ const SoftwareSelfService = ({
             }}
             showMarkAllPages={false}
             isAllPagesSelected={false}
-            searchable={false}
             disableTableHeader
             disableCount
           />
