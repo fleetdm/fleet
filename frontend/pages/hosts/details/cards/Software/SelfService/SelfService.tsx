@@ -53,12 +53,14 @@ const baseClass = "software-self-service";
 
 // These default params are not subject to change by the user
 const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
-  per_page: 9999, // Note: There is no pagination on this page because of time constraints (e.g. categories and install statuses are not filtered by API)
+  per_page: 9999, // Note: There is no API pagination on this page because of time constraints (e.g. categories and install statuses are not filtered by API)
   order_key: "name",
   order_direction: "asc",
   self_service: true,
   category_id: undefined,
 } as const;
+
+const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
 
 export interface ISoftwareSelfServiceProps {
   contactUrl: string;
@@ -396,7 +398,8 @@ const SoftwareSelfService = ({
             }
             pageIndex={0}
             disableNextPage={selfServiceData?.meta.has_next_results === false}
-            pageSize={DEFAULT_SELF_SERVICE_QUERY_PARAMS.per_page}
+            pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
+            isClientSidePagination
             emptyComponent={() => {
               return isEmptySearch ? (
                 <EmptyTable

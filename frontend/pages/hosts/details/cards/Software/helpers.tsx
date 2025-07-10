@@ -1,6 +1,11 @@
 import { QueryParams } from "utilities/url";
+import { Row } from "react-table";
 import { flatMap } from "lodash";
-import { IHostSoftware, IHostSoftwareUiStatus } from "interfaces/software";
+import {
+  IHostSoftware,
+  IHostSoftwareUiStatus,
+  IHostSoftwareWithUiStatus,
+} from "interfaces/software";
 import { IconNames } from "components/icons";
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams
@@ -205,4 +210,46 @@ export const getInstallerActionButtonConfig = (
         return { text: "Uninstall", icon: "trash" };
     }
   }
+};
+
+// Install status sorting utilities
+
+const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
+  "failed_install", // Failed
+  "failed_uninstall", // Failed uninstall
+  "update_available", // Update available
+  "updating", // Updating...
+  "pending_update", // Update (pending)
+  "installing", // Installing...
+  "pending_install", // Install (pending)
+  "uninstalling", // Uninstalling...
+  "pending_uninstall", // Uninstall (pending)
+  "installed", // Installed
+  "uninstalled", // Empty (---)
+];
+
+/** Status column custom sortType */
+export const installStatusSortType = (
+  rowA: Row<IHostSoftwareWithUiStatus>,
+  rowB: Row<IHostSoftwareWithUiStatus>,
+  columnId: string
+) => {
+  // Type assertion ensures only valid status strings or undefined
+  const statusA = rowA.original[columnId as keyof IHostSoftwareWithUiStatus] as
+    | IHostSoftwareUiStatus
+    | undefined;
+  const statusB = rowB.original[columnId as keyof IHostSoftwareWithUiStatus] as
+    | IHostSoftwareUiStatus
+    | undefined;
+
+  const indexA = INSTALL_STATUS_SORT_ORDER.indexOf(statusA ?? "uninstalled");
+  const indexB = INSTALL_STATUS_SORT_ORDER.indexOf(statusB ?? "uninstalled");
+
+  // If not found, put at end
+  const safeIndexA = indexA === -1 ? INSTALL_STATUS_SORT_ORDER.length : indexA;
+  const safeIndexB = indexB === -1 ? INSTALL_STATUS_SORT_ORDER.length : indexB;
+
+  if (safeIndexA < safeIndexB) return -1;
+  if (safeIndexA > safeIndexB) return 1;
+  return 0;
 };
