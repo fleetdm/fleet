@@ -14,7 +14,7 @@ See the "Go linter" section below about upgrading the Go linter version.
 
 ## Upgrading go for all Fleet
 
-Run `make update-go version=1.24.4` and update the SHA256 of the updated Dockerfiles manually.
+Run `make update-go version={target_version}` (for example, `make update-go version=1.24.5`) and update the SHA256 of the updated Dockerfiles manually.
 
 ### Go Linter
 
