@@ -560,7 +560,7 @@ This activity contains the following fields:
   "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
-  "personal": false,
+  "personal_host": false,
   "mdm_platform": "apple"
 }
 ```
