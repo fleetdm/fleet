@@ -1,6 +1,7 @@
 import { QueryParams } from "utilities/url";
 import { flatMap } from "lodash";
-import { IHostSoftware } from "interfaces/software";
+import { IHostSoftware, IHostSoftwareUiStatus } from "interfaces/software";
+import { IconNames } from "components/icons";
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams
 export const getHostSoftwareFilterFromQueryParams = (
@@ -107,7 +108,10 @@ const getInstallerVersion = (software: IHostSoftware) => {
 
 // TODO: Confirm with Marko the heirarchy of statuses
 // UI_STATUS UTILITIES
-export const getUiStatus = (software: IHostSoftware, isHostOnline: boolean) => {
+export const getUiStatus = (
+  software: IHostSoftware,
+  isHostOnline: boolean
+): IHostSoftwareUiStatus => {
   const { status, installed_versions } = software;
 
   const installerVersion = getInstallerVersion(software);
@@ -151,4 +155,54 @@ export const getUiStatus = (software: IHostSoftware, isHostOnline: boolean) => {
 
   // Default fallback status when no other conditions are met
   return "uninstalled"; // fallback
+};
+
+// Library/Self-Service Action Button Configurations
+export interface IButtonDisplayConfig {
+  install: {
+    text: string;
+    icon: IconNames;
+  };
+  uninstall: {
+    text: string;
+    icon: IconNames;
+  };
+}
+
+type ButtonType = "install" | "uninstall";
+
+interface IButtonConfig {
+  text: string;
+  icon: IconNames;
+}
+
+/** Display text and icon are shared across self-service and
+ * host details > library action buttons */
+export const getInstallerActionButtonConfig = (
+  type: ButtonType,
+  status: IHostSoftwareUiStatus
+): IButtonConfig => {
+  if (type === "install") {
+    switch (status) {
+      case "failed_install":
+        return { text: "Retry", icon: "refresh" };
+      case "installed":
+      case "pending_uninstall":
+      case "failed_uninstall":
+        return { text: "Reinstall", icon: "refresh" };
+      case "pending_update":
+      case "update_available":
+        return { text: "Update", icon: "refresh" };
+      default:
+        return { text: "Install", icon: "install" };
+    }
+  } else {
+    // uninstall
+    switch (status) {
+      case "failed_uninstall":
+        return { text: "Retry uninstall", icon: "refresh" };
+      default:
+        return { text: "Uninstall", icon: "trash" };
+    }
+  }
 };

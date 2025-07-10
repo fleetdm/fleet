@@ -1,7 +1,11 @@
 import React, { ReactNode } from "react";
 
 import { dateAgo } from "utilities/date_format";
-import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
+import {
+  IHostSoftware,
+  IHostSoftwareWithUiStatus,
+  IHostSoftwareUiStatus,
+} from "interfaces/software";
 import { Colors } from "styles/var/colors";
 
 import Icon from "components/Icon";
@@ -10,7 +14,6 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import { IHostSoftwareUi } from "../../HostSoftwareLibrary/HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 
 const baseClass = "install-status-cell";
 
@@ -24,7 +27,6 @@ interface InstallUuid {
 
 export type InstallOrCommandUuid = CommandUuid | InstallUuid;
 
-type IStatusValue = SoftwareInstallStatus;
 interface DisplayTextArgs {
   isSelfService?: boolean;
   isHostOnline?: boolean;
@@ -51,12 +53,7 @@ export type IStatusDisplayConfig = {
 
 // Similar to SelfServiceTableConfig STATUS_CONFIG
 export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
-  | Exclude<IStatusValue, "uninstalled">
-  | "pending_update"
-  | "update_available"
-  | "installing"
-  | "uninstalling"
-  | "updating",
+  Exclude<IHostSoftwareUiStatus, "uninstalled">, // Uninstalled is handled separately with empty cell
   IStatusDisplayConfig
 > = {
   installed: {
@@ -216,7 +213,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
 };
 
 type IInstallStatusCellProps = {
-  software: IHostSoftwareUi;
+  software: IHostSoftwareWithUiStatus;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
   onShowInstallDetails?: (uuid?: InstallOrCommandUuid) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
@@ -258,29 +255,6 @@ const getEmptyCellTooltip = (hasAppStoreApp: boolean, softwareName?: string) =>
       <br /> Select <b>Actions &gt; Install</b> to install.
     </>
   );
-
-// const getDisplayStatus = (software: IHostSoftwareUi) => {
-//   const hasInstalledVersions =
-//     Array.isArray(software.installed_versions) &&
-//     software.installed_versions.length > 0;
-
-//   console.log("software", software);
-//   console.log("hasInstalledVersions", hasInstalledVersions);
-//   const status = software.ui_status as
-//     | keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS
-//     | undefined;
-
-//   // Installed source of truth is not fleet install status but installed_versions
-//   if (status !== "installed") {
-//     return status;
-//   }
-
-//   if (hasInstalledVersions) {
-//     return "installed";
-//   }
-
-//   return null;
-// };
 
 const InstallStatusCell = ({
   software,
@@ -341,21 +315,8 @@ const InstallStatusCell = ({
   };
 
   const onClickUpdateAvailableStatus = () => {
-    // if (onShowUninstallDetails && lastUninstall) {
-    //   if ("script_execution_id" in lastUninstall) {
-    //     onShowUninstallDetails({
-    //       ...lastUninstall,
-    //       status: software.status || undefined,
-    //       software_title: software.name,
-    //       host_display_name: hostName,
-    //     });
-    //   } else {
-    //     onShowUninstallDetails(undefined);
-    //   }
-    // } else if (onShowSoftwareDetails) {
-    //   onShowSoftwareDetails(software);
-    // }
-    // TODO: Replace with update available modal
+    // onShowUpdateDetails(software);
+    // TODO: Finish implementation to show new update details modal
   };
 
   const renderDisplayStatus = () => {
