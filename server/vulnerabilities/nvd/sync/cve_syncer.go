@@ -489,22 +489,36 @@ func transformVuln(item nvdapi.CVEItem) nvdapi.CVEItem {
 		item.CVE.Configurations[0].Nodes[0].CPEMatch = item.CVE.Configurations[0].Nodes[0].CPEMatch[0:1]
 	}
 
-	// Handle NVD PowerShell version format normalization
+	// Handle NVD PowerShell version format normalization by adding translated CPE entries
 	// 1. Version: 7.5 → 7.5.0
 	// 2. RC notation: preview1 → rc.1
 	if item.CVE.ID != nil && (*item.CVE.ID == "CVE-2025-21171" || *item.CVE.ID == "CVE-2025-30399") {
 		for i := range item.CVE.Configurations {
 			for j := range item.CVE.Configurations[i].Nodes {
+				var additionalCPEMatches []nvdapi.CVECPEMatch
+
 				for k := range item.CVE.Configurations[i].Nodes[j].CPEMatch {
-					cpeMatch := &item.CVE.Configurations[i].Nodes[j].CPEMatch[k]
-					criteria := cpeMatch.Criteria
+					originalCPE := item.CVE.Configurations[i].Nodes[j].CPEMatch[k]
 
-					criteria = strings.Replace(criteria, "microsoft:powershell:7.5:", "microsoft:powershell:7.5.0:", 1)
-					previewRegex := regexp.MustCompile(`:preview(\d+):`)
-					criteria = previewRegex.ReplaceAllString(criteria, ":rc.$1:")
+					if strings.Contains(originalCPE.Criteria, "microsoft:powershell:7.5:") ||
+						regexp.MustCompile(`:preview\d+:`).MatchString(originalCPE.Criteria) {
 
-					cpeMatch.Criteria = criteria
+						// Create a copy of the original CPE
+						translatedCPE := originalCPE
+						translatedCriteria := originalCPE.Criteria
+						translatedCriteria = strings.Replace(translatedCriteria, "microsoft:powershell:7.5:", "microsoft:powershell:7.5.0:", 1)
+						previewRegex := regexp.MustCompile(`:preview(\d+):`)
+						translatedCriteria = previewRegex.ReplaceAllString(translatedCriteria, ":rc.$1:")
+						translatedCPE.Criteria = translatedCriteria
+
+						additionalCPEMatches = append(additionalCPEMatches, translatedCPE)
+					}
 				}
+
+				item.CVE.Configurations[i].Nodes[j].CPEMatch = append(
+					item.CVE.Configurations[i].Nodes[j].CPEMatch,
+					additionalCPEMatches...,
+				)
 			}
 		}
 	}
