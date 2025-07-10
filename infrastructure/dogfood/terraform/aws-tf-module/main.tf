@@ -74,6 +74,8 @@ locals {
     FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
     FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
     FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
+    # Entra Conditional Access Proxy API Key
+    # FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY = aws_secretsmanager_secret.entra_conditional_access.arn
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
@@ -165,9 +167,9 @@ module "main" {
     #   container_port   = 8080
     # }]
     software_installers = {
-      bucket_prefix  = "${local.customer}-software-installers-"
-      create_kms_key = true
-      kms_alias      = "${local.customer}-software-installers"
+      bucket_prefix                      = "${local.customer}-software-installers-"
+      create_kms_key                     = true
+      kms_alias                          = "${local.customer}-software-installers"
       enable_bucket_versioning           = true
       expire_noncurrent_versions         = true
       noncurrent_version_expiration_days = 30
