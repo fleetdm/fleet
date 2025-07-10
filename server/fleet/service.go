@@ -181,7 +181,7 @@ type Service interface {
 	// different from InitiateSSO because it receives a different
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
-	InitiateMDMAppleSSO(ctx context.Context) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+	InitiateMDMAppleSSO(ctx context.Context, initiator string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
 	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.
@@ -191,6 +191,9 @@ type Service interface {
 	// credentials are valid, then responds with a URL to the Fleet UI to
 	// handle next steps based on the query parameters provided.
 	MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string
+
+	// GetMDMSSOURL returns the URL to redirect to for MDM SSO Authentication
+	GetMDMSSOURL(ctx context.Context) (string, error)
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
@@ -835,7 +838,7 @@ type Service interface {
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
 
 	// TODO EJM
-	GetMDMAppleAccountEnrollmentProfile(ctx context.Context) (profile []byte, err error)
+	GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollReference string) (profile []byte, err error)
 	SkipAuth(ctx context.Context)
 
 	// ReconcileMDMAppleEnrollRef reconciles the enrollment reference for the

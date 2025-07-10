@@ -39,6 +39,8 @@ const (
 
 	// EnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
 	EnrollPath = "/api/mdm/apple/enroll"
+	// AccountDrivenEnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
+	AccountDrivenEnrollPath = "/api/mdm/apple/account_driven_enroll"
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
 
@@ -1106,7 +1108,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 </dict>
 </plist>`))
 
-var accountBasedUserEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`
+var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -1212,6 +1214,37 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		SCEPChallenge: scepChallenge,
 		Topic:         topic,
 		ServerURL:     serverURL,
+	}); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func GenerateAccountDrivenEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic, assignedManagedAppleID string) ([]byte, error) {
+	scepURL, err := ResolveAppleSCEPURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
+	}
+	serverURL, err := ResolveAppleMDMURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := accountDrivenUserEnrollmentProfileMobileconfigTemplate.Funcs(funcMap).Execute(&buf, struct {
+		Organization           string
+		SCEPURL                string
+		SCEPChallenge          string
+		Topic                  string
+		ServerURL              string
+		AssignedManagedAppleID string
+	}{
+		Organization:           orgName,
+		SCEPURL:                scepURL,
+		SCEPChallenge:          scepChallenge,
+		Topic:                  topic,
+		ServerURL:              serverURL,
+		AssignedManagedAppleID: assignedManagedAppleID,
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
