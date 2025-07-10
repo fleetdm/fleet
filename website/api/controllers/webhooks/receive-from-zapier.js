@@ -60,14 +60,32 @@ module.exports = {
 
     if (false) {
       // FUTURE: handle more webhook events here
-    } else if (eventName === 'crm-account-stage-updated') {
-      //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┬ ┬┌┐┌┬┌┬┐┬ ┬     ┌─┐┌┬┐┌─┐┌─┐┌─┐
-      //  ║  ╠╦╝║║║───  │ │├─┘├─┘│ │├┬┘ │ │ │││││ │ └┬┘───  └─┐ │ ├─┤│ ┬├┤
-      //  ╚═╝╩╚═╩ ╩     └─┘┴  ┴  └─┘┴└─ ┴ └─┘┘└┘┴ ┴  ┴      └─┘ ┴ ┴ ┴└─┘└─┘
-      //  ┌─┐┌┐┌  ┬ ┬┌─┐┌┬┐┌─┐┌┬┐┌─┐
-      //  │ ││││  │ │├─┘ ││├─┤ │ ├┤
-      //  └─┘┘└┘  └─┘┴  ─┴┘┴ ┴ ┴ └─┘
-      // TODO: change trhis to be on-create, set up the zap, and have it (for now) ping a slack channel to suggest setting up a POV environment (we can try that manually first)
+    } else if (eventName === 'crm-opportunity-created') {
+      //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┬ ┬┌┐┌┬┌┬┐┬ ┬
+      //  ║  ╠╦╝║║║───  │ │├─┘├─┘│ │├┬┘ │ │ │││││ │ └┬┘
+      //  ╚═╝╩╚═╩ ╩     └─┘┴  ┴  └─┘┴└─ ┴ └─┘┘└┘┴ ┴  ┴
+      //  ┌─┐┌┐┌  ┌─┐┬─┐┌─┐┌─┐┌┬┐┌─┐
+      //  │ ││││  │  ├┬┘├┤ ├─┤ │ ├┤
+      //  └─┘┘└┘  └─┘┴└─└─┘┴ ┴ ┴ └─┘
+      // Zap: Invoked as final step from within https://zapier.com/editor/308696574
+      assert(_.isObject(data));
+      assert(_.isString(data.id));
+      assert(_.isString(data.type));
+      assert(_.isString(data.primaryBuyingSituation));
+      assert(_.isString(data.accountId));
+      assert(_.isString(data.acountName));
+      assert(_.isString(data.acountRating));
+      assert(_.isString(data.accountLinkedinCompanyUrl));
+
+      // https://api.slack.com/apps/A0955UYH529/incoming-webhooks
+      await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForNewlyCreatedOppts, {
+        text: `New logo opportunity created (${data.accountName} ${data.accountRating}):\n`+
+        `Is now a good time to create a PoV environment ahead of our upcoming meeting?\n`+
+        '\n'+
+        `https://fleetdm.lightning.force.com/lightning/r/Account/${encodeURIComponent(data.id)}/view`
+      });
+      // FUTURE: do more
+
     } else if (eventName === 'receive-new-customer-data') {// FUTURE: rename this event to match naming convention of others ("crm-account-marketing-stage-updated")
       //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬ ┬┌┐┌┌┬┐    ┌┬┐┌─┐┬─┐┬┌─┌─┐┌┬┐┬┌┐┌┌─┐  ┌─┐┌┬┐┌─┐┌─┐┌─┐
       //  ║  ╠╦╝║║║───  ├─┤│  │  │ ││ ││││ │───  │││├─┤├┬┘├┴┐├┤  │ │││││ ┬  └─┐ │ ├─┤│ ┬├┤

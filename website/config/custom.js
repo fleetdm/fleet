@@ -401,6 +401,7 @@ module.exports.custom = {
 
   // Contact form:
   // slackWebhookUrlForContactForm: '…',
+  // slackWebhookUrlForNewlyCreatedOppts: '…',
 
   // GitHub bot:
   // githubAccessToken: '…',
