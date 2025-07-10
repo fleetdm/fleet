@@ -37,6 +37,7 @@ env:
   TF_VAR_android_service_credentials: ${{ secrets.FLEET_DEV_ANDROID_SERVICE_CREDENTIALS }}
   TF_VAR_cloudfront_public_key: ${{ secrets.CLOUDFRONT_SIGNING_PUBLIC_KEY }}
   TF_VAR_cloudfront_private_key: ${{ secrets.CLOUDFRONT_SIGNING_PRIVATE_KEY }}
+  TF_VAR_entra_api_key: ${{ secrets.DOGFOOD_FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY }}
 
 permissions:
   id-token: write
