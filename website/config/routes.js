@@ -1050,5 +1050,5 @@ module.exports.routes = {
   // Well known resources https://datatracker.ietf.org/doc/html/rfc8615
   // =============================================================================================================
   // Temporary enroll endpoint for https://github.com/fleetdm/fleet/issues/27391
-  'GET /.well-known/com.apple.remotemanagement': (req, res)=>{ return res.json({'Servers':[{'Version':'mdm-byod', 'BaseURL':'https://getvictor.ngrok.io/api/mdm/apple/enroll?token=bozo'}]});},
+  'GET /.well-known/com.apple.remotemanagement': (req, res)=>{ return res.json({'Servers':[{'Version':'mdm-byod', 'BaseURL':'https://https://jordan-fleetdm.ngrok.app/api/mdm/apple/account_driven_enrollment'}]});},
 };
