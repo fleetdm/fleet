@@ -27,7 +27,7 @@ Update the instructions in the [Testing and local development doc](https://githu
 1. Build `fleet` and `fleetctl` using `make build`. 
 2. Verify that `fleet serve` runs, the site is accessible, and basic API/db functionality works (try creating a new team, query and policy)
 3. Verify that `fleetctl` works by using `fleetctl get config`
-4. Run `make go-lint` locally to find and fix any new issues.
+4. Run `make lint-go` locally to find and fix any new issues.
 5. Create a draft pull request from your branch and verify that tests pass.
 
 ## Updating this guide
