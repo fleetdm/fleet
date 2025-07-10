@@ -52,6 +52,10 @@
 
   &__item-action {
     min-width: 82px;
+
+    .component__tooltip-wrapper {
+      margin: 0; // Override 10px vertical margin
+    }
   }
 
   .host-sw-library-table {

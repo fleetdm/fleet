@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -11,24 +11,34 @@ import {
 } from "interfaces/software";
 import { IconNames } from "components/icons";
 import {
-  getInstallButtonText,
-  getInstallButtonIcon,
-  getUninstallButtonText,
-  getUninstallButtonIcon,
-} from "../../Software/SelfService/SelfServiceTableConfig";
+  getInstallerActionButtonConfig,
+  IButtonDisplayConfig,
+} from "../../Software/helpers";
 
-export interface generateActionsProps {
+interface IActionButtonState {
+  installDisabled: boolean;
+  installTooltip?: React.ReactNode;
+  uninstallDisabled: boolean;
+  uninstallTooltip?: React.ReactNode;
+}
+
+export interface IActionButtonProps {
   hostScriptsEnabled: boolean;
   softwareId: number;
   status: SoftwareInstallStatus | null;
-  software_package: IHostSoftwarePackage | null;
-  app_store_app: IHostAppStoreApp | null;
+  softwarePackage: IHostSoftwarePackage | null;
+  appStoreApp: IHostAppStoreApp | null;
   hostMDMEnrolled?: boolean;
 }
 
-interface DisplayActionItems {
-  install: { text: string; icon: IconNames };
-  uninstall: { text: string; icon: IconNames };
+interface IInstallerActionButtonProps {
+  baseClass: string;
+  tooltip?: React.ReactNode;
+  disabled: boolean;
+  onClick: () => void;
+  icon: IconNames;
+  text: string;
+  testId?: string;
 }
 
 interface IInstallerActionCellProps {
@@ -40,26 +50,19 @@ interface IInstallerActionCellProps {
   hostMDMEnrolled?: boolean;
 }
 
-interface IButtonActionState {
-  installDisabled: boolean;
-  installTooltip?: React.ReactNode;
-  uninstallDisabled: boolean;
-  uninstallTooltip?: React.ReactNode;
-}
-
-export const getButtonActionState = ({
+export const getActionButtonState = ({
   hostScriptsEnabled,
   status,
-  app_store_app,
+  appStoreApp,
   hostMDMEnrolled,
-}: generateActionsProps): IButtonActionState => {
+}: IActionButtonProps): IActionButtonState => {
   const pendingStatuses = ["pending_install", "pending_uninstall"];
   let installDisabled = false;
   let uninstallDisabled = false;
   let installTooltip: React.ReactNode | undefined;
   let uninstallTooltip: React.ReactNode | undefined;
 
-  if (!hostScriptsEnabled && !app_store_app) {
+  if (!hostScriptsEnabled && !appStoreApp) {
     installDisabled = true;
     uninstallDisabled = true;
     installTooltip = "To install, turn on host scripts.";
@@ -71,7 +74,7 @@ export const getButtonActionState = ({
     uninstallDisabled = true;
   }
 
-  if (app_store_app) {
+  if (appStoreApp) {
     uninstallDisabled = true;
     if (!hostMDMEnrolled) {
       installDisabled = true;
@@ -87,6 +90,36 @@ export const getButtonActionState = ({
   };
 };
 
+export const InstallerActionButton = ({
+  baseClass,
+  tooltip,
+  disabled,
+  onClick,
+  icon,
+  text,
+  testId,
+}: IInstallerActionButtonProps) => (
+  <div className={`${baseClass}__item-action`}>
+    <TooltipWrapper
+      tipContent={tooltip}
+      underline={false}
+      showArrow
+      position="top"
+    >
+      <Button
+        variant="text-icon"
+        type="button"
+        className={`${baseClass}__item-action-button`}
+        onClick={onClick}
+        disabled={disabled}
+      >
+        <Icon name={icon} color="core-fleet-blue" size="small" />
+        <span data-testid={testId}>{text}</span>
+      </Button>
+    </TooltipWrapper>
+  </div>
+);
+
 export const InstallerActionCell = ({
   software,
   onClickInstallAction,
@@ -95,91 +128,76 @@ export const InstallerActionCell = ({
   hostScriptsEnabled,
   hostMDMEnrolled,
 }: IInstallerActionCellProps) => {
-  const { id, status, software_package, app_store_app, ui_status } = software;
+  const {
+    id,
+    status,
+    software_package,
+    app_store_app,
+    ui_status,
+    installed_versions,
+  } = software;
   const {
     installDisabled,
     installTooltip,
     uninstallDisabled,
     uninstallTooltip,
-  } = getButtonActionState({
+  } = getActionButtonState({
     hostScriptsEnabled: hostScriptsEnabled || false,
     softwareId: id,
     status,
-    app_store_app,
+    appStoreApp: app_store_app,
     hostMDMEnrolled,
-    software_package,
+    softwarePackage: software_package,
   });
 
-  const displayActionItems: DisplayActionItems = {
-    install: {
-      text: getInstallButtonText(ui_status),
-      icon: getInstallButtonIcon(ui_status),
-    },
-    uninstall: {
-      text: getUninstallButtonText(ui_status),
-      icon: getUninstallButtonIcon(ui_status),
-    },
-  };
-
   const canUninstallSoftware =
-    !app_store_app &&
-    software.installed_versions &&
-    software.installed_versions.length > 0;
+    !app_store_app && installed_versions && installed_versions.length > 0;
+
+  // buttonDisplayConfig is used to track the display text and icons of the install and uninstall button
+  const [
+    buttonDisplayConfig,
+    setButtonDisplayConfig,
+  ] = useState<IButtonDisplayConfig>({
+    install: getInstallerActionButtonConfig("install", ui_status),
+    uninstall: getInstallerActionButtonConfig("uninstall", ui_status),
+  });
+
+  useEffect(() => {
+    // We update the text/icon only when we see a change to a non-pending status
+    // Pending statuses keep the original text shown (e.g. "Retry" text on failed
+    // install shouldn't change to "Install" text because it was clicked and went
+    // pending. Once the status is no longer pending, like 'installed' the
+    // text will update to "Reinstall")
+    if (status !== "pending_install" && status !== "pending_uninstall") {
+      setButtonDisplayConfig({
+        install: getInstallerActionButtonConfig("install", ui_status),
+        uninstall: getInstallerActionButtonConfig("uninstall", ui_status),
+      });
+    }
+  }, [status, ui_status]);
 
   return (
     <div className={`${baseClass}__item-actions`}>
-      <div className={`${baseClass}__item-action`}>
-        <TooltipWrapper
-          tipContent={installTooltip}
-          underline={false}
-          showArrow
-          position="top"
-        >
-          <Button
-            variant="text-icon"
-            type="button"
-            className={`${baseClass}__item-action-button`}
-            onClick={() => onClickInstallAction(id)}
-            disabled={installDisabled}
-          >
-            <Icon
-              name={displayActionItems.install.icon}
-              color="core-fleet-blue"
-              size="small"
-            />
-            <span data-testid={`${baseClass}__install-button--test`}>
-              {displayActionItems.install.text}
-            </span>
-          </Button>
-        </TooltipWrapper>
-      </div>
-      <div className={`${baseClass}__item-action`}>
-        {canUninstallSoftware && software_package && (
-          <TooltipWrapper
-            tipContent={uninstallTooltip}
-            underline={false}
-            showArrow
-            position="top"
-          >
-            <Button
-              variant="text-icon"
-              type="button"
-              className={`${baseClass}__item-action-button`}
-              onClick={() => onClickUninstallAction(id)}
-              disabled={uninstallDisabled}
-            >
-              <Icon
-                name={displayActionItems.uninstall.icon}
-                color="core-fleet-blue"
-                size="small"
-              />
-              <span data-testid={`${baseClass}__uninstall-button--test`}>
-                {displayActionItems.uninstall.text}
-              </span>
-            </Button>
-          </TooltipWrapper>
-        )}
-      </div>
+      <InstallerActionButton
+        baseClass={baseClass}
+        tooltip={installTooltip}
+        disabled={installDisabled}
+        onClick={() => onClickInstallAction(id)}
+        icon={buttonDisplayConfig.install.icon}
+        text={buttonDisplayConfig.install.text}
+        testId={`${baseClass}__install-button--test`}
+      />
+      {canUninstallSoftware && software_package && (
+        <InstallerActionButton
+          baseClass={baseClass}
+          tooltip={uninstallTooltip}
+          disabled={uninstallDisabled}
+          onClick={() => onClickUninstallAction(id)}
+          icon={buttonDisplayConfig.uninstall.icon}
+          text={buttonDisplayConfig.uninstall.text}
+          testId={`${baseClass}__uninstall-button--test`}
+        />
+      )}
     </div>
   );
 };

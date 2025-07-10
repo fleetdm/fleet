@@ -2,7 +2,6 @@ import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
 
-import { IHostSoftwareWithStatus } from "interfaces/software";
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 
@@ -11,6 +10,7 @@ import { convertParamsToSnakeCase, QueryParams } from "utilities/url";
 import { SUPPORT_LINK } from "utilities/constants";
 
 import { HostPlatform, isAndroid } from "interfaces/platform";
+import { IHostSoftwareWithUiStatus } from "interfaces/software";
 
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import TableContainer from "components/TableContainer";

@@ -8,7 +8,7 @@ import {
 
 import { noop } from "lodash";
 import {
-  getButtonActionState,
+  getActionButtonState,
   InstallerActionCell,
 } from "./InstallerActionCell";
 
@@ -17,12 +17,12 @@ const mockAppStoreApp = createMockHostAppStoreApp();
 
 describe("getButtonActionState helper function", () => {
   it("disables both buttons and sets tooltips when host scripts are off and not an app store app", () => {
-    const result = getButtonActionState({
+    const result = getActionButtonState({
       hostScriptsEnabled: false,
       status: null,
-      app_store_app: null,
+      appStoreApp: null,
       softwareId: 1,
-      software_package: mockSoftwarePackage,
+      softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: false,
     });
 
@@ -35,12 +35,12 @@ describe("getButtonActionState helper function", () => {
   });
 
   it("disables both buttons when status is pending_install", () => {
-    const result = getButtonActionState({
+    const result = getActionButtonState({
       hostScriptsEnabled: true,
       status: "pending_install",
-      app_store_app: null,
+      appStoreApp: null,
       softwareId: 1,
-      software_package: mockSoftwarePackage,
+      softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: true,
     });
 
@@ -49,12 +49,12 @@ describe("getButtonActionState helper function", () => {
   });
 
   it("disables both buttons when status is pending_uninstall", () => {
-    const result = getButtonActionState({
+    const result = getActionButtonState({
       hostScriptsEnabled: true,
       status: "pending_uninstall",
-      app_store_app: null,
+      appStoreApp: null,
       softwareId: 1,
-      software_package: mockSoftwarePackage,
+      softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: true,
     });
 
@@ -63,12 +63,12 @@ describe("getButtonActionState helper function", () => {
   });
 
   it("disables uninstall button for app store app", () => {
-    const result = getButtonActionState({
+    const result = getActionButtonState({
       hostScriptsEnabled: true,
       status: null,
-      app_store_app: mockAppStoreApp,
+      appStoreApp: mockAppStoreApp,
       softwareId: 1,
-      software_package: null,
+      softwarePackage: null,
       hostMDMEnrolled: true,
     });
 
@@ -77,12 +77,12 @@ describe("getButtonActionState helper function", () => {
   });
 
   it("disables install button and sets tooltip for app store app if not enrolled in MDM", () => {
-    const result = getButtonActionState({
+    const result = getActionButtonState({
       hostScriptsEnabled: true,
       status: null,
-      app_store_app: mockAppStoreApp,
+      appStoreApp: mockAppStoreApp,
       softwareId: 1,
-      software_package: null,
+      softwarePackage: null,
       hostMDMEnrolled: false,
     });
 
@@ -94,12 +94,12 @@ describe("getButtonActionState helper function", () => {
   });
 
   it("returns enabled buttons when all conditions are good", () => {
-    const result = getButtonActionState({
+    const result = getActionButtonState({
       hostScriptsEnabled: true,
       status: null,
-      app_store_app: null,
+      appStoreApp: null,
       softwareId: 1,
-      software_package: mockSoftwarePackage,
+      softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: true,
     });
 
@@ -117,7 +117,7 @@ describe("InstallerActionCell component", () => {
   it("renders install and uninstall buttons with correct text and enabled state", () => {
     render(
       <InstallerActionCell
-        software={defaultSoftware}
+        software={{ ...defaultSoftware, ui_status: "installed" }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
         baseClass={baseClass}
@@ -142,7 +142,7 @@ describe("InstallerActionCell component", () => {
   it("disables install button and shows tooltip", () => {
     render(
       <InstallerActionCell
-        software={defaultSoftware}
+        software={{ ...defaultSoftware, ui_status: "installed" }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
         baseClass={baseClass}
@@ -162,6 +162,7 @@ describe("InstallerActionCell component", () => {
           ...defaultSoftware,
           software_package: null,
           app_store_app: mockAppStoreApp,
+          ui_status: "installed",
         }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
@@ -176,10 +177,14 @@ describe("InstallerActionCell component", () => {
     ).toBeNull();
   });
 
-  it("does not render uninstall button if no software_package", () => {
+  it("does not render uninstall button if no softwarePackage", () => {
     render(
       <InstallerActionCell
-        software={{ ...defaultSoftware, software_package: null }}
+        software={{
+          ...defaultSoftware,
+          ui_status: "installed",
+          software_package: null,
+        }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
         baseClass={baseClass}
@@ -196,7 +201,11 @@ describe("InstallerActionCell component", () => {
   it("updates button text/icon when status changes to non-pending", () => {
     const { rerender } = render(
       <InstallerActionCell
-        software={{ ...defaultSoftware, status: "pending_install" }}
+        software={{
+          ...defaultSoftware,
+          status: "pending_install",
+          ui_status: "pending_install",
+        }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
         baseClass={baseClass}
@@ -213,7 +222,11 @@ describe("InstallerActionCell component", () => {
     // Change status to installed
     rerender(
       <InstallerActionCell
-        software={{ ...defaultSoftware, status: "installed" }}
+        software={{
+          ...defaultSoftware,
+          status: "installed",
+          ui_status: "installed",
+        }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
         baseClass={baseClass}
