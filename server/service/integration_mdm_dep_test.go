@@ -3960,10 +3960,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 		macOSApp6.Name: macOSApp6,
 	}
 
-	var listSw listSoftwareTitlesResponse
 	var addAppResp addAppStoreAppResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(*enrolledHost.TeamID),
-		"available_for_install", "true")
 	// Add remaining as non-self-service
 	var titleIDs []uint
 	for _, app := range expectedApps {
