@@ -56,7 +56,7 @@ variable "database_name" {
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet:v4.69.0"
+  default     = "fleetdm/fleet:v4.70.0"
 
 variable "software_inventory" {
   description = "enable/disable software inventory (default is enabled)"
