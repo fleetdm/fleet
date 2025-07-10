@@ -3858,6 +3858,50 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
+	// Set up some additional VPP apps on the mock Apple servers
+	s.appleITunesSrvData["6"] = `{"bundleId": "f-6", "artworkUrl512": "https://example.com/images/6", "version": "6.0.0", "trackName": "App 6", "TrackID": 6}`
+	s.appleITunesSrvData["7"] = `{"bundleId": "g-7", "artworkUrl512": "https://example.com/images/7", "version": "7.0.0", "trackName": "App 7", "TrackID": 7}`
+	s.appleITunesSrvData["8"] = `{"bundleId": "h-8", "artworkUrl512": "https://example.com/images/8", "version": "8.0.0", "trackName": "App 8", "TrackID": 8}`
+	s.appleITunesSrvData["9"] = `{"bundleId": "i-9", "artworkUrl512": "https://example.com/images/9", "version": "9.0.0", "trackName": "App 9", "TrackID": 9}`
+	s.appleITunesSrvData["10"] = `{"bundleId": "j-10", "artworkUrl512": "https://example.com/images/10", "version": "10.0.0", "trackName": "App 10", "TrackID": 10}`
+
+	for _, e := range []vpp.Asset{{
+		AdamID:         "6",
+		PricingParam:   "STDQ",
+		AvailableCount: 1,
+	},
+		{
+			AdamID:         "7",
+			PricingParam:   "STDQ",
+			AvailableCount: 1,
+		},
+		{
+			AdamID:         "8",
+			PricingParam:   "STDQ",
+			AvailableCount: 1,
+		},
+		{
+			AdamID:         "9",
+			PricingParam:   "STDQ",
+			AvailableCount: 1,
+		},
+		{
+			AdamID:         "10",
+			PricingParam:   "STDQ",
+			AvailableCount: 1,
+		}} {
+		s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, e)
+	}
+
+	t.Cleanup(func() {
+		delete(s.appleITunesSrvData, "6")
+		delete(s.appleITunesSrvData, "7")
+		delete(s.appleITunesSrvData, "8")
+		delete(s.appleITunesSrvData, "9")
+		delete(s.appleITunesSrvData, "10")
+		s.appleVPPConfigSrvConfig.Assets = defaultVPPAssetList
+	})
+
 	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
 		var titleID uint
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
