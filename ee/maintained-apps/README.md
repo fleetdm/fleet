@@ -31,7 +31,7 @@
    1. Review the PR and test the app.  Contributors should be aware of the validation requirements below.
    2. If validation requirements cannot be met in this PR, the PR will be closed and the associated issue will be prioritized in the g-software group backlog.
 
-8. If the app passes testing, it is approved and merged.  The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet.  The app icon will not appear in Fleet until a following release.  App icon progress is tracked in the issue.  An FMA addition is not considered "Done" until the icon is added in a Fleet release. This behavior will be [improved](https://github.com/fleetdm/fleet/issues/29177) in a future release.
+8. If the app passes testing, it is approved and merged. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release. App icon progress is tracked in the issue. An addition to Fleet-maintained apps is not considered "Done" until the icon is added in a Fleet release. This behavior will be [improved](https://github.com/fleetdm/fleet/issues/29177) in a future release.
 
 ### Input file schema
 
