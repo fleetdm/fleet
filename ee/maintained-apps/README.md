@@ -19,7 +19,7 @@
    }
    ```
 
-5. Run the following command from the root of the fleet repo to generate the app's output data:
+5. Run the following command from the root of the Fleet repo to generate the app's output data:
 
     ```bash
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
