@@ -73,9 +73,9 @@ module.exports = {
       assert(_.isString(data.type));
       assert(_.isString(data.primaryBuyingSituation));
       assert(_.isString(data.accountId));
-      assert(_.isString(data.acountName));
-      assert(_.isString(data.acountRating));
-      assert(_.isString(data.accountLinkedinCompanyUrl));
+      assert(_.isString(data.accountName));
+      assert(_.isString(data.accountRating));
+      assert(!data.accountLinkedinCompanyUrl || _.isString(data.accountLinkedinCompanyUrl));
 
       // https://api.slack.com/apps/A0955UYH529/incoming-webhooks
       await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForNewlyCreatedOppts, {
