@@ -488,6 +488,24 @@ func transformVuln(item nvdapi.CVEItem) nvdapi.CVEItem {
 		item.CVE.Configurations[0].Nodes[0].CPEMatch = item.CVE.Configurations[0].Nodes[0].CPEMatch[0:1]
 	}
 
+	// Handle PowerShell version format normalization
+	// NVD changed PowerShell 7.5.0 to 7.5
+	if item.CVE.Configurations != nil {
+		for i := range item.CVE.Configurations {
+			if item.CVE.Configurations[i].Nodes != nil {
+				for j := range item.CVE.Configurations[i].Nodes {
+					if item.CVE.Configurations[i].Nodes[j].CPEMatch != nil {
+						for k := range item.CVE.Configurations[i].Nodes[j].CPEMatch {
+							cpeMatch := &item.CVE.Configurations[i].Nodes[j].CPEMatch[k]
+							// Convert cpe:2.3:a:microsoft:powershell:7.5:* back to cpe:2.3:a:microsoft:powershell:7.5.0:*
+							cpeMatch.Criteria = strings.Replace(cpeMatch.Criteria, "microsoft:powershell:7.5:", "microsoft:powershell:7.5.0:", 1)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return item
 }
 
