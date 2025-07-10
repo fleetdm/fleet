@@ -837,6 +837,11 @@ vex-report:
 	sh -c 'echo "## \`fleetdm/fleetctl\` docker image\n" >> security/status.md'
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleetctl >> security/status.md'
 
+
+# make 🍒 rc-version=4.71.0 commit-hash=3e2c72dfed216b6fdd1e7f3bbad70287b1784ab3 descriptive-branch-name=sso-entra-fix
+🍒:	
+	RC_VERSION=$(rc-version) COMMIT_HASH=$(commit-hash) DESCRIPTIVE_BRANCH_NAME=$(descriptive-branch-name) ./tools/cherry-pick/cherry-pick.sh
+
 # make update-go version=1.24.4
 UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
 UPDATE_GO_MODS := go.mod ./tools/mdm/windows/bitlocker/go.mod ./tools/snapshot/go.mod ./tools/terraform/go.mod
