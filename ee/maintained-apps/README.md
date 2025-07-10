@@ -111,7 +111,7 @@ These are the default categories assigned to the installer in [self-service](htt
 
 8. @eashaw is notified in the issue to add the icon to the website [fleetdm.com/app-library](https://fleetdm.com/app-library).
 
-#### Testing FMA catalog additions (no icon)
+#### Testing additions to Fleet-maintained apps (no icon)
 
 Use the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
 
@@ -137,7 +137,7 @@ If testing fails:
 
 - Remove issue from the `g-software` release board, and add issue to the `Drafting` board. Remove the `:release` tag and add the `:product` tag.
 
-## Updating existing apps in the FMA catalog
+## Updating existing Fleet-maintained apps
 
 Fleet-maintained apps need to be updated as frequently as possible while maintaining reliability.  This is currently a balancing act as both scenarios below result in customer workflow blocking bugs:
 
@@ -161,7 +161,7 @@ If an app does not pass test criteria:
 - [Freeze the app](#freezing-an-existing-app)
 - File a bug for tracking
 
-## Freezing an existing app
+## Freezing an existing Fleet-maintained app
 
 If any app fails validation:
 
