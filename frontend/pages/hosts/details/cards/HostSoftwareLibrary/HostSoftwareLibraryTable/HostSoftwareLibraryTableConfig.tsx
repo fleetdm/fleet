@@ -2,7 +2,11 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
-import { IHostAppStoreApp, IHostSoftware } from "interfaces/software";
+import {
+  IHostSoftwareWithUiStatus,
+  IHostAppStoreApp,
+  IHostSoftware,
+} from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
@@ -17,35 +21,21 @@ import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import InstallerActionCell from "../InstallerActionCell";
 import InstallStatusCell from "../../Software/InstallStatusCell";
 
-export type IUiStatus =
-  | "installed"
-  | "uninstalled"
-  | "installing"
-  | "uninstalling"
-  | "updating"
-  | "pending_install"
-  | "pending_uninstall"
-  | "pending_update"
-  | "failed_install"
-  | "failed_uninstall"
-  | "update_available";
-
-export interface IHostSoftwareUi extends IHostSoftware {
-  ui_status: IUiStatus;
-}
-
-type ISoftwareTableConfig = Column<IHostSoftwareUi>;
-type ITableHeaderProps = IHeaderProps<IHostSoftwareUi>;
-type ITableStringCellProps = IStringCellProps<IHostSoftwareUi>;
+type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
+type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
+type ITableStringCellProps = IStringCellProps<IHostSoftwareWithUiStatus>;
 type IInstalledStatusCellProps = CellProps<
-  IHostSoftwareUi,
-  IHostSoftwareUi["ui_status"]
+  IHostSoftwareWithUiStatus,
+  IHostSoftwareWithUiStatus["ui_status"]
 >;
 type IVersionsCellProps = CellProps<
-  IHostSoftwareUi,
-  IHostSoftwareUi["installed_versions"]
+  IHostSoftwareWithUiStatus,
+  IHostSoftwareWithUiStatus["installed_versions"]
 >;
-type IActionCellProps = CellProps<IHostSoftwareUi, IHostSoftwareUi["status"]>;
+type IActionCellProps = CellProps<
+  IHostSoftwareWithUiStatus,
+  IHostSoftwareWithUiStatus["status"]
+>;
 
 interface IHostSWLibraryTableHeaders {
   userHasSWWritePermission: boolean;
