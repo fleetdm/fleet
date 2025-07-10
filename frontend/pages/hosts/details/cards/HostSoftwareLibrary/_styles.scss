@@ -95,8 +95,8 @@
 
               // Undoes vertical click margin found on table container tooltips
               // TODO: Refactor vertical click margin on component level not table level
-              .data-table-block .data-table tbody .component__tooltip-wrapper {
-                margin: 0;
+              .component__tooltip-wrapper {
+                margin: 0; // Override 10px vertical margin
               }
             }
           }

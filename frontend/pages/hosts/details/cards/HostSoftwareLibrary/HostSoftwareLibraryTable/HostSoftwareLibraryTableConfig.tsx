@@ -20,6 +20,7 @@ import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCe
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import InstallerActionCell from "../InstallerActionCell";
 import InstallStatusCell from "../../Software/InstallStatusCell";
+import { installStatusSortType } from "../../Software/helpers";
 
 type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
 type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
@@ -112,9 +113,15 @@ export const generateHostSWLibraryTableHeaders = ({
       },
     },
     {
-      Header: () => <HeaderCell disableSortBy value="Status" />,
-      disableSortBy: true,
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell
+          isSortedDesc={cellProps.column.isSortedDesc}
+          value="Status"
+        />
+      ),
+      disableSortBy: false,
       accessor: "ui_status",
+      sortType: installStatusSortType,
       Cell: ({ row: { original } }: IInstalledStatusCellProps) => {
         return (
           <InstallStatusCell

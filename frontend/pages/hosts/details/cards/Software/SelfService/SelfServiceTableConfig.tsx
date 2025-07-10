@@ -7,10 +7,7 @@ import React, {
 } from "react";
 import { CellProps, Column, Row } from "react-table";
 
-import {
-  IHostSoftwareUiStatus,
-  IHostSoftwareWithUiStatus,
-} from "interfaces/software";
+import { IHostSoftwareWithUiStatus } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
@@ -27,6 +24,7 @@ import InstallerStatusCell, {
 import {
   getInstallerActionButtonConfig,
   IButtonDisplayConfig,
+  installStatusSortType,
 } from "../helpers";
 import { InstallerActionButton } from "../../HostSoftwareLibrary/InstallerActionCell/InstallerActionCell";
 
@@ -57,45 +55,6 @@ interface ISSInstallerActionCellProps {
 }
 
 const baseClass = "self-service-table";
-
-const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
-  "failed_install", // Failed
-  "failed_uninstall", // Failed uninstall
-  "update_available", // Update available
-  "updating", // Updating...
-  "pending_update", // Update (pending)
-  "installing", // Installing...
-  "pending_install", // Install (pending)
-  "uninstalling", // Uninstalling...
-  "pending_uninstall", // Uninstall (pending)
-  "installed", // Installed
-  "uninstalled", // Empty (---)
-];
-
-const installStatusSortType = (
-  rowA: Row<IHostSoftwareWithUiStatus>,
-  rowB: Row<IHostSoftwareWithUiStatus>,
-  columnId: string
-) => {
-  // Type assertion ensures only valid status strings or undefined
-  const statusA = rowA.original[columnId as keyof IHostSoftwareWithUiStatus] as
-    | IHostSoftwareUiStatus
-    | undefined;
-  const statusB = rowB.original[columnId as keyof IHostSoftwareWithUiStatus] as
-    | IHostSoftwareUiStatus
-    | undefined;
-
-  const indexA = INSTALL_STATUS_SORT_ORDER.indexOf(statusA ?? "uninstalled");
-  const indexB = INSTALL_STATUS_SORT_ORDER.indexOf(statusB ?? "uninstalled");
-
-  // If not found, put at end
-  const safeIndexA = indexA === -1 ? INSTALL_STATUS_SORT_ORDER.length : indexA;
-  const safeIndexB = indexB === -1 ? INSTALL_STATUS_SORT_ORDER.length : indexB;
-
-  if (safeIndexA < safeIndexB) return -1;
-  if (safeIndexA > safeIndexB) return 1;
-  return 0;
-};
 
 // Self-service installer action cell component has different disabled states
 // and tooltips than host details > library installer action cell
