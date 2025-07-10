@@ -128,10 +128,12 @@ const SoftwareDetailsContent = ({
           color="grey"
           borderRadiusSize="medium"
         >
-          <DataSet
-            title="Type"
-            value={formatSoftwareType({ source: software.source })}
-          />
+          <div className={`${baseClass}__row`}>
+            <DataSet
+              title="Type"
+              value={formatSoftwareType({ source: software.source })}
+            />
+          </div>
         </Card>
       </div>
     );
