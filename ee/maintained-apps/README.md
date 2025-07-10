@@ -2,7 +2,7 @@
 
 ## Adding a new app (macOS)
 
-1. Create a new issue using the `New Fleet-maintained app` issue template
+1. Create a new issue using the [New Fleet-maintained app](https://github.com/fleetdm/fleet/issues/new?template=fma-request.md) issue template
 2. Find the app's metadata in its [Homebrew formulae](https://formulae.brew.sh/)
 3. Create a new mainfiest file called `$YOUR_APP_NAME.json` in the `inputs/homebrew/` directory. For
    example, if you wanted to add Box Drive, create the file `inputs/homebrew/box-drive.json`.
