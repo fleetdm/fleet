@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -17,6 +16,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -751,7 +751,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	var iosTitleID uint
 	for _, sw := range listSw.SoftwareTitles {
-		if sw.Name == iOSApp.Name && sw.Source == "apps" {
+		if sw.Name == iOSApp.Name && sw.Source == "ios_apps" {
 			iosTitleID = sw.ID
 			break
 		}
@@ -780,8 +780,17 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
-	require.Len(t, listResp.Hosts, 1)
-	require.Equal(t, iosHost.ID, listResp.Hosts[0].ID)
+	assert.Len(t, listResp.Hosts, 1)
+	assert.Equal(t, iosHost.ID, listResp.Hosts[0].ID)
+
+	// we should also have the installed version, because we update host software inventory on verification
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", iosHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	assert.Len(t, getHostSw.Software, 1)
+	assert.Equal(t, iosTitleID, getHostSw.Software[0].ID)
+	assert.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	assert.Len(t, getHostSw.Software[0].InstalledVersions, 1)
+	assert.Equal(t, iOSApp.LatestVersion, getHostSw.Software[0].InstalledVersions[0].Version)
 
 	// Verify activity log entry
 	s.lastActivityMatches(
@@ -799,39 +808,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", iosHost.ID), nil, http.StatusOK, &hostResp)
-	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should be true after successful software install")
+	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after successful software install for iDevice")
 
-	// Verify that an InstalledApplicationList command was sent, but NOT the VPP verify type.
-	s.runWorker()
-	cmd, err := iosDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		var fullCmd micromdm.CommandPayload
-		switch cmd.Command.RequestType {
-		case "InstalledApplicationList":
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			require.True(t, strings.HasPrefix(cmd.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix))
-			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(
-				iosDevice.UUID,
-				cmd.CommandUUID,
-				[]fleet.Software{
-					{
-						Name:             "RandomApp",
-						BundleIdentifier: "com.example.randomapp",
-						Version:          "9.9.9",
-						Installed:        false,
-					},
-					{
-						Name:             iOSApp.Name,
-						BundleIdentifier: iOSApp.BundleIdentifier,
-						Version:          iOSApp.LatestVersion,
-						Installed:        true,
-					},
-				},
-			)
-			require.NoError(t, err)
-		default:
-			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
-		}
-	}
 }

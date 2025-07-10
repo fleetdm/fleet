@@ -3561,7 +3561,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 	case "InstalledApplicationList":
 		level.Debug(svc.logger).Log("msg", "calling handlers for InstalledApplicationList")
-		res, err := NewInstalledApplicationListResult(r.Context, cmdResult.Raw, cmdResult.CommandUUID, cmdResult.UDID)
+		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.UDID)
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "get host by identifier")
+		}
+		res, err := NewInstalledApplicationListResult(r.Context, cmdResult.Raw, cmdResult.CommandUUID, cmdResult.UDID, host.Platform)
 		if err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "new installed application list result")
 		}
@@ -3745,6 +3749,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 type InstalledApplicationListResult interface {
 	fleet.MDMCommandResults
 	AvailableApps() []fleet.Software
+	HostPlatform() string
 }
 
 type installedApplicationListResult struct {
@@ -3752,15 +3757,26 @@ type installedApplicationListResult struct {
 	availableApps []fleet.Software
 	uuid          string
 	hostUUID      string
+	hostPlatform  string
 }
 
 func (i *installedApplicationListResult) Raw() []byte                     { return i.raw }
 func (i *installedApplicationListResult) UUID() string                    { return i.uuid }
 func (i *installedApplicationListResult) HostUUID() string                { return i.hostUUID }
 func (i *installedApplicationListResult) AvailableApps() []fleet.Software { return i.availableApps }
+func (i *installedApplicationListResult) HostPlatform() string            { return i.hostPlatform }
 
-func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uuid, hostUUID string) (InstalledApplicationListResult, error) {
-	list, err := unmarshalAppList(ctx, rawResult, "apps")
+func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uuid, hostUUID, hostPlatform string) (InstalledApplicationListResult, error) {
+	var source string
+	switch hostPlatform {
+	case "ios":
+		source = "ios_apps"
+	case "ipados":
+		source = "ipados_apps"
+	default:
+		source = "apps"
+	}
+	list, err := unmarshalAppList(ctx, rawResult, source)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshal app list for new installed application list result")
 	}
@@ -3770,6 +3786,7 @@ func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uu
 		uuid:          uuid,
 		availableApps: list,
 		hostUUID:      hostUUID,
+		hostPlatform:  hostPlatform,
 	}, nil
 }
 
@@ -3879,10 +3896,18 @@ func NewInstalledApplicationListResultsHandler(
 		}
 
 		if shouldRefetch {
-			// Request host refetch to get the most up to date software data ASAP.
-			if err := ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
-				return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
+			switch installedAppResult.HostPlatform() {
+			case "darwin":
+				// Request host refetch to get the most up to date software data ASAP.
+				if err := ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
+					return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
+				}
+			default:
+				if _, err := ds.UpdateHostSoftware(ctx, hostID, installedAppResult.AvailableApps()); err != nil {
+					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: update host software")
+				}
 			}
+
 		}
 
 		// If we get here, we're in a terminal state, so we can remove the verify command.
