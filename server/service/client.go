@@ -1642,9 +1642,23 @@ func (c *Client) DoGitOps(
 			})
 		}
 
+		// Features
+		var features any
+		var ok bool
+		if features, ok = group.AppConfig.(map[string]any)["features"]; !ok || features == nil {
+			features = map[string]any{}
+			group.AppConfig.(map[string]any)["features"] = features
+		}
+		features, ok = features.(map[string]any)
+		if !ok {
+			return nil, nil, errors.New("org_settings.features config is not a map")
+		}
+		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
+			features.(map[string]any)["enable_software_inventory"] = true
+		}
+
 		// Integrations
 		var integrations interface{}
-		var ok bool
 		if integrations, ok = group.AppConfig.(map[string]interface{})["integrations"]; !ok || integrations == nil {
 			integrations = map[string]interface{}{}
 			group.AppConfig.(map[string]interface{})["integrations"] = integrations
@@ -1861,6 +1875,20 @@ func (c *Client) DoGitOps(
 		}
 
 		team["webhook_settings"] = webhookSettings
+
+		// Features
+		var features any
+		if features, ok = group.AppConfig.(map[string]any)["features"]; !ok || features == nil {
+			features = map[string]any{}
+			group.AppConfig.(map[string]any)["features"] = features
+		}
+		features, ok = features.(map[string]any)
+		if !ok {
+			return nil, nil, fmt.Errorf("Team %s features config is not a map", *config.TeamName)
+		}
+		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
+			features.(map[string]any)["enable_software_inventory"] = true
+		}
 
 		// Integrations
 		var integrations interface{}
