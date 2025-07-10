@@ -533,7 +533,6 @@ const ManagePolicyPage = ({
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
-      // TODO - need to change this?
       isAllTeamsSelected || isPrimoMode
         ? refetchGlobalConfig()
         : refetchTeamConfig();
@@ -1306,6 +1305,7 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows} // approach - update as if All teams
+            // TODO - send API_CONTEXT_ALL_TEAMS_ID if we want to include all policies
             teamId={currentTeamId ?? 0} // todo: confirm - primoMode same as all teams
             gitOpsModeEnabled={gitOpsModeEnabled}
           />
