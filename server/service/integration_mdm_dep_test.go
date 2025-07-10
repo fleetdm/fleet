@@ -3865,7 +3865,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	s.appleITunesSrvData["9"] = `{"bundleId": "i-9", "artworkUrl512": "https://example.com/images/9", "version": "9.0.0", "trackName": "App 9", "TrackID": 9}`
 	s.appleITunesSrvData["10"] = `{"bundleId": "j-10", "artworkUrl512": "https://example.com/images/10", "version": "10.0.0", "trackName": "App 10", "TrackID": 10}`
 
-	for _, e := range []vpp.Asset{{
+	s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, []vpp.Asset{{
 		AdamID:         "6",
 		PricingParam:   "STDQ",
 		AvailableCount: 1,
@@ -3889,9 +3889,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 			AdamID:         "10",
 			PricingParam:   "STDQ",
 			AvailableCount: 1,
-		}} {
-		s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, e)
-	}
+		}}...)
 
 	t.Cleanup(func() {
 		delete(s.appleITunesSrvData, "6")
