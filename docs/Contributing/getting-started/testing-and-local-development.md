@@ -649,6 +649,9 @@ Similarly, create a `firehose_skeleton_status.json` file to create the delivery 
   ]
 }
 ```
+```sh
+awslocal firehose create-delivery-stream --cli-input-json file://$(pwd)/firehose_skeleton_status.json
+```
 
 After applying such configuration, "result" logs will be stored under the `results/` prefix and "status" logs will be stored under `status/` prefix (both on the `s3-firehose` bucket).
 

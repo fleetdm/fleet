@@ -11,9 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	aws_config "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
+	"github.com/fleetdm/fleet/v4/server/aws_common"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -64,19 +64,17 @@ func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, sts
 		)
 	}
 
-	if stsAssumeRoleArn != "" {
-		opts = append(opts, aws_config.WithAssumeRoleCredentialOptions(func(r *stscreds.AssumeRoleOptions) {
-			r.RoleARN = stsAssumeRoleArn
-			if stsExternalID != "" {
-				r.ExternalID = &stsExternalID
-			}
-		}))
-	}
-
 	opts = append(opts, aws_config.WithRegion(region))
 	conf, err := aws_config.LoadDefaultConfig(context.Background(), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create default config: %w", err)
+	}
+
+	if stsAssumeRoleArn != "" {
+		conf, err = aws_common.ConfigureAssumeRoleProvider(conf, opts, stsAssumeRoleArn, stsExternalID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure assume role provider: %w", err)
+		}
 	}
 
 	firehoseClient := firehose.NewFromConfig(conf)
