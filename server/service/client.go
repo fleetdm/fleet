@@ -1642,9 +1642,23 @@ func (c *Client) DoGitOps(
 			})
 		}
 
+		// Features
+		var features any
+		var ok bool
+		if features, ok = group.AppConfig.(map[string]any)["features"]; !ok || features == nil {
+			features = map[string]any{}
+			group.AppConfig.(map[string]any)["features"] = features
+		}
+		features, ok = features.(map[string]any)
+		if !ok {
+			return nil, nil, errors.New("org_settings.features config is not a map")
+		}
+		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
+			features.(map[string]any)["enable_software_inventory"] = true
+		}
+
 		// Integrations
 		var integrations interface{}
-		var ok bool
 		if integrations, ok = group.AppConfig.(map[string]interface{})["integrations"]; !ok || integrations == nil {
 			integrations = map[string]interface{}{}
 			group.AppConfig.(map[string]interface{})["integrations"] = integrations
@@ -1797,13 +1811,17 @@ func (c *Client) DoGitOps(
 				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
 			}
 		}
-		// check for the eula in the mdmAppConfig. If it exists we want to delete it
-		// from the app config so it will not be applied to the group/team though the
-		// ApplyGroup method. It will be applied separately.
-		if endUserLicenseAgreement, ok := mdmAppConfig["end_user_license_agreement"].(string); ok && len(endUserLicenseAgreement) > 0 {
-			eulaPath = endUserLicenseAgreement
-			delete(mdmAppConfig, "end_user_license_agreement")
+
+		// check for the eula in the mdmAppConfig. If it exists we want to assign it
+		// to eulaPath so that it will be applied later. We always delete it from
+		// mdmAppConfig so it will not be applied to the group/team though the
+		// ApplyGroup method.
+		if endUserLicenseAgreement, exists := mdmAppConfig["end_user_license_agreement"]; !exists || endUserLicenseAgreement == nil || (endUserLicenseAgreement == "") {
+			eulaPath = ""
+		} else if eulaStr, ok := endUserLicenseAgreement.(string); ok && len(eulaStr) > 0 {
+			eulaPath = eulaStr
 		}
+		delete(mdmAppConfig, "end_user_license_agreement")
 
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 
@@ -1857,6 +1875,20 @@ func (c *Client) DoGitOps(
 		}
 
 		team["webhook_settings"] = webhookSettings
+
+		// Features
+		var features any
+		if features, ok = team["features"]; !ok || features == nil {
+			features = map[string]any{}
+			team["features"] = features
+		}
+		features, ok = features.(map[string]any)
+		if !ok {
+			return nil, nil, fmt.Errorf("Team %s features config is not a map", *config.TeamName)
+		}
+		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
+			features.(map[string]any)["enable_software_inventory"] = true
+		}
 
 		// Integrations
 		var integrations interface{}

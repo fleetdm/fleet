@@ -16,6 +16,13 @@
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
+      "name": "Beyond Compare",
+      "slug": "beyond-compare/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.scootersoftware.BeyondCompare",
+      "description": ""
+    },
+    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
@@ -100,6 +107,13 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "iTerm2",
+      "slug": "iterm2/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.googlecode.iterm2",
+      "description": ""
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
@@ -182,6 +196,13 @@
       "platform": "darwin",
       "unique_identifier": "net.whatsapp.WhatsApp",
       "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
+    },
+    {
+      "name": "Yubikey Manager",
+      "slug": "yubico-yubikey-manager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.yubico.ykman",
+      "description": ""
     },
     {
       "name": "Zoom",

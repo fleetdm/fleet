@@ -1,1 +1,0 @@
-- Updated the Open Policy Agent (OPA) dependency to v1.4.2. **Warning**: this upgrade drops support for YAML 1.1 in configuration files. If you use the `-c` option to specify a configuration file when starting the Fleet server, you will need to update any `yes` or `on` values in the file to `true`, and any `no` or `off` values to `false`.
