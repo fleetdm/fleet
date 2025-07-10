@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -312,7 +313,14 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 		},
 		HostsCount: 10,
 		Source:     fleet.NVDSource,
+		CreatedAt:  mockTime,
 	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Mock the time to make it easier to check
+		_, err := q.ExecContext(ctx, "UPDATE software_cve SET created_at = ? WHERE cve = ?", mockTime, expected.CVE.CVE)
+		return err
+	})
 
 	// Global (all teams)
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
@@ -320,6 +328,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 
 	// Team 1
 	expected.HostsCount = 4
@@ -328,6 +337,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 
 	// No Team
 	expected.HostsCount = 6
@@ -336,6 +346,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 
 	// With CVSSScores
 	expected = fleet.VulnerabilityWithMetadata{
@@ -349,6 +360,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 		},
 		HostsCount: 10,
 		Source:     fleet.NVDSource,
+		CreatedAt:  mockTime,
 	}
 
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
@@ -356,6 +368,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 }
 
 func testVulnerabilitiesPagination(t *testing.T, ds *Datastore) {

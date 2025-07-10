@@ -49,7 +49,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	freeSelectStmt := `
 		SELECT DISTINCT
 			union_cve.cve,
-			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
+			LEAST(COALESCE(osv.created_at, NOW()), COALESCE(sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			COALESCE(vhc.host_count, 0) as hosts_count,
 			COALESCE(vhc.updated_at, NOW()) as hosts_count_updated_at
