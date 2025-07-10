@@ -23,14 +23,14 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
     router.push(PATHS.ADMIN_INTEGRATIONS_VPP_SETUP);
   };
 
-  const appleMdmDisabledCard = (
+  const AppleMdmDisabledCard = (
     <SectionCard header="Volume Purchasing Program (VPP)">
       To enable Volume Purchasing Program (VPP), first turn on Apple (macOS,
       iOS, iPadOS) MDM.
     </SectionCard>
   );
 
-  const isVppOnCard = (
+  const VppOnCard = (
     <SectionCard
       iconName="success"
       cta={
@@ -44,7 +44,7 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
     </SectionCard>
   );
 
-  const isVppOffCard = (
+  const VppOffCard = (
     <SectionCard
       header="Volume Purchasing Program (VPP)"
       cta={
@@ -62,10 +62,10 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
   );
 
   if (!isAppleMdmOn) {
-    return appleMdmDisabledCard;
+    return AppleMdmDisabledCard;
   }
 
-  return isVppOn ? isVppOnCard : isVppOffCard;
+  return isVppOn ? VppOnCard : VppOffCard;
 };
 
 interface IVppSectionProps {

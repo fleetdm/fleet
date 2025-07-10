@@ -16,14 +16,14 @@ const AppleAutomaticEnrollmentCard = ({
   viewDetails,
   configured,
 }: IAppleAutomaticEnrollmentCardProps) => {
-  const appleMdmDisabledCard = (
+  const AppleMdmDisabledCard = (
     <SectionCard header="Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts.">
       To enable automatic enrollment for macOS, iOS, and iPadOS hosts, first
       turn on Apple MDM.
     </SectionCard>
   );
 
-  const isAbmConfiguredCard = (
+  const AbmConfiguredCard = (
     <SectionCard
       iconName="success"
       cta={
@@ -33,30 +33,31 @@ const AppleAutomaticEnrollmentCard = ({
         </Button>
       }
     >
-      Automatic enrollment for Apple (macOS, iOS, iPadOS) is enabled.
+      Company-owned (ADE) and personal (BYOD) enrollment for Apple (macOS, iOS,
+      iPadOS) is enabled.
     </SectionCard>
   );
 
-  const isAbmNotConfiguredCard = (
+  const AbmNotConfiguredCard = (
     <SectionCard
-      header="Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts."
+      header="Apple (macOS, iOS, iPadOS) company-owned and personal hosts enrollment"
       cta={
         <Button className="add-abm-button" onClick={viewDetails}>
           Add ABM
         </Button>
       }
     >
-      Add an Apple Business Manager (ABM) connection to automatically enroll
-      newly purchased Apple hosts when they&apos;re first unboxed and set up by
-      your end users.
+      Company-owned Apple hosts will enroll with Automated Device Enrollment
+      (ADE) when they&apos;re first unboxed. Personal (BYOD) hosts will enroll
+      when end users sign in with Managed Apple Account.
     </SectionCard>
   );
 
   if (!isAppleMdmOn) {
-    return appleMdmDisabledCard;
+    return AppleMdmDisabledCard;
   }
 
-  return configured ? isAbmConfiguredCard : isAbmNotConfiguredCard;
+  return configured ? AbmConfiguredCard : AbmNotConfiguredCard;
 };
 
 export default AppleAutomaticEnrollmentCard;
