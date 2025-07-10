@@ -52,7 +52,7 @@
 -
   task: "Add LinkedIn connections to CRM"
   startedOn: "2025-04-25"
-  frequency: "Daily"
+  frequency: "Every 2 days"
   description: "Add the most recent connections from Linkedin to our CRM."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#add-linkedin-connections-to-crm"
   dri: "SFriendLee"
