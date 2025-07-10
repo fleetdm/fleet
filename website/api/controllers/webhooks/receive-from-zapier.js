@@ -60,14 +60,14 @@ module.exports = {
 
     if (false) {
       // FUTURE: handle more webhook events here
-    } else if (eventName === 'crm-opportunity-stage-updated') {
+    } else if (eventName === 'crm-account-stage-updated') {
       //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┬ ┬┌┐┌┬┌┬┐┬ ┬     ┌─┐┌┬┐┌─┐┌─┐┌─┐
       //  ║  ╠╦╝║║║───  │ │├─┘├─┘│ │├┬┘ │ │ │││││ │ └┬┘───  └─┐ │ ├─┤│ ┬├┤
       //  ╚═╝╩╚═╩ ╩     └─┘┴  ┴  └─┘┴└─ ┴ └─┘┘└┘┴ ┴  ┴      └─┘ ┴ ┴ ┴└─┘└─┘
       //  ┌─┐┌┐┌  ┬ ┬┌─┐┌┬┐┌─┐┌┬┐┌─┐
       //  │ ││││  │ │├─┘ ││├─┤ │ ├┤
       //  └─┘┘└┘  └─┘┴  ─┴┘┴ ┴ ┴ └─┘
-      // TODO
+      // TODO: change trhis to be on-create, set up the zap, and have it (for now) ping a slack channel to suggest setting up a POV environment (we can try that manually first)
     } else if (eventName === 'receive-new-customer-data') {// FUTURE: rename this event to match naming convention of others ("crm-account-marketing-stage-updated")
       //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬ ┬┌┐┌┌┬┐    ┌┬┐┌─┐┬─┐┬┌─┌─┐┌┬┐┬┌┐┌┌─┐  ┌─┐┌┬┐┌─┐┌─┐┌─┐
       //  ║  ╠╦╝║║║───  ├─┤│  │  │ ││ ││││ │───  │││├─┤├┬┘├┴┐├┤  │ │││││ ┬  └─┐ │ ├─┤│ ┬├┤
