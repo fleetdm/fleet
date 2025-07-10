@@ -2846,7 +2846,7 @@ agent_options:
 org_settings:
   features:
     enable_host_users: false
-    enable_software_inventory: true
+    enable_software_inventory: false
     additional_queries:
       query_a: "SELECT 1"
     detail_query_overrides:
@@ -2877,7 +2877,7 @@ software:
 	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileUpdatedFeatures.Name()})
 	require.NoError(t, err)
 	require.False(t, appConfig.Features.EnableHostUsers)
-	require.True(t, appConfig.Features.EnableSoftwareInventory)
+	require.False(t, appConfig.Features.EnableSoftwareInventory)
 
 	// Parse the additional queries into a map.
 	var additionalQueries map[string]string
@@ -2893,7 +2893,7 @@ software:
 	require.NoError(t, err)
 
 	require.False(t, appConfig.Features.EnableHostUsers)
-	require.False(t, appConfig.Features.EnableSoftwareInventory)
+	require.True(t, appConfig.Features.EnableSoftwareInventory)
 	require.Nil(t, appConfig.Features.AdditionalQueries)
 	require.Nil(t, appConfig.Features.DetailQueryOverrides)
 }
