@@ -58,21 +58,43 @@ module.exports = {
       throw new Error(`Consistency violation. When the receive-from-zapier webhook received an event from the ${eventName} zap. More than one adcampaigns with a placeholder campaign URN exist in the database.`);
     }
 
-    // Zap: https://zapier.com/editor/280954803
-    if(eventName === 'update-placeholder-campaign-urn') {
+    if (false) {
+      // FUTURE: handle more webhook events here
+    } else if (eventName === 'crm-opportunity-created') {
+      //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬─┐┌┬┐┬ ┬┌┐┌┬┌┬┐┬ ┬
+      //  ║  ╠╦╝║║║───  │ │├─┘├─┘│ │├┬┘ │ │ │││││ │ └┬┘
+      //  ╚═╝╩╚═╩ ╩     └─┘┴  ┴  └─┘┴└─ ┴ └─┘┘└┘┴ ┴  ┴
+      //  ┌─┐┌┐┌  ┌─┐┬─┐┌─┐┌─┐┌┬┐┌─┐
+      //  │ ││││  │  ├┬┘├┤ ├─┤ │ ├┤
+      //  └─┘┘└┘  └─┘┴└─└─┘┴ ┴ ┴ └─┘
+      // Zap: Invoked as final step from within https://zapier.com/editor/308696574
       assert(_.isObject(data));
-      assert(_.isString(data.placeholderUrn));
-      assert(_.isString(data.linkedinCampaignUrn));
+      assert(_.isString(data.id));
+      assert(_.isString(data.type));
+      assert(_.isString(data.primaryBuyingSituation));
+      assert(_.isString(data.accountId));
+      assert(_.isString(data.acountName));
+      assert(_.isString(data.acountRating));
+      assert(_.isString(data.accountLinkedinCompanyUrl));
 
-      let adCampaignWithThisPlaceholderUrn = await AdCampaign.findOne({linkedinCampaignUrn: data.placeholderUrn});
-      if(!adCampaignWithThisPlaceholderUrn) {
-        sails.log.warn(`when the receive-from-zapier webhook received an event to update an AdCampaign record with a non-placeholder linkedinCampaignUrn value (${data.linkedinCampaignUrn}), no record could be found with the specified placeholder (${data.placeholderUrn}).`);
-      }
-      await AdCampaign.updateOne({linkedinCampaignUrn: data.placeholderUrn}).set({
-        linkedinCampaignUrn: data.linkedinCampaignUrn
+      // https://api.slack.com/apps/A0955UYH529/incoming-webhooks
+      await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForNewlyCreatedOppts, {
+        text: `New logo opportunity created (${data.accountName} ${data.accountRating}):\n`+
+        `Is now a good time to create a PoV environment ahead of our upcoming meeting?\n`+
+        '\n'+
+        `https://fleetdm.lightning.force.com/lightning/r/Account/${encodeURIComponent(data.id)}/view`
       });
-    // Zap: https://zapier.com/editor/281086063
-    } else if (eventName === 'receive-new-customer-data') {
+      // FUTURE: do more
+
+    } else if (eventName === 'receive-new-customer-data') {// FUTURE: rename this event to match naming convention of others ("crm-account-marketing-stage-updated")
+      //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬ ┬┌┐┌┌┬┐    ┌┬┐┌─┐┬─┐┬┌─┌─┐┌┬┐┬┌┐┌┌─┐  ┌─┐┌┬┐┌─┐┌─┐┌─┐
+      //  ║  ╠╦╝║║║───  ├─┤│  │  │ ││ ││││ │───  │││├─┤├┬┘├┴┐├┤  │ │││││ ┬  └─┐ │ ├─┤│ ┬├┤
+      //  ╚═╝╩╚═╩ ╩     ┴ ┴└─┘└─┘└─┘└─┘┘└┘ ┴     ┴ ┴┴ ┴┴└─┴ ┴└─┘ ┴ ┴┘└┘└─┘  └─┘ ┴ ┴ ┴└─┘└─┘
+      //  ┌─┐┌┐┌  ┬ ┬┌─┐┌┬┐┌─┐┌┬┐┌─┐
+      //  │ ││││  │ │├─┘ ││├─┤ │ ├┤
+      //  └─┘┘└┘  └─┘┴  ─┴┘┴ ┴ ┴ └─┘
+      // Zap: Invoked as a step from within https://zapier.com/editor/281086063
+      // (the overarching zap is itself triggered via CRM webhook when an account's marketing stage is updated ≥ "ads running")
       assert(_.isObject(data));
       assert(_.isString(data.newMarketingStage));
       assert(_.isString(data.persona) && AdCampaign.validate('persona', data.persona));
@@ -152,6 +174,43 @@ module.exports = {
           },
         }).retry();
       }
+    } else if(eventName === 'update-placeholder-campaign-urn') {// FUTURE: rename this event to match naming convention of others  ("crm-account-marketing-stage-updated-part2-hack")
+      //  ┌─  ┬ ┬┌─┐┬┬─┐┌┬┐  ┬ ┬┌─┐┌─┐┬┌─  ─┐
+      //  │   │││├┤ │├┬┘ ││  ├─┤├─┤│  ├┴┐   │
+      //  └─  └┴┘└─┘┴┴└──┴┘  ┴ ┴┴ ┴└─┘┴ ┴  ─┘
+      //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬ ┬┌┐┌┌┬┐    ┌┬┐┌─┐┬─┐┬┌─┌─┐┌┬┐┬┌┐┌┌─┐  ┌─┐┌┬┐┌─┐┌─┐┌─┐
+      //  ║  ╠╦╝║║║───  ├─┤│  │  │ ││ ││││ │───  │││├─┤├┬┘├┴┐├┤  │ │││││ ┬  └─┐ │ ├─┤│ ┬├┤
+      //  ╚═╝╩╚═╩ ╩     ┴ ┴└─┘└─┘└─┘└─┘┘└┘ ┴     ┴ ┴┴ ┴┴└─┴ ┴└─┘ ┴ ┴┘└┘└─┘  └─┘ ┴ ┴ ┴└─┘└─┘
+      //  ┌─┐┌┐┌  ┬ ┬┌─┐┌┬┐┌─┐┌┬┐┌─┐    ╔═╗╔═╗╦═╗╔╦╗  ╦╦    ┌─  ┬ ┬┌─┐┌─┐┬┌─  ─┐
+      //  │ ││││  │ │├─┘ ││├─┤ │ ├┤───  ╠═╝╠═╣╠╦╝ ║   ║║    │   ├─┤├─┤│  ├┴┐   │
+      //  └─┘┘└┘  └─┘┴  ─┴┘┴ ┴ ┴ └─┘    ╩  ╩ ╩╩╚═ ╩   ╩╩    └─  ┴ ┴┴ ┴└─┘┴ ┴  ─┘
+      // (continuation of CRM - Account - marketing stage - on update)
+      //
+      // Zap: Invoked as a step from within https://zapier.com/editor/280954803
+      // (the overarching zap is itself triggered via an HTTP call from within this file.
+      //  WHY?  Because we need Zapier to talk to fleetdm.com to manage state, tracking
+      //  which campaigns are running in the database.  But Zapier's HTTP request action
+      //  doesn't allow for sending back any data on 2xx, which means we can't send back
+      //  the ID of the matched Linkedin campaign from the database for use in the other zap.
+      //  Why do we need this info in Zapier?  Why can't we do it in code?  Well, it's because
+      //  Linkedin Campaign manager can only be accessed from Zapier, because direct integration
+      //  with the Linkedin API requires approval from Linkedin that only Zapier has.  And since
+      //  we need this info from the database in order to talk to the linkedin api, AND
+      //  we can only get to the linkedin api via zapier, AND we can't send back response
+      //  data from a zapier HTTP call action, it means we have to have to trigger THIS SEPARATE ZAP
+      //  which exists to receive and continue the next steps we need to handle the looked-up Linkedin
+      //  campaign from the db, even if that is a temporary "placeholder" Linkedin campaign.
+      assert(_.isObject(data));
+      assert(_.isString(data.placeholderUrn));
+      assert(_.isString(data.linkedinCampaignUrn));
+
+      let adCampaignWithThisPlaceholderUrn = await AdCampaign.findOne({linkedinCampaignUrn: data.placeholderUrn});
+      if(!adCampaignWithThisPlaceholderUrn) {
+        sails.log.warn(`when the receive-from-zapier webhook received an event to update an AdCampaign record with a non-placeholder linkedinCampaignUrn value (${data.linkedinCampaignUrn}), no record could be found with the specified placeholder (${data.placeholderUrn}).`);
+      }
+      await AdCampaign.updateOne({linkedinCampaignUrn: data.placeholderUrn}).set({
+        linkedinCampaignUrn: data.linkedinCampaignUrn
+      });
     } else {
       throw 'unrecognizedEventName';
     }
