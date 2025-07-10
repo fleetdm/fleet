@@ -139,7 +139,7 @@ module.exports = {
       let allTranscriptLines = [];
       for(let speaker of allSpeakersOnThisCall) {
         if(!speaker.transcripts) {
-          // Note: log a warning if a speaker on this call is missing a transcripts value, and proceed.
+          // Log a warning if a speaker on this call is missing a transcripts value, and proceed.
           sails.log.warn(`When the receive-from-zoom webhook attempted to create a call transcript of a Zoom meeting (call id: ${idOfCallToGenerateTranscriptFor}), a speaker on the call is missing an expected 'transcripts' value. Speaker information returned from the Zoom API: ${require('util').inspect(speaker)}`);
           continue;
         }
@@ -152,7 +152,6 @@ module.exports = {
           });
         }
       }
-
       let allSpokenWordsOrderedById = _.sortBy(allTranscriptLines, 'id');
 
       let transcript = '';
