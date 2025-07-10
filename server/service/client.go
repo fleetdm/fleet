@@ -1878,9 +1878,9 @@ func (c *Client) DoGitOps(
 
 		// Features
 		var features any
-		if features, ok = group.AppConfig.(map[string]any)["features"]; !ok || features == nil {
+		if features, ok = team["features"]; !ok || features == nil {
 			features = map[string]any{}
-			group.AppConfig.(map[string]any)["features"] = features
+			team["features"] = features
 		}
 		features, ok = features.(map[string]any)
 		if !ok {
