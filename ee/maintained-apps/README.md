@@ -86,7 +86,7 @@ These are the default categories assigned to the installer in [self-service](htt
 - `Developer Tools`
 - `Productivity`
 
-### Validating new additions to the FMA catalog
+### Validating new additions to the Fleet-maintained apps
 
 1. When a pull request (PR) is opened containing changes to `ee/maintained-apps/inputs/`, the [#g-software Product Designer (PD) and Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) are automatically added as reviewers.
    1. The PD is responsible for approving the name and default category
