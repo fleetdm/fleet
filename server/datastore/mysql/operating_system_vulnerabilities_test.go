@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -235,17 +236,28 @@ func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
 	require.True(t, didInsert)
 
 	// Inserting the same vulnerability should not insert, but update
-	didInsertOrUpdate, err := ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
+	didInsert, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
 	require.NoError(t, err)
-	assert.True(t, didInsertOrUpdate)
+	assert.False(t, didInsert)
 
-	// make sure updated_at doesn't change on the next upsert call, as fields won't change
-	time.Sleep(1 * time.Second)
-
-	// Inserting the exact same vulnerability again should not insert and not update
-	didInsertOrUpdate, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
+	// Inserting the exact same vulnerability again may or may not change updated_at, but qualifies as an update
+	didInsert, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
 	require.NoError(t, err)
-	assert.False(t, didInsertOrUpdate)
+	assert.False(t, didInsert)
+
+	// simulate vuln in the past to make sure updated_at gets set
+	_, err = ds.writer(ctx).ExecContext(ctx, "UPDATE operating_system_vulnerabilities SET updated_at = NOW() - INTERVAL 5 MINUTE WHERE operating_system_id = 1")
+	require.NoError(t, err)
+
+	// Inserting the exact same vulnerability again will update again, as we need to bump updated_at
+	didInsert, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
+	require.NoError(t, err)
+	assert.False(t, didInsert)
+
+	// make sure the update happened
+	var recentRows uint
+	require.NoError(t, sqlx.Get(ds.writer(ctx), &recentRows, "SELECT COUNT(*) FROM operating_system_vulnerabilities WHERE operating_system_id = 1 AND updated_at > NOW() - INTERVAL 5 SECOND"))
+	require.Equal(t, uint(1), recentRows)
 
 	expected := vulnsUpdate
 	expected.Source = fleet.MSRCSource
