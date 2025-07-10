@@ -8,31 +8,33 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
 import AppleAutomaticEnrollmentCard from "./AppleAutomaticEnrollmentCard";
-import WindowsAutomaticEnrollmentCard from "./WindowsAutomaticEnrollmentCard";
+import VppCard from "./VppCard/VppCard";
 
-const baseClass = "automatic-enrollment-section";
+const baseClass = "apple-business-manager-section";
 
 interface IAutomaticEnrollmentSectionProps {
   router: InjectedRouter;
   isPremiumTier: boolean;
+  isVppOn: boolean;
 }
 
-const AutomaticEnrollmentSection = ({
+const AppleBusinessManagerSection = ({
   router,
   isPremiumTier,
+  isVppOn,
 }: IAutomaticEnrollmentSectionProps) => {
   const { config } = useContext(AppContext);
-
-  const navigateToWindowsAutomaticEnrollment = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS);
-  };
 
   const navigateToAppleAutomaticEnrollment = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER);
   };
 
+  const navigateToVppSetup = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_VPP_SETUP);
+  };
+
   return (
-    <SettingsSection title="Automatic enrollment" className={baseClass}>
+    <SettingsSection title="Apple Business Manger (ABM)" className={baseClass}>
       {!isPremiumTier ? (
         <PremiumFeatureMessage alignment="left" />
       ) : (
@@ -42,8 +44,10 @@ const AutomaticEnrollmentSection = ({
             isAppleMdmOn={!!config?.mdm.enabled_and_configured}
             configured={!!config?.mdm.apple_bm_enabled_and_configured}
           />
-          <WindowsAutomaticEnrollmentCard
-            viewDetails={navigateToWindowsAutomaticEnrollment}
+          <VppCard
+            viewDetails={navigateToVppSetup}
+            isAppleMdmOn={!!config?.mdm.enabled_and_configured}
+            isVppOn={isVppOn}
           />
         </div>
       )}
@@ -51,4 +55,4 @@ const AutomaticEnrollmentSection = ({
   );
 };
 
-export default AutomaticEnrollmentSection;
+export default AppleBusinessManagerSection;
