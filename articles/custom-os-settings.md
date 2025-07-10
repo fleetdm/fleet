@@ -24,6 +24,25 @@ Fleet UI:
 
 Fleet API: Use the [Add custom OS setting (configuration profile) endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) in the Fleet API.
 
+#### User channel for configuration profiles on macOS
+
+Before version 4.71.0, Fleet didn't support sending configuration profiles (`.mobileconfig`) to the macOS user channel (aka "Payload Scope" in iMazing Profile Creator). Profiles with `PayloadScope` set to `User` were delivered to the device channel by default. From Fleet 4.71.0 onward, both device and user channels are supported. 
+
+User-scoped profile is delivered to the user that turned on MDM on the host (installed fleetd or enrolled host via automatic enrollment (ADE)). Hosts enrolled before version 4.71.0, won't have user channel enabled. Currently, you can:
+1. Turn off MDM on manually enrolled Mac and ask end user to [turn on MDM](https://fleetdm.com/guides/mdm-migration#migrate-hosts:~:text=If%20the%20host%20is%20not%20assigned%20to%20Fleet%20in%20ABM%20(manual%20enrollment)%2C%20the%20end%20user%20will%20be%20given%20the%20option%20to%20download%20the%20MDM%20enrollment%20profile%20on%20their%20My%20device%20page.) through the **My device** page.
+2. Run `sudo profiles renew -type enrollment` on automatically enrolled Mac.
+
+> Fleet will soon improve this and automatically enable the user channel for all macOS hosts. Check out the [issue](https://github.com/fleetdm/fleet/issues/30043).
+
+Support for declaration (DDM) profiles is coming soon.
+
+Existing profiles with `PayloadScope` set to`User` won’t update automatically. These are delivered to the device channel and will remain there until you take action.
+
+To avoid confusion, please follow these steps:
+-  Check for profiles with `PayloadScope` set to `User`.
+-  To keep delivering them to the device channel, change `PayloadScope` to `System` to reflect the actual scope in your `.mobileconfig`. Also, you can remove `PayloadScope` as the default scope in Fleet is `System`. 
+-  To deliver to the user channel, update the identifier(`PayloadIdentifier`) and re-upload the profile.
+
 ### See status
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
