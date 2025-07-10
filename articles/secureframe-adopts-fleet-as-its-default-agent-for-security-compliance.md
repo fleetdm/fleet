@@ -6,8 +6,6 @@ This move brings open-source device visibility and control to thousands of Secur
 
 > “We chose Fleet because it is lightning fast and supports every computing platform,” said Shrav Mehta, CEO at Secureframe. “It gives security teams the access we need to do our jobs, while still giving employees complete visibility into what code is running on their computers.”
 
----
-
 ## Why open source matters
 
 Fleet is built on osquery, an open-source project created by Fleet co-founder Zach Wasserman. By using open tools, Secureframe helps customers avoid black-box software and instead gives them confidence in what’s running on their devices.
@@ -15,8 +13,6 @@ Fleet is built on osquery, an open-source project created by Fleet co-founder Za
 > "I was stoked to see the Fleet logo on my laptop," said Thomas Buley, CEO at Sightglass and a Secureframe customer.  "It's great to know the code that's running on our computers is open-source, and that it's the same code that folks like Stripe are using."
 
 Fleet’s open design means teams can audit and verify exactly what the agent is doing. That builds trust with employees, auditors, and security teams — especially when compliance is a must-have for winning customers or expanding globally.
-
----
 
 ## Built to scale with growing companies
 
