@@ -58,7 +58,31 @@ module.exports = {
       throw new Error(`Consistency violation. When the receive-from-zapier webhook received an event from the ${eventName} zap. More than one adcampaigns with a placeholder campaign URN exist in the database.`);
     }
 
-    // Zap: https://zapier.com/editor/280954803
+    //  ┌─  ┬ ┬┌─┐┬┬─┐┌┬┐  ┬ ┬┌─┐┌─┐┬┌─  ─┐
+    //  │   │││├┤ │├┬┘ ││  ├─┤├─┤│  ├┴┐   │
+    //  └─  └┴┘└─┘┴┴└──┴┘  ┴ ┴┴ ┴└─┘┴ ┴  ─┘
+    //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬ ┬┌┐┌┌┬┐    ┌┬┐┌─┐┬─┐┬┌─┌─┐┌┬┐┬┌┐┌┌─┐  ┌─┐┌┬┐┌─┐┌─┐┌─┐
+    //  ║  ╠╦╝║║║───  ├─┤│  │  │ ││ ││││ │───  │││├─┤├┬┘├┴┐├┤  │ │││││ ┬  └─┐ │ ├─┤│ ┬├┤
+    //  ╚═╝╩╚═╩ ╩     ┴ ┴└─┘└─┘└─┘└─┘┘└┘ ┴     ┴ ┴┴ ┴┴└─┴ ┴└─┘ ┴ ┴┘└┘└─┘  └─┘ ┴ ┴ ┴└─┘└─┘
+    //  ┌─┐┌┐┌  ┬ ┬┌─┐┌┬┐┌─┐┌┬┐┌─┐    ╔═╗╔═╗╦═╗╔╦╗  ╦╦    ┌─  ┬ ┬┌─┐┌─┐┬┌─  ─┐
+    //  │ ││││  │ │├─┘ ││├─┤ │ ├┤───  ╠═╝╠═╣╠╦╝ ║   ║║    │   ├─┤├─┤│  ├┴┐   │
+    //  └─┘┘└┘  └─┘┴  ─┴┘┴ ┴ ┴ └─┘    ╩  ╩ ╩╩╚═ ╩   ╩╩    └─  ┴ ┴┴ ┴└─┘┴ ┴  ─┘
+    // (continuation of CRM - Account - marketing stage - on update)
+    //
+    // Zap: Invoked as a step from within https://zapier.com/editor/280954803
+    // (the overarching zap is itself triggered via an HTTP call from within this file.
+    //  WHY?  Because we need Zapier to talk to fleetdm.com to manage state, tracking
+    //  which campaigns are running in the database.  But Zapier's HTTP request action
+    //  doesn't allow for sending back any data on 2xx, which means we can't send back
+    //  the ID of the matched Linkedin campaign from the database for use in the other zap.
+    //  Why do we need this info in Zapier?  Why can't we do it in code?  Well, it's because
+    //  Linkedin Campaign manager can only be accessed from Zapier, because direct integration
+    //  with the Linkedin API requires approval from Linkedin that only Zapier has.  And since
+    //  we need this info from the database in order to talk to the linkedin api, AND
+    //  we can only get to the linkedin api via zapier, AND we can't send back response
+    //  data from a zapier HTTP call action, it means we have to have to trigger THIS SEPARATE ZAP
+    //  which exists to receive and continue the next steps we need to handle the looked-up Linkedin
+    //  campaign from the db, even if that is a temporary "placeholder" Linkedin campaign.
     if(eventName === 'update-placeholder-campaign-urn') {
       assert(_.isObject(data));
       assert(_.isString(data.placeholderUrn));
@@ -71,7 +95,14 @@ module.exports = {
       await AdCampaign.updateOne({linkedinCampaignUrn: data.placeholderUrn}).set({
         linkedinCampaignUrn: data.linkedinCampaignUrn
       });
-    // Zap: https://zapier.com/editor/281086063
+    //  ╔═╗╦═╗╔╦╗     ┌─┐┌─┐┌─┐┌─┐┬ ┬┌┐┌┌┬┐    ┌┬┐┌─┐┬─┐┬┌─┌─┐┌┬┐┬┌┐┌┌─┐  ┌─┐┌┬┐┌─┐┌─┐┌─┐
+    //  ║  ╠╦╝║║║───  ├─┤│  │  │ ││ ││││ │───  │││├─┤├┬┘├┴┐├┤  │ │││││ ┬  └─┐ │ ├─┤│ ┬├┤
+    //  ╚═╝╩╚═╩ ╩     ┴ ┴└─┘└─┘└─┘└─┘┘└┘ ┴     ┴ ┴┴ ┴┴└─┴ ┴└─┘ ┴ ┴┘└┘└─┘  └─┘ ┴ ┴ ┴└─┘└─┘
+    //  ┌─┐┌┐┌  ┬ ┬┌─┐┌┬┐┌─┐┌┬┐┌─┐
+    //  │ ││││  │ │├─┘ ││├─┤ │ ├┤
+    //  └─┘┘└┘  └─┘┴  ─┴┘┴ ┴ ┴ └─┘
+    // Zap: Invoked as a step from within https://zapier.com/editor/281086063
+    // (the overarching zap is itself triggered via CRM webhook when an account's marketing stage is updated ≥ "ads running")
     } else if (eventName === 'receive-new-customer-data') {
       assert(_.isObject(data));
       assert(_.isString(data.newMarketingStage));
