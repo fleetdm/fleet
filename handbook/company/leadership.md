@@ -2,8 +2,6 @@
 
 This page covers the things managers and other leaders at Fleet need to know about running a great company.
 
-<img width="384" alt="image" src="https://github.com/user-attachments/assets/6aec084e-3b0a-4a2c-b7c5-ed4536d73b40">
-
 
 
 ## CEO flaws
@@ -45,8 +43,6 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
 Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, tiers, the business model, human resources, legal counsel, signatures on all documents, and brand &amp; product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
 
 > **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1301303a-cb80-4925-806b-aace10a47047">
 
 
 ## Outline of departmental page structure
@@ -95,8 +91,6 @@ Departmental page structure:
 
 - `## Rituals`
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/61d6503c-8ef7-4199-a946-8472f443f649">
-
 
 ## Key reviews
 
@@ -122,8 +116,6 @@ At Fleet, we collaborate with [core team members](#creating-a-new-position), [co
 
 Fleet accepts job applications, but the company does not list positions on general purpose job boards.  This prevents us being overwhelmed with candidates so we can fulfill our goal of responding promptly to every applicant. This means that outbound recruiting, 3rd party recruiters, and references from team members are important aspect of the company's hiring strategy.  Fleet's CEO is happy to assist with outreach, intros, and recruiting strategy for candidates.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/ea3d3470-575d-4516-a19e-02abec3e1285">
-
 
 ### Receiving job applications
 
@@ -137,7 +129,7 @@ Fleet uses [certain email templates](https://docs.google.com/document/d/1VAMWIH8
 
 ### Communicating with applicants 
 
-At Fleet, we use [LinkedIn](https://www.linkedin.com/company/fleetdm) to communicate with future team members. Allowing potential candidates to apply via LinkedIn direct message lets community members quickly introduce themselves and apply while providing the maximum amount of async data to the hiring manager. Community members will often inquire about positions that aren't currently being hired for. 
+At Fleet, we use the contact form and email to communicate with future team members. Community members will often inquire about positions that aren't currently being hired for.  The DRI for receiving applications is Fleet's VP of Customer Success, whose team uses a set of template responses and updates Fleet's HRIS with new applicants.  Fleet's SLA for responding to applicants is 1 business day, though this doesn't necessarily mean that the hiring manager has bandwidth to take further action after that initial reply.  In that initial reply, candidates are encouraged to apply for future positions if they don't hear back further within a few days.
 
 > Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet? [Add their info to the spreadsheet](https://fleetdm.com/handbook/digital-experience#track-a-fleet-applicant) and leave a Google Doc comment at-mentioning the hiring manager or [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team). 
 
@@ -311,8 +303,6 @@ From time to time, someone's job title changes. The hiring manager can use the f
 1. Create Slack channel: Create a private "#YYYY-change-title-for-xxxxxx" Slack channel (replace "xxxxxx" with the Fleetie's name and YYYY with current year) for discussion and invite the CEO and Head of Digital Experience.
 2. At-mention the Head of Digital Experience in the new channel with any context regarding the title change. Share any related documents with the Head of Digital Experience and the CEO.
 3. After getting approval from the [Head of People](https://fleetdm.com/handbook/digital-experience#team), the Digital Experience team will take the necessary steps to [change the fleetie's job title](https://fleetdm.com/handbook/digital-experience#change-a-fleeties-role).
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1e59ac8f-26d8-4f2f-9ff4-2e303753c910">
 
 
 ## Delivering performance feedback

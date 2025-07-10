@@ -22,6 +22,8 @@ controls:
       - path: ../lib/ios/configuration-profiles/lock-screen-message.mobileconfig
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
       - path: ../lib/ios/declaration-profiles/Software Update settings.json
+  macos_setup:
+    enable_end_user_authentication: true
   scripts:
 policies:
 queries:
