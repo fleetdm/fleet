@@ -61,6 +61,15 @@ Every week, the sales manager will review the necessary opportunities with inter
 If no opportunities meet these criteria, the meeting is used to discuss the oldest opportunities and close any that are stalled.
 
 
+### Communicate Gross new ARR added
+
+Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, the CEO and CRO will measure the ammount of "Gross new ARR" added towards the goal set forth by the CEO. To do this:
+1. Before the meeting, the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) will copy the goal from the gross new ARR goal from ["OCV GOH: Fleet" doc (confidential document)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) and add it to the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0). 
+2. Before the meeting, the Apprentice will take a screenshot of the [Ω Open ops (Next 45 days) oppty list](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Open_ops_Next_45_days) that includes the next 5+ deals set to close based off of "Close date" and add it to the doc. 
+3. Using the ["Ω ∆ARR won + open pipeline (current Q)" Salesforce report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000019LuH2AU/view) (and adjusting the filters if needed) the Apprentice will calculate the progress toward the goal and "Ammount left to close" and add it to the doc. 
+4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
+
+
 ### Send a subscription quote
 
 Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:

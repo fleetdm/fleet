@@ -252,14 +252,6 @@ When procuring SaaS tools and services, analyze the purchase of these subscripti
 - Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
 
 
-### Track a Fleet applicant
-
-Use the following steps to track a Fleet applicant:
-1. Once a day, check the [Fleet LinkedIn inbox](https://www.linkedin.com/company/71111416/admin/inbox/thread/2-YzE0M2M3YzgtMjQzZS00NDlhLWJjMGQtYWQwMTY1ODhlMmY3XzAxMA==/) for any applicants expressing interest in joining the team.
-2. Navigate to the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and copy the relevant details from the candidate's LinkedIn:
-3. Using a Google doc comment, at-mention the hiring manager. If none exist or you aren't sure, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
-
-
 ### Secure company-issued equipment for a team member
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
@@ -309,45 +301,6 @@ Once the Digital Experience department approves inventory to be shipped from Fle
   - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=) for IT to troubleshoot the device.
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
-
-
-### Fix a laptop that's not checking in
-
-It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything). 
-
-If the host has MDM turned on, use the `fleetctl mdm run-command` CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/commands/macos-send-fleetd.xml to the device, which will reinstall fleetd.
-
-If the host doesn't have MDM turned on or isn't enrolled to dogfood, it is beyond our ability to control remotely.
-
-
-### Enroll a macOS host in dogfood
-
-When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
-You can confirm that the device has been ordered correctly by following these steps:
-- Log into ABM
-- Use the device serial number to find the device.
-  - Note: if the device cannot be found, you will need to manually enroll the device.
-- View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
-
-On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
-- If you have physical access to the macOS host, [add it via Apple Configurator](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web).
-- If you do not have physical access to the device, the user will need to undertake the following steps:
-  - Install the fleetd package for your device from the [shared drive folder](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
-  - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
-  - In Fleet desktop, follow the instructions to turn on MDM.
-  - Once complete, follow instructions to reset disk encryption key.
-- Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
-
-
-### Enroll a Windows or Ubuntu Linux device in dogfood
-
-To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from the [internal shared drive folder](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
-Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
-
-
-### Enroll a ChromeOS device in dogfood
-
-ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
 
 
 ### Update personnel details
@@ -604,11 +557,6 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
 
 
-### Access a background check
-
-All Fleet team members undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
-
-
 ### Review an NDA
 
 We need to review an NDA anytime a vendor, customer or other party wants to:
@@ -662,49 +610,7 @@ When an agreement is routed to the CEO for signature, the [Apprentice](https://f
 > If the agreement closes a deal, inform the CEO (via Slack DM) that a subscription agreement is ready for his review/signature. The SLA for CEO review and signature is 48hrs.
 
 3. Comment in the issue once the CEO has signed the agreement and assign the issue to [Nathan Holiday](https://fleetdm.com/handbook/digital-experience#team).
-
-
-### Troubleshoot signature automation
-
-We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
-When the final signature is added to an envelope in DocuSign, it is marked as completed and sent to Zapier, where it goes through these steps:
-1. Zapier sends the following information about the DocuSign envelope to our Hydroplane webhook:
-   - **`emailSubject`** - The subject of the envelope sent by DocuSign. Our DocuSign templates are configured to format the email subject as `[type of document] for [signer's name]`.
-   - **`emailCsv`** - A comma-separated list of signers' email addresses.
-2. The Hydroplane webhook matches the document type to the correct Google Drive folder, orders the list of signers, creates a timestamp, and sends that data back to Zapier as
-   - **`destinationFolderID`** - The slug for the Google Drive folder where we store this type of document.
-   - **`emailCsv`** - A sorted list of signers' email addresses.
-   - **`date`** - The date the document was completed in DocuSign, formatted YYYY-MM-DD.
-3. Zapier uses this information to upload the file to the matched Google Drive folder, with the filename formatted as `[date] - [emailSubject] - [emailCvs].PDF`.
-4. Once the file is uploaded, Zapier uses the Slack integration to post in the #help-classified channel with the message:
-   ```
-   Now complete with all signatures:
-      [email subject]
-      link: drive.google.com/[destinationFolderID]
-   ```
    
-<!-- Weekly update is now automated. See https://zapier.com/webintent/edit-zap/302812151
-### Send the weekly update
-
-We like to be open about milestones and announcements. Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. CT. Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
-    - A link to view KPIs
-    - Who was on-call that week
-    - Fleeties who are currently onboarding
-    - Planned hires who haven't started yet
-    - Fleeties that departed that week
-  
-  To send the weekly update follow these steps:  
-  
-1. Navigate to the current weeks row in the [KPIs Google Sheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
-2. Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and [document performance feedback](https://fleetdm.com/handbook/digital-experience#document-performance-feedback).
-3. Copy the entire formula in this weeks "Weekly update" update cell and paste without formating (CMD+⇧+V) back into the same cell. The formula will now look like this:
-
-<img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
-
-3. In the "Weekly update" column (column E) for that row, double-click into that cell and change the "⚡️" to "🔭" in the beginning of the formula.  
-4. Paste the newly formatted message in the [#general Slack channel](https://fleetdm.slack.com/archives/C019FNQPA23) and delete the double quotes around the message and any links that unfurl from links in the weekly update message.
-5. Use the drop-down next to the send button and select "Custom time" and schedule the message to send "Today" at 18:00 or 6pm CT.
--->
 
 ### Prepare for the All hands
 
@@ -727,7 +633,6 @@ The day before the All hands, Mike will prepare slides that reflect the CEO visi
 ### Share recording of all hands meeting
 
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
-
 Template to use:
 
 ```
@@ -819,20 +724,6 @@ Mike and the Fleet team
 5. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
 
 
-### Schedule press release
-
-Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. Use the following steps to schedule a press release:  
-
-1. Add context for the next press release to the [e-group agenda](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit) as a "DISCUSS:" to be reviewed by Fleet's executive team for alignment and finalization of date.
-2. Once a release date is set, at-mention our public relations firm in the [#help-public-relations-firm--mindshare-pr--brand-marketing](https://fleetdm.slack.com/archives/C04PC9H34LF) and schedule a 30m call for our CEO and to communicate the press release.
-
-> The above must be completed 6 weeks before the press release date. 
-
-3. Schedule a 1.5h discussion between the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) and the CEO to review the first draft linked as "Agenda: LINK" to the calendar event description.
-4. Schedule a 60m call with the CEO and public relations firm to review the first draft linked as above to the calendar event (first draft provided by the PR firm)
-5. Schedule 2.5 hrs of async time for the CEO work on edits and a 60m followup postgame (solo) where CEO edits and then settles+sends final release.
-
-
 ### Archive a document
 
 Follow these steps to archive any document:
@@ -844,16 +735,6 @@ Follow these steps to archive any document:
 3. Save this backup copy to the same location in Google Drive where the original is found.
 4. Link to the backup copy at the top of the original document. Be sure to use the full URL, no abbreviated pill links (e.g. "Notes from last time: URL_OF_MOST_RECENT_BACKUP_DOCUMENT").
 5. Delete all non-structural content from the original document, including past meeting notes and current answers to "evergreen" questions.
-
-
-<!-- ### Prepare for CEO office minutes !!!COMMENTING THIS OUT AS WE'VE DEPRIORITIZED THIS MEETING ON THE CEO's CALENDAR!!!
-
-Before the start of the meeting, the Apprentice will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true:
-1. All agenda items are prefixed with a date of when the item will be covered and name of the person requesting to discuss the issue.
-2. All team members with an agenda item have added themselves **and their manager** to the correct calendar event. If the team member or manager hasn't been added to the calendar event before the meeting begins, the agenda item is de-prioritized in favor of others with representatives in attendance. 
-3. If there are more that two team members attending, the Apprentice will work with the team members to schedule additional time to cover the agenda.  
-
-> If the manager is unable to attend the scheduled time of the meeting, the Apprentice will work with the team member to schedule an adhoc meeting between them, their manager, and the CEO. -->
 
 
 ### Process the CEO's inbox
