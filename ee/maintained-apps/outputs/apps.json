@@ -191,6 +191,13 @@
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
+      "name": "VNC Viewer",
+      "slug": "vnc-viewer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.realvnc.vncviewer",
+      "description": ""
+    },
+    {
       "name": "WhatsApp",
       "slug": "whatsapp/darwin",
       "platform": "darwin",
