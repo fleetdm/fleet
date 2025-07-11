@@ -52,18 +52,17 @@ export type MdmEnrollmentStatus =
   | "Off"
   | "Pending";
 
-export const MDM_ENROLLMENT_STATUS: Record<MdmEnrollmentStatus, string> = {
-  "On (manual)": "manual",
-  "On (automatic)": "automatic",
-  "On (personal)": "personal",
-  Off: "unenrolled",
-  Pending: "pending",
-};
+/** This is the filter value used for query string parameters */
+export type MdmEnrollmentFilterValue =
+  | "manual"
+  | "automatic"
+  | "personal"
+  | "unenrolled"
+  | "pending";
 
 interface IMdmEnrollmentStatusUIData {
   displayName: string;
-  /** This is the filter value used for query string parameters */
-  filterValue: string;
+  filterValue: MdmEnrollmentFilterValue;
 }
 
 /** This maps the MdmEnrollmentStatus to the various data needed in the UI.
