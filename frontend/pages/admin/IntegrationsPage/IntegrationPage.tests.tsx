@@ -74,4 +74,43 @@ describe("Integrations Page", () => {
       expect(await screen.findAllByText("Conditional access")).toHaveLength(2); // side nav label and card header
     });
   });
+
+  describe("SSO", () => {
+    it("renders the SSO sidenav and card", async () => {
+      mockServer.use(createGetConfigHandler());
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+      });
+
+      render(
+        <IntegrationsPage
+          router={createMockRouter()}
+          params={{ section: "sso" }}
+        />
+      );
+
+      expect(await screen.findAllByText("Single sign-on options")).toHaveLength(
+        3
+      );
+    });
+  });
+  describe("Host status webhook", () => {
+    it("renders the Host status webhook sidenav and card", async () => {
+      mockServer.use(createGetConfigHandler());
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+      });
+
+      render(
+        <IntegrationsPage
+          router={createMockRouter()}
+          params={{ section: "host-status-webhook" }}
+        />
+      );
+
+      expect(await screen.findAllByText("Host status webhook")).toHaveLength(3);
+    });
+  });
 });
