@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -1411,6 +1412,8 @@ type LoadHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint) 
 type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
 
 type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
+
+type GetHostIdentityCertBySerialNumberFunc func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -3497,6 +3500,9 @@ type DataStore struct {
 
 	SetHostConditionalAccessStatusFunc        SetHostConditionalAccessStatusFunc
 	SetHostConditionalAccessStatusFuncInvoked bool
+
+	GetHostIdentityCertBySerialNumberFunc        GetHostIdentityCertBySerialNumberFunc
+	GetHostIdentityCertBySerialNumberFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8364,4 +8370,11 @@ func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID u
 	s.SetHostConditionalAccessStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostConditionalAccessStatusFunc(ctx, hostID, managed, compliant)
+}
+
+func (s *DataStore) GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+	s.mu.Lock()
+	s.GetHostIdentityCertBySerialNumberFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostIdentityCertBySerialNumberFunc(ctx, serialNumber)
 }

@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -2203,6 +2204,12 @@ type Datastore interface {
 	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
 	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Host identity certificates
+
+	// GetHostIdentityCertBySerialNumber gets the unrevoked valid cert corresponding to the provided serial number.
+	GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
 }
 
 type AndroidDatastore interface {
