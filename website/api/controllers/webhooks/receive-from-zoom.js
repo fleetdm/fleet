@@ -137,6 +137,10 @@ module.exports = {
 
       // Transcripts are ordered by an item_id, but separaterd by speaker.
       let allTranscriptLines = [];
+      if(allSpeakersOnThisCall.length < 1) {
+        sails.log.warn(`When the receive-from-zoom webhook attempted to create a call transcript of a Zoom meeting (call id: ${idOfCallToGenerateTranscriptFor}), the interactions from this call returned from the Zoom API is missing a list of participants. Call information returned from the Zoom API: ${require('util').inspect(informationAboutThisCall)}`);
+        throw 'callTranscriptNotFound';
+      }
       for(let speaker of allSpeakersOnThisCall) {
         if(!speaker.transcripts) {
           // Log a warning if a speaker on this call is missing a transcripts value, and proceed.
