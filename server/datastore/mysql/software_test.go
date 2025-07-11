@@ -7542,7 +7542,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.Nil(t, software[0].AppStoreApp)
 
 	// verify the install
-	require.NoError(t, ds.SetVPPInstallAsVerified(ctx, anotherHost.ID, vpp1CmdUUID))
+	require.NoError(t, ds.SetVPPInstallAsVerified(ctx, anotherHost.ID, vpp1CmdUUID, uuid.NewString()))
 
 	// Now the app should come back as installed
 	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
