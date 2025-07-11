@@ -17,6 +17,7 @@ import IntegrationsPage from "./IntegrationsPage";
 describe("Integrations Page", () => {
   // TODO: change this test to cover rendering all other sections displayed.
   describe("MDM", () => {
+    // eslint-disable-next-line jest/no-focused-tests
     it("renders the MDM sidenav and content if MDM feature is enabled", async () => {
       mockServer.use(createGetConfigHandler());
       const mockRouter = createMockRouter();
@@ -32,13 +33,15 @@ describe("Integrations Page", () => {
         },
       });
 
-      // await setTimeout(() => true, 1000);
-
       const { container } = render(
         <IntegrationsPage router={mockRouter} params={{ section: "mdm" }} />
       );
 
-      await waitForLoadingToFinish(container);
+      screen.debug(undefined, 10000000);
+
+      await screen.findByText("Mobile device management (MDM)");
+
+      // await waitForLoadingToFinish(container);
 
       expect(
         screen.getAllByText("Mobile device management (MDM)")
@@ -46,6 +49,7 @@ describe("Integrations Page", () => {
     });
   });
   describe("Conditional access", () => {
+    // eslint-disable-next-line jest/no-focused-tests
     it("Does not render the conditional access sidenav for self-hosted Fleet instances", () => {
       const mockRouter = createMockRouter();
       const mockConfig = createMockConfig({
@@ -65,22 +69,26 @@ describe("Integrations Page", () => {
 
       expect(screen.queryByText("Conditional access")).toBeNull();
     });
-    // it("renders the Conditional access sidenav for managed cloud Fleet instances", () => {
-    //   const mockRouter = createMockRouter();
-    //   const mockConfig = createMockConfig();
+    // eslint-disable-next-line jest/no-focused-tests
+    it.only("renders the Conditional access sidenav for managed cloud Fleet instances", async () => {
+      mockServer.use(createGetConfigHandler());
+      const mockRouter = createMockRouter();
+      const mockConfig = createMockConfig();
 
-    //   const render = createCustomRenderer({
-    //     withBackendMock: true,
-    //     context: {
-    //       app: {
-    //         config: mockConfig,
-    //       },
-    //     },
-    //   });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: mockConfig,
+          },
+        },
+      });
 
-    //   render(<IntegrationsPage router={mockRouter} params={{}} />);
+      render(<IntegrationsPage router={mockRouter} params={{}} />);
 
-    //   expect(screen.queryByText("Conditional access")).toBeInTheDocument();
-    // });
+      await screen.findAllByText("Conditional access");
+
+      expect(screen.getAllByText("Conditional access")[0]).toBeInTheDocument();
+    });
   });
 });
