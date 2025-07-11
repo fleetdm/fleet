@@ -4,7 +4,7 @@ parasails.registerPage('device-management-page', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: '',
-    comparisonMode: 'sccm',
+    comparisonMode: 'omnissa',
     comparisonModeFriendlyNames: {
       jamf: 'Jamf Pro',
       sccm: 'SCCM',
