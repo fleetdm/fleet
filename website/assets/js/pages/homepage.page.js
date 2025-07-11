@@ -21,7 +21,7 @@ parasails.registerPage('homepage', {
 
     comparisonTableMode: 'it',
     // For MDM comparison table
-    comparisonModeForIt: 'sccm',
+    comparisonModeForIt: 'omnissa',
     comparisonModeForSecurity: 'rapid',
     comparisonModeFriendlyNames: {
       jamf: 'Jamf Pro',
