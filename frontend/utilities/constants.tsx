@@ -4,6 +4,7 @@ import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { ICampaign } from "interfaces/campaign";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -336,7 +337,10 @@ export const VULNERABILITIES_SEARCH_BOX_TOOLTIP =
   'To search for an exact CVE, surround the string in double quotes (e.g. "CVE-2024-1234")';
 
 // Keys from API
-export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
+export const MDM_STATUS_TOOLTIP: Record<
+  MdmEnrollmentStatus,
+  React.ReactNode
+> = {
   "On (automatic)": (
     <span>
       MDM was turned on automatically using Apple Automated Device Enrollment
