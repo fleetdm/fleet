@@ -48,8 +48,6 @@ const IntegrationsPage = ({
     {}
   );
 
-  console.log("appConfig from call: ", appConfig);
-
   /** The common submission logic for settings that are rendered on the Integrations page, but use
    * the common configAPI.update method, the same one used by cards of the OrgSettingsPage */
   const onUpdateSettings = useCallback(
