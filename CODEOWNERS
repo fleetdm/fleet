@@ -65,7 +65,7 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @rachaelshaw
+/docs                                           @lukeheath # Temporarily replacing @rachaelshaw while she and @noahtalerman are both out of office
 /docs/Contributing                              @lukeheath # « Contributing guidelines
 /docs/Contributing/architecture/mdm             @lukeheath @georgekarrv
 /docs/Contributing/architecture/orchestration   @lukeheath @sharon-fdm
