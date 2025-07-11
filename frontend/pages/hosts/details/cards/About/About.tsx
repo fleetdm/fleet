@@ -1,18 +1,19 @@
 import React from "react";
 import classnames from "classnames";
 
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import TooltipWrapper from "components/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Card from "components/Card";
-
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { MDM_ENROLLMENT_STATUS_UI_MAP } from "interfaces/mdm";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
   BATTERY_TOOLTIP,
 } from "utilities/constants";
+
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import Card from "components/Card";
 import DataSet from "components/DataSet";
 import CardHeader from "components/CardHeader";
 
@@ -96,15 +97,12 @@ const About = ({
         <DataSet
           title="MDM status"
           value={
-            !MDM_STATUS_TOOLTIP[mdm.enrollment_status] ? (
-              mdm.enrollment_status
-            ) : (
-              <TooltipWrapper
-                tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
-              >
-                {mdm.enrollment_status}
-              </TooltipWrapper>
-            )
+            <TooltipWrapper
+              tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
+              underline={mdm.enrollment_status !== "Off"}
+            >
+              {MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status].displayName}
+            </TooltipWrapper>
           }
         />
         <DataSet
