@@ -26,7 +26,7 @@ The Sales department is directly responsible for attaining the revenue goals of 
 ### Respond to a customer feature comparison request
 
 AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spreadsheets from prospects to the "🎐🗣 Design review (#g-digital-experience)" meeting for CEO review. The rep will:
-- Add themselves and the [Contracts and Compliance Engineer](https://fleetdm.com/handbook/digital-experience#team) to the "🎐🗣 Design review (#g-digital-experience)" calendar event (on the Office hours calendar).
+- Add themselves and the [Contracts and Compliance Engineer](https://fleetdm.com/handbook/finance#team) to the "🎐🗣 Design review (#g-digital-experience)" calendar event (on the Office hours calendar).
 - Review with the CEO, and iterate on the comparison until approved by the CEO to provide to the prospect.  
 
 
@@ -82,7 +82,7 @@ Reseller partners occasionally reach out and ask Fleet for a quote on behalf of 
 
 ### Send an order form
 
-In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Contracts and Compliance Engineer](https://fleetdm.com/handbook/digital-experience#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
+In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Contracts and Compliance Engineer](https://fleetdm.com/handbook/finance#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
 
 > Check out this example of an [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A)!
 
