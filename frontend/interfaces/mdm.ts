@@ -44,7 +44,15 @@ export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
   return server_url.concat("/mdm/apple/mdm");
 };
 
-export const MDM_ENROLLMENT_STATUS = {
+/** These are the values the API will send back to the UI for mdm enrollment status */
+export type MdmEnrollmentStatus =
+  | "On (manual)"
+  | "On (automatic)"
+  | "On (personal)"
+  | "Off"
+  | "Pending";
+
+export const MDM_ENROLLMENT_STATUS: Record<MdmEnrollmentStatus, string> = {
   "On (manual)": "manual",
   "On (automatic)": "automatic",
   "On (personal)": "personal",
@@ -52,11 +60,47 @@ export const MDM_ENROLLMENT_STATUS = {
   Pending: "pending",
 };
 
-export type MdmEnrollmentStatus = keyof typeof MDM_ENROLLMENT_STATUS;
+interface IMdmEnrollmentStatusUIData {
+  displayName: string;
+  /** This is the filter value used for query string parameters */
+  filterValue: string;
+}
+
+/** This maps the MdmEnrollmentStatus to the various data needed in the UI.
+ * This include the display name, and the filter values.
+ */
+export const MDM_ENROLLMENT_STATUS_UI_MAP: Record<
+  MdmEnrollmentStatus,
+  IMdmEnrollmentStatusUIData
+> = {
+  "On (manual)": {
+    displayName: "On (manual)",
+    filterValue: "manual",
+  },
+  "On (automatic)": {
+    // This is the new name for "On (automatic)". The API will still return
+    // "On (automatic)" for backwards compatibility.
+    displayName: "On (company-owned)",
+    filterValue: "automatic",
+  },
+  "On (personal)": {
+    displayName: "On (personal)",
+    filterValue: "personal",
+  },
+  Off: {
+    displayName: "Off",
+    filterValue: "unenrolled",
+  },
+  Pending: {
+    displayName: "Pending",
+    filterValue: "pending",
+  },
+};
 
 export interface IMdmStatusCardData {
   status: MdmEnrollmentStatus;
   hosts: number;
+  selectedPlatformLabelId?: number;
 }
 
 export interface IMdmAggregateStatus {
