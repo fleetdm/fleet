@@ -10,12 +10,10 @@ This page details processes specific to working [with](#contact-us) and [within]
 | [CEO](https://fleetdm.com/handbook/company/leadership#ceo-flaws) | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Head of People / HR / Legal     | <sup><sub> See [CEO](https://www.fleetdm.com/handbook/digital-experience#team) <sup><sub>
 | Head of Digital Experience      | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
-| Apprentice                      | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_, [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
+| GTM Engineer | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 | Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Contracts and Compliance Engineer       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
-| Marketing Apprentice            | [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
- 
+| Apprentice                      | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_, [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_, [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 
 
 ## Contact us
@@ -43,6 +41,7 @@ The Digital Experience department is directly responsible for the culture, train
 5. Mark the Slack message as complete with the "✅" emoji.
 
 > For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+
 
 ### Prepare "Let's get you set up!" meeting notes
 
@@ -209,6 +208,7 @@ Fleet has several brand fronts that need to be updated from time to time. Check 
 - The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
 
 
+<!--
 ### Update the host count of a premium subscription
 
 When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Marketing department](https://fleetdm.com/handbook/marketing) will create a confidential issue detailing the request and add it to the new requests column of [Digital Experience kanban board](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board). A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
@@ -235,6 +235,7 @@ Use the following steps to cancel a Fleet Premium subscription:
 1. Log into [Stripe](https://dashboard.stripe.com/dashboard) (login in 1Password) and paste the customer's email they used to sign up in the search bar at the top of the page.
 2. Select the subscription related to the email and use the "Actions" drop-down to "Cancel immediately".
 3. Reach out to the community member (using the [correct email template](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit#heading=h.vw9mkh5e9msx)) and let them know their subscription was canceled.
+-->
 
 
 ### Register a domain for Fleet
@@ -403,38 +404,9 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 7. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
 
 
-
-### Grant equity
-
-Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/digital-experience#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose). Any offer of equity >2500 shares must be approved by the CEO.  Offers of equity >0.25% must be approved by the board.
-
-Doing an equity grant involves:
-- Executing a board consent
-- The recipient and CEO signing paperwork about the stock options
-- Updating the number of shares for the recipient in the equity plan
-- Updating Carta to reflect the grant
-
-For the status of stock option grants, exercises, and all other _common stock_ including advisor, founder, and team member equity ownership, see [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).  For information about investor ownership, see [Carta](https://app.carta.com/corporations/1234715/summary/).
-
-> Fleet's [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) is the source of truth, not Carta.  Neither are pro formas sent in an email attachment, even if they come from lawyers.
-> 
-> Anyone can make mistakes, and none of us are perfect.  Even when we triple check.  Small mistakes in share counts can be hard to attribute, and can cause headaches and eat up nights of our CEO's and operations team's time.  If you notice what might be a discrepancy between the equity plan and any other secondary source of information, please speak up and let Fleet's CEO know ASAP.  Even if you're wrong, your note will be appreciated.
-
-
 ### Grant role-specific license to a team member
 
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
-
-| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
-|:-----------------|:---|:---|:----|:---|:---|
-| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
-| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
-| ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
-| ⚗️ PD            | ❌ | ❌ | ❌ | ✅ | ✅
-| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
-|   Other roles    | ❌ | ❌ | ❌ | ❌ | ✅
-
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) and we will make sure there is no license redundancy in that department.
 
 
 ### Process a tool upgrade request from a team member
@@ -555,61 +527,6 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 3. Complete the survey questions, aiming for minimal changes.
 4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
 5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
-
-
-### Review an NDA
-
-We need to review an NDA anytime a vendor, customer or other party wants to:
-- Use their own NDA rather than Fleet's standard NDA, or
-- "Redline" (modify) Fleet's NDA by removing, adding or altering its terms.
-
-We should always seek to use Fleet's own NDA first, without alteration. 
-
-When reading an NDA, we want to pay close attention to the following:
-- We want to be sure that the confidentiality obligations of the NDA are reciprocal.  Fleet and the other party to the agreement should be bound to the same standards of confidentiality toward the handling of each other's confidential information.
-- Fleet does not agree to _"do not compete"_ or _"do not solicit clauses"_. An NDA should not contain provisions beyond the scope of an NDA. The two most commonly encountered examples of this are the "do not compete" and "do not solicit" clauses. We want to be free to hire the best people and make the best products, so when reading through an NDA it is important to keep an eye out for language that prohibits Fleet from hiring or soliciting current or former employees of other companies or that prohibit Fleet from independently developing products that compete with another company's products.  Using the `cmd + f` function to search for "solici", "compet" and "hir" and reading through the results is a helpful method to quickly scan for these clauses.
-- Look for any language that discusses a transfer of property rights. Rarely, you may find a clause snuck into an agreement that discusses the transfer of intellectual property rights.  _We want to avoid any situation where Fleet transfers its intellectual property to another party as part of an NDA_.  
-- Should you find any clauses in steps 2 or 3 that are beyond the scope of protecting both party's confidential information in a customer NDA or an altered version of Fleet's NDA, reject this language and communicate that Fleet cannot agree to those terms.
-- Any concerns or uncertainty over _any_ provisions in an NDA should be brought to Nathanael Holliday in Digital Experience, who will consult legal counsel if necessary to resolve any concerns.
-
-
-### Review a vendor agreement
-
-When reviewing contracts from a vendor, Fleet is concerned about the following:
-- If there are confidentiality provisions in the agreement in place of a stand-alone NDA, verify the confidentiality provisions are appropriate and protect Fleet when sensitive data is involved that isn't otherwise available to the public.
-- We want to make sure there are no _do not solicit_ or _do not compete_ clauses in the contract.  To aid in this search, we double check by using the cmd + f function and searching for "solici", "compet" and "hir" and then looking through the results to be sure that nothing prohibits Fleet from independently developing competing products or from hiring personnel with ties to the vendor.
-- We want to make sure that contracts can be terminated relatively easily and be aware of what the process is for terminating them, avoiding commitments over 12 months in length.
-- We want to make sure the payment terms work for us (i.e. being able to pay via wire transfer, credit card or bill.com) and that the price in any contract or order form is what we have agreed to.  While almost never malicious, mistakes often occur in the steps between agreeing on a price, negotiating a contract, and receiving an invoice.  We want to be sure at every step that the dollar amount and service provided is consistent with what has been negotiated and agreed upon.
-- Remember, once we have signed the agreement - we're stuck with it. If any clause in the agreement appears strange or gives you pause or concern, it is better to seek clarification than to commit to something that might be detrimental to Fleet.  Contracts are fairly standardized, and you'll quickly learn what is normal and what feels out of place.  Unusual clauses or wording that seems out of the ordinary should get a second set of eyes just to be sure, do not hesitate to reach out to Nathanael Holliday with questions, who will reach out to legal counsel as necessary.
-
-
-### Review an order form
-
-Using the this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A) and the [TEMPLATE - Subscription order form (confidential document)](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0) as an examples, check the document for correct format, pricing info, terms, "Fast-track deployment services" info, or any other missing details. 
-1. Be sure the order form includes a quality logo that matches the customer company and is correctly sized.
-2. Navigate to the future customer's opportunity in Salesforce and verify the contact information + billing address and information so that Fleet knows how and who to invoice for payment.
-3. Verify. There is a good quality and decently sized customer logo in the top right corner of the order form a good way to pull this is off of Linkedin. If you're having trouble finding it.
-4. Next, as you're going down the page, you're going to verify the customer information and terms. Verify the customer name and address, the billing contact. And you'll be verifying these against the same information that should be in Salesforce. The billing contact (or an economic buyer) in salesforce should be the same person as your billing contact on the order form.
-5. Verify the effective dates and total term match that in salesforce. E.g. If your effective dates are January 1st to December 31st of the same year, your total term is 12 months . If your effective dates are January 1st of 2025 to December 31st of 2028, your total term is 36 months. It's very important that the breakdown table, effective dates, and the total term all match. Otherwise the math won't come out correct.
-6. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form caluculator as the source of truth, if needed, adjust the values in the table to be correct.
-7. Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to Nathanael Holliday in Digital Experience with concerns.
-
-
-### Review a non-standard subscription agreement
-
-We want to use our standard terms whenever possible with our customers, but it is common that customers want to use their own agreement or redline (modify) Fleet's terms.  
-When reviewing subscription agreements on customer paper or when a customer has made changes to Fleet's terms, we review it using [these guidelines](https://docs.google.com/document/d/1aGgN5It1i3fdsBF37vWSbvukO_gQhy5vCp4fINg191Q/edit?usp=sharing).
-
-
-### Obtain a signature from the CEO
-
-When an agreement is routed to the CEO for signature, the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) is responsible for obtaining a signature from the CEO using the following steps:
-1. Drag the email to the ["🔏 SAM: Signature wanted"](https://mail.google.com/mail/u/0/#label/SAM%3A+Signature+wanted) label making sure to mark the email as unread.
-2. The [Contracts and Compliance Engineer](https://fleetdm.com/handbook/digital-experience#team) will at-mention the Apprentice in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
-
-> If the agreement closes a deal, inform the CEO (via Slack DM) that a subscription agreement is ready for his review/signature. The SLA for CEO review and signature is 48hrs.
-
-3. Comment in the issue once the CEO has signed the agreement and assign the issue to [Nathan Holiday](https://fleetdm.com/handbook/digital-experience#team).
    
 
 ### Prepare for the All hands
@@ -881,12 +798,7 @@ Use the following steps to confirm CEO shadow dates:
 3. Click on a test, then click on "Tasks".  
 4. Click on "Create task." Then, "Create GitHub issue."
 5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the "#g-digital-experience" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
-6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, Fleet's CTO, or the Head of Digital Experience. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
-
-
-### Check GitHub terms
-
-Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@latest/github/site-policy/github-terms-of-service) and search “inbound=outbound” to find the clause, if still there as is, paste a screenshot into the table in this [document](https://docs.google.com/document/d/101rcp9v3Zdml4YolGRmqYS5ruAKzQvXLOTHLXCavPuE/edit#heading=h.xu6qsi0wrns). If the clause has changed, contact Mike M. and let him know. 
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, Fleet's CTO, or the Head of Digital Experience. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date. 
 
 
 ## Rituals
