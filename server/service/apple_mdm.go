@@ -1981,7 +1981,7 @@ func (r mdmAppleAccountEnrollAuthenticateResponse) Error() error { return r.Err 
 func (r mdmAppleAccountEnrollAuthenticateResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate",
 		`Bearer method="apple-as-web" `+
-			`url="`+r.mdmSSOUrl+`?test=123"`,
+			`url="`+r.mdmSSOUrl+`"`,
 	)
 	w.WriteHeader(http.StatusUnauthorized)
 	return
@@ -3302,10 +3302,9 @@ type callbackMDMAppleSSOResponse struct {
 	redirectURL string
 }
 
-// TODO EJM
 func (r callbackMDMAppleSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.redirectURL)
-	w.WriteHeader(http.StatusPermanentRedirect)
+	w.WriteHeader(http.StatusSeeOther)
 }
 
 func (r callbackMDMAppleSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
