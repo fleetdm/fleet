@@ -1,7 +1,6 @@
 package externalrefs
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
