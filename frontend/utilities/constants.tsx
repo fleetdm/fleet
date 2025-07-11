@@ -346,8 +346,15 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
   "On (manual)": (
     <span>
-      MDM was turned on manually (macOS), or hosts were automatically migrated
-      with fleetd (Windows). End users can turn MDM off.
+      MDM was turned on manually, by installing fleetd on macOS and Windows, or
+      by installing enrollment profile on macOS. End user can turn MDM off.
+    </span>
+  ),
+  "On (personal)": (
+    <span>
+      End user turned on MDM on personal (BYOD) host, by signing in with Managed
+      Apple Account on iPhone/iPad, or by enrolling Android via enrollment link
+      or by signing in with Google account. End user can turn MDM off.
     </span>
   ),
   Off: undefined, // no tooltip specified

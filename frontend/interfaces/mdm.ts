@@ -47,6 +47,7 @@ export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
 export const MDM_ENROLLMENT_STATUS = {
   "On (manual)": "manual",
   "On (automatic)": "automatic",
+  "On (personal)": "personal",
   Off: "unenrolled",
   Pending: "pending",
 };
@@ -81,6 +82,7 @@ export interface IMdmSummaryMdmSolution extends IMdmSolution {
 interface IMdmStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
+  enrolled_personal_hosts_count: number;
   unenrolled_hosts_count: number;
   pending_hosts_count?: number;
   hosts_count: number;
