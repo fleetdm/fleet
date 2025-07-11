@@ -853,6 +853,10 @@ const (
 	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
 
+func RefetchAppsCommandUUID() string {
+	return RefetchAppsCommandUUIDPrefix + uuid.NewString()
+}
+
 func ListAppleRefetchCommandPrefixes() []string {
 	return []string{
 		RefetchBaseCommandUUIDPrefix,

@@ -3903,11 +3903,16 @@ func NewInstalledApplicationListResultsHandler(
 					return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
 				}
 			default:
-				if _, err := ds.UpdateHostSoftware(ctx, hostID, installedAppResult.AvailableApps()); err != nil {
-					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: update host software")
+				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), false)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+				}
+
+				err = ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix}})
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "add host mdm commands")
 				}
 			}
-
 		}
 
 		// If we get here, we're in a terminal state, so we can remove the verify command.
