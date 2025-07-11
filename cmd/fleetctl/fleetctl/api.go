@@ -1,15 +1,19 @@
 package fleetctl
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 
@@ -212,14 +216,19 @@ func clientConfigFromCLI(c *cli.Context) (Context, error) {
 
 // apiCommand fleetctl api [options] uri
 // -F, --field <key=value>
-// Add a typed parameter in key=value format
+// Add a parameter to the query string in key=value format
+// -B, --body-field <key=value>
+// Add a value to the body in key=value format. If the value is in the format of "@filename", upload
+// that file as a MIME multipart upload. If the value is in the format of "<filename", use the
+// contents of that file as the value of this key.
 // -H, --header <key:value>
 // Add a HTTP request header in key:value format
 // -X, --method <string> (default "GET")
 // The HTTP method for the request
 func apiCommand() *cli.Command {
 	var (
-		flField  []string
+		flQuery  []string
+		flBody   []string
 		flHeader []string
 		flMethod string
 	)
@@ -231,7 +240,15 @@ func apiCommand() *cli.Command {
 			&cli.StringSliceFlag{
 				Name:    "F",
 				Aliases: []string{"field"},
-				Usage:   "Add a typed parameter in key=value format",
+				Usage:   "Add a parameter to the query string in key=value format",
+			},
+			&cli.StringSliceFlag{
+				Name:    "B",
+				Aliases: []string{"body-field"},
+				Usage: `Add a value to the body in key=value format. If the value is in the ` +
+					`format of "@filename", upload that file using a MIME multipart upload. If ` +
+					`the value is in the format of "<filename", use the contents of that file as ` +
+					`the value of this key.`,
 			},
 			&cli.StringSliceFlag{
 				Name:    "H",
@@ -240,9 +257,10 @@ func apiCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "X",
-				Value:       "GET",
+				Value:       "",
 				Destination: &flMethod,
-				Usage:       "The HTTP method for the request",
+				Usage: "The HTTP method for the request. Defaults to GET, or POST when -B " +
+					"arguments are present.",
 			},
 			configFlag(),
 			contextFlag(),
@@ -261,11 +279,12 @@ func apiCommand() *cli.Command {
 					strings.Join(c.Args().Slice()[1:], " "))
 			}
 
-			flField = c.StringSlice("F")
+			flQuery = c.StringSlice("F")
 			flHeader = c.StringSlice("H")
+			flBody = c.StringSlice("B")
 
-			if len(flField) > 0 {
-				for _, each := range flField {
+			if len(flQuery) > 0 {
+				for _, each := range flQuery {
 					k, v, found := strings.Cut(each, "=")
 					if !found {
 						continue
@@ -274,7 +293,17 @@ func apiCommand() *cli.Command {
 				}
 			}
 
-			headers := map[string]string{}
+			body, headers, err := parseBodyFlags(flBody)
+			if err != nil {
+				return err
+			}
+			if body != nil {
+				// If a body is present, change the default method to POST. It can
+				// still be overridden with -X. If the user attempts to send a body
+				// with a GET request, an error is returned.
+				method = "POST"
+			}
+
 			if len(flHeader) > 0 {
 				for _, each := range flHeader {
 					k, v, found := strings.Cut(each, ":")
@@ -289,11 +318,15 @@ func apiCommand() *cli.Command {
 				method = flMethod
 			}
 
+			if body != nil && method == "GET" {
+				return fmt.Errorf("GET requests may not include a body")
+			}
+
 			if !strings.HasPrefix(uriString, "/") {
 				uriString = fmt.Sprintf("/%s", uriString)
 			}
 
-			if !strings.HasPrefix(uriString, "/api/v1/fleet") {
+			if !strings.HasPrefix(uriString, "/api/v1/fleet") && !strings.HasPrefix(uriString, "/api/latest/fleet") {
 				uriString = fmt.Sprintf("/api/v1/fleet%s", uriString)
 			}
 
@@ -302,7 +335,7 @@ func apiCommand() *cli.Command {
 				return err
 			}
 
-			resp, err := fleetClient.AuthenticatedDoCustomHeaders(method, uriString, params.Encode(), nil, headers)
+			resp, err := fleetClient.AuthenticatedDoCustomHeaders(method, uriString, params.Encode(), body, headers)
 			if err != nil {
 				return err
 			}
@@ -320,4 +353,105 @@ func apiCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// parseBodyFlags parses the value of the "-B" (request body data field) and returns the body,
+// headers and any fatal errors encountered.
+func parseBodyFlags(flBody []string) (body any, headers map[string]string, err error) {
+	headers = make(map[string]string)
+	if len(flBody) == 0 {
+		return
+	}
+
+	// Populate jsonBody and multipartWriter in parallel. If we encounter a file upload,
+	jsonBody := make(map[string]any)
+	isMultiPart := false
+	multipartBuffer := &bytes.Buffer{}
+	multipartWriter := multipart.NewWriter(multipartBuffer)
+
+	for _, each := range flBody {
+		k, v, found := strings.Cut(each, "=")
+		if !found {
+			// if no "=", set body field to true
+			multipartWriter.WriteField(k, "true")
+			jsonBody[k] = true
+			continue
+		}
+		if len(v) > 0 && (v[0] == '<' || v[0] == '@') {
+			st, err := os.Stat(v[1:])
+			switch {
+			case err != nil:
+				fmt.Fprintf(os.Stderr,
+					"warning: encountered argument value %q but unable to stat file %q, the value "+
+						"will be sent as a literal string",
+					v, v[1:])
+			case !st.Mode().IsRegular():
+				fmt.Fprintf(os.Stderr,
+					"warning: encountered argument value %q but file %q is not a regular file, "+
+						"the value will be sent as a literal string",
+					v, v[1:])
+			default:
+				// the file is validated to exist and be a regular file
+				switch v[0] {
+				case '<':
+					// use contents of the file as the value of this field
+					if contents, err := os.ReadFile(v[1:]); err == nil {
+						v = string(contents)
+					} else {
+						fmt.Fprintf(os.Stderr,
+							"warning: while processing body field %s: unable to read file %q: %v; "+
+								"the field will be sent as the literal string %q",
+							k, v[1:], err, v)
+					}
+				case '@':
+					// do a multipart file upload
+					if fileWriter, err := multipartWriter.CreateFormFile(k, path.Base(v[1:])); err == nil {
+						if fp, err := os.Open(v[1:]); err == nil {
+							defer fp.Close()
+							io.Copy(fileWriter, fp)
+							// from here on out, this is definitely a multipart upload
+							isMultiPart = true
+							// skip the rest of the loop so we don't attempt to write as a regular
+							// form field
+							continue
+						} else {
+							fmt.Fprintf(os.Stderr,
+								"warning: while processing body field %s: error opening file %q "+
+									"for upload: %v; the field will be sent as the literal string %q",
+								k, v[1:], err, v)
+						}
+					} else {
+						fmt.Fprintf(os.Stderr,
+							"warning: while processing body field %s: error creating form file "+
+								"field: %v; the field will be sent as the literal string %q",
+							k, err, v)
+					}
+				}
+			}
+		}
+		var jsonValue any
+		multipartWriter.WriteField(k, v)
+		if err := json.Unmarshal([]byte(v), &jsonValue); err == nil {
+			jsonBody[k] = jsonValue
+		} else {
+			jsonBody[k] = v
+		}
+	}
+
+	if isMultiPart {
+		multipartWriter.Close()
+		body = multipartBuffer
+		headers["Content-Type"] = multipartWriter.FormDataContentType()
+		headers["Content-Length"] = fmt.Sprintf("%d", multipartBuffer.Len())
+	} else {
+		body, err = json.Marshal(jsonBody)
+		if err != nil {
+			return
+		}
+
+		headers["Content-Type"] = "application/json"
+		headers["Content-Length"] = fmt.Sprintf("%d", len(body.([]byte)))
+	}
+
+	return
 }
