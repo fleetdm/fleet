@@ -244,6 +244,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/go-tpm v0.9.5 // indirect
 	github.com/google/rpmpack v0.0.0-20210518075352-dc539ef4f2ea // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect

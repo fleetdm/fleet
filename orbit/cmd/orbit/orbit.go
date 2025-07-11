@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -229,6 +230,11 @@ func main() {
 			Name:    "osquery-db",
 			Usage:   "Sets a custom osquery database directory, it must be an absolute path",
 			EnvVars: []string{"ORBIT_OSQUERY_DB"},
+		},
+		&cli.BoolFlag{
+			Name:    "managed-client-certificate",
+			Usage:   "Configures fleetd to use TPM-backed key to sign HTTP requests",
+			EnvVars: []string{"ORBIT_MANAGED_CLIENT_CERTIFICATE"},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -924,6 +930,15 @@ func main() {
 			return fmt.Errorf("error loading fleet client certificate: %w", err)
 		}
 
+		if c.Bool("managed-client-certificate") {
+			if runtime.GOOS != "linux" {
+				return errors.New("the \"managed-client-certificate\" flag is only supported on Linux")
+			}
+			if fleetClientCrt != nil {
+				return errors.New("setting both \"--managed-client-certificate\" for HTTP signing, and TLS client certificates for mTLS is not supported")
+			}
+		}
+
 		var fleetClientCertificate *tls.Certificate
 		if fleetClientCrt != nil {
 			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to Fleet.")
@@ -932,6 +947,27 @@ func main() {
 				"--tls_client_cert", fleetClientCertPath,
 				"--tls_client_key", fleetClientKeyPath,
 			}))
+		}
+
+		if c.Bool("managed-client-certificate") {
+			commonName := osqueryHostInfo.HardwareUUID
+			if c.String("host-identifier") == "instance" {
+				commonName = osqueryHostInfo.InstanceID
+			}
+			clientCertificate, err := hostidentity.CreateOrLoadClientCertificate(
+				c.Context,
+				c.String("root-dir"),
+				fleetURL+"/api/fleet/orbit/scep",
+				c.String("enroll-secret"),
+				commonName,
+				log.Logger,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to create or load client certificate: %w", err)
+			}
+
+			// TODO(lucas, victor): Use for HTTP signing.
+			_ = clientCertificate
 		}
 
 		orbitClient, err := service.NewOrbitClient(

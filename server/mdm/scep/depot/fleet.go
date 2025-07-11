@@ -32,7 +32,6 @@ func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 	return cert, key, nil
 }
 
-// Note Apple rejects CSRs if the key size is not 2048.
 const rsaKeySize = 2048
 
 // newPrivateKey creates an RSA private key
