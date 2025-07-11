@@ -30,11 +30,11 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 
 | Payroll type                 | What to use                  | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
-| [Commissions and ramp](https://fleetdm.com/handbook/finance#run-us-commission-payroll)         | "Off-cycle - Commission" payroll          | Finance Engineer
-| Sign-on bonus                | "Bonus" payroll              | Finance Engineer
-| Performance bonus            | "Bonus" payroll              | Finance Engineer    
-| Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Finance Engineer
-| [US contractor payroll](https://fleetdm.com/handbook/finance#run-payroll) | "Off-cycle" payroll | Finance Engineer
+| [Commissions and ramp](https://fleetdm.com/handbook/finance#run-us-commission-payroll)         | "Off-cycle - Commission" payroll          | Finance
+| Sign-on bonus                | "Bonus" payroll              | Finance
+| Performance bonus            | "Bonus" payroll              | Finance    
+| Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Finance
+| [US contractor payroll](https://fleetdm.com/handbook/finance#run-payroll) | "Off-cycle" payroll | Finance
 
 To complete payroll for a salaried US employee, use the following steps:
 1. Log in to your admin [Gusto](https://app.gusto.com/login) account.
