@@ -55,9 +55,9 @@ Fleet is successful because of our customers and community, and those relationsh
 | Social media                         | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Information technology (IT)          | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
-| Payroll, bookkeeping, AR/AP          | <sup><sub>_See [💸 Finance Engineer](https://fleetdm.com/handbook/finance#team)_</sup></sub>
-| Legal contracts                      | <sup><sub>_See [🌐 Digital Experience team](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
+| Information technology (IT)          | <sup><sub>_See [🐋 Solutions Consultants](https://fleetdm.com/handbook/company/go-to-market-groups#unicorns)_</sup></sub>
+| Payroll, bookkeeping, AR/AP          | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
+| Legal contracts                      | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
 | Customer renewals                    | <sup><sub>_See [🌦️ VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Customer deployments                 | <sup><sub>_See [🌦️ Infrastructure Engineer](https://fleetdm.com/handbook/customer-success#team)_ </sup></sub>
 | Customer support                     | <sup><sub>_See [🌦️ Customer Success team](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
@@ -115,18 +115,11 @@ Capturing video from meetings with customers, prospects, and community members o
   - If the call has external participants and is recorded, this call is stored in Gong for future use. 
 To access a recording saved in Gong, visit [app.gong.io](https://app.gong.io) and sign in with SSO. 
   - Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). 
-If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to Nathan Holliday or Mike McNeil for help. They will delete it immediately without watching the video. 
+If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) for help. They will delete it immediately without watching the video. 
   - Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. 
 
 Most folks at Fleet should see no difference in their meetings if they aren't interfacing with external parties. 
-Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, Nathan Holliday, or Mike McNeil if you have questions or concerns.  
-
-Here are some tips for troubleshooting Gong:
-- In order to use Gong, the Zoom call must be hosted by someone with a Fleet email address.  
-- You cannot use Gong to record calls hosted by external parties.
-- Cloud recording in Zoom has to be turned on and unlocked company wide for Gong to function properly, because of this, there is a chance that some Gong recordings may still save in Zoom's cloud storage even if they aren't uploaded into Gong.
-- To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
-- If you need help using Gong, please check out [Gong Academy](https://academy.gong.io/).
+Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) if you have questions or concerns.  
 
 
 > ***Excluding calls from being recorded***

@@ -32,12 +32,14 @@ SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_comp
 
 When a host fails the selected policy, this will trigger the software to be installed on the host.
 
+Once the software is installed, Fleet will automatically refetch the host's vitals and update the software inventory.
+
 If the software install fails, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
 
 ## How does it work?
 
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
-* The policy check mechanism runs on a typical one-hour cadence on all online hosts. 
+* The policy check mechanism runs on a typical one-hour cadence on all online hosts.
 * Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". Currently, Fleet will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
@@ -45,7 +47,7 @@ If the software install fails, you can reset a software automation and trigger t
 
 App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business Manager). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
 
-Currently, App Store apps (VPP) are not installed as [Managed Apps](https://support.apple.com/guide/deployment/distribute-managed-apps-dep575bfed86/web). Uninstalling VPP apps is [coming soon](https://github.com/fleetdm/fleet/issues/25497).
+Uninstalling VPP apps is [coming soon](https://github.com/fleetdm/fleet/issues/25497).
 
 ## Templates for policy queries
 

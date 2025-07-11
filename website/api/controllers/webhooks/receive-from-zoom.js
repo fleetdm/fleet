@@ -91,7 +91,7 @@ module.exports = {
         }
       })
       .intercept({raw: {statusCode: 404}}, (err)=>{
-        sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get information about the call. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get information about the call. Full payload from Zoom: ${require('util').inpsect(payload, {depth: null})} Full error: ${require('util').inspect(err, {depth: 3})}`);
         return 'callInfoNotFound';
       }).intercept((err)=>{
         return new Error(`When sending a request to get information about a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
@@ -106,7 +106,7 @@ module.exports = {
         }
       })
       .intercept({raw: {statusCode: 404}}, (err)=>{
-        sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get a transcript of the call. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get a transcript of the call. Full payload from Zoom: ${require('util').inpsect(payload, {depth: null})} Full error: ${require('util').inspect(err, {depth: 3})}`);
         return 'callTranscriptNotFound';
       }).intercept((err)=>{
         return new Error(`When sending a request to get a transcript of a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
@@ -138,6 +138,11 @@ module.exports = {
       // Transcripts are ordered by an item_id, but separaterd by speaker.
       let allTranscriptLines = [];
       for(let speaker of allSpeakersOnThisCall) {
+        if(!speaker.transcripts) {
+          // Log a warning if a speaker on this call is missing a transcripts value, and proceed.
+          sails.log.warn(`When the receive-from-zoom webhook attempted to create a call transcript of a Zoom meeting (call id: ${idOfCallToGenerateTranscriptFor}), a speaker on the call is missing an expected 'transcripts' value. Speaker information returned from the Zoom API: ${require('util').inspect(speaker)}`);
+          continue;
+        }
         for(let line of speaker.transcripts) {
           // Rebuild a list of lines in the call transcript and attach the speakers name to eac hline in the transcript
           allTranscriptLines.push({
@@ -147,7 +152,6 @@ module.exports = {
           });
         }
       }
-
       let allSpokenWordsOrderedById = _.sortBy(allTranscriptLines, 'id');
 
       let transcript = '';

@@ -11828,18 +11828,27 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	//////////////////////////
 	// Do a request with a fleet maintained app
 	//////////////////////////
+	oldTransport := http.DefaultTransport
+	onePassMockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("mocked content")); err != nil {
+			// Handle the error, e.g., log it or fail the test
+			t.Fatalf("failed to write response: %v", err)
+		}
+	}))
+	defer onePassMockServer.Close()
+	mockTransport := &mockRoundTripper{
+		mockServer:  onePassMockServer.URL,
+		origBaseURL: "https://downloads.1password.com",
+		next:        http.DefaultTransport,
+	}
+	http.DefaultTransport = mockTransport
+	// https://downloads.1password.com/mac/1Password-8.10.82-aarch64.zip
 	maintained1, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "1Password",
 		Slug:             "1password/darwin",
 		Platform:         "darwin",
 		UniqueIdentifier: "com.1password.1password",
-	})
-	require.NoError(t, err)
-	maintained2, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "Google Chrome",
-		Slug:             "google-chrome/darwin",
-		Platform:         "darwin",
-		UniqueIdentifier: "com.google.Chrome",
 	})
 	require.NoError(t, err)
 
@@ -11852,19 +11861,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
 	require.NotNil(t, packages[0].URL)
-	require.Nil(t, packages[0].TeamID)
-
-	// maintained app with no_check for sha
-	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{Slug: &maintained2.Slug},
-	}
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
-	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
-	require.Len(t, packages, 1)
-	require.NotNil(t, packages[0].TitleID)
-	require.NotNil(t, packages[0].URL)
-	require.NotNil(t, packages[0].HashSHA256)
-	require.NotEqual(t, "no_check", packages[0].HashSHA256)
 	require.Nil(t, packages[0].TeamID)
 
 	// with a team
@@ -11892,6 +11888,50 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Len(t, meta.LabelsIncludeAny, 1)
 	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
 	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
+
+	// maintained app with no_check for sha
+	// https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg
+	maintained2, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Google Chrome",
+		Slug:             "google-chrome/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.google.Chrome",
+	})
+	require.NoError(t, err)
+
+	chromeBytes := []byte("chrome installer content")
+	h := sha256.New()
+	_, err = h.Write(chromeBytes)
+	require.NoError(t, err)
+	chromeSHA := hex.EncodeToString(h.Sum(nil))
+	chromeMockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(chromeBytes); err != nil {
+			// Handle the error, e.g., log it or fail the test
+			t.Fatalf("failed to write response: %v", err)
+		}
+	}))
+	defer chromeMockServer.Close()
+	mockTransport = &mockRoundTripper{
+		mockServer:  chromeMockServer.URL,
+		origBaseURL: "https://dl.google.com",
+		next:        http.DefaultTransport,
+	}
+	http.DefaultTransport = mockTransport
+
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
+		{Slug: &maintained2.Slug},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.NotNil(t, packages[0].URL)
+	// Given that the manifest returns no_check for chrome, the SHA should be taken of the downloaded file.
+	require.Equal(t, chromeSHA, packages[0].HashSHA256)
+	require.Nil(t, packages[0].TeamID)
+
+	http.DefaultTransport = oldTransport
 }
 
 func waitBatchSetSoftwareInstallersCompleted(t *testing.T, s *integrationEnterpriseTestSuite, teamName string, requestUUID string) []fleet.SoftwarePackageResponse {

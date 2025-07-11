@@ -94,6 +94,8 @@ type DatastoreTestOptions struct {
 
 	// RealReplica indicates that the replica should be a real DB replica, with a dedicated connection.
 	RealReplica bool
+
+	UniqueTestName string
 }
 
 func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schemaPath string) {
@@ -182,16 +184,22 @@ func ProcessOptions(t testing.TB, opts *DatastoreTestOptions) (string, *Datastor
 		}
 	}
 
-	const numberOfStackFramesFromTest = 3
-	pc, _, _, ok := runtime.Caller(numberOfStackFramesFromTest)
-	details := runtime.FuncForPC(pc)
-	if !ok || details == nil {
-		t.FailNow()
+	var cleanTestName string
+	if opts.UniqueTestName != "" {
+		cleanTestName = opts.UniqueTestName
+	} else {
+		const numberOfStackFramesFromTest = 3
+		pc, _, _, ok := runtime.Caller(numberOfStackFramesFromTest)
+		details := runtime.FuncForPC(pc)
+		if !ok || details == nil {
+			t.FailNow()
+		}
+
+		cleanTestName = strings.ReplaceAll(
+			strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
+		)
 	}
 
-	cleanTestName := strings.ReplaceAll(
-		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
-	)
 	cleanTestName = strings.ReplaceAll(cleanTestName, ".", "_")
 	if len(cleanTestName) > 60 {
 		// the later parts are more unique than the start, with the package names,

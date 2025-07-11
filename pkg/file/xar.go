@@ -565,6 +565,12 @@ func getPackageInfo(p *packageInfoXML) (name string, identifier string, version 
 		identifier = fleet.Preprocess(p.Identifier)
 	}
 
+	// if we didn't find a name and the install path looks like a .app, try using that
+	if name == "" && strings.HasSuffix(p.InstallLocation, ".app") {
+		pathParts := strings.Split(p.InstallLocation, "/")
+		name = strings.TrimSuffix(pathParts[len(pathParts)-1], ".app")
+	}
+
 	// if we didn't find a name, grab the name from the identifier
 	if name == "" {
 		idParts := strings.Split(identifier, ".")
