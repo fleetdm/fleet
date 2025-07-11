@@ -70,7 +70,7 @@ describe("Integrations Page", () => {
       expect(screen.queryByText("Conditional access")).toBeNull();
     });
     // eslint-disable-next-line jest/no-focused-tests
-    it.only("renders the Conditional access sidenav for managed cloud Fleet instances", async () => {
+    it("renders the Conditional access sidenav for managed cloud Fleet instances", async () => {
       mockServer.use(createGetConfigHandler());
       const mockRouter = createMockRouter();
       const mockConfig = createMockConfig();
