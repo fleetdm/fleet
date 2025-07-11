@@ -8098,7 +8098,51 @@ func testLabelScopingTimestampLogic(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, software, 1)
 
-	// Add label to host
+	// Add manual label to host
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label2.ID}))
+	host, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+
+	label1, _, err = ds.Label(ctx, label1.ID, fleet.TeamFilter{})
+	require.NoError(t, err)
+	label2, _, err = ds.Label(ctx, label2.ID, fleet.TeamFilter{})
+	require.NoError(t, err)
+	// ensure our timestamps are still correct
+	require.Greater(t, label1.CreatedAt, host.LabelUpdatedAt)
+	require.Greater(t, label2.CreatedAt, host.LabelUpdatedAt)
+
+	// Manual label added to host, so we should not see the software instantly
+	// self service
+	software, _, err = ds.ListHostSoftware(ctx, host, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// host library
+	software, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// manual label include any
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), selfServiceInstallerID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label2.Name: {LabelName: label2.Name, LabelID: label2.ID},
+		},
+	}, softwareTypeInstaller)
+	require.NoError(t, err)
+
+	// self service
+	software, _, err = ds.ListHostSoftware(ctx, host, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// host library
+	software, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// add dynamic label to host
+	require.NoError(t, ds.RemoveLabelsFromHost(ctx, host.ID, []uint{label2.ID}))
 	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label1.ID}))
 	host, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
@@ -8116,36 +8160,6 @@ func testLabelScopingTimestampLogic(t *testing.T, ds *Datastore) {
 		LabelScope: fleet.LabelScopeIncludeAny,
 		ByName: map[string]fleet.LabelIdent{
 			label1.Name: {LabelName: label1.Name, LabelID: label1.ID},
-		},
-	}, softwareTypeInstaller)
-	require.NoError(t, err)
-
-	// self service
-	software, _, err = ds.ListHostSoftware(ctx, host, selfServiceOpts)
-	require.NoError(t, err)
-	require.Len(t, software, 1)
-
-	// host library
-	software, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
-	require.NoError(t, err)
-	require.Len(t, software, 1)
-
-	require.NoError(t, ds.RemoveLabelsFromHost(ctx, host.ID, []uint{label1.ID}))
-	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label2.ID}))
-
-	label1, _, err = ds.Label(ctx, label1.ID, fleet.TeamFilter{})
-	require.NoError(t, err)
-	label2, _, err = ds.Label(ctx, label2.ID, fleet.TeamFilter{})
-	require.NoError(t, err)
-	// ensure our timestamps are still correct
-	require.Greater(t, label1.CreatedAt, host.LabelUpdatedAt)
-	require.Greater(t, label2.CreatedAt, host.LabelUpdatedAt)
-
-	// manual label include any
-	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), selfServiceInstallerID, fleet.LabelIdentsWithScope{
-		LabelScope: fleet.LabelScopeIncludeAny,
-		ByName: map[string]fleet.LabelIdent{
-			label2.Name: {LabelName: label2.Name, LabelID: label2.ID},
 		},
 	}, softwareTypeInstaller)
 	require.NoError(t, err)
