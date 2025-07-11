@@ -149,6 +149,10 @@ const routes = (
           <Route path="login/denied" component={NoAccessPage} />
           <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
           <Route path="mdm/sso" component={MDMAppleSSOPage} />
+          <Route
+            path="mdm/apple/account_driven_enroll/sso"
+            component={MDMAppleSSOPage}
+          />
         </Route>
       </Route>
       <Route component={AuthenticatedRoutes as RouteComponent}>

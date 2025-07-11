@@ -41,7 +41,9 @@ var addHostMDMCommandsBatchSize = 10000
 func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
 	var uuid string
 
-	// safe to use with interpolation rather than prepared statements because we're using a numeric ID here
+	// safe to use with interpolation rather than prepared statements because we're using a numeric
+	// ID here
+	// TODO EJM Does this query still work here?
 	err := sqlx.GetContext(ctx, q, &uuid, fmt.Sprintf(`
 	  SELECT ne.id
 	  FROM nano_enrollments ne
@@ -49,7 +51,7 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	    JOIN host_mdm hm ON hm.host_id = h.id
 	  WHERE h.id = %d
 	    AND ne.enabled = 1
-	    AND ne.type = 'Device'
+	    AND ne.type IN ('Device', 'User Enrollment (Device)')
 	    AND hm.enrolled = 1 LIMIT 1
 	`, h.ID))
 	if err != nil {
@@ -1173,8 +1175,8 @@ func (ds *Datastore) ListMDMAppleCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMAppleCommand, error) {
-	// Note that right now we are explicitly filtering by ne.type = 'Device' but we may want to change
-	// the API to allow and show user commands in the future
+	// Note that right now we are explicitly filtering by ne.type IN ('Device', 'User Enrollment (Device)') but we may want to change
+	// the API to allow and show user channel commands in the future
 	stmt := fmt.Sprintf(`
 SELECT
     ne.device_id as device_id,
@@ -1189,7 +1191,7 @@ FROM
 INNER JOIN
 	nano_enrollments ne
 ON
-	nvq.id = ne.id AND type = 'Device'
+	nvq.id = ne.id AND ne.type IN ('Device', 'User Enrollment (Device)')
 INNER JOIN
     hosts h
 ON
@@ -3003,6 +3005,7 @@ func generateDesiredStateQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
+	// TODO EJM
 	return os.Expand(`
 	-- non label-based entities
 	SELECT
@@ -3030,7 +3033,7 @@ func generateDesiredStateQuery(entityType string) string {
 	WHERE
 		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
 		ne.enabled = 1 AND
-		ne.type = 'Device' AND
+		ne.type IN ('Device', 'User Enrollment (Device)') AND
 		NOT EXISTS (
 			SELECT 1
 			FROM ${mdmEntityLabelsTable} mel
@@ -3072,7 +3075,7 @@ func generateDesiredStateQuery(entityType string) string {
 	WHERE
 		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
 		ne.enabled = 1 AND
-		ne.type = 'Device' AND
+		ne.type IN ('Device', 'User Enrollment (Device)') AND
 		( %s )
 	GROUP BY
 		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at, mae.scope
@@ -3119,7 +3122,7 @@ func generateDesiredStateQuery(entityType string) string {
 	WHERE
 		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
 		ne.enabled = 1 AND
-		ne.type = 'Device' AND
+		ne.type IN ('Device', 'User Enrollment (Device)') AND
 		( %s )
 	GROUP BY
 		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at, mae.scope
@@ -3161,7 +3164,7 @@ func generateDesiredStateQuery(entityType string) string {
 	WHERE
 		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
 		ne.enabled = 1 AND
-		ne.type = 'Device' AND
+		ne.type IN ('Device', 'User Enrollment (Device)') AND
 		( %s )
 	GROUP BY
 		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at, mae.scope
@@ -6864,7 +6867,7 @@ FROM
 	JOIN nano_enrollments e ON d.id = e.device_id
 	LEFT OUTER JOIN hosts h ON h.uuid = d.id
 WHERE
-	e.type = 'Device' AND
+	e.type IN ('Device', 'User Enrollment (Device)') AND
 	e.enabled = 1 AND
 	d.id = ? AND
 	h.id IS NULL
@@ -6889,7 +6892,7 @@ FROM
 	JOIN nano_enrollments e ON d.id = e.device_id
 	LEFT OUTER JOIN hosts h ON h.uuid = d.id
 WHERE
-	e.type = 'Device' AND
+	e.type IN ('Device', 'User Enrollment (Device)') AND
 	e.enabled = 1 AND
 	d.platform IN ('ios', 'ipados') AND
 	h.id IS NULL
@@ -6913,11 +6916,12 @@ func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID str
 	// enrollment row is the only one that gets regularly updated with the last seen time. Along
 	// those same lines authenticate_at gets updated only at the authenticate step during the
 	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
+	// TODO EJM Does this query still work right for user enrollments?
 	query := `
 	SELECT nd.authenticate_at, ne.last_seen_at
 	FROM nano_devices nd
 	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
-	WHERE ne.type = 'Device' AND nd.id = ?`
+	WHERE ne.type IN ('Device', 'User Enrollment (Device)') AND nd.id = ?`
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
 
 	if err == sql.ErrNoRows || len(res) == 0 {
