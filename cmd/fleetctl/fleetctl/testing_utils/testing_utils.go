@@ -73,6 +73,22 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				Name:        args.Name,
+				Query:       args.Query,
+				Critical:    args.Critical,
+				Platform:    args.Platform,
+				Description: args.Description,
+				Resolution:  &args.Resolution,
+				AuthorID:    authorID,
+			},
+		}, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 	certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
