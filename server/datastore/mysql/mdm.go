@@ -1557,7 +1557,6 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	// update the `hostMDMSelect` constant too, which has a
 	// `connected_to_fleet` condition, any relevant filters, and the
 	// query used in isAppleHostConnectedToFleetMDM.
-	// TODO EJM
 	const appleStmt = `
 	  SELECT ne.id
 	  FROM nano_enrollments ne

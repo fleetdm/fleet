@@ -1851,10 +1851,16 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 // in this case an enrollment reference which is used to fetch the enrollment profile. The device
 // then has the user sign in with the Apple ID specified in the enrollment profile
 func mdmAppleAccountEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	// Note that the device actually does send a whole plist here with a bunch of info in it. We
-	// should probably use it
 	req := request.(*mdmAppleAccountEnrollRequest)
 	svc.SkipAuth(ctx)
+	deviceProduct := strings.ToLower(req.DeviceInfo.Product)
+	if !strings.HasPrefix(deviceProduct, "ipad") && !strings.HasPrefix(deviceProduct, "iphone") {
+		return mdmAppleEnrollResponse{
+			Err: &fleet.BadRequestError{
+				Message: "only iOS and iPadOS devices are supported for account driven user enrollment",
+			},
+		}, nil
+	}
 	if req.EnrollReference == nil {
 		mdmSSOUrl, err := svc.GetMDMAccountDrivenEnrollmentSSOURL(ctx)
 		if err != nil {
@@ -1873,15 +1879,41 @@ func mdmAppleAccountEnrollEndpoint(ctx context.Context, request interface{}, svc
 
 type mdmAppleAccountEnrollRequest struct {
 	EnrollReference *string
+	DeviceInfo      fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo
 }
 
 func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := mdmAppleAccountEnrollRequest{}
 
+	rawData, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading body from request")
+	}
+
+	p7, err := pkcs7.Parse(rawData)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
+	}
+
+	deviceInfo := fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo{}
+
+	err = plist.Unmarshal(p7.Content, &deviceInfo)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
+	}
+	decoded.DeviceInfo = deviceInfo
+
 	auth := r.Header.Get("Authorization")
 	if strings.HasPrefix(auth, "Bearer ") {
 		decoded.EnrollReference = ptr.String(strings.Split(auth, "Bearer ")[1])
 	}
+
 	return &decoded, nil
 }
 
@@ -1924,7 +1956,7 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting MDM IdP account by UUID")
 	}
-	// TODO EJM idpAccount nil?
+	// TODO EJM can idpAccount be nil?
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -1947,7 +1979,6 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 		appConfig.MDMUrl(),
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
-		// TODO EJM
 		idpAccount.Email,
 	)
 	if err != nil {
@@ -3349,7 +3380,6 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		m.Model = m.ProductName
 	}
 
-	// TODO EJM UserEnrollmentID???
 	if err := svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:                mdmlifecycle.HostActionReset,
 		Platform:              platform,
@@ -3615,11 +3645,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		})
 		// TODO EJM DeviceLock/Erase need updates for Device (user) enrollment?
 	case "DeviceLock", "EraseDevice":
-		// call into our datastore to update host_mdm_actions if the status is terminal
+		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
-			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.UDID, cmdResult.CommandUUID, requestType,
+			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID, requestType,
 				cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
 		}
 	case "DeclarativeManagement":

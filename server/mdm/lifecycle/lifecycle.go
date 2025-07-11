@@ -35,10 +35,9 @@ const (
 // Not all options are required for all actions, each individual action should
 // validate that it receives the required information.
 type HostOptions struct {
-	Action   HostAction
-	Platform string
-	UUID     string
-	// TODO EJM
+	Action                  HostAction
+	Platform                string
+	UUID                    string
 	UserEnrollmentID        string
 	HardwareSerial          string
 	HardwareModel           string
@@ -174,7 +173,6 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 
 	if nanoEnroll == nil ||
 		!nanoEnroll.Enabled ||
-		// TODO EJM
 		!(nanoEnroll.Type == mdm.EnrollType(mdm.Device).String() || nanoEnroll.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String()) ||
 		nanoEnroll.TokenUpdateTally != 1 {
 		// something unexpected, so we skip the turn on

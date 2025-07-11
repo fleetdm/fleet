@@ -885,7 +885,6 @@ const hostMDMSelect = `,
 	// NOTE: if you change any of the conditions in this
 	// query, please update the AreHostsConnectedToFleetMDM
 	// datastore method and any relevant filters.
-	// TODO EJM
 	`SELECT CASE WHEN EXISTS (
 				    SELECT ne.id FROM nano_enrollments ne
 				    WHERE ne.id = h.uuid
@@ -1172,7 +1171,7 @@ func (ds *Datastore) applyHostFilters(
 		opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsDiskEncryptionFilter.IsValid() ||
-		opt.OSSettingsDiskEncryptionFilter.IsValid() { // TODO EJM
+		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		connectedToFleetJoin = `
 				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
 				LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`

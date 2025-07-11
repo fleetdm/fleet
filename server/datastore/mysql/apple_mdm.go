@@ -43,7 +43,6 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 
 	// safe to use with interpolation rather than prepared statements because we're using a numeric
 	// ID here
-	// TODO EJM Does this query still work here?
 	err := sqlx.GetContext(ctx, q, &uuid, fmt.Sprintf(`
 	  SELECT ne.id
 	  FROM nano_enrollments ne
@@ -3005,7 +3004,6 @@ func generateDesiredStateQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
-	// TODO EJM
 	return os.Expand(`
 	-- non label-based entities
 	SELECT
@@ -6916,7 +6914,6 @@ func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID str
 	// enrollment row is the only one that gets regularly updated with the last seen time. Along
 	// those same lines authenticate_at gets updated only at the authenticate step during the
 	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
-	// TODO EJM Does this query still work right for user enrollments?
 	query := `
 	SELECT nd.authenticate_at, ne.last_seen_at
 	FROM nano_devices nd

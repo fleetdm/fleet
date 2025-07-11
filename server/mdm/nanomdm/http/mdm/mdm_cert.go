@@ -134,16 +134,6 @@ func CertExtractMdmSignatureMiddleware(next http.Handler, verifier MdmSignatureV
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger := ctxlog.Logger(r.Context(), config.logger)
-		// TODO EJM REMOVE THIS
-		/*
-			authorization := r.Header.Get("Authorization")
-			if authorization != "" {
-				logger.Info("msg", "Authorization header found, dropping the client as a little experiment")
-				w.Header().Set("Www-Authenticate", `Bearer method="apple-as-web" url="https://jordan-fleetdm.ngrok.app/mdm/sso?intiator=account_driven_enrollment"`)
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-				return
-			}
-		*/
 		mdmSig := r.Header.Get("Mdm-Signature")
 		if mdmSig == "" {
 			logger.Debug("msg", "empty Mdm-Signature header")

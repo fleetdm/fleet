@@ -719,7 +719,9 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 		return "", 0, "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	// originalURL is unused in the MDM flow.
+	// originalURL is unused in the Setup Experience initiated MDM flow
+	// however because we need slightly different behavior for account driven
+	// enrollment we use it to signal proper behavior on the callback.
 	originalURL := "/"
 	if initiator == "account_driven_enroll" {
 		originalURL = "/api/mdm/apple/account_driven_enroll"
@@ -743,7 +745,6 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 
 	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
-	// TODO EJM This is going to have to change for account driven enrollment. Somehow...
 	profileToken, enrollmentRef, eulaToken, originalURL, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)

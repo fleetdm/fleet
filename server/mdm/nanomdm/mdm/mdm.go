@@ -18,7 +18,9 @@ type Enrollment struct {
 	EnrollmentUserID      string `plist:",omitempty"`
 }
 
-// TODO EJM
+// Identifier returns the unique identifier for the device for a given enrollment. UDID
+// should be preferred if it exists however for User (Device) enrollments we will never
+// have the UDID and must use the randomly generated EnrollmentID.
 func (e Enrollment) Identifier() string {
 	if e.UDID != "" {
 		return e.UDID
