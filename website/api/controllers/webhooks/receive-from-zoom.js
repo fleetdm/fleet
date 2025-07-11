@@ -29,6 +29,7 @@ module.exports = {
     success: { description: 'A webhook event has successfully been received.'},
     callInfoNotFound: {description: 'No information about this call could be found in the Zoom API.', responseType: 'badRequest'},
     callTranscriptNotFound: {description: 'No transcript for this call could be found in the Zoom API.', responseType: 'badRequest'},
+    callHasNoTranscript: {description: 'The receive-from-zoom webhook received an event about a call with no transcript.', responseType: 'ok'},
     unexpectedEvent: {description: 'The receive-from-zoom webhook received an unsupported event.', responseType: 'badRequest'},
   },
 
@@ -112,6 +113,12 @@ module.exports = {
         return new Error(`When sending a request to get a transcript of a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
       });
 
+      // If a call is recorded, but a user stops the recording before anything is said, the call interactions will not have any participants.
+      // If this happens, we'll throw callTranscriptNotFound exit, which returns a 200 response to Zoom.
+      if(!callTranscript.participants) {
+        throw 'callHasNoTranscript';
+      }
+
       let allSpeakersOnThisCall = [];
       allSpeakersOnThisCall = allSpeakersOnThisCall.concat(callTranscript.participants);
       let tokenForNextPageOfResults = callTranscript.next_page_token;
@@ -137,10 +144,6 @@ module.exports = {
 
       // Transcripts are ordered by an item_id, but separaterd by speaker.
       let allTranscriptLines = [];
-      if(allSpeakersOnThisCall.length < 1) {
-        sails.log.warn(`When the receive-from-zoom webhook attempted to create a call transcript of a Zoom meeting (call id: ${idOfCallToGenerateTranscriptFor}), the interactions from this call returned from the Zoom API is missing a list of participants. Call information returned from the Zoom API: ${require('util').inspect(informationAboutThisCall)}`);
-        throw 'callTranscriptNotFound';
-      }
       for(let speaker of allSpeakersOnThisCall) {
         if(!speaker.transcripts) {
           // Log a warning if a speaker on this call is missing a transcripts value, and proceed.
