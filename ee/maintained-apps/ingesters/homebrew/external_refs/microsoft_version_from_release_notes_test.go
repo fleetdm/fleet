@@ -4,19 +4,12 @@ import (
 	"testing"
 	"time"
 
+	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	macoffice "github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/tj/assert"
 )
 
 func TestMicrosoftVersionFromReleaseNotes(t *testing.T) {
-	t.Run("args validation", func(t *testing.T) {
-		_, err := MicrosoftVersionFromReleaseNotes()
-		assert.Error(t, err, "expected error for no args")
-
-		_, err = MicrosoftVersionFromReleaseNotes(100)
-		assert.Error(t, err, "expected error for non-string arg")
-	})
-
 	releaseNotesCache = macoffice.ReleaseNotes{
 		{
 			Date:            time.Date(2025, 6, 27, 0, 0, 0, 0, time.UTC),
@@ -41,13 +34,22 @@ func TestMicrosoftVersionFromReleaseNotes(t *testing.T) {
 	cacheOnce.Do(func() {})
 
 	t.Run("successful version lookup", func(t *testing.T) {
-		result, err := MicrosoftVersionFromReleaseNotes("16.98.25062733")
+		app := &maintained_apps.FMAManifestApp{
+			UniqueIdentifier: "microsoft-word/darwin",
+			Version:          "16.98.25062733",
+		}
+		result, err := MicrosoftVersionFromReleaseNotes(app)
 		assert.NoError(t, err)
-		assert.Equal(t, "16.98.3", result)
+		assert.Equal(t, "16.98.3", result.Version)
 	})
 
 	t.Run("version not found", func(t *testing.T) {
-		_, err := MicrosoftVersionFromReleaseNotes("16.50.25999999")
+		app := &maintained_apps.FMAManifestApp{
+			UniqueIdentifier: "microsoft-excel/darwin",
+			Version:          "16.50.25999999",
+		}
+		result, err := MicrosoftVersionFromReleaseNotes(app)
 		assert.Error(t, err)
+		assert.Equal(t, "16.50.25999999", result.Version)
 	})
 }

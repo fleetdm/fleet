@@ -13,7 +13,7 @@ import (
 	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
-	externalrefs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew/external_refs"
+	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -143,19 +143,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	}
 
 	out.Name = app.Name
-	if app.VersionRef != "" {
-		versionFunc, exists := externalrefs.Funcs[app.VersionRef]
-		if !exists {
-			return nil, ctxerr.NewWithData(ctx, "unknown version reference function", map[string]any{"version_ref": app.VersionRef, "unique_identifier": app.UniqueIdentifier})
-		}
-		version, err := versionFunc(cask.Version)
-		if err != nil {
-			return nil, ctxerr.WrapWithData(ctx, err, "getting version for maintained app", map[string]any{"unique_identifier": app.UniqueIdentifier})
-		}
-		out.Version = version
-	} else {
-		out.Version = strings.Split(cask.Version, ",")[0]
-	}
+	out.Version = strings.Split(cask.Version, ",")[0]
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = app.UniqueIdentifier
 	out.SHA256 = cask.SHA256
@@ -181,6 +169,8 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.Frozen = app.Frozen
 
+	external_refs.EnrichManifest(out)
+
 	return out, nil
 }
 
@@ -199,12 +189,6 @@ type inputApp struct {
 	PostUninstallScripts []string `json:"post_uninstall_scripts"`
 	DefaultCategories    []string `json:"default_categories"`
 	Frozen               bool     `json:"frozen"`
-	// VersionRef is used to override the version typically received from homebrew or winget
-	// It should reference a filename that is contained under
-	// ee/maintained-apps/ingesters/homebrew/external_refs
-	// or
-	// ee/maintained-apps/ingesters/winget/external_refs
-	VersionRef string `json:"version_ref,omitempty"`
 }
 
 type brewCask struct {

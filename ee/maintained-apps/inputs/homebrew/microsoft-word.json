@@ -4,6 +4,5 @@
   "unique_identifier": "com.microsoft.Word",
   "token": "microsoft-word",
   "installer_format": "pkg",
-  "default_categories": ["Productivity"],
-  "version_ref": "MicrosoftVersionFromReleaseNotes"
+  "default_categories": ["Productivity"]
 }
