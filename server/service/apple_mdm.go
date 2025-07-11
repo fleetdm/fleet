@@ -1845,91 +1845,6 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}, nil
 }
 
-type mdmAppleAccountEnrollTokenRequest struct {
-	Code        string
-	ClientID    string
-	RedirectURI string
-}
-
-func (mdmAppleAccountEnrollTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	decoded := mdmAppleAccountEnrollTokenRequest{}
-
-	if err := r.ParseForm(); err != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse form",
-			InternalErr: err,
-		}
-	}
-
-	decoded.Code = r.PostFormValue("code")
-	if decoded.Code == "" {
-		return nil, &fleet.BadRequestError{
-			Message: "code parameter is required",
-		}
-	}
-
-	decoded.ClientID = r.PostFormValue("client_id")
-	if decoded.ClientID == "" {
-		return nil, &fleet.BadRequestError{
-			Message: "client_id parameter is required",
-		}
-	}
-
-	decoded.RedirectURI = r.PostFormValue("redirect_uri")
-	if decoded.RedirectURI == "" {
-		return nil, &fleet.BadRequestError{
-			Message: "redirect_uri parameter is required",
-		}
-	}
-
-	return &decoded, nil
-}
-
-type mdmAppleEnrollTokenResponse struct {
-	Resp *http.Response
-	Err  error `json:"error,omitempty"`
-}
-
-func (r mdmAppleEnrollTokenResponse) Error() error { return r.Err }
-
-func (r mdmAppleEnrollTokenResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	// Copy headers
-	for k, v := range r.Resp.Header {
-		w.Header()[k] = v
-	}
-
-	// Copy status code
-	w.WriteHeader(r.Resp.StatusCode)
-
-	// Copy body
-	if _, err := io.Copy(w, r.Resp.Body); err != nil {
-		fmt.Printf("failed to copy response body: %v\n", err)
-	}
-	r.Resp.Body.Close()
-}
-
-/*
-func mdmAppleAccountEnrollTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*mdmAppleAccountEnrollTokenRequest)
-	svc.SkipAuth(ctx)
-
-	client := fleethttp.NewClient()
-
-	data := url.Values{}
-	data.Set("grant_type", "authorization_code")
-	data.Set("code", req.Code)
-	data.Set("redirect_uri", req.RedirectURI)
-	data.Set("client_id", req.ClientID)
-	data.Set("client_secret", os.Getenv("OKTA_CLIENT_SECRET"))
-
-	resp, err := client.PostForm(os.Getenv("OKTA_URL")+"/v1/token", data)
-	if err != nil {
-		return mdmAppleEnrollTokenResponse{Err: err}, nil
-	}
-	return mdmAppleEnrollTokenResponse{Resp: resp}, nil
-}
-*/
-
 // This endpoint gets called twice by the Apple account driven enrollment flow. The first time it
 // is called without a bearer token which results in a 401 Unauthorized response where we tell it
 // to go through MDM SSO End User Authentication. The second time it is called with a bearer token,
@@ -1964,7 +1879,6 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 	decoded := mdmAppleAccountEnrollRequest{}
 
 	auth := r.Header.Get("Authorization")
-	fmt.Printf("Authorization: %s", auth)
 	if strings.HasPrefix(auth, "Bearer ") {
 		decoded.EnrollReference = ptr.String(strings.Split(auth, "Bearer ")[1])
 	}
@@ -1984,7 +1898,6 @@ func (r mdmAppleAccountEnrollAuthenticateResponse) HijackRender(ctx context.Cont
 			`url="`+r.mdmSSOUrl+`"`,
 	)
 	w.WriteHeader(http.StatusUnauthorized)
-	return
 }
 
 func (svc *Service) SkipAuth(ctx context.Context) {
