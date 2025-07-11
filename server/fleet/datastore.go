@@ -2203,6 +2203,9 @@ type Datastore interface {
 	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
 	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
+
+	// CertBySerialNumber returns the certificate PEM content matching the serial number.
+	CertBySerialNumber(ctx context.Context, serialNumber uint64) (string, error)
 }
 
 type AndroidDatastore interface {
