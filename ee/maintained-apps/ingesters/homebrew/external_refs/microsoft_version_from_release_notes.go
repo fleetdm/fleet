@@ -43,5 +43,5 @@ func MicrosoftVersionFromReleaseNotes(app *maintained_apps.FMAManifestApp) (*mai
 		}
 	}
 
-	return app, errors.New(fmt.Sprintf("no matching version found in release notes for %s", homebrewVersion))
+	return app, fmt.Errorf("no matching version found in release notes for %s", homebrewVersion)
 }
