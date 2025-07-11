@@ -721,7 +721,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 
 	// originalURL is unused in the MDM flow.
 	originalURL := "/"
-	if initiator == "account_driven_enrollment" {
+	if initiator == "account_driven_enroll" {
 		originalURL = "/api/mdm/apple/account_driven_enroll"
 	}
 	sessionDurationSeconds = int(svc.config.Auth.SsoSessionValidityPeriod.Seconds())
@@ -759,6 +759,8 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 		q.Add("eula_token", eulaToken)
 	}
 
+	// For account driven enrollment we have to use this special protocol URL scheme to pass the
+	// access token back to Apple which it will then use to request the enrollment profile.
 	if originalURL == "/api/mdm/apple/account_driven_enroll" {
 		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef)
 	}

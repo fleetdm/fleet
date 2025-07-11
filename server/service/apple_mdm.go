@@ -1934,14 +1934,14 @@ func mdmAppleAccountEnrollTokenEndpoint(ctx context.Context, request interface{}
 // is called without a bearer token which results in a 401 Unauthorized response where we tell it
 // to go through MDM SSO End User Authentication. The second time it is called with a bearer token,
 // in this case an enrollment reference which is used to fetch the enrollment profile. The device
-// then uses that enrollment profile to enroll in User level MDM.
+// then has the user sign in with the Apple ID specified in the enrollment profile
 func mdmAppleAccountEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	// Note that the device actually does send a whole plist here with a bunch of info in it. We
 	// should probably use it
 	req := request.(*mdmAppleAccountEnrollRequest)
 	svc.SkipAuth(ctx)
 	if req.EnrollReference == nil {
-		mdmSSOUrl, err := svc.GetMDMSSOURL(ctx)
+		mdmSSOUrl, err := svc.GetMDMAccountDrivenEnrollmentSSOURL(ctx)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
@@ -1981,7 +1981,7 @@ func (r mdmAppleAccountEnrollAuthenticateResponse) Error() error { return r.Err 
 func (r mdmAppleAccountEnrollAuthenticateResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate",
 		`Bearer method="apple-as-web" `+
-			`url="`+r.mdmSSOUrl+`?intiator=account_driven_enrollment"`,
+			`url="`+r.mdmSSOUrl+`?test=123"`,
 	)
 	w.WriteHeader(http.StatusUnauthorized)
 	return
@@ -1991,7 +1991,7 @@ func (svc *Service) SkipAuth(ctx context.Context) {
 	svc.authz.SkipAuthorization(ctx)
 }
 
-func (svc *Service) GetMDMSSOURL(ctx context.Context) (string, error) {
+func (svc *Service) GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error) {
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -2000,7 +2000,7 @@ func (svc *Service) GetMDMSSOURL(ctx context.Context) (string, error) {
 		return "", ctxerr.Wrap(ctx, err)
 	}
 
-	return appConfig.MDMUrl() + svc.config.Server.URLPrefix + `/mdm/sso`, nil
+	return appConfig.MDMUrl() + "/mdm/apple/account_driven_enroll/sso", nil
 }
 
 func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollRef string) (profile []byte, err error) {
@@ -3233,7 +3233,8 @@ func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAp
 ////////////////////////////////////////////////////////////////////////////////
 
 type initiateMDMAppleSSORequest struct {
-	Initiator string `query:"initiator,optional"`
+	Initiator      string `json:"initiator,omitempty"`       // optional, passed by the UI during account-driven enrollment
+	UserIdentifier string `json:"user_identifier,omitempty"` // optional, passed by Apple for account-driven enrollment
 }
 
 type initiateMDMAppleSSOResponse struct {

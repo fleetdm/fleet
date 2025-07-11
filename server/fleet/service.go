@@ -192,8 +192,8 @@ type Service interface {
 	// handle next steps based on the query parameters provided.
 	MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string
 
-	// GetMDMSSOURL returns the URL to redirect to for MDM SSO Authentication
-	GetMDMSSOURL(ctx context.Context) (string, error)
+	// GetMDMAccountDrivenEnrollmentSSOURL returns the URL to redirect to for MDM Account Driven Enrollment SSO Authentication
+	GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error)
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
