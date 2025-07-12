@@ -123,6 +123,20 @@ func TestValidGitOpsYaml(t *testing.T) {
 			filePath: "testdata/team_config.yml",
 			isTeam:   true,
 		},
+		"team_config_with_paths_and_only_sha256": {
+			environment: map[string]string{
+				"POLICY":                          "policy",
+				"LINUX_OS":                        "linux",
+				"DISTRIBUTED_DENYLIST_DURATION":   "0",
+				"ENABLE_FAILING_POLICIES_WEBHOOK": "true",
+				"FLEET_SECRET_FLEET_SECRET_":      "fleet_secret",
+				"FLEET_SECRET_NAME":               "secret_name",
+				"FLEET_SECRET_length":             "10",
+				"FLEET_SECRET_BANANA":             "bread",
+			},
+			filePath: "testdata/team_config_only_sha256.yml",
+			isTeam:   true,
+		},
 	}
 
 	for name, test := range tests {
@@ -280,7 +294,11 @@ func TestValidGitOpsYaml(t *testing.T) {
 				// Check software
 				if test.isTeam {
 					require.Len(t, gitops.Software.Packages, 2)
-					require.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Software.Packages[0].URL)
+					if name == "team_config_with_paths_and_only_sha256" {
+						require.Empty(t, gitops.Software.Packages[0].URL)
+					} else {
+						require.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Software.Packages[0].URL)
+					}
 					require.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Software.Packages[0].SHA256)
 					require.False(t, gitops.Software.Packages[0].SelfService)
 					require.Equal(t, "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg", gitops.Software.Packages[1].URL)
@@ -306,7 +324,13 @@ func TestValidGitOpsYaml(t *testing.T) {
 				if test.isTeam {
 					assert.Equal(t, "Microsoft Teams on macOS installed and up to date", gitops.Policies[5].Name)
 					assert.NotNil(t, gitops.Policies[5].InstallSoftware)
-					assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
+
+					if name == "team_config_with_paths_and_only_sha256" {
+						assert.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Policies[5].InstallSoftware.HashSHA256)
+					} else {
+						assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
+						assert.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Policies[5].InstallSoftwareURL)
+					}
 
 					assert.Equal(t, "Slack on macOS is installed", gitops.Policies[6].Name)
 					assert.NotNil(t, gitops.Policies[6].InstallSoftware)
