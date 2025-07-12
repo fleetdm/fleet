@@ -177,13 +177,14 @@ func (svc *Service) failCancelledSetupExperienceInstalls(ctx context.Context, ho
 				softwarePackage = installerMeta.Name
 			}
 			activity := fleet.ActivityTypeInstalledSoftware{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-				SoftwareTitle:   r.Name,
-				SoftwarePackage: softwarePackage,
-				InstallUUID:     *r.HostSoftwareInstallsExecutionID,
-				Status:          "failed",
-				SelfService:     false,
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       r.Name,
+				SoftwarePackage:     softwarePackage,
+				InstallUUID:         *r.HostSoftwareInstallsExecutionID,
+				Status:              "failed",
+				SelfService:         false,
+				FromSetupExperience: true,
 			}
 			err = svc.NewActivity(ctx, nil, activity)
 			if err != nil {

@@ -2,10 +2,7 @@
 
 > Experimental feature. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-Android MDM features are currently behind a feature flag. To enable them, set `DEV_ANDROID_ENABLED=1` in your [server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration).
-
 This guide provides instructions to turn on Android MDM features by connecting Fleet to Android Enterprise.
-to Fleet.
 
 Fleet supports Android devices that are [Play Protect certified](https://support.google.com/googleplay/answer/7165974?hl=en) (previously known as GMS).
 

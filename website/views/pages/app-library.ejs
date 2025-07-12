@@ -17,7 +17,7 @@
       <div purpose="app-cards" class="card-deck flex-wrap">
         <% for(let app of allApps) { %>
 
-          <a href="/app-library/<%- app.identifier %>" purpose="app-card" class="card d-flex">
+          <a href="/software-catalog/<%- app.identifier %>" purpose="app-card" class="card d-flex">
             <div class="d-flex flex-row align-items-center justify-content-start">
               <div purpose="app-icon">
                 <img alt="<%- app.name %> icon" src="/images/<%= app.iconFilename %>">
@@ -31,6 +31,7 @@
             </div>
           </a>
         <% } %>
+        <div purpose="app-card" class="card d-flex invisible"></div>
         <div purpose="app-card" class="card d-flex invisible"></div>
       </div>
       <div class="d-flex d-sm-none w-100">

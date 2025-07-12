@@ -498,6 +498,34 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		require.True(t, ds.IsHostPendingEscrowFuncInvoked)
 	})
 
+	t.Run("encryption key is already escrowed", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+		var reportedErrors []string
+		host := &fleet.Host{ID: 1, Platform: "rhel", OSVersion: "Red Hat Enterprise Linux 9.0.0"}
+
+		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
+			require.Equal(t, hostID, host.ID)
+			reportedErrors = append(reportedErrors, err)
+			return nil
+		}
+
+		orbitInfo := &fleet.HostOrbitInfo{Version: fleet.MinOrbitLUKSVersion}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostOrbitInfoFunc = func(ctx context.Context, id uint) (*fleet.HostOrbitInfo, error) {
+			return orbitInfo, nil
+		}
+		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error {
+			return errors.New("encryption key is already escrowed")
+		}
+
+		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.ErrorContains(t, err, "encryption key is already escrowed")
+		require.Len(t, reportedErrors, 0, "No error should be reported when key is already escrowed")
+	})
+
 	t.Run("validation failures", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
@@ -506,6 +534,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		}
 		var reportedErrors []string
 		host := &fleet.Host{ID: 1, Platform: "rhel", OSVersion: "Red Hat Enterprise Linux 9.0.0"}
+		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error { return nil }
 		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
 			require.Equal(t, hostID, host.ID)
 			reportedErrors = append(reportedErrors, err)
@@ -553,15 +582,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
 		require.ErrorContains(t, err, "Your version of fleetd does not support creating disk encryption keys on Linux. Please upgrade fleetd, then click Refetch, then try again.")
 
-		// Encryption key is already escrowed
-		orbitInfo.Version = fleet.MinOrbitLUKSVersion
-		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error {
-			return errors.New("encryption key is already escrowed")
-		}
-		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "encryption key is already escrowed")
-
-		require.Len(t, reportedErrors, 7)
+		require.Len(t, reportedErrors, 6)
 	})
 
 	t.Run("validation success", func(t *testing.T) {

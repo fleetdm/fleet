@@ -4,11 +4,11 @@ parasails.registerPage('device-management-page', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: '',
-    comparisonMode: 'sccm',
+    comparisonMode: 'omnissa',
     comparisonModeFriendlyNames: {
       jamf: 'Jamf Pro',
       sccm: 'SCCM',
-      omnissa: 'Omnissa (WS1)',
+      omnissa: 'Workspace ONE',
       intune: 'Intune',
       tanium: 'Tanium',
       ansible: 'Ansible',
@@ -39,6 +39,15 @@ parasails.registerPage('device-management-page', {
     },
     closeModal: function() {
       this.modal = undefined;
+    },
+    clickSwitchComparisonTableColumn: async function(option){
+      this.comparisonMode = option;
+      await setTimeout(()=>{
+        $('[data-toggle="tooltip"]').tooltip({
+          container: '#device-management-page',
+          trigger: 'hover',
+        });
+      }, 250);
     },
     clickSwagRequestCTA: function () {
       if(window.gtag !== undefined){

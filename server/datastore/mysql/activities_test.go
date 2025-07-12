@@ -87,6 +87,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 		Name:        "fullname",
 		Email:       "email@asd.com",
 		GravatarURL: "http://asd.com",
+		APIOnly:     true,
 		GlobalRole:  ptr.String(fleet.RoleObserver),
 	}
 	_, err := ds.NewUser(context.Background(), u)
@@ -126,6 +127,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "newname", *activities[0].ActorFullName)
 	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
 	assert.Equal(t, "email@asd.com", *activities[0].ActorEmail)
+	assert.Equal(t, true, *activities[0].ActorAPIOnly)
 
 	err = ds.DeleteUser(context.Background(), u.ID)
 	require.NoError(t, err)
