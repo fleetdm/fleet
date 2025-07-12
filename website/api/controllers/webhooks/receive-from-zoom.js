@@ -29,6 +29,7 @@ module.exports = {
     success: { description: 'A webhook event has successfully been received.'},
     callInfoNotFound: {description: 'No information about this call could be found in the Zoom API.', responseType: 'badRequest'},
     callTranscriptNotFound: {description: 'No transcript for this call could be found in the Zoom API.', responseType: 'badRequest'},
+    callHasNoTranscript: {description: 'The receive-from-zoom webhook received an event about a call with no transcript.', responseType: 'ok'},
     unexpectedEvent: {description: 'The receive-from-zoom webhook received an unsupported event.', responseType: 'badRequest'},
   },
 
@@ -111,6 +112,12 @@ module.exports = {
       }).intercept((err)=>{
         return new Error(`When sending a request to get a transcript of a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
       });
+
+      // If a call is recorded, but a user stops the recording before anything is said, the call interactions will not have any participants.
+      // If this happens, we'll throw callTranscriptNotFound exit, which returns a 200 response to Zoom.
+      if(!callTranscript.participants) {
+        throw 'callHasNoTranscript';
+      }
 
       let allSpeakersOnThisCall = [];
       allSpeakersOnThisCall = allSpeakersOnThisCall.concat(callTranscript.participants);
