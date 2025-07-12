@@ -867,15 +867,21 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
-			if pkg.URL == policyInstallSoftwareSpec.URL {
+			if (pkg.URL != "" && pkg.URL == policyInstallSoftwareSpec.URL) || (pkg.SHA256 != "" && pkg.SHA256 == policyInstallSoftwareSpec.SHA256) {
 				installerOnTeamFound = true
 				break
 			}
 		}
 		if !installerOnTeamFound {
-			return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+			if policyInstallSoftwareSpec.URL != "" {
+				return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+			} else {
+				return fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath)
+			}
 		}
+
 		policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
+		policy.InstallSoftware.HashSHA256 = policyInstallSoftwareSpec.SHA256
 	}
 
 	if policy.InstallSoftware.AppStoreID != "" {
