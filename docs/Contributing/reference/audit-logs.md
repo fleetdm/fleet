@@ -9,6 +9,8 @@ This page includes a list of activities.
 
 ## created_pack
 
+Option in UI dropdown: "Created pack" 
+
 Generated when creating scheduled query packs.
 
 This activity contains the following fields:
@@ -25,6 +27,8 @@ This activity contains the following fields:
 ```
 
 ## edited_pack
+
+Option in UI dropdown: "Edited pack" 
 
 Generated when editing scheduled query packs.
 
@@ -43,6 +47,8 @@ This activity contains the following fields:
 
 ## deleted_pack
 
+Option in UI dropdown: "Deleted pack"
+
 Generated when deleting scheduled query packs.
 
 This activity contains the following fields:
@@ -58,11 +64,15 @@ This activity contains the following fields:
 
 ## applied_spec_pack
 
+Option in UI dropdown: "GitOps: edited packs"
+
 Generated when applying a scheduled query pack spec.
 
 This activity does not contain any detail fields.
 
 ## created_policy
+
+Option in UI dropdown: "Created policy"
 
 Generated when creating policies.
 
@@ -81,6 +91,8 @@ This activity contains the following fields:
 
 ## edited_policy
 
+Option in UI dropdown: "Edited policy"
+
 Generated when editing policies.
 
 This activity contains the following fields:
@@ -98,6 +110,8 @@ This activity contains the following fields:
 
 ## deleted_policy
 
+Option in UI dropdown: "Deleted policy"
+
 Generated when deleting policies.
 
 This activity contains the following fields:
@@ -114,6 +128,8 @@ This activity contains the following fields:
 ```
 
 ## applied_spec_policy
+
+Option in UI dropdown: "GitOps: edited policies"
 
 Generated when applying policy specs.
 
@@ -154,6 +170,8 @@ This activity contains a field "policies" where each item is a policy spec with 
 
 ## created_saved_query
 
+Option in UI dropdown: "Added query"
+
 Generated when creating a new query.
 
 This activity contains the following fields:
@@ -170,6 +188,8 @@ This activity contains the following fields:
 ```
 
 ## edited_saved_query
+
+Option in UI dropdown: "Edited query"
 
 Generated when editing a saved query.
 
@@ -188,6 +208,8 @@ This activity contains the following fields:
 
 ## deleted_saved_query
 
+Option in UI dropdown: "Deleted query"
+
 Generated when deleting a saved query.
 
 This activity contains the following fields:
@@ -203,6 +225,8 @@ This activity contains the following fields:
 
 ## deleted_multiple_saved_query
 
+Option in UI dropdown: "Bulk deleted queries"
+
 Generated when deleting multiple saved queries.
 
 This activity contains the following fields:
@@ -217,6 +241,8 @@ This activity contains the following fields:
 ```
 
 ## applied_spec_saved_query
+
+Option in UI dropdown: "GitOps: edited queries"
 
 Generated when applying a query spec.
 
@@ -241,6 +267,8 @@ This activity contains a field "specs" where each item is a query spec with the 
 
 ## created_team
 
+Option in UI dropdown: "Added team"
+
 Generated when creating teams.
 
 This activity contains the following fields:
@@ -258,6 +286,8 @@ This activity contains the following fields:
 
 ## deleted_team
 
+Option in UI dropdown: "Deleted team"
+
 Generated when deleting teams.
 
 This activity contains the following fields:
@@ -274,6 +304,8 @@ This activity contains the following fields:
 ```
 
 ## applied_spec_team
+
+Option in UI dropdown: "GitOps: edited teams"
 
 Generated when applying team specs.
 
@@ -296,6 +328,8 @@ This activity contains a field "teams" where each item contains the team details
 
 ## transferred_hosts
 
+Option in UI dropdown: "Transferred hosts"
+
 Generated when a user transfers a host (or multiple hosts) to a team (or no team).
 
 This activity contains the following fields:
@@ -317,6 +351,8 @@ This activity contains the following fields:
 
 ## edited_agent_options
 
+Option in UI dropdown: "Edited agent options"
+
 Generated when agent options are edited (either globally or for a team).
 
 This activity contains the following fields:
@@ -335,6 +371,8 @@ This activity contains the following fields:
 ```
 
 ## live_query
+
+Option in UI dropdown: "Ran live query"
 
 Generated when running live queries.
 
@@ -355,11 +393,15 @@ This activity contains the following fields:
 
 ## user_added_by_sso
 
+Option in UI dropdown: "Added user via JIT"
+
 Generated when new users are added via SSO JIT provisioning
 
 This activity does not contain any detail fields.
 
 ## user_logged_in
+
+Option in UI dropdown: "User login: success"
 
 Generated when users successfully log in to Fleet.
 
@@ -375,6 +417,8 @@ This activity contains the following fields:
 ```
 
 ## user_failed_login
+
+Option in UI dropdown: "User login: failed"
 
 Generated when users try to log in to Fleet and fail.
 
@@ -392,6 +436,8 @@ This activity contains the following fields:
 ```
 
 ## created_user
+
+Option in UI dropdown: "Added user"
 
 Generated when a user is created.
 
@@ -412,6 +458,8 @@ This activity contains the following fields:
 
 ## deleted_user
 
+Option in UI dropdown: "Deleted user"
+
 Generated when a user is deleted.
 
 This activity contains the following fields:
@@ -430,6 +478,8 @@ This activity contains the following fields:
 ```
 
 ## changed_user_global_role
+
+Option in UI dropdown: "Edited user's role: global"
 
 Generated when user global roles are changed.
 
@@ -452,6 +502,8 @@ This activity contains the following fields:
 
 ## deleted_user_global_role
 
+Option in UI dropdown: "Deleted user's role: global"
+
 Generated when user global roles are deleted.
 
 This activity contains the following fields:
@@ -472,6 +524,8 @@ This activity contains the following fields:
 ```
 
 ## changed_user_team_role
+
+Option in UI dropdown: "Edited user's role: team"
 
 Generated when user team roles are changed.
 
@@ -498,6 +552,8 @@ This activity contains the following fields:
 
 ## deleted_user_team_role
 
+Option in UI dropdown: "Deleted user's role: team"
+
 Generated when user team roles are deleted.
 
 This activity contains the following fields:
@@ -523,6 +579,8 @@ This activity contains the following fields:
 
 ## fleet_enrolled
 
+Option in UI dropdown: "Host enrolled"
+
 Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).
 
 This activity contains the following fields:
@@ -541,6 +599,8 @@ This activity contains the following fields:
 ```
 
 ## mdm_enrolled
+
+Option in UI dropdown: "MDM turned on"
 
 Generated when a host is enrolled in Fleet's MDM.
 
@@ -563,6 +623,8 @@ This activity contains the following fields:
 
 ## mdm_unenrolled
 
+Option in UI dropdown: "MDM turned off"
+
 Generated when a host is unenrolled from Fleet's MDM.
 
 This activity contains the following fields:
@@ -581,6 +643,8 @@ This activity contains the following fields:
 ```
 
 ## edited_macos_min_version
+
+Option in UI dropdown: "OS updates: edited macOS"
 
 Generated when the minimum required macOS version or deadline is modified.
 
@@ -603,6 +667,8 @@ This activity contains the following fields:
 
 ## edited_ios_min_version
 
+Option in UI dropdown: "OS updates: edited iOS"
+
 Generated when the minimum required iOS version or deadline is modified.
 
 This activity contains the following fields:
@@ -623,6 +689,8 @@ This activity contains the following fields:
 ```
 
 ## edited_ipados_min_version
+
+Option in UI dropdown: "OS updates: edited iPadOS"
 
 Generated when the minimum required iPadOS version or deadline is modified.
 
@@ -645,6 +713,8 @@ This activity contains the following fields:
 
 ## edited_windows_updates
 
+Option in UI dropdown: "OS updates: edited Windows"
+
 Generated when the Windows OS updates deadline or grace period is modified.
 
 This activity contains the following fields:
@@ -666,6 +736,8 @@ This activity contains the following fields:
 
 ## read_host_disk_encryption_key
 
+Option in UI dropdown: "Viewed disk encryption key"
+
 Generated when a user reads the disk encryption key for a host.
 
 This activity contains the following fields:
@@ -682,6 +754,8 @@ This activity contains the following fields:
 ```
 
 ## created_macos_profile
+
+Option in UI dropdown: "Added configuration profile: Apple (macOS, iOS, iPadOS)"
 
 Generated when a user adds a new macOS profile to a team (or no team).
 
@@ -704,6 +778,8 @@ This activity contains the following fields:
 
 ## deleted_macos_profile
 
+Option in UI dropdown: "Deleted configuration profile: Apple (macOS, iOS, iPadOS)"
+
 Generated when a user deletes a macOS profile from a team (or no team).
 
 This activity contains the following fields:
@@ -725,6 +801,8 @@ This activity contains the following fields:
 
 ## edited_macos_profile
 
+Option in UI dropdown: "GitOps: edited configuration profiles: Apple (macOS, iOS, iPadOS)"
+
 Generated when a user edits the macOS profiles of a team (or no team) via the fleetctl CLI.
 
 This activity contains the following fields:
@@ -741,6 +819,8 @@ This activity contains the following fields:
 ```
 
 ## changed_macos_setup_assistant
+
+Option in UI dropdown: "Edited macOS automatic enrollment profile"
 
 Generated when a user sets the macOS setup assistant for a team (or no team).
 
@@ -761,6 +841,8 @@ This activity contains the following fields:
 
 ## deleted_macos_setup_assistant
 
+Option in UI dropdown: "Deleted macOS automatic enrollment profile"
+
 Generated when a user deletes the macOS setup assistant for a team (or no team).
 
 This activity contains the following fields:
@@ -780,6 +862,8 @@ This activity contains the following fields:
 
 ## enabled_macos_disk_encryption
 
+Option in UI dropdown: "Turned on disk encryption"
+
 Generated when a user turns on macOS disk encryption for a team (or no team).
 
 This activity contains the following fields:
@@ -796,6 +880,8 @@ This activity contains the following fields:
 ```
 
 ## disabled_macos_disk_encryption
+
+Option in UI dropdown: "Turned off disk encryption"
 
 Generated when a user turns off macOS disk encryption for a team (or no team).
 
@@ -814,17 +900,23 @@ This activity contains the following fields:
 
 ## enabled_gitops_mode
 
+Option in UI dropdown: "Enabled GitOps mode"
+
 Generated when a user enables GitOps mode.
 
 This activity does not contain any detail fields.
 
 ## disabled_gitops_mode
 
+Option in UI dropdown: "Disabled GitOps mode"
+
 Generated when a user disables GitOps mode.
 
 This activity does not contain any detail fields.
 
 ## added_bootstrap_package
+
+Option in UI dropdown: "Added bootstrap package"
 
 Generated when a user adds a new bootstrap package to a team (or no team).
 
@@ -845,6 +937,8 @@ This activity contains the following fields:
 
 ## deleted_bootstrap_package
 
+Option in UI dropdown: "Deleted bootstrap package"
+
 Generated when a user deletes a bootstrap package from a team (or no team).
 
 This activity contains the following fields:
@@ -864,6 +958,8 @@ This activity contains the following fields:
 
 ## enabled_macos_setup_end_user_auth
 
+Option in UI dropdown: "Turned on end user authentication (setup experience)"
+
 Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).
 
 This activity contains the following fields:
@@ -880,6 +976,8 @@ This activity contains the following fields:
 ```
 
 ## disabled_macos_setup_end_user_auth
+
+Option in UI dropdown: "Turned off end user authentication (setup experience)"
 
 Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).
 
@@ -898,11 +996,15 @@ This activity contains the following fields:
 
 ## enabled_windows_mdm
 
+Option in UI dropdown: "Turned on Windows MDM"
+
 Generated when a user turns on MDM features for all Windows hosts (servers excluded).
 
 This activity does not contain any detail fields.
 
 ## disabled_windows_mdm
+
+Option in UI dropdown: "Turned off Windows MDM"
 
 Generated when a user turns off MDM features for all Windows hosts.
 
@@ -910,11 +1012,15 @@ This activity does not contain any detail fields.
 
 ## enabled_android_mdm
 
+Option in UI dropdown: "Turned on Android MDM"
+
 Generated when a user turns on MDM features for all Android hosts.
 
 This activity does not contain any detail fields.
 
 ## disabled_android_mdm
+
+Option in UI dropdown: "Turned off Android MDM"
 
 Generated when a user turns off MDM features for all Android hosts.
 
@@ -922,17 +1028,23 @@ This activity does not contain any detail fields.
 
 ## enabled_windows_mdm_migration
 
+Option in UI dropdown: "Turned on Windows MDM migration"
+
 Generated when a user enables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
 
 This activity does not contain any detail fields.
 
 ## disabled_windows_mdm_migration
 
+Option in UI dropdown: "Turned off Windows MDM migration"
+
 Generated when a user disables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
 
 This activity does not contain any detail fields.
 
 ## ran_script
+
+Option in UI dropdown: "Ran script"
 
 Generated when a script is sent to be run for a host.
 
@@ -961,6 +1073,8 @@ This activity contains the following fields:
 
 ## added_script
 
+Option in UI dropdown: "Added script"
+
 Generated when a script is added to a team (or no team).
 
 This activity contains the following fields:
@@ -980,6 +1094,8 @@ This activity contains the following fields:
 
 ## deleted_script
 
+Option in UI dropdown: "Deleted script"
+
 Generated when a script is deleted from a team (or no team).
 
 This activity contains the following fields:
@@ -998,6 +1114,8 @@ This activity contains the following fields:
 ```
 
 ## edited_script
+
+Option in UI dropdown: "Edited script"
 
 Generated when a user edits the scripts of a team (or no team) via the fleetctl CLI.
 
@@ -1035,6 +1153,8 @@ This activity contains the following fields:
 
 ## created_windows_profile
 
+Option in UI dropdown: "Added configuration profile: Windows"
+
 Generated when a user adds a new Windows profile to a team (or no team).
 
 This activity contains the following fields:
@@ -1053,6 +1173,8 @@ This activity contains the following fields:
 ```
 
 ## deleted_windows_profile
+
+Option in UI dropdown: "Deleted configuration profile: Windows"
 
 Generated when a user deletes a Windows profile from a team (or no team).
 
@@ -1073,6 +1195,8 @@ This activity contains the following fields:
 
 ## edited_windows_profile
 
+Option in UI dropdown: "GitOps: edited configuration profiles: Windows"
+
 Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.
 
 This activity contains the following fields:
@@ -1089,6 +1213,8 @@ This activity contains the following fields:
 ```
 
 ## locked_host
+
+Option in UI dropdown: "Locked host"
 
 Generated when a user sends a request to lock a host.
 
@@ -1109,6 +1235,8 @@ This activity contains the following fields:
 
 ## unlocked_host
 
+Option in UI dropdown: "Unlocked host"
+
 Generated when a user sends a request to unlock a host.
 
 This activity contains the following fields:
@@ -1128,6 +1256,8 @@ This activity contains the following fields:
 
 ## wiped_host
 
+Option in UI dropdown: "Wiped host"
+
 Generated when a user sends a request to wipe a host.
 
 This activity contains the following fields:
@@ -1144,6 +1274,8 @@ This activity contains the following fields:
 ```
 
 ## created_declaration_profile
+
+Option in UI dropdown: "Added declaration (DDM) profile"
 
 Generated when a user adds a new macOS declaration to a team (or no team).
 
@@ -1166,6 +1298,8 @@ This activity contains the following fields:
 
 ## deleted_declaration_profile
 
+Option in UI dropdown: "Deleted declaration (DDM) profile"
+
 Generated when a user removes a macOS declaration from a team (or no team).
 
 This activity contains the following fields:
@@ -1187,6 +1321,8 @@ This activity contains the following fields:
 
 ## edited_declaration_profile
 
+Option in UI dropdown: "GitOps: edites declaration (DDM) profiles"
+
 Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.
 
 This activity contains the following fields:
@@ -1203,6 +1339,8 @@ This activity contains the following fields:
 ```
 
 ## resent_configuration_profile
+
+Option in UI dropdown: "Resent configuration profile"
 
 Generated when a user resends a configuration profile to a host.
 
@@ -1223,6 +1361,8 @@ This activity contains the following fields:
 
 ## resent_configuration_profile_batch
 
+Option in UI dropdown: "Bulk resent configuration profile"
+
 Generated when a user resends a configuration profile to a batch of hosts.
 
 This activity contains the following fields:
@@ -1239,6 +1379,8 @@ This activity contains the following fields:
 ```
 
 ## installed_software
+
+Option in UI dropdown: "Install software"
 
 Generated when a Fleet-maintained app or custom package is installed on a host.
 
@@ -1272,6 +1414,8 @@ This activity contains the following fields:
 
 ## uninstalled_software
 
+Option in UI dropdown: "Uninstall software"
+
 Generated when a Fleet-maintained app or custom package is uninstalled on a host.
 
 This activity contains the following fields:
@@ -1296,6 +1440,8 @@ This activity contains the following fields:
 ```
 
 ## added_software
+
+Option in UI dropdown: "Added software"
 
 Generated when a Fleet-maintained app or custom package is added to Fleet.
 
@@ -1334,6 +1480,8 @@ This activity contains the following fields:
 
 ## edited_software
 
+Option in UI dropdown: "Edited software"
+
 Generated when a Fleet-maintained app or custom package is edited in Fleet.
 
 This activity contains the following fields:
@@ -1371,6 +1519,8 @@ This activity contains the following fields:
 
 ## deleted_software
 
+Option in UI dropdown: "Deleted software"
+
 Generated when a Fleet maintained app or custom package is deleted from Fleet.
 
 This activity contains the following fields:
@@ -1406,6 +1556,8 @@ This activity contains the following fields:
 
 ## enabled_vpp
 
+Option in UI dropdown: "Enabled Volume Purchasing Program (VPP)"
+
 Generated when VPP features are enabled in Fleet.
 
 This activity contains the following fields:
@@ -1421,6 +1573,8 @@ This activity contains the following fields:
 
 ## disabled_vpp
 
+Option in UI dropdown: "Disabled Volume Purchasing Program (VPP)"
+
 Generated when VPP features are disabled in Fleet.
 
 This activity contains the following fields:
@@ -1435,6 +1589,8 @@ This activity contains the following fields:
 ```
 
 ## added_app_store_app
+
+Option in UI dropdown: "Added App Store (VPP) app"
 
 Generated when an App Store app is added to Fleet.
 
@@ -1475,6 +1631,8 @@ This activity contains the following fields:
 
 ## deleted_app_store_app
 
+Option in UI dropdown: "Deleted App Store (VPP) app"
+
 Generated when an App Store app is deleted from Fleet.
 
 This activity contains the following fields:
@@ -1510,6 +1668,8 @@ This activity contains the following fields:
 
 ## installed_app_store_app
 
+Option in UI dropdown: "Installed App Store (VPP) app"
+
 Generated when an App Store app is installed on a device.
 
 This activity contains the following fields:
@@ -1539,6 +1699,8 @@ This activity contains the following fields:
 ```
 
 ## edited_app_store_app
+
+Option in UI dropdown: "Edited App Store (VPP) app"
 
 Generated when an App Store app is updated in Fleet.
 
@@ -1579,11 +1741,15 @@ This activity contains the following fields:
 
 ## added_ndes_scep_proxy
 
+Option in UI dropdown: "Added certificate authority (CA): NDES"
+
 Generated when NDES SCEP proxy is configured in Fleet.
 
 This activity does not contain any detail fields.
 
 ## deleted_ndes_scep_proxy
+
+Option in UI dropdown: "Deleted certificate authority (CA): NDES"
 
 Generated when NDES SCEP proxy configuration is deleted in Fleet.
 
@@ -1591,11 +1757,15 @@ This activity does not contain any detail fields.
 
 ## edited_ndes_scep_proxy
 
+Option in UI dropdown: "Edited certificate authority (CA): NDES"
+
 Generated when NDES SCEP proxy configuration is edited in Fleet.
 
 This activity does not contain any detail fields.
 
 ## added_custom_scep_proxy
+
+Option in UI dropdown: "Added certificate authority (CA): custom SCEP"
 
 Generated when SCEP certificate authority configuration is added in Fleet.
 
@@ -1612,6 +1782,8 @@ This activity contains the following fields:
 
 ## deleted_custom_scep_proxy
 
+Option in UI dropdown: "Deleted certificate authority (CA): custom SCEP"
+
 Generated when SCEP certificate authority configuration is deleted in Fleet.
 
 This activity contains the following fields:
@@ -1626,6 +1798,8 @@ This activity contains the following fields:
 ```
 
 ## edited_custom_scep_proxy
+
+Option in UI dropdown: "Edited certificate authority (CA): custom SCEP"
 
 Generated when SCEP certificate authority configuration is edited in Fleet.
 
@@ -1642,6 +1816,8 @@ This activity contains the following fields:
 
 ## added_digicert
 
+Option in UI dropdown: "Added certificate authority (CA): DigiCert"
+
 Generated when DigiCert certificate authority configuration is added in Fleet.
 
 This activity contains the following fields:
@@ -1656,6 +1832,8 @@ This activity contains the following fields:
 ```
 
 ## deleted_digicert
+
+Option in UI dropdown: "Deleted certificate authority (CA): DigiCert"
 
 Generated when DigiCert certificate authority configuration is deleted in Fleet.
 
@@ -1672,6 +1850,8 @@ This activity contains the following fields:
 
 ## edited_digicert
 
+Option in UI dropdown: "Edited certificate authority (CA): DigiCert"
+
 Generated when DigiCert certificate authority configuration is edited in Fleet.
 
 This activity contains the following fields:
@@ -1686,6 +1866,8 @@ This activity contains the following fields:
 ```
 
 ## enabled_activity_automations
+
+Option in UI dropdown: "Enabled activity automations"
 
 Generated when activity automations are enabled
 
@@ -1702,6 +1884,8 @@ This activity contains the following field:
 
 ## edited_activity_automations
 
+Option in UI dropdown: "Edited activity automations"
+
 Generated when activity automations are edited while enabled
 
 This activity contains the following field:
@@ -1717,11 +1901,15 @@ This activity contains the following field:
 
 ## disabled_activity_automations
 
+Option in UI dropdown: "Disabled activity automations"
+
 Generated when activity automations are disabled
 
 This activity does not contain any detail fields.
 
 ## canceled_run_script
+
+Option in UI dropdown: "Canceled activity: run script"
 
 Generated when upcoming activity `ran_script` is canceled.
 
@@ -1741,6 +1929,8 @@ This activity contains the following fields:
 ```
 
 ## canceled_install_software
+
+Option in UI dropdown: "Canceled activity: install software"
 
 Generated when upcoming activity `installed_software` is canceled.
 
@@ -1763,6 +1953,8 @@ This activity contains the following fields:
 
 ## canceled_uninstall_software
 
+Option in UI dropdown: "Canceled activity: uninstall software"
+
 Generated when upcoming activity `uninstalled_software` is canceled.
 
 This activity contains the following fields:
@@ -1783,6 +1975,8 @@ This activity contains the following fields:
 ```
 
 ## canceled_install_app_store_app
+
+Option in UI dropdown: "Canceled activity: install App Store (VPP) app"
 
 Generated when upcoming activity `installed_app_store_app` is canceled.
 
