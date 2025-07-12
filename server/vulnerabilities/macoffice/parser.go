@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	VersionPattern = regexp.MustCompile(`(?i)version (\d+\.\d+(\.\d+)?) \(?build \d+\)?`)
-	cveLinkPattern = regexp.MustCompile(`CVE(-\d+)+$`)
+	VersionPattern     = regexp.MustCompile(`(?i)version (\d+\.\d+(\.\d+)?) \(?build \d+\)?`)
+	BuildNumberPattern = regexp.MustCompile(`(?i)\(build (\d+)\)?`)
+	cveLinkPattern     = regexp.MustCompile(`CVE(-\d+)+$`)
 )
 
 var IdToType = map[string]ProductType{

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -167,6 +168,8 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.Frozen = app.Frozen
+
+	external_refs.EnrichManifest(out)
 
 	return out, nil
 }
