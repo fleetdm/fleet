@@ -156,6 +156,13 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Santa",
+      "slug": "santa/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.northpolesec.santa",
+      "description": ""
+    },
+    {
       "name": "Slack",
       "slug": "slack/darwin",
       "platform": "darwin",
