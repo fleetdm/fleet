@@ -10,7 +10,10 @@ import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { IAppConfigFormProps, IFormField } from "../constants";
+import {
+  IAppConfigFormProps,
+  IFormField,
+} from "../../../OrgSettingsPage/cards/constants";
 
 const baseClass = "app-config-form";
 

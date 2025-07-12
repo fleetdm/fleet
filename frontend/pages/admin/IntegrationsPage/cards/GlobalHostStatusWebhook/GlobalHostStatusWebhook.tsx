@@ -19,7 +19,10 @@ import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import {
+  IAppConfigFormProps,
+  IFormField,
+} from "../../../OrgSettingsPage/cards/constants";
 
 interface IGlobalHostStatusWebhookFormData {
   enableHostStatusWebhook: boolean;
