@@ -12,11 +12,11 @@ import mdmAppleAPI, {
 import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 
 import MdmSettingsSection from "./components/MdmSettingsSection";
-import AutomaticEnrollmentSection from "./components/AutomaticEnrollmentSection";
-import VppSection from "./components/VppSection";
+import AppleBusinessManagerSection from "./components/AppleBusinessManagerSection";
 import IdpSection from "./components/IdpSection";
 import EulaSection from "./components/EulaSection";
 import EndUserMigrationSection from "./components/EndUserMigrationSection";
+import WindowsAutopilotSection from "./components/WindowsAutopilotSection";
 
 const baseClass = "mdm-settings";
 
@@ -121,13 +121,13 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
       />
       {!isLoading && !hasError && hasAllData && (
         <>
-          <AutomaticEnrollmentSection
+          <AppleBusinessManagerSection
             router={router}
             isPremiumTier={!!isPremiumTier}
-          />
-          <VppSection
-            router={router}
             isVppOn={!noVppTokenUploaded}
+          />
+          <WindowsAutopilotSection
+            router={router}
             isPremiumTier={!!isPremiumTier}
           />
           {isPremiumTier && !!config?.mdm.apple_bm_enabled_and_configured && (
