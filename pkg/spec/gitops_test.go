@@ -342,6 +342,21 @@ policies:
 	assert.ErrorContains(t, err, "duplicate policy names")
 }
 
+func TestManualLabelEmptyHostList(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{})
+	config += `
+labels:
+  - name: TestLabel
+    description: Label for testing
+    hosts:
+    label_membership_type: manual`
+
+	gitops, err := gitOpsFromString(t, config)
+	require.NoError(t, err)
+	assert.NotNil(t, gitops.Labels[0].Hosts)
+}
+
 func TestDuplicateQueryNames(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"queries"})
