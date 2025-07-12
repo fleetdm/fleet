@@ -21,7 +21,7 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 	}{
 		{"ListOSVulnerabilitiesEmpty", testListOSVulnerabilitiesByOSEmpty},
 		{"ListOSVulnerabilities", testListOSVulnerabilitiesByOS},
-		{"ListVulnssByOsNameAndVersion", testListVulnsByOsNameAndVersion},
+		{"ListVulnsByOsNameAndVersion", testListVulnsByOsNameAndVersion},
 		{"InsertOSVulnerabilities", testInsertOSVulnerabilities},
 		{"InsertSingleOSVulnerability", testInsertOSVulnerability},
 		{"DeleteOSVulnerabilitiesEmpty", testDeleteOSVulnerabilitiesEmpty},
@@ -102,7 +102,7 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	dbOS := []fleet.OperatingSystem{}
+	var dbOS []fleet.OperatingSystem
 	for _, seed := range seedOS {
 		os, err := newOperatingSystemDB(context.Background(), ds.writer(context.Background()), seed)
 		require.NoError(t, err)
@@ -148,12 +148,20 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 	// add CVEs for each OS with different architectures
 	vulns := []fleet.OSVulnerability{
 		{CVE: "CVE-2021-1234", OSID: dbOS[0].ID, ResolvedInVersion: ptr.String("1.2.3")},
-		{CVE: "CVE-2021-1234", OSID: dbOS[1].ID, ResolvedInVersion: ptr.String("1.2.3")}, // same OS, different arch
 		{CVE: "CVE-2021-1235", OSID: dbOS[1].ID, ResolvedInVersion: ptr.String("10.14.2")},
 		{CVE: "CVE-2021-1236", OSID: dbOS[2].ID, ResolvedInVersion: ptr.String("103.2.1")},
 	}
 
 	_, err = ds.InsertOSVulnerabilities(ctx, vulns, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	// push other vulns into the past to ensure "SELECT DISTINCT" wouldn't deduplicate properly
+	_, err = ds.writer(ctx).ExecContext(ctx, "UPDATE operating_system_vulnerabilities SET created_at = NOW() - INTERVAL 5 SECOND")
+	require.NoError(t, err)
+
+	_, err = ds.InsertOSVulnerabilities(ctx, []fleet.OSVulnerability{
+		{CVE: "CVE-2021-1234", OSID: dbOS[1].ID, ResolvedInVersion: ptr.String("1.2.3")}, // same OS, different arch
+	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
 	// test without CVS meta
