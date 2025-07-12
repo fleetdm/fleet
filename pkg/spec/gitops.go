@@ -875,9 +875,8 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		if !installerOnTeamFound {
 			if policyInstallSoftwareSpec.URL != "" {
 				return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
-			} else {
-				return fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath)
 			}
+			return fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath)
 		}
 
 		policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
