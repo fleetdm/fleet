@@ -40,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/quarantine"
 	setupexperience "github.com/fleetdm/fleet/v4/orbit/pkg/setup_experience"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
@@ -255,6 +256,9 @@ func main() {
 			return nil
 		}
 		startTime := time.Now()
+
+		// This is a temporary way to pass fleet-url to quarantine.go
+		setFleetUrl(c.String("fleet-url"))
 
 		var logFile io.Writer
 		if logf := c.String("log-file"); logf != "" {
@@ -971,6 +975,7 @@ func main() {
 			c.Bool("enable-scripts"), orbitClient, c.String("root-dir"),
 		)
 		orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
+		orbitClient.RegisterConfigReceiver(&quarantineReceiver{})
 
 		switch runtime.GOOS {
 		case "darwin":
@@ -2171,4 +2176,19 @@ func (w *wrapSubsystem) Execute() error {
 // Interrupt partially implements subSystem.
 func (w *wrapSubsystem) Interrupt(err error) {
 	w.interrupt(err)
+}
+
+type quarantineReceiver struct{}
+
+func (q *quarantineReceiver) Run(c *fleet.OrbitConfig) error {
+	if !c.Quarantine {
+		log.Debug().Msg("This host is not quarantined")
+		quarantine.UnquarantineIfNeeded()
+		return nil
+	}
+
+	log.Info().Msg("This host is quarantined!")
+	// TODO: add updateUrl to quarantine allow list for agent updates
+	quarantine.QuarantineIfNeeded()
+	return nil
 }
