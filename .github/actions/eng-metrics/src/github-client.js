@@ -236,32 +236,50 @@ export class GitHubClient {
   }
 
   /**
-   * Filters out bot reviews from review events
+   * Filters out bot reviews and PR creator reviews from review events
    * @param {Array} reviewEvents - Array of review events
    * @param {boolean} excludeBots - Whether to exclude bot reviews (default: false)
+   * @param {Object} prCreator - PR creator user object (optional)
    * @returns {Array} Filtered review events
    */
-  filterBotReviews(reviewEvents, excludeBots = false) {
-    if (!excludeBots) {
+  filterBotReviews(reviewEvents, excludeBots = false, prCreator = null) {
+    if (!excludeBots && !prCreator) {
       return reviewEvents;
     }
 
     const filteredReviews = reviewEvents.filter((review) => {
-      const botAnalysis = identifyBotUser(review.user);
-      if (botAnalysis.isBot) {
-        logger.debug(`Filtering out bot review from ${review.user.login}`, {
-          confidence: botAnalysis.confidence,
-          reasons: botAnalysis.reasons,
-        });
+      // Filter out bot reviews
+      if (excludeBots) {
+        const botAnalysis = identifyBotUser(review.user);
+        if (botAnalysis.isBot) {
+          logger.debug(`Filtering out bot review from ${review.user.login}`, {
+            confidence: botAnalysis.confidence,
+            reasons: botAnalysis.reasons,
+          });
+          return false;
+        }
+      }
+
+      // Filter out PR creator reviews
+      if (prCreator && review.user.login === prCreator.login) {
+        logger.debug(`Filtering out PR creator review from ${review.user.login}`);
         return false;
       }
+
       return true;
     });
 
-    const botCount = reviewEvents.length - filteredReviews.length;
-    if (botCount > 0) {
+    const botCount = excludeBots ? reviewEvents.filter(review => identifyBotUser(review.user).isBot).length : 0;
+    const creatorCount = prCreator ? reviewEvents.filter(review => review.user.login === prCreator.login).length : 0;
+    const totalFiltered = reviewEvents.length - filteredReviews.length;
+
+    if (totalFiltered > 0) {
+      const filterReasons = [];
+      if (botCount > 0) filterReasons.push(`${botCount} bot reviews`);
+      if (creatorCount > 0) filterReasons.push(`${creatorCount} PR creator reviews`);
+      
       logger.info(
-        `Filtered out ${botCount} bot reviews from ${reviewEvents.length} total reviews`
+        `Filtered out ${totalFiltered} reviews (${filterReasons.join(', ')}) from ${reviewEvents.length} total reviews`
       );
     }
 
