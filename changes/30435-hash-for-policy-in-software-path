@@ -1,0 +1,1 @@
+* Fixed specification of policy software automations via GitOps when referring to software by hash from a software YAML file
