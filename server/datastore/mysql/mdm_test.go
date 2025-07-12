@@ -72,7 +72,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 
 	// enroll a windows device
 	windowsH, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "windows-test",
+		Hostname:       "test-host", // ambiguous hostname shared with macOS host
 		OsqueryHostID:  ptr.String("osquery-windows"),
 		NodeKey:        ptr.String("node-key-windows"),
 		UUID:           uuid.NewString(),
@@ -109,7 +109,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 
 	// enroll a macOS device
 	macH, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "macos-test",
+		Hostname:       "test-host", // ambiguous hostname shared with windows host
 		OsqueryHostID:  ptr.String("osquery-macos"),
 		NodeKey:        ptr.String("node-key-macos"),
 		UUID:           uuid.NewString(),
@@ -274,32 +274,65 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
 
-	// filter by host Identifier
-	identifiers := map[string][]string{
-		windowsH.Hostname:       {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
-		windowsH.UUID:           {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
-		windowsH.HardwareSerial: {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
-		macH.Hostname:           {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
-		macH.UUID:               {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
-		macH.HardwareSerial:     {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
-	}
-
-	for identifier, expected := range identifiers {
-		t.Run(identifier, func(t *testing.T) {
-			cmds, err = ds.ListMDMCommands(
+	for _, tc := range []struct {
+		name       string
+		identifier string
+		expected   []string
+	}{
+		{
+			name:       "windows host by hostname ambiguous with macOS host",
+			identifier: windowsH.Hostname,
+			expected: []string{
+				winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID,
+				appleCmdUUID, appleCmdUUID2, appleCmdUUID3,
+			},
+		},
+		{
+			name:       "windows host by UUID",
+			identifier: windowsH.UUID,
+			expected:   []string{winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		},
+		{
+			name:       "windows host by hardware serial",
+			identifier: windowsH.HardwareSerial,
+			expected:   []string{winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		},
+		{
+			name:       "macOS host by hostname ambiguous with windows host",
+			identifier: macH.Hostname,
+			expected: []string{
+				appleCmdUUID, appleCmdUUID2, appleCmdUUID3,
+				winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID,
+			},
+		},
+		{
+			name:       "macOS host by UUID",
+			identifier: macH.UUID,
+			expected:   []string{appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+		},
+		{
+			name:       "macOS host by hardware serial",
+			identifier: macH.HardwareSerial,
+			expected:   []string{appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cmds, err := ds.ListMDMCommands(
 				ctx,
 				fleet.TeamFilter{User: test.UserAdmin},
 				&fleet.MDMCommandListOptions{
 					Filters: fleet.MDMCommandFilters{
-						HostIdentifier: identifier,
+						HostIdentifier: tc.identifier,
 					},
 				},
 			)
 			require.NoError(t, err)
-			require.Len(t, cmds, 3)
+			require.Len(t, cmds, len(tc.expected))
+			var got []string
 			for _, cmd := range cmds {
-				require.Contains(t, expected, cmd.CommandUUID)
+				got = append(got, cmd.CommandUUID)
 			}
+			require.ElementsMatch(t, tc.expected, got)
 		})
 	}
 
@@ -334,8 +367,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
-	require.Equal(t, appleCmdUUID2, cmds[0].CommandUUID)
-	require.Equal(t, appleCmdUUID4, cmds[1].CommandUUID)
+	require.Equal(t, appleCmdUUID4, cmds[0].CommandUUID)
+	require.Equal(t, appleCmdUUID2, cmds[1].CommandUUID)
 
 	// filter by request_type and host_identifier
 	cmds, err = ds.ListMDMCommands(
