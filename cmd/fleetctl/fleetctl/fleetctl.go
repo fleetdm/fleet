@@ -30,6 +30,7 @@ func CreateApp(
 	app.Reader = reader
 	app.Writer = stdout
 	app.ErrWriter = stderr
+	app.DisableSliceFlagSeparator = true
 
 	app.Commands = []*cli.Command{
 		apiCommand(),

@@ -57,6 +57,30 @@ func TestRunApiCommand(t *testing.T) {
 }
 `
 
+	expectedNewPolicy := `{
+  "policy": {
+    "id": 0,
+    "name": "Test Policy",
+    "query": "SELECT 1;",
+    "critical": false,
+    "description": "",
+    "author_id": 1,
+    "author_name": "",
+    "author_email": "",
+    "team_id": null,
+    "resolution": "",
+    "platform": "darwin,windows,linux,chrome",
+    "calendar_events_enabled": false,
+    "conditional_access_enabled": false,
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "passing_host_count": 0,
+    "failing_host_count": 0,
+    "host_count_updated_at": null
+  }
+}
+`
+
 	cases := []testCase{
 		{
 			name: "get scripts",
@@ -110,13 +134,26 @@ func TestRunApiCommand(t *testing.T) {
 			args:         []string{"scripts", "-F", "team_id=1"},
 			expectErrMsg: "extra arguments: -F team_id=1",
 		},
+		{
+			name: "create policy",
+			args: []string{
+				"-B", "name=Test Policy",
+				"-B", "query=SELECT 1;",
+				"-B", "platform=darwin,windows,linux,chrome",
+				"-B", "critical=false",
+				"-B", "description=",
+				"-B", "resolution=",
+				"/api/latest/fleet/policies",
+			},
+			expectOutput: expectedNewPolicy,
+		},
 	}
 
 	setupDS := func(t *testing.T, c testCase) {
 		ds.ListScriptsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
 			if teamID == nil {
 				ret := []*fleet.Script{
-					&fleet.Script{
+					{
 						ID:        23,
 						Name:      "get_my_device_page.sh",
 						CreatedAt: created_at,
@@ -154,5 +191,4 @@ func TestRunApiCommand(t *testing.T) {
 			}
 		})
 	}
-
 }
