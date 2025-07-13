@@ -6,7 +6,7 @@ _Notes:_
 - These instructions have not been fully tested.
 
 ```bash
-export FLEET_REPO /path/to/your/monorepo
+export FLEET_REPO=/path/to/your/monorepo
 # Clone upstream
 git clone https://github.com/remitly-oss/httpsig-go.git ~/httpsig-go-merge
 cd ~/httpsig-go-merge
