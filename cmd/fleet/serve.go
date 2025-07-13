@@ -26,6 +26,7 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -1073,6 +1074,14 @@ the way that the Fleet server works.
 				KeyPrefix: "ratelimit::",
 			}
 
+			var httpSigVerifier func(http.Handler) http.Handler
+			if license.IsPremium() {
+				httpSigVerifier, err = httpsig.Middleware(ds, kitlog.With(logger, "component", "http-sig-verifier"))
+				if err != nil {
+					initFatal(err, "initializing HTTP signature verifier")
+				}
+			}
+
 			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
@@ -1086,6 +1095,7 @@ the way that the Fleet server works.
 				if config.MDM.SSORateLimitPerMinute > 0 {
 					extra = append(extra, service.WithMdmSsoRateLimit(throttled.PerMin(config.MDM.SSORateLimitPerMinute)))
 				}
+				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
 					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)

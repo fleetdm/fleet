@@ -60,6 +60,7 @@ func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.Respon
 type extraHandlerOpts struct {
 	loginRateLimit  *throttled.Rate
 	mdmSsoRateLimit *throttled.Rate
+	httpSigVerifier mux.MiddlewareFunc
 }
 
 // ExtraHandlerOption allows adding extra configuration to the HTTP handler.
@@ -76,6 +77,12 @@ func WithLoginRateLimit(r throttled.Rate) ExtraHandlerOption {
 func WithMdmSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
 	return func(o *extraHandlerOpts) {
 		o.mdmSsoRateLimit = &r
+	}
+}
+
+func WithHTTPSigVerifier(m mux.MiddlewareFunc) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.httpSigVerifier = m
 	}
 }
 
@@ -117,6 +124,9 @@ func MakeHandler(
 	}
 
 	r.Use(publicIP)
+	if eopts.httpSigVerifier != nil {
+		r.Use(eopts.httpSigVerifier)
+	}
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions, eopts)
 	for _, featureRoute := range featureRoutes {
