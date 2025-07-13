@@ -1,0 +1,42 @@
+These are instructions for pulling in the latest changes from the upstream version of this library.
+The `UPSTREAM_COMMIT` file tracks the upstream version that we last synced with.
+
+_Notes:_
+- Update `/path/to/your/monorepo` below to your fleet repo location
+- These instructions have not been fully tested.
+
+```bash
+export FLEET_REPO /path/to/your/monorepo
+# Clone upstream
+git clone https://github.com/remitly-oss/httpsig-go.git ~/httpsig-go-merge
+cd ~/httpsig-go-merge
+
+# Check out the last upstream commit we vendored
+git checkout $(cat "$FLEET_REPO"/third_party/httpsig-go/UPSTREAM_COMMIT)
+
+# Create a branch for our downstream changes
+git checkout -b internal-changes
+
+# Copy current vendored version into this working repo
+rsync -a --delete "$FLEET_REPO"/third_party/httpsig-go/ ./ --exclude .git
+git add .
+git commit -m "Apply downstream changes"
+
+# Fetch upstream updates and merge them
+git fetch origin
+git checkout main
+git merge origin/main
+git checkout internal-changes
+git merge main   # resolve conflicts
+
+# Copy merged result back into monorepo
+rsync -a --delete ./ "$FLEET_REPO"/third_party/httpsig-go/ --exclude .git
+
+# Record the new upstream commit. Manually double check that it matches the upstream commit.
+git rev-parse origin/main > "$FLEET_REPO"/third_party/httpsig-go/UPSTREAM_COMMIT
+
+# Commit to monorepo
+cd "$FLEET_REPO"
+git add third_party/httpsig-go
+git commit -m "Update httpsig-go with latest upstream changes"
+```

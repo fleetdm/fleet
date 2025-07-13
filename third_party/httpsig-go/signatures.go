@@ -59,32 +59,45 @@ func sign(hrr httpMessage, sp sigParameters) error {
 	switch sp.Algo {
 
 	case Algo_RSA_PSS_SHA512:
-		if rsapk, ok := sp.PrivateKey.(*rsa.PrivateKey); ok {
-			msgHash := sha512.Sum512(base.base)
-			opts := &rsa.PSSOptions{
-				SaltLength: 64,
-				Hash:       crypto.SHA512,
-			}
+		msgHash := sha512.Sum512(base.base)
+		opts := &rsa.PSSOptions{
+			SaltLength: 64,
+			Hash:       crypto.SHA512,
+		}
+		switch rsapk := sp.PrivateKey.(type) {
+		case *rsa.PrivateKey:
 			sigBytes, err = rsa.SignPSS(rand.Reader, rsapk, crypto.SHA512, msgHash[:], opts)
 			if err != nil {
 				return err
 			}
-		} else {
-			return fmt.Errorf("Invalid private key. Requires rsa.PrivateKey: %T", sp.PrivateKey)
+		case crypto.Signer:
+			sigBytes, err = rsapk.Sign(rand.Reader, msgHash[:], crypto.SHA512)
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("Invalid private key. Requires *rsa.PrivateKey or crypto.Signer: %T", sp.PrivateKey)
 		}
 	case Algo_RSA_v1_5_sha256:
-		if rsapk, ok := sp.PrivateKey.(*rsa.PrivateKey); ok {
-			msgHash := sha256.Sum256(base.base)
+		msgHash := sha256.Sum256(base.base)
+		switch rsapk := sp.PrivateKey.(type) {
+		case *rsa.PrivateKey:
 			sigBytes, err = rsa.SignPKCS1v15(rand.Reader, rsapk, crypto.SHA256, msgHash[:])
 			if err != nil {
 				return err
 			}
-		} else {
-			return fmt.Errorf("Invalid private key. Requires rsa.PrivateKey: %T", sp.PrivateKey)
+		case crypto.Signer:
+			sigBytes, err = rsapk.Sign(rand.Reader, msgHash[:], crypto.SHA256)
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("Invalid private key. Requires *rsa.PrivateKey or crypto.Signer: %T", sp.PrivateKey)
 		}
 	case Algo_ECDSA_P256_SHA256:
-		if eccpk, ok := sp.PrivateKey.(*ecdsa.PrivateKey); ok {
-			msgHash := sha256.Sum256(base.base)
+		msgHash := sha256.Sum256(base.base)
+		switch eccpk := sp.PrivateKey.(type) {
+		case *ecdsa.PrivateKey:
 			r, s, err := ecdsa.Sign(rand.Reader, eccpk, msgHash[:])
 			if err != nil {
 				return newError(ErrInternal, "Failed to sign with ecdsa private key", err)
@@ -93,12 +106,18 @@ func sign(hrr httpMessage, sp sigParameters) error {
 			sigBytes = make([]byte, 64)
 			r.FillBytes(sigBytes[0:32])
 			s.FillBytes(sigBytes[32:64])
-		} else {
-			return fmt.Errorf("Invalid private key. Requires *ecdsa.PrivateKey")
+		case crypto.Signer:
+			sigBytes, err = eccpk.Sign(rand.Reader, msgHash[:], crypto.SHA256)
+			if err != nil {
+				return newError(ErrInternal, "Failed to sign with ecdsa custom signer", err)
+			}
+		default:
+			return fmt.Errorf("Invalid private key. Requires *ecdsa.PrivateKey or crypto.Signer: %T", sp.PrivateKey)
 		}
 	case Algo_ECDSA_P384_SHA384:
-		if eccpk, ok := sp.PrivateKey.(*ecdsa.PrivateKey); ok {
-			msgHash := sha512.Sum384(base.base)
+		msgHash := sha512.Sum384(base.base)
+		switch eccpk := sp.PrivateKey.(type) {
+		case *ecdsa.PrivateKey:
 			r, s, err := ecdsa.Sign(rand.Reader, eccpk, msgHash[:])
 			if err != nil {
 				return newError(ErrInternal, "Failed to sign with ecdsa private key", err)
@@ -107,14 +126,25 @@ func sign(hrr httpMessage, sp sigParameters) error {
 			sigBytes = make([]byte, 96)
 			r.FillBytes(sigBytes[0:48])
 			s.FillBytes(sigBytes[48:96])
-		} else {
-			return fmt.Errorf("Invalid private key. Requires *ecdsa.PrivateKey")
+		case crypto.Signer:
+			sigBytes, err = eccpk.Sign(rand.Reader, msgHash[:], crypto.SHA384)
+			if err != nil {
+				return newError(ErrInternal, "Failed to sign with ecdsa custom signer", err)
+			}
+		default:
+			return fmt.Errorf("Invalid private key. Requires *ecdsa.PrivateKey or crypto.Signer: %T", sp.PrivateKey)
 		}
 	case Algo_ED25519:
-		if edpk, ok := sp.PrivateKey.(ed25519.PrivateKey); ok {
+		switch edpk := sp.PrivateKey.(type) {
+		case ed25519.PrivateKey:
 			sigBytes = ed25519.Sign(edpk, base.base)
-		} else {
-			return fmt.Errorf("Invalid private key. Requires ed25519.PrivateKey")
+		case crypto.Signer:
+			sigBytes, err = edpk.Sign(rand.Reader, base.base, crypto.Hash(0))
+			if err != nil {
+				return newError(ErrInternal, "Failed to sign with ed25519 custom signer", err)
+			}
+		default:
+			return fmt.Errorf("Invalid private key. Requires ed25519.PrivateKey or crypto.Signer: %T", sp.PrivateKey)
 		}
 	case Algo_HMAC_SHA256:
 		if len(sp.Secret) == 0 {
