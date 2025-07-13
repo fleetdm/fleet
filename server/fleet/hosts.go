@@ -385,6 +385,8 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+
+	HasHostIdentityCert bool `db:"has_host_identity_cert"`
 }
 
 type HostForeignVitalGroup struct {

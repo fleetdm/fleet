@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	"github.com/remitly-oss/httpsig-go"
@@ -17,6 +18,18 @@ type HTTPSig struct {
 	ds     fleet.Datastore
 	logger log.Logger
 }
+
+type KeySpecer struct {
+	hostIdentityCert types.HostIdentityCertificate
+	keySpec          httpsig.KeySpec
+}
+
+func (k KeySpecer) KeySpec() (httpsig.KeySpec, error) {
+	return k.keySpec, nil
+}
+
+// _ ensures that KeySpecer implements the httpsig.KeySpecer interface.
+var _ httpsig.KeySpecer = KeySpecer{}
 
 func NewHTTPSig(ds fleet.Datastore, logger log.Logger) *HTTPSig {
 	return &HTTPSig{
@@ -60,10 +73,13 @@ func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string)
 		return nil, fmt.Errorf("unsupported elliptic curve: %s", publicKey.Curve.Params().Name)
 	}
 
-	return &httpsig.KeySpec{
-		KeyID:  keyID,
-		Algo:   algo,
-		PubKey: publicKey,
+	return &KeySpecer{
+		hostIdentityCert: *identityCert,
+		keySpec: httpsig.KeySpec{
+			KeyID:  keyID,
+			Algo:   algo,
+			PubKey: publicKey,
+		},
 	}, nil
 }
 

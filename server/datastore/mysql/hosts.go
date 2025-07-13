@@ -2426,7 +2426,8 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -2497,7 +2498,8 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
-      t.name as team_name
+      t.name as team_name,
+      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert
     FROM
       hosts h
     LEFT OUTER JOIN

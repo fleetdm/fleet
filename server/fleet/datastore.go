@@ -2210,6 +2210,8 @@ type Datastore interface {
 
 	// GetHostIdentityCertBySerialNumber gets the unrevoked valid cert corresponding to the provided serial number.
 	GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
+	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
+	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
 }
 
 type AndroidDatastore interface {

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -120,6 +121,29 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: invalid orbit node key"))
 	default:
 		return nil, false, ctxerr.Wrap(ctx, err, "authentication error orbit")
+	}
+
+	// Host identity cert is used for TPM-backed HTTP message signatures.
+	// If the host has one, then all agent traffic should have HTTP message signatures unless specified otherwise.
+	// The host identity certificate must match the host's node key.
+	if host.HasHostIdentityCert {
+		hostIdentityCert, ok := httpsig.FromContext(ctx)
+		if !ok {
+			return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing http message signature"))
+		}
+		if host.OsqueryHostID == nil || *host.OsqueryHostID != hostIdentityCert.CommonName {
+			return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError(
+				"authentication error: http message signature does not match orbit node key"))
+		}
+		if hostIdentityCert.HostID == nil {
+			// Update the certificate
+			err = svc.ds.UpdateHostIdentityCertHostIDBySerial(ctx, hostIdentityCert.SerialNumber, host.ID)
+			if err != nil {
+				return nil, false, ctxerr.Wrap(ctx, err, "authentication error orbit: failed to update host identity cert host id")
+			}
+		} else if *hostIdentityCert.HostID != host.ID {
+			return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: http message signature does not match host ID"))
+		}
 	}
 
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
