@@ -1,0 +1,49 @@
+# To avoid giving your LLM irrelevant context, this .sideignore file can be used
+# to exclude any code that isn't part of what is normally edited.  The format is
+# the same as .gitignore. Note that any patterns listed here are ignored *in
+# addition* to to what is ignored via .sideignore.
+#
+# The following is a list of common vendored dependencies or known paths that
+# should not be edited, in case they are not already in a .gitignore file.
+# Adjust by:
+#
+# 1. Removing paths for languages/frameworks not relevant to you
+# 2. Add any paths specific to your project that get auto-generated but not
+#    normally imported, such as mocks etc.
+
+# General vendored dependencies
+vendor/
+third_party/
+extern/
+deps/
+
+# Node
+node_modules/
+
+# Python virtual environments (less common names)
+.venv/
+env/
+
+# Go vendored dependencies
+vendor/
+
+# Ruby
+.bundle/
+vendor/bundle/
+
+# PHP
+vendor/
+
+# Java / Kotlin
+.gradle/
+
+# C / C++
+deps/
+
+# Swift / Dart / Flutter
+.dart_tool/
+Carthage/
+
+# Elixir / Erlang
+_build/
+deps/
