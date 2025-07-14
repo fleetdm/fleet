@@ -102,8 +102,8 @@ func TriggerFailingPoliciesAutomation(
 			return ctxerr.Wrapf(ctx, err, "get policy: %d", policyID)
 		}
 
-		if policy.TeamID != nil {
-			// handle team policy
+		if policy.TeamID != nil && *policy.TeamID != 0 {
+			// handle team policy other than no team
 			teamCfg, err := getTeam(ctx, *policy.TeamID)
 			switch {
 			case errors.Is(err, sql.ErrNoRows):
@@ -136,7 +136,8 @@ func TriggerFailingPoliciesAutomation(
 			continue
 		}
 
-		// handle global policy
+		// handle global policy or no team policy
+		// in Primo mode, can configure failing automations for no team policies
 		if !globalCfg.PolicyIDs[policy.ID] {
 			level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID)
 			if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
