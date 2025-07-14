@@ -434,6 +434,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
 		return false, nil
 	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
 
 	ts1 := time.Now().Add(-1 * time.Hour).UTC()
 	ts2 := time.Now().Add(-2 * time.Hour).UTC()
@@ -825,6 +828,9 @@ func TestHostAuth(t *testing.T) {
 	}
 	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
 		return time.Time{}, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
 	}
 
 	testCases := []struct {
@@ -1792,6 +1798,9 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	}
 	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
 		return time.Time{}, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
 	}
 
 	cases := []struct {
