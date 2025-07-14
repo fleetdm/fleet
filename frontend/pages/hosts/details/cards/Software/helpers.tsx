@@ -122,10 +122,32 @@ export const getUiStatus = (
   const installerVersion = getInstallerVersion(software);
 
   // If the installation has failed, return 'failed_install'
-  if (status === "failed_install") return "failed_install";
+  if (status === "failed_install") {
+    if (
+      installerVersion &&
+      installed_versions &&
+      installed_versions.some(
+        (iv) => compareVersions(iv.version, installerVersion) === -1
+      )
+    ) {
+      return "failed_install_update_available";
+    }
+    return "failed_install";
+  }
 
   // If the uninstallation has failed, return 'failed_uninstall'
-  if (status === "failed_uninstall") return "failed_uninstall";
+  if (status === "failed_uninstall") {
+    if (
+      installerVersion &&
+      installed_versions &&
+      installed_versions.some(
+        (iv) => compareVersions(iv.version, installerVersion) === -1
+      )
+    ) {
+      return "failed_uninstall_update_available";
+    }
+    return "failed_uninstall";
+  }
 
   // If installation is pending
   if (status === "pending_install") {
