@@ -1060,7 +1060,15 @@ func ParseEnrollmentProfile(mobileConfig []byte) (*AppleEnrollInfo, error) {
 	if apnsTopic, ok := enrollmentProfile.PayloadContent[1]["Topic"].(string); !ok || apnsTopic == "" {
 		return nil, errors.New("MDM Topic field not found")
 	}
-	assignedManagedAppleID := enrollmentProfile.PayloadContent[1]["AssignedManagedAppleID"].(string)
+
+	// assignedManagedAppleID is optional and only present in account driven enrollment flows so
+	// only use it if it exists.
+	var assignedManagedAppleID string
+	assignedManagedAppleIDVal, ok := enrollmentProfile.PayloadContent[1]["AssignedManagedAppleID"]
+	if ok {
+		assignedManagedAppleID = assignedManagedAppleIDVal.(string)
+	}
+
 	return &AppleEnrollInfo{
 		SCEPChallenge:          scepChallenge,
 		SCEPURL:                scepURL,
