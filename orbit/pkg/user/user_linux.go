@@ -78,7 +78,11 @@ func GetUserContext(user *User) *string {
 		return nil
 	}
 	// Find the first systemd process for the user and read its SELinux context.
-	pids, _ := exec.Command("pgrep", "-u", strconv.FormatInt(user.ID, 10), "-nx", "systemd").Output()
+	pids, err := exec.Command("pgrep", "-u", strconv.FormatInt(user.ID, 10), "-nx", "systemd").Output()
+	if err != nil {
+		log.Debug().Msgf("Error finding systemd process for user %s: %v", user.Name, err)
+		return nil
+	}
 	pid := strings.TrimSpace(string(pids))
 	ctx, err := os.ReadFile("/proc/" + pid + "/attr/current")
 	if err != nil {

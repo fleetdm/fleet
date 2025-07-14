@@ -45,7 +45,7 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 		}
 	}
 
-	// If the user context is set, we run the command with runcon to set the SELinux context.
+	// If the user has an SELinux context, we run the command with runcon so that it has the correct context.
 	// Otherwise, we run the command directly.
 	if userContext != nil {
 		args = append(args, "-c", fmt.Sprintf("runcon \"%s\" env %s %s", *userContext, strings.Join(env, " "), path))
