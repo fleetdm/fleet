@@ -379,10 +379,10 @@ parasails.registerPage('configuration-builder', {
                 payload: 'FDEFileVault',
                 payloadType: 'com.apple.MCX.FileVault2',
                 formInput: {
-                  type: 'boolean',
+                  type: 'text',
                 },
                 formOutput: {
-                  settingFormat: 'boolean',
+                  settingFormat: 'string',
                   settingKey: 'Username',
                 },
               },
@@ -394,10 +394,10 @@ parasails.registerPage('configuration-builder', {
                 payload: 'FDEFileVault',
                 payloadType: 'com.apple.MCX.FileVault2',
                 formInput: {
-                  type: 'boolean',
+                  type: 'text',
                 },
                 formOutput: {
-                  settingFormat: 'boolean',
+                  settingFormat: 'string',
                   settingKey: 'Password',
                 },
               },
@@ -486,10 +486,10 @@ parasails.registerPage('configuration-builder', {
                 payload: 'FDEFileVault',
                 payloadType: 'com.apple.MCX.FileVault2',
                 formInput: {
-                  type: 'text',
+                  type: 'boolean',
                 },
                 formOutput: {
-                  settingFormat: 'string',
+                  settingFormat: 'boolean',
                   settingKey: 'UseKeychain',
                 },
               },
@@ -792,7 +792,7 @@ parasails.registerPage('configuration-builder', {
                   ]
                 },
                 formOutput: {
-                  settingFormat: 'boolean',
+                  settingFormat: 'string',
                   settingKey: 'ProxyType',
                 },
               },
@@ -2607,10 +2607,12 @@ parasails.registerPage('configuration-builder', {
           for(let input of option.formInput.inputs){
             delete this.configurationBuilderFormRules[option.uniqueSlug+'-'+input.slug];
             delete this.configurationBuilderFormData[option.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-'+input.slug];
           }
         } else{
           delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
           delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
+          delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-value'];
         }
         let newSelectedPayloads = _.without(this.selectedPayloads, option);
         this.selectedPayloadSettings[option.uniqueSlug] = false;
@@ -2618,6 +2620,7 @@ parasails.registerPage('configuration-builder', {
         if(this.selectedPlatform === 'windows') {
           delete this.configurationBuilderFormRules[option.uniqueSlug+'-access-type'];
           delete this.configurationBuilderFormData[option.uniqueSlug+'-access-type'];
+          delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-access-type'];
         }
       }
       this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
@@ -2632,8 +2635,10 @@ parasails.registerPage('configuration-builder', {
       this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
       delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
       delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
+      delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-value'];
       if(this.selectedPlatform === 'windows') {
         delete this.configurationBuilderFormRules[option.uniqueSlug+'-access-type'];
+        delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-access-type'];
       }
     },
     // When users click the download all button.
