@@ -11,6 +11,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// ensure all Linuxes are in one of the three package support groups
+func TestHostLinuxPlatformPackageCompatibility(t *testing.T) {
+	for _, os := range HostLinuxOSs {
+		if os == "linux" {
+			continue
+		}
+		h := &Host{Platform: os}
+		_, isNeitherDebNorRpm := HostNeitherDebNorRpmPackageOSs[h.Platform]
+		if isNeitherDebNorRpm {
+			continue
+		}
+
+		require.True(t, h.PlatformSupportsDebPackages() || h.PlatformSupportsRpmPackages())
+	}
+}
+
 func TestHostStatus(t *testing.T) {
 	mockClock := clock.NewMockClock()
 

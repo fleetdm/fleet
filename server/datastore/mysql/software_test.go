@@ -68,6 +68,7 @@ func TestSoftware(t *testing.T) {
 		{"InsertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 		{"ListHostSoftware", testListHostSoftware},
+		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
 		{"ListHostSoftwareWithVPPApps", testListHostSoftwareWithVPPApps},
 		{"ListHostSoftwareVPPSelfService", testListHostSoftwareVPPSelfService},
@@ -3470,7 +3471,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
 	nanoEnroll(t, ds, host, false)
-	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("linux"))
+	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("ubuntu"))
 	opts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 11, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}}
 
 	user, err := ds.NewUser(ctx, &fleet.User{
@@ -4720,6 +4721,71 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 	}
 	require.False(t, found, "Expected not find software %s in the list", softwareAlreadyInstalled.Name)
+}
+
+func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	rpmHost := test.NewHost(t, ds, "RHEL", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("rhel"))
+	debHost := test.NewHost(t, ds, "Ubuntu", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("pop"))
+	archHost := test.NewHost(t, ds, "Arch", "", "host3key", "host3uuid", time.Now(), test.WithPlatform("arch"))
+	macHost := test.NewHost(t, ds, "Mac", "", "host4key", "host4uuid", time.Now(), test.WithPlatform("darwin"))
+
+	// Add titles and installers for deb (visible on deb host), rpm (visible on rpm host), tarball (visible on non-Mac hosts)
+	type installerInfo struct {
+		Filename  string
+		Extension string
+	}
+	installers := map[string]installerInfo{
+		"deb_packages": {Filename: "deb.deb", Extension: "deb"},
+		"rpm_packages": {Filename: "rpm.rpm", Extension: "rpm"},
+		"tgz_packages": {Filename: "tar.tar.gz", Extension: "tar.gz"},
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		script := `hello world`
+		res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, script, script)
+		if err != nil {
+			return err
+		}
+		scriptContentID, _ := res.LastInsertId()
+
+		for source, installer := range installers {
+			res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, source, source)
+			titleID, _ := res.LastInsertId()
+
+			_, err = q.ExecContext(ctx, `
+							INSERT INTO software_installers
+								(team_id, global_or_team_id, title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service)
+							VALUES
+								(?, ?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
+				nil, 0, titleID, installer.Filename, installer.Extension, "2.0.0",
+				scriptContentID, scriptContentID,
+				hex.EncodeToString([]byte("test")), "linux", true)
+			if err != nil {
+				return err
+			}
+		}
+
+		opts := fleet.HostSoftwareTitleListOptions{OnlyAvailableForInstall: true, ListOptions: fleet.ListOptions{OrderKey: "name"}}
+
+		for host, expectedInstallers := range map[*fleet.Host][]installerInfo{
+			rpmHost:  {installers["rpm_packages"], installers["tgz_packages"]},
+			debHost:  {installers["deb_packages"], installers["tgz_packages"]},
+			archHost: {installers["tgz_packages"]},
+			macHost:  {},
+		} {
+			t.Run(host.Hostname, func(t *testing.T) {
+				sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+				require.NoError(t, err)
+				require.Len(t, sw, len(expectedInstallers))
+				for i, installer := range expectedInstallers {
+					require.Equal(t, installer.Filename, sw[i].SoftwarePackage.Name)
+				}
+			})
+		}
+
+		return nil
+	})
 }
 
 func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
