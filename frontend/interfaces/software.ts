@@ -417,7 +417,9 @@ export type IHostSoftwareUiStatus =
   | "pending_uninstall"
   | "pending_update"
   | "failed_install"
+  | "failed_install_update_available"
   | "failed_uninstall"
+  | "failed_uninstall_update_available"
   | "update_available";
 
 export interface IHostSoftwareWithUiStatus extends IHostSoftware {

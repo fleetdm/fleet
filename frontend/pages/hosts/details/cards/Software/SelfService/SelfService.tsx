@@ -25,6 +25,7 @@ import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import Button from "components/buttons/Button";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
@@ -48,6 +49,7 @@ import {
 } from "./helpers";
 import CategoriesMenu from "./CategoriesMenu";
 import { getUiStatus } from "../helpers";
+import UpdateSoftwareItem from "./UpdateSoftwareItem";
 
 const baseClass = "software-self-service";
 
@@ -73,6 +75,12 @@ export interface ISoftwareSelfServiceProps {
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
 }
 
+const getUpdatesPageSize = (width: number): number => {
+  if (width >= 1400) return 4;
+  if (width >= 880) return 3; // TODO: Change back to 768 after testing
+  return 2;
+};
+
 const SoftwareSelfService = ({
   contactUrl,
   deviceToken,
@@ -91,6 +99,18 @@ const SoftwareSelfService = ({
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
+  const [updatesPage, setUpdatesPage] = useState(0);
+  const [updatesPageSize, setUpdatesPageSize] = useState(() =>
+    getUpdatesPageSize(window.innerWidth)
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setUpdatesPageSize(getUpdatesPageSize(window.innerWidth));
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const enhancedSoftware = useMemo(() => {
     if (!selfServiceData) return [];
@@ -99,6 +119,41 @@ const SoftwareSelfService = ({
       ui_status: getUiStatus(software, true),
     }));
   }, [selfServiceData]);
+
+  console.log("enhancedSoftware", enhancedSoftware);
+  const updateSoftware = enhancedSoftware.filter(
+    (software) =>
+      software.ui_status === "updating" ||
+      software.ui_status === "pending_update" || // Should never show as self-service = host online
+      software.ui_status === "update_available" ||
+      software.ui_status === "failed_install_update_available" ||
+      software.ui_status === "failed_uninstall_update_available"
+  );
+
+  const paginatedUpdates = useMemo(() => {
+    const start = updatesPage * updatesPageSize;
+    return updateSoftware.slice(start, start + updatesPageSize);
+  }, [updateSoftware, updatesPage, updatesPageSize]);
+
+  const totalUpdatesPages = Math.ceil(updateSoftware.length / updatesPageSize);
+
+  const onNextUpdatesPage = () => {
+    setUpdatesPage((prev) => Math.min(prev + 1, totalUpdatesPages - 1));
+  };
+
+  const onPreviousUpdatesPage = () => {
+    setUpdatesPage((prev) => Math.max(prev - 1, 0));
+  };
+
+  const disableUpdateAllButton = useMemo(() => {
+    // Disable if all statuses are "pending_update"
+    return (
+      updateSoftware.length > 0 &&
+      updateSoftware.every(
+        (software) => software.ui_status === "pending_update"
+      )
+    );
+  }, [updateSoftware]);
 
   const selectedSoftware = useRef<{
     softwareId: number;
@@ -246,6 +301,49 @@ const SoftwareSelfService = ({
     refetchForPendingInstallsOrUninstalls();
   }, [refetchForPendingInstallsOrUninstalls]);
 
+  const onClickUpdateAction = useCallback(
+    async (id: number) => {
+      try {
+        await deviceApi.installSelfServiceSoftware(deviceToken, id);
+        onInstallOrUninstall();
+      } catch (error) {
+        // We only show toast message if API returns an error
+        renderFlash("error", "Couldn't install. Please try again.");
+      }
+    },
+    [deviceToken, onInstallOrUninstall, renderFlash]
+  );
+
+  const onClickUpdateAll = useCallback(() => {
+    const pendingSoftware = enhancedSoftware.filter(
+      (software) => software.ui_status === "update_available"
+    );
+    if (!pendingSoftware || pendingSoftware.length === 0) {
+      renderFlash("error", "No updates available.");
+      return;
+    }
+
+    const pendingIds = pendingSoftware.map((s) => String(s.id));
+    startPollingForPendingInstallsOrUninstalls(pendingIds);
+
+    // Trigger install for each pending software
+    pendingSoftware.forEach((software) => {
+      deviceApi
+        .installSelfServiceSoftware(deviceToken, software.id)
+        .catch(() => {
+          renderFlash(
+            "error",
+            `Couldn't update ${software.name}. Please try again.`
+          );
+        });
+    });
+  }, [
+    deviceToken,
+    startPollingForPendingInstallsOrUninstalls,
+    renderFlash,
+    enhancedSoftware,
+  ]);
+
   const onSearchQueryChange = (value: string) => {
     router.push(
       getPathWithQueryParams(pathname, {
@@ -330,6 +428,52 @@ const SoftwareSelfService = ({
       },
     });
   }, [deviceToken, onInstallOrUninstall, onShowInstallDetails]);
+
+  const renderUpdatesCard = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (isError) {
+      return <DeviceUserError />;
+    }
+
+    return (
+      <>
+        <div className={`${baseClass}__items`}>
+          {paginatedUpdates.map((s) => {
+            let uuid =
+              s.software_package?.last_install?.install_uuid ??
+              s.app_store_app?.last_install?.command_uuid;
+            if (!uuid) {
+              uuid = "";
+            }
+            const key = `${s.id}${uuid}`;
+            return (
+              <UpdateSoftwareItem
+                key={key}
+                software={s}
+                onClickUpdateAction={onClickUpdateAction}
+                onShowInstallerDetails={() => {
+                  console.log("todo");
+                }}
+              />
+            );
+          })}
+        </div>
+        <Pagination
+          disableNext={updatesPage >= totalUpdatesPages - 1}
+          disablePrev={updatesPage === 0}
+          hidePagination={
+            updatesPage >= totalUpdatesPages - 1 && updatesPage === 0
+          }
+          onNextPage={onNextUpdatesPage}
+          onPrevPage={onPreviousUpdatesPage}
+          className={`${baseClass}__pagination`}
+        />
+      </>
+    );
+  };
 
   const renderSelfServiceCard = () => {
     const renderHeaderFilters = () => (
@@ -446,9 +590,40 @@ const SoftwareSelfService = ({
   };
 
   return (
-    <>
+    <div className={baseClass}>
       <Card
-        className={baseClass}
+        className={`${baseClass}__updates-card`}
+        borderRadiusSize="xxlarge"
+        paddingSize="xlarge"
+        includeShadow
+      >
+        <div className={`${baseClass}__header`}>
+          <CardHeader
+            header="Updates"
+            subheader={
+              <>
+                The following app require updating.{" "}
+                {contactUrl && (
+                  <span>
+                    If you need help,{" "}
+                    <CustomLink
+                      url={contactUrl}
+                      text="reach out to IT"
+                      newTab
+                    />
+                  </span>
+                )}
+              </>
+            }
+          />
+          <Button disabled={disableUpdateAllButton} onClick={onClickUpdateAll}>
+            Update all
+          </Button>
+        </div>
+        {renderUpdatesCard()}
+      </Card>
+      <Card
+        className={`${baseClass}__self-service-card`}
         borderRadiusSize="xxlarge"
         paddingSize="xlarge"
         includeShadow
@@ -480,7 +655,7 @@ const SoftwareSelfService = ({
           onSuccess={onSuccessUninstallSoftwareModal}
         />
       )}
-    </>
+    </div>
   );
 };
 
