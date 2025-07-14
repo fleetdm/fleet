@@ -19,10 +19,10 @@ import (
 )
 
 // run uses sudo to run the given path as login user.
-func run(path string, opts eopts) (lastLogs string, err error) {
+func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 	args, env, userContext, err := getUserAndDisplayArgs(path)
 	if err != nil {
-		return "", fmt.Errorf("get args: %w", err)
+		return nil, fmt.Errorf("get args: %w", err)
 	}
 
 	env = append(env,
@@ -45,17 +45,34 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		}
 	}
 
+	// If the user context is set, we run the command with runcon to set the SELinux context.
+	// Otherwise, we run the command directly.
 	if userContext != nil {
-		// args = append(args, "-c", fmt.Sprintf("%s %s", strings.Join(env, " "), path))
 		args = append(args, "-c", fmt.Sprintf("runcon \"%s\" env %s %s", *userContext, strings.Join(env, " "), path))
 	} else {
 		args = append(args, "-c", fmt.Sprintf("%s %s", strings.Join(env, " "), path))
 	}
 
-	cmd := exec.Command("runuser", args...)
+	// Use runuser to run the command as the login user.
+	args = append([]string{"runuser"}, args...)
+
+	// If a timeout is set, prefix the command with "timeout".
+	if opts.timeout > 0 {
+		args = append([]string{"timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds()))}, args...)
+	}
+
+	cmd = exec.Command(args[0], args[1:]...)
+	return
+}
+
+func run(path string, opts eopts) (lastLogs string, err error) {
+	cmd, err := baserun(path, opts)
+	if err != nil {
+		return "", err
+	}
+
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
-	// log.Printf("cmd=%s", cmd.String())
 	log.Info().Str("cmd", cmd.String()).Msg("running command")
 
 	if err := cmd.Start(); err != nil {
@@ -66,32 +83,10 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 
 // run uses sudo to run the given path as login user and waits for the process to finish.
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
-	args, env, err := getUserAndDisplayArgs(path)
+	cmd, err := baserun(path, opts)
 	if err != nil {
-		return nil, -1, fmt.Errorf("get args: %w", err)
+		return nil, -1, err
 	}
-
-	for _, nv := range opts.env {
-		env = append(env, fmt.Sprintf("%s=%s", nv[0], nv[1]))
-	}
-
-	env = append(env, path)
-
-	if len(opts.args) > 0 {
-		for _, arg := range opts.args {
-			env = append(env, arg[0], arg[1])
-		}
-	}
-
-	args = append(args, "-c", fmt.Sprintf("runcon \"unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023\" env %s %s", strings.Join(env, " "), path))
-
-	// Prefix with "timeout" and "sudo" if applicable
-	var cmdArgs []string
-	if opts.timeout > 0 {
-		cmdArgs = append(cmdArgs, "timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds())))
-	}
-	cmd := exec.Command("runuser", args...)
-	log.Printf("cmd=%s", cmd.String())
 
 	output, err = cmd.Output()
 	if err != nil {
@@ -106,21 +101,10 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 }
 
 func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
-	args, _, err := getUserAndDisplayArgs(path)
+	cmd, err := baserun(path, opts)
 	if err != nil {
-		return nil, fmt.Errorf("get args: %w", err)
+		return nil, err
 	}
-
-	args = append(args, path)
-
-	if len(opts.args) > 0 {
-		for _, arg := range opts.args {
-			args = append(args, arg[0], arg[1])
-		}
-	}
-
-	cmd := exec.Command("sudo", args...)
-	log.Printf("cmd=%s", cmd.String())
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
