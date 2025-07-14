@@ -788,7 +788,7 @@ None.
   "terms_expired": false,
   "macos_team": 1,
   "ios_team": 2,
-  "ipados_team_id": 3
+  "ipados_team": 3
 }
 ```
 
