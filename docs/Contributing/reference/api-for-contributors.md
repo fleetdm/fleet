@@ -759,8 +759,6 @@ None.
 | macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
 | ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
 | ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
-| ios_team_for_personal_hosts_id | integer | body | Personal iOS hosts are automatically added to this team when end user signs in with Managed Apple Account. If not specified, defaults to "No team". |
-| ipados_team_for_personal_hosts_id | integer | body | Personal iPad hosts are automatically added to this team when end user signs in with Managed Apple Account. If not specified, defaults to "No team". |
 
 #### Example
 
@@ -772,6 +770,7 @@ None.
 {
   "macos_team_id": 1,
   "ios_team_id": 2,
+  "ipados_team_id": 3
 }
 ```
 
@@ -789,6 +788,7 @@ None.
   "terms_expired": false,
   "macos_team": 1,
   "ios_team": 2,
+  "ipados_team_id": 3
 }
 ```
 

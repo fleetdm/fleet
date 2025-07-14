@@ -897,8 +897,6 @@ Currently, managing labels and users, ticket destinations (Jira and Zendesk), Ap
 - `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
 - `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
 - `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
-- `ios_team_for_personal_hosts` is the team where personal iOS hosts are automatically added when end user signs in with Managed Apple Account. If not specified, defaults to "No team".
-- `ipados_team_for_personal_hosts` is the team where personal iPadOS hosts are automatically added when end user signs in with Managed Apple Account. If not specified, defaults to "No team".
 
 #### Example
 
@@ -910,8 +908,6 @@ org_settings:
       macos_team: 💻 Workstations
       ios_team: 📱🏢 Company-owned iPhones
       ipados_team: 🔳🏢 Company-owned iPads
-      ios_team_for_personal_hosts: 📱🔐 Personal mobile devices
-      ipados_team_for_personal_hosts: 📱🔐 Personal mobile devices
 ```
 
 > Apple Business Manager settings can only be configured for all teams (`org_settings`).
