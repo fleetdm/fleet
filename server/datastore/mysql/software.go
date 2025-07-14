@@ -3177,8 +3177,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 	for _, s := range hostSoftwareInstalls {
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
-			bySoftwareTitleID[s.ID] = s
-		} else {
+			if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
+				bySoftwareTitleID[s.ID] = s
+			}
+		} else if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
 			bySoftwareTitleID[s.ID].LastInstallInstalledAt = s.LastInstallInstalledAt
 			bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
 		}
@@ -3243,6 +3245,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if err != nil {
 		return nil, nil, err
 	}
+	vppQuarantineSet := make(map[string]*hostSoftware)
 	byVPPAdamID := make(map[string]*hostSoftware)
 	for _, s := range hostVPPInstalls {
 		if s.VPPAppAdamID != nil {
@@ -3264,11 +3267,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						// we want to treat the installed vpp app as a regular software title
 						delete(bySoftwareTitleID, s.ID)
 					}
+					byVPPAdamID[*s.VPPAppAdamID] = s
 				} else {
 					continue
 				}
+			} else if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
+				byVPPAdamID[*s.VPPAppAdamID] = s
 			}
-			byVPPAdamID[*s.VPPAppAdamID] = s
+			vppQuarantineSet[*s.VPPAppAdamID] = s
 		}
 	}
 
@@ -3280,6 +3286,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	for _, s := range hostInstalledVppsApps {
 		if s.VPPAppAdamID != nil {
 			installedVppsByAdamID[*s.VPPAppAdamID] = s
+
+			if installedVPP, ok := vppQuarantineSet[*s.VPPAppAdamID]; ok {
+				if _, ok := hostInstalledSoftwareTitleSet[s.ID]; ok {
+					byVPPAdamID[*installedVPP.VPPAppAdamID] = installedVPP
+				}
+			}
 		}
 	}
 
