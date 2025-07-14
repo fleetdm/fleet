@@ -45,7 +45,8 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		}
 	}
 
-	args = append(args, "-c", fmt.Sprintf("%s %s", strings.Join(env, " "), path))
+	// args = append(args, "-c", fmt.Sprintf("%s %s", strings.Join(env, " "), path))
+	args = append(args, "-c", fmt.Sprintf("runcon \"unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023\" env %s %s", strings.Join(env, " "), path))
 
 	cmd := exec.Command("runuser", args...)
 	cmd.Stderr = os.Stderr
