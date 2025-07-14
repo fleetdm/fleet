@@ -1,7 +1,21 @@
 .software-self-service {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+
   // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
   .empty-table__container {
     margin: 64px 0;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .button {
+      margin-bottom: $pad-large;
+    }
   }
 
   &__header-filters {
@@ -11,6 +25,21 @@
     gap: $pad-medium;
     align-items: center;
     margin: 0 0 24px 0;
+  }
+
+  &__items {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); // 4 cards
+    gap: $pad-large;
+
+    @media (max-width: ($break-lg - 1)) {
+      grid-template-columns: repeat(3, 1fr); // 3 cards
+    }
+
+    @media (max-width: ($break-sm - 1)) {
+      // TODO: Change back to 768 break-xs after testing
+      grid-template-columns: repeat(2, 1fr); // 2 cards
+    }
   }
 
   &__table {
