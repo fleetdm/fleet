@@ -84,6 +84,9 @@ func TestHostDetails(t *testing.T) {
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
 
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -135,6 +138,9 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	}
 	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
 		return nil, nil, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
 	}
 
 	cases := []struct {
@@ -522,6 +528,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
 		return nil, nil, nil
 	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
 
 	type testCase struct {
 		name        string
@@ -567,6 +576,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		}
 		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
 			// testing API response when not enabled
+			return false, nil
+		}
+		ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 			return false, nil
 		}
 	}
@@ -677,6 +689,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	}
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})

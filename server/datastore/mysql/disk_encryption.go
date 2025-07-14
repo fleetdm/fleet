@@ -284,6 +284,10 @@ WHERE host_id = ?`, hostID)
 }
 
 func (ds *Datastore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+	// TODO: Are we sure that host id is the right way to find the archived key? Are we concerned
+	// about cases where host with the same hardware serial has been deleted and recreated? If we
+	// learn that this is a real world concern, we should consider using the hardware serial as the primary
+	// key (or part of a composite index) for finding archived keys.
 	sqlFmt := `
 SELECT
 	host_id, 
@@ -313,6 +317,18 @@ LIMIT 1`
 	default:
 		return &key, nil
 	}
+}
+
+func (ds *Datastore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error) {
+	// TODO: Are we sure that host id is the right way to find the archived key? Are we concerned
+	// about cases where host with the same hardware serial has been deleted and recreated? If we
+	// learn that this is a real world concern, we should consider using the hardware serial as the primary
+	// key (or part of a composite index) for finding archived keys.
+	var exists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `SELECT EXISTS(SELECT 1 FROM host_disk_encryption_keys_archive WHERE host_id = ?)`, hostID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking if host disk encryption key is archived")
+	}
+	return exists, nil
 }
 
 func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {

@@ -1302,6 +1302,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.Profiles = &profiles
 
+	isHDEKArchived, err := svc.ds.IsHostDiskEncryptionKeyArchived(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check if host disk encryption key is archived")
+	}
+	host.MDM.EncryptionKeyArchived = &isHDEKArchived
+
 	if host.IsLUKSSupported() {
 		// since Linux hosts don't require MDM to be enabled & configured, explicitly check that disk encryption is
 		// enabled for the host's team
