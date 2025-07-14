@@ -8364,7 +8364,7 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	installedSoftwareID, err := res.LastInsertId()
 	require.NoError(t, err)
-	ds.writer(ctx).ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, host3.ID, installedSoftwareID)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, host3.ID, installedSoftwareID)
 	require.NoError(t, err)
 
 	// Installed software should show up
@@ -8450,7 +8450,7 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	vppSoftwareID, err := res.LastInsertId()
 	require.NoError(t, err)
-	ds.writer(ctx).ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, host4.ID, vppSoftwareID)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, host4.ID, vppSoftwareID)
 	require.NoError(t, err)
 
 	// should see it now because it is inventoried by osquery
