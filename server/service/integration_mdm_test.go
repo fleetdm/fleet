@@ -5674,6 +5674,20 @@ func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, usernam
 	require.Equal(t, email, acc.Email)
 }
 
+func (s *integrationMDMTestSuite) storeIdpInfo(t *testing.T, username, fullname, email string) string {
+	require.NoError(t, s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
+		Username: username,
+		Fullname: fullname,
+		Email:    email,
+	}))
+	account, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), email)
+	require.NoError(t, err)
+	require.Equal(t, username, account.Username)
+	require.Equal(t, fullname, account.Fullname)
+	require.Equal(t, email, account.Email)
+	return account.UUID
+}
+
 func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
@@ -13769,6 +13783,66 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMEnrolledAt, enrollTime)
 	require.NotNil(t, hostByIdentifierResp.Host.LastMDMCheckedInAt)
 	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMCheckedInAt, enrollTime)
+}
+
+func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
+	t := s.T()
+	iPhoneUserEmail := "iphone.mcfleetie@example.com"
+	iPhoneEnrollmentRef := s.storeIdpInfo(t, "iphone.mcfleetie", "Iphone McFleetie", iPhoneUserEmail)
+
+	iPadUserEmail := "ipad.mcfleetie@example.com"
+	iPadEnrollmentRef := s.storeIdpInfo(t, "ipad.mcfleetie", "Ipad McFleetie", iPadUserEmail)
+
+	macbookEnrollmentRef := s.storeIdpInfo(t, "macbook.mcfleetie", "Macbook McFleetie", "macbook.mcfleetie@example.com")
+
+	iPhoneHwModel := "iPhone14,5"
+	iPhoneMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
+		s.server.URL,
+		iPhoneHwModel,
+		"", // No bearer token
+	)
+	require.Error(t, iPhoneMdmDevice.Enroll())
+
+	iPhoneMdmDevice = mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
+		s.server.URL,
+		iPhoneHwModel,
+		iPhoneEnrollmentRef,
+	)
+	require.NoError(t, iPhoneMdmDevice.Enroll())
+	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, iPhoneUserEmail)
+
+	iPadHwModel := "iPad14,5"
+	iPadMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
+		s.server.URL,
+		iPadHwModel,
+		"", // No bearer token
+	)
+	require.Error(t, iPadMdmDevice.Enroll())
+
+	iPadMdmDevice = mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
+		s.server.URL,
+		iPadHwModel,
+		iPadEnrollmentRef,
+	)
+	require.NoError(t, iPadMdmDevice.Enroll())
+	assert.Equal(t, iPadMdmDevice.EnrollInfo.AssignedManagedAppleID, iPadUserEmail)
+
+	// Account driven enrollment is not yet supported for macOS devices so we expect an error in
+	// either case
+	macbookHwModel := "Mac16,1"
+	macbookMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
+		s.server.URL,
+		macbookHwModel,
+		"", // No bearer token
+	)
+	require.Error(t, macbookMdmDevice.Enroll())
+
+	macbookMdmDevice = mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
+		s.server.URL,
+		macbookHwModel,
+		macbookEnrollmentRef,
+	)
+	require.Error(t, macbookMdmDevice.Enroll())
 }
 
 func (s *integrationMDMTestSuite) TestSCEPProxy() {

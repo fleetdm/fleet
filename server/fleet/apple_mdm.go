@@ -971,7 +971,7 @@ type MDMAppleAccountDrivenUserEnrollDeviceInfo struct {
 	Product  string `plist:"PRODUCT"`
 	Language string `plist:"LANGUAGE,omitempty"`
 	// The following keys are not described in the documentation above but have been observed in practice
-	OSVersion                string `plist:"OS_VERSION",omitempty`
+	OSVersion                string `plist:"OS_VERSION,omitempty"`
 	SoftwareUpdateDeviceID   string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
 	SupplementalBuildVersion string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
 }

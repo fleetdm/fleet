@@ -83,6 +83,18 @@ type TestAppleMDMClient struct {
 	// otaEnrollSecret is the team enroll secret to be used during the OTA flow.
 	otaEnrollSecret string
 
+	// fetchEnrollmentProfileFromMDMBYOD indicates whether this simulated device will fetch
+	// the enrollment profile from Fleet as if it were a device running the Account Driven User
+	// Enrollment flow sometimes called MDM-BYOD in Apple docs.
+	fetchEnrollmentProfileFromMDMBYOD bool
+
+	// The bearer token, if set and fetchEnrollmentProfileFromMDMBYOD is set, will be passed in the
+	// Authorization header on all MDM requests as discussed in Ongoing authorization [1] in the
+	// Apple account driven enrollment docs.
+	//
+	// [1] https://developer.apple.com/documentation/devicemanagement/onboarding-users-with-account-sign-in#overview
+	authorizationBearerToken string
+
 	// desktopURLToken is the token used to fetch the enrollment profile
 	// from Fleet as if it were a device running the DEP flow.
 	depURLToken string
@@ -120,6 +132,9 @@ type AppleEnrollInfo struct {
 	SCEPURL string
 	// MDMURL is the URL of the MDM server.
 	MDMURL string
+	// AssignedManagedAppleID is the Assigned Managed Apple account for the device. Only used for
+	// account driven enrollment flows, so it will not always be available.
+	AssignedManagedAppleID string
 }
 
 // NewTestMDMClientAppleDesktopManual will create a simulated device that will fetch
@@ -194,6 +209,22 @@ func NewTestMDMClientAppleOTA(serverURL, enrollSecret, model string, opts ...Tes
 	return &c
 }
 
+func NewTestMDMClientAppleAccountDrivenUserEnrollment(serverURL, model, authorizationBearerToken string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+	// NB An Account Driven User Enrollment has no actual UDID or serial but does have a randomly
+	// generated enrollment ID
+	c := TestAppleMDMClient{
+		UUID:                              strings.ToUpper(uuid.New().String()),
+		Model:                             model,
+		fetchEnrollmentProfileFromMDMBYOD: true,
+		authorizationBearerToken:          authorizationBearerToken,
+		fleetServerURL:                    serverURL,
+	}
+	for _, fn := range opts {
+		fn(&c)
+	}
+	return &c
+}
+
 func (c *TestAppleMDMClient) SetDesktopToken(tok string) {
 	c.desktopURLToken = tok
 }
@@ -222,6 +253,10 @@ func (c *TestAppleMDMClient) Enroll() error {
 	case c.fetchEnrollmentProfileFromOTA:
 		if err := c.fetchEnrollmentProfileFromOTAURL(); err != nil {
 			return fmt.Errorf("get enrollment profile from OTA URL: %w", err)
+		}
+	case c.fetchEnrollmentProfileFromMDMBYOD:
+		if err := c.fetchEnrollmentProfileFromMDMBYODURL(); err != nil {
+			return fmt.Errorf("get enrollment profile from MDM BYOD URL: %w", err)
 		}
 	default:
 		if c.EnrollInfo.SCEPURL == "" || c.EnrollInfo.MDMURL == "" || c.EnrollInfo.SCEPChallenge == "" {
@@ -281,6 +316,20 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromOTAURL() error {
 	return c.fetchOTAProfile(
 		"/api/latest/fleet/enrollment_profiles/ota?enroll_secret=" + url.QueryEscape(c.otaEnrollSecret),
+	)
+}
+
+func (c *TestAppleMDMClient) fetchEnrollmentProfileFromMDMBYODURL() error {
+	buf, err := AccountDrivenUserEnrollDeviceInfoAsPKCS7(fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo{
+		Product:  c.Model,
+		Version:  "22A3351", // iOS 18.0, but it doesn't really matter
+		Language: "en-US",
+	})
+	if err != nil {
+		return fmt.Errorf("test client: encoding device info: %w", err)
+	}
+	return c.fetchEnrollmentProfile(
+		apple_mdm.AccountDrivenEnrollPath, buf,
 	)
 }
 
@@ -452,6 +501,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 		if err != nil {
 			return fmt.Errorf("create request: %w", err)
 		}
+	}
+	if c.fetchEnrollmentProfileFromMDMBYOD && c.authorizationBearerToken != "" {
+		request.Header.Set("Authorization", "Bearer "+c.authorizationBearerToken)
 	}
 	// #nosec (this client is used for testing only)
 	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
@@ -643,12 +695,14 @@ func (c *TestAppleMDMClient) SCEPEnroll() error {
 func (c *TestAppleMDMClient) Authenticate() error {
 	payload := map[string]any{
 		"MessageType":  "Authenticate",
-		"UDID":         c.UUID,
 		"Model":        c.Model,
 		"DeviceName":   "testdevice" + c.SerialNumber,
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
-		"SerialNumber": c.SerialNumber,
+	}
+	if !c.fetchEnrollmentProfileFromMDMBYOD {
+		payload["UDID"] = c.UUID
+		payload["SerialNumber"] = c.SerialNumber
 	}
 	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPad") {
 		payload["ProductName"] = c.Model
@@ -661,12 +715,14 @@ func (c *TestAppleMDMClient) Authenticate() error {
 func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 	payload := map[string]any{
 		"MessageType":  "TokenUpdate",
-		"UDID":         c.UUID,
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"NotOnConsole": "false",
 		"PushMagic":    "pushmagic" + c.SerialNumber,
 		"Token":        []byte("token" + c.SerialNumber),
+	}
+	if !c.fetchEnrollmentProfileFromMDMBYOD {
+		payload["UDID"] = c.UUID
 	}
 	if awaitingConfiguration {
 		payload["AwaitingConfiguration"] = true
@@ -960,6 +1016,10 @@ func (c *TestAppleMDMClient) request(contentType string, payload map[string]any)
 	}
 	request.Header.Set("Content-Type", contentType)
 	request.Header.Set("Mdm-Signature", base64.StdEncoding.EncodeToString(sig))
+
+	if c.fetchEnrollmentProfileFromMDMBYOD && c.authorizationBearerToken != "" {
+		request.Header.Set("Authorization", "Bearer "+c.authorizationBearerToken)
+	}
 	// #nosec (this client is used for testing only)
 	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true,
@@ -1000,10 +1060,12 @@ func ParseEnrollmentProfile(mobileConfig []byte) (*AppleEnrollInfo, error) {
 	if apnsTopic, ok := enrollmentProfile.PayloadContent[1]["Topic"].(string); !ok || apnsTopic == "" {
 		return nil, errors.New("MDM Topic field not found")
 	}
+	assignedManagedAppleID := enrollmentProfile.PayloadContent[1]["AssignedManagedAppleID"].(string)
 	return &AppleEnrollInfo{
-		SCEPChallenge: scepChallenge,
-		SCEPURL:       scepURL,
-		MDMURL:        mdmURL,
+		SCEPChallenge:          scepChallenge,
+		SCEPURL:                scepURL,
+		MDMURL:                 mdmURL,
+		AssignedManagedAppleID: assignedManagedAppleID,
 	}, nil
 }
 
@@ -1092,9 +1154,17 @@ func EncodeDeviceInfo(machineInfo fleet.MDMAppleMachineInfo) (string, error) {
 	return base64.URLEncoding.EncodeToString(sig), nil
 }
 
+func AccountDrivenUserEnrollDeviceInfoAsPKCS7(deviceInfo fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo) ([]byte, error) {
+	return appleInfoStructAsPKCS7(deviceInfo)
+}
+
 // MachineInfoAsPKCS7 marshals and signs Apple's machine info.
 func MachineInfoAsPKCS7(machineInfo fleet.MDMAppleMachineInfo) ([]byte, error) {
-	body, err := plist.Marshal(machineInfo)
+	return appleInfoStructAsPKCS7(machineInfo)
+}
+
+func appleInfoStructAsPKCS7(v interface{}) ([]byte, error) {
+	body, err := plist.Marshal(v)
 	if err != nil {
 		return nil, fmt.Errorf("marshal device info: %w", err)
 	}
