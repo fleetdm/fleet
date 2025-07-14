@@ -73,6 +73,11 @@ func GetLoginUser() (*User, error) {
 }
 
 func GetUserContext(user *User) *string {
+	// If SELinux is not enabled, return nil right away.
+	if _, err := os.Stat("/sys/fs/selinux/enforce"); err != nil {
+		return nil
+	}
+	// Find the first systemd process for the user and read its SELinux context.
 	pids, _ := exec.Command("pgrep", "-u", strconv.FormatInt(user.ID, 10), "-nx", "systemd").Output()
 	pid := strings.TrimSpace(string(pids))
 	ctx, err := os.ReadFile("/proc/" + pid + "/attr/current")
@@ -81,7 +86,8 @@ func GetUserContext(user *User) *string {
 		return nil
 	}
 	context := strings.TrimSpace(string(ctx))
-	context = strings.TrimSuffix(context, "\x00") // Remove any null byte at the end
+	// Remove any null byte at the end
+	context = strings.TrimSuffix(context, "\x00")
 	if context == "" {
 		log.Debug().Msg("Empty SELinux context for user " + user.Name)
 		return nil
