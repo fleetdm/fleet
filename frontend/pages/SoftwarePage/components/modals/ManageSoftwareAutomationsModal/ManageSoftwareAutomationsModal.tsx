@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
-
 import { Link } from "react-router";
+import { isEmpty, omit } from "lodash";
+
+import useDeepEffect from "hooks/useDeepEffect";
+
 import PATHS from "router/paths";
+
 import { AppContext } from "context/app";
+
+import configAPI from "services/entities/config";
+
+import { SUPPORT_LINK } from "utilities/constants";
 
 import {
   IJiraIntegration,
@@ -11,13 +19,14 @@ import {
   IIntegration,
   IGlobalIntegrations,
   IIntegrationType,
+  IZendeskJiraIntegrations,
 } from "interfaces/integration";
 import {
   IConfig,
   CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
 } from "interfaces/config";
-import configAPI from "services/entities/config";
-import { SUPPORT_LINK } from "utilities/constants";
+import { ITeamConfig } from "interfaces/team";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -32,12 +41,12 @@ import validUrl from "components/forms/validators/valid_url";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
-import useDeepEffect from "hooks/useDeepEffect";
-import { isEmpty, omit } from "lodash";
-
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
+
+export const isGlobalSWConfig = (
+  config: IConfig | ITeamConfig
+): config is IConfig => "vulnerabilities" in config;
 
 interface ISoftwareAutomations {
   webhook_settings: {
@@ -56,10 +65,7 @@ interface IManageSoftwareAutomationsModalProps {
   togglePreviewTicketModal: () => void;
   showPreviewPayloadModal: boolean;
   showPreviewTicketModal: boolean;
-  softwareVulnerabilityAutomationEnabled?: boolean;
-  softwareVulnerabilityWebhookEnabled?: boolean;
-  currentDestinationUrl?: string;
-  recentVulnerabilityMaxAge?: number;
+  softwareConfig: IConfig | ITeamConfig;
 }
 
 const validateWebhookURL = (url: string) => {
@@ -85,11 +91,25 @@ const ManageAutomationsModal = ({
   togglePreviewTicketModal,
   showPreviewPayloadModal,
   showPreviewTicketModal,
-  softwareVulnerabilityAutomationEnabled,
-  softwareVulnerabilityWebhookEnabled,
-  currentDestinationUrl,
-  recentVulnerabilityMaxAge,
+  softwareConfig,
 }: IManageSoftwareAutomationsModalProps): JSX.Element => {
+  const vulnWebhookSettings =
+    softwareConfig?.webhook_settings?.vulnerabilities_webhook;
+  const softwareVulnerabilityWebhookEnabled = !!vulnWebhookSettings?.enable_vulnerabilities_webhook;
+  const currentDestinationUrl = vulnWebhookSettings?.destination_url || "";
+  const isVulnIntegrationEnabled = (
+    integrations?: IZendeskJiraIntegrations
+  ) => {
+    return (
+      !!integrations?.jira?.some((j) => j.enable_software_vulnerabilities) ||
+      !!integrations?.zendesk?.some((z) => z.enable_software_vulnerabilities)
+    );
+  };
+
+  const softwareVulnerabilityAutomationEnabled =
+    softwareVulnerabilityWebhookEnabled ||
+    isVulnIntegrationEnabled(softwareConfig?.integrations);
+
   const [destinationUrl, setDestinationUrl] = useState(
     currentDestinationUrl || ""
   );
@@ -114,8 +134,16 @@ const ManageAutomationsModal = ({
     setSelectedIntegration,
   ] = useState<IIntegration>();
 
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { config: globalConfigFromContext } = useContext(AppContext);
+  const gitOpsModeEnabled = globalConfigFromContext?.gitops.gitops_mode_enabled;
+
+  const maxAgeInNanoseconds = isGlobalSWConfig(softwareConfig)
+    ? softwareConfig.vulnerabilities.recent_vulnerability_max_age
+    : globalConfigFromContext?.vulnerabilities.recent_vulnerability_max_age;
+
+  const recentVulnerabilityMaxAge = maxAgeInNanoseconds
+    ? Math.round(maxAgeInNanoseconds / 86400000000000) // convert from nanoseconds to days
+    : CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS;
 
   useDeepEffect(() => {
     setSoftwareAutomationsEnabled(

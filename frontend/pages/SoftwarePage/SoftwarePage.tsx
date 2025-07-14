@@ -13,7 +13,11 @@ import {
   IZendeskIntegration,
   IZendeskJiraIntegrations,
 } from "interfaces/integration";
-import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
+import {
+  API_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+  ITeamConfig,
+} from "interfaces/team";
 import { SelectedPlatform } from "interfaces/platform";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
@@ -126,7 +130,7 @@ interface ISoftwarePageProps {
 
 const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const {
-    config: globalConfig,
+    config: globalConfigFromContext,
     isFreeTier,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -135,6 +139,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     isTeamMaintainer,
     isPremiumTier,
   } = useContext(AppContext);
+  const isPrimoMode =
+    globalConfigFromContext?.partnerships?.enable_primo || false;
   const { renderFlash } = useContext(NotificationContext);
 
   const queryParams = location.query;
@@ -211,6 +217,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     [{ scope: "softwareConfig", teamId: teamIdForApi }],
     ({ queryKey }) => {
       const { teamId } = queryKey[0];
+      // No team –> Global config
       return teamId ? teamsAPI.load(teamId) : configAPI.loadAll();
     },
     {
@@ -218,39 +225,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       select: (data) => ("team" in data ? data.team : data),
     }
   );
-
-  // TODO: move into manage automations modal
-  const vulnWebhookSettings =
-    softwareConfig?.webhook_settings?.vulnerabilities_webhook;
-  const isVulnWebhookEnabled = !!vulnWebhookSettings?.enable_vulnerabilities_webhook;
-  const isVulnIntegrationEnabled = (
-    integrations?: IZendeskJiraIntegrations
-  ) => {
-    return (
-      !!integrations?.jira?.some((j) => j.enable_software_vulnerabilities) ||
-      !!integrations?.zendesk?.some((z) => z.enable_software_vulnerabilities)
-    );
-  };
-
-  // TODO: move into manage automations modal
-  const isAnyVulnAutomationEnabled =
-    isVulnWebhookEnabled ||
-    isVulnIntegrationEnabled(softwareConfig?.integrations);
-
-  // TODO: move into manage automations modal
-  const recentVulnerabilityMaxAge = (() => {
-    let maxAgeInNanoseconds: number | undefined;
-    if (softwareConfig && "vulnerabilities" in softwareConfig) {
-      maxAgeInNanoseconds =
-        softwareConfig.vulnerabilities.recent_vulnerability_max_age;
-    } else {
-      maxAgeInNanoseconds =
-        globalConfig?.vulnerabilities.recent_vulnerability_max_age;
-    }
-    return maxAgeInNanoseconds
-      ? Math.round(maxAgeInNanoseconds / 86400000000000) // convert from nanoseconds to days
-      : CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS;
-  })();
 
   const isSoftwareConfigLoaded =
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
@@ -353,10 +327,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   );
 
   const renderPageActions = () => {
-    const canManageAutomations =
-      isGlobalAdmin &&
-      isPremiumTier &&
-      !globalConfig?.partnerships?.enable_primo; // Primo mode defaults to No team to allow adding software - if they also want to manage software automations we will need to consider more broadly how to go about this, since SW automations are managed from "All teams". For now, hiding this button which matches Free tier behavior.
+    const canManageAutomations = isGlobalAdmin && isPremiumTier;
 
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -373,12 +344,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
                 Select &ldquo;All teams&rdquo; to manage automations.
               </div>
             }
-            disableTooltip={isAllTeamsSelected}
+            disableTooltip={isAllTeamsSelected || isPrimoMode}
             position="top"
             showArrow
           >
             <Button
-              disabled={!isAllTeamsSelected}
+              // TODO(Product) - Why not enable managing global automations when on any team like this
+              // for everyone?
+              disabled={!isAllTeamsSelected && !isPrimoMode}
               onClick={toggleManageAutomationsModal}
               className={`${baseClass}__manage-automations`}
               variant="inverse"
@@ -412,7 +385,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const renderHeaderDescription = () => {
     let suffix;
-    if (!globalConfig?.partnerships?.enable_primo) {
+    if (!isPrimoMode) {
       suffix = isAllTeamsSelected ? "for all hosts" : "on this team";
     }
     return (
@@ -472,7 +445,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
               <div className={`${baseClass}__title`}>
-                {isPremiumTier && !globalConfig?.partnerships?.enable_primo ? (
+                {isPremiumTier && !isPrimoMode ? (
                   <TeamsHeader
                     isOnGlobalTeam={isOnGlobalTeam}
                     currentTeamId={currentTeamId}
@@ -491,7 +464,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           {renderHeaderDescription()}
         </div>
         {renderBody()}
-        {showManageAutomationsModal && (
+        {showManageAutomationsModal && softwareConfig && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}
             onCreateWebhookSubmit={onCreateWebhookSubmit}
@@ -499,10 +472,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             togglePreviewTicketModal={togglePreviewTicketModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
             showPreviewTicketModal={showPreviewTicketModal}
-            softwareVulnerabilityAutomationEnabled={isAnyVulnAutomationEnabled}
-            softwareVulnerabilityWebhookEnabled={isVulnWebhookEnabled}
-            currentDestinationUrl={vulnWebhookSettings?.destination_url || ""}
-            recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
+            softwareConfig={softwareConfig}
           />
         )}
         {showAddSoftwareModal && (
