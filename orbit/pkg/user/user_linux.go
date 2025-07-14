@@ -73,7 +73,7 @@ func GetLoginUser() (*User, error) {
 
 func GetUserContext(user *User) *string {
 	out, err := exec.Command("runuser", "-l", user.Name, "id -Z").CombinedOutput()
-	log.Debug().Msgf("`id -Z` output: %s", string(out))
+	log.Info().Msgf("`id -Z` output: %s", string(out))
 	if err != nil {
 		// If SELinux is not enabled, the command will fail with a non-zero exit code.
 		// We'll check for the conmon error message and log if we don't find it.
