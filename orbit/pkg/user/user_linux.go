@@ -81,6 +81,7 @@ func GetUserContext(user *User) *string {
 		return nil
 	}
 	context := strings.TrimSpace(string(ctx))
+	context = strings.TrimSuffix(context, "\x00") // Remove any null byte at the end
 	if context == "" {
 		log.Debug().Msg("Empty SELinux context for user " + user.Name)
 		return nil
