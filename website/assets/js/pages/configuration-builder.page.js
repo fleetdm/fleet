@@ -964,8 +964,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'AllowSignedApp',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -981,8 +979,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'BlockAllIncoming',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -1490,8 +1486,7 @@ parasails.registerPage('configuration-builder', {
                   settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableAppInstallControl',
                 },
               },
-
-            ]
+            ],
           },
           {
             subcategoryName: 'BitLocker',
@@ -2700,6 +2695,23 @@ parasails.registerPage('configuration-builder', {
           trigger: 'hover',
         });
       }, 400);
+    },
+    clickAutoSelectWhenSet: async function(formInput) {
+      if(formInput.alsoSelectedWhenSet){
+        for(let autoSelectedPayload of formInput.alsoSelectedWhenSet ) {
+          let payloadToAddSlug = autoSelectedPayload;
+          let payloadToAdd = _.find(this.selectedPayloadCategory.payloads, {uniqueSlug: payloadToAddSlug});
+          this.selectedPayloads.push(payloadToAdd);
+          this.autoSelectedPayloadSettings[payloadToAddSlug] = true;
+          this.selectedPayloadSettings[payloadToAddSlug] = true;
+          this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true};
+          if(this.selectedPlatform === 'windows') {
+            this.configurationBuilderFormRules[payloadToAddSlug+'-access-type'] = {required: true};
+          }
+        }
+      }
+      this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
+      await this.forceRender();
     },
     clickSetCurrentSelectedCategory: async function(category) {
       this.currentSelectedCategoryForDownload = category;
