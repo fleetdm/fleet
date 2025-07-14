@@ -1234,7 +1234,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 	if len(installedAppsUUIDs) > 0 {
-		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
+		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, false)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
 		}

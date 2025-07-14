@@ -32,8 +32,6 @@ import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
 import NewLabelPage from "pages/labels/NewLabelPage";
-import DynamicLabel from "pages/labels/NewLabelPage/DynamicLabel";
-import ManualLabel from "pages/labels/NewLabelPage/ManualLabel";
 import EditLabelPage from "pages/labels/EditLabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
@@ -172,13 +170,18 @@ const routes = (
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="organization" component={OrgSettingsPage} />
+                {/* Forward old routes to new */}
+                <Redirect from="organization/sso" to="integrations/sso" />
+                <Redirect
+                  from="organization/host-status-webhook"
+                  to="integrations/host-status-webhook"
+                />
                 <Route
                   path="organization/:section"
                   component={OrgSettingsPage}
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
-                {/* This redirect is used to handle the old URL for these two
-                pages */}
+                {/* Forward old routes to new */}
                 <Redirect
                   from="integrations/automatic-enrollment"
                   to="integrations/mdm"
@@ -227,11 +230,11 @@ const routes = (
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
-            <IndexRedirect to="new/dynamic" />
+            <IndexRedirect to="new" />
             <Route path="new" component={NewLabelPage}>
-              <IndexRedirect to="dynamic" />
-              <Route path="dynamic" component={DynamicLabel} />
-              <Route path="manual" component={ManualLabel} />
+              {/* maintaining previous 2 sub-routes for backward-compatibility of URL routes. NewLabelPage now sets the corresponding label type */}
+              <Route path="dynamic" component={NewLabelPage} />
+              <Route path="manual" component={NewLabelPage} />
             </Route>
             <Route path=":label_id" component={EditLabelPage} />
           </Route>
@@ -249,6 +252,7 @@ const routes = (
               component={ManageHostsPage}
             />
             <Route path=":host_id" component={HostDetailsPage}>
+              <IndexRedirect to="details" />
               <Redirect from="schedule" to="queries" />
               <Route path="details" component={HostDetailsPage} />
               <Route path="scripts" component={HostDetailsPage} />

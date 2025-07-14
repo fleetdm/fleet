@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -145,6 +146,8 @@ type AddLabelsToHostFunc func(ctx context.Context, hostID uint, labelIDs []uint)
 type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
 
 type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
+
+type UpdateLabelMembershipByHostCriteriaFunc func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error)
 
 type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
@@ -486,6 +489,20 @@ type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uin
 
 type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
+type AssociateVPPInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string) error
+
+type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
+
+type ReplaceVPPInstallVerificationUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
+
+type IsHostPendingVPPInstallVerificationFunc func(ctx context.Context, hostUUID string) (bool, error)
+
+type GetUnverifiedVPPInstallsForHostFunc func(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error)
+
+type SetVPPInstallAsFailedFunc func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
+
+type MarkAllPendingVPPInstallsAsFailedFunc func(ctx context.Context, jobName string) error
+
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
 type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
@@ -695,6 +712,8 @@ type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.Host
 type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
 
 type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
+
+type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error)
 
 type IsHostPendingEscrowFunc func(ctx context.Context, hostID uint) bool
 
@@ -1394,6 +1413,8 @@ type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint
 
 type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
+type GetHostIdentityCertBySerialNumberFunc func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1580,6 +1601,9 @@ type DataStore struct {
 
 	UpdateLabelMembershipByHostIDsFunc        UpdateLabelMembershipByHostIDsFunc
 	UpdateLabelMembershipByHostIDsFuncInvoked bool
+
+	UpdateLabelMembershipByHostCriteriaFunc        UpdateLabelMembershipByHostCriteriaFunc
+	UpdateLabelMembershipByHostCriteriaFuncInvoked bool
 
 	NewLabelFunc        NewLabelFunc
 	NewLabelFuncInvoked bool
@@ -2091,6 +2115,27 @@ type DataStore struct {
 	GetCategoriesForSoftwareTitlesFunc        GetCategoriesForSoftwareTitlesFunc
 	GetCategoriesForSoftwareTitlesFuncInvoked bool
 
+	AssociateVPPInstallToVerificationUUIDFunc        AssociateVPPInstallToVerificationUUIDFunc
+	AssociateVPPInstallToVerificationUUIDFuncInvoked bool
+
+	SetVPPInstallAsVerifiedFunc        SetVPPInstallAsVerifiedFunc
+	SetVPPInstallAsVerifiedFuncInvoked bool
+
+	ReplaceVPPInstallVerificationUUIDFunc        ReplaceVPPInstallVerificationUUIDFunc
+	ReplaceVPPInstallVerificationUUIDFuncInvoked bool
+
+	IsHostPendingVPPInstallVerificationFunc        IsHostPendingVPPInstallVerificationFunc
+	IsHostPendingVPPInstallVerificationFuncInvoked bool
+
+	GetUnverifiedVPPInstallsForHostFunc        GetUnverifiedVPPInstallsForHostFunc
+	GetUnverifiedVPPInstallsForHostFuncInvoked bool
+
+	SetVPPInstallAsFailedFunc        SetVPPInstallAsFailedFunc
+	SetVPPInstallAsFailedFuncInvoked bool
+
+	MarkAllPendingVPPInstallsAsFailedFunc        MarkAllPendingVPPInstallsAsFailedFunc
+	MarkAllPendingVPPInstallsAsFailedFuncInvoked bool
+
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
 
@@ -2405,6 +2450,9 @@ type DataStore struct {
 
 	GetHostDiskEncryptionKeyFunc        GetHostDiskEncryptionKeyFunc
 	GetHostDiskEncryptionKeyFuncInvoked bool
+
+	GetHostArchivedDiskEncryptionKeyFunc        GetHostArchivedDiskEncryptionKeyFunc
+	GetHostArchivedDiskEncryptionKeyFuncInvoked bool
 
 	IsHostPendingEscrowFunc        IsHostPendingEscrowFunc
 	IsHostPendingEscrowFuncInvoked bool
@@ -3453,6 +3501,9 @@ type DataStore struct {
 	SetHostConditionalAccessStatusFunc        SetHostConditionalAccessStatusFunc
 	SetHostConditionalAccessStatusFuncInvoked bool
 
+	GetHostIdentityCertBySerialNumberFunc        GetHostIdentityCertBySerialNumberFunc
+	GetHostIdentityCertBySerialNumberFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -3888,6 +3939,13 @@ func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID 
 	s.UpdateLabelMembershipByHostIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIds, teamFilter)
+}
+
+func (s *DataStore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
+	s.mu.Lock()
+	s.UpdateLabelMembershipByHostCriteriaFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateLabelMembershipByHostCriteriaFunc(ctx, hvl)
 }
 
 func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
@@ -5080,6 +5138,55 @@ func (s *DataStore) GetCategoriesForSoftwareTitles(ctx context.Context, software
 	return s.GetCategoriesForSoftwareTitlesFunc(ctx, softwareTitleIDs, team_id)
 }
 
+func (s *DataStore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID string, verifyCommandUUID string) error {
+	s.mu.Lock()
+	s.AssociateVPPInstallToVerificationUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.AssociateVPPInstallToVerificationUUIDFunc(ctx, installUUID, verifyCommandUUID)
+}
+
+func (s *DataStore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error {
+	s.mu.Lock()
+	s.SetVPPInstallAsVerifiedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetVPPInstallAsVerifiedFunc(ctx, hostID, installUUID, verificationUUID)
+}
+
+func (s *DataStore) ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error {
+	s.mu.Lock()
+	s.ReplaceVPPInstallVerificationUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceVPPInstallVerificationUUIDFunc(ctx, oldVerifyUUID, verifyCommandUUID)
+}
+
+func (s *DataStore) IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.IsHostPendingVPPInstallVerificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsHostPendingVPPInstallVerificationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetUnverifiedVPPInstallsForHost(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
+	s.mu.Lock()
+	s.GetUnverifiedVPPInstallsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetUnverifiedVPPInstallsForHostFunc(ctx, verificationUUID)
+}
+
+func (s *DataStore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error {
+	s.mu.Lock()
+	s.SetVPPInstallAsFailedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetVPPInstallAsFailedFunc(ctx, hostID, installUUID, verificationUUID)
+}
+
+func (s *DataStore) MarkAllPendingVPPInstallsAsFailed(ctx context.Context, jobName string) error {
+	s.mu.Lock()
+	s.MarkAllPendingVPPInstallsAsFailedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkAllPendingVPPInstallsAsFailedFunc(ctx, jobName)
+}
+
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
 	s.mu.Lock()
 	s.GetHostOperatingSystemFuncInvoked = true
@@ -5813,6 +5920,13 @@ func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (
 	s.GetHostDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+	s.mu.Lock()
+	s.GetHostArchivedDiskEncryptionKeyFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostArchivedDiskEncryptionKeyFunc(ctx, host)
 }
 
 func (s *DataStore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
@@ -8256,4 +8370,11 @@ func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID u
 	s.SetHostConditionalAccessStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostConditionalAccessStatusFunc(ctx, hostID, managed, compliant)
+}
+
+func (s *DataStore) GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {
+	s.mu.Lock()
+	s.GetHostIdentityCertBySerialNumberFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostIdentityCertBySerialNumberFunc(ctx, serialNumber)
 }

@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -197,6 +198,9 @@ type Datastore interface {
 	// UpdateLabelMembershipByHostIDs updates the label membership for the given label ID with host
 	// IDs, applied in batches
 	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
+	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label
+	// based on its host vitals criteria.
+	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
 
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
@@ -651,6 +655,24 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
+	// AssociateVPPInstallToVerificationUUID updates the verification command UUID associated with the
+	// given install attempt (InstallApplication command)
+	AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error
+	// SetVPPInstallAsVerified marks the VPP app install attempt as "verified" (Fleet has validated
+	// that it's installed on the device).
+	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
+	// ReplaceVPPInstallVerificationUUID replaces the verification command UUID for all
+	// VPP app install attempts were related to oldVerifyUUID.
+	ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+	// IsHostPendingVPPInstallVerification checks if a host has a pending VPP install verification command.
+	IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error)
+	// GetUnverifiedVPPInstallsForHost gets unverified HostVPPSoftwareInstalls by host UUID.
+	GetUnverifiedVPPInstallsForHost(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
+	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
+	// it was installed on the host).
+	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
+	MarkAllPendingVPPInstallsAsFailed(ctx context.Context, jobName string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
@@ -966,6 +988,8 @@ type Datastore interface {
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
+	// GetHostArchivedDiskEncryptionKey returns the archived disk encryption key for a given host.
+	GetHostArchivedDiskEncryptionKey(ctx context.Context, host *Host) (*HostArchivedDiskEncryptionKey, error)
 	IsHostPendingEscrow(ctx context.Context, hostID uint) bool
 	ClearPendingEscrow(ctx context.Context, hostID uint) error
 	ReportEscrowError(ctx context.Context, hostID uint, err string) error
@@ -2180,6 +2204,12 @@ type Datastore interface {
 	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
 	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Host identity certificates
+
+	// GetHostIdentityCertBySerialNumber gets the unrevoked valid cert corresponding to the provided serial number.
+	GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
 }
 
 type AndroidDatastore interface {

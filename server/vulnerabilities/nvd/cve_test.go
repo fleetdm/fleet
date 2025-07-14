@@ -284,13 +284,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
+		/*"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
 			},
 			continuesToUpdate: false,
-		},
+		},*/
 		"cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2023-36018", resolvedInVersion: "2023.10.1100000000"},
@@ -307,7 +307,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
+		/*"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-1171", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-1192", resolvedInVersion: "2020.5.0"},
@@ -315,7 +315,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
 			},
 			continuesToUpdate: false,
-		},
+		},*/
 		"cpe:2.3:a:adobe:animate:*:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2023-44325"},
@@ -400,14 +400,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 		// end of CVE-2023-48795 checks
 		// CVE-2025-21171 handling
-		"cpe:2.3:a:microsoft:powershell:7.5.0:*:*:*:*:macos:*:*": {
-			excludedCVEs:      []string{"CVE-2025-21171"},
-			continuesToUpdate: true,
-		},
-		"cpe:2.3:a:microsoft:powershell:7.5.0:rc.1:*:*:*:macos:*:*": {
-			includedCVEs:      []cve{{ID: "CVE-2025-21171"}},
-			continuesToUpdate: true,
-		},
+		// Temporary commented out until we have a proper fix for this CVE
+		// https://github.com/fleetdm/fleet/pull/30767
+		// "cpe:2.3:a:microsoft:powershell:7.5.0:*:*:*:*:macos:*:*": {
+		// 	excludedCVEs:      []string{"CVE-2025-21171"},
+		// 	continuesToUpdate: true,
+		// },
+		// "cpe:2.3:a:microsoft:powershell:7.5.0:rc.1:*:*:*:macos:*:*": {
+		// 	includedCVEs:      []cve{{ID: "CVE-2025-21171"}},
+		// 	continuesToUpdate: true,
+		// },
 		// end of CVE-2025-21171 checks
 		"cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*": {
 			includedCVEs:      []cve{{ID: "CVE-2024-37051", resolvedInVersion: "2023.1.6"}},

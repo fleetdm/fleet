@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"time"
@@ -24,7 +25,7 @@ type Email struct {
 }
 
 type MailService interface {
-	SendEmail(e Email) error
+	SendEmail(ctx context.Context, e Email) error
 	CanSendEmail(smtpSettings SMTPSettings) bool
 }
 

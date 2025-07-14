@@ -161,28 +161,27 @@
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/observability">Orchestration &nbsp; <small>(+ monitoring)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/integrations">Integrations</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="device-management" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="orchestration" href="/orchestration">Orchestration &nbsp; <small>(+ monitoring)</small></a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="software-management" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="integrations" href="/integrations">Integrations</a>
                   </div>
                   <hr>
                   <a purpose="mobile-dropdown-link" class="d-flex align-items-center" href="/docs">Docs</a>
                   <hr>
-                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Stories</a>
-                  <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" href="/announcements">News</a>
-                    <a purpose="mobile-dropdown-link" href="/support">Ask around</a>
-                    <a purpose="mobile-dropdown-link" href="/meetups">Meetups</a>
-                    <a purpose="mobile-dropdown-link" target="_blank" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml">Share your story</a>
-                    <span class="mt-2 mb-2">COMPANY</span>
-                    <div purpose="indented-mobile-links">
-                      <a purpose="mobile-dropdown-link" href="/handbook">The handbook</a>
-                      <a purpose="mobile-dropdown-link" href="/testimonials">Testimonials</a>
-                    </div>
-                  </div>
-                  <hr>
                   <a purpose="mobile-dropdown-link" href="/pricing" class="d-flex align-items-center">Pricing</a>
+                  <hr>
+                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">More</a>
+                  <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="announcements" href="/announcements">News</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="testimonials" href="/testimonials">Case studies</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="support" href="/support">Ask around</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="meetups" href="/meetups">Meetups</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="share-your-story" target="_blank" href="https://github.com/fleetdm/fleet/blob/main/handbook/company/testimonials.yml">Share your story</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/handbook">The handbook</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/new-license">Get your license</a>
+                    <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/contact">Schedule a demo</a>
+                  </div>
                   <% if(_.has(me, 'id')) {%>
                     <hr>
                     <a purpose="mobile-dropdown-link" href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
@@ -204,31 +203,30 @@
               <%/* Desktop Navigation bar */%>
               <div purpose="header-nav" class="d-none d-lg-flex align-items-center justify-content-around">
                 <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" href="/device-management" >Multi platform</a>
+                  <a purpose="header-nav-btn" button-text="Multi platform" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" href="/device-management">Multi platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" href="/device-management">Device management <small>+ MDM</small></a>
-                    <a class="dropdown-item" href="/observability">Orchestration <small>+ monitoring</small></a>
-                    <a class="dropdown-item" href="/software-management">Software management <small>+ CVEs, usage, app library</small></a>
-                    <a class="dropdown-item" href="/integrations">Integrations</a>
+                    <a class="dropdown-item" data-dropdown-option="device-management" href="/device-management">Device management <small>+ MDM</small></a>
+                    <a class="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">Orchestration <small>+ monitoring</small></a>
+                    <a class="dropdown-item" data-dropdown-option="software-management" href="/software-management">Software management <small>+ CVEs, usage, software catalog</small></a>
+                    <a class="dropdown-item" data-dropdown-option="integrations" href="/integrations">Integrations</a>
                   </div>
                 </div>
-                <div purpose="dropdown-button" class="btn-group" style="width: 74px;">
-                  <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" href="/docs">Docs</a>
-                </div>
-                <div purpose="dropdown-button" class="btn-group" style="width: 89px;">
-                  <a purpose="header-nav-btn" button-text="Community" href="/testimonials" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" >Stories</a>
+                <a purpose="header-nav-btn" button-text="Docs" class="<%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" style="width: 55px;" href="/docs">Docs</a>
+                <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="width: 72px; text-decoration: none; line-height: 23px;">Pricing</a>
+                <div purpose="dropdown-button" class="btn-group" >
+                  <a purpose="header-nav-btn" button-text="More" href="/testimonials" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" >More</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" href="/announcements">News</a>
-                    <a class="dropdown-item" href="/support">Ask around</a>
-                    <a class="dropdown-item" href="/meetups">Meetups</a>
-                    <a class="dropdown-item" href="/contact">Schedule a demo</a><!-- «« included here in the desktop hover nav because unlike the mobile nav (which has 'Take a tour' as a primary CTA), there is no option to do that on desktop from other pages otherwise -->
-                    <a class="dropdown-item" target="_blank" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml">Share your story</a>
-                    <span class="muted dropdown-header">COMPANY</span>
-                    <a class="dropdown-item" href="/handbook">The handbook</a>
-                    <a class="dropdown-item" href="/testimonials">Testimonials</a>
+                    <a class="dropdown-item" data-dropdown-option="announcements" href="/announcements">News</a>
+                    <a class="dropdown-item" data-dropdown-option="testimonials" href="/testimonials">Case studies</a>
+                    <a class="dropdown-item" data-dropdown-option="support" href="/support">Ask around</a>
+                    <a class="dropdown-item" data-dropdown-option="meetups" href="/meetups">Meetups</a>
+                    <a class="dropdown-item" data-dropdown-option="share-your-story" target="_blank" href="https://github.com/fleetdm/fleet/blob/main/handbook/company/testimonials.yml">Share your story</a>
+                    <hr>
+                    <a class="dropdown-item" data-dropdown-option="handbook" href="/handbook">The handbook</a>
+                    <a class="dropdown-item" data-dropdown-option="handbook" href="/new-license">Get your license</a>
+                    <a class="dropdown-item" data-dropdown-option="contact" href="/contact">Schedule a demo</a><!-- «« included here in the desktop hover nav because unlike the mobile nav (which has 'Take a tour' as a primary CTA), there is no option to do that on desktop from other pages otherwise -->
                   </div>
                 </div>
-                <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
                 <span purpose="gh-button" class="d-flex align-items-center">
                   <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
                   allowtransparency="true" frameborder="0" scrolling="0" width="140" height="20"></iframe>
@@ -284,7 +282,7 @@
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Multi platform</strong>
               <a href="/device-management">Device management</a>
-              <a href="/observability">Orchestration</a>
+              <a href="/orchestration">Orchestration</a>
               <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>

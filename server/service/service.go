@@ -179,8 +179,8 @@ func NewService(
 	return validationMiddleware{svc, ds, sso}, nil
 }
 
-func (svc *Service) SendEmail(mail fleet.Email) error {
-	return svc.mailService.SendEmail(mail)
+func (svc *Service) SendEmail(ctx context.Context, mail fleet.Email) error {
+	return svc.mailService.SendEmail(ctx, mail)
 }
 
 type validationMiddleware struct {

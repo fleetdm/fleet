@@ -20,7 +20,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	eeSelectStmt := `
 		SELECT DISTINCT
 			cm.cve,
-			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
+			LEAST(COALESCE(osv.created_at, NOW()), COALESCE(sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			cm.cvss_score,
 			cm.epss_probability,
@@ -34,9 +34,9 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			SELECT cve
 			FROM software_cve
 			WHERE cve = ?
-			
+
 			UNION
-			
+
 			SELECT cve
 			FROM operating_system_vulnerabilities
 			WHERE cve = ?
@@ -49,7 +49,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	freeSelectStmt := `
 		SELECT DISTINCT
 			union_cve.cve,
-			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
+			LEAST(COALESCE(osv.created_at, NOW()), COALESCE(sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			COALESCE(vhc.host_count, 0) as hosts_count,
 			COALESCE(vhc.updated_at, NOW()) as hosts_count_updated_at
@@ -57,9 +57,9 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			SELECT cve, created_at, source
 			FROM operating_system_vulnerabilities
 			WHERE cve = ?
-			
+
 			UNION
-			
+
 			SELECT cve, created_at, source
 			FROM software_cve
 			WHERE cve = ?
