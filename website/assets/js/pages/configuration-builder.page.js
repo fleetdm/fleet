@@ -168,8 +168,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'requireAlphanumeric',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -187,8 +185,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'changeAtNextAuth',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -539,8 +535,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'EnableAssessment',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -556,8 +550,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'AllowIdentifiedDevelopers',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -573,13 +565,10 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'EnableXProtectMalwareUpload',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
             ]
           },
-
         ]
       },
       {
@@ -926,8 +915,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'EnableFirewall',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -945,8 +932,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'AllowSigned',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -994,8 +979,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'EnableStealthMode',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               // { TODO: add support for specifying arrays of objects.
@@ -2565,16 +2548,20 @@ parasails.registerPage('configuration-builder', {
           let payloadToAdd = _.clone(payloadOption);
           let value = this.configurationBuilderFormData[payloadOption.uniqueSlug+'-value'];
           if(payloadOption.formInput.type === 'boolean') {
-            if(value) {
-              value = payloadOption.formOutput.trueValue;
-            } else {
-              value = payloadOption.formOutput.falseValue;
+            // If a payload option has a nested trueValue and falseValue, then this boolean will not necessarily represent true/false values.
+            // If that is the case, then modify the value to be the value they represent in the form.
+            if(payloadOption.formOutput.trueValue) {
+              if(value) {
+                value = payloadOption.formOutput.trueValue;
+              } else {
+                value = payloadOption.formOutput.falseValue;
+              }
             }
           }
           dictionaryStringForThisPayload += `<key>${payloadToAdd.formOutput.settingKey}</key>
 `;
           if(payloadToAdd.formOutput.settingFormat === 'boolean'){
-            dictionaryStringForThisPayload += `${value}
+            dictionaryStringForThisPayload += `<${value}/>
 `;
           } else {
             dictionaryStringForThisPayload += `<${payloadToAdd.formOutput.settingFormat}>${value}</${payloadToAdd.formOutput.settingFormat}>
@@ -2644,6 +2631,7 @@ parasails.registerPage('configuration-builder', {
       this.selectedPayloads = _.uniq(newSelectedPayloads);
       this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
       delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
+      delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
       if(this.selectedPlatform === 'windows') {
         delete this.configurationBuilderFormRules[option.uniqueSlug+'-access-type'];
       }

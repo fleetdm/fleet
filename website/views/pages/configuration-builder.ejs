@@ -151,7 +151,7 @@
                 <div purpose="category-header">
                   <h2 class="mb-0">{{category}}</h2>
                   <div purpose="download-and-remove-buttons">
-                    <a purpose="form-button" @click="clickRemoveOneCategoryPayloadOptions(category)">Remove all</a>
+                    <a purpose="remove-button" @click="clickRemoveOneCategoryPayloadOptions(category)">Remove all</a>
                     <ajax-button purpose="download-button" :syncing="syncing" @click="clickSetCurrentSelectedCategory(category)"><img alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
                   </div>
                 </div>
@@ -183,7 +183,7 @@
                   </div>
                   <% // Radio input %>
                   <div purpose="option-value" v-else-if="['radio'].includes(option.formInput.type)" :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']">
-                    <label purpose="form-option" class="form-control" :class="[configurationBuilderFormData[option.uniqueSlug+'-value'] === formInput.value ? 'selected' : '']" v-for="formInput of option.formInput.options">
+                    <label purpose="form-option" class="form-control" :class="[configurationBuilderFormData[option.uniqueSlug+'-value'] === formInput.value ? 'selected' : '']" v-for="formInput of option.formInput.options" @input="clickAutoSelectWhenSet(formInput)">
                       <input type="radio" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" :value="formInput.value" @input="clickClearOneFormError(option.uniqueSlug+'-value')">
                       <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
                       {{formInput.name}}
@@ -199,7 +199,7 @@
                     </label>
                   </div>
                   <div purpose="option-value" v-else-if="['select'].includes(option.formInput.type)">
-                    <select :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" class="form-control" style="width: 300px;">
+                    <select :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" class="form-control" style="width: 300px;" @input="clickAutoSelectWhenSet(formInput)">
                       <option selected value="undefined" >Select an option</option>
                       <option :value="formInput.value" style="text-transform: uppercase;" v-for="formInput in option.formInput.options">{{formInput.name}}</option>
                     </select>
