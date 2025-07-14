@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	scepURL       = "https://localhost:8080//api/fleet/orbit/host_identity/scep"
+	scepURL       = "https://localhost:8080/api/fleet/orbit/host_identity/scep"
 	scepChallenge = "challenge"
 	commonName    = "fleet-device"
 )
@@ -29,8 +29,8 @@ const (
 // 3. Fetch a certificate using SCEP with a private key generated in the TPM.
 //
 // Prerequisites:
-// - TPM 2.0 hardware available at /dev/tpmrm0
-// - SCEP server URL and challenge password
+// - TPM 2.0 hardware available at /dev/tpmrm0.
+// - SCEP server URL and challenge password set to a valid enroll secret.
 func ExampleCreateOrLoadClientCertificate() {
 	if os.Geteuid() != 0 {
 		log.Panic("Example needs to be run as root")
@@ -39,7 +39,7 @@ func ExampleCreateOrLoadClientCertificate() {
 		log.Panic("Could not read TPM 2.0 device")
 	}
 
-	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
 	metadataDir, err := os.MkdirTemp("", "scep_tpm_example")
 	if err != nil {
@@ -69,7 +69,7 @@ func ExampleCreateOrLoadClientCertificate() {
 	}
 
 	fmt.Printf("✅ SCEP enrollment successful!\n")
-	fmt.Printf("💁‍♂️ Certificate common name: %s\n", clientCertificate.C.Subject.CommonName)
+	fmt.Printf("💁 Certificate common name: %s\n", clientCertificate.C.Subject.CommonName)
 	fmt.Printf("🔐 Certificate signed with TPM-generated ECC key\n")
 	fmt.Printf("🛡️ Private key secured in TPM hardware\n")
 
@@ -80,7 +80,7 @@ func ExampleCreateOrLoadClientCertificate() {
 	// 4. Monitor certificate validity and TPM health
 
 	// Output: ✅ SCEP enrollment successful!
-	// 💁‍♂️ Certificate common name: fleet-device
+	// 💁 Certificate common name: fleet-device
 	// 🔐 Certificate signed with TPM-generated ECC key
 	// 🛡️ Private key secured in TPM hardware
 }

@@ -73,7 +73,7 @@ func CreateOrLoadClientCertificate(
 		if err != nil {
 			return nil, fmt.Errorf("failed to create SCEP client: %w", err)
 		}
-		clientCert, err := scepClient.FetchCert(ctx)
+		clientCert, err = scepClient.FetchCert(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch certificate using SCEP: %w", err)
 		}
