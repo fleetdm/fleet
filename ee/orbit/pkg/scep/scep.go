@@ -39,6 +39,8 @@ type Client struct {
 	scepURL string
 	timeout time.Duration
 	logger  zerolog.Logger
+
+	insecure bool
 }
 
 // Option is a functional option for configuring a SCEP Client
@@ -84,6 +86,12 @@ func WithTimeout(timeout time.Duration) Option {
 	}
 }
 
+func Insecure() Option {
+	return func(c *Client) {
+		c.insecure = true
+	}
+}
+
 // NewClient creates a new SCEP client with the provided options
 func NewClient(opts ...Option) (*Client, error) {
 	// Create client with default options
@@ -114,7 +122,7 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	// We assume the required fields have already been validated by the NewClient factory.
 
 	kitLogger := &zerologAdapter{logger: c.logger}
-	scepClient, err := scepclient.New(c.scepURL, kitLogger, &c.timeout)
+	scepClient, err := scepclient.New(c.scepURL, kitLogger, &c.timeout, c.insecure)
 	if err != nil {
 		return nil, fmt.Errorf("create SCEP client: %w", err)
 	}

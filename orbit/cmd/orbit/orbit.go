@@ -957,9 +957,10 @@ func main() {
 			clientCertificate, err := hostidentity.CreateOrLoadClientCertificate(
 				c.Context,
 				c.String("root-dir"),
-				fleetURL+"/api/fleet/orbit/scep",
+				fleetURL+"/api/fleet/orbit/host_identity/scep",
 				c.String("enroll-secret"),
 				commonName,
+				c.Bool("insecure"),
 				log.Logger,
 			)
 			if err != nil {

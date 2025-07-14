@@ -20,8 +20,9 @@ func New(
 	serverURL string,
 	logger log.Logger,
 	timeout *time.Duration,
+	insecure bool,
 ) (Client, error) {
-	endpoints, err := scepserver.MakeClientEndpoints(serverURL, timeout)
+	endpoints, err := scepserver.MakeClientEndpoints(serverURL, timeout, insecure)
 	if err != nil {
 		return nil, err
 	}

@@ -32,7 +32,7 @@ const (
 // TestNewClientValidation tests the validation of parameters in the NewClient function
 func TestNewClientValidation(t *testing.T) {
 	signingKey, err := newSigningKey()
-	require.NoError(t, err, "Failed to create test TEE")
+	require.NoError(t, err, "Failed to create test signing key")
 
 	// Define test cases
 	testCases := []struct {

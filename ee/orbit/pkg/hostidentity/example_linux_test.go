@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	scepURL       = "https://localhost:8080/api/fleet/orbit/scep"
+	scepURL       = "https://localhost:8080//api/fleet/orbit/host_identity/scep"
 	scepChallenge = "challenge"
 	commonName    = "fleet-device"
 )
@@ -53,6 +53,7 @@ func ExampleCreateOrLoadClientCertificate() {
 		scepURL,
 		scepChallenge,
 		commonName,
+		true,
 		logger,
 	)
 	if err != nil {

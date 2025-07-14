@@ -3,6 +3,7 @@ package scepserver
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"net/url"
 	"strings"
@@ -114,7 +115,7 @@ func MakeServerEndpointsWithIdentifier(svc ServiceWithIdentifier) *Endpoints {
 // MakeClientEndpoints returns an Endpoints struct where each endpoint invokes
 // the corresponding method on the remote instance, via a transport/http.Client.
 // Useful in a SCEP client.
-func MakeClientEndpoints(instance string, timeout *time.Duration) (*Endpoints, error) {
+func MakeClientEndpoints(instance string, timeout *time.Duration, insecure bool) (*Endpoints, error) {
 	if !strings.HasPrefix(instance, "http") {
 		instance = "http://" + instance
 	}
@@ -126,6 +127,11 @@ func MakeClientEndpoints(instance string, timeout *time.Duration) (*Endpoints, e
 	var fleetOpts []fleethttp.ClientOpt
 	if timeout != nil {
 		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*timeout))
+	}
+	if insecure {
+		fleetOpts = append(fleetOpts, fleethttp.WithTLSClientConfig(&tls.Config{
+			InsecureSkipVerify: true, //nolint:gosec // dismiss G402: only set on tests.
+		}))
 	}
 	options := []httptransport.ClientOption{httptransport.SetClient(fleethttp.NewClient(fleetOpts...))}
 

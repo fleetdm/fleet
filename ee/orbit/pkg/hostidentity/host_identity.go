@@ -31,6 +31,7 @@ func CreateOrLoadClientCertificate(
 	scepURL string,
 	scepChallenge string,
 	commonName string,
+	insecure bool,
 	logger zerolog.Logger,
 ) (*ClientCertificate, error) {
 	teeDevice, err := securehw.New(metadataDir, logger)
@@ -58,13 +59,17 @@ func CreateOrLoadClientCertificate(
 		// OK, we have a certificate already, let's use it.
 	case errors.Is(err, os.ErrNotExist):
 		// We don't have a certificate, let's issue one using SCEP.
-		scepClient, err := scep.NewClient(
+		opts := []scep.Option{
 			scep.WithSigningKey(teeKey),
 			scep.WithLogger(logger),
 			scep.WithURL(scepURL),
 			scep.WithChallenge(scepChallenge),
 			scep.WithCommonName(commonName),
-		)
+		}
+		if insecure {
+			opts = append(opts, scep.Insecure())
+		}
+		scepClient, err := scep.NewClient(opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create SCEP client: %w", err)
 		}
