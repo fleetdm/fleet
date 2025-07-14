@@ -30,16 +30,6 @@
     labels: [ "#g-digital-experience" ]
     repo: "confidential"
 -
-  task: "Check LinkedIn for unread messages"
-  startedOn: "2023-09-25"
-  frequency: "Daily"
-  description: "Prevent connections from slipping through the cracks"
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-linkedin-for-unread-messages"
-  dri: "SFriendLee"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ]
-    repo: "confidential"
--
   task: "Check LinkedIn for new activity"
   startedOn: "2025-04-25"
   frequency: "Daily"
@@ -65,8 +55,18 @@
   frequency: "Weekly"
   description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#monitor-compliance-tests"
-  dri: "hollidayn"
+  dri: "SFriendLee"
   autoIssue:
+    labels: [ "#g-digital-experience" ]
+    repo: "confidential"
+-
+  task: "Prep for the 🤝❌ Closed (for now) opportunity review"
+  startedOn: "2025-07-18"
+  frequency: "Weekly"
+  description: "Complete steps 1 - 3 of https://fleetdm.com/handbook/sales#communicate-gross-new-arr-added"
+  moreInfoUrl: "https://fleetdm.com/handbook/sales#communicate-gross-new-arr-added"
+  dri: "SFriendLee"
+  autoIssue:   
     labels: [ "#g-digital-experience" ]
     repo: "confidential"
 -
@@ -263,13 +263,6 @@
   description: "Prepare slide deck for the next board meeting"
   dri: "sampfluger88"
 -
-  task: "Quarterly grants"
-  startedOn: "2024-02-01"
-  frequency: "Quarterly"
-  description: "Create the equity grants GitHub issue and walk through the steps."
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#grant-equity"
-  dri: "hollidayn"
--
   task: "Change password of \"Integrations admin\" Salesforce account"
   startedOn: "2024-09-10"
   frequency: "Quarterly"
@@ -290,14 +283,4 @@
   description: "Check all brand fronts for consistancy and update as needed with the current product pitch and graphics."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#update-a-company-brand-front"
   dri: "mike-j-thomas"
--
-  task: "Check GitHub/GitLab terms"
-  startedOn: "2023-10-24"
-  frequency: "Annually"
-  description: "Check GitHub's terms to make sure the “inbound=outbound” clause is unchanged."
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-github-terms"
-  dri: "hollidayn"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
 

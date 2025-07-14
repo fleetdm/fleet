@@ -1,0 +1,1 @@
+* Fixed cases where valid operating system vulnerabilities would be periodically incorrectly purged

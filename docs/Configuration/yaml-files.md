@@ -462,7 +462,7 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 
 > Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
-> You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI, API, or the `fleetctl upload-software` command. If a package with that hash isn't already in Fleet and visible to the user performing the GitOps run, the GitOps run will error.
+> You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI or the API,. If a package with that hash isn't already in Fleet and visible to the user performing the GitOps run, the GitOps run will error.
 
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -494,7 +494,7 @@ self_service: true
 
 ##### With hash
 
-You can get an output similar to that below when `fleetctl upload-software` successfully uploads a software package.
+You can view the hash for existing software in the software detail page in the Fleet UI. It is also returned after uploading a new software item via the API.
 
 ```yaml
 # Mozilla Firefox (Firefox 136.0.1.pkg) version 136.0.1

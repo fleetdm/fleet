@@ -388,11 +388,11 @@ The agenda of each offsite varies based on number of days and the team. Below is
 
 ### 4. Review with finance.
 
-Schedule a call with a [finance engineer](https://fleetdm.com/handbook/finance#team) to review total anticipated cost for the offsite. The finance engineer will assist if any cost adjustments are needed, and can provide budget guidance based on the specifics of the offsite.
+Schedule a call with [💸 Finance](https://fleetdm.com/handbook/finance#team) to review total anticipated cost for the offsite. Finance can assist if any cost adjustments are needed, and can provide budget guidance based on the specifics of the offsite.
 
 ### 5. Purchase accommodations and make reservations.
 
-Once approved by the finance engineer, they will finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
+Once approved by 💸 Finance, finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
 
 
 #### Stubs
