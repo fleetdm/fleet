@@ -2766,12 +2766,15 @@ parasails.registerPage('configuration-builder', {
           for(let input of payloadToRemove.formInput.inputs){
             delete this.configurationBuilderFormRules[payloadToRemove.uniqueSlug+'-'+input.slug];
             delete this.configurationBuilderFormData[payloadToRemove.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderByCategoryFormRules[payloadToRemove.category][payloadToRemove.uniqueSlug+'-'+input.slug];
           }
         } else {
           delete this.configurationBuilderFormRules[payloadToRemove.uniqueSlug+'-value'];
           delete this.configurationBuilderFormData[payloadToRemove.uniqueSlug+'-value'];
+          delete this.configurationBuilderByCategoryFormRules[payloadToRemove.category][payloadToRemove.uniqueSlug+'-value'];
         }
         if(this.selectedPlatform === 'windows') {
+          delete this.configurationBuilderByCategoryFormRules[payloadToRemove.category][payloadToRemove.uniqueSlug+'-access-type'];
           delete this.configurationBuilderFormRules[payloadSlug+'-access-type'];
         }
         this.selectedPayloadSettings[payloadSlug] = false;
@@ -2814,6 +2817,10 @@ parasails.registerPage('configuration-builder', {
       await this.forceRender();
     },
     closeModal: function() {
+      this.modal = undefined;
+    },
+    closeDownloadModal: function() {
+      this.downloadProfileFormData = {};
       this.modal = undefined;
     },
     _getWindowsXmlPayloadString: function(payload) {
