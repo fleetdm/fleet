@@ -36,6 +36,7 @@ import WhatsApp from "./WhatsApp";
 import Postman from "./Postman";
 import OnePassword from "./OnePassword";
 import AmazonDCV from "./AmazonDCV";
+import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import Santa from "./Santa";
 
 // Maps all known Linux platforms to the LinuxOS icon
@@ -80,6 +81,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   postman: Postman,
   "1password": OnePassword,
   "amazon dcv": AmazonDCV,
+  "company portal": IntuneCompanyPortal,
   santa: Santa,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
