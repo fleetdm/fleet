@@ -71,6 +71,24 @@ func GetLoginUser() (*User, error) {
 	}, nil
 }
 
+func GetUserContext(user *User) *string {
+	out, err := exec.Command("id", "-Z", user.Name).CombinedOutput()
+	if err != nil {
+		// If SELinux is not enabled, the command will fail with a non-zero exit code.
+		// We'll check for the conmon error message and log if we don't find it.
+		if strings.Contains(string(out), "SELinux-enabled") {
+			log.Debug().Msgf("Unexpected output from `id -Z`: %s", string(out))
+		}
+		return nil
+	}
+	context := strings.TrimSpace(string(out))
+	if context == "" {
+		log.Debug().Msg("Unexpected empty output from `id -Z`")
+		return nil
+	}
+	return &context
+}
+
 // parseUsersOutput parses the output of the `users' command.
 //
 //	`users' command prints on a single line a blank-separated list of user names of

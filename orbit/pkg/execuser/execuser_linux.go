@@ -20,7 +20,7 @@ import (
 
 // run uses sudo to run the given path as login user.
 func run(path string, opts eopts) (lastLogs string, err error) {
-	args, env, err := getUserAndDisplayArgs(path)
+	args, env, userContext, err := getUserAndDisplayArgs(path)
 	if err != nil {
 		return "", fmt.Errorf("get args: %w", err)
 	}
@@ -45,8 +45,12 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		}
 	}
 
-	// args = append(args, "-c", fmt.Sprintf("%s %s", strings.Join(env, " "), path))
-	args = append(args, "-c", fmt.Sprintf("runcon \"unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023\" env %s %s", strings.Join(env, " "), path))
+	if userContext != nil {
+		// args = append(args, "-c", fmt.Sprintf("%s %s", strings.Join(env, " "), path))
+		args = append(args, "-c", fmt.Sprintf("runcon \"%s\" env %s %s", *userContext, strings.Join(env, " "), path))
+	} else {
+		args = append(args, "-c", fmt.Sprintf("%s %s", strings.Join(env, " "), path))
+	}
 
 	cmd := exec.Command("runuser", args...)
 	cmd.Stderr = os.Stderr
@@ -67,6 +71,10 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 		return nil, -1, fmt.Errorf("get args: %w", err)
 	}
 
+	for _, nv := range opts.env {
+		env = append(env, fmt.Sprintf("%s=%s", nv[0], nv[1]))
+	}
+
 	env = append(env, path)
 
 	if len(opts.args) > 0 {
@@ -75,18 +83,14 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 		}
 	}
 
-	args = append(args, "-c", strings.Join(env, " "))
+	args = append(args, "-c", fmt.Sprintf("runcon \"unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023\" env %s %s", strings.Join(env, " "), path))
 
 	// Prefix with "timeout" and "sudo" if applicable
 	var cmdArgs []string
 	if opts.timeout > 0 {
 		cmdArgs = append(cmdArgs, "timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds())))
 	}
-	cmdArgs = append(cmdArgs, "runuser")
-	cmdArgs = append(cmdArgs, args...)
-
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...) // #nosec G204
-
+	cmd := exec.Command("runuser", args...)
 	log.Printf("cmd=%s", cmd.String())
 
 	output, err = cmd.Output()
@@ -130,10 +134,10 @@ func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
 	return stdin, nil
 }
 
-func getUserAndDisplayArgs(path string) ([]string, []string, error) {
+func getUserAndDisplayArgs(path string) ([]string, []string, *string, error) {
 	user, err := userpkg.GetLoginUser()
 	if err != nil {
-		return nil, nil, fmt.Errorf("get user: %w", err)
+		return nil, nil, nil, fmt.Errorf("get user: %w", err)
 	}
 
 	log.Info().Str("user", user.Name).Int64("id", user.ID).Msg("attempting to get user session type and display")
@@ -142,7 +146,7 @@ func getUserAndDisplayArgs(path string) ([]string, []string, error) {
 	uid := strconv.FormatInt(user.ID, 10)
 	userDisplaySessionType, err := userpkg.GetUserDisplaySessionType(uid)
 	if userDisplaySessionType == userpkg.GuiSessionTypeTty {
-		return nil, nil, fmt.Errorf("user %q (%d) is not running a GUI session", user.Name, user.ID)
+		return nil, nil, nil, fmt.Errorf("user %q (%d) is not running a GUI session", user.Name, user.ID)
 	}
 	if err != nil {
 		// Wayland is the default for most distributions, thus we assume
@@ -208,7 +212,10 @@ func getUserAndDisplayArgs(path string) ([]string, []string, error) {
 		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.ID),
 	)
 
-	return args, env, nil
+	// Get the user's SELinux context (if any).
+	context := userpkg.GetUserContext(user)
+
+	return args, env, context, nil
 }
 
 var whoLineRegexp = regexp.MustCompile(`(\w+)\s+(:\d+)\s+`)
