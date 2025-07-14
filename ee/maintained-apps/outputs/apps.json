@@ -156,6 +156,13 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Santa",
+      "slug": "santa/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.northpolesec.santa",
+      "description": ""
+    },
+    {
       "name": "Slack",
       "slug": "slack/darwin",
       "platform": "darwin",
@@ -189,6 +196,13 @@
       "platform": "windows",
       "unique_identifier": "Microsoft Visual Studio Code",
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
+    },
+    {
+      "name": "VNC Viewer",
+      "slug": "vnc-viewer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.realvnc.vncviewer",
+      "description": ""
     },
     {
       "name": "WhatsApp",

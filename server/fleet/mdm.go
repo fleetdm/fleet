@@ -9,6 +9,7 @@ import (
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/google/uuid"
 )
 
 const (
@@ -767,6 +768,10 @@ const (
 	MDMAssetAndroidPubSubToken MDMAssetName = "android_pubsub_token" // nolint:gosec // Ignore G101: Potential hardcoded credentials
 	// MDMAssetAndroidFleetServerSecret is the bearer token for Android requests sent to the fleetdm.com Android management proxy.
 	MDMAssetAndroidFleetServerSecret MDMAssetName = "android_fleet_server_secret" // nolint:gosec // Ignore G101: Potential hardcoded credentials
+	// MDMAssetHostIdentityCACert is the name of the root CA certificate used for host identity
+	MDMAssetHostIdentityCACert MDMAssetName = "host_identity_ca_cert"
+	// MDMAssetHostIdentityCAKey is the name of the root CA private key used for host identity
+	MDMAssetHostIdentityCAKey MDMAssetName = "host_identity_ca_key"
 )
 
 type MDMConfigAsset struct {
@@ -852,6 +857,10 @@ const (
 	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
 
+func RefetchAppsCommandUUID() string {
+	return RefetchAppsCommandUUIDPrefix + uuid.NewString()
+}
+
 func ListAppleRefetchCommandPrefixes() []string {
 	return []string{
 		RefetchBaseCommandUUIDPrefix,
@@ -863,6 +872,11 @@ func ListAppleRefetchCommandPrefixes() []string {
 
 // VerifySoftwareInstallVPPPrefix is the prefix used for MDM commands used to verify VPP app installs.
 const VerifySoftwareInstallVPPPrefix = "VERIFY-VPP-INSTALLS-"
+
+// VerifySoftwareInstallCommandUUID returns a UUID for a MDM command used to verify VPP app installs.
+func VerifySoftwareInstallCommandUUID() string {
+	return VerifySoftwareInstallVPPPrefix + uuid.NewString()
+}
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {

@@ -42,8 +42,8 @@ func CreateAuthorizationRequest(
 	}
 	samlAuthRequest, err := samlProvider.MakeAuthenticationRequest(
 		idpURL,
-		"HTTPRedirectBinding",
-		"HTTPPostBinding",
+		saml.HTTPRedirectBinding,
+		saml.HTTPPostBinding,
 	)
 	if err != nil {
 		return "", "", ctxerr.Wrap(ctx, err, "make auth request")

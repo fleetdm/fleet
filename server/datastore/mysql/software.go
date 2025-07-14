@@ -2667,7 +2667,10 @@ func filterSoftwareInstallersByLabel(
 					COUNT(label_membership.label_id) AS count_host_labels,
 					SUM(
 						CASE
-							WHEN labels.created_at IS NOT NULL AND :host_label_updated_at >= labels.created_at THEN 1
+							WHEN labels.created_at IS NOT NULL AND (
+								labels.label_membership_type = 1 OR
+								(labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at)
+							) THEN 1
 							ELSE 0
 						END
 					) AS count_host_updated_after_labels
@@ -2686,7 +2689,10 @@ func filterSoftwareInstallersByLabel(
 					COUNT(*) > 0
 					AND COUNT(*) = SUM(
 						CASE
-							WHEN labels.created_at IS NOT NULL AND :host_label_updated_at >= labels.created_at THEN 1
+							WHEN labels.created_at IS NOT NULL AND (
+								labels.label_membership_type = 1 OR
+								(labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at)
+							) THEN 1
 							ELSE 0
 						END
 					)

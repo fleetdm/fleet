@@ -256,6 +256,9 @@ func apiCommand() *cli.Command {
 
 			if uriString == "" {
 				return errors.New("must provide uri first argument")
+			} else if c.Args().Len() > 1 {
+				return fmt.Errorf("extra arguments: %s\nEnsure any flags are before the URL",
+					strings.Join(c.Args().Slice()[1:], " "))
 			}
 
 			flField = c.StringSlice("F")

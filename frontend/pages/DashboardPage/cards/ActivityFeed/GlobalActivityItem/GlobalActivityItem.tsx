@@ -273,12 +273,27 @@ const TAGGED_TEMPLATES = {
 
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
     // compatibility
+    let enrollmentTypeText = "";
+    if (activity.details?.personal_host) {
+      enrollmentTypeText = "personal";
+    } else if (activity.details?.installed_from_dep) {
+      enrollmentTypeText = "automatic";
+    } else {
+      enrollmentTypeText = "manual";
+    }
+
+    const hostDisplayText =
+      activity.details?.host_display_name || activity.details?.host_serial;
+
+    const hostDisplayPrefixText = activity.details?.host_display_name
+      ? ""
+      : "a host with serial number ";
+
     return (
       <>
-        An end user turned on MDM features for a host with serial number{" "}
+        An end user turned on MDM features for {hostDisplayPrefixText}
         <b>
-          {activity.details?.host_serial} (
-          {activity.details?.installed_from_dep ? "automatic" : "manual"})
+          {hostDisplayText} ({enrollmentTypeText})
         </b>
         .
       </>

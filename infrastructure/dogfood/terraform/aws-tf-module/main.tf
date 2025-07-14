@@ -152,7 +152,7 @@ module "main" {
     )
     extra_execution_iam_policies = concat(
       module.mdm.extra_execution_iam_policies,
-      [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn],
+      [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn, aws_iam_policy.entra_conditional_access.arn],
       module.cloudfront-software-installers.extra_execution_iam_policies,
     ) #, module.saml_auth_proxy.fleet_extra_execution_policies)
     extra_secrets = merge(

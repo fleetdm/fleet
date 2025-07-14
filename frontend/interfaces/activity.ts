@@ -182,6 +182,7 @@ export interface IActivityDetails {
   deadline_days?: number;
   deadline?: string;
   email?: string;
+  enrollment_id?: string;
   global?: boolean;
   grace_period_days?: number;
   host_display_name?: string;
@@ -201,6 +202,7 @@ export interface IActivityDetails {
   name?: string;
   pack_id?: number;
   pack_name?: string;
+  personal_host?: boolean;
   platform?: Platform; // software platform
   policy_id?: number;
   policy_name?: string;

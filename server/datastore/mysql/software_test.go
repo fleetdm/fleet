@@ -82,6 +82,7 @@ func TestSoftware(t *testing.T) {
 		{"TestListHostSoftwareSelfServiceWithLabelScopingHostInstalled", testListHostSoftwareSelfServiceWithLabelScopingHostInstalled},
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 		{"SoftwareCategories", testSoftwareCategories},
+		{"LabelScopingTimestampLogic", testLabelScopingTimestampLogic},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -7541,7 +7542,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.Nil(t, software[0].AppStoreApp)
 
 	// verify the install
-	require.NoError(t, ds.SetVPPInstallAsVerified(ctx, anotherHost.ID, vpp1CmdUUID))
+	require.NoError(t, ds.SetVPPInstallAsVerified(ctx, anotherHost.ID, vpp1CmdUUID, uuid.NewString()))
 
 	// Now the app should come back as installed
 	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
@@ -7964,4 +7965,212 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 
 	require.Contains(t, categories[installerNoTeam], cat1.Name)
 	require.Contains(t, categories[installerNoTeam], cat2.Name)
+}
+
+func testLabelScopingTimestampLogic(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a host
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	selfServiceinstaller := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello 2",
+		PreInstallQuery:   "SELECT 2",
+		PostInstallScript: "world 2",
+		UninstallScript:   "goodbye 2",
+		InstallerFile:     tfr2,
+		StorageID:         "storage 2",
+		Filename:          "file2",
+		Title:             "file2",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		BundleIdentifier:  "bi2",
+		Platform:          "darwin",
+		SelfService:       true,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+	selfServiceInstallerID, selfServiceTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, selfServiceinstaller)
+	require.NoError(t, err)
+
+	softwareAlreadyInstalled := fleet.Software{Name: "file1", Version: "1.0.1", Source: "apps", BundleIdentifier: "bi1"}
+	// Host has software installed, but not by Fleet, that matches the software installer available
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		titleIDUint := selfServiceTitleID
+		softwareAlreadyInstalled.TitleID = &titleIDUint
+		res, err := q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id) VALUES (?, ?, ?, ?, ?)`,
+			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier, softwareAlreadyInstalled.Version, selfServiceTitleID)
+		if err != nil {
+			return err
+		}
+		softwareID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		softwareAlreadyInstalled.ID = uint(softwareID)
+		_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`,
+			host.ID, softwareID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	// Dynamic label
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeDynamic})
+	require.NoError(t, err)
+
+	// Manual label
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+
+	// make sure the label is created after the host's labels_updated_at timestamp
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, `UPDATE labels SET created_at = ? WHERE id in (?, ?)`, host.LabelUpdatedAt.Add(time.Hour), label1.ID, label2.ID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	// refetch labels to ensure their state is correct
+	label1, _, err = ds.Label(ctx, label1.ID, fleet.TeamFilter{})
+	require.NoError(t, err)
+	label2, _, err = ds.Label(ctx, label2.ID, fleet.TeamFilter{})
+	require.NoError(t, err)
+
+	require.Greater(t, label1.CreatedAt, host.LabelUpdatedAt)
+	require.Greater(t, label2.CreatedAt, host.LabelUpdatedAt)
+
+	selfServiceOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10},
+		IncludeAvailableForInstall: true,
+		SelfServiceOnly:            true,
+		IsMDMEnrolled:              true,
+	}
+	hostLibraryOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10},
+		SelfServiceOnly:            false,
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    true,
+		IsMDMEnrolled:              true,
+	}
+
+	// Dynamic label exclude any
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), selfServiceInstallerID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label1.Name: {LabelName: label1.Name, LabelID: label1.ID},
+		},
+	}, softwareTypeInstaller)
+	require.NoError(t, err)
+
+	// self service
+	software, _, err := ds.ListHostSoftware(ctx, host, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// host library
+	software, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// manual label exclude any
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), selfServiceInstallerID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label2.Name: {LabelName: label2.Name, LabelID: label2.ID},
+		},
+	}, softwareTypeInstaller)
+	require.NoError(t, err)
+
+	// self service
+	software, _, err = ds.ListHostSoftware(ctx, host, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// host library
+	software, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// Add manual label to host
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label2.ID}))
+	host, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+
+	label1, _, err = ds.Label(ctx, label1.ID, fleet.TeamFilter{})
+	require.NoError(t, err)
+	label2, _, err = ds.Label(ctx, label2.ID, fleet.TeamFilter{})
+	require.NoError(t, err)
+	// ensure our timestamps are still correct
+	require.Greater(t, label1.CreatedAt, host.LabelUpdatedAt)
+	require.Greater(t, label2.CreatedAt, host.LabelUpdatedAt)
+
+	// Manual label added to host, so we should not see the software instantly
+	// self service
+	software, _, err = ds.ListHostSoftware(ctx, host, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// host library
+	software, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// manual label include any
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), selfServiceInstallerID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label2.Name: {LabelName: label2.Name, LabelID: label2.ID},
+		},
+	}, softwareTypeInstaller)
+	require.NoError(t, err)
+
+	// self service
+	software, _, err = ds.ListHostSoftware(ctx, host, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// host library
+	software, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// add dynamic label to host
+	require.NoError(t, ds.RemoveLabelsFromHost(ctx, host.ID, []uint{label2.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label1.ID}))
+	host, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+
+	label1, _, err = ds.Label(ctx, label1.ID, fleet.TeamFilter{})
+	require.NoError(t, err)
+	label2, _, err = ds.Label(ctx, label2.ID, fleet.TeamFilter{})
+	require.NoError(t, err)
+	// ensure our timestamps are still correct
+	require.Greater(t, label1.CreatedAt, host.LabelUpdatedAt)
+	require.Greater(t, label2.CreatedAt, host.LabelUpdatedAt)
+
+	// Dynamic label include any
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), selfServiceInstallerID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label1.Name: {LabelName: label1.Name, LabelID: label1.ID},
+		},
+	}, softwareTypeInstaller)
+	require.NoError(t, err)
+
+	// self service
+	software, _, err = ds.ListHostSoftware(ctx, host, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// host library
+	software, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
 }
