@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -72,19 +73,16 @@ func GetLoginUser() (*User, error) {
 }
 
 func GetUserContext(user *User) *string {
-	out, err := exec.Command("sudo", "-u", user.Name, "id", "-Z").CombinedOutput()
-	log.Info().Msgf("`id -Z` output: %s", string(out))
+	pids, _ := exec.Command("pgrep", "-u", strconv.FormatInt(user.ID, 10), "-nx", "systemd").Output()
+	pid := strings.TrimSpace(string(pids))
+	ctx, err := os.ReadFile("/proc/" + pid + "/attr/current")
 	if err != nil {
-		// If SELinux is not enabled, the command will fail with a non-zero exit code.
-		// We'll check for the conmon error message and log if we don't find it.
-		if strings.Contains(string(out), "SELinux-enabled") {
-			log.Debug().Msgf("Unexpected output from `id -Z`: %s", string(out))
-		}
+		log.Debug().Msgf("Error reading SELinux context for user %s: %v", user.Name, err)
 		return nil
 	}
-	context := strings.TrimSpace(string(out))
+	context := strings.TrimSpace(string(ctx))
 	if context == "" {
-		log.Debug().Msg("Unexpected empty output from `id -Z`")
+		log.Debug().Msg("Empty SELinux context for user " + user.Name)
 		return nil
 	}
 	return &context
