@@ -3662,24 +3662,24 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.Identifier(), status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
-		// this might be a setup experience VPP install, so we'll try to update setup experience status
-		// TODO: consider limiting this to only macOS hosts
-		var fromSetupExperience bool
-		if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
-			HostUUID:      cmdResult.Identifier(),
-			CommandUUID:   cmdResult.CommandUUID,
-			CommandStatus: cmdResult.Status,
-		}, true); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
-		} else if updated {
-			// TODO: call next step of setup experience?
-			fromSetupExperience = true
-			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.UDID, "execution_id", cmdResult.CommandUUID)
-		}
-
-		// create an activity for installing only if we're in a terminal state
+		// create an activity for installing only if we're in a terminal error state
 		if cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+
+			// this might be a setup experience VPP install, so we'll try to update setup experience status
+			// TODO: consider limiting this to only macOS hosts
+			var fromSetupExperience bool
+			if updated, err := maybeUpdateSetupExperienceStatus(r.Context, svc.ds, fleet.SetupExperienceVPPInstallResult{
+				HostUUID:      cmdResult.Identifier(),
+				CommandUUID:   cmdResult.CommandUUID,
+				CommandStatus: cmdResult.Status,
+			}, true); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
+			} else if updated {
+				// TODO: call next step of setup experience?
+				fromSetupExperience = true
+				level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", cmdResult.Identifier(), "execution_id", cmdResult.CommandUUID)
+			}
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
 				if fleet.IsNotFound(err) {
@@ -3695,6 +3695,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 		}
 
+		// If the command succeeded, then start the install verification process.
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
 			// Only send a new InstalledApplicationList command if there's not one in flight
 			commandsPending, err := svc.ds.IsHostPendingVPPInstallVerification(r.Context, cmdResult.Identifier())
@@ -3702,8 +3703,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "get pending mdm commands by host")
 			}
 			if !commandsPending {
-				cmdUUID := uuid.NewString()
-				cmdUUID = fleet.VerifySoftwareInstallVPPPrefix + cmdUUID
+				cmdUUID := fleet.VerifySoftwareInstallCommandUUID()
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.Identifier()}, cmdUUID, true); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
 				}
@@ -3721,7 +3721,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 	case "InstalledApplicationList":
 		level.Debug(svc.logger).Log("msg", "calling handlers for InstalledApplicationList")
-		res, err := NewInstalledApplicationListResult(r.Context, cmdResult.Raw, cmdResult.CommandUUID, cmdResult.Identifier())
+		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.Identifier())
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "get host by identifier")
+		}
+		res, err := NewInstalledApplicationListResult(r.Context, cmdResult.Raw, cmdResult.CommandUUID, cmdResult.Identifier(), host.Platform)
 		if err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "new installed application list result")
 		}
@@ -3910,6 +3914,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 type InstalledApplicationListResult interface {
 	fleet.MDMCommandResults
 	AvailableApps() []fleet.Software
+	HostPlatform() string
 }
 
 type installedApplicationListResult struct {
@@ -3917,15 +3922,26 @@ type installedApplicationListResult struct {
 	availableApps []fleet.Software
 	uuid          string
 	hostUUID      string
+	hostPlatform  string
 }
 
 func (i *installedApplicationListResult) Raw() []byte                     { return i.raw }
 func (i *installedApplicationListResult) UUID() string                    { return i.uuid }
 func (i *installedApplicationListResult) HostUUID() string                { return i.hostUUID }
 func (i *installedApplicationListResult) AvailableApps() []fleet.Software { return i.availableApps }
+func (i *installedApplicationListResult) HostPlatform() string            { return i.hostPlatform }
 
-func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uuid, hostUUID string) (InstalledApplicationListResult, error) {
-	list, err := unmarshalAppList(ctx, rawResult, "apps")
+func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uuid, hostUUID, hostPlatform string) (InstalledApplicationListResult, error) {
+	var source string
+	switch hostPlatform {
+	case "ios":
+		source = "ios_apps"
+	case "ipados":
+		source = "ipados_apps"
+	default:
+		source = "apps"
+	}
+	list, err := unmarshalAppList(ctx, rawResult, source)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshal app list for new installed application list result")
 	}
@@ -3935,6 +3951,7 @@ func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uu
 		uuid:          uuid,
 		availableApps: list,
 		hostUUID:      hostUUID,
+		hostPlatform:  hostPlatform,
 	}, nil
 }
 
@@ -3957,8 +3974,7 @@ func NewInstalledApplicationListResultsHandler(
 
 		installedApps := installedAppResult.AvailableApps()
 
-		// Get expectedInstalls that should be verified by this InstalledApplicationList command
-		expectedInstalls, err := ds.GetVPPInstallsByVerificationUUID(ctx, installedAppResult.UUID())
+		expectedInstalls, err := ds.GetUnverifiedVPPInstallsForHost(ctx, installedAppResult.HostUUID())
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				// Then something weird happened, so log it and exit (we can't do anything here in this case).
@@ -3986,14 +4002,14 @@ func NewInstalledApplicationListResultsHandler(
 			var terminalStatus string
 			switch {
 			case appFromResult.Installed:
-				if err := ds.SetVPPInstallAsVerified(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID); err != nil {
+				if err := ds.SetVPPInstallAsVerified(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
 				terminalStatus = fleet.MDMAppleStatusAcknowledged
 				shouldRefetch = true
 			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
-				if err := ds.SetVPPInstallAsFailed(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID); err != nil {
+				if err := ds.SetVPPInstallAsFailed(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
 
@@ -4045,9 +4061,22 @@ func NewInstalledApplicationListResultsHandler(
 		}
 
 		if shouldRefetch {
-			// Request host refetch to get the most up to date software data ASAP.
-			if err := ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
-				return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
+			switch installedAppResult.HostPlatform() {
+			case "darwin":
+				// Request host refetch to get the most up to date software data ASAP.
+				if err := ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
+					return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
+				}
+			default:
+				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), false)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+				}
+
+				err = ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix}})
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "add host mdm commands")
+				}
 			}
 		}
 

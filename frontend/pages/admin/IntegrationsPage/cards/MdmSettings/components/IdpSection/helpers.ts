@@ -43,9 +43,6 @@ const errorEntityId = (data: IFormDataIdp) => {
   if (!data.entity_id) {
     return "Entity ID must be present.";
   }
-  if (data.entity_id?.length < 5) {
-    return "Entity ID must be 5 or more characters.";
-  }
   return "";
 };
 

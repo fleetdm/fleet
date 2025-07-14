@@ -113,13 +113,7 @@ func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulner
 			operating_system_id = VALUES(operating_system_id),
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),
-			updated_at = IF(
-				  VALUES(operating_system_id) = operating_system_id AND
-				  VALUES(source) = source
-				  AND VALUES(resolved_in_version) = resolved_in_version,
-			  updated_at,
-			  NOW()
-		  )
+			updated_at = NOW()
 	`
 
 	args = append(args, v.OSID, v.CVE, s, v.ResolvedInVersion)
@@ -129,7 +123,11 @@ func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulner
 		return false, ctxerr.Wrap(ctx, err, "insert operating system vulnerability")
 	}
 
-	return insertOnDuplicateDidInsertOrUpdate(res), nil
+	// inserts affect one row, updates affect 0 or 2; we don't care which because timestamp may not change if we
+	// recently inserted the vuln and changed nothing else; see insertOnDuplicateDidInsertOrUpdate for context
+	affected, _ := res.RowsAffected()
+	lastID, _ := res.LastInsertId()
+	return lastID != 0 && affected == 1, nil
 }
 
 func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error {

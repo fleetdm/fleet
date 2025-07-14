@@ -256,6 +256,7 @@ const routes = (
               component={ManageHostsPage}
             />
             <Route path=":host_id" component={HostDetailsPage}>
+              <IndexRedirect to="details" />
               <Redirect from="schedule" to="queries" />
               <Route path="details" component={HostDetailsPage} />
               <Route path="scripts" component={HostDetailsPage} />

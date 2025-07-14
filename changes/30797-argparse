@@ -1,0 +1,1 @@
+* Fixed silent failure when passing flags after arguments in fleetctl

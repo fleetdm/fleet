@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -659,17 +660,17 @@ type Datastore interface {
 	AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error
 	// SetVPPInstallAsVerified marks the VPP app install attempt as "verified" (Fleet has validated
 	// that it's installed on the device).
-	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error
+	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
 	// ReplaceVPPInstallVerificationUUID replaces the verification command UUID for all
 	// VPP app install attempts were related to oldVerifyUUID.
 	ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
 	// IsHostPendingVPPInstallVerification checks if a host has a pending VPP install verification command.
 	IsHostPendingVPPInstallVerification(ctx context.Context, hostUUID string) (bool, error)
-	// GetVPPInstallsByVerificationUUID gets a HostVPPSoftwareInstall by verification command UUID.
-	GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
+	// GetUnverifiedVPPInstallsForHost gets unverified HostVPPSoftwareInstalls by host UUID.
+	GetUnverifiedVPPInstallsForHost(ctx context.Context, verificationUUID string) ([]*HostVPPSoftwareInstall, error)
 	// SetVPPInstallAsFailed marks a VPP app install attempt as failed (Fleet couldn't validate that
 	// it was installed on the host).
-	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error
+	SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error
 	MarkAllPendingVPPInstallsAsFailed(ctx context.Context, jobName string) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -2203,6 +2204,12 @@ type Datastore interface {
 	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
 	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Host identity certificates
+
+	// GetHostIdentityCertBySerialNumber gets the unrevoked valid cert corresponding to the provided serial number.
+	GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
 }
 
 type AndroidDatastore interface {
