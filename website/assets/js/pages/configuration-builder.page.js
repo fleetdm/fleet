@@ -304,7 +304,216 @@ parasails.registerPage('configuration-builder', {
                 },
               },
             ],
-          }
+          },
+          {
+            subcategoryName: 'FileVault',
+            subcategorySlug: 'macos-filevault',
+            description: 'Settings related disk encryption on macOS devices.',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/fdefilevault',
+            noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
+            docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+            payloads: [
+              // {// TODO: how do we want to accept this value?
+              //   name: 'Filevault certificate',
+              //   uniqueSlug: 'macos-filevault-certificate',
+              //   tooltip: 'The DER-encoded certificate data if the system creates an institutional recovery key. This key isn’t supported on Macs with Apple silicon.',
+              //   category: 'FileVault',
+              //   payload: 'FDEFileVault',
+              //   payloadType: 'com.apple.MCX.FileVault2',
+              //   formInput: {
+              //     type: 'text',
+              //   },
+              //   formOutput: {
+              //     settingFormat: 'data',
+              //     settingKey: 'Certificate',
+              //   },
+              // },
+              {
+                name: 'Enable FileVault',
+                uniqueSlug: 'macos-enable-filevault',
+                tooltip: 'Enables FileVault on macOS devices. Payloads that enable filevault sent through MDM need to either include full authentication information in the payload or have the Defer option set to true.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'Enable',
+                  trueValue: 'On',
+                  falseValue: 'Off'
+                },
+              },
+              {
+                name: 'Create FileVault recovery key',
+                uniqueSlug: 'macos-use-recovery-key',
+                tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'UseRecoveryKey',
+                },
+              },
+              {
+                name: 'Show recovery key to user after enabling FileVault',
+                uniqueSlug: 'macos-show-recovery-key',
+                tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'UseRecoveryKey',
+                },
+              },
+              {
+                name: 'Open directory username',
+                uniqueSlug: 'macos-filevault-od-username',
+                tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'Username',
+                },
+              },
+              {
+                name: 'Open directory password',
+                uniqueSlug: 'macos-filevault-od-password',
+                tooltip: 'The password of the Open Directory user to add to FileVault. Use the "Ask end-user for missing information" key to prompt for this information.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'Password',
+                },
+              },
+              {
+                name: 'Ask end-user for missing information',
+                uniqueSlug: 'macos-filevault-ask-for-missing-info',
+                tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'UserEntersMissingInfo',
+                },
+              },
+              {
+                name: 'Defer FileVault activation',
+                uniqueSlug: 'macos-defer-filevault-activation',
+                tooltip: 'If true, the system defers enabling FileVault until the designated user logs out. Only a local user or a mobile account user can enable FileVault.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'Defer',
+                },
+              },
+              {
+                name: 'Disable requests to enable FileVault when users log out.',
+                uniqueSlug: 'macos-disable-filevault-activiation-log-out',
+                tooltip: 'If true, the system prevents requests to enable FileVault at user logout time.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'DeferDontAskAtUserLogout',
+                },
+              },
+              {
+                name: 'Maximum number of times users can defer',
+                uniqueSlug: 'macos-filevault-max-bypass-attempts',
+                tooltip: 'The maximum number of times users can bypass enabling FileVault before the system requires the user to enable it to log in. If the value is 0, the system requires the user to enable FileVault the next time they attempt to log in. Set this key to -1 to disable this feature.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'number',
+                  maxValue: 9999,
+                  minValue: -1,
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'DeferForceAtUserLoginMaxBypassAttempts',
+                },
+              },
+              {
+                name: 'Specify a path to FileVault recovery key',
+                uniqueSlug: 'macos-filevault-recovery-key',
+                tooltip: 'The path to the location of the recovery key and computer information property list.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'OutputPath',
+                },
+              },
+              {
+                name: 'Store recovery key in keychain',
+                uniqueSlug: 'macos-filevault-recovery-key-in-keychain',
+                tooltip: 'If true and you don’t include certificate information in this payload, the system uses the keychain created at /Library/Keychains/FileVaultMaster.keychain when it adds the institutional recovery key.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'UseKeychain',
+                },
+              },
+              // {
+              //   name: 'Certificate UUID',
+              //   uniqueSlug: 'macos-filevault-certificate-uuid',
+              //   tooltip: 'The UUID of the payload within the same profile containing the asymmetric recovery key certificate payload.',
+              //   category: 'FileVault',
+              //   payload: 'FDEFileVault',
+              //   payloadType: 'com.apple.MCX.FileVault2',
+              //   formInput: {
+              //     type: 'text',
+              //   },
+              //   formOutput: {
+              //     settingFormat: 'string',
+              //     settingKey: 'PayloadCertificateUUID',
+              //   },
+              // },
+            ],
+          },
         ]
       },
       {
