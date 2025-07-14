@@ -935,8 +935,6 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  // host.platform = "windows";
-
   const isDarwinHost = host.platform === "darwin";
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
