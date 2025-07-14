@@ -587,6 +587,327 @@ parasails.registerPage('configuration-builder', {
         categorySlug: 'macos-network',
         subcategories: [
           {
+            subcategoryName: 'WiFi',
+            subcategorySlug: 'macos-wifi',
+            description: 'Settings related to wireless network configuration on macOS',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/wifi',
+            payloads: [
+              {
+                name: 'Network SSID',
+                uniqueSlug: 'macos-wifi-ssid',
+                tooltip: 'The SSID of the Wi-Fi network to use.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'SSID_STR',
+                },
+              },
+              {
+                name: 'Network password',
+                uniqueSlug: 'macos-wifi-password',
+                tooltip: 'The password for the access point.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'Password',
+                },
+              },
+              {
+                name: 'Network encryption type',
+                uniqueSlug: 'macos-wifi-encryption-type',
+                tooltip: 'The encryption type for the network. If set to anything except None, the payload may contain the following three keys: Password, PayloadCertificateUUID, or EAPClientConfiguration.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'WEP',
+                      value: 'WEP'
+                    },
+                    {
+                      name: 'WPA',
+                      value: 'WPA'
+                    },
+                    {
+                      name: 'WPA2',
+                      value: 'WPA2',
+                    },
+                    {
+                      name: 'WPA3',
+                      value: 'WPA3',
+                    },
+                    {
+                      name: 'Any',
+                      value: 'Any',
+                    },
+                    {
+                      name: 'None',
+                      value: 'None',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'EncryptionType',
+                },
+              },
+              {
+                name: 'Join network automatically',
+                uniqueSlug: 'macos-wifi-auto-join',
+                tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'AutoJoin',
+                },
+              },
+              {
+                name: 'Hidden network',
+                uniqueSlug: 'macos-wifi-hidden-network',
+                tooltip: 'If true, defines this network as hidden.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'HIDDEN_NETWORK',
+                },
+              },
+              {
+                name: 'Enable IPV6',
+                uniqueSlug: 'macos-wifi-enable-ipv6',
+                tooltip: 'If true, enables IPv6 on this interface.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableIPv6',
+                },
+              },
+              {
+                name: 'Domain name',
+                uniqueSlug: 'macos-wifi-domain-name',
+                tooltip: 'The primary domain of the tunnel. Available in macOS 10.9 and later.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'DomainName',
+                },
+              },
+              {
+                name: 'Treat network as a hotspot',
+                uniqueSlug: 'macos-wifi-hotspot',
+                tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'IsHotspot',
+                },
+              },
+              {
+                name: 'Allow connection to roaming service providers',
+                uniqueSlug: 'macos-wifi-service-provider-roaming',
+                tooltip: 'If true, allows connection to roaming service providers.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'ServiceProviderRoamingEnabled',
+                },
+              },
+              {
+                name: 'Network HESSID',
+                uniqueSlug: 'macos-wifi-hessid',
+                tooltip: 'The Homogeneous extended service set identifier (HESSID) used for Wi-Fi Hotspot 2.0 negotiation.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'HESSID',
+                },
+              },
+              {
+                name: 'Proxy type',
+                uniqueSlug: 'macos-wifi-proxy-type',
+                tooltip: 'The proxy type, if any, to use. If you choose the manual proxy type, you need the proxy server address, including its port and optionally a user name and password into the proxy server. If you choose the auto proxy type, you can enter a proxy autoconfiguration (PAC) URL.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'radio',
+                  controlsOtherFields: true,
+                  options: [
+                    {
+                      name: 'None',
+                      value: 'None'
+                    },
+                    {
+                      name: 'Manual',
+                      value: 'Manual',
+                      alsoSelectedWhenSet: [
+                        'macos-wifi-proxy-server',
+                        'macos-wifi-proxy-server-port',
+                      ]
+                    },
+                    {
+                      name: 'Auto',
+                      value: 'Auto',
+                      alsoSelectedWhenSet: [
+                        'macos-wifi-proxy-pac-url',
+                        'macos-wifi-proxy-pac-fallback',
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'ProxyType',
+                },
+              },
+              {
+                name: 'Proxy server address',
+                uniqueSlug: 'macos-wifi-proxy-server',
+                tooltip: 'The proxy server’s network address.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyServer',
+                },
+              },
+              {
+                name: 'Proxy server port',
+                uniqueSlug: 'macos-wifi-proxy-server-port',
+                tooltip: 'The proxy server’s port number.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 65535,
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'ProxyServerPort',
+                },
+              },
+              {
+                name: 'Proxy server username',
+                uniqueSlug: 'macos-wifi-proxy-server-username',
+                tooltip: 'The user name used to authenticate to the proxy server.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyUsername',
+                },
+              },
+              {
+                name: 'Proxy server password',
+                uniqueSlug: 'macos-wifi-proxy-server-password',
+                tooltip: 'The password used to authenticate to the proxy server.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyPassword',
+                },
+              },
+              {
+                name: 'Proxy PAC URL',
+                uniqueSlug: 'macos-wifi-proxy-pac-url',
+                tooltip: 'The URL of the PAC file that defines the proxy configuration.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyPACURL',
+                },
+              },
+              {
+                name: `Allow connections if a Proxy\'s PAC file is unreachable`,
+                uniqueSlug: 'macos-wifi-proxy-pac-fallback',
+                tooltip: 'If true, allows connecting directly to the destination if the PAC file is unreachable.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'ProxyPACFallbackAllowed',
+                },
+              },
+            ]
+          },
+          {
             subcategoryName: 'Firewall',
             subcategorySlug: 'macos-firewall',
             description: 'Settings related to the built-in firewall on macOS',
