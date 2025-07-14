@@ -12024,7 +12024,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "linux",
+		Platform:        "ubuntu",
 	})
 	require.NoError(t, err)
 	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{h.ID})
@@ -12044,7 +12044,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sbar.local", t.Name()),
-		Platform:        "linux",
+		Platform:        "ubuntu",
 	})
 	require.NoError(t, err)
 	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{h2.ID})
@@ -12487,7 +12487,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "linux",
+		Platform:        "ubuntu",
 	})
 	require.NoError(t, err)
 	err = s.ds.AddHostsToTeam(context.Background(), teamID, []uint{h.ID})
@@ -12581,9 +12581,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 
 	// create 3 more hosts, will have statuses installed, failed and one with two
 	// install requests - one failed and the latest install pending
-	h2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
-	h3 := createOrbitEnrolledHost(t, "linux", "host3", s.ds)
-	h4 := createOrbitEnrolledHost(t, "linux", "host4", s.ds)
+	h2 := createOrbitEnrolledHost(t, "linuxmint", "host2", s.ds)
+	h3 := createOrbitEnrolledHost(t, "debian", "host3", s.ds)
+	h4 := createOrbitEnrolledHost(t, "tuxedo", "host4", s.ds)
 	err = s.ds.AddHostsToTeam(context.Background(), teamID, []uint{h2.ID, h3.ID, h4.ID})
 	require.NoError(t, err)
 
@@ -12978,11 +12978,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall() {
 	t := s.T()
 
-	host1 := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	host1 := createOrbitEnrolledHost(t, "ubuntu", "", s.ds)
 	token := "secret_token"
 	createDeviceTokenForHost(t, s.ds, host1.ID, token)
 
-	host2 := createOrbitEnrolledHost(t, "linux", "2", s.ds)
+	host2 := createOrbitEnrolledHost(t, "ubuntu", "2", s.ds)
 	token2 := "secret_token2"
 	createDeviceTokenForHost(t, s.ds, host2.ID, token2)
 

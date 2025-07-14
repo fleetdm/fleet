@@ -4750,7 +4750,8 @@ func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
 		scriptContentID, _ := res.LastInsertId()
 
 		for source, installer := range installers {
-			res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, source, source)
+			res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, source, source)
+			require.NoError(t, err)
 			titleID, _ := res.LastInsertId()
 
 			_, err = q.ExecContext(ctx, `
@@ -4761,9 +4762,7 @@ func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
 				nil, 0, titleID, installer.Filename, installer.Extension, "2.0.0",
 				scriptContentID, scriptContentID,
 				hex.EncodeToString([]byte("test")), "linux", true)
-			if err != nil {
-				return err
-			}
+			require.NoError(t, err)
 		}
 
 		opts := fleet.HostSoftwareTitleListOptions{OnlyAvailableForInstall: true, ListOptions: fleet.ListOptions{OrderKey: "name"}}
