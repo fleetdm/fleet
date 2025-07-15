@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
