@@ -102,8 +102,7 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 					logger,
 					fleethttp.NewClient,
 					NewClient,
-					nil,   // No mock ApplyGroup for production code
-					false, // Don't skip teams on free license for normal setup
+					nil, // No mock ApplyGroup for production code
 				); err != nil {
 					level.Debug(logger).Log("endpoint", "setup", "op", "applyStarterLibrary", "err", err)
 					// Continue even if there's an error applying the starter library
@@ -135,8 +134,6 @@ func ApplyStarterLibrary(
 	clientFactory func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error),
 	// For testing only - if provided, this function will be used instead of client.ApplyGroup
 	mockApplyGroup func(ctx context.Context, specs *spec.Group) error,
-	// If true, teams will be skipped if the license is free
-	skipTeamsOnFreeLicense bool,
 ) error {
 	level.Debug(logger).Log("msg", "Applying starter library")
 
@@ -197,39 +194,36 @@ func ApplyStarterLibrary(
 	}
 	client.SetToken(token)
 
-	// Check if we should skip teams on free license
-	if skipTeamsOnFreeLicense {
-		// Check if license is free
-		appConfig, err := client.GetAppConfig()
-		if err != nil {
-			level.Debug(logger).Log("msg", "Error getting app config", "err", err)
-			// Continue even if there's an error getting the app config
-		} else if appConfig.License == nil || !appConfig.License.IsPremium() {
-			// Remove teams from specs to avoid applying them
-			level.Debug(logger).Log("msg", "Free license detected, skipping teams and team-related content in starter library")
-			specs.Teams = nil
+	// Always check if license is free and skip teams for free licenses
+	appConfig, err := client.GetAppConfig()
+	if err != nil {
+		level.Debug(logger).Log("msg", "Error getting app config", "err", err)
+		// Continue even if there's an error getting the app config
+	} else if appConfig.License == nil || !appConfig.License.IsPremium() {
+		// Remove teams from specs to avoid applying them
+		level.Debug(logger).Log("msg", "Free license detected, skipping teams and team-related content in starter library")
+		specs.Teams = nil
 
-			// Filter out policies that reference teams
-			if specs.Policies != nil {
-				var filteredPolicies []*fleet.PolicySpec
-				for _, policy := range specs.Policies {
-					// Keep only policies that don't reference a team
-					if policy.Team == "" {
-						filteredPolicies = append(filteredPolicies, policy)
-					}
+		// Filter out policies that reference teams
+		if specs.Policies != nil {
+			var filteredPolicies []*fleet.PolicySpec
+			for _, policy := range specs.Policies {
+				// Keep only policies that don't reference a team
+				if policy.Team == "" {
+					filteredPolicies = append(filteredPolicies, policy)
 				}
-				specs.Policies = filteredPolicies
 			}
+			specs.Policies = filteredPolicies
+		}
 
-			// Note: QuerySpec doesn't have a Team field, so we can't filter queries by team
+		// Note: QuerySpec doesn't have a Team field, so we can't filter queries by team
 
-			// Remove scripts from AppConfig if present
-			if specs.AppConfig != nil {
-				appConfigMap, ok := specs.AppConfig.(map[string]interface{})
-				if ok {
-					// Remove scripts from AppConfig
-					delete(appConfigMap, "scripts")
-				}
+		// Remove scripts from AppConfig if present
+		if specs.AppConfig != nil {
+			appConfigMap, ok := specs.AppConfig.(map[string]interface{})
+			if ok {
+				// Remove scripts from AppConfig
+				delete(appConfigMap, "scripts")
 			}
 		}
 	}

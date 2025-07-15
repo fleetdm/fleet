@@ -482,7 +482,6 @@ func TestApplyStarterLibraryWithMockClient(t *testing.T) {
 		httpClientFactory,
 		clientFactory,
 		mockApplyGroup,
-		false, // Don't skip teams on free license for this test
 	)
 
 	// Verify results
@@ -577,7 +576,6 @@ func TestApplyStarterLibraryWithMalformedYAML(t *testing.T) {
 		httpClientFactory,
 		clientFactory,
 		mockApplyGroup,
-		false, // Don't skip teams on free license for this test
 	)
 
 	// Verify results
@@ -675,7 +673,7 @@ func TestApplyStarterLibraryWithFreeLicense(t *testing.T) {
 		return nil
 	}
 
-	// Call the function under test with skipTeamsOnFreeLicense=true
+	// Call the function under test - teams will be skipped automatically for free license
 	testErr := ApplyStarterLibrary(
 		context.Background(),
 		"https://example.com",
@@ -684,7 +682,6 @@ func TestApplyStarterLibraryWithFreeLicense(t *testing.T) {
 		httpClientFactory,
 		clientFactory,
 		mockApplyGroup,
-		true, // Skip teams on free license
 	)
 
 	// Verify results

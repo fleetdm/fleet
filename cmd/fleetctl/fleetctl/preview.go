@@ -44,6 +44,7 @@ const (
 	osquerydChannel           = "osqueryd-channel"
 	updateURL                 = "update-url"
 	updateRootKeys            = "update-roots"
+	starterLibraryFilePath    = "starter-library-file-path"
 	previewConfigPathFlagName = "preview-config-path"
 	disableOpenBrowser        = "disable-open-browser"
 
@@ -140,6 +141,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			&cli.StringFlag{
 				Name:  updateRootKeys,
 				Usage: "Use custom update TUF root keys",
+				Value: "",
+			},
+			&cli.StringFlag{
+				Name:  starterLibraryFilePath,
+				Usage: "Use custom starter library yml file (used for development/testing)",
 				Value: "",
 			},
 			&cli.StringFlag{
@@ -371,8 +377,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				kitlog.NewLogfmtLogger(os.Stderr),
 				fleethttp.NewClient,
 				service.NewClient,
-				nil,  // No mock ApplyGroup for production code
-				true, // Skip teams on free license for preview
+				nil, // No mock ApplyGroup for production code
 			); err != nil {
 				return fmt.Errorf("failed to apply starter library: %w", err)
 			}
