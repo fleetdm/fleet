@@ -12,10 +12,14 @@ import (
 
 func SetOrbitEnrollment(t *testing.T, h *fleet.Host, ds fleet.Datastore) string {
 	orbitKey := uuid.New().String()
-	_, err := ds.EnrollOrbit(context.Background(), false, fleet.OrbitHostInfo{
-		HardwareUUID:   *h.OsqueryHostID,
-		HardwareSerial: h.HardwareSerial,
-	}, orbitKey, h.TeamID)
+	_, err := ds.EnrollOrbit(context.Background(),
+		fleet.WithOrbitEnrollHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID:   *h.OsqueryHostID,
+			HardwareSerial: h.HardwareSerial,
+		}),
+		fleet.WithOrbitEnrollNodeKey(orbitKey),
+		fleet.WithOrbitEnrollTeamID(h.TeamID),
+	)
 	require.NoError(t, err)
 	err = ds.SetOrUpdateHostOrbitInfo(
 		context.Background(), h.ID, "1.22.0", sql.NullString{String: "42", Valid: true}, sql.NullBool{Bool: true, Valid: true},

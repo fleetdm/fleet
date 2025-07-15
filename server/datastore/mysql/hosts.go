@@ -2024,7 +2024,17 @@ func matchHostDuringEnrollment(
 	}, nil
 }
 
-func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+	orbitConfig := &fleet.DatastoreEnrollOrbitConfig{}
+	for _, opt := range opts {
+		opt(orbitConfig)
+	}
+
+	isMDMEnabled := orbitConfig.IsMDMEnabled
+	hostInfo := orbitConfig.HostInfo
+	orbitNodeKey := orbitConfig.OrbitNodeKey
+	teamID := orbitConfig.TeamID
+
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
 	}

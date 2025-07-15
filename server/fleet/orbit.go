@@ -108,6 +108,45 @@ type OrbitHostInfo struct {
 	HardwareModel string
 }
 
+// DatastoreEnrollOrbitConfig holds the configuration for datastore Orbit enrollment
+type DatastoreEnrollOrbitConfig struct {
+	IsMDMEnabled bool
+	HostInfo     OrbitHostInfo
+	OrbitNodeKey string
+	TeamID       *uint
+}
+
+// DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
+type DatastoreEnrollOrbitOption func(*DatastoreEnrollOrbitConfig)
+
+// WithOrbitEnrollMDMEnabled sets the MDM enabled flag for datastore Orbit enrollment
+func WithOrbitEnrollMDMEnabled(enabled bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.IsMDMEnabled = enabled
+	}
+}
+
+// WithOrbitEnrollHostInfo sets the host information for datastore Orbit enrollment
+func WithOrbitEnrollHostInfo(hostInfo OrbitHostInfo) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.HostInfo = hostInfo
+	}
+}
+
+// WithOrbitEnrollNodeKey sets the orbit node key for datastore Orbit enrollment
+func WithOrbitEnrollNodeKey(nodeKey string) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.OrbitNodeKey = nodeKey
+	}
+}
+
+// WithOrbitEnrollTeamID sets the team ID for datastore Orbit enrollment
+func WithOrbitEnrollTeamID(teamID *uint) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.TeamID = teamID
+	}
+}
+
 // ExtensionInfo holds the data of a osquery extension to apply to an Orbit client.
 type ExtensionInfo struct {
 	// Platform is one of "windows", "linux" or "macos".

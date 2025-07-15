@@ -165,7 +165,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
 	}
 
-	host, err := svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
+	host, err := svc.ds.EnrollOrbit(ctx,
+		fleet.WithOrbitEnrollMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithOrbitEnrollHostInfo(hostInfo),
+		fleet.WithOrbitEnrollNodeKey(orbitNodeKey),
+		fleet.WithOrbitEnrollTeamID(secret.TeamID),
+	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
 	}

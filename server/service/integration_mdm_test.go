@@ -9669,10 +9669,14 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 
 			// re-enroll the host, simulating that another user received the wiped host
 			newOrbitKey := uuid.New().String()
-			newHost, err := s.ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
-				HardwareUUID:   *host.OsqueryHostID,
-				HardwareSerial: host.HardwareSerial,
-			}, newOrbitKey, nil)
+			newHost, err := s.ds.EnrollOrbit(ctx,
+				fleet.WithOrbitEnrollMDMEnabled(true),
+				fleet.WithOrbitEnrollHostInfo(fleet.OrbitHostInfo{
+					HardwareUUID:   *host.OsqueryHostID,
+					HardwareSerial: host.HardwareSerial,
+				}),
+				fleet.WithOrbitEnrollNodeKey(newOrbitKey),
+			)
 			require.NoError(t, err)
 			// it re-enrolled using the same host record
 			require.Equal(t, host.ID, newHost.ID)

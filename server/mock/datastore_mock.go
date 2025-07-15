@@ -753,7 +753,7 @@ type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, isNew 
 
 type EnrollHostFunc func(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
-type EnrollOrbitFunc func(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
+type EnrollOrbitFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -6062,11 +6062,11 @@ func (s *DataStore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHo
 	return s.EnrollHostFunc(ctx, isMDMEnabled, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey, teamID, cooldown)
 }
 
-func (s *DataStore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (s *DataStore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.EnrollOrbitFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnrollOrbitFunc(ctx, isMDMEnabled, hostInfo, orbitNodeKey, teamID)
+	return s.EnrollOrbitFunc(ctx, opts...)
 }
 
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {

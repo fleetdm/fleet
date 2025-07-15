@@ -1049,7 +1049,7 @@ type Datastore interface {
 	// EnrollOrbit will enroll a new orbit instance.
 	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
 	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
-	EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo OrbitHostInfo, orbitNodeKey string, teamID *uint) (*Host, error)
+	EnrollOrbit(ctx context.Context, opts ...DatastoreEnrollOrbitOption) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
