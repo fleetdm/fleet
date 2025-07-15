@@ -102,6 +102,7 @@ func TriggerFailingPoliciesAutomation(
 			return ctxerr.Wrapf(ctx, err, "get policy: %d", policyID)
 		}
 
+		// TODO - also depend on primo mode flag here, for increased assurance
 		if policy.TeamID != nil && *policy.TeamID != 0 {
 			// handle team policy other than no team
 			teamCfg, err := getTeam(ctx, *policy.TeamID)
