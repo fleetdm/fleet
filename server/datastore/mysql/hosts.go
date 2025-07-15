@@ -2326,7 +2326,8 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
         h.orbit_node_key,
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
         COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
+        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+        EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert
       FROM
         hosts h
       LEFT OUTER JOIN
@@ -2586,7 +2587,8 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       hd.encrypted as disk_encryption_enabled,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert
     FROM
       host_device_auth hda
     INNER JOIN
