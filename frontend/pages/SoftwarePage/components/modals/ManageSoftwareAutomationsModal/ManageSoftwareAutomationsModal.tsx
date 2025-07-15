@@ -19,7 +19,6 @@ import {
   IIntegration,
   IGlobalIntegrations,
   IIntegrationType,
-  IZendeskJiraIntegrations,
 } from "interfaces/integration";
 import {
   IConfig,
