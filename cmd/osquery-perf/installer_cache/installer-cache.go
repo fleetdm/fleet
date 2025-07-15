@@ -3,6 +3,7 @@ package installer_cache
 import (
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
@@ -74,6 +75,11 @@ func (c *Metadata) populateMetadata(installer *fleet.SoftwareInstallDetails, orb
 			return nil, err
 		}
 	}
+
+	if strings.HasSuffix(path, ".dmg") || strings.HasSuffix(path, ".zip") {
+		return &file.InstallerMetadata{}, nil
+	}
+
 	// Figure out what we're actually installing here and add it to software inventory
 	tfr, err := fleet.NewKeepFileReader(path)
 	if err != nil {
