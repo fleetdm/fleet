@@ -97,18 +97,16 @@ const ManageAutomationsModal = ({
     softwareConfig?.webhook_settings?.vulnerabilities_webhook;
   const softwareVulnerabilityWebhookEnabled = !!vulnWebhookSettings?.enable_vulnerabilities_webhook;
   const currentDestinationUrl = vulnWebhookSettings?.destination_url || "";
-  const isVulnIntegrationEnabled = (
-    integrations?: IZendeskJiraIntegrations
-  ) => {
-    return (
-      !!integrations?.jira?.some((j) => j.enable_software_vulnerabilities) ||
-      !!integrations?.zendesk?.some((z) => z.enable_software_vulnerabilities)
+  const isVulnIntegrationEnabled =
+    !!softwareConfig?.integrations.jira?.some(
+      (j) => j.enable_software_vulnerabilities
+    ) ||
+    !!softwareConfig?.integrations.zendesk?.some(
+      (z) => z.enable_software_vulnerabilities
     );
-  };
 
   const softwareVulnerabilityAutomationEnabled =
-    softwareVulnerabilityWebhookEnabled ||
-    isVulnIntegrationEnabled(softwareConfig?.integrations);
+    softwareVulnerabilityWebhookEnabled || isVulnIntegrationEnabled;
 
   const [destinationUrl, setDestinationUrl] = useState(
     currentDestinationUrl || ""

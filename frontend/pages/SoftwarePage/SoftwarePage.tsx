@@ -4,20 +4,9 @@ import { useQuery } from "react-query";
 import { Tab, TabList, Tabs } from "react-tabs";
 
 import PATHS from "router/paths";
-import {
-  IConfig,
-  CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
-} from "interfaces/config";
-import {
-  IJiraIntegration,
-  IZendeskIntegration,
-  IZendeskJiraIntegrations,
-} from "interfaces/integration";
-import {
-  API_NO_TEAM_ID,
-  APP_CONTEXT_ALL_TEAMS_ID,
-  ITeamConfig,
-} from "interfaces/team";
+import { IConfig } from "interfaces/config";
+import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
 import { SelectedPlatform } from "interfaces/platform";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
@@ -139,8 +128,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     isTeamMaintainer,
     isPremiumTier,
   } = useContext(AppContext);
+
   const isPrimoMode =
     globalConfigFromContext?.partnerships?.enable_primo || false;
+
   const { renderFlash } = useContext(NotificationContext);
 
   const queryParams = location.query;

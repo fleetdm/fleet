@@ -1292,21 +1292,16 @@ const ManagePolicyPage = ({
         </div>
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
-          /**
-           how to make this work when "No teams" is selected and in Primo mode:
-            
-            automationsConfig
-              
-          */
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
             availableIntegrations={automationsConfig.integrations}
-            availablePolicies={policiesAvailableToAutomate} // approach - policies in  have update target all teams
+            availablePolicies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
-            onSubmit={onUpdateOtherWorkflows} // approach - update as if All teams
-            // TODO - send API_CONTEXT_ALL_TEAMS_ID if we want to include all policies
-            teamId={currentTeamId ?? 0} // todo: confirm - primoMode same as all teams
+            onSubmit={onUpdateOtherWorkflows}
+            // TODO(question for customer) - send API_CONTEXT_ALL_TEAMS_ID if we want to include all
+            // policies in modal listed policies
+            teamId={currentTeamId ?? 0}
             gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
