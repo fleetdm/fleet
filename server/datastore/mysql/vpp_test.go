@@ -1959,3 +1959,7 @@ func testGetAllVPPApps(t *testing.T, ds *Datastore) {
 
 	require.Equal(t, apps, []*fleet.VPPApp{app1, app2, app3})
 }
+
+func testGetUnverifiedVPPInstallsForHost(t *testing.T, ds *Datastore) {
+
+}
