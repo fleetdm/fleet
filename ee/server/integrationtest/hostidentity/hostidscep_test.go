@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,10 +82,11 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
 	require.NotEmpty(t, caCerts)
 
 	// Create CSR using ECC key
+	hostIdentifier := "test-host-identity"
 	csrTemplate := x509util.CertificateRequest{
 		CertificateRequest: x509.CertificateRequest{
 			Subject: pkix.Name{
-				CommonName: "test-host-identity",
+				CommonName: hostIdentifier,
 			},
 			SignatureAlgorithm: x509.ECDSAWithSHA256,
 		},
@@ -155,6 +158,23 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
 	require.NotNil(t, storedPubKey)
 	assert.True(t, certPubKey.Equal(storedPubKey), "Stored public key should match certificate public key")
 	assert.Equal(t, curve, storedPubKey.Curve, "Stored public key should use the expected elliptic curve")
+
+	// Test orbit enrollment with the certificate
+	type EnrollOrbitResponse struct {
+		OrbitNodeKey string `json:"orbit_node_key,omitempty"`
+		Err          error  `json:"error,omitempty"`
+	}
+
+	// This request is cent without an HTTP signature, so it should fail.
+	var enrollResp EnrollOrbitResponse
+	s.DoJSON(t, "POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
+		EnrollSecret:      testEnrollmentSecret,
+		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
+		HardwareSerial:    "test-serial-" + cert.Subject.CommonName,
+		Hostname:          "test-hostname-" + cert.Subject.CommonName,
+		OsqueryIdentifier: cert.Subject.CommonName,
+	}, http.StatusUnauthorized, &enrollResp)
+
 }
 
 func createTempRSAKeyAndCert(t *testing.T, commonName string) (*rsa.PrivateKey, *x509.Certificate) {

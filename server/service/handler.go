@@ -972,7 +972,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// This endpoint is unauthenticated and is used by to retrieve the MDM enrollment Terms of Use
 	neWindowsMDM.GET(microsoft_mdm.MDE2TOSPath, mdmMicrosoftTOSEndpoint, MDMWebContainer{})
 
-	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, EnrollOrbitRequest{})
+	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, contract.EnrollOrbitRequest{})
 
 	// For some reason osquery does not provide a node key with the block data.
 	// Instead the carve session ID should be verified in the service method.

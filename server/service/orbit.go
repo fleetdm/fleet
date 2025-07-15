@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
@@ -27,27 +28,6 @@ import (
 
 type setOrbitNodeKeyer interface {
 	setOrbitNodeKey(nodeKey string)
-}
-
-// EnrollOrbitRequest is the request Orbit instances use to enroll to Fleet.
-type EnrollOrbitRequest struct {
-	// EnrollSecret is the secret to authenticate the enroll request.
-	EnrollSecret string `json:"enroll_secret"`
-	// HardwareUUID is the device's hardware UUID.
-	HardwareUUID string `json:"hardware_uuid"`
-	// HardwareSerial is the device's serial number.
-	HardwareSerial string `json:"hardware_serial"`
-	// Hostname is the device's hostname.
-	Hostname string `json:"hostname"`
-	// Platform is the device's platform as defined by osquery.
-	Platform string `json:"platform"`
-	// OsqueryIdentifier holds the identifier used by osquery.
-	// If not set, then the hardware UUID is used to match orbit and osquery.
-	OsqueryIdentifier string `json:"osquery_identifier"`
-	// ComputerName is the device's friendly name (optional).
-	ComputerName string `json:"computer_name"`
-	// HardwareModel is the device's hardware model.
-	HardwareModel string `json:"hardware_model"`
 }
 
 type EnrollOrbitResponse struct {
@@ -90,7 +70,7 @@ func (r EnrollOrbitResponse) HijackRender(ctx context.Context, w http.ResponseWr
 }
 
 func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*EnrollOrbitRequest)
+	req := request.(*contract.EnrollOrbitRequest)
 	nodeKey, err := svc.EnrollOrbit(ctx, fleet.OrbitHostInfo{
 		HardwareUUID:      req.HardwareUUID,
 		HardwareSerial:    req.HardwareSerial,
@@ -163,6 +143,22 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", fleet.OrbitError{Message: err.Error()}
 	}
 
+	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostInfo.OsqueryIdentifier)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
+	}
+
+	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
+	if identityCert != nil {
+		hostIdentityCert, ok := httpsig.FromContext(ctx)
+		if !ok {
+			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
+		}
+		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
+		}
+	}
+
 	orbitNodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to generate orbit node key: " + err.Error()}
@@ -178,6 +174,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		fleet.WithEnrollOrbitHostInfo(hostInfo),
 		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
 		fleet.WithEnrollOrbitTeamID(secret.TeamID),
+		fleet.WithEnrollOrbitIdentityCert(identityCert),
 	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}

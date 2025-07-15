@@ -10151,7 +10151,7 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 	require.NoError(t, err)
 
 	var resp endpoint_utils.JsonError
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
 		EnrollSecret:   uuid.New().String(),
 		HardwareUUID:   h.UUID,
 		HardwareSerial: h.HardwareSerial,
@@ -10190,7 +10190,7 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	// the provided uuid).
 	var resp EnrollOrbitResponse
 	hostUUID := uuid.New().String()
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
 		EnrollSecret:   secret,
 		HardwareUUID:   hostUUID, // will not match any existing host
 		HardwareSerial: h.HardwareSerial,

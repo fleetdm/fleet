@@ -63,6 +63,7 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -2728,7 +2729,7 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	hostUUID := uuid.New().String()
 	h.ComputerName = "My Mac"
 	h.HardwareModel = "MacBook Pro"
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
 		EnrollSecret:   secret,
 		HardwareUUID:   hostUUID, // will not match any existing host
 		HardwareSerial: h.HardwareSerial,
@@ -8121,7 +8122,7 @@ func (s *integrationMDMTestSuite) TestUpdateMDMWindowsEnrollmentsHostUUID() {
 	var resp EnrollOrbitResponse
 	hostUUID := uuid.New().String()
 	hostSerial := "test-host-serial"
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
 		EnrollSecret:   secret,
 		HardwareUUID:   hostUUID,
 		HardwareSerial: hostSerial,

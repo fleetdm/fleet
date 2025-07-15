@@ -2025,15 +2025,15 @@ func matchHostDuringEnrollment(
 }
 
 func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
-	orbitConfig := &fleet.DatastoreEnrollOrbitConfig{}
+	enrollConfig := &fleet.DatastoreEnrollOrbitConfig{}
 	for _, opt := range opts {
-		opt(orbitConfig)
+		opt(enrollConfig)
 	}
 
-	isMDMEnabled := orbitConfig.IsMDMEnabled
-	hostInfo := orbitConfig.HostInfo
-	orbitNodeKey := orbitConfig.OrbitNodeKey
-	teamID := orbitConfig.TeamID
+	isMDMEnabled := enrollConfig.IsMDMEnabled
+	hostInfo := enrollConfig.HostInfo
+	orbitNodeKey := enrollConfig.OrbitNodeKey
+	teamID := enrollConfig.TeamID
 
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
@@ -2077,6 +2077,13 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					"host_id", enrolledHostInfo.ID,
 				)
 			}
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil &&
+				*enrollConfig.IdentityCert.HostID != enrolledHostInfo.ID {
+				return ctxerr.New(ctx, "orbit host identity cert host id does not match enrolled host id. "+
+					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", hostInfo.OsqueryIdentifier))
+			}
+
 			refetchRequested := fleet.PlatformSupportsOsquery(enrolledHostInfo.Platform)
 
 			sqlUpdate := `
@@ -2122,6 +2129,12 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 
 		case errors.Is(err, sql.ErrNoRows):
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil {
+				return ctxerr.New(ctx, fmt.Sprintf("orbit host identity cert %s already belongs to another host with host id: %d",
+					hostInfo.OsqueryIdentifier, *enrollConfig.IdentityCert.HostID))
+			}
+
 			zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
@@ -2179,6 +2192,15 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		default:
 			return ctxerr.Wrap(ctx, err, "orbit enroll error selecting host details")
 		}
+
+		// Update the host id for the identity certificate
+		if enrollConfig.IdentityCert != nil {
+			err = updateHostIdentityCertHostIDBySerial(ctx, tx, host.ID, enrollConfig.IdentityCert.SerialNumber)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update host identity cert host id")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
