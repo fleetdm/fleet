@@ -73,6 +73,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
 		return certRep.Raw, err
 	}
+
 	certRep, err := msg.Success(cert.Leaf, pk, crt)
 	return certRep.Raw, err
 }
