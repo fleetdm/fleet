@@ -37,20 +37,23 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 		env = append(env, fmt.Sprintf("%s=%s", nv[0], nv[1]))
 	}
 
-	env = append(env, path)
-
+	// Hold any command line arguments to pass to the command.
+	cmdArgs := make([]string, 0, len(opts.args)*2)
 	if len(opts.args) > 0 {
 		for _, arg := range opts.args {
-			env = append(env, arg[0], arg[1])
+			cmdArgs = append(cmdArgs, arg[0])
+			if arg[1] != "" {
+				cmdArgs = append(cmdArgs, arg[1])
+			}
 		}
 	}
 
 	// If the user has an SELinux context, we run the command with runcon so that it has the correct context.
 	// Otherwise, we run the command directly.
 	if userContext != nil {
-		args = append(args, "-c", fmt.Sprintf("runcon \"%s\" env %s %s", *userContext, strings.Join(env, " "), path))
+		args = append(args, "-c", fmt.Sprintf("runcon \"%s\" env %s %s %s", *userContext, strings.Join(env, " "), path, strings.Join(cmdArgs, " ")))
 	} else {
-		args = append(args, "-c", fmt.Sprintf("%s %s", strings.Join(env, " "), path))
+		args = append(args, "-c", fmt.Sprintf("%s %s %s", strings.Join(env, " "), path, strings.Join(cmdArgs, " ")))
 	}
 
 	// Use runuser to run the command as the login user.
