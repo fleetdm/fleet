@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "25151.505.3727.5755",
+      "version": "25163.3001.3726.6503",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2';"
       },
-      "installer_url": "https://statics.teams.cdn.office.net/production-osx/25151.505.3727.5755/MicrosoftTeams.pkg",
+      "installer_url": "https://statics.teams.cdn.office.net/production-osx/25163.3001.3726.6503/MicrosoftTeams.pkg",
       "install_script_ref": "68cd6c20",
       "uninstall_script_ref": "60c2994d",
-      "sha256": "80fd06f2509034aebaee936c6981d20ec67ab73f8efb939281f0650f397b4b57",
+      "sha256": "7c7b55e886e7fb94dce1ae44364deb701eb5a6f58db2c4c827754a3fd3f2a538",
       "default_categories": [
         "Communication"
       ]
