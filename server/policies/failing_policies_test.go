@@ -15,6 +15,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type policyAutomation struct {
+	polID      uint
+	automation FailingPolicyAutomationType
+}
+
 func TestTriggerFailingPolicies(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -29,6 +34,12 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	// pol-unknown-11: policy that does not exist anymore, id 11
 	// pol-teamD-{12-14}: team D policies (only 12 and 13 is enabled), ids 12-13-14
 	// pol-teamE-15: team E policy, integration does not exist at the global level
+
+	// Note re No-team policies in this context: Though can't set a no team policy to trigger an automation
+	// in the UI, it can still theoretically be done via the API. In such a case, current logic
+	// will try to find a team 0 config, which doesn't exist, and error. TODO - either make the
+	// determination that this case should always use the global config (as it now does in Primo
+	// mode), or confirm we expect an error here.
 	//
 	// Global config uses the webhook, team A a Jira integration, team B a
 	// Zendesk integration, team D a webhook.
@@ -44,6 +55,8 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		8:  {ID: 8, Name: "pol-teamB-8", TeamID: ptr.Uint(2)},
 		9:  {ID: 9, Name: "pol-teamB-9", TeamID: ptr.Uint(2)},
 		10: {ID: 10, Name: "pol-teamC-10", TeamID: ptr.Uint(3)},
+		// intentionally omit 11 for testing the edge case where a policy failure is received for a
+		// non-existent policy (see below)
 		12: {ID: 12, Name: "pol-teamD-12", TeamID: ptr.Uint(4)},
 		13: {ID: 13, Name: "pol-teamD-13", TeamID: ptr.Uint(4)},
 		14: {ID: 14, Name: "pol-teamD-14", TeamID: ptr.Uint(4)},
@@ -153,17 +166,13 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		})
 		require.NoError(t, err)
 	}
-	// add a failing policy for the unknown one
+	// add a policy failure for a non-existent policy
 	err := failingPolicySet.AddHost(11, fleet.PolicySetHost{
 		ID:       11,
 		Hostname: "host11.example",
 	})
 	require.NoError(t, err)
 
-	type policyAutomation struct {
-		polID      uint
-		automation FailingPolicyAutomationType
-	}
 	var triggerCalls []policyAutomation
 	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
 		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
@@ -224,4 +233,219 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	// order of calls is undefined
 	require.ElementsMatch(t, wantCalls, triggerCalls)
 	require.Zero(t, countHosts)
+
+	// test No team policy failure in Primo mode
+	failingPolicySet = service.NewMemFailingPolicySet()
+	err = failingPolicySet.AddHost(1, fleet.PolicySetHost{
+		ID:       1, // use policy ID as host ID, does not matter in the test
+		Hostname: fmt.Sprintf("host%d.example", 1),
+	})
+	require.NoError(t, err)
+
+	triggerCalls = triggerCalls[:0]
+	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
+
+		hosts, err := failingPolicySet.ListHosts(pol.ID)
+		require.NoError(t, err)
+		err = failingPolicySet.RemoveHosts(pol.ID, hosts)
+		require.NoError(t, err)
+
+		return nil
+	}, true) // enablePrimo
+	require.NoError(t, err)
+
+	wantCalls = []policyAutomation{
+		{1, FailingPolicyWebhook},
+	}
+	// order of calls is undefined
+	require.ElementsMatch(t, wantCalls, triggerCalls)
+}
+
+func TestTriggerFailingPoliciesWithEnablePrimo(t *testing.T) {
+	// Failing no-team policy automations in Primo mode, which are on No-team (team 0) should use the global config instead of a team config
+	ds := new(mock.Store)
+
+	pols := map[uint]*fleet.PolicyData{
+		1: {ID: 1, Name: "pol-primo-no-team-1"}, // expected to trigger a webhook
+		// TODO
+		// 2: {ID: 2, Name: "pol-primo-no-team-2"}, // expected to trigger a Jira integration
+		// 3: {ID: 2, Name: "pol-primo-no-team-3"}, // expected to trigger a Zendesk integration
+	}
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		pd, ok := pols[id]
+		if !ok {
+			return nil, ctxerr.Wrap(ctx, sql.ErrNoRows)
+		}
+		return &fleet.Policy{PolicyData: *pd}, nil
+	}
+
+	// Global config with webhook
+	ac := &fleet.AppConfig{
+		WebhookSettings: fleet.WebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable:    true,
+				PolicyIDs: []uint{1},
+			},
+		},
+		// Integrations: fleet.Integrations{
+		// 	Jira: []*fleet.JiraIntegration{
+		// 		{URL: "http://j.com", ProjectKey: "A", Username: "jirauser", APIToken: "secret"},
+		// 	},
+		// 	Zendesk: []*fleet.ZendeskIntegration{
+		// 		{URL: "http://z.com", GroupID: 1, Email: "zendesk@z.com", APIToken: "secret"},
+		// 	},
+		// },
+		// ServerSettings: fleet.ServerSettings{
+		// 	ServerURL: "https://fleet.example.com",
+		// },
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return ac, nil
+	}
+
+	// add a failing policy host for every known policy
+	failingPolicySet := service.NewMemFailingPolicySet()
+	for polID := range pols {
+		err := failingPolicySet.AddHost(polID, fleet.PolicySetHost{
+			ID:       polID, // use policy ID as host ID, does not matter in the test
+			Hostname: fmt.Sprintf("host%d.example", polID),
+		})
+		require.NoError(t, err)
+	}
+
+	var triggerCalls []policyAutomation
+	err := TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
+
+		hosts, err := failingPolicySet.ListHosts(pol.ID)
+		require.NoError(t, err)
+		err = failingPolicySet.RemoveHosts(pol.ID, hosts)
+		require.NoError(t, err)
+
+		return nil
+	}, true) // enablePrimo
+	require.NoError(t, err)
+
+	wantCalls := []policyAutomation{
+		{1, FailingPolicyWebhook},
+		// TODO
+		// {2, FailingPolicyJira},
+		// {3, FailingPolicyZendesk},
+	}
+	// order of calls is undefined
+	require.ElementsMatch(t, wantCalls, triggerCalls)
+
+	// TODO - test Jira, Zendesk global integrations
+	// Global config with Jira
+	// ac := &fleet.AppConfig{
+	// 	WebhookSettings: fleet.WebhookSettings{
+	// 		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	// 			Enable:    true,
+	// 			PolicyIDs: []uint{1},
+	// 		},
+	// 	},
+	// 	Integrations: fleet.Integrations{
+	// 		Jira: []*fleet.JiraIntegration{
+	// 			{URL: "http://j.com", ProjectKey: "A", Username: "jirauser", APIToken: "secret"},
+	// 		},
+	// 		Zendesk: []*fleet.ZendeskIntegration{
+	// 			{URL: "http://z.com", GroupID: 1, Email: "zendesk@z.com", APIToken: "secret"},
+	// 		},
+	// 	},
+	// 	ServerSettings: fleet.ServerSettings{
+	// 		ServerURL: "https://fleet.example.com",
+	// 	},
+	// }
+
+	// ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+	// 	return ac, nil
+	// }
+
+	// // add a failing policy host for every known policy
+	// failingPolicySet := service.NewMemFailingPolicySet()
+	// for polID := range pols {
+	// 	err := failingPolicySet.AddHost(polID, fleet.PolicySetHost{
+	// 		ID:       polID, // use policy ID as host ID, does not matter in the test
+	// 		Hostname: fmt.Sprintf("host%d.example", polID),
+	// 	})
+	// 	require.NoError(t, err)
+	// }
+
+	// var triggerCalls []policyAutomation
+	// err := TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+	// 	triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
+
+	// 	hosts, err := failingPolicySet.ListHosts(pol.ID)
+	// 	require.NoError(t, err)
+	// 	err = failingPolicySet.RemoveHosts(pol.ID, hosts)
+	// 	require.NoError(t, err)
+
+	// 	return nil
+	// }, true) // enablePrimo
+	// require.NoError(t, err)
+
+	// wantCalls := []policyAutomation{
+	// 	{1, FailingPolicyWebhook},
+	// 	{2, FailingPolicyJira},
+	// 	{3, FailingPolicyZendesk},
+	// }
+	// // order of calls is undefined
+	// require.ElementsMatch(t, wantCalls, triggerCalls)
+	// // Global config with webhook
+	// ac := &fleet.AppConfig{
+	// 	WebhookSettings: fleet.WebhookSettings{
+	// 		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	// 			Enable:    true,
+	// 			PolicyIDs: []uint{1},
+	// 		},
+	// 	},
+	// 	Integrations: fleet.Integrations{
+	// 		Jira: []*fleet.JiraIntegration{
+	// 			{URL: "http://j.com", ProjectKey: "A", Username: "jirauser", APIToken: "secret"},
+	// 		},
+	// 		Zendesk: []*fleet.ZendeskIntegration{
+	// 			{URL: "http://z.com", GroupID: 1, Email: "zendesk@z.com", APIToken: "secret"},
+	// 		},
+	// 	},
+	// 	ServerSettings: fleet.ServerSettings{
+	// 		ServerURL: "https://fleet.example.com",
+	// 	},
+	// }
+
+	// ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+	// 	return ac, nil
+	// }
+
+	// // add a failing policy host for every known policy
+	// failingPolicySet := service.NewMemFailingPolicySet()
+	// for polID := range pols {
+	// 	err := failingPolicySet.AddHost(polID, fleet.PolicySetHost{
+	// 		ID:       polID, // use policy ID as host ID, does not matter in the test
+	// 		Hostname: fmt.Sprintf("host%d.example", polID),
+	// 	})
+	// 	require.NoError(t, err)
+	// }
+
+	// var triggerCalls []policyAutomation
+	// err := TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+	// 	triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
+
+	// 	hosts, err := failingPolicySet.ListHosts(pol.ID)
+	// 	require.NoError(t, err)
+	// 	err = failingPolicySet.RemoveHosts(pol.ID, hosts)
+	// 	require.NoError(t, err)
+
+	// 	return nil
+	// }, true) // enablePrimo
+	// require.NoError(t, err)
+
+	// wantCalls := []policyAutomation{
+	// 	{1, FailingPolicyWebhook},
+	// 	{2, FailingPolicyJira},
+	// 	{3, FailingPolicyZendesk},
+	// }
+	// // order of calls is undefined
+	// require.ElementsMatch(t, wantCalls, triggerCalls)
 }
