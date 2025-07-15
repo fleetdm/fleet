@@ -124,11 +124,13 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 
 	var teamName *string
 	if teamID != 0 {
-		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+			}
+			teamName = &team.Name
 		}
-		teamName = &team.Name
 	}
 
 	if err := svc.NewActivity(
@@ -472,11 +474,13 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 
 	var teamName *string
 	if teamID != 0 {
-		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+			}
+			teamName = &team.Name
 		}
-		teamName = &team.Name
 	}
 
 	for _, id := range deletedIDs {
@@ -676,11 +680,13 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	var teamName *string
 	if teamID != nil && *teamID != 0 {
-		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "fetching team details")
+			}
+			teamName = &team.Name
 		}
-		teamName = &team.Name
 	}
 
 	if err := svc.NewActivity(
