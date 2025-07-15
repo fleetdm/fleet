@@ -1,23 +1,27 @@
 package hostidentity
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/remitly-oss/httpsig-go"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,15 +51,17 @@ func TestHostIdentitySCEP(t *testing.T) {
 
 func testGetCert(t *testing.T, s *Suite) {
 	t.Run("ECC P256", func(t *testing.T) {
-		testGetCertWithCurve(t, s, elliptic.P256())
+		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P256())
+		testOrbitEnrollment(t, s, cert, eccPrivateKey)
 	})
 
 	t.Run("ECC P384", func(t *testing.T) {
-		testGetCertWithCurve(t, s, elliptic.P384())
+		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
+		testOrbitEnrollment(t, s, cert, eccPrivateKey)
 	})
 }
 
-func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
+func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
 	ctx := t.Context()
 	// Create an enrollment secret
 	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{
@@ -66,7 +72,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
 	require.NoError(t, err)
 
 	// Create ECC private key with specified curve
-	eccPrivateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+	eccPrivateKey, err = ecdsa.GenerateKey(curve, rand.Reader)
 	require.NoError(t, err)
 
 	// Create SCEP client
@@ -131,7 +137,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
 	require.NotNil(t, pkiMsgResp.CertRepMessage.Certificate)
 
 	// Verify the certificate was signed by the CA
-	cert := pkiMsgResp.CertRepMessage.Certificate
+	cert = pkiMsgResp.CertRepMessage.Certificate
 	require.NotNil(t, cert)
 
 	// Verify certificate properties
@@ -159,22 +165,187 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) {
 	assert.True(t, certPubKey.Equal(storedPubKey), "Stored public key should match certificate public key")
 	assert.Equal(t, curve, storedPubKey.Curve, "Stored public key should use the expected elliptic curve")
 
+	return cert, eccPrivateKey
+}
+
+func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
 	// Test orbit enrollment with the certificate
 	type EnrollOrbitResponse struct {
 		OrbitNodeKey string `json:"orbit_node_key,omitempty"`
 		Err          error  `json:"error,omitempty"`
 	}
 
-	// This request is cent without an HTTP signature, so it should fail.
-	var enrollResp EnrollOrbitResponse
-	s.DoJSON(t, "POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
+	enrollRequest := contract.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + cert.Subject.CommonName,
 		Hostname:          "test-hostname-" + cert.Subject.CommonName,
 		OsqueryIdentifier: cert.Subject.CommonName,
-	}, http.StatusUnauthorized, &enrollResp)
+	}
 
+	// This request is sent without an HTTP signature, so it should fail.
+	var enrollResp EnrollOrbitResponse
+	s.DoJSON(t, "POST", "/api/fleet/orbit/enroll", enrollRequest, http.StatusUnauthorized, &enrollResp)
+
+	// Now send the same request with an HTTP signature
+	reqBody, err := json.Marshal(enrollRequest)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Determine the algorithm based on the curve
+	var algo httpsig.Algorithm
+	switch eccPrivateKey.Curve {
+	case elliptic.P256():
+		algo = httpsig.Algo_ECDSA_P256_SHA256
+	case elliptic.P384():
+		algo = httpsig.Algo_ECDSA_P384_SHA384
+	default:
+		t.Fatalf("Unsupported curve: %v", eccPrivateKey.Curve)
+	}
+
+	// Create signer
+	signer, err := httpsig.NewSigner(httpsig.SigningProfile{
+		Algorithm: algo,
+		// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
+		Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
+		Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
+	}, httpsig.SigningKey{
+		Key:       eccPrivateKey,
+		MetaKeyID: fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+	})
+	require.NoError(t, err)
+
+	// Sign the request
+	err = signer.Sign(req)
+	require.NoError(t, err)
+
+	// Send the signed request
+	client := fleethttp.NewClient()
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	// The request with a valid HTTP signature should succeed
+	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Request with HTTP signature should succeed")
+
+	// Parse the response
+	var signedEnrollResp EnrollOrbitResponse
+	err = json.NewDecoder(httpResp.Body).Decode(&signedEnrollResp)
+	require.NoError(t, err)
+	require.NotEmpty(t, signedEnrollResp.OrbitNodeKey, "Should receive orbit node key")
+	require.NoError(t, signedEnrollResp.Err)
+
+	// Send the same request again. We don't have replay protection, so it should succeed.
+	httpResp, err = client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Same request with HTTP signature should succeed")
+	// Parse the response
+	signedEnrollResp = EnrollOrbitResponse{}
+	err = json.NewDecoder(httpResp.Body).Decode(&signedEnrollResp)
+	require.NoError(t, err)
+	require.NotEmpty(t, signedEnrollResp.OrbitNodeKey, "Should receive orbit node key")
+	require.NoError(t, signedEnrollResp.Err)
+
+	// Test /api/fleet/orbit/config endpoint with different signature scenarios
+	t.Run("config endpoint signature tests", func(t *testing.T) {
+		type configRequest struct {
+			OrbitNodeKey string `json:"orbit_node_key"`
+		}
+
+		testCases := []struct {
+			name           string
+			setupRequest   func() (*http.Request, error)
+			expectedStatus int
+		}{
+			{
+				name: "without signature",
+				setupRequest: func() (*http.Request, error) {
+					configReq := configRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
+					reqBody, err := json.Marshal(configReq)
+					if err != nil {
+						return nil, err
+					}
+					req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(reqBody))
+					if err != nil {
+						return nil, err
+					}
+					req.Header.Set("Content-Type", "application/json")
+					return req, nil
+				},
+				expectedStatus: http.StatusUnauthorized,
+			},
+			{
+				name: "with valid signature",
+				setupRequest: func() (*http.Request, error) {
+					configReq := configRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
+					reqBody, err := json.Marshal(configReq)
+					if err != nil {
+						return nil, err
+					}
+					req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(reqBody))
+					if err != nil {
+						return nil, err
+					}
+					req.Header.Set("Content-Type", "application/json")
+
+					err = signer.Sign(req)
+					if err != nil {
+						return nil, err
+					}
+					return req, nil
+				},
+				expectedStatus: http.StatusOK,
+			},
+			{
+				name: "with corrupted signature",
+				setupRequest: func() (*http.Request, error) {
+					configReq := configRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
+					reqBody, err := json.Marshal(configReq)
+					if err != nil {
+						return nil, err
+					}
+					req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(reqBody))
+					if err != nil {
+						return nil, err
+					}
+					req.Header.Set("Content-Type", "application/json")
+
+					// Sign with the correct signer first
+					err = signer.Sign(req)
+					if err != nil {
+						return nil, err
+					}
+
+					// Then corrupt the signature by modifying the signature header
+					sigHeader := req.Header.Get("Signature")
+					if sigHeader != "" {
+						// Corrupt the signature by changing the last character
+						corrupted := sigHeader[:len(sigHeader)-1] + "X"
+						req.Header.Set("Signature", corrupted)
+					}
+					return req, nil
+				},
+				expectedStatus: http.StatusUnauthorized,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				req, err := tc.setupRequest()
+				require.NoError(t, err)
+
+				httpResp, err := client.Do(req)
+				require.NoError(t, err)
+				defer httpResp.Body.Close()
+
+				require.Equal(t, tc.expectedStatus, httpResp.StatusCode)
+			})
+		}
+	})
 }
 
 func createTempRSAKeyAndCert(t *testing.T, commonName string) (*rsa.PrivateKey, *x509.Certificate) {

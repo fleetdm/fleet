@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
@@ -19,7 +21,10 @@ func (ds *Datastore) GetHostIdentityCertBySerialNumber(ctx context.Context, seri
 		WHERE serial = %d
 			AND not_valid_after > NOW()
 			AND revoked = 0`, serialNumber))
-	if err != nil {
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, notFound("host identity certificate")
+	case err != nil:
 		return nil, err
 	}
 	return &hostIdentityCert, nil
@@ -47,7 +52,10 @@ func (ds *Datastore) GetHostIdentityCertByName(ctx context.Context, name string)
 		WHERE name = ?
 			AND not_valid_after > NOW()
 			AND revoked = 0`, name)
-	if err != nil {
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, notFound("host identity certificate")
+	case err != nil:
 		return nil, err
 	}
 	return &hostIdentityCert, nil
