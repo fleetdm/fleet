@@ -4682,7 +4682,11 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, *depAssignment.ABMTokenID, abmToken.ID)
 
 		// simulate initial osquery enrollment via Orbit
-		testHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}, depOrbitNodeKey, nil)
+		testHost, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}),
+			fleet.WithEnrollOrbitNodeKey(depOrbitNodeKey),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, testHost)
 
@@ -4831,7 +4835,11 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Nil(t, hdepa)
 
 		// simulate initial osquery enrollment via Orbit
-		manualHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: manualSerial, Platform: "darwin", HardwareUUID: manualUUID, Hostname: "maunual-host"}, manualOrbitNodeKey, nil)
+		manualHost, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareSerial: manualSerial, Platform: "darwin", HardwareUUID: manualUUID, Hostname: "maunual-host"}),
+			fleet.WithEnrollOrbitNodeKey(manualOrbitNodeKey),
+		)
 		require.NoError(t, err)
 		require.Equal(t, manualHostID, manualHost.ID)
 
@@ -5939,12 +5947,16 @@ func TestRestorePendingDEPHost(t *testing.T) {
 			require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 5*time.Second)
 
 			// simulate initial osquery enrollment via Orbit
-			h, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
-				HardwareSerial: depSerial,
-				Platform:       "darwin",
-				HardwareUUID:   depUUID,
-				Hostname:       "dep-host",
-			}, depOrbitNodeKey, nil)
+			h, err := ds.EnrollOrbit(ctx,
+				fleet.WithEnrollOrbitMDMEnabled(true),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+					HardwareSerial: depSerial,
+					Platform:       "darwin",
+					HardwareUUID:   depUUID,
+					Hostname:       "dep-host",
+				}),
+				fleet.WithEnrollOrbitNodeKey(depOrbitNodeKey),
+			)
 			require.NoError(t, err)
 			require.NotNil(t, h)
 			require.Equal(t, depHostID, h.ID)
