@@ -61,7 +61,7 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 		args = append([]string{"timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds()))}, args...)
 	}
 
-	cmd = exec.Command(args[0], args[1:]...)
+	cmd = exec.Command(args[0], args[1:]...) // #nosec G204
 	return
 }
 
