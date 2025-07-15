@@ -1299,8 +1299,6 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}
-            // TODO(question for customer) - send API_CONTEXT_ALL_TEAMS_ID if we want to include all
-            // policies in modal listed policies
             teamId={currentTeamId ?? 0}
             gitOpsModeEnabled={gitOpsModeEnabled}
           />
