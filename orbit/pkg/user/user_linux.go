@@ -77,13 +77,23 @@ func GetUserContext(user *User) *string {
 	if _, err := os.Stat("/sys/fs/selinux/enforce"); err != nil {
 		return nil
 	}
+	// If runcon is not available, we won't be able to switch contexts,
+	// so return nil.
+	if _, err := exec.LookPath("runcon"); err != nil {
+		log.Warn().Msg("runcon not available, returning nil for user context since we can't switch contexts")
+		return nil
+	}
 	// Find the first systemd process for the user and read its SELinux context.
-	pids, err := exec.Command("pgrep", "-u", strconv.FormatInt(user.ID, 10), "-nx", "systemd").Output() // #nosec G204
+	pidBytes, err := exec.Command("pgrep", "-u", strconv.FormatInt(user.ID, 10), "-nx", "systemd").Output() // #nosec G204
 	if err != nil {
 		log.Debug().Msgf("Error finding systemd process for user %s: %v", user.Name, err)
 		return nil
 	}
-	pid := strings.TrimSpace(string(pids))
+	pid := strings.TrimSpace(string(pidBytes))
+	if pid == "" {
+		log.Debug().Msgf("No systemd process found for user %s", user.Name)
+		return nil
+	}
 	ctx, err := os.ReadFile("/proc/" + pid + "/attr/current")
 	if err != nil {
 		log.Debug().Msgf("Error reading SELinux context for user %s: %v", user.Name, err)
