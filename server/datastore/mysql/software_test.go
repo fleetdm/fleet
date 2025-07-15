@@ -3657,6 +3657,9 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			}
 			builder.WriteString("Expected:\n")
 			for _, e := range expected {
+				if expectOmitted != nil && slices.Contains(expectOmitted, e.Name+e.Source) {
+					continue
+				}
 				builder.WriteString(fmt.Sprintf("%+v\n", e))
 			}
 			return builder.String()
@@ -3667,7 +3670,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 			for _, omit := range expectOmitted {
 				if g.Name+g.Source == omit {
-					t.Errorf("Did not expect %s in results", omit)
+					fmt.Printf("%s\n", gotToString())
+					require.FailNowf(t, "Found unexpected software in results", fmt.Sprintf("Found %s", omit))
 					continue
 				}
 			}
@@ -4206,7 +4210,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 6}, meta)
-	compareResults(expected, sw, true, i0.Name+i0.Source, i2.Name+i2.Source, i3.Name+i3.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source)
+	compareResults(expected, sw, true, i1.Name+i1.Source, i2.Name+i2.Source, i3.Name+i3.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source)
 
 	// request with available software
 	expected[byNSV[b].Name+byNSV[b].Source].SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}
@@ -4328,7 +4332,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 6}, meta)
-	compareResults(expected, sw, true, i0.Name+i0.Source, i3.Name+i3.Source, i2.Name+i2.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source) // i3 is for team, i2 is available (excluded)
+	compareResults(expected, sw, true, i1.Name+i1.Source, i3.Name+i3.Source, i2.Name+i2.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source) // i3 is for team, i2 is available (excluded)
 
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
