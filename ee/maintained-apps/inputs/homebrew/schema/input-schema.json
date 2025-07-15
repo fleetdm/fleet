@@ -67,12 +67,14 @@
     "install_script_path": {
       "type": "string",
       "description": "A filepath to an install script. If provided, this script will override the generated install script.",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\.sh$"
     },
     "uninstall_script_path": {
       "type": "string",
       "description": "A filepath to an uninstall script. If provided, this script will override the generated uninstall script.",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "\\.sh$"
     }
   },
   "not": {
