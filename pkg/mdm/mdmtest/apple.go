@@ -713,13 +713,19 @@ func (c *TestAppleMDMClient) Authenticate() error {
 
 // TokenUpdate sends the TokenUpdate message to the MDM server (Check In protocol).
 func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
+	pushMagic := "pushmagic" + c.SerialNumber
+	token := []byte("token" + c.SerialNumber)
+	if c.SerialNumber == "" {
+		pushMagic = "pushmagic" + c.UUID
+		token = []byte("token" + c.UUID)
+	}
 	payload := map[string]any{
 		"MessageType":  "TokenUpdate",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"NotOnConsole": "false",
-		"PushMagic":    "pushmagic" + c.UUID,
-		"Token":        []byte("token" + c.UUID),
+		"PushMagic":    pushMagic,
+		"Token":        token,
 	}
 	if !c.fetchEnrollmentProfileFromMDMBYOD {
 		payload["UDID"] = c.UUID
@@ -737,14 +743,20 @@ func (c *TestAppleMDMClient) UserTokenUpdate() error {
 	if c.UserUUID == "" || c.Username == "" {
 		return errors.New("user UUID and username must be set for user enrollment")
 	}
+	pushMagic := "pushmagic.user." + c.SerialNumber
+	token := []byte("token.user." + c.SerialNumber)
+	if c.SerialNumber == "" {
+		pushMagic = "pushmagic.user." + c.UUID
+		token = []byte("token.user." + c.UUID)
+	}
 	payload := map[string]any{
 		"MessageType":   "TokenUpdate",
 		"UDID":          c.UUID,
 		"Topic":         "com.apple.mgmt.External." + c.UUID,
 		"EnrollmentID":  "testenrollmentid-" + c.UUID,
 		"NotOnConsole":  "false",
-		"PushMagic":     "pushmagic.user." + c.UUID,
-		"Token":         []byte("token.user." + c.UUID),
+		"PushMagic":     pushMagic,
+		"Token":         token,
 		"UserID":        c.UserUUID,
 		"UserLongName":  c.Username,
 		"UserShortName": c.Username,
