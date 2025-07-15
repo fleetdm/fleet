@@ -119,29 +119,29 @@ type DatastoreEnrollOrbitConfig struct {
 // DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
 type DatastoreEnrollOrbitOption func(*DatastoreEnrollOrbitConfig)
 
-// WithOrbitEnrollMDMEnabled sets the MDM enabled flag for datastore Orbit enrollment
-func WithOrbitEnrollMDMEnabled(enabled bool) DatastoreEnrollOrbitOption {
+// WithEnrollOrbitMDMEnabled sets the MDM enabled flag for datastore Orbit enrollment
+func WithEnrollOrbitMDMEnabled(enabled bool) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.IsMDMEnabled = enabled
 	}
 }
 
-// WithOrbitEnrollHostInfo sets the host information for datastore Orbit enrollment
-func WithOrbitEnrollHostInfo(hostInfo OrbitHostInfo) DatastoreEnrollOrbitOption {
+// WithEnrollOrbitHostInfo sets the host information for datastore Orbit enrollment
+func WithEnrollOrbitHostInfo(hostInfo OrbitHostInfo) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.HostInfo = hostInfo
 	}
 }
 
-// WithOrbitEnrollNodeKey sets the orbit node key for datastore Orbit enrollment
-func WithOrbitEnrollNodeKey(nodeKey string) DatastoreEnrollOrbitOption {
+// WithEnrollOrbitNodeKey sets the orbit node key for datastore Orbit enrollment
+func WithEnrollOrbitNodeKey(nodeKey string) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.OrbitNodeKey = nodeKey
 	}
 }
 
-// WithOrbitEnrollTeamID sets the team ID for datastore Orbit enrollment
-func WithOrbitEnrollTeamID(teamID *uint) DatastoreEnrollOrbitOption {
+// WithEnrollOrbitTeamID sets the team ID for datastore Orbit enrollment
+func WithEnrollOrbitTeamID(teamID *uint) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.TeamID = teamID
 	}

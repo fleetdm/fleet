@@ -4596,9 +4596,9 @@ func TestHostDEPAssignments(t *testing.T) {
 
 		// simulate initial osquery enrollment via Orbit
 		testHost, err := ds.EnrollOrbit(ctx,
-			fleet.WithOrbitEnrollMDMEnabled(true),
-			fleet.WithOrbitEnrollHostInfo(fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}),
-			fleet.WithOrbitEnrollNodeKey(depOrbitNodeKey),
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}),
+			fleet.WithEnrollOrbitNodeKey(depOrbitNodeKey),
 		)
 		require.NoError(t, err)
 		require.NotNil(t, testHost)
@@ -4749,9 +4749,9 @@ func TestHostDEPAssignments(t *testing.T) {
 
 		// simulate initial osquery enrollment via Orbit
 		manualHost, err := ds.EnrollOrbit(ctx,
-			fleet.WithOrbitEnrollMDMEnabled(true),
-			fleet.WithOrbitEnrollHostInfo(fleet.OrbitHostInfo{HardwareSerial: manualSerial, Platform: "darwin", HardwareUUID: manualUUID, Hostname: "maunual-host"}),
-			fleet.WithOrbitEnrollNodeKey(manualOrbitNodeKey),
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareSerial: manualSerial, Platform: "darwin", HardwareUUID: manualUUID, Hostname: "maunual-host"}),
+			fleet.WithEnrollOrbitNodeKey(manualOrbitNodeKey),
 		)
 		require.NoError(t, err)
 		require.Equal(t, manualHostID, manualHost.ID)
@@ -5861,14 +5861,14 @@ func TestRestorePendingDEPHost(t *testing.T) {
 
 			// simulate initial osquery enrollment via Orbit
 			h, err := ds.EnrollOrbit(ctx,
-				fleet.WithOrbitEnrollMDMEnabled(true),
-				fleet.WithOrbitEnrollHostInfo(fleet.OrbitHostInfo{
+				fleet.WithEnrollOrbitMDMEnabled(true),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 					HardwareSerial: depSerial,
 					Platform:       "darwin",
 					HardwareUUID:   depUUID,
 					Hostname:       "dep-host",
 				}),
-				fleet.WithOrbitEnrollNodeKey(depOrbitNodeKey),
+				fleet.WithEnrollOrbitNodeKey(depOrbitNodeKey),
 			)
 			require.NoError(t, err)
 			require.NotNil(t, h)
