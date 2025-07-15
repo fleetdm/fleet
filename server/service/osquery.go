@@ -148,7 +148,15 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
-	host, err := svc.ds.EnrollHost(ctx, appConfig.MDM.EnabledAndConfigured, hostIdentifier, hardwareUUID, hardwareSerial, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
+	host, err := svc.ds.EnrollHost(ctx,
+		fleet.WithEnrollHostMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithEnrollHostOsqueryHostID(hostIdentifier),
+		fleet.WithEnrollHostHardwareUUID(hardwareUUID),
+		fleet.WithEnrollHostHardwareSerial(hardwareSerial),
+		fleet.WithEnrollHostNodeKey(nodeKey),
+		fleet.WithEnrollHostTeamID(secret.TeamID),
+		fleet.WithEnrollHostCooldown(svc.config.Osquery.EnrollCooldown),
+	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
 	}
