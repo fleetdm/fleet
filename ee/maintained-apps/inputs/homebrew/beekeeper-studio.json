@@ -4,5 +4,7 @@
    "unique_identifier": "io.beekeeperstudio.desktop",
    "token": "beekeeper-studio",
    "installer_format": "dmg",
+   "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/beekeeper_studio_install.sh",
+   "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/beekeeper_studio_uninstall.sh",
    "default_categories": ["Developer tools"]
 }
