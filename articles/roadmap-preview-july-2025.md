@@ -24,7 +24,7 @@ For IT Admins:
 - ⏰ Schedule scripts to run once, at a specific time, or on a recurring schedule
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
-- 🤖 Auto-complete osquery queries (SQL), Bash scripts, and PowerShell scripts
+- 📊 Vulnerability (CVE) graphs/visualizations
 - 🔊 Network scanning (via Nmap)
 - 📉 Report time-to-fix (aka "timeframes") for top vulnerabilities
 
