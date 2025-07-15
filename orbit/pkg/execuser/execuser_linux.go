@@ -181,7 +181,7 @@ func getUserAndDisplayArgs(path string) ([]string, []string, *string, error) {
 	env := make([]string, 0)
 
 	if userDisplaySessionType == userpkg.GuiSessionTypeWayland {
-		args = append(args, "WAYLAND_DISPLAY="+display)
+		env = append(env, "WAYLAND_DISPLAY="+display)
 		// For xdg-open to work on a Wayland session we still need to set the DISPLAY variable.
 		x11Display := ":" + strings.TrimPrefix(display, "wayland-")
 		env = append(env, "DISPLAY="+x11Display)
