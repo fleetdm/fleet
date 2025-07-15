@@ -3156,7 +3156,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 
 	token := "much_valid"
 	host := createHostAndDeviceToken(t, s.ds, token)
-	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	qr, err := s.ds.NewQuery(ctx, &fleet.Query{
@@ -4062,7 +4062,7 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	require.NotContains(t, dqResp.Queries, "fleet_additional_query_time")
 
 	// add the host to team1
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
@@ -4561,7 +4561,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	err = s.ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
@@ -4706,7 +4706,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team0, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team0.ID, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team0.ID, []uint{hosts[0].ID})))
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", fmt.Sprintf("%d", team0.ID))
 	require.Len(t, osVersionsResp.OSVersions, 0)
 
@@ -4751,7 +4751,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// Move host from team0 to team1
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 1)
@@ -4778,7 +4778,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Len(t, osVersionsResp.OSVersions, 0)
 	osVersionsResp = osVersionsResponse{}
 	// move the host to "no team" and update the stats
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), nil, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(nil, []uint{hosts[0].ID})))
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", "0")
 	require.Len(t, osVersionsResp.OSVersions, 1)
@@ -6565,7 +6565,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	host1 := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
 	host2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
 	host3Team1 := createOrbitEnrolledHost(t, "linux", "host3team1", s.ds)
-	err = s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{host3Team1.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host3Team1.ID}))
 	require.NoError(t, err)
 
 	script, err := s.ds.NewScript(ctx, &fleet.Script{
@@ -8212,7 +8212,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	require.NoError(t, err)
 
 	// add the host to team1
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{linuxHost.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{linuxHost.ID}))
 	require.NoError(t, err)
 
 	// get distributed queries for the host
@@ -8360,7 +8360,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, err)
 	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{tmHost.ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{tmHost.ID})))
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
@@ -9391,7 +9391,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 		Description: "desc team1",
 	})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{tmHost.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{tmHost.ID}))
 	require.NoError(t, err)
 	team2, err := s.ds.NewTeam(ctx, &fleet.Team{
 		ID:          43,
@@ -10264,7 +10264,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	require.NoError(t, err)
 
 	// Transfer host to team2.
-	err = s.ds.AddHostsToTeam(ctx, &team2.ID, []uint{host1.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host1.ID}))
 	require.NoError(t, err)
 
 	// host1 is failing team2's policy too.
@@ -10284,7 +10284,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	require.Equal(t, hostCalendarEvent2.CalendarEventID, hostCalendarEvent.CalendarEventID)
 
 	// Transfer host to global.
-	err = s.ds.AddHostsToTeam(ctx, nil, []uint{host1.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{host1.ID}))
 	require.NoError(t, err)
 
 	// Move event to two days ago (to clean up the calendar event)
@@ -10318,9 +10318,9 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 	require.NoError(t, err)
 
 	// move a couple hosts to tm1, one to tm2
-	err = s.ds.AddHostsToTeam(ctx, &tm1.ID, []uint{hosts[0].ID, hosts[1].ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm1.ID, []uint{hosts[0].ID, hosts[1].ID}))
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[2].ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm2.ID, []uint{hosts[2].ID}))
 	require.NoError(t, err)
 
 	// create new users for tm1, tm2 and one with both tm1 and tm2
@@ -11117,7 +11117,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// create an orbit host, assign to team
 		hostInTeam := createOrbitEnrolledHost(t, "linux", "orbit-host-team", s.ds)
-		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &createTeamResp.Team.ID, []uint{hostInTeam.ID}))
+		require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&createTeamResp.Team.ID, []uint{hostInTeam.ID})))
 
 		// Create a software installation request
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
@@ -12027,7 +12027,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 		Platform:        "ubuntu",
 	})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{h.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&tm.ID, []uint{h.ID}))
 	require.NoError(t, err)
 	h.TeamID = &tm.ID
 
@@ -12047,7 +12047,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 		Platform:        "ubuntu",
 	})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{h2.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&tm.ID, []uint{h2.ID}))
 	require.NoError(t, err)
 	h2.TeamID = &tm.ID
 
@@ -12381,7 +12381,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 		require.NoError(t, err)
 		setOrbitEnrollment(t, h, s.ds)
 
-		err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{h.ID})
+		err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&tm.ID, []uint{h.ID}))
 		require.NoError(t, err)
 
 		hostsByPlatform[platform] = h
@@ -12490,7 +12490,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		Platform:        "ubuntu",
 	})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), teamID, []uint{h.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(teamID, []uint{h.ID}))
 	require.NoError(t, err)
 	h.TeamID = teamID
 
@@ -12584,7 +12584,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	h2 := createOrbitEnrolledHost(t, "linuxmint", "host2", s.ds)
 	h3 := createOrbitEnrolledHost(t, "debian", "host3", s.ds)
 	h4 := createOrbitEnrolledHost(t, "tuxedo", "host4", s.ds)
-	err = s.ds.AddHostsToTeam(context.Background(), teamID, []uint{h2.ID, h3.ID, h4.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(teamID, []uint{h2.ID, h3.ID, h4.ID}))
 	require.NoError(t, err)
 
 	// cancel pending refetches so we can see when refetches are queued
@@ -13363,7 +13363,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "host_soft_delete_team"})
 	require.NoError(t, err)
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
-	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	// create an anonymous script execution request
@@ -13658,7 +13658,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
@@ -13887,7 +13887,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	software := []fleet.Software{
@@ -13973,7 +13973,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	software := []fleet.Software{

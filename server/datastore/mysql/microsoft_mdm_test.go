@@ -490,7 +490,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			require.False(t, tm.Config.MDM.EnableDiskEncryption) // disk encryption is not enabled for team
 
 			// Transfer hosts[2] to the team
-			require.NoError(t, ds.AddHostsToTeam(ctx, &team.ID, []uint{hosts[2].ID}))
+			require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hosts[2].ID})))
 
 			// Check the summary for the team
 			checkExpected(t, &team.ID, hostIDsByDEStatus{}) // disk encryption is not enabled for team so hosts[2] is not counted
@@ -1100,7 +1100,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		require.NotNil(t, t1)
 
 		// transfer hosts[1:2] to the team
-		require.NoError(t, ds.AddHostsToTeam(ctx, &t1.ID, []uint{hosts[1].ID, hosts[2].ID}))
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&t1.ID, []uint{hosts[1].ID, hosts[2].ID})))
 
 		// hosts[1:2] now counted for the team, hosts[2] is counted as verifying again because
 		// disk encryption is not enabled for the team
@@ -1629,7 +1629,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	require.Empty(t, toRemove)
 
 	// add host1 to team
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID}))
 	require.NoError(t, err)
 
 	// profiles to be added for host1 are now related to the team

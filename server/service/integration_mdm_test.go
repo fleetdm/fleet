@@ -2114,7 +2114,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	checkDecryptableKey(u)
 
 	// add the host to a team
-	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	// admins are still able to see the token
@@ -2486,7 +2486,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 
 	// host 1,2 added to team 1
 	tm, _ := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
-	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{hosts[0].ID, hosts[1].ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[0].ID, hosts[1].ID}))
 	require.NoError(t, err)
 
 	// new filevault profile for team 1
@@ -5197,7 +5197,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	require.NoError(t, err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/profiles", h1.ID), getHostRequest{}, http.StatusForbidden, &getHostResponse{})
 
-	err = s.ds.AddHostsToTeam(ctx, &t1.ID, []uint{h1.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&t1.ID, []uint{h1.ID}))
 	require.NoError(t, err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/profiles", h1.ID), getHostRequest{}, http.StatusOK, &getHostResponse{})
 }
@@ -6692,7 +6692,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
 	require.NoError(t, err)
 	checkMigrationResponses(host, token)
 }
@@ -6774,7 +6774,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		}
 
 		if meta.teamID != nil {
-			err = s.ds.AddHostsToTeam(ctx, meta.teamID, []uint{host.ID})
+			err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(meta.teamID, []uint{host.ID}))
 			require.NoError(t, err)
 		}
 		hostsBySuffix[meta.suffix] = host
@@ -6933,7 +6933,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	s.assertMacOSDeclarationsByName(&team.ID, servermdm.FleetMacOSUpdatesProfileName, false)
 
 	// add the host to the team
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{h.ID}))
 	require.NoError(t, err)
 
 	// NudgeConfig should be empty
@@ -8246,7 +8246,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	})
 	require.NoError(t, err)
 	// add the host to the team
-	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{windowsHost.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&tm.ID, []uint{windowsHost.ID}))
 	require.NoError(t, err)
 
 	// notification is false now since the team doesn't have disk encryption enabled
@@ -11175,7 +11175,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), &tmGood.ID, []uint{hValid.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&tmGood.ID, []uint{hValid.ID}))
 	require.NoError(t, err)
 
 	ctx := context.Background()

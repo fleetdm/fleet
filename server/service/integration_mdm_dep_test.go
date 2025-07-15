@@ -1084,7 +1084,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	var device1ID uint
 	for _, h := range listHostsRes.Hosts {
 		if h.HardwareSerial == devices[1].SerialNumber {
-			err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{h.ID})
+			err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h.ID}))
 			require.NoError(t, err)
 			device1ID = h.ID
 			break
@@ -2899,7 +2899,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{teamHost.ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
 
 	// this helper function calls the /enroll endpoint with the supplied machineInfo (from the test
 	// case) and checks for the expected response
