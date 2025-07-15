@@ -62,6 +62,11 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 			expected: &expectedWithSlash,
 		},
 		{
+			name:  "invalid format with extra slash without escape",
+			input: "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM/invalid",
+			err:   true,
+		},
+		{
 			name:  "invalid format with wrong separator",
 			input: "C=US,O=Fleet Device Management Inc.,OU=Fleet Device Management Inc.,CN=FleetDM",
 			err:   true,
