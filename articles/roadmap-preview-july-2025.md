@@ -18,7 +18,7 @@ For IT Admins:
 - 👨‍💻 100 Fleet-maintained apps for macOS & Windows (50 each)
 - 📦 Different apps, OS settings, and queries for different employees based on department
 - 👔 Custom new Windows and Linux setup
-- 💻 Host vitals as variables in scripts and configuration profiles
+- 💻 Inject foreign host vitals from your identity provider (IdP) in scripts and configuration profiles
 - 🤖 Configuration profiles, OS updates, and software management for BYOD Android
 - 🧪 Deploy your in-house iOS apps so the entire company can test
 - ⏰ Schedule scripts to run once, at a specific time, or on a recurring schedule
