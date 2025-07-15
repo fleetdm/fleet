@@ -11,7 +11,7 @@ In the next 3 months, Fleet will ship...
 For Security Engineers:
 - 📊 Vulnerability (CVE) graphs/visualizations
 - 🔍 Complex host filters (any host vital)
-- 📄 Deploy certificates for Wi-Fi and VPN on Windows and Linux computers
+- 📄 Deploy certificates for Wi-Fi and VPN on personal mobile devices (iOS/iPadOS, Android) and company-owned Windows, & Linux computers
 
 For IT Admins:
 - 🍏 Account-based user enrollment for personal Apple devices (BYOD)
