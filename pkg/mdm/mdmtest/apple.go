@@ -56,6 +56,12 @@ type TestAppleMDMClient struct {
 	// Username is the username of a simulated user. Only filled in if a user enrollment is done
 	Username string
 
+	// SecretUUID is a random fake unique ID of a simulated device used for providing consistent
+	// identifiers for enrollments like Apple's Account Driven User Enrollment in which the device
+	// never actually provides a UDID to the server, instead generating a random one for each
+	// enrollment
+	secretUUID string
+
 	// fleetServerURL is the URL of the Fleet server, used to fetch the enrollment profile.
 	fleetServerURL string
 
@@ -213,16 +219,23 @@ func NewTestMDMClientAppleAccountDrivenUserEnrollment(serverURL, model, authoriz
 	// NB An Account Driven User Enrollment has no actual UDID or serial but does have a randomly
 	// generated enrollment ID
 	c := TestAppleMDMClient{
-		UUID:                              strings.ToUpper(uuid.New().String()),
 		Model:                             model,
 		fetchEnrollmentProfileFromMDMBYOD: true,
 		authorizationBearerToken:          authorizationBearerToken,
 		fleetServerURL:                    serverURL,
 	}
+	c.secretUUID = strings.ToUpper(uuid.New().String())
 	for _, fn := range opts {
 		fn(&c)
 	}
 	return &c
+}
+
+func (c *TestAppleMDMClient) identifier() string {
+	if c.UUID != "" {
+		return c.UUID
+	}
+	return c.secretUUID
 }
 
 func (c *TestAppleMDMClient) SetDesktopToken(tok string) {
@@ -580,7 +593,7 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 	}
 
 	// (3). Generate CSR.
-	cn := fmt.Sprintf("fleet-testdevice-%s", c.UUID)
+	cn := fmt.Sprintf("fleet-testdevice-%s", c.identifier())
 	csrTemplate := x509util.CertificateRequest{
 		CertificateRequest: x509.CertificateRequest{
 			Subject: pkix.Name{
@@ -696,8 +709,8 @@ func (c *TestAppleMDMClient) Authenticate() error {
 	payload := map[string]any{
 		"MessageType":  "Authenticate",
 		"Model":        c.Model,
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.identifier(),
 	}
 	if !c.fetchEnrollmentProfileFromMDMBYOD {
 		payload["UDID"] = c.UUID
@@ -716,18 +729,18 @@ func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 	pushMagic := "pushmagic" + c.SerialNumber
 	token := []byte("token" + c.SerialNumber)
 	if c.SerialNumber == "" {
-		pushMagic = "pushmagic" + c.UUID
-		token = []byte("token" + c.UUID)
+		pushMagic = "pushmagic" + c.identifier()
+		token = []byte("token" + c.identifier())
 	}
 	payload := map[string]any{
 		"MessageType":  "TokenUpdate",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.identifier(),
 		"NotOnConsole": "false",
 		"PushMagic":    pushMagic,
 		"Token":        token,
 	}
-	if !c.fetchEnrollmentProfileFromMDMBYOD {
+	if c.UUID != "" {
 		payload["UDID"] = c.UUID
 	}
 	if awaitingConfiguration {
@@ -746,20 +759,22 @@ func (c *TestAppleMDMClient) UserTokenUpdate() error {
 	pushMagic := "pushmagic.user." + c.SerialNumber
 	token := []byte("token.user." + c.SerialNumber)
 	if c.SerialNumber == "" {
-		pushMagic = "pushmagic.user." + c.UUID
-		token = []byte("token.user." + c.UUID)
+		pushMagic = "pushmagic.user." + c.identifier()
+		token = []byte("token.user." + c.identifier())
 	}
 	payload := map[string]any{
 		"MessageType":   "TokenUpdate",
-		"UDID":          c.UUID,
-		"Topic":         "com.apple.mgmt.External." + c.UUID,
-		"EnrollmentID":  "testenrollmentid-" + c.UUID,
+		"Topic":         "com.apple.mgmt.External." + c.identifier(),
+		"EnrollmentID":  "testenrollmentid-" + c.identifier(),
 		"NotOnConsole":  "false",
 		"PushMagic":     pushMagic,
 		"Token":         token,
 		"UserID":        c.UserUUID,
 		"UserLongName":  c.Username,
 		"UserShortName": c.Username,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
@@ -774,10 +789,12 @@ func (c *TestAppleMDMClient) UserTokenUpdate() error {
 func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string, data ...fleet.MDMAppleDDMStatusReport) (*http.Response, error) {
 	payload := map[string]any{
 		"MessageType":  "DeclarativeManagement",
-		"UDID":         c.UUID,
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.identifier(),
 		"Endpoint":     endpoint,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	if len(data) != 0 {
 		rawData, err := json.Marshal(data[0])
@@ -794,9 +811,11 @@ func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string, data ...flee
 func (c *TestAppleMDMClient) Checkout() error {
 	payload := map[string]any{
 		"MessageType":  "CheckOut",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.identifier(),
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
 	return err
@@ -811,9 +830,11 @@ func (c *TestAppleMDMClient) Checkout() error {
 func (c *TestAppleMDMClient) Idle() (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Idle",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.identifier(),
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	return c.sendAndDecodeCommandResponse(payload)
 }
@@ -827,10 +848,12 @@ func (c *TestAppleMDMClient) Idle() (*mdm.Command, error) {
 func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Acknowledged",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.identifier(),
 		"CommandUUID":  cmdUUID,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	return c.sendAndDecodeCommandResponse(payload)
 }
@@ -844,10 +867,12 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 func (c *TestAppleMDMClient) NotNow(cmdUUID string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "NotNow",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.identifier(),
 		"CommandUUID":  cmdUUID,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	return c.sendAndDecodeCommandResponse(payload)
 }
@@ -915,9 +940,11 @@ func (c *TestAppleMDMClient) AcknowledgeCertificateList(udid, cmdUUID string, ce
 func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 	payload := map[string]any{
 		"MessageType":  "GetBootstrapToken",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.identifier(),
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	res, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
 	if err != nil {
@@ -957,11 +984,13 @@ func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Error",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.identifier(),
 		"CommandUUID":  cmdUUID,
 		"ErrorChain":   errChain,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	return c.sendAndDecodeCommandResponse(payload)
 }
