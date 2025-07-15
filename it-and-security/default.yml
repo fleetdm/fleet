@@ -106,4 +106,4 @@ labels:
   - path: ./lib/all/labels/keynote-installed.yml
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
   - path: ./lib/all/labels/team-g-mdm.yml
-  - path: ./lib/all/lables/conditional-access-test-group.yml
+  - path: ./lib/all/labels/conditional-access-test-group.yml
