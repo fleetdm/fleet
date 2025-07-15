@@ -86,3 +86,27 @@ func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string)
 func (h *HTTPSig) Fetch(_ context.Context, _ http.Header, _ httpsig.MetadataProvider) (httpsig.KeySpecer, error) {
 	return nil, errors.New("not implemented")
 }
+
+// VerifyHostIdentity checks that host identity certificate matches the node key and host ID.
+// Host identity cert is used for TPM-backed HTTP message signatures.
+// If the host has one, then all agent traffic should have HTTP message signatures unless specified otherwise.
+// The host identity certificate must match the host's node key.
+func VerifyHostIdentity(ctx context.Context, ds fleet.Datastore, host *fleet.Host) error {
+	hostIdentityCert, ok := FromContext(ctx)
+	if !ok {
+		return errors.New("authentication error: missing host identity certificate")
+	}
+	if host.OsqueryHostID == nil || *host.OsqueryHostID != hostIdentityCert.CommonName {
+		return errors.New("authentication error: http message signature does not match node key")
+	}
+	if hostIdentityCert.HostID == nil {
+		// Update the certificate
+		err := ds.UpdateHostIdentityCertHostIDBySerial(ctx, hostIdentityCert.SerialNumber, host.ID)
+		if err != nil {
+			return fmt.Errorf("authentication error: failed to update host identity certificate: %w", err)
+		}
+	} else if *hostIdentityCert.HostID != host.ID {
+		return errors.New("authentication error: http message signature does not match host ID")
+	}
+	return nil
+}
