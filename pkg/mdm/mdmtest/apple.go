@@ -696,13 +696,13 @@ func (c *TestAppleMDMClient) Authenticate() error {
 	payload := map[string]any{
 		"MessageType":  "Authenticate",
 		"Model":        c.Model,
-		"DeviceName":   "testdevice" + c.SerialNumber,
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 	}
 	if !c.fetchEnrollmentProfileFromMDMBYOD {
 		payload["UDID"] = c.UUID
 		payload["SerialNumber"] = c.SerialNumber
+		payload["DeviceName"] = "testdevice" + c.SerialNumber
 	}
 	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPad") {
 		payload["ProductName"] = c.Model
@@ -718,8 +718,8 @@ func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"NotOnConsole": "false",
-		"PushMagic":    "pushmagic" + c.SerialNumber,
-		"Token":        []byte("token" + c.SerialNumber),
+		"PushMagic":    "pushmagic" + c.UUID,
+		"Token":        []byte("token" + c.UUID),
 	}
 	if !c.fetchEnrollmentProfileFromMDMBYOD {
 		payload["UDID"] = c.UUID
@@ -743,8 +743,8 @@ func (c *TestAppleMDMClient) UserTokenUpdate() error {
 		"Topic":         "com.apple.mgmt.External." + c.UUID,
 		"EnrollmentID":  "testenrollmentid-" + c.UUID,
 		"NotOnConsole":  "false",
-		"PushMagic":     "pushmagic.user." + c.SerialNumber,
-		"Token":         []byte("token.user." + c.SerialNumber),
+		"PushMagic":     "pushmagic.user." + c.UUID,
+		"Token":         []byte("token.user." + c.UUID),
 		"UserID":        c.UserUUID,
 		"UserLongName":  c.Username,
 		"UserShortName": c.Username,

@@ -1958,7 +1958,6 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting MDM IdP account by UUID")
 	}
-	// TODO EJM can idpAccount be nil?
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -1976,9 +1975,13 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 	if err != nil {
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
+	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.MDMUrl(), enrollRef)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
+	}
 	enrollmentProf, err := apple_mdm.GenerateAccountDrivenEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
-		appConfig.MDMUrl(),
+		enrollURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 		idpAccount.Email,
@@ -3645,7 +3648,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
-		// TODO EJM DeviceLock/Erase need updates for Device (user) enrollment?
 	case "DeviceLock", "EraseDevice":
 		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||

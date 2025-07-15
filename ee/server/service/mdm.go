@@ -684,6 +684,8 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	return nil
 }
 
+const appleMDMAccountDrivenEnrollmentUrl = "/api/mdm/apple/account_driven_enroll"
+
 func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
@@ -724,7 +726,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 	// enrollment we use it to signal proper behavior on the callback.
 	originalURL := "/"
 	if initiator == "account_driven_enroll" {
-		originalURL = "/api/mdm/apple/account_driven_enroll"
+		originalURL = appleMDMAccountDrivenEnrollmentUrl
 	}
 	sessionDurationSeconds = int(svc.config.Auth.SsoSessionValidityPeriod.Seconds())
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
@@ -751,6 +753,12 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
 	}
 
+	// For account driven enrollment we have to use this special protocol URL scheme to pass the
+	// access token back to Apple which it will then use to request the enrollment profile.
+	if originalURL == appleMDMAccountDrivenEnrollmentUrl {
+		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef)
+	}
+
 	q := url.Values{
 		"profile_token":        {profileToken},
 		"enrollment_reference": {enrollmentRef},
@@ -758,12 +766,6 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 
 	if eulaToken != "" {
 		q.Add("eula_token", eulaToken)
-	}
-
-	// For account driven enrollment we have to use this special protocol URL scheme to pass the
-	// access token back to Apple which it will then use to request the enrollment profile.
-	if originalURL == "/api/mdm/apple/account_driven_enroll" {
-		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef)
 	}
 
 	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
@@ -856,6 +858,11 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 
 	if eula != nil {
 		eulaToken = eula.Token
+	}
+
+	// If this is account driven enrollment there is no need to fetch the profile
+	if originalURL == appleMDMAccountDrivenEnrollmentUrl {
+		return "", idpAcc.UUID, eulaToken, originalURL, nil
 	}
 
 	// get the automatic profile to access the authentication token.
