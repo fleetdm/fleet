@@ -2189,7 +2189,20 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 }
 
 // EnrollHost enrolls the osquery agent to Fleet.
-func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+	enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+	for _, opt := range opts {
+		opt(enrollConfig)
+	}
+
+	isMDMEnabled := enrollConfig.IsMDMEnabled
+	osqueryHostID := enrollConfig.OsqueryHostID
+	hardwareUUID := enrollConfig.HardwareUUID
+	hardwareSerial := enrollConfig.HardwareSerial
+	nodeKey := enrollConfig.NodeKey
+	teamID := enrollConfig.TeamID
+	cooldown := enrollConfig.Cooldown
+
 	if osqueryHostID == "" {
 		return nil, ctxerr.New(ctx, "missing osquery host identifier")
 	}
