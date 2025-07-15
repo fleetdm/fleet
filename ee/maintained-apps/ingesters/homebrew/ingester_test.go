@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -16,6 +17,14 @@ import (
 )
 
 func TestIngestValidations(t *testing.T) {
+	tempDir := t.TempDir()
+
+	testInstallScriptContents := "this is a test install script"
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "install_script.sh"), []byte(testInstallScriptContents), 0644))
+
+	testUninstallScriptContents := "this is a test uninstall script"
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "uninstall_script.sh"), []byte(testUninstallScriptContents), 0644))
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var cask brewCask
 
@@ -77,7 +86,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok":
+		case "ok", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -98,36 +107,47 @@ func TestIngestValidations(t *testing.T) {
 	ctx := context.Background()
 
 	cases := []struct {
-		appToken     string
-		wantErr      string
-		upsertCalled bool
+		wantErr  string
+		inputApp inputApp
 	}{
-		{"fail", "brew API returned status 500", false},
-		{"notfound", "app not found in brew API", false},
-		{"noname", "missing name for cask noname", false},
-		{"emptyname", "missing name for cask emptyname", false},
-		{"notoken", "missing token for cask notoken", false},
-		{"noversion", "missing version for cask noversion", false},
-		{"nourl", "missing URL for cask nourl", false},
-		{"invalidurl", "parse URL for cask invalidurl", false},
-		{"ok", "", true},
+		{"brew API returned status 500", inputApp{Token: "fail", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"app not found in brew API", inputApp{Token: "notfound", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"missing name for cask noname", inputApp{Token: "noname", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"missing name for cask emptyname", inputApp{Token: "emptyname", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"missing token for cask notoken", inputApp{Token: "notoken", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"missing version for cask noversion", inputApp{Token: "noversion", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"missing URL for cask nourl", inputApp{Token: "nourl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"parse URL for cask invalidurl", inputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
+		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
+		{"cannot provide pre-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_pre", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PreUninstallScripts: []string{"foo", "bar"}}},
+		{"cannot provide post-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_post", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PostUninstallScripts: []string{"foo", "bar"}}},
 	}
 	for _, c := range cases {
-		t.Run(c.appToken, func(t *testing.T) {
+		t.Run(c.inputApp.Token, func(t *testing.T) {
 			i := &brewIngester{
 				logger:  log.NewNopLogger(),
 				client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 				baseURL: srv.URL + "/",
 			}
 
-			inputApp := inputApp{Token: c.appToken, UniqueIdentifier: "abc", InstallerFormat: "pkg"}
-
-			_, err := i.ingestOne(ctx, inputApp)
-			if c.wantErr == "" {
-				require.NoError(t, err)
-			} else {
+			out, err := i.ingestOne(ctx, c.inputApp)
+			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
+				return
 			}
+
+			require.NoError(t, err)
+
+			if c.inputApp.InstallScriptPath != "" {
+				require.Equal(t, testInstallScriptContents, out.InstallScript)
+			}
+
+			if c.inputApp.UninstallScriptPath != "" {
+				require.Equal(t, testUninstallScriptContents, out.UninstallScript)
+			}
+
 		})
 	}
 }

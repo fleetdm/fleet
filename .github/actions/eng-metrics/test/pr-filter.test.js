@@ -177,7 +177,7 @@ describe('Bot Detection', () => {
       githubClient.filterBotReviews(reviews, true);
       
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'Filtered out 1 bot reviews from 2 total reviews'
+        'Filtered out 1 reviews (1 bot reviews) from 2 total reviews'
       );
     });
 
@@ -206,5 +206,123 @@ describe('Bot Detection', () => {
         expect.stringContaining('Filtered out')
       );
     });
+  });
+
+  describe('PR Creator Filtering', () => {
+    test('should filter out PR creator reviews', () => {
+      const prCreator = { login: 'prauthor', type: 'User' };
+      const reviews = [
+        {
+          user: { login: 'prauthor', type: 'User' },
+          state: 'COMMENTED',
+          submitted_at: '2023-06-15T12:00:00Z'
+        },
+        {
+          user: { login: 'reviewer1', type: 'User' },
+          state: 'APPROVED',
+          submitted_at: '2023-06-15T13:00:00Z'
+        },
+        {
+          user: { login: 'reviewer2', type: 'User' },
+          state: 'CHANGES_REQUESTED',
+          submitted_at: '2023-06-15T14:00:00Z'
+        }
+      ];
+
+      const filtered = githubClient.filterBotReviews(reviews, false, prCreator);
+      expect(filtered).toHaveLength(2);
+      expect(filtered[0].user.login).toBe('reviewer1');
+      expect(filtered[1].user.login).toBe('reviewer2');
+      
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Filtered out 1 reviews (1 PR creator reviews) from 3 total reviews'
+      );
+    });
+
+    test('should filter out multiple PR creator reviews', () => {
+      const prCreator = { login: 'prauthor', type: 'User' };
+      const reviews = [
+        {
+          user: { login: 'prauthor', type: 'User' },
+          state: 'COMMENTED',
+          submitted_at: '2023-06-15T12:00:00Z'
+        },
+        {
+          user: { login: 'reviewer1', type: 'User' },
+          state: 'APPROVED',
+          submitted_at: '2023-06-15T13:00:00Z'
+        },
+        {
+          user: { login: 'prauthor', type: 'User' },
+          state: 'COMMENTED',
+          submitted_at: '2023-06-15T14:00:00Z'
+        }
+      ];
+
+      const filtered = githubClient.filterBotReviews(reviews, false, prCreator);
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].user.login).toBe('reviewer1');
+      
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Filtered out 2 reviews (2 PR creator reviews) from 3 total reviews'
+      );
+    });
+
+    test('should not filter when prCreator is null', () => {
+      const reviews = [
+        {
+          user: { login: 'prauthor', type: 'User' },
+          state: 'COMMENTED',
+          submitted_at: '2023-06-15T12:00:00Z'
+        },
+        {
+          user: { login: 'reviewer1', type: 'User' },
+          state: 'APPROVED',
+          submitted_at: '2023-06-15T13:00:00Z'
+        }
+      ];
+
+      const filtered = githubClient.filterBotReviews(reviews, false, null);
+      expect(filtered).toHaveLength(2);
+      
+      expect(mockLogger.info).not.toHaveBeenCalledWith(
+        expect.stringContaining('Filtered out')
+      );
+    });
+
+    test('should filter both bots and PR creator', () => {
+      const prCreator = { login: 'prauthor', type: 'User' };
+      const reviews = [
+        {
+          user: { login: 'prauthor', type: 'User' },
+          state: 'COMMENTED',
+          submitted_at: '2023-06-15T12:00:00Z'
+        },
+        {
+          user: { login: 'coderabbitai[bot]', type: 'Bot' },
+          state: 'COMMENTED',
+          submitted_at: '2023-06-15T13:00:00Z'
+        },
+        {
+          user: { login: 'reviewer1', type: 'User' },
+          state: 'APPROVED',
+          submitted_at: '2023-06-15T14:00:00Z'
+        },
+        {
+          user: { login: 'dependabot[bot]', type: 'User' },
+          state: 'COMMENTED',
+          submitted_at: '2023-06-15T15:00:00Z'
+        }
+      ];
+
+      const filtered = githubClient.filterBotReviews(reviews, true, prCreator);
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].user.login).toBe('reviewer1');
+      
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Filtered out 3 reviews (2 bot reviews, 1 PR creator reviews) from 4 total reviews'
+      );
+    });
+
   });
 });
