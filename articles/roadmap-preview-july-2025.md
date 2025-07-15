@@ -21,6 +21,7 @@ For IT Admins:
 - 💻 Host vitals as variables in scripts and configuration profiles
 - 🤖 Configuration profiles, OS updates, and software management for BYOD Android
 - 🧪 Deploy your in-house iOS apps so the entire company can test
+- ⏰ Schedule scripts to run once, at a specific time, or on a recurring schedule
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 - 🤖 Auto-complete osquery queries (SQL), Bash scripts, and PowerShell scripts
