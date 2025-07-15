@@ -16,7 +16,7 @@ For Security Engineers:
 For IT Admins:
 - 🍏 Account-based user enrollment for personal Apple devices (BYOD)
 - 👨‍💻 100 Fleet-maintained apps for macOS & Windows (50 each)
-- 📅 Patch apps when end users are free
+- 📦 Different apps, OS settings, and queries for different employees based on department
 - 👔 Custom new Windows and Linux setup
 - 💻 Host vitals as variables in scripts and configuration profiles
 - 🤖 Configuration profiles, OS updates, and software management for BYOD Android
