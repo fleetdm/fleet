@@ -20,7 +20,7 @@ For IT Admins:
 - 👔 Custom new Windows and Linux setup
 - 💻 Host vitals as variables in scripts and configuration profiles
 - 🤖 Configuration profiles, OS updates, and software management for BYOD Android
-- ⏳ See upcoming and past MDM command history
+- 🧪 Deploy your in-house iOS apps so the entire company can test
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 - 🤖 Auto-complete osquery queries (SQL), Bash scripts, and PowerShell scripts
