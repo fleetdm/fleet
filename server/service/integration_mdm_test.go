@@ -5678,20 +5678,6 @@ func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, usernam
 	require.Equal(t, email, acc.Email)
 }
 
-func (s *integrationMDMTestSuite) storeIdpInfo(t *testing.T, username, fullname, email string) string {
-	require.NoError(t, s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
-		Username: username,
-		Fullname: fullname,
-		Email:    email,
-	}))
-	account, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), email)
-	require.NoError(t, err)
-	require.Equal(t, username, account.Username)
-	require.Equal(t, fullname, account.Fullname)
-	require.Equal(t, email, account.Email)
-	return account.UUID
-}
-
 func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
