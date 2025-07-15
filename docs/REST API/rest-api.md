@@ -692,7 +692,7 @@ Object with the following structure:
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
 
-For structure of the objects see [Add certificate authority](#add-certificate-authority-ca) endpoint above.
+See [Add certificate authority](#add-certificate-authority-ca) above for the structure of each CA object.
 
 #### Example
 
