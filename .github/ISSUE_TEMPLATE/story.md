@@ -23,10 +23,6 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 <!-- What quarterly key result (KR) does this story contribute to, if any? If it doesn't contribute to a KR, explain why it's being prioritized. -->
 
-## Original requests
-
-<!-- Insert the link to the feature request(s) that this story contributes to. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
-
 ## Context
 - Product Designer: _________________________ <!-- Who is the Product Designer to contact if folks have questions about the UI, CLI, or API changes? -->
 - Engineering DRI: _________________________ <!-- Who is the Engineer to contact if folks have technical questions? -->
