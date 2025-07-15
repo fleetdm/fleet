@@ -1,0 +1,8 @@
+{
+   "name": "Beekeeper Studio",
+   "slug": "beekeeper-studio/darwin",
+   "unique_identifier": "io.beekeeperstudio.desktop",
+   "token": "beekeeper-studio",
+   "installer_format": "dmg",
+   "default_categories": ["Developer tools"]
+}
