@@ -3172,6 +3172,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	bySoftwareID := make(map[uint]*hostSoftware)
 
 	hostSoftwareInstalls, err := hostSoftwareInstalls(ds, ctx, host.ID)
+	installQuarantineSet := make(map[uint]*hostSoftware)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -3179,10 +3180,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
 			if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
 				bySoftwareTitleID[s.ID] = s
+			} else {
+				installQuarantineSet[s.ID] = s
 			}
-		} else if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
-			bySoftwareTitleID[s.ID].LastInstallInstalledAt = s.LastInstallInstalledAt
-			bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
+		} else {
+			if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
+				bySoftwareTitleID[s.ID].LastInstallInstalledAt = s.LastInstallInstalledAt
+				bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
+			} else {
+				installQuarantineSet[s.ID].LastInstallInstalledAt = s.LastInstallInstalledAt
+				installQuarantineSet[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
+			}
 		}
 	}
 
@@ -4239,6 +4247,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			// promote the package name and version to the proper destination fields
 			if softwareTitleRecord.PackageName != nil {
 				if _, ok := filteredBySoftwareTitleID[softwareTitleRecord.ID]; ok {
+					hydrateHostSoftwareRecordFromDb(softwareTitleRecord, softwareTitle)
+				}
+				if _, ok := installQuarantineSet[softwareTitleRecord.ID]; ok {
+					softwareTitle.LastInstallInstallUUID = installQuarantineSet[softwareTitleRecord.ID].LastInstallInstallUUID
+					softwareTitle.LastInstallInstalledAt = installQuarantineSet[softwareTitleRecord.ID].LastInstallInstalledAt
 					hydrateHostSoftwareRecordFromDb(softwareTitleRecord, softwareTitle)
 				}
 			}

@@ -10724,7 +10724,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getDeviceSw = getDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
-	require.Len(t, getDeviceSw.Software, 2) // foo, bar and ruby
+	require.Len(t, getDeviceSw.Software, 2) // foo, bar
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
