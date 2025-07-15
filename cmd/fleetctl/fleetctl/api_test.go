@@ -105,6 +105,11 @@ func TestRunApiCommand(t *testing.T) {
 			args:         []string{"vresion"},
 			expectErrMsg: "Got non 2XX return of 404",
 		},
+		{
+			name:         "flags after args",
+			args:         []string{"scripts", "-F", "team_id=1"},
+			expectErrMsg: "extra arguments: -F team_id=1",
+		},
 	}
 
 	setupDS := func(t *testing.T, c testCase) {
