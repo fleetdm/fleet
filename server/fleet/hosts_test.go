@@ -14,9 +14,6 @@ import (
 // ensure all Linuxes are in one of the three package support groups
 func TestHostLinuxPlatformPackageCompatibility(t *testing.T) {
 	for _, os := range HostLinuxOSs {
-		if os == "linux" {
-			continue
-		}
 		h := &Host{Platform: os}
 		_, isNeitherDebNorRpm := HostNeitherDebNorRpmPackageOSs[h.Platform]
 		if isNeitherDebNorRpm {

@@ -4729,7 +4729,8 @@ func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
 	rpmHost := test.NewHost(t, ds, "RHEL", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("rhel"))
 	debHost := test.NewHost(t, ds, "Ubuntu", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("pop"))
 	archHost := test.NewHost(t, ds, "Arch", "", "host3key", "host3uuid", time.Now(), test.WithPlatform("arch"))
-	macHost := test.NewHost(t, ds, "Mac", "", "host4key", "host4uuid", time.Now(), test.WithPlatform("darwin"))
+	genericLinuxHost := test.NewHost(t, ds, "Vanilla Linux", "", "host4key", "host4uuid", time.Now(), test.WithPlatform("linux"))
+	macHost := test.NewHost(t, ds, "Mac", "", "host5key", "host5uuid", time.Now(), test.WithPlatform("darwin"))
 
 	// Add titles and installers for deb (visible on deb host), rpm (visible on rpm host), tarball (visible on non-Mac hosts)
 	type installerInfo struct {
@@ -4768,10 +4769,11 @@ func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
 		opts := fleet.HostSoftwareTitleListOptions{OnlyAvailableForInstall: true, ListOptions: fleet.ListOptions{OrderKey: "name"}}
 
 		for host, expectedInstallers := range map[*fleet.Host][]installerInfo{
-			rpmHost:  {installers["rpm_packages"], installers["tgz_packages"]},
-			debHost:  {installers["deb_packages"], installers["tgz_packages"]},
-			archHost: {installers["tgz_packages"]},
-			macHost:  {},
+			rpmHost:          {installers["rpm_packages"], installers["tgz_packages"]},
+			debHost:          {installers["deb_packages"], installers["tgz_packages"]},
+			archHost:         {installers["tgz_packages"]},
+			genericLinuxHost: {installers["deb_packages"], installers["rpm_packages"], installers["tgz_packages"]},
+			macHost:          {},
 		} {
 			t.Run(host.Hostname, func(t *testing.T) {
 				sw, _, err := ds.ListHostSoftware(ctx, host, opts)

@@ -979,6 +979,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
 var HostDebPackageOSs = map[string]struct{}{
+	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
 	"ubuntu":    {},
 	"debian":    {},
 	"kali":      {},
@@ -990,6 +991,7 @@ var HostDebPackageOSs = map[string]struct{}{
 
 // HostRpmPackageOSs are the list of known Linux platforms that support RPM packages
 var HostRpmPackageOSs = map[string]struct{}{
+	"linux":               {}, // let RPMs through if we're looking at a generic Linux host
 	"rhel":                {},
 	"centos":              {},
 	"sles":                {},
