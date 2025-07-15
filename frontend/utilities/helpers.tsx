@@ -903,7 +903,7 @@ export const getGitOpsModeTipContent = (repoURL: string) => (
       <CustomLink newTab text="YAML" variant="tooltip-link" url={repoURL} />
       <br />
     </span>
-    <span>GitOps mode enabled</span>
+    <span>(GitOps mode enabled)</span>
   </>
 );
 

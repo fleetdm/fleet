@@ -1,15 +1,5 @@
 # https://github.com/fleetdm/fleet/pull/13084
- -
-  task: "Prioritize for next sprint" # Title that will actually show in rituals table
-  startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
-  frequency: "Triweekly" # must be supported by
-  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
-  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
-  dri: "alexmitchelliii" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-sales" ] # label to be applied to issue
-    repo: "confidential"
- -
+-
   task: "Review Salesforce opportunities"
   startedOn: "2024-12-02"
   frequency: "Weekly"
@@ -17,5 +7,15 @@
   moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
   dri: "alexmitchelliii"
   autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-sales" ] # label to be applied to issue
+    labels: [ "#g-unicorns" ] # label to be applied to issue
+    repo: "confidential"
+-
+  task: "Communicate Gross new ARR added"
+  startedOn: "2025-07-18"
+  frequency: "Weekly"
+  description: "Once a week, The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR)."
+  moreInfoUrl: "https://fleetdm.com/handbook/sales#communicate-gross-new-arr-added"
+  dri: "alexmitchelliii"
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-unicorns" ] # label to be applied to issue
     repo: "confidential"

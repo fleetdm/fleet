@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -1192,6 +1193,18 @@ the way that the Fleet server works.
 				}
 				if err = scim.RegisterSCIM(rootMux, ds, svc, logger); err != nil {
 					initFatal(err, "setup SCIM")
+				}
+				// Host identify SCEP feature only works if a private key has been set up
+				if len(config.Server.PrivateKey) > 0 {
+					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"))
+					if err != nil {
+						initFatal(err, "setup host identity SCEP depot")
+					}
+					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger); err != nil {
+						initFatal(err, "setup host identity SCEP")
+					}
+				} else {
+					level.Warn(logger).Log("msg", "Host identity SCEP is not available because no server private key has been set up.")
 				}
 			}
 

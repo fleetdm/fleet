@@ -54,6 +54,10 @@ parasails.registerPage('configuration-builder', {
     // For the profile builder
     configurationBuilderFormData: {},
     configurationBuilderFormRules: {},
+
+    currentSelectedCategoryForDownload: '',
+    configurationBuilderFormDataByCategory: {},
+    configurationBuilderByCategoryFormRules: {},
     // For the download modal
     downloadProfileFormRules: {
       name: {required: true},
@@ -164,8 +168,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'requireAlphanumeric',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -183,8 +185,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'changeAtNextAuth',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -300,9 +300,709 @@ parasails.registerPage('configuration-builder', {
                 },
               },
             ],
-          }
+          },
+          {
+            subcategoryName: 'FileVault',
+            subcategorySlug: 'macos-filevault',
+            description: 'Settings related disk encryption on macOS devices.',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/fdefilevault',
+            noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
+            docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+            payloads: [
+              // {// TODO: how do we want to accept this value?
+              //   name: 'Filevault certificate',
+              //   uniqueSlug: 'macos-filevault-certificate',
+              //   tooltip: 'The DER-encoded certificate data if the system creates an institutional recovery key. This key isn’t supported on Macs with Apple silicon.',
+              //   category: 'FileVault',
+              //   payload: 'FDEFileVault',
+              //   payloadType: 'com.apple.MCX.FileVault2',
+              //   formInput: {
+              //     type: 'text',
+              //   },
+              //   formOutput: {
+              //     settingFormat: 'data',
+              //     settingKey: 'Certificate',
+              //   },
+              // },
+              {
+                name: 'Enable FileVault',
+                uniqueSlug: 'macos-enable-filevault',
+                tooltip: 'Enables FileVault on macOS devices. Payloads that enable filevault sent through MDM need to either include full authentication information in the payload or have the Defer option set to true.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'Enable',
+                  trueValue: 'On',
+                  falseValue: 'Off'
+                },
+              },
+              {
+                name: 'Create FileVault recovery key',
+                uniqueSlug: 'macos-use-recovery-key',
+                tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'UseRecoveryKey',
+                },
+              },
+              {
+                name: 'Show recovery key to user after enabling FileVault',
+                uniqueSlug: 'macos-show-recovery-key',
+                tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'UseRecoveryKey',
+                },
+              },
+              {
+                name: 'Open directory username',
+                uniqueSlug: 'macos-filevault-od-username',
+                tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'Username',
+                },
+              },
+              {
+                name: 'Open directory password',
+                uniqueSlug: 'macos-filevault-od-password',
+                tooltip: 'The password of the Open Directory user to add to FileVault. Use the "Ask end-user for missing information" key to prompt for this information.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'Password',
+                },
+              },
+              {
+                name: 'Ask end-user for missing information',
+                uniqueSlug: 'macos-filevault-ask-for-missing-info',
+                tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'UserEntersMissingInfo',
+                },
+              },
+              {
+                name: 'Defer FileVault activation',
+                uniqueSlug: 'macos-defer-filevault-activation',
+                tooltip: 'If true, the system defers enabling FileVault until the designated user logs out. Only a local user or a mobile account user can enable FileVault.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'Defer',
+                },
+              },
+              {
+                name: 'Disable requests to enable FileVault when users log out.',
+                uniqueSlug: 'macos-disable-filevault-activiation-log-out',
+                tooltip: 'If true, the system prevents requests to enable FileVault at user logout time.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'DeferDontAskAtUserLogout',
+                },
+              },
+              {
+                name: 'Maximum number of times users can defer',
+                uniqueSlug: 'macos-filevault-max-bypass-attempts',
+                tooltip: 'The maximum number of times users can bypass enabling FileVault before the system requires the user to enable it to log in. If the value is 0, the system requires the user to enable FileVault the next time they attempt to log in. Set this key to -1 to disable this feature.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'number',
+                  maxValue: 9999,
+                  minValue: -1,
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'DeferForceAtUserLoginMaxBypassAttempts',
+                },
+              },
+              {
+                name: 'Specify a path to FileVault recovery key',
+                uniqueSlug: 'macos-filevault-recovery-key',
+                tooltip: 'The path to the location of the recovery key and computer information property list.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'OutputPath',
+                },
+              },
+              {
+                name: 'Store recovery key in keychain',
+                uniqueSlug: 'macos-filevault-recovery-key-in-keychain',
+                tooltip: 'If true and you don’t include certificate information in this payload, the system uses the keychain created at /Library/Keychains/FileVaultMaster.keychain when it adds the institutional recovery key.',
+                category: 'FileVault',
+                payload: 'FDEFileVault',
+                payloadType: 'com.apple.MCX.FileVault2',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'UseKeychain',
+                },
+              },
+              // {
+              //   name: 'Certificate UUID',
+              //   uniqueSlug: 'macos-filevault-certificate-uuid',
+              //   tooltip: 'The UUID of the payload within the same profile containing the asymmetric recovery key certificate payload.',
+              //   category: 'FileVault',
+              //   payload: 'FDEFileVault',
+              //   payloadType: 'com.apple.MCX.FileVault2',
+              //   formInput: {
+              //     type: 'text',
+              //   },
+              //   formOutput: {
+              //     settingFormat: 'string',
+              //     settingKey: 'PayloadCertificateUUID',
+              //   },
+              // },
+            ],
+          },
         ]
       },
+      {
+        categoryName: 'Software & updates',
+        categorySlug: 'macos-software-and-updates',
+        subcategories: [
+          {
+            subcategoryName: 'Gatekeeper',
+            subcategorySlug: 'macos-gatekeeper',
+            description: 'Settings related to Gatekeeper',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/systempolicycontrol',
+            payloads: [
+              {
+                name: 'Enable Gatekeeper',
+                uniqueSlug: 'macos-enable-gatekeeper',
+                tooltip: 'If true, enables Gatekeeper. If false, disables Gatekeeper.',
+                category: 'Gatekeeper',
+                payload: 'Control',
+                payloadType: 'com.apple.systempolicy.control',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableAssessment',
+                },
+              },
+              {
+                name: 'Allow identified developers',
+                uniqueSlug: 'macos-allow-identified-developers',
+                tooltip: 'If true, enables Gatekeeper’s “Mac App Store and identified developers” option. \n If false, enables Gatekeeper’s “Mac App Store” option.',
+                category: 'Gatekeeper',
+                payload: 'Control',
+                payloadType: 'com.apple.systempolicy.control',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'AllowIdentifiedDevelopers',
+                },
+              },
+              {
+                name: 'Enable XProtect malware upload',
+                uniqueSlug: 'macos-enable-xprotect-malware-upload',
+                tooltip: 'If false, prevents Gatekeeper from prompting the user to upload blocked malware to Apple for purposes of improving malware detection.',
+                category: 'Gatekeeper',
+                payload: 'Control',
+                payloadType: 'com.apple.systempolicy.control',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableXProtectMalwareUpload',
+                },
+              },
+            ]
+          },
+        ]
+      },
+      {
+        categoryName: 'Network',
+        categorySlug: 'macos-network',
+        subcategories: [
+          {
+            subcategoryName: 'WiFi',
+            subcategorySlug: 'macos-wifi',
+            description: 'Settings related to wireless network configuration on macOS',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/wifi',
+            payloads: [
+              {
+                name: 'Network SSID',
+                uniqueSlug: 'macos-wifi-ssid',
+                tooltip: 'The SSID of the Wi-Fi network to use.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'SSID_STR',
+                },
+              },
+              {
+                name: 'Network password',
+                uniqueSlug: 'macos-wifi-password',
+                tooltip: 'The password for the access point.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'Password',
+                },
+              },
+              {
+                name: 'Network encryption type',
+                uniqueSlug: 'macos-wifi-encryption-type',
+                tooltip: 'The encryption type for the network. If set to anything except None, the payload may contain the following three keys: Password, PayloadCertificateUUID, or EAPClientConfiguration.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'WEP',
+                      value: 'WEP'
+                    },
+                    {
+                      name: 'WPA',
+                      value: 'WPA'
+                    },
+                    {
+                      name: 'WPA2',
+                      value: 'WPA2',
+                    },
+                    {
+                      name: 'WPA3',
+                      value: 'WPA3',
+                    },
+                    {
+                      name: 'Any',
+                      value: 'Any',
+                    },
+                    {
+                      name: 'None',
+                      value: 'None',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'EncryptionType',
+                },
+              },
+              {
+                name: 'Join network automatically',
+                uniqueSlug: 'macos-wifi-auto-join',
+                tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'AutoJoin',
+                },
+              },
+              {
+                name: 'Hidden network',
+                uniqueSlug: 'macos-wifi-hidden-network',
+                tooltip: 'If true, defines this network as hidden.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'HIDDEN_NETWORK',
+                },
+              },
+              {
+                name: 'Enable IPV6',
+                uniqueSlug: 'macos-wifi-enable-ipv6',
+                tooltip: 'If true, enables IPv6 on this interface.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableIPv6',
+                },
+              },
+              {
+                name: 'Domain name',
+                uniqueSlug: 'macos-wifi-domain-name',
+                tooltip: 'The primary domain of the tunnel. Available in macOS 10.9 and later.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'DomainName',
+                },
+              },
+              {
+                name: 'Treat network as a hotspot',
+                uniqueSlug: 'macos-wifi-hotspot',
+                tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'IsHotspot',
+                },
+              },
+              {
+                name: 'Allow connection to roaming service providers',
+                uniqueSlug: 'macos-wifi-service-provider-roaming',
+                tooltip: 'If true, allows connection to roaming service providers.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'ServiceProviderRoamingEnabled',
+                },
+              },
+              {
+                name: 'Network HESSID',
+                uniqueSlug: 'macos-wifi-hessid',
+                tooltip: 'The Homogeneous extended service set identifier (HESSID) used for Wi-Fi Hotspot 2.0 negotiation.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'HESSID',
+                },
+              },
+              {
+                name: 'Proxy type',
+                uniqueSlug: 'macos-wifi-proxy-type',
+                tooltip: 'The proxy type, if any, to use. If you choose the manual proxy type, you need the proxy server address, including its port and optionally a user name and password into the proxy server. If you choose the auto proxy type, you can enter a proxy autoconfiguration (PAC) URL.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'radio',
+                  controlsOtherFields: true,
+                  options: [
+                    {
+                      name: 'None',
+                      value: 'None'
+                    },
+                    {
+                      name: 'Manual',
+                      value: 'Manual',
+                      alsoSelectedWhenSet: [
+                        'macos-wifi-proxy-server',
+                        'macos-wifi-proxy-server-port',
+                      ]
+                    },
+                    {
+                      name: 'Auto',
+                      value: 'Auto',
+                      alsoSelectedWhenSet: [
+                        'macos-wifi-proxy-pac-url',
+                        'macos-wifi-proxy-pac-fallback',
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyType',
+                },
+              },
+              {
+                name: 'Proxy server address',
+                uniqueSlug: 'macos-wifi-proxy-server',
+                tooltip: 'The proxy server’s network address.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyServer',
+                },
+              },
+              {
+                name: 'Proxy server port',
+                uniqueSlug: 'macos-wifi-proxy-server-port',
+                tooltip: 'The proxy server’s port number.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 65535,
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'ProxyServerPort',
+                },
+              },
+              {
+                name: 'Proxy server username',
+                uniqueSlug: 'macos-wifi-proxy-server-username',
+                tooltip: 'The user name used to authenticate to the proxy server.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyUsername',
+                },
+              },
+              {
+                name: 'Proxy server password',
+                uniqueSlug: 'macos-wifi-proxy-server-password',
+                tooltip: 'The password used to authenticate to the proxy server.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyPassword',
+                },
+              },
+              {
+                name: 'Proxy PAC URL',
+                uniqueSlug: 'macos-wifi-proxy-pac-url',
+                tooltip: 'The URL of the PAC file that defines the proxy configuration.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyPACURL',
+                },
+              },
+              {
+                name: `Allow connections if a Proxy\'s PAC file is unreachable`,
+                uniqueSlug: 'macos-wifi-proxy-pac-fallback',
+                tooltip: 'If true, allows connecting directly to the destination if the PAC file is unreachable.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'ProxyPACFallbackAllowed',
+                },
+              },
+            ]
+          },
+          {
+            subcategoryName: 'Firewall',
+            subcategorySlug: 'macos-firewall',
+            description: 'Settings related to the built-in firewall on macOS',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/firewall',
+            payloads: [
+              {
+                name: 'Enable firewall',
+                uniqueSlug: 'macos-enable-firewall',
+                tooltip: 'If true, the system enables the firewall.',
+                category: 'Firewall',
+                payload: 'Firewall',
+                payloadType: 'com.apple.security.firewall',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableFirewall',
+                },
+              },
+              {
+                name: 'Allow built-in applications',
+                uniqueSlug: 'macos-firewall-allow-signed',
+                tooltip: 'If true, the system allows built-in software to receive incoming connections. Available in macOS 12.3 and later.',
+                category: 'Firewall',
+                payload: 'Firewall',
+                payloadType: 'com.apple.security.firewall',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'AllowSigned',
+                },
+              },
+              {
+                name: 'Allow signed applications',
+                uniqueSlug: 'macos-firewall-allow-signed-apps',
+                tooltip: 'If true, the system allows downloaded signed software to receive incoming connections. Available in macOS 12.3 and later.',
+                category: 'Firewall',
+                payload: 'Firewall',
+                payloadType: 'com.apple.security.firewall',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'AllowSignedApp',
+                },
+              },
+              {
+                name: 'Block all incoming connections',
+                uniqueSlug: 'macos-firewall-block-incoming',
+                tooltip: 'If true, the system enables blocking all incoming connections.',
+                category: 'Firewall',
+                payload: 'Firewall',
+                payloadType: 'com.apple.security.firewall',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'BlockAllIncoming',
+                },
+              },
+              {
+                name: 'Enable stealth mode',
+                uniqueSlug: 'macos-firewall-enable-stealth-mode',
+                tooltip: 'If true, the system enables stealth mode.',
+                category: 'Firewall',
+                payload: 'Firewall',
+                payloadType: 'com.apple.security.firewall',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableStealthMode',
+                },
+              },
+              // { TODO: add support for specifying arrays of objects.
+              //   name: 'Allow/block specified applications',
+              //   uniqueSlug: 'macos-firewall-application-list',
+              //   tooltip: 'If true, the system enables stealth mode.',
+              //   category: 'Firewall',
+              //   payload: 'Firewall',
+              //   payloadType: 'com.apple.security.firewall',
+              //   formInput: {
+              //     type: 'array',
+              //     unitLabel: 'Bundle identifier'
+              //   },
+              //   formOutput: {
+              //     settingFormat: 'list',
+              //     settingKey: 'Applications',
+              //     trueValue: '<true/>',
+              //     falseValue: '<false/>',
+              //   },
+              // },
+            ]
+          }
+        ]
+      }
     ],
     // windows payloads
     windowsCategoriesAndPayloads: [
@@ -661,9 +1361,1051 @@ parasails.registerPage('configuration-builder', {
                 },
               },
             ],
+          },
+          {
+            subcategoryName: 'SmartScreen',
+            subcategorySlug: 'windows-smartscreen',
+            description: 'Windows Defender SmartScreen provides warning messages to help protect users from potential phishing scams and malicious software.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-smartscreen',
+            payloads: [
+              {
+                name: 'Enable SmartScreen in Microsoft Edge',
+                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                uniqueSlug: 'windows-enable-smartscreen-in-edge',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'Microsoft Edge',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Browser/AllowSmartScreen',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow users to bypass Windows Defender SmartScreen prompts for sites',
+                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                uniqueSlug: 'windows-enable-smartscreen-bypass-in-edge',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'Microsoft Edge',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Browser/PreventSmartScreenPromptOverride',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Enable SmartScreen in File Explorer',
+                tooltip: `Allows IT Admins to configure SmartScreen for Windows.`,
+                uniqueSlug: 'windows-enable-smartscreen-in-shell',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'File explorer',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableSmartScreenInShell',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow users to bypass Windows Defender SmartScreen prompts for files',
+                tooltip: `Allows IT Admins to control whether users can ignore SmartScreen warnings and run malicious files.`,
+                uniqueSlug: 'windows-prevent-override-for-files-in-shell',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'File explorer',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/PreventOverrideForFilesInShell',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Configure app install control',
+                tooltip: `Allows IT Admins to control whether users are allowed to install apps from places other than the Microsoft Store.`,
+                uniqueSlug: 'windows-configure-app-install-control',
+                category: 'SmartScreen',
+                supportedAccessTypes: ['add', 'replace'],
+                payloadGroup: 'App installation',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Users can download and install files from anywhere on the web',
+                      value: 0
+                    },
+                    {
+                      name: 'Users can only install apps from the Microsoft Store',
+                      value: 1
+                    },
+                    {
+                      name: 'Let users know that there\'s a comparable app in the Store',
+                      value: 2,
+                    },
+                    {
+                      name: 'Warn users before installing apps from outside the Store',
+                      value: 3,
+                    }
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableAppInstallControl',
+                },
+              },
+            ],
+          },
+          {
+            subcategoryName: 'BitLocker',
+            subcategorySlug: 'windows-bitlocker',
+            description: 'Use BitLocker to encrypt drives and protect data on your device.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp',
+            noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
+            docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+            payloads: [
+              {
+                name: 'Enable BitLocker for operating system drives',
+                uniqueSlug: 'windows-enable-bitlocker-for-os-drives',
+                tooltip: 'Require encryption to be turned on using BitLocker.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Enforce encryption type for operating system drives',
+                uniqueSlug: 'windows-enforce-encryption-type-for-os-drives',
+                tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                      trueValue: '<enabled/>',
+                      falseValue: '<enabled/>',
+                    },
+                    {
+                      type: 'radio',
+                      label: 'Encryption type',
+                      slug: 'encryptionType',
+                      options: [
+                        {
+                          name: 'Allow user to choose encryption type',
+                          value: 0
+                        },
+                        {
+                          name: 'Full encryption',
+                          value: 1
+                        },
+                        {
+                          name: 'Used space only encryption.',
+                          value: 2,
+                        },
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesEncryptionType',
+                  outputTemplate: `<%= enabled %><data id="OSEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enforce startup authentication',
+                uniqueSlug: 'windows-enforce-startup-authentication',
+                tooltip: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM).',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'select',
+                      label: 'TPM startup',
+                      slug: 'tpmStartup',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Optional',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'TPM startup key',
+                      slug: 'tpmStartupKey',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Optional',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'TPM startup PIN',
+                      slug: 'tpmStartupPin',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Optional',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'TPM startup key and PIN',
+                      slug: 'tpmStartupKeyAndPin',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Optional',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      slug: 'allowBitlockerWithoutTpm',
+                      label: 'Allow BitLocker without a compatible TPM',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication',
+                  outputTemplate:`<%= enabled %><data id="ConfigureNonTPMStartupKeyUsage_Name" value="<%= allowBitlockerWithoutTpm %>"/><data id="ConfigureTPMStartupKeyUsageDropDown_Name" value="<%= tpmStartupKey %>"/><data id="ConfigurePINUsageDropDown_Name" value="<%= tpmStartupPin %>"/><data id="ConfigureTPMPINKeyUsageDropDown_Name" value="<%= tpmStartupKeyAndPin %>"/><data id="ConfigureTPMUsageDropDown_Name" value="<%= tpmStartup %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enforce enhanced startup PINs',
+                uniqueSlug: 'windows-enforce-enhanced-startup-pin',
+                tooltip: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM).',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesEnhancedPIN',
+                  trueValue: '<enabled/>',
+                  falseValue: '<disabled/>',
+                },
+              },
+              {
+                name: 'Enforce recovery options for operating system drives',
+                uniqueSlug: 'windows-enforce-system-drive-recovery-options',
+                tooltip: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Configure 256-bit recovery key',
+                      slug: 'recoveryKey',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Allowed',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'Configure 48-digit recovery password',
+                      slug: 'recoveryPassword',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Allowed',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Store BitLocker recovery information on Active Directory',
+                      slug: 'storeOnActiveDirectory',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Choose what recovery information to store on Active Directory',
+                      slug: 'whatToStoreOnActiveDirectory',
+                      options: [
+                        {
+                          name: 'Store recovery passwords and key packages.',
+                          value: 1
+                        },
+                        {
+                          name: 'Store recovery passwords only.',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Do not enable BitLocker until recovery information is stored to Active Directory',
+                      slug: 'doNotEnableUntilStored',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Allow data recovery agent',
+                      slug: 'allowDataRecoveryAgent',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Omit recovery options from BitLocker setup wizard',
+                      slug: 'hideRecoveryPage',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesRecoveryOptions',
+                  outputTemplate:`<%= enabled %><data id="OSAllowDRA_Name" value="<%= allowDataRecoveryAgent %>"/><data id="OSRecoveryPasswordUsageDropDown_Name" value="<%= recoveryPassword %>"/><data id="OSRecoveryKeyUsageDropDown_Name" value="<%= recoveryKey %>"/><data id="OSHideRecoveryPage_Name" value="<%= hideRecoveryPage %>"/><data id="OSActiveDirectoryBackup_Name" value="<%= storeOnActiveDirectory %>"/><data id="OSActiveDirectoryBackupDropDown_Name" value="<%= whatToStoreOnActiveDirectory %>"/><data id="OSRequireActiveDirectoryBackup_Name" value="<%= doNotEnableUntilStored %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enable BitLocker for fixed data drives',
+                uniqueSlug: 'windows-enable-bitlocker-for-fixed-data-drives',
+                tooltip: 'This policy setting determines whether BitLocker protection is required for fixed data drives to be writable on a computer.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption',
+                  trueValue: '<enabled/>',
+                  falseValue: '<disabled/>',
+                },
+              },
+              {
+                name: 'Enforce encryption type for fixed data drives',
+                uniqueSlug: 'windows-enforce-encryption-type-for-fixed-data-drives',
+                tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress. ',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                      trueValue: '<enabled/>',
+                      falseValue: '<enabled/>',
+                    },
+                    {
+                      type: 'radio',
+                      label: 'Encryption type',
+                      slug: 'encryptionType',
+                      options: [
+                        {
+                          name: 'Allow user to choose encryption type',
+                          value: 0
+                        },
+                        {
+                          name: 'Full encryption',
+                          value: 1
+                        },
+                        {
+                          name: 'Used space only encryption.',
+                          value: 2,
+                        },
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesEncryptionType',
+                  outputTemplate: `<%= enabled %><data id="FDVEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enforce recovery options for operating system drives',
+                uniqueSlug: 'windows-enforce-fixed-data-drive-recovery-options',
+                tooltip: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Configure 256-bit recovery key',
+                      slug: 'recoveryKey',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Allowed',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'Configure 48-digit recovery password',
+                      slug: 'recoveryPassword',
+                      options: [
+                        {
+                          name: 'Disallowed',
+                          value: 0
+                        },
+                        {
+                          name: 'Required',
+                          value: 1
+                        },
+                        {
+                          name: 'Allowed',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Store BitLocker recovery information on Active Directory',
+                      slug: 'storeOnActiveDirectory',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Choose what recovery information to store on Active Directory',
+                      slug: 'whatToStoreOnActiveDirectory',
+                      options: [
+                        {
+                          name: 'Store recovery passwords and key packages.',
+                          value: 1
+                        },
+                        {
+                          name: 'Store recovery passwords only.',
+                          value: 2,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Do not enable BitLocker until recovery information is stored to Active Directory',
+                      slug: 'doNotEnableUntilStored',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Allow data recovery agent',
+                      slug: 'allowDataRecoveryAgent',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Omit recovery options from BitLocker setup wizard',
+                      slug: 'hideRecoveryPage',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRecoveryOptions',
+                  outputTemplate:`<%= enabled %><data id="FDVAllowDRA_Name" value="<%= allowDataRecoveryAgent %>"/><data id="FDVRecoveryPasswordUsageDropDown_Name" value="<%= recoveryPassword %>"/><data id="FDVRecoveryKeyUsageDropDown_Name" value="<%= recoveryKey %>"/><data id="FDVHideRecoveryPage_Name" value="<%= hideRecoveryPage %>"/><data id="FDVActiveDirectoryBackup_Name" value="<%= storeOnActiveDirectory %>"/><data id="FDVActiveDirectoryBackupDropDown_Name" value="<%= whatToStoreOnActiveDirectory %>"/><data id="FDVRequireActiveDirectoryBackup_Name" value="<%= doNotEnableUntilStored %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Deny write access to fixed data drives not protected by BitLocker',
+                uniqueSlug: 'windows-deny-wrtie-access-to-fixed-data-drives',
+                tooltip: 'This policy setting determines whether BitLocker protection is required for fixed data drives to be writable on a computer. If you enable this policy setting, all fixed data drives that aren\'t BitLocker-protected will be mounted as read-only.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption',
+                  trueValue: '<enabled/>',
+                  falseValue: '<disabled/>',
+                },
+              },
+              {
+                name: 'Enable BitLocker for removable data drives',
+                uniqueSlug: 'windows-enable-bitlocker-for-removeable-data-drives',
+                tooltip: 'This policy setting controls the use of BitLocker on removable data drives.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Allow users to apply BitLocker protection on removable data drives',
+                      slug: 'allowApplyBitlocker',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Allow users to suspend and decrypt BitLocker on removable data drives',
+                      slug: 'allowDisableBitlocker',
+                    },
+                  ],
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesConfigureBDE',
+                  outputTemplate:`<%= enabled %><data id="RDVAllowBDE_Name" value="<%= allowApplyBitlocker %>"/><data id="RDVDisableBDE_Name" value="<%= allowDisableBitlocker %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enforce encryption type for removable data drives',
+                uniqueSlug: 'windows-enforce-encryption-type-for-removeable-drives',
+                tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress. ',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                      trueValue: '<enabled/>',
+                      falseValue: '<enabled/>',
+                    },
+                    {
+                      type: 'radio',
+                      label: 'Encryption type',
+                      slug: 'encryptionType',
+                      options: [
+                        {
+                          name: 'Allow user to choose encryption type',
+                          value: 0
+                        },
+                        {
+                          name: 'Full encryption',
+                          value: 1
+                        },
+                        {
+                          name: 'Used space only encryption.',
+                          value: 2,
+                        },
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesEncryptionType',
+                  outputTemplate: `<%= enabled %><data id="RDVEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Deny write access to removable data drives not protected by BitLocker',
+                uniqueSlug: 'windows-deny-write-access-to-removeable-data-drives',
+                tooltip: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Deny write access to devices configured in another organization',
+                      slug: 'crossOrg',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesRequireEncryption',
+                  outputTemplate: `<%= enabled %><data id="RDVCrossOrg" value="<%= crossOrg %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Enforce encryption method',
+                uniqueSlug: 'windows-enforce-encryption-method',
+                tooltip: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'boolean',
+                      slug: 'enabled',
+                      label: 'Enable',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Operating system drives',
+                      slug: 'osEncryptionType',
+                      options: [
+                        {
+                          name: 'AES-CBC 128',
+                          value: 3
+                        },
+                        {
+                          name: 'AES-CBC 256',
+                          value: 4,
+                        },
+                        {
+                          name: 'XTS-AES 128',
+                          value: 6,
+                        },
+                        {
+                          name: 'XTS-AES 256',
+                          value: 7,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'Fixed data drives',
+                      slug: 'fixedDriveEncryptionType',
+                      options: [
+                        {
+                          name: 'AES-CBC 128',
+                          value: 3
+                        },
+                        {
+                          name: 'AES-CBC 256',
+                          value: 4,
+                        },
+                        {
+                          name: 'XTS-AES 128',
+                          value: 6,
+                        },
+                        {
+                          name: 'XTS-AES 256',
+                          value: 7,
+                        },
+                      ]
+                    },
+                    {
+                      type: 'select',
+                      label: 'Removable data drives',
+                      slug: 'removeableDriveEncryptionType',
+                      options: [
+                        {
+                          name: 'AES-CBC 128',
+                          value: 3
+                        },
+                        {
+                          name: 'AES-CBC 256',
+                          value: 4,
+                        },
+                        {
+                          name: 'XTS-AES 128',
+                          value: 6,
+                        },
+                        {
+                          name: 'XTS-AES 256',
+                          value: 7,
+                        },
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/EncryptionMethodByDriveType',
+                  outputTemplate: `<%= enabled %><data id="EncryptionMethodWithXtsOsDropDown_Name" value="<%= osEncryptionType %>"/><data id="EncryptionMethodWithXtsFdvDropDown_Name" value="<%= fixedDriveEncryptionType %>"/><data id="EncryptionMethodWithXtsRdvDropDown_Name" value="<%= removeableDriveEncryptionType %>"/>`,
+                  valuesToTransform: {
+                    'enabled': {
+                      true: '<enabled/>',
+                      false: '<disabled/>',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Configure recovery password rotation',
+                uniqueSlug: 'windows-configure-recover-password-roration',
+                tooltip: 'Allows Admin to configure Numeric Recovery Password Rotation upon use for OS and fixed drives on Entra ID and hybrid domain joined devices.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'radio',
+                  label: 'Encryption type',
+                  options: [
+                    {
+                      name: 'Disable password rotation',
+                      value: 0
+                    },
+                    {
+                      name: 'Enable password rotation for Azure AD-joined devices',
+                      value: 1
+                    },
+                    {
+                      name: 'Enable password rotation for Azure AD-joined and hybrid-joined devices',
+                      value: 2,
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/BitLocker/ConfigureRecoveryPasswordRotation',
+                },
+              },
+            ],
           }
         ]
       },
+      {
+        categoryName: 'Software & updates',
+        categorySlug: 'windows-software-and-updates',
+        subcategories: [
+          {
+            subcategoryName: 'Applications',
+            subcategorySlug: 'windows-applications',
+            description: 'Settings related to applications and the Windows store.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-applicationmanagement',
+            payloads: [
+              {
+                name: 'Allow all trusted apps',
+                tooltip: `This policy setting allows you to manage the installation of trusted line-of-business (LOB) or developer-signed packaged Microsoft Store apps.
+                If you enable this policy setting, you can install any LOB or developer-signed packaged Microsoft Store app (which must be signed with a certificate chain that can be successfully validated by the local computer).
+
+                If you disable or don't configure this policy setting, you can't install LOB or developer-signed packaged Microsoft Store apps.`,
+                uniqueSlug: 'windows-allow-all-trusted-apps',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAllTrustedApps',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow automatic updates for Microsoft store apps',
+                tooltip: 'Specifies whether automatic update of apps from Microsoft Store are allowed.',
+                uniqueSlug: 'windows-allow-app-store-auto-updates',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAppStoreAutoUpdate',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow automatic app archiving',
+                tooltip: `This policy setting controls whether the system can archive infrequently used apps.
+
+                If you enable this policy setting, then the system will periodically check for and archive infrequently used apps.
+
+                If you disable this policy setting, then the system won't archive any apps.
+
+                If you don't configure this policy setting (default), then the system will follow default behavior, which is to periodically check for and archive infrequently used apps, and the user will be able to configure this setting themselves.`,
+                uniqueSlug: 'windows-allow-automatic-app-archiving',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAutomaticAppArchiving',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow developer unlock',
+                tooltip: `Allows or denies development of Microsoft Store applications and installing them directly from an IDE. If you enable this setting and enable the "Allow all trusted apps to install" Group Policy, you can develop Microsoft Store apps and install them directly from an IDE. If you disable or don't configure this setting, you can't develop Microsoft Store apps or install them directly from an IDE. `,
+                uniqueSlug: 'windows-allow-developer-unlock',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowDeveloperUnlock',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow shared user app data',
+                tooltip: `Manages a Windows app's ability to share data between users who have installed the app.
+                If you enable this policy, a Windows app can share app data with other instances of that app. Data is shared through the SharedLocal folder. This folder is available through the Windows.Storage API.
+
+                If you disable this policy, a Windows app can't share app data with other instances of that app. If this policy was previously enabled, any previously shared app data will remain in the SharedLocal folder.`,
+                uniqueSlug: 'windows-allow-shared-user-app-data',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowSharedUserAppData',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Block app installation for non-admin users',
+                tooltip: `Manages non-Administrator users' ability to install Windows app packages.
+                If enabled, non-Administrators will be unable to initiate installation of Windows app packages. Administrators who wish to install an app will need to do so from an Administrator context
+                If disabled or not confgiured, all users will be able to initiate installation of Windows app packages.`,
+                uniqueSlug: 'windows-block-non-admin-user-install',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/BlockNonAdminUserInstall',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Disable Microsoft store originated applications',
+                tooltip: `Disable turns off the launch of all apps from the Microsoft Store that came pre-installed or were downloaded. The Microsoft Store will also be disabled.`,
+                uniqueSlug: 'windows-disabled-store-originated-apps',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/DisableStoreOriginatedApps',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Allow user control of installation options',
+                tooltip: 'This policy setting permits users to change installation options that typically are available only to system administrators.',
+                uniqueSlug: 'windows-allow-user-control-over-install',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/MSIAllowUserControlOverInstall',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Always install with elevated privleges',
+                tooltip: 'This policy setting directs Windows Installer to use elevated permissions when it installs any program on the system.',
+                uniqueSlug: 'windows-always-install-with-elevated-permissions',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/MSIAlwaysInstallWithElevatedPrivileges',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Restrict application data to system volume',
+                tooltip: `Prevent users' app data from moving to another location when an app is moved or installed on another location.`,
+                uniqueSlug: 'windows-restrict-app-data-to-system-volume',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/RestrictAppDataToSystemVolume',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Restrict applications to system volume',
+                tooltip: 'This policy setting allows you to manage installing Windows apps on additional volumes such as secondary partitions, USB drives, or SD cards.',
+                uniqueSlug: 'windows-restrict-apps-to-system-volume',
+                category: 'Applications',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/ApplicationManagement/RestrictAppToSystemVolume',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+            ]
+          }
+        ],
+      }
     ],
   },
 
@@ -684,6 +2426,7 @@ parasails.registerPage('configuration-builder', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    // Platform select form submission
     handleSubmittingPlatformSelectForm: async function() {
       this.selectedPlatform = this.platformSelectFormData.platform;
       this.step = 'configuration-builder';
@@ -691,32 +2434,73 @@ parasails.registerPage('configuration-builder', {
     typeFilterSettings: async function() {
       // TODO.
     },
+    // Controls which category is expanded in the left sidebar.
     clickExpandCategory: function(category) {
       this.expandedCategory = category;
     },
+    // Download modal form submission
     handleSubmittingDownloadProfileForm: async function() {
       this.syncing = true;
-      if(this.selectedPlatform === 'windows') {
-        await this.buildWindowsProfile();
-      } else if(this.selectedPlatform === 'macos') {
-        await this.buildMacOSProfile();
+      if(this.currentSelectedCategoryForDownload) {
+        // this.currentSelectedCategoryForDownload = undefined;
+        if(this.selectedPlatform === 'windows') {
+          await this.buildWindowsProfile(this.selectedOptionsInAPayload);
+        } else if(this.selectedPlatform === 'macos') {
+          await this.buildMacOSProfile(this.selectedOptionsInAPayload);
+        }
+      } else {
+        if(this.selectedPlatform === 'windows') {
+          await this.buildWindowsProfile(this.selectedPayloads);
+        } else if(this.selectedPlatform === 'macos') {
+          await this.buildMacOSProfile(this.selectedPayloads);
+        }
       }
     },
-    buildWindowsProfile: function() {
+    // Download modal form submission (single payload)
+    handleSubmittingSinglePayloadDownloadProfileForm: async function() {
+      this.syncing = true;
+
+      if(this.selectedPlatform === 'windows') {
+        await this.buildWindowsProfile(this.selectedPayloads);
+      } else if(this.selectedPlatform === 'macos') {
+        await this.buildMacOSProfile(this.selectedPayloads);
+      }
+    },
+    buildWindowsProfile: function(payloadsToUse) {
       let xmlString = '';
       // Iterate through the selcted payloads
-      for(let payload of this.selectedPayloads) {
+      for(let payload of payloadsToUse) {
         let payloadToAdd = _.clone(payload);
         // Get the selected access type for this payload
         let accessType = this.configurationBuilderFormData[payload.uniqueSlug+'-access-type'];
-        // Get the selected value for this payload
-        let value = this.configurationBuilderFormData[payload.uniqueSlug+'-value'];
-        // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
-        if(payload.formInput.type === 'boolean'){
-          if(value) {
-            value = payload.formOutput.trueValue;
-          } else {
-            value = payload.formOutput.falseValue;
+        let value;
+        if(payload.formInput.type === 'multifield') {
+          // If the payload's formInput type is multifield, we'll need to combine the values for this payload.
+          // build a dictionary of formData where each key is the input's slug.
+          if(!payload.formOutput.outputTemplate){
+            throw new Error('Consistency violation, a multifield form input is missing a template value', payload);
+          }
+          let formDataForThisPayload = {};
+          for(let input of payload.formInput.inputs) {
+            if(payload.formOutput.valuesToTransform && payload.formOutput.valuesToTransform[input.slug]){
+              formDataForThisPayload[input.slug] = payload.formOutput.valuesToTransform[input.slug][this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug]];
+            } else {
+              formDataForThisPayload[input.slug] = this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug];
+            }
+          }
+          // Now we'll pass the formData into the formOutput's template string.
+          let templateToUse = _.template(payload.formOutput.outputTemplate);
+          value = _.trim(templateToUse(formDataForThisPayload));
+        } else {
+          // Get the selected value for this payload
+          value = this.configurationBuilderFormData[payload.uniqueSlug+'-value'];
+          // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
+          if(payload.formInput.type === 'boolean'){
+            if(value) {
+              value = payload.formOutput.trueValue;
+            } else {
+              value = payload.formOutput.falseValue;
+            }
           }
         }
         payloadToAdd.formData = {accessType, value};
@@ -731,7 +2515,7 @@ parasails.registerPage('configuration-builder', {
       URL.revokeObjectURL(xmlDownloadUrl);
       this.syncing = false;
     },
-    buildMacOSProfile: function() {
+    buildMacOSProfile: function(selectedPayloads) {
       let xmlString = `
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -740,9 +2524,10 @@ parasails.registerPage('configuration-builder', {
 <key>PayloadContent</key>
 <array>
 `;
+      let payloadstoUse = _.clone(selectedPayloads);
       // Iterate through the selcted payloads
       // group selected payloads by their payload type value.
-      let payloadsToCreateDictonariesFor = _.groupBy(this.selectedPayloads, 'payloadType');
+      let payloadsToCreateDictonariesFor = _.groupBy(payloadstoUse, 'payloadType');
       for(let optionsInTheSamePayload in payloadsToCreateDictonariesFor) {
         // First build the payloadDisplayName, payloadIdentifier, payloadType, payloadUUID, and payloadVersion keys.
 
@@ -763,16 +2548,20 @@ parasails.registerPage('configuration-builder', {
           let payloadToAdd = _.clone(payloadOption);
           let value = this.configurationBuilderFormData[payloadOption.uniqueSlug+'-value'];
           if(payloadOption.formInput.type === 'boolean') {
-            if(value) {
-              value = payloadOption.formOutput.trueValue;
-            } else {
-              value = payloadOption.formOutput.falseValue;
+            // If a payload option has a nested trueValue and falseValue, then this boolean will not necessarily represent true/false values.
+            // If that is the case, then modify the value to be the value they represent in the form.
+            if(payloadOption.formOutput.trueValue) {
+              if(value) {
+                value = payloadOption.formOutput.trueValue;
+              } else {
+                value = payloadOption.formOutput.falseValue;
+              }
             }
           }
           dictionaryStringForThisPayload += `<key>${payloadToAdd.formOutput.settingKey}</key>
 `;
           if(payloadToAdd.formOutput.settingFormat === 'boolean'){
-            dictionaryStringForThisPayload += `${value}
+            dictionaryStringForThisPayload += `<${value}/>
 `;
           } else {
             dictionaryStringForThisPayload += `<${payloadToAdd.formOutput.settingFormat}>${value}</${payloadToAdd.formOutput.settingFormat}>
@@ -809,23 +2598,34 @@ parasails.registerPage('configuration-builder', {
       URL.revokeObjectURL(xmlDownloadUrl);
       this.syncing = false;
     },
+    // When users click the "remove all" button at the top of the payload card.
     clickRemoveOneCategoryPayloadOptions: function(category) {
       let optionsToRemove = this.selectedPayloadsGroupedByCategory[category];
       this.selectedPayloadsGroupedByCategory = _.without(this.selectedPayloadsGroupedByCategory, category);
       for(let option of optionsToRemove){
+        if(option.formInput.type === 'multifield') {
+          for(let input of option.formInput.inputs){
+            delete this.configurationBuilderFormRules[option.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderFormData[option.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-'+input.slug];
+          }
+        } else{
+          delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
+          delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
+          delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-value'];
+        }
         let newSelectedPayloads = _.without(this.selectedPayloads, option);
         this.selectedPayloadSettings[option.uniqueSlug] = false;
         this.selectedPayloads = _.uniq(newSelectedPayloads);
-        delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
-        delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
         if(this.selectedPlatform === 'windows') {
           delete this.configurationBuilderFormRules[option.uniqueSlug+'-access-type'];
           delete this.configurationBuilderFormData[option.uniqueSlug+'-access-type'];
+          delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-access-type'];
         }
       }
-      this.selectedPayloadsGroupedByCategory = _.groupBy(this.payloadOptionsToDisplay, 'category');
-      console.log(this.selectedPayloadsGroupedByCategory);
+      this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
     },
+    // When users click the "remove" button under a single payload option.
     clickRemovePayloadOption: function(option) {
       let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: option.uniqueSlug});
       // check the alsoAutoSetWhenSelected value of the payload we're removing.
@@ -834,16 +2634,29 @@ parasails.registerPage('configuration-builder', {
       this.selectedPayloads = _.uniq(newSelectedPayloads);
       this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
       delete this.configurationBuilderFormRules[option.uniqueSlug+'-value'];
+      delete this.configurationBuilderFormData[option.uniqueSlug+'-value'];
+      delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-value'];
       if(this.selectedPlatform === 'windows') {
         delete this.configurationBuilderFormRules[option.uniqueSlug+'-access-type'];
+        delete this.configurationBuilderByCategoryFormRules[option.category][option.uniqueSlug+'-access-type'];
       }
     },
+    // When users click the download all button.
     handleSubmittingConfigurationBuilderForm: function() {
       if(_.keysIn(this.selectedPayloadsGroupedByCategory).length > 1) {
+        // If there is more than one payload in this profile, show a warning in a modal.
         this.modal = 'multiple-payloads-selected';
       } else {
         this.openDownloadModal();
       }
+    },
+    // When users click the downlaod button on a paylaod card.
+    handleSubmittingSinglePayloadConfigurationBuilderForm: function() {
+      let payloadsInThisCategory = _.filter(this.selectedPayloads, (payload)=>{
+        return payload.category === this.currentSelectedCategoryForDownload;
+      });
+      this.selectedOptionsInAPayload = payloadsInThisCategory;
+      this.openDownloadModal();
     },
     openDownloadModal: function() {
       this.modal = 'download-profile';
@@ -876,14 +2689,33 @@ parasails.registerPage('configuration-builder', {
         });
       }, 400);
     },
+    clickAutoSelectWhenSet: async function(formInput) {
+      if(formInput.alsoSelectedWhenSet){
+        for(let autoSelectedPayload of formInput.alsoSelectedWhenSet ) {
+          let payloadToAddSlug = autoSelectedPayload;
+          let payloadToAdd = _.find(this.selectedPayloadCategory.payloads, {uniqueSlug: payloadToAddSlug});
+          this.selectedPayloads.push(payloadToAdd);
+          this.autoSelectedPayloadSettings[payloadToAddSlug] = true;
+          this.selectedPayloadSettings[payloadToAddSlug] = true;
+          this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true};
+          if(this.selectedPlatform === 'windows') {
+            this.configurationBuilderFormRules[payloadToAddSlug+'-access-type'] = {required: true};
+          }
+        }
+      }
+      this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
+      await this.forceRender();
+    },
+    clickSetCurrentSelectedCategory: async function(category) {
+      this.currentSelectedCategoryForDownload = category;
+      // console.log(category);
+    },
     clickSelectPayload: async function(payloadSlug) {
       if(!this.selectedPayloadSettings[payloadSlug]){
-        // if(this.selectedPlatform === 'windows'){
-        //   payloadsToUse = this.windowsCategoriesAndPayloads;
-        // } else if(this.selectedPlatform === 'macos') {
-        //   payloadsToUse = this.macosCategoriesAndPayloads;
-        // }
         let selectedPayload = _.find(this.selectedPayloadCategory.payloads, {uniqueSlug: payloadSlug}) || {};
+        if(!this.configurationBuilderByCategoryFormRules[selectedPayload.category]) {
+          this.configurationBuilderByCategoryFormRules[selectedPayload.category] = {};
+        }
         if(selectedPayload.alsoAutoSetWhenSelected) {
           for(let autoSelectedPayload of selectedPayload.alsoAutoSetWhenSelected ) {
             let payloadToAddSlug = autoSelectedPayload.dependingOnSettingSlug;
@@ -900,15 +2732,32 @@ parasails.registerPage('configuration-builder', {
         }
         this.selectedPayloads.push(selectedPayload);
         this.selectedPayloads = _.uniq(this.selectedPayloads);
-        this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-value'] = {required: true};
-        if(selectedPayload.formInput.type === 'boolean'){
-          // default boolean inputs to false.
-          this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = false;
-        } else if(selectedPayload.formInput.type === 'number') {
-          this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = selectedPayload.formInput.defaultValue;
+        if(selectedPayload.formInput.type === 'multifield') {
+          for(let input of selectedPayload.formInput.inputs){
+            this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-'+input.slug] = {required: true};
+            this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-'+input.slug] = {required: true};
+            if(input.type === 'boolean' || input.type === 'booleanWithLabel'){
+              // default boolean inputs to false.
+              this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-'+input.slug] = false;
+            } else if(input.type === 'number') {
+              this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-'+input.slug] = input.defaultValue;
+            }
+
+          }
+        } else {
+          this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-value'] = {required: true};
+          this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-value'] = {required: true};
+          if(selectedPayload.formInput.type === 'boolean'){
+            // default boolean inputs to false.
+            this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = false;
+          } else if(selectedPayload.formInput.type === 'number') {
+            this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = selectedPayload.formInput.defaultValue;
+          }
         }
+
         if(this.selectedPlatform === 'windows') {
           this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-access-type'] = {required: true};
+          this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-access-type'] = {required: true};
         }
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
         this.selectedPayloadSettings[payloadSlug] = true;
@@ -918,8 +2767,19 @@ parasails.registerPage('configuration-builder', {
         let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: payloadSlug});
         // check the alsoAutoSetWhenSelected value of the payload we're removing.
         let newSelectedPayloads = _.without(this.selectedPayloads, payloadToRemove);
-        delete this.configurationBuilderFormRules[payloadSlug+'-value'];
+        if(payloadToRemove.formInput.type === 'multifield') {
+          for(let input of payloadToRemove.formInput.inputs){
+            delete this.configurationBuilderFormRules[payloadToRemove.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderFormData[payloadToRemove.uniqueSlug+'-'+input.slug];
+            delete this.configurationBuilderByCategoryFormRules[payloadToRemove.category][payloadToRemove.uniqueSlug+'-'+input.slug];
+          }
+        } else {
+          delete this.configurationBuilderFormRules[payloadToRemove.uniqueSlug+'-value'];
+          delete this.configurationBuilderFormData[payloadToRemove.uniqueSlug+'-value'];
+          delete this.configurationBuilderByCategoryFormRules[payloadToRemove.category][payloadToRemove.uniqueSlug+'-value'];
+        }
         if(this.selectedPlatform === 'windows') {
+          delete this.configurationBuilderByCategoryFormRules[payloadToRemove.category][payloadToRemove.uniqueSlug+'-access-type'];
           delete this.configurationBuilderFormRules[payloadSlug+'-access-type'];
         }
         this.selectedPayloadSettings[payloadSlug] = false;
@@ -962,6 +2822,10 @@ parasails.registerPage('configuration-builder', {
       await this.forceRender();
     },
     closeModal: function() {
+      this.modal = undefined;
+    },
+    closeDownloadModal: function() {
+      this.downloadProfileFormData = {};
       this.modal = undefined;
     },
     _getWindowsXmlPayloadString: function(payload) {

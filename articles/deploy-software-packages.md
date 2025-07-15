@@ -24,7 +24,7 @@ Learn more about automatically installing software [the Automatically install so
 
 > Software cannot be added to "All teams."
 
-* Click the “Add Software” button in the top right corner. 
+* Click the “Add Software” button in the top right corner.
 
 * Select the "Custom package" tab.
 
@@ -50,7 +50,7 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 - [.msi extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/msi.go#:~:text=func%20ExtractMSIMetadata)
 - [.exe extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/pe.go#:~:text=func%20ExtractPEMetadata)
 - [.deb extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/deb.go#:~:text=func%20ExtractDebMetadata)
-- [.rpm extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/rpm.go#:~:text=func%20ExtractRPMMetadata) 
+- [.rpm extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/rpm.go#:~:text=func%20ExtractRPMMetadata)
 
 .tar.gz archives are uploaded as-is without attempting to pull metadata, and will be added successfully as long as they are valid archives.
 
@@ -97,6 +97,8 @@ After a software package is added to a team, it can be installed on hosts via th
     * Checking the status column in the host software table.
 
     * Navigate to the “Details” tab on the host details page and check the activity log.
+
+Once the package is installed, Fleet will automatically refetch the host's vitals and update the software inventory.
 
 ## Edit the package
 

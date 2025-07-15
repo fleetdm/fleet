@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +21,7 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 	}{
 		{"ListOSVulnerabilitiesEmpty", testListOSVulnerabilitiesByOSEmpty},
 		{"ListOSVulnerabilities", testListOSVulnerabilitiesByOS},
-		{"ListVulnssByOsNameAndVersion", testListVulnsByOsNameAndVersion},
+		{"ListVulnsByOsNameAndVersion", testListVulnsByOsNameAndVersion},
 		{"InsertOSVulnerabilities", testInsertOSVulnerabilities},
 		{"InsertSingleOSVulnerability", testInsertOSVulnerability},
 		{"DeleteOSVulnerabilitiesEmpty", testDeleteOSVulnerabilitiesEmpty},
@@ -101,7 +102,7 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	dbOS := []fleet.OperatingSystem{}
+	var dbOS []fleet.OperatingSystem
 	for _, seed := range seedOS {
 		os, err := newOperatingSystemDB(context.Background(), ds.writer(context.Background()), seed)
 		require.NoError(t, err)
@@ -147,12 +148,20 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 	// add CVEs for each OS with different architectures
 	vulns := []fleet.OSVulnerability{
 		{CVE: "CVE-2021-1234", OSID: dbOS[0].ID, ResolvedInVersion: ptr.String("1.2.3")},
-		{CVE: "CVE-2021-1234", OSID: dbOS[1].ID, ResolvedInVersion: ptr.String("1.2.3")}, // same OS, different arch
 		{CVE: "CVE-2021-1235", OSID: dbOS[1].ID, ResolvedInVersion: ptr.String("10.14.2")},
 		{CVE: "CVE-2021-1236", OSID: dbOS[2].ID, ResolvedInVersion: ptr.String("103.2.1")},
 	}
 
 	_, err = ds.InsertOSVulnerabilities(ctx, vulns, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	// push other vulns into the past to ensure "SELECT DISTINCT" wouldn't deduplicate properly
+	_, err = ds.writer(ctx).ExecContext(ctx, "UPDATE operating_system_vulnerabilities SET created_at = NOW() - INTERVAL 5 SECOND")
+	require.NoError(t, err)
+
+	_, err = ds.InsertOSVulnerabilities(ctx, []fleet.OSVulnerability{
+		{CVE: "CVE-2021-1234", OSID: dbOS[1].ID, ResolvedInVersion: ptr.String("1.2.3")}, // same OS, different arch
+	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
 	// test without CVS meta
@@ -235,17 +244,28 @@ func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
 	require.True(t, didInsert)
 
 	// Inserting the same vulnerability should not insert, but update
-	didInsertOrUpdate, err := ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
+	didInsert, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
 	require.NoError(t, err)
-	assert.True(t, didInsertOrUpdate)
+	assert.False(t, didInsert)
 
-	// make sure updated_at doesn't change on the next upsert call, as fields won't change
-	time.Sleep(1 * time.Second)
-
-	// Inserting the exact same vulnerability again should not insert and not update
-	didInsertOrUpdate, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
+	// Inserting the exact same vulnerability again may or may not change updated_at, but qualifies as an update
+	didInsert, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
 	require.NoError(t, err)
-	assert.False(t, didInsertOrUpdate)
+	assert.False(t, didInsert)
+
+	// simulate vuln in the past to make sure updated_at gets set
+	_, err = ds.writer(ctx).ExecContext(ctx, "UPDATE operating_system_vulnerabilities SET updated_at = NOW() - INTERVAL 5 MINUTE WHERE operating_system_id = 1")
+	require.NoError(t, err)
+
+	// Inserting the exact same vulnerability again will update again, as we need to bump updated_at
+	didInsert, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
+	require.NoError(t, err)
+	assert.False(t, didInsert)
+
+	// make sure the update happened
+	var recentRows uint
+	require.NoError(t, sqlx.Get(ds.writer(ctx), &recentRows, "SELECT COUNT(*) FROM operating_system_vulnerabilities WHERE operating_system_id = 1 AND updated_at > NOW() - INTERVAL 5 SECOND"))
+	require.Equal(t, uint(1), recentRows)
 
 	expected := vulnsUpdate
 	expected.Source = fleet.MSRCSource
