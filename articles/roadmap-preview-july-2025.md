@@ -8,22 +8,18 @@ The Fleet roadmap is set for summer 2025. Watch the video above for a walkthroug
 
 In the next 3 months, Fleet will ship...
 
-For Security Engineers:
-- 📊 Vulnerability (CVE) graphs/visualizations
-- 🔍 Complex host filters (any host vital)
-- 📄 Deploy certificates for Wi-Fi and VPN on personal mobile devices (iOS/iPadOS, Android) and company-owned Windows, & Linux computers
-
-For IT Admins:
 - 🍏 Account-based user enrollment for personal Apple devices (BYOD)
+- 🤖 Manage BYOD Android: configuration profiles, OS updates, and software management
+- 📄 Deploy certificates for Wi-Fi and VPN on personal mobile devices (iOS/iPadOS, Android) and company-owned Windows, & Linux computers
 - 👨‍💻 100 Fleet-maintained apps for macOS & Windows (50 each)
 - 📦 Different apps, OS settings, and queries for different employees based on department
-- 👔 Custom new Windows and Linux setup
+- 👔 Customize first-time Windows and Linux setup
 - 💻 Inject foreign host vitals from your identity provider (IdP) and mask secrets (i.e. API tokens) in scripts and configuration profiles
-- 🤖 Configuration profiles, OS updates, and software management for BYOD Android
-- 🧪 Deploy your in-house iOS apps so the entire company can test
+- 🧪 Deploy your pre-release iOS apps to the entire company
 - ⏰ Schedule scripts to run once, at a specific time, or on a recurring schedule
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
+
 - 📊 Vulnerability (CVE) graphs/visualizations
 - 🔊 Network scanning (via Nmap)
 - 📉 Report time-to-fix (aka "timeframes") for top vulnerabilities
