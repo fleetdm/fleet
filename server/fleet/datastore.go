@@ -987,8 +987,11 @@ type Datastore interface {
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
-	// GetHostArchivedDiskEncryptionKey returns the archived disk encryption key for a given host.
+	// GetHostArchivedDiskEncryptionKey returns the archived disk encryption key for the given host ID.
 	GetHostArchivedDiskEncryptionKey(ctx context.Context, host *Host) (*HostArchivedDiskEncryptionKey, error)
+	// IsHostDiskEncryptionKeyArchived returns true if there is a disk encryption key archived
+	// for the given host ID.
+	IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error)
 	IsHostPendingEscrow(ctx context.Context, hostID uint) bool
 	ClearPendingEscrow(ctx context.Context, hostID uint) error
 	ReportEscrowError(ctx context.Context, hostID uint, err string) error
