@@ -2,6 +2,7 @@ package winget
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -250,6 +251,25 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	if (input.InstallerType == installerTypeMSI || input.UninstallType == installerTypeMSI) && input.InstallerScope == machineScope {
+		var upgradeCode string
+		for _, fe := range m.AppsAndFeaturesEntries {
+			if fe.UpgradeCode != "" {
+				upgradeCode = fe.UpgradeCode
+				break
+			}
+		}
+		if upgradeCode == "" {
+			for _, fe := range selectedInstaller.AppsAndFeaturesEntries {
+				if fe.UpgradeCode != "" {
+					upgradeCode = fe.UpgradeCode
+					break
+				}
+			}
+		}
+		if uninstallScript == "" && upgradeCode != "" {
+			uninstallScript = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+		}
+
 		if uninstallScript == "" {
 			uninstallScript = file.GetUninstallScript(installerTypeMSI)
 		}
@@ -266,7 +286,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if productCode == "" {
 		productCode = selectedInstaller.ProductCode
 	}
-
 	productCode = strings.Split(productCode, ".")[0]
 
 	out.Name = input.Name
@@ -301,6 +320,13 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.Frozen = input.Frozen
 
 	return &out, nil
+}
+
+//go:embed uninstall_with_upgrade_code.ps1
+var uninstallWithUpgradeCode string
+
+func buildUpgradeCodeBasedUninstallScript(upgradeCode string) string {
+	return regexp.MustCompile(`\$UPGRADE_CODE`).ReplaceAllString(uninstallWithUpgradeCode, upgradeCode)
 }
 
 var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
