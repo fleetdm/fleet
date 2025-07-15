@@ -103,7 +103,18 @@ The acquisitions's VPP token will be assigned to the above teams.
 
 ## Simple Certificate Enrollment Protocol (SCEP)
 
-Fleet uses SCEP certificates (1 year expiry) to authenticate the requests hosts make to Fleet. Fleet renews each host's SCEP certificates automatically every 180 days.
+Fleet uses SCEP certificates (1 year expiry) to authenticate the requests hosts make to Fleet. Fleet
+renews each host's SCEP certificates automatically every 180 days.
+
+## Automatic Enrollment Failures
+
+If your Fleet instance is down for maintenance when a host attempts to automatically enroll during
+the Setup Assistant process, this may result in a failed enrollment. Alternatively, if a host powers
+down  due to user actions or a low battery during Setup Assistant this may also result in a failed
+enrollment. In these instances hosts exhibit a variety of behaviors based on the exact timing of the
+failure but commonly will attempt to restart the macOS Setup Assistant and display "Welcome to Mac"
+after the user next reboots the host. When this occurs the best course of action is to Wipe the host via
+Fleet if the host has network connectivity or reinstall macOS from Recovery.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
