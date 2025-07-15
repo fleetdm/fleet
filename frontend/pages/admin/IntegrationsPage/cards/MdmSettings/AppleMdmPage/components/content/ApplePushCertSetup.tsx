@@ -89,6 +89,7 @@ const ApplePushCertSetup = ({
                 newTab
               />
               <br />
+              <br />
               If you don&apos;t have an Apple ID, select <b>Create yours now</b>
               .
             </span>
