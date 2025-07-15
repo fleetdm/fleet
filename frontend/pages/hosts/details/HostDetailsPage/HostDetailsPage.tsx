@@ -809,7 +809,10 @@ const HostDetailsPage = ({
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
-        doesStoreEncryptionKey={host.mdm.encryption_key_available}
+        doesStoreEncryptionKey={
+          host.mdm.encryption_key_available ||
+          !!host.mdm.encryption_key_archived
+        }
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
       />
@@ -878,10 +881,12 @@ const HostDetailsPage = ({
   ];
 
   const getTabIndex = (path: string): number => {
-    return hostDetailsSubNav.findIndex((navItem) => {
+    const selected = hostDetailsSubNav.findIndex((navItem) => {
       // tab stays highlighted for paths that ends with same pathname
       return path.startsWith(navItem.pathname);
     });
+    // If our URL doesn't match anything, return the first (Details) tab by default
+    return selected === -1 ? 0 : selected;
   };
 
   const getSoftwareTabIndex = (path: string): number => {

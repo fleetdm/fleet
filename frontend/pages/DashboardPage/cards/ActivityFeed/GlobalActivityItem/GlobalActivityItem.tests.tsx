@@ -1001,7 +1001,7 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a 'mdm_enrolled' type for apple with all details provided", () => {
+  it("renders a 'mdm_enrolled' type for apple with host serial provided and automatic enrollment provided", () => {
     const activity = createMockActivity({
       type: ActivityType.MdmEnrolled,
       details: {
@@ -1017,6 +1017,27 @@ describe("Activity Feed", () => {
         return (
           node?.innerHTML ===
           "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (automatic)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for apple with host display name and personal enrollment provided", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        host_display_name: "Test Host",
+        personal_host: true,
+        mdm_platform: "apple",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b>An end user turned on MDM features for <b>Test Host (personal)</b>."
         );
       })
     ).toBeInTheDocument();

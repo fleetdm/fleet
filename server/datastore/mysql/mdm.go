@@ -1564,7 +1564,7 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	    JOIN host_mdm hm ON hm.host_id = h.id
 	  WHERE ne.id IN (?)
 	    AND ne.enabled = 1
-	    AND ne.type = 'Device'
+	    AND ne.type IN ('Device', 'User Enrollment (Device)')
 	    AND hm.enrolled = 1
 	`
 	if err := setConnectedUUIDs(appleStmt, appleUUIDs, res); err != nil {

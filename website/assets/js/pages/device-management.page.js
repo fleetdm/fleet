@@ -4,11 +4,11 @@ parasails.registerPage('device-management-page', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: '',
-    comparisonMode: 'sccm',
+    comparisonMode: 'omnissa',
     comparisonModeFriendlyNames: {
       jamf: 'Jamf Pro',
       sccm: 'SCCM',
-      omnissa: 'Omnissa (WS1)',
+      omnissa: 'Workspace ONE',
       intune: 'Intune',
       tanium: 'Tanium',
       ansible: 'Ansible',
