@@ -43,8 +43,7 @@ func Middleware(ds fleet.Datastore, logger kitlog.Logger) (MiddlewareFunc, error
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if strings.Contains(req.URL.Path, "/api/fleet/orbit/") ||
-				// TODO: Authenticate fleet/device endpoints that are not called by the browser
-				strings.Contains(req.URL.Path, "/api/v1/osquery/") {
+				strings.Contains(req.URL.Path, "/osquery/") {
 
 				// We do not verify the "ping" endpoint since it is used to get server capabilities and does not carry any data.
 				if strings.HasSuffix(req.URL.Path, "/api/fleet/orbit/ping") {

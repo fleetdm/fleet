@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -84,26 +85,13 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 // Enroll Agent
 ////////////////////////////////////////////////////////////////////////////////
 
-type enrollAgentRequest struct {
-	EnrollSecret   string                         `json:"enroll_secret"`
-	HostIdentifier string                         `json:"host_identifier"`
-	HostDetails    map[string](map[string]string) `json:"host_details"`
-}
-
-type enrollAgentResponse struct {
-	NodeKey string `json:"node_key,omitempty"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r enrollAgentResponse) Error() error { return r.Err }
-
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*enrollAgentRequest)
+	req := request.(*contract.EnrollOsqueryAgentRequest)
 	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
-		return enrollAgentResponse{Err: err}, nil
+		return contract.EnrollOsqueryAgentResponse{Err: err}, nil
 	}
-	return enrollAgentResponse{NodeKey: nodeKey}, nil
+	return contract.EnrollOsqueryAgentResponse{NodeKey: nodeKey}, nil
 }
 
 func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {

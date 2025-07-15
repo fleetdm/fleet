@@ -915,7 +915,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// with the request.
 	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
 	ne.WithAltPaths("/api/v1/osquery/enroll").
-		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
+		POST("/api/osquery/enroll", enrollAgentEndpoint, contract.EnrollOsqueryAgentRequest{})
 
 	// These endpoint are token authenticated.
 	// NOTE: remember to update

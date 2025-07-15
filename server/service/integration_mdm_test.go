@@ -1322,12 +1322,12 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	}, http.StatusOK, &applyResp)
 
 	// simulate a matching host enrolling via osquery
-	j, err := json.Marshal(&enrollAgentRequest{
+	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   t.Name(),
 		HostIdentifier: mdmDeviceA.UUID,
 	})
 	require.NoError(t, err)
-	var enrollResp enrollAgentResponse
+	var enrollResp contract.EnrollOsqueryAgentResponse
 	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollResp))
@@ -1537,12 +1537,12 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	}, http.StatusOK, &applyResp)
 
 	// simulate a matching host enrolling via osquery
-	j, err := json.Marshal(&enrollAgentRequest{
+	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   t.Name(),
 		HostIdentifier: mdmDevice.UUID,
 	})
 	require.NoError(t, err)
-	var enrollResp enrollAgentResponse
+	var enrollResp contract.EnrollOsqueryAgentResponse
 	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollResp))
@@ -2760,9 +2760,9 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	)
 
 	// enroll the host from osquery, it should match the same host
-	var osqueryResp enrollAgentResponse
+	var osqueryResp contract.EnrollOsqueryAgentResponse
 	osqueryID := uuid.New().String()
-	s.DoJSON("POST", "/api/osquery/enroll", enrollAgentRequest{
+	s.DoJSON("POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   secret,
 		HostIdentifier: osqueryID, // osquery host_identifier may not be the same as the host UUID, simulate that here
 		HostDetails: map[string]map[string]string{

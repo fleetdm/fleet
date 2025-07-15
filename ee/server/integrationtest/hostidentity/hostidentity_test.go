@@ -10,6 +10,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"fmt"
+	mathrand "math/rand/v2"
 	"net/http"
 	"strings"
 	"testing"
@@ -29,14 +30,14 @@ import (
 
 const testEnrollmentSecret = "test_secret"
 
-func TestHostIdentitySCEP(t *testing.T) {
-	s := SetUpSuite(t, "integrationtest.HostIdentitySCEP")
+func TestHostIdentity(t *testing.T) {
+	s := SetUpSuite(t, "integrationtest.HostIdentity")
 
 	cases := []struct {
 		name string
 		fn   func(t *testing.T, s *Suite)
 	}{
-		{"GetCert", testGetCert},
+		{"GetCertAndSignReq", testGetCert},
 		{"GetCertFailures", testGetCertFailures},
 	}
 	for _, c := range cases {
@@ -50,15 +51,35 @@ func TestHostIdentitySCEP(t *testing.T) {
 }
 
 func testGetCert(t *testing.T, s *Suite) {
-	t.Run("ECC P256", func(t *testing.T) {
+	t.Run("ECC P256, orbit", func(t *testing.T) {
 		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P256())
 		testOrbitEnrollment(t, s, cert, eccPrivateKey)
 	})
 
-	t.Run("ECC P384", func(t *testing.T) {
+	t.Run("ECC P384, orbit", func(t *testing.T) {
 		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
 		testOrbitEnrollment(t, s, cert, eccPrivateKey)
 	})
+
+	t.Run("ECC P256, osquery", func(t *testing.T) {
+		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P256())
+		testOsqueryEnrollment(t, s, cert, eccPrivateKey)
+	})
+
+	t.Run("ECC P384, osquery", func(t *testing.T) {
+		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
+		testOsqueryEnrollment(t, s, cert, eccPrivateKey)
+	})
+
+}
+
+func generateRandomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	result := make([]byte, length)
+	for i := range result {
+		result[i] = charset[mathrand.IntN(len(charset))] // nolint:gosec // waive G404 since this is test code
+	}
+	return string(result)
 }
 
 func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
@@ -88,7 +109,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 	require.NotEmpty(t, caCerts)
 
 	// Create CSR using ECC key
-	hostIdentifier := "test-host-identity"
+	hostIdentifier := generateRandomString(16)
 	csrTemplate := x509util.CertificateRequest{
 		CertificateRequest: x509.CertificateRequest{
 			Subject: pkix.Name{
@@ -104,7 +125,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
 
-	tempRSAKey, deviceCert := createTempRSAKeyAndCert(t, "test-host-identity")
+	tempRSAKey, deviceCert := createTempRSAKeyAndCert(t, hostIdentifier)
 
 	// Create SCEP PKI message
 	pkiMsgReq := &scep.PKIMessage{
@@ -141,7 +162,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 	require.NotNil(t, cert)
 
 	// Verify certificate properties
-	assert.Equal(t, "test-host-identity", cert.Subject.CommonName)
+	assert.Equal(t, hostIdentifier, cert.Subject.CommonName)
 	assert.Equal(t, x509.ECDSA, cert.PublicKeyAlgorithm)
 	certPubKey, ok := cert.PublicKey.(*ecdsa.PublicKey)
 	require.True(t, ok, "Certificate should contain ECC public key")
@@ -309,6 +330,170 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 						return nil, err
 					}
 					req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(reqBody))
+					if err != nil {
+						return nil, err
+					}
+					req.Header.Set("Content-Type", "application/json")
+
+					// Sign with the correct signer first
+					err = signer.Sign(req)
+					if err != nil {
+						return nil, err
+					}
+
+					// Then corrupt the signature by modifying the signature header
+					sigHeader := req.Header.Get("Signature")
+					if sigHeader != "" {
+						// Corrupt the signature by changing the last character
+						corrupted := sigHeader[:len(sigHeader)-1] + "X"
+						req.Header.Set("Signature", corrupted)
+					}
+					return req, nil
+				},
+				expectedStatus: http.StatusUnauthorized,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				req, err := tc.setupRequest()
+				require.NoError(t, err)
+
+				httpResp, err := client.Do(req)
+				require.NoError(t, err)
+				defer httpResp.Body.Close()
+
+				require.Equal(t, tc.expectedStatus, httpResp.StatusCode)
+			})
+		}
+	})
+}
+
+func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
+	// Test osquery enrollment with the certificate
+	enrollRequest := contract.EnrollOsqueryAgentRequest{
+		EnrollSecret:   testEnrollmentSecret,
+		HostIdentifier: cert.Subject.CommonName,
+		HostDetails: map[string]map[string]string{
+			"osquery_info": {
+				"version": "5.0.0",
+			},
+		},
+	}
+
+	// TODO: Osquery enrollment currently does not require HTTP message signature.
+	// This test should be updated once osquery enrollment logic is implemented
+	// to require HTTP signatures like orbit enrollment does.
+
+	reqBody, err := json.Marshal(enrollRequest)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest("POST", s.Server.URL+"/api/osquery/enroll", bytes.NewReader(reqBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Determine the algorithm based on the curve
+	var algo httpsig.Algorithm
+	switch eccPrivateKey.Curve {
+	case elliptic.P256():
+		algo = httpsig.Algo_ECDSA_P256_SHA256
+	case elliptic.P384():
+		algo = httpsig.Algo_ECDSA_P384_SHA384
+	default:
+		t.Fatalf("Unsupported curve: %v", eccPrivateKey.Curve)
+	}
+
+	// Create signer
+	signer, err := httpsig.NewSigner(httpsig.SigningProfile{
+		Algorithm: algo,
+		// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
+		Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
+		Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
+	}, httpsig.SigningKey{
+		Key:       eccPrivateKey,
+		MetaKeyID: fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+	})
+	require.NoError(t, err)
+
+	// Sign the request
+	err = signer.Sign(req)
+	require.NoError(t, err)
+
+	// Send the signed request
+	client := fleethttp.NewClient()
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	// The request with a valid HTTP signature should succeed
+	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Osquery enrollment with HTTP signature should succeed")
+
+	// Parse the response
+	var enrollResp contract.EnrollOsqueryAgentResponse
+	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
+	require.NoError(t, err)
+	require.NotEmpty(t, enrollResp.NodeKey, "Should receive node key")
+	require.NoError(t, enrollResp.Err)
+
+	// Test /api/osquery/config endpoint with different signature scenarios
+	t.Run("osquery config endpoint signature tests", func(t *testing.T) {
+		type configRequest struct {
+			NodeKey string `json:"node_key"`
+		}
+
+		testCases := []struct {
+			name           string
+			setupRequest   func() (*http.Request, error)
+			expectedStatus int
+		}{
+			{
+				name: "without signature",
+				setupRequest: func() (*http.Request, error) {
+					configReq := configRequest{NodeKey: enrollResp.NodeKey}
+					reqBody, err := json.Marshal(configReq)
+					if err != nil {
+						return nil, err
+					}
+					req, err := http.NewRequest("POST", s.Server.URL+"/api/osquery/config", bytes.NewReader(reqBody))
+					if err != nil {
+						return nil, err
+					}
+					req.Header.Set("Content-Type", "application/json")
+					return req, nil
+				},
+				expectedStatus: http.StatusOK, // TODO: Update this once we fix osquery enrollment to link cert with host
+			},
+			{
+				name: "with valid signature",
+				setupRequest: func() (*http.Request, error) {
+					configReq := configRequest{NodeKey: enrollResp.NodeKey}
+					reqBody, err := json.Marshal(configReq)
+					if err != nil {
+						return nil, err
+					}
+					req, err := http.NewRequest("POST", s.Server.URL+"/api/osquery/config", bytes.NewReader(reqBody))
+					if err != nil {
+						return nil, err
+					}
+					req.Header.Set("Content-Type", "application/json")
+
+					err = signer.Sign(req)
+					if err != nil {
+						return nil, err
+					}
+					return req, nil
+				},
+				expectedStatus: http.StatusOK,
+			},
+			{
+				name: "with corrupted signature",
+				setupRequest: func() (*http.Request, error) {
+					configReq := configRequest{NodeKey: enrollResp.NodeKey}
+					reqBody, err := json.Marshal(configReq)
+					if err != nil {
+						return nil, err
+					}
+					req, err := http.NewRequest("POST", s.Server.URL+"/api/osquery/config", bytes.NewReader(reqBody))
 					if err != nil {
 						return nil, err
 					}
