@@ -1746,9 +1746,6 @@ AND hvsi.verification_failed_at IS NULL
 
 	var result []*fleet.HostVPPSoftwareInstall
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, hostUUID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, notFound("HostVPPSoftwareInstall")
-		}
 		return nil, ctxerr.Wrap(ctx, err, "get unverified VPP installs for host")
 	}
 
