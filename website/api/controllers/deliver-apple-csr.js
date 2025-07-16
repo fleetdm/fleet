@@ -37,18 +37,8 @@ module.exports = {
       responseType: 'badRequest'
     },
 
-    csrMissingOrg: {
-      description: 'The provided unsigned CSR did not contain a required "org" value',
-      responseType: 'badRequest'
-    },
-
-    csrMissingEmail: {
-      description: 'The provided unsigned CSR did not contain a required "email" value',
-      responseType: 'badRequest'
-    },
-
-    csrMissingRequest: {
-      description: 'The provided unsigned CSR did not contain a required "request" value',
+    csrMissingRequiredValue: {
+      description: 'The provided unsigned CSR did not contain a required value',
       responseType: 'badRequest'
     },
 
@@ -99,17 +89,17 @@ module.exports = {
     // Parse the JSON result from the mdm-gen-cert command
     let generateCertificateResult = JSON.parse(generateCertificateCommand.stdout);
 
-    // return a csrMissingEmail response if the result from the mdm-gen-cert command is missing an email value.
+    // return a csrMissingRequiredValue response if the result from the mdm-gen-cert command is missing an email value.
     if(!generateCertificateResult.email) {
-      throw 'csrMissingEmail';
+      throw {'csrMissingRequiredValue': 'The provided unsigned CSR did not contain a required "email" value'};
     }
-    // return a csrMissingOrg response if the result from the mdm-gen-cert command is missing an org value.
+    // return a csrMissingRequiredValue response if the result from the mdm-gen-cert command is missing an org value.
     if(!generateCertificateResult.org) {
-      throw 'csrMissingOrg';
+      throw {'csrMissingRequiredValue': 'The provided unsigned CSR did not contain a required "org" value'};
     }
-    // return a csrMissingRequest response if the result from the mdm-gen-cert command is missing an request value.
+    // return a csrMissingRequiredValue response if the result from the mdm-gen-cert command is missing an request value.
     if(!generateCertificateResult.request) {
-      throw 'csrMissingRequest';
+      throw {'csrMissingRequiredValue': 'The provided unsigned CSR did not contain a required "request" value'};
     }
 
     // Check to make sure that the email included in the result is a valid email address.
