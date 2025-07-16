@@ -1541,6 +1541,31 @@ func cronUninstallSoftwareMigration(
 	return s, nil
 }
 
+// cronUpgradeCodeSoftwareMigration will update upgrade codes for MSI packages.
+// Once all customers are using on Fleet 4.72 or later, this job can be removed.
+func cronUpgradeCodeSoftwareMigration(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronUninstallSoftwareMigration)
+		defaultInterval = 24 * time.Hour
+	)
+	logger = kitlog.With(logger, "cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, logger)
+		}),
+	)
+	return s, nil
+}
+
 func newMaintainedAppSchedule(
 	ctx context.Context,
 	instanceID string,

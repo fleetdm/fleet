@@ -212,8 +212,9 @@ INSERT INTO software_installers (
 	user_name,
 	user_email,
 	fleet_maintained_app_id,
- 	url
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?)`
+ 	url,
+ 	upgrade_code
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -235,6 +236,7 @@ INSERT INTO software_installers (
 			payload.UserID,
 			payload.FleetMaintainedAppID,
 			payload.URL,
+			payload.UpgradeCode,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -540,6 +542,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			post_install_script_content_id = ?,
 			uninstall_script_content_id = ?,
 			self_service = ?,
+			upgrade_code = ?,
 			user_id = ?,
 			user_name = (SELECT name FROM users WHERE id = ?),
 			user_email = (SELECT email FROM users WHERE id = ?)%s%s
@@ -555,6 +558,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			postInstallScriptID,
 			uninstallScriptID,
 			*payload.SelfService,
+			payload.UpgradeCode,
 			payload.UserID,
 			payload.UserID,
 			payload.UserID,
@@ -665,6 +669,7 @@ SELECT
   si.storage_id,
   si.fleet_maintained_app_id,
   si.package_ids,
+  si.upgrade_code,
   si.filename,
   si.extension,
   si.version,
@@ -1773,6 +1778,7 @@ INSERT INTO software_installers (
 	post_install_script_content_id,
 	platform,
 	self_service,
+	upgrade_code,
 	title_id,
 	user_id,
 	user_name,
@@ -1782,7 +1788,7 @@ INSERT INTO software_installers (
 	install_during_setup,
 	fleet_maintained_app_id
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND browser = ''),
   ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
 )
@@ -1797,6 +1803,7 @@ ON DUPLICATE KEY UPDATE
   pre_install_query = VALUES(pre_install_query),
   platform = VALUES(platform),
   self_service = VALUES(self_service),
+  upgrade_code = VALUES(upgrade_code),
   user_id = VALUES(user_id),
   user_name = VALUES(user_name),
   user_email = VALUES(user_email),
@@ -2134,6 +2141,7 @@ VALUES
 				postInstallScriptID,
 				installer.Platform,
 				installer.SelfService,
+				installer.UpgradeCode,
 				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
 				installer.Source,
 				installer.UserID,
@@ -2364,6 +2372,36 @@ func (ds *Datastore) GetSoftwareInstallersWithoutPackageIDs(ctx context.Context)
 		idMap[r.ID] = r.StorageID
 	}
 	return idMap, nil
+}
+
+func (ds *Datastore) GetMSIInstallersWithoutUpgradeCode(ctx context.Context) (map[uint]string, error) {
+	query := `SELECT id, storage_id FROM software_installers WHERE extension = 'msi' AND upgrade_code = ''`
+	type result struct {
+		ID        uint   `db:"id"`
+		StorageID string `db:"storage_id"`
+	}
+
+	var results []result
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get MSI installers without upgrade code")
+	}
+	if len(results) == 0 {
+		return nil, nil
+	}
+	idMap := make(map[uint]string, len(results))
+	for _, r := range results {
+		idMap[r.ID] = r.StorageID
+	}
+	return idMap, nil
+}
+
+func (ds *Datastore) UpdateInstallerUpgradeCode(ctx context.Context, id uint, upgradeCode string) error {
+	query := `UPDATE software_installers SET upgrade_code = ? WHERE id = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, query, upgradeCode, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update software installer upgrade code")
+	}
+	return nil
 }
 
 func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint,

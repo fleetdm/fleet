@@ -39,7 +39,7 @@ ${PACKAGE_ID}`
 		PackageIDs:      []string{"com.foo"},
 	}
 
-	preProcessUninstallScript(&payload)
+	require.NoError(t, preProcessUninstallScript(&payload))
 	expected := `
 blah$PACKAGE_IDS
 pkgids="com.foo"
@@ -55,7 +55,7 @@ quotes and braces for "com.foo"
 		UninstallScript: input,
 		PackageIDs:      []string{"com.foo", "com.bar"},
 	}
-	preProcessUninstallScript(&payload)
+	require.NoError(t, preProcessUninstallScript(&payload))
 	expected = `
 blah$PACKAGE_IDS
 pkgids=(
@@ -83,6 +83,8 @@ quotes and braces for (
   "com.bar"
 )`
 	assert.Equal(t, expected, payload.UninstallScript)
+
+	// TODO test upgrade code swapping, error handling on upgrade code in script but not in installer
 }
 
 func TestInstallUninstallAuth(t *testing.T) {

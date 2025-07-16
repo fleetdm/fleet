@@ -31,6 +31,7 @@ type InstallerMetadata struct {
 	SHASum           []byte
 	Extension        string
 	PackageIDs       []string
+	UpgradeCode      string
 }
 
 // ExtractInstallerMetadata extracts the software name and version from the

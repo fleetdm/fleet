@@ -1900,9 +1900,15 @@ type Datastore interface {
 	// GetSoftwareInstallersWithoutPackageIDs returns a map of software installers to storage ids that do not have a package ID.
 	GetSoftwareInstallersWithoutPackageIDs(ctx context.Context) (map[uint]string, error)
 
+	// GetMSIInstallersWithoutUpgradeCode returns a map of MSI software installers to storage ids that do not have an upgrade code set.
+	GetMSIInstallersWithoutUpgradeCode(ctx context.Context) (map[uint]string, error)
+
 	// UpdateSoftwareInstallerWithoutPackageIDs updates the software installer corresponding to the id. Used to add uninstall scripts.
 	UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint, payload UploadSoftwareInstallerPayload) error
 
+	// UpdateInstallerUpgradeCode updates the software installer corresponding to the id. Used to add upgrade codes.
+	UpdateInstallerUpgradeCode(ctx context.Context, id uint, upgradeCode string) error
+	
 	// ProcessInstallerUpdateSideEffects handles, in a transaction, the following based on whether metadata
 	// or package are dirty:
 	// 1. If metadata or package were updated, removes host_software_installer and queued script records for
