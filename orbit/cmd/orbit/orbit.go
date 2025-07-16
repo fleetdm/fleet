@@ -232,9 +232,9 @@ func main() {
 			EnvVars: []string{"ORBIT_OSQUERY_DB"},
 		},
 		&cli.BoolFlag{
-			Name:    "managed-client-certificate",
+			Name:    "fleet-managed-client-certificate",
 			Usage:   "Configures fleetd to use TPM-backed key to sign HTTP requests",
-			EnvVars: []string{"ORBIT_MANAGED_CLIENT_CERTIFICATE"},
+			EnvVars: []string{"ORBIT_FLEET_MANAGED_CLIENT_CERTIFICATE"},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -930,12 +930,12 @@ func main() {
 			return fmt.Errorf("error loading fleet client certificate: %w", err)
 		}
 
-		if c.Bool("managed-client-certificate") {
+		if c.Bool("fleet-managed-client-certificate") {
 			if runtime.GOOS != "linux" {
-				return errors.New("the \"managed-client-certificate\" flag is only supported on Linux")
+				return errors.New("fleet-managed-client-certificate is only supported on Linux")
 			}
 			if fleetClientCrt != nil {
-				return errors.New("setting both \"--managed-client-certificate\" for HTTP signing, and TLS client certificates for mTLS is not supported")
+				return errors.New("fleet-managed-client-certificate for HTTP signing, and TLS client certificates may not be specified together")
 			}
 		}
 
@@ -949,7 +949,7 @@ func main() {
 			}))
 		}
 
-		if c.Bool("managed-client-certificate") {
+		if c.Bool("fleet-managed-client-certificate") {
 			commonName := osqueryHostInfo.HardwareUUID
 			if c.String("host-identifier") == "instance" {
 				commonName = osqueryHostInfo.InstanceID
@@ -960,6 +960,7 @@ func main() {
 				fleetURL+"/api/fleet/orbit/host_identity/scep",
 				c.String("enroll-secret"),
 				commonName,
+				c.String("fleet-certificate"),
 				c.Bool("insecure"),
 				log.Logger,
 			)

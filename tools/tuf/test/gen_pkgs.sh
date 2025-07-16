@@ -27,6 +27,7 @@ set -ex
 # FLEET_DESKTOP: Whether to build with Fleet Desktop support.
 # INSECURE: Whether to use the --insecure flag.
 # USE_FLEET_SERVER_CERTIFICATE: Whether to use a custom certificate bundle.
+# FLEET_MANAGED_CLIENT_CERTIFICATE: Whether to use TPM-backed key for HTTP signing.
 # USE_UPDATE_SERVER_CERTIFICATE: Whether to use a custom certificate bundle.
 # FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST: Alternative host:port to use for the Fleet Desktop browser URLs.
 # DEBUG: Whether or not to build the package with --debug.
@@ -81,6 +82,7 @@ if [ -n "$GENERATE_DEB" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
+        ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-managed-client-certificate} \
         --update-url=$DEB_TUF_URL
 fi
 
@@ -105,6 +107,7 @@ if [ -n "$GENERATE_DEB_ARM64" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
+        ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-managed-client-certificate} \
         --update-url=$DEB_TUF_URL
 fi
 
@@ -129,6 +132,7 @@ if [ -n "$GENERATE_RPM" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
+        ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-managed-client-certificate} \
         --update-url=$RPM_TUF_URL
 fi
 
@@ -153,6 +157,7 @@ if [ -n "$GENERATE_RPM_ARM64" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
+        ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-managed-client-certificate} \
         --update-url=$RPM_TUF_URL
 fi
 

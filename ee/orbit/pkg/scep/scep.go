@@ -41,14 +41,23 @@ type Client struct {
 	logger  zerolog.Logger
 
 	insecure bool
+	rootCA   string
 }
 
 // Option is a functional option for configuring a SCEP Client
 type Option func(*Client)
 
+// WithSigningKey sets the private key signer for the certificate request.
 func WithSigningKey(key SigningKey) Option {
 	return func(c *Client) {
 		c.signingKey = key
+	}
+}
+
+// WithRootCA sets the root CA file to use when connecting to the SCEP server.
+func WithRootCA(rootCA string) Option {
+	return func(c *Client) {
+		c.rootCA = rootCA
 	}
 }
 
@@ -122,7 +131,7 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	// We assume the required fields have already been validated by the NewClient factory.
 
 	kitLogger := &zerologAdapter{logger: c.logger}
-	scepClient, err := scepclient.New(c.scepURL, kitLogger, &c.timeout, c.insecure)
+	scepClient, err := scepclient.New(c.scepURL, kitLogger, &c.timeout, c.rootCA, c.insecure)
 	if err != nil {
 		return nil, fmt.Errorf("create SCEP client: %w", err)
 	}

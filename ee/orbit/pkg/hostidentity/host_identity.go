@@ -31,6 +31,7 @@ func CreateOrLoadClientCertificate(
 	scepURL string,
 	scepChallenge string,
 	commonName string,
+	rootCA string,
 	insecure bool,
 	logger zerolog.Logger,
 ) (*ClientCertificate, error) {
@@ -60,6 +61,7 @@ func CreateOrLoadClientCertificate(
 	case errors.Is(err, os.ErrNotExist):
 		// We don't have a certificate, let's issue one using SCEP.
 		opts := []scep.Option{
+			scep.WithRootCA(rootCA),
 			scep.WithSigningKey(teeKey),
 			scep.WithLogger(logger),
 			scep.WithURL(scepURL),

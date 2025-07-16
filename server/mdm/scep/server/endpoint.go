@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -115,7 +118,7 @@ func MakeServerEndpointsWithIdentifier(svc ServiceWithIdentifier) *Endpoints {
 // MakeClientEndpoints returns an Endpoints struct where each endpoint invokes
 // the corresponding method on the remote instance, via a transport/http.Client.
 // Useful in a SCEP client.
-func MakeClientEndpoints(instance string, timeout *time.Duration, insecure bool) (*Endpoints, error) {
+func MakeClientEndpoints(instance string, timeout *time.Duration, rootCA string, insecure bool) (*Endpoints, error) {
 	if !strings.HasPrefix(instance, "http") {
 		instance = "http://" + instance
 	}
@@ -128,11 +131,27 @@ func MakeClientEndpoints(instance string, timeout *time.Duration, insecure bool)
 	if timeout != nil {
 		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*timeout))
 	}
-	if insecure {
-		fleetOpts = append(fleetOpts, fleethttp.WithTLSClientConfig(&tls.Config{
-			InsecureSkipVerify: true, //nolint:gosec // dismiss G402: only set on tests.
-		}))
+
+	if rootCA != "" || insecure {
+		tlsConfig := &tls.Config{}
+		switch {
+		case rootCA != "":
+			certs, err := os.ReadFile(rootCA)
+			if err != nil {
+				return nil, fmt.Errorf("reading root CA: %w", err)
+			}
+			rootCAPool := x509.NewCertPool()
+			if ok := rootCAPool.AppendCertsFromPEM(certs); !ok {
+				return nil, errors.New("failed to add certificates to root CA pool")
+			}
+			tlsConfig.RootCAs = rootCAPool
+		case insecure:
+			// Ignoring "G402: TLS InsecureSkipVerify set true", needed for development/testing.
+			tlsConfig.InsecureSkipVerify = true //nolint:gosec
+		}
+		fleetOpts = append(fleetOpts, fleethttp.WithTLSClientConfig(tlsConfig))
 	}
+
 	options := []httptransport.ClientOption{httptransport.SetClient(fleethttp.NewClient(fleetOpts...))}
 
 	return &Endpoints{

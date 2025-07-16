@@ -23,14 +23,14 @@ fi
 if [[ -d "$TUF_PATH" ]]; then
     set +x
     echo "Do you want to remove the existing $TUF_PATH directory?"
-    echo "Type 'yes/no' to continue... "
+    echo "Type 'yes/no' to continue... (or Ctrl+C to exit)"
     while read -r word;
     do
         if [[ "$word" == "yes" ]]; then
             rm -rf "$TUF_PATH"
             break
         elif [[ "$word" == "no" ]]; then
-            break
+            exit 0
         fi
     done
     set -x
@@ -38,7 +38,7 @@ fi
 
 SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows windows-arm64}
 
-echo "Generating packages for $SYSTEMS"
+echo "Generating components for $SYSTEMS"
 
 NUDGE_VERSION=stable
 ESCROW_BUDDY_PKG_VERSION=1.0.0
