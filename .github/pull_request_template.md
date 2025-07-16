@@ -21,7 +21,7 @@ If some of the following don't apply, delete the relevant line.
   - [ ] Confirmed that updating the timestamps is acceptable, and will not cause unwanted side effects.
   - [ ] Ensured the correct collation is explicitly set for character columns (`COLLATE utf8mb4_unicode_ci`).
 - [ ] Added/updated automated tests
-  - [ ] Where appropriate, automated tests simulate multiple hosts and test for host isolation(meaning updates to one hosts's records do not affect another)
+  - [ ] Where appropriate, automated tests simulate multiple hosts and test for host isolation (updates to one hosts's records do not affect another).
 - [ ] Manual QA for all new/changed functionality
 - For Orbit and Fleet Desktop changes:
    - [ ] Make sure fleetd is compatible with the latest released version of Fleet (see [Must rule](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/fleetd-development-and-release-strategy.md)).
