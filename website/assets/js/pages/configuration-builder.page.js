@@ -2405,6 +2405,110 @@ parasails.registerPage('configuration-builder', {
             ]
           }
         ],
+      },
+      {
+        categoryName: 'Network',
+        categorySlug: 'windows-network',
+        subcategories: [
+          {
+            subcategoryName: 'Firewall',
+            subcategorySlug: 'windows-firewall',
+            description: 'Settings related to Windows Defender Firewall.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/firewall-csp',
+            payloads: [
+              {
+                name: 'Enable firewall on Domain profile',
+                uniqueSlug: 'windows-firewall-enabled-domain',
+                tooltip: 'Enables windows defender firewall on the devices Domain profile',
+                category: 'Firewall',
+                payloadGroup: 'Domain profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Allow users to override firewall on Domain profile',
+                uniqueSlug: 'windows-firewall-bypass-enabled-domain',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the domain profile',
+                category: 'Firewall',
+                payloadGroup: 'Domain profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/DomainProfile/AllowLocalPolicyMerge',
+                },
+              },
+              {
+                name: 'Enable firewall on private profile',
+                uniqueSlug: 'windows-firewall-enabled-private',
+                tooltip: 'Enables windows defender firewall on the devices Domain profile',
+                category: 'Firewall',
+                payloadGroup: 'Private profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Allow users to override firewall on private profile',
+                uniqueSlug: 'windows-firewall-bypass-enabled-private',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the private profile',
+                category: 'Firewall',
+                payloadGroup: 'Private profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PrivateProfile/AllowLocalPolicyMerge',
+                },
+              },
+              {
+                name: 'Enable firewall on public profile',
+                uniqueSlug: 'windows-firewall-enabled-public',
+                tooltip: 'Enables windows defender firewall on the device\'s private profile',
+                category: 'Firewall',
+                payloadGroup: 'Public profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Allow users to override firewall on public profile',
+                uniqueSlug: 'windows-firewall-bypass-enabled-public',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the public profile',
+                category: 'Firewall',
+                payloadGroup: 'Public profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PublicProfile/AllowLocalPolicyMerge',
+                },
+              },
+            ],
+          },
+        ],
       }
     ],
   },
