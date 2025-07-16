@@ -39,6 +39,9 @@ func NewHTTPSig(ds fleet.Datastore, logger log.Logger) *HTTPSig {
 	}
 }
 
+// _ ensures that HTTPSig implements the httpsig.KeyFetcher interface.
+var _ httpsig.KeyFetcher = (*HTTPSig)(nil)
+
 func (h *HTTPSig) Verifier() (*httpsig.Verifier, error) {
 	return httpsig.NewVerifier(h, httpsig.VerifyProfile{
 		SignatureLabel:    httpsig.DefaultSignatureLabel,
