@@ -512,9 +512,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Len(t, installs, len(wantGlobalProfiles))
 	s.signedProfilesMatch(wantGlobalProfiles, installs)
 	require.Len(t, removes, len(wantTeamProfiles))
-	expectedNoTeamSummary = fleet.MDMProfilesSummary{Verifying: 1}
+	expectedNoTeamSummary = fleet.MDMProfilesSummary{Pending: 1}
 	expectedTeamSummary = fleet.MDMProfilesSummary{}
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // host now verifying global profiles
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // host now removing team profiles
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)
 
 	// can't resend profile from another team
