@@ -139,7 +139,7 @@ func (m FullInstallerMetadata) PolicyQuery() (string, error) {
 		if len(m.PackageIDs) == 0 || m.PackageIDs[0] == "" {
 			return "", ErrMissingProductCode
 		}
-		return fmt.Sprintf("SELECT 1 FROM programs WHERE identifying_number = '%s';", m.PackageIDs[0]), nil
+		return fmt.Sprintf("SELECT 1 FROM programs WHERE upgrade_code = '%s';", m.PackageIDs[0]), nil
 	case "deb":
 		return fmt.Sprintf(
 			// First inner SELECT will mark the policies as successful on non-DEB-based hosts.

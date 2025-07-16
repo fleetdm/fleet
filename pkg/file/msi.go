@@ -88,7 +88,7 @@ func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	return &InstallerMetadata{
 		Name:       strings.TrimSpace(productName),
 		Version:    strings.TrimSpace(props["ProductVersion"]),
-		PackageIDs: []string{strings.TrimSpace(props["ProductCode"])},
+		PackageIDs: []string{strings.TrimSpace(props["UpgradeCode"])},
 		SHASum:     h.Sum(nil),
 	}, nil
 }
