@@ -55,7 +55,7 @@ describe("HostSoftwareTable", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/let us know/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Software installed on this host/i)
+      screen.queryByText(/Software installed on this host/i)
     ).not.toBeInTheDocument();
   });
 
