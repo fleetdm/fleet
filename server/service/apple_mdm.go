@@ -3811,12 +3811,12 @@ func NewInstalledApplicationListResultsHandler(
 
 		expectedInstalls, err := ds.GetUnverifiedVPPInstallsForHost(ctx, installedAppResult.HostUUID())
 		if err != nil {
-			if fleet.IsNotFound(err) {
-				// Then something weird happened, so log it and exit (we can't do anything here in this case).
-				level.Warn(logger).Log("msg", "no vpp installs found for verification UUID", "command_uuid", installedAppResult.UUID())
-				return nil
-			}
 			return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
+		}
+
+		if len(expectedInstalls) == 0 {
+			level.Warn(logger).Log("msg", "no vpp installs found for host", "host_uuid", installedAppResult.HostUUID(), "verification_command_uuid", installedAppResult.UUID())
+			return nil
 		}
 
 		installsByBundleID := map[string]fleet.Software{}
