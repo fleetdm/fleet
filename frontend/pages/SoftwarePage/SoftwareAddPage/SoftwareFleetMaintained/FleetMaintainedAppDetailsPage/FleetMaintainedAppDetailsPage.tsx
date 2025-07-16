@@ -58,7 +58,7 @@ const FleetAppSummary = ({
   version,
   onClickShowAppDetails,
 }: IFleetAppSummaryProps) => {
-  let versionElement = <>version</>;
+  let versionElement = <>{version}</>;
 
   if (version === "latest") {
     versionElement = (

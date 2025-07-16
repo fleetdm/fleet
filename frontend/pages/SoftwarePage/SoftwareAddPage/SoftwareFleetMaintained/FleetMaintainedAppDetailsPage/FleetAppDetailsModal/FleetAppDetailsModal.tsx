@@ -68,7 +68,7 @@ const FleetAppDetailsModal = ({
     return false;
   };
 
-  let versionElement = <>version</>;
+  let versionElement = <>{version}</>;
   if (version === "latest") {
     versionElement = (
       <TooltipWrapper
