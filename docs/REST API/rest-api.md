@@ -3279,6 +3279,7 @@ If `hostname` is specified when there is more than one host with the same hostna
           "status": "verifying",
           "operation_type": "install",
           "scope": "device",
+          "users": [],
           "detail": ""
         }
       ]
