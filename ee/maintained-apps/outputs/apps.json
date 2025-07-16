@@ -107,6 +107,13 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "Company Portal",
+      "slug": "intune-company-portal/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.CompanyPortalMac",
+      "description": "Microsoft Intune Company Portal is the app for accessing company resources and managing devices in a secure environment."
+    },
+    {
       "name": "iTerm2",
       "slug": "iterm2/darwin",
       "platform": "darwin",

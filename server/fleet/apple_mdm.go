@@ -962,6 +962,20 @@ type MDMAppleMachineInfo struct {
 	Version                     string `plist:"VERSION"`
 }
 
+// MDMAppleAccountDrivenUserEnrollDeviceInfo is a more minimal version of DeviceInfo sent on Account
+// Driven User Enrollment requests[1] that only describes the base product attempting enrollment.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/implementing-the-simple-authentication-user-enrollment-flow#Attempt-the-first-enrollment
+type MDMAppleAccountDrivenUserEnrollDeviceInfo struct {
+	Version  string `plist:"VERSION"`
+	Product  string `plist:"PRODUCT"`
+	Language string `plist:"LANGUAGE,omitempty"`
+	// The following keys are not described in the documentation above but have been observed in practice
+	OSVersion                string `plist:"OS_VERSION,omitempty"`
+	SoftwareUpdateDeviceID   string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
+	SupplementalBuildVersion string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
+}
+
 // MDMAppleSoftwareUpdateRequiredCode is the [code][1] specified by Apple to indicate that the device
 // needs to perform a software update before enrollment and setup can proceed.
 //

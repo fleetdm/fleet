@@ -36,6 +36,7 @@ import WhatsApp from "./WhatsApp";
 import Postman from "./Postman";
 import OnePassword from "./OnePassword";
 import AmazonDCV from "./AmazonDCV";
+import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import Santa from "./Santa";
 import YubikeyManager from "./YubikeyManager";
 import BeyondCompare from "./BeyondCompare";
@@ -84,6 +85,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   postman: Postman,
   "1password": OnePassword,
   "amazon dcv": AmazonDCV,
+  "company portal": IntuneCompanyPortal,
   santa: Santa,
   "yubikey manager": YubikeyManager,
   "beyond compare": BeyondCompare,

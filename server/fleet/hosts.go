@@ -517,6 +517,10 @@ type MDMHostData struct {
 	// EncryptionKeyAvailable indicates if Fleet was able to retrieve and
 	// decode an encryption key for the host.
 	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
+	// EncryptionKeyArchived indicates if an archived encryption key exists for the host.
+	// It is not filled in by all host-returning methods (currently only populated if
+	// svc.getHostDetails is called).
+	EncryptionKeyArchived *bool `json:"encryption_key_archived,omitempty" db:"encryption_key_archived" csv:"-"`
 
 	// this is set to nil if the key exists but decryptable is NULL in the db, 1
 	// if decryptable, 0 if non-decryptable and -1 if no disk encryption key row
@@ -942,6 +946,16 @@ func (h *Host) FleetPlatform() string {
 	return PlatformFromHost(h.Platform)
 }
 
+func (h *Host) PlatformSupportsRpmPackages() bool {
+	_, ok := HostRpmPackageOSs[h.Platform]
+	return ok
+}
+
+func (h *Host) PlatformSupportsDebPackages() bool {
+	_, ok := HostDebPackageOSs[h.Platform]
+	return ok
+}
+
 // SupportsOsquery returns whether the device runs osquery.
 func (h *Host) SupportsOsquery() bool {
 	return PlatformSupportsOsquery(h.Platform)
@@ -955,6 +969,39 @@ func PlatformSupportsOsquery(platform string) bool {
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
 	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo", "neon",
+}
+
+// HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
+var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
+	"arch":        {},
+	"gentoo":      {},
+	"void":        {},
+	"nixos":       {},
+	"endeavouros": {},
+	"manjaro":     {},
+}
+
+// HostDebPackageOSs are the list of known Linux platforms that support DEB packages
+var HostDebPackageOSs = map[string]struct{}{
+	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
+	"ubuntu":    {},
+	"debian":    {},
+	"kali":      {},
+	"pop":       {},
+	"linuxmint": {},
+	"tuxedo":    {},
+	"neon":      {},
+}
+
+// HostRpmPackageOSs are the list of known Linux platforms that support RPM packages
+var HostRpmPackageOSs = map[string]struct{}{
+	"linux":               {}, // let RPMs through if we're looking at a generic Linux host
+	"rhel":                {},
+	"centos":              {},
+	"sles":                {},
+	"amzn":                {},
+	"opensuse-leap":       {},
+	"opensuse-tumbleweed": {},
 }
 
 func IsLinux(hostPlatform string) bool {

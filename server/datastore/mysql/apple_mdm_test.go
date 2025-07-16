@@ -2051,6 +2051,40 @@ func nanoEnrollAndSetHostMDMData(t *testing.T, ds *Datastore, host *fleet.Host, 
 	require.NoError(t, err)
 }
 
+func nanoEnrollUserDeviceAndSetHostMDMData(t *testing.T, ds *Datastore, host *fleet.Host) {
+	ctx := t.Context()
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	expectedMDMServerURL, err := apple_mdm.ResolveAppleEnrollMDMURL(ac.ServerSettings.ServerURL)
+	require.NoError(t, err)
+	nanoEnrollUserDevice(t, ds, host)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "")
+	require.NoError(t, err)
+}
+
+// Creates a "User Enrollment (Device)" enrollment for a given host simulating a BYOD account-driven
+// user enrollment device.
+func nanoEnrollUserDevice(t *testing.T, ds *Datastore, host *fleet.Host) {
+	_, err := ds.writer(t.Context()).Exec(`INSERT INTO nano_devices (id, serial_number, authenticate, platform, enroll_team_id) VALUES (?, NULLIF(?, ''), 'test', ?, ?)`, host.UUID, host.UUID, host.Platform, host.TeamID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(t.Context()).Exec(`
+INSERT INTO nano_enrollments
+	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally)
+VALUES
+	(?, ?, ?, ?, ?, ?, ?, ?)`,
+		host.UUID,
+		host.UUID,
+		nil,
+		"User Enrollment (Device)",
+		host.UUID+".topic",
+		host.UUID+".magic",
+		host.UUID,
+		1,
+	)
+	require.NoError(t, err)
+}
+
 func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host, withUser bool) {
 	_, err := ds.writer(t.Context()).Exec(`INSERT INTO nano_devices (id, serial_number, authenticate, platform, enroll_team_id) VALUES (?, NULLIF(?, ''), 'test', ?, ?)`, host.UUID, host.HardwareSerial, host.Platform, host.TeamID)
 	require.NoError(t, err)
@@ -3504,7 +3538,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// create some enrolled hosts
-	enrolledHosts := make([]*fleet.Host, 3)
+	enrolledHosts := make([]*fleet.Host, 4)
 	for i := 0; i < 3; i++ {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("test-host%d-name", i),
@@ -3518,6 +3552,19 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 		enrolledHosts[i] = h
 		t.Logf("enrolled host [%d]: %s", i, h.UUID)
 	}
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host3-byod-name",
+		OsqueryHostID: ptr.String("osquery-3"),
+		NodeKey:       ptr.String("nodekey-3"),
+		UUID:          "test-uuid-byod-3",
+		Platform:      "ios",
+	})
+	require.NoError(t, err)
+	nanoEnrollUserDevice(t, ds, h)
+	enrolledHosts[3] = h
+	t.Logf("enrolled BYOD host [%d]: %s", 3, h.UUID)
+
 	// create a team
 	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -3532,21 +3579,23 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, res)
 
-	// enqueue a command for enrolled hosts [0] and [1]
+	// enqueue a command for enrolled hosts [0], [1] and [3]
 	uuid1 := uuid.New().String()
 	rawCmd1 := createRawAppleCmd("ListApps", uuid1)
-	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID}, rawCmd1)
+	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID, enrolledHosts[3].UUID}, rawCmd1)
 	require.NoError(t, err)
 
 	// command has no results yet, so the status is empty
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
-	require.Len(t, res, 2)
+	require.Len(t, res, 3)
 
 	require.NotZero(t, res[0].UpdatedAt)
 	res[0].UpdatedAt = time.Time{}
 	require.NotZero(t, res[1].UpdatedAt)
 	res[1].UpdatedAt = time.Time{}
+	require.NotZero(t, res[2].UpdatedAt)
+	res[2].UpdatedAt = time.Time{}
 
 	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
 		{
@@ -3563,6 +3612,14 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 			Status:      "Pending",
 			RequestType: "ListApps",
 			Hostname:    enrolledHosts[1].Hostname,
+			TeamID:      nil,
+		},
+		{
+			DeviceID:    enrolledHosts[3].UUID,
+			CommandUUID: uuid1,
+			Status:      "Pending",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[3].Hostname,
 			TeamID:      nil,
 		},
 	})
@@ -3581,12 +3638,14 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	// command is now listed with a status for this result
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
-	require.Len(t, res, 2)
+	require.Len(t, res, 3)
 
 	require.NotZero(t, res[0].UpdatedAt)
 	res[0].UpdatedAt = time.Time{}
 	require.NotZero(t, res[1].UpdatedAt)
 	res[1].UpdatedAt = time.Time{}
+	require.NotZero(t, res[2].UpdatedAt)
+	res[2].UpdatedAt = time.Time{}
 
 	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
 		{
@@ -3605,9 +3664,17 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 			Hostname:    enrolledHosts[1].Hostname,
 			TeamID:      nil,
 		},
+		{
+			DeviceID:    enrolledHosts[3].UUID,
+			CommandUUID: uuid1,
+			Status:      "Pending",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[3].Hostname,
+			TeamID:      nil,
+		},
 	})
 
-	// simulate a result for enrolledHosts[1]
+	// simulate a result for enrolledHosts[1] and enrolledHosts[3]
 	err = storage.StoreCommandReport(&mdm.Request{
 		EnrollID: &mdm.EnrollID{ID: enrolledHosts[1].UUID},
 		Context:  ctx,
@@ -3618,15 +3685,27 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: enrolledHosts[3].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid1,
+		Status:      "Acknowledged",
+		Raw:         []byte(rawCmd1),
+	})
+	require.NoError(t, err)
+
 	// both results are now listed
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
-	require.Len(t, res, 2)
+	require.Len(t, res, 3)
 
 	require.NotZero(t, res[0].UpdatedAt)
 	res[0].UpdatedAt = time.Time{}
 	require.NotZero(t, res[1].UpdatedAt)
 	res[1].UpdatedAt = time.Time{}
+	require.NotZero(t, res[2].UpdatedAt)
+	res[2].UpdatedAt = time.Time{}
 
 	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
 		{
@@ -3643,6 +3722,14 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 			Status:      "Error",
 			RequestType: "ListApps",
 			Hostname:    enrolledHosts[1].Hostname,
+			TeamID:      nil,
+		},
+		{
+			DeviceID:    enrolledHosts[3].UUID,
+			CommandUUID: uuid1,
+			Status:      "Acknowledged",
+			RequestType: "ListApps",
+			Hostname:    enrolledHosts[3].Hostname,
 			TeamID:      nil,
 		},
 	})
@@ -3676,7 +3763,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	// results are listed
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
-	require.Len(t, res, 4)
+	require.Len(t, res, 5)
 
 	// page-by-page: first page
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{
@@ -3690,7 +3777,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 		ListOptions: fleet.ListOptions{Page: 1, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
 	})
 	require.NoError(t, err)
-	require.Len(t, res, 1)
+	require.Len(t, res, 2)
 
 	// filter by a user from team tm1, can only see that team's host
 	u1, err := ds.NewUser(ctx, &fleet.User{
@@ -3738,10 +3825,10 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 		_, err := tx.ExecContext(ctx, `UPDATE nano_enrollment_queue SET active = 0 LIMIT 2`)
 		return err
 	})
-	// only two results are listed
+	// only three results are listed
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
-	require.Len(t, res, 2)
+	require.Len(t, res, 3)
 }
 
 func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
@@ -4595,7 +4682,11 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, *depAssignment.ABMTokenID, abmToken.ID)
 
 		// simulate initial osquery enrollment via Orbit
-		testHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}, depOrbitNodeKey, nil)
+		testHost, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}),
+			fleet.WithEnrollOrbitNodeKey(depOrbitNodeKey),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, testHost)
 
@@ -4744,7 +4835,11 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Nil(t, hdepa)
 
 		// simulate initial osquery enrollment via Orbit
-		manualHost, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: manualSerial, Platform: "darwin", HardwareUUID: manualUUID, Hostname: "maunual-host"}, manualOrbitNodeKey, nil)
+		manualHost, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareSerial: manualSerial, Platform: "darwin", HardwareUUID: manualUUID, Hostname: "maunual-host"}),
+			fleet.WithEnrollOrbitNodeKey(manualOrbitNodeKey),
+		)
 		require.NoError(t, err)
 		require.Equal(t, manualHostID, manualHost.ID)
 
@@ -5852,12 +5947,16 @@ func TestRestorePendingDEPHost(t *testing.T) {
 			require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 5*time.Second)
 
 			// simulate initial osquery enrollment via Orbit
-			h, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
-				HardwareSerial: depSerial,
-				Platform:       "darwin",
-				HardwareUUID:   depUUID,
-				Hostname:       "dep-host",
-			}, depOrbitNodeKey, nil)
+			h, err := ds.EnrollOrbit(ctx,
+				fleet.WithEnrollOrbitMDMEnabled(true),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+					HardwareSerial: depSerial,
+					Platform:       "darwin",
+					HardwareUUID:   depUUID,
+					Hostname:       "dep-host",
+				}),
+				fleet.WithEnrollOrbitNodeKey(depOrbitNodeKey),
+			)
 			require.NoError(t, err)
 			require.NotNil(t, h)
 			require.Equal(t, depHostID, h.ID)
@@ -8171,9 +8270,29 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	require.NotNil(t, lastMDMEnrolledAt) // defaults to current time on creation
 	require.NotNil(t, lastMDMSeenAt)     // defaults to time 0 value
 
+	// Add a BYOD host
+	byodHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-byod-host1-name",
+		OsqueryHostID: ptr.String("1338"),
+		NodeKey:       ptr.String("1338"),
+		UUID:          "test-byod-uuid-2",
+		TeamID:        nil,
+		Platform:      "ios",
+	})
+	require.NoError(t, err)
+	nanoEnrollUserDevice(t, ds, byodHost)
+
+	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, byodHost.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, lastMDMEnrolledAt) // defaults to current time on creation
+	require.NotNil(t, lastMDMSeenAt)     // defaults to time 0 value
+
 	authenticateTime := time.Now().Add(-1 * time.Hour).UTC().Round(time.Second)
 	deviceEnrollTime := time.Now().Add(-2 * time.Hour).UTC().Round(time.Second)
 	userEnrollTime := time.Now().Add(-3 * time.Hour).UTC().Round(time.Second)
+
+	byodDeviceAuthenticateTime := time.Now().Add(-4 * time.Hour).UTC().Round(time.Second)
+	byodDeviceEnrollTime := time.Now().Add(-5 * time.Hour).UTC().Round(time.Second)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE nano_devices SET authenticate_at=? WHERE id = ?`, authenticateTime, host.UUID)
 		if err != nil {
@@ -8187,6 +8306,15 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
+
+		_, err = q.ExecContext(ctx, `UPDATE nano_devices SET authenticate_at=? WHERE id = ?`, byodDeviceAuthenticateTime, byodHost.UUID)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at=? WHERE device_id = ?`, byodDeviceEnrollTime, byodHost.UUID)
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 
@@ -8196,6 +8324,13 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	assert.Equal(t, authenticateTime, *lastMDMEnrolledAt)
 	require.NotNil(t, lastMDMSeenAt)
 	assert.Equal(t, deviceEnrollTime, *lastMDMSeenAt)
+
+	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, byodHost.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, lastMDMEnrolledAt)
+	assert.Equal(t, byodDeviceAuthenticateTime, *lastMDMEnrolledAt)
+	require.NotNil(t, lastMDMSeenAt)
+	assert.Equal(t, byodDeviceEnrollTime, *lastMDMSeenAt)
 }
 
 func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
@@ -8533,6 +8668,26 @@ func testGetMDMAppleEnrolledDeviceDeletedFromFleet(t *testing.T, ds *Datastore) 
 		hosts = append(hosts, host)
 	}
 
+	// Create BYOD Personal enrollments for iOS and iPadOS devices
+	for i, platform := range []string{"ios", "ipados"} {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        fmt.Sprintf("byod_hostname_%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("osquery-host-id-byod_%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("node-key-byod_%d", i)),
+			UUID:            fmt.Sprintf("byod_uuid_%d", i),
+			HardwareSerial:  fmt.Sprintf("byod_uuid_%d", i),
+			Platform:        platform,
+		})
+		nanoEnrollUserDeviceAndSetHostMDMData(t, ds, host)
+		require.NoError(t, err)
+
+		hosts = append(hosts, host)
+	}
+
 	// get for any of those hosts returns not found because the host entry still exists
 	for _, h := range hosts {
 		_, err := ds.GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx, h.UUID)
@@ -8566,7 +8721,7 @@ func testGetMDMAppleEnrolledDeviceDeletedFromFleet(t *testing.T, ds *Datastore) 
 	require.NotEmpty(t, info.Authenticate)
 
 	// the others still cannot be retrieved (add an invalid host uuid for good measure)
-	for _, huuid := range []string{hosts[2].UUID, hosts[3].UUID, uuid.NewString()} {
+	for _, huuid := range []string{hosts[2].UUID, hosts[3].UUID, hosts[4].UUID, hosts[5].UUID, uuid.NewString()} {
 		_, err := ds.GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx, huuid)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
@@ -8577,6 +8732,34 @@ func testGetMDMAppleEnrolledDeviceDeletedFromFleet(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	require.Len(t, ids, 1)
 	require.ElementsMatch(t, []string{hosts[1].UUID}, ids)
+
+	// delete the darwin and ios BYOD hosts
+	err = ds.DeleteHost(ctx, hosts[4].ID)
+	require.NoError(t, err)
+	err = ds.DeleteHost(ctx, hosts[5].ID)
+	require.NoError(t, err)
+
+	// ios device info can be retrieved
+	info, err = ds.GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx, hosts[4].UUID)
+	require.NoError(t, err)
+	require.Equal(t, hosts[4].UUID, info.ID)
+	require.Equal(t, hosts[4].HardwareSerial, info.SerialNumber)
+	require.Equal(t, hosts[4].Platform, info.Platform)
+	require.NotEmpty(t, info.Authenticate)
+
+	// iPadOS device info can be retrieved
+	info, err = ds.GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx, hosts[5].UUID)
+	require.NoError(t, err)
+	require.Equal(t, hosts[5].UUID, info.ID)
+	require.Equal(t, hosts[5].HardwareSerial, info.SerialNumber)
+	require.Equal(t, hosts[5].Platform, info.Platform)
+	require.NotEmpty(t, info.Authenticate)
+
+	// list returns only 3 because it ignores macOS
+	ids, err = ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 10)
+	require.NoError(t, err)
+	require.Len(t, ids, 3)
+	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[4].UUID, hosts[5].UUID}, ids)
 }
 
 func testSetMDMAppleProfilesWithVariables(t *testing.T, ds *Datastore) {
