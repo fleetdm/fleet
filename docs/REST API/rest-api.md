@@ -3475,6 +3475,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
           "status": "verifying",
           "operation_type": "install",
           "scope": "device",
+          "users": [],
           "detail": ""
         }
       ]
