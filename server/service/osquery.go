@@ -63,7 +63,9 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	if *host.HasHostIdentityCert {
 		err = httpsig.VerifyHostIdentity(ctx, svc.ds, host)
 		if err != nil {
-			return nil, false, newOsqueryError("authentication error: " + err.Error())
+			osqueryError := newOsqueryError("authentication error: " + err.Error())
+			osqueryError.StatusCode = http.StatusUnauthorized
+			return nil, false, osqueryError
 		}
 	}
 
@@ -105,6 +107,24 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", newOsqueryErrorWithInvalidNode("enroll failed: " + err.Error())
 	}
 
+	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
+	}
+
+	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
+	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
+	if identityCert != nil {
+		if !httpSigPresent {
+			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
+		}
+		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
+		}
+	} else if httpSigPresent { // but we couldn't find cert in DB
+		return "", fleet.NewAuthFailedError("authentication error: certificate matching HTTP message signature not found")
+	}
+
 	nodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("generate node key failed: " + err.Error())
@@ -144,6 +164,7 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		fleet.WithEnrollHostNodeKey(nodeKey),
 		fleet.WithEnrollHostTeamID(secret.TeamID),
 		fleet.WithEnrollHostCooldown(svc.config.Osquery.EnrollCooldown),
+		fleet.WithEnrollHostIdentityCert(identityCert),
 	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())

@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	"github.com/remitly-oss/httpsig-go"
@@ -100,7 +101,14 @@ func VerifyHostIdentity(ctx context.Context, ds fleet.Datastore, host *fleet.Hos
 		return errors.New("authentication error: http message signature does not match node key")
 	}
 	if hostIdentityCert.HostID == nil {
-		// Update the certificate
+		logger, ok := logging.FromContext(ctx)
+		if !ok {
+			return errors.New("authentication error: could not get a logger from context. This should not happen")
+		}
+		logger.SetErrs(fmt.Errorf("found host identity certificate without host ID. "+
+			"This should not happen since host ID for a certificate should be set at enrollment. identifier/CN: %s host ID: %d",
+			hostIdentityCert.CommonName, host.ID))
+		// We recover by update the certificate with the host ID
 		err := ds.UpdateHostIdentityCertHostIDBySerial(ctx, hostIdentityCert.SerialNumber, host.ID)
 		if err != nil {
 			return fmt.Errorf("authentication error: failed to update host identity certificate: %w", err)

@@ -2131,7 +2131,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		case errors.Is(err, sql.ErrNoRows):
 			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
 			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil {
-				return ctxerr.New(ctx, fmt.Sprintf("orbit host identity cert %s already belongs to another host with host id: %d",
+				return ctxerr.New(ctx, fmt.Sprintf("orbit host identity cert with identifier %s already belongs to another host with host id: %d",
 					hostInfo.OsqueryIdentifier, *enrollConfig.IdentityCert.HostID))
 			}
 
@@ -2239,6 +2239,12 @@ func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnro
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
 		case errors.Is(err, sql.ErrNoRows):
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil {
+				return ctxerr.New(ctx, fmt.Sprintf("host identity cert with identifier %s already belongs to another host with host id: %d",
+					osqueryHostID, *enrollConfig.IdentityCert.HostID))
+			}
+
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
 			// the refetch is completed.
@@ -2290,6 +2296,13 @@ func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnro
 				)
 			}
 
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil &&
+				*enrollConfig.IdentityCert.HostID != hostID {
+				return ctxerr.New(ctx, "host identity cert host id does not match enrolled host id. "+
+					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
+			}
+
 			if err := deleteAllPolicyMemberships(ctx, tx, []uint{enrolledHostInfo.ID}); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleanup policy membership on re-enroll")
 			}
@@ -2325,6 +2338,14 @@ func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnro
 			hostID, time.Now().UTC())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
+		}
+
+		// Update the host id for the identity certificate
+		if enrollConfig.IdentityCert != nil {
+			err = updateHostIdentityCertHostIDBySerial(ctx, tx, hostID, enrollConfig.IdentityCert.SerialNumber)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update host identity cert host id")
+			}
 		}
 
 		sqlSelect := `

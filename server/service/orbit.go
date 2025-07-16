@@ -149,14 +149,16 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	}
 
 	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
+	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
 	if identityCert != nil {
-		hostIdentityCert, ok := httpsig.FromContext(ctx)
-		if !ok {
+		if !httpSigPresent {
 			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
 		}
 		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
 			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
 		}
+	} else if httpSigPresent { // but we couldn't find the cert in DB
+		return "", fleet.NewAuthFailedError("authentication error: certificate matching HTTP message signature not found")
 	}
 
 	orbitNodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)

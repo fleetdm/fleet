@@ -37,8 +37,9 @@ func TestHostIdentity(t *testing.T) {
 		name string
 		fn   func(t *testing.T, s *Suite)
 	}{
-		{"GetCertAndSignReq", testGetCert},
+		{"GetCertAndSignReq", testGetCertAndSignReq},
 		{"GetCertFailures", testGetCertFailures},
+		{"WrongCertAuthentication", testWrongCertAuthentication},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -50,23 +51,21 @@ func TestHostIdentity(t *testing.T) {
 	}
 }
 
-func testGetCert(t *testing.T, s *Suite) {
+func testGetCertAndSignReq(t *testing.T, s *Suite) {
 	t.Run("ECC P256, orbit", func(t *testing.T) {
+		t.Parallel()
 		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P256())
 		testOrbitEnrollment(t, s, cert, eccPrivateKey)
 	})
 
 	t.Run("ECC P384, orbit", func(t *testing.T) {
+		t.Parallel()
 		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
 		testOrbitEnrollment(t, s, cert, eccPrivateKey)
 	})
 
-	t.Run("ECC P256, osquery", func(t *testing.T) {
-		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P256())
-		testOsqueryEnrollment(t, s, cert, eccPrivateKey)
-	})
-
 	t.Run("ECC P384, osquery", func(t *testing.T) {
+		t.Parallel()
 		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
 		testOsqueryEnrollment(t, s, cert, eccPrivateKey)
 	})
@@ -189,6 +188,33 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 	return cert, eccPrivateKey
 }
 
+// createHTTPSigner creates an HTTP signature signer for the given ECC private key and certificate
+func createHTTPSigner(t *testing.T, eccPrivateKey *ecdsa.PrivateKey, cert *x509.Certificate) *httpsig.Signer {
+	// Determine the algorithm based on the curve
+	var algo httpsig.Algorithm
+	switch eccPrivateKey.Curve {
+	case elliptic.P256():
+		algo = httpsig.Algo_ECDSA_P256_SHA256
+	case elliptic.P384():
+		algo = httpsig.Algo_ECDSA_P384_SHA384
+	default:
+		t.Fatalf("Unsupported curve: %v", eccPrivateKey.Curve)
+	}
+
+	// Create signer
+	signer, err := httpsig.NewSigner(httpsig.SigningProfile{
+		Algorithm: algo,
+		// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
+		Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
+		Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
+	}, httpsig.SigningKey{
+		Key:       eccPrivateKey,
+		MetaKeyID: fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+	})
+	require.NoError(t, err)
+	return signer
+}
+
 func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
 	// Test orbit enrollment with the certificate
 	type EnrollOrbitResponse struct {
@@ -216,28 +242,8 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
-	// Determine the algorithm based on the curve
-	var algo httpsig.Algorithm
-	switch eccPrivateKey.Curve {
-	case elliptic.P256():
-		algo = httpsig.Algo_ECDSA_P256_SHA256
-	case elliptic.P384():
-		algo = httpsig.Algo_ECDSA_P384_SHA384
-	default:
-		t.Fatalf("Unsupported curve: %v", eccPrivateKey.Curve)
-	}
-
-	// Create signer
-	signer, err := httpsig.NewSigner(httpsig.SigningProfile{
-		Algorithm: algo,
-		// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
-		Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
-		Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
-	}, httpsig.SigningKey{
-		Key:       eccPrivateKey,
-		MetaKeyID: fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
-	})
-	require.NoError(t, err)
+	// Create signer using the shared helper
+	signer := createHTTPSigner(t, eccPrivateKey, cert)
 
 	// Sign the request
 	err = signer.Sign(req)
@@ -381,10 +387,11 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 		},
 	}
 
-	// TODO: Osquery enrollment currently does not require HTTP message signature.
-	// This test should be updated once osquery enrollment logic is implemented
-	// to require HTTP signatures like orbit enrollment does.
+	// This request is sent without an HTTP signature, so it should fail.
+	var enrollResp contract.EnrollOsqueryAgentResponse
+	s.DoJSON(t, "POST", "/api/v1/osquery/enroll", enrollRequest, http.StatusUnauthorized, &enrollResp)
 
+	// Now send the same request with HTTP message signature
 	reqBody, err := json.Marshal(enrollRequest)
 	require.NoError(t, err)
 
@@ -392,28 +399,8 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
-	// Determine the algorithm based on the curve
-	var algo httpsig.Algorithm
-	switch eccPrivateKey.Curve {
-	case elliptic.P256():
-		algo = httpsig.Algo_ECDSA_P256_SHA256
-	case elliptic.P384():
-		algo = httpsig.Algo_ECDSA_P384_SHA384
-	default:
-		t.Fatalf("Unsupported curve: %v", eccPrivateKey.Curve)
-	}
-
-	// Create signer
-	signer, err := httpsig.NewSigner(httpsig.SigningProfile{
-		Algorithm: algo,
-		// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
-		Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
-		Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
-	}, httpsig.SigningKey{
-		Key:       eccPrivateKey,
-		MetaKeyID: fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
-	})
-	require.NoError(t, err)
+	// Create signer using the shared helper
+	signer := createHTTPSigner(t, eccPrivateKey, cert)
 
 	// Sign the request
 	err = signer.Sign(req)
@@ -429,7 +416,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Osquery enrollment with HTTP signature should succeed")
 
 	// Parse the response
-	var enrollResp contract.EnrollOsqueryAgentResponse
+	enrollResp = contract.EnrollOsqueryAgentResponse{}
 	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
 	require.NoError(t, err)
 	require.NotEmpty(t, enrollResp.NodeKey, "Should receive node key")
@@ -461,7 +448,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 					req.Header.Set("Content-Type", "application/json")
 					return req, nil
 				},
-				expectedStatus: http.StatusOK, // TODO: Update this once we fix osquery enrollment to link cert with host
+				expectedStatus: http.StatusUnauthorized,
 			},
 			{
 				name: "with valid signature",
@@ -695,4 +682,261 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 
 	// Verify failure response
 	assert.Equal(t, scep.FAILURE, pkiMsgResp.PKIStatus, "SCEP request should fail")
+}
+
+func testWrongCertAuthentication(t *testing.T, s *Suite) {
+	// Test that hosts cannot use another host's certificate for authentication
+
+	// Create two P384 certificates for different hosts
+	certHost1, eccPrivateKeyHost1 := testGetCertWithCurve(t, s, elliptic.P384())
+	certHost2, eccPrivateKeyHost2 := testGetCertWithCurve(t, s, elliptic.P384())
+
+	// Create signers for both hosts
+	signerHost1 := createHTTPSigner(t, eccPrivateKeyHost1, certHost1)
+	signerHost2 := createHTTPSigner(t, eccPrivateKeyHost2, certHost2)
+
+	// Generate a local ECC P384 private key (not from Fleet SCEP)
+	localPrivateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	require.NoError(t, err)
+
+	// Create a signer using the local private key with a fake certificate serial
+	localSigner, err := httpsig.NewSigner(httpsig.SigningProfile{
+		Algorithm: httpsig.Algo_ECDSA_P384_SHA384,
+		Fields:    httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
+		Metadata:  []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
+	}, httpsig.SigningKey{
+		Key:       localPrivateKey,
+		MetaKeyID: "999999", // Fake certificate serial number
+	})
+	require.NoError(t, err)
+
+	enrollRequest := contract.EnrollOrbitRequest{
+		EnrollSecret:      testEnrollmentSecret,
+		HardwareUUID:      "test-uuid-" + certHost1.Subject.CommonName,
+		HardwareSerial:    "test-serial-" + certHost1.Subject.CommonName,
+		Hostname:          "test-hostname-" + certHost1.Subject.CommonName,
+		OsqueryIdentifier: certHost1.Subject.CommonName,
+	}
+
+	// Test enrollment with wrong certificate
+	enrollHostWithOtherHostCertShouldFail := func(t *testing.T) {
+		reqBody, err := json.Marshal(enrollRequest)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		// Sign with host2's signer (wrong cert)
+		err = signerHost2.Sign(req)
+		require.NoError(t, err)
+
+		client := fleethttp.NewClient()
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		// Should fail because the certificate doesn't match the host identifier
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with wrong certificate should fail")
+	}
+	t.Run("enroll host1 with host2 cert should fail", enrollHostWithOtherHostCertShouldFail)
+
+	// Test enrollment with local private key
+	enrollHostWithLocalPrivateKeyShouldFail := func(t *testing.T) {
+		reqBody, err := json.Marshal(enrollRequest)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		// Sign with local private key (not managed by Fleet)
+		err = localSigner.Sign(req)
+		require.NoError(t, err)
+
+		client := fleethttp.NewClient()
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		// Should fail because the certificate is not managed by Fleet
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with local private key should fail")
+	}
+	t.Run("enroll host1 with local private key should fail", enrollHostWithLocalPrivateKeyShouldFail)
+
+	// Successfully enroll host1 with correct certificate
+	reqBody, err := json.Marshal(enrollRequest)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Sign with host1's signer (correct cert)
+	err = signerHost1.Sign(req)
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient()
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Enrollment with correct certificate should succeed")
+
+	type EnrollOrbitResponse struct {
+		OrbitNodeKey string `json:"orbit_node_key"`
+	}
+	var enrollResp EnrollOrbitResponse
+	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
+	require.NoError(t, err)
+	require.NotEmpty(t, enrollResp.OrbitNodeKey)
+	nodeKeyHost1 := enrollResp.OrbitNodeKey
+
+	type orbitConfigRequest struct {
+		OrbitNodeKey string `json:"orbit_node_key"`
+	}
+
+	t.Run("re-enroll host1 with host2 cert should fail", enrollHostWithOtherHostCertShouldFail)
+	t.Run("re-enroll host1 with local private key should fail", enrollHostWithLocalPrivateKeyShouldFail)
+
+	// Try to use host1's endpoint with host2's certificate
+	t.Run("host1 config with host2 cert should fail", func(t *testing.T) {
+		configRequest := orbitConfigRequest{
+			OrbitNodeKey: nodeKeyHost1,
+		}
+
+		reqBody, err := json.Marshal(configRequest)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		// Sign with host2's signer (wrong cert)
+		err = signerHost2.Sign(req)
+		require.NoError(t, err)
+
+		client := fleethttp.NewClient()
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Config request with wrong certificate should fail")
+	})
+
+	// Successfully enroll host2 with correct certificate
+	enrollRequest2 := contract.EnrollOrbitRequest{
+		EnrollSecret:      testEnrollmentSecret,
+		HardwareUUID:      "test-uuid-" + certHost2.Subject.CommonName,
+		HardwareSerial:    "test-serial-" + certHost2.Subject.CommonName,
+		Hostname:          "test-hostname-" + certHost2.Subject.CommonName,
+		OsqueryIdentifier: certHost2.Subject.CommonName,
+	}
+
+	reqBody, err = json.Marshal(enrollRequest2)
+	require.NoError(t, err)
+
+	req, err = http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Sign with host2's signer (correct cert)
+	err = signerHost2.Sign(req)
+	require.NoError(t, err)
+
+	httpResp, err = client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Enrollment with correct certificate should succeed")
+
+	enrollResp = EnrollOrbitResponse{}
+	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
+	require.NoError(t, err)
+	require.NotEmpty(t, enrollResp.OrbitNodeKey)
+	nodeKeyHost2 := enrollResp.OrbitNodeKey
+
+	t.Run("re-enroll host1 with host2-enrolled cert should still fail", enrollHostWithOtherHostCertShouldFail)
+
+	// Try to use host2's endpoint with host1's certificate
+	t.Run("host2 config with host1 cert should fail", func(t *testing.T) {
+		configRequest := orbitConfigRequest{
+			OrbitNodeKey: nodeKeyHost2,
+		}
+
+		reqBody, err := json.Marshal(configRequest)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		// Sign with host1's signer (wrong cert)
+		err = signerHost1.Sign(req)
+		require.NoError(t, err)
+
+		client := fleethttp.NewClient()
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Config request with wrong certificate should fail")
+	})
+
+	// Test config request with local private key
+	t.Run("config request with local private key should fail", func(t *testing.T) {
+		configRequest := orbitConfigRequest{
+			OrbitNodeKey: nodeKeyHost1,
+		}
+
+		reqBody, err := json.Marshal(configRequest)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		// Sign with local private key (not managed by Fleet)
+		err = localSigner.Sign(req)
+		require.NoError(t, err)
+
+		client := fleethttp.NewClient()
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		// Should fail because the certificate is not managed by Fleet
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Config request with local private key should fail")
+	})
+
+	// Test enrollment failures after host is enrolled - use different host identifiers to avoid re-enrollment
+	t.Run("enroll new host with host1 cert should fail after enrollment", func(t *testing.T) {
+		newHostEnrollRequest := contract.EnrollOrbitRequest{
+			EnrollSecret:      testEnrollmentSecret,
+			HardwareUUID:      "test-uuid-new-host-wrong-cert",
+			HardwareSerial:    "test-serial-new-host-wrong-cert",
+			Hostname:          "test-hostname-new-host-wrong-cert",
+			OsqueryIdentifier: "new-host-wrong-cert",
+		}
+
+		reqBody, err := json.Marshal(newHostEnrollRequest)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		// Sign with host1's signer (wrong cert for this new host)
+		err = signerHost1.Sign(req)
+		require.NoError(t, err)
+
+		client := fleethttp.NewClient()
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		// Should fail because the certificate doesn't match the host identifier
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with wrong certificate should fail even after other hosts are enrolled")
+	})
+
 }
