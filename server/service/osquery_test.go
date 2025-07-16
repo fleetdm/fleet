@@ -344,6 +344,9 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 		ds.DeleteHostFunc = func(ctx context.Context, id uint) error {
 			return nil
 		}
+		ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+			return nil, newNotFoundError()
+		}
 
 		redisWrapDS := mysqlredis.New(ds, pool, mysqlredis.WithEnforcedHostLimit(maxHosts))
 		svc, ctx := newTestService(t, redisWrapDS, nil, nil, &TestServerOpts{
@@ -429,6 +432,9 @@ func TestEnrollAgentDetails(t *testing.T) {
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+		return nil, newNotFoundError()
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -2823,10 +2829,13 @@ func TestAuthenticationErrors(t *testing.T) {
 	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-		return &fleet.Host{ID: 1}, nil
+		return &fleet.Host{ID: 1, HasHostIdentityCert: ptr.Bool(false)}, nil
 	}
 	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ms.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+		return nil, newNotFoundError()
 	}
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NoError(t, err)
