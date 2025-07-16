@@ -15,7 +15,6 @@ type HostIdentityCertificate struct {
 	HostID        *uint     `db:"host_id"`
 	NotValidAfter time.Time `db:"not_valid_after"`
 	PublicKeyRaw  []byte    `db:"public_key_raw"`
-	SkipAuth      bool      `json:"-" db:"-"`
 }
 
 func (h *HostIdentityCertificate) UnmarshalPublicKey() (*ecdsa.PublicKey, error) {

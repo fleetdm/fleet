@@ -46,8 +46,8 @@ func Middleware(ds fleet.Datastore, logger kitlog.Logger) (MiddlewareFunc, error
 				strings.Contains(req.URL.Path, "/osquery/") {
 
 				// We do not verify the "ping" endpoint since it is used to get server capabilities and does not carry any data.
+				// This endpoint is unauthenticated.
 				if strings.HasSuffix(req.URL.Path, "/api/fleet/orbit/ping") {
-					req = req.WithContext(NewContext(req.Context(), types.HostIdentityCertificate{SkipAuth: true}))
 					next.ServeHTTP(w, req)
 					return
 				}
