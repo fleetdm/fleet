@@ -39,7 +39,6 @@ module.exports = {
 
     csrMissingRequiredValue: {
       description: 'The provided unsigned CSR did not contain a required value',
-      responseType: 'badRequest'
     },
 
     badRequest: {
@@ -91,15 +90,15 @@ module.exports = {
 
     // return a csrMissingRequiredValue response if the result from the mdm-gen-cert command is missing an email value.
     if(!generateCertificateResult.email) {
-      throw {'csrMissingRequiredValue': 'The provided unsigned CSR did not contain a required "email" value'};
+      throw {'csrMissingRequiredValue': 'The provided unsigned CSR data is missing an "email" value'};
     }
     // return a csrMissingRequiredValue response if the result from the mdm-gen-cert command is missing an org value.
     if(!generateCertificateResult.org) {
-      throw {'csrMissingRequiredValue': 'The provided unsigned CSR did not contain a required "org" value'};
+      throw {'csrMissingRequiredValue': 'The provided unsigned CSR data is missing an "org" value'};
     }
     // return a csrMissingRequiredValue response if the result from the mdm-gen-cert command is missing an request value.
     if(!generateCertificateResult.request) {
-      throw {'csrMissingRequiredValue': 'The provided unsigned CSR did not contain a required "request" value'};
+      throw {'csrMissingRequiredValue': 'The provided unsigned CSR data is missing a "request" value'};
     }
 
     // Check to make sure that the email included in the result is a valid email address.
