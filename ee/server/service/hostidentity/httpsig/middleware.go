@@ -70,13 +70,13 @@ func Middleware(ds fleet.Datastore, logger kitlog.Logger) (MiddlewareFunc, error
 				keySpecer, ok := result.KeySpecer.(*KeySpecer)
 				if !ok {
 					handleError(req.Context(), w,
-						ctxerr.Wrap(req.Context(), err, "could not extract host identity certificate key", fmt.Sprintf("path=%s", req.URL.Path)),
+						ctxerr.New(req.Context(), fmt.Sprintf("could not extract host identity certificate key: path=%s", req.URL.Path)),
 						http.StatusInternalServerError)
 					return
 				}
 				if !result.Verified {
 					handleError(req.Context(), w,
-						ctxerr.Wrap(req.Context(), err, "request not verified", fmt.Sprintf("path=%s host_uuid=%s", req.URL.Path,
+						ctxerr.New(req.Context(), fmt.Sprintf("request not verified: path=%s host_uuid=%s", req.URL.Path,
 							keySpecer.hostIdentityCert.CommonName)),
 						http.StatusUnauthorized)
 					return

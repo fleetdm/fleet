@@ -301,7 +301,7 @@ func TestEnrollAgent(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 	ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
-		return nil, nil
+		return nil, newNotFoundError()
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil)

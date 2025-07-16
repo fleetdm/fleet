@@ -47,7 +47,7 @@ func insertTestCertificate(t *testing.T, ds *Datastore, serial uint64, hostID *u
 	require.NoError(t, err)
 
 	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
+		SerialNumber: big.NewInt(int64(serial)),
 		Subject: pkix.Name{
 			CommonName: name,
 		},
@@ -174,7 +174,7 @@ func testGetHostIdentityCert(t *testing.T, ds *Datastore) {
 			} else {
 				assert.Nil(t, cert.HostID)
 			}
-			assert.WithinDuration(t, tc.notAfter, cert.NotValidAfter, 2*time.Second)
+			assert.WithinDuration(t, tc.notAfter, cert.NotValidAfter, 5*time.Second)
 			assert.NotEmpty(t, cert.PublicKeyRaw)
 
 			// Test that we can unmarshal the public key

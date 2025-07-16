@@ -26,6 +26,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const hostHasIdentityCertSQL = `EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0)`
+
 // Since many hosts may have issues, we need to batch the inserts of host issues.
 // This is a variable, so it can be adjusted during unit testing.
 var (
@@ -2393,7 +2395,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnro
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
         COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
         COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-        EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert
+        ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
       FROM
         hosts h
       LEFT OUTER JOIN
@@ -2494,7 +2496,7 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert
+      ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -2566,7 +2568,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       hd.encrypted as disk_encryption_enabled,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
       t.name as team_name,
-      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert
+      ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -2654,7 +2656,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       hd.encrypted as disk_encryption_enabled,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
-      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert
+      ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
     FROM
       host_device_auth hda
     INNER JOIN
