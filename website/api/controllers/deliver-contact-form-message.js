@@ -66,6 +66,8 @@ module.exports = {
         `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
       );
     }
+
+    let subject = 'New contact form message';
     if(userHasPremiumSubscription) {
       // If the user has a Fleet Premium subscription, prepend the message with details about their subscription.
       let subscriptionDetails =`
@@ -78,44 +80,24 @@ Fleet Premium subscription details:
 
       `;
       message = subscriptionDetails + message;
-      await sails.helpers.sendTemplateEmail.with({
-        to: sails.config.custom.fromEmailAddress,
-        replyTo: {
-          name: firstName + ' '+ lastName,
-          emailAddress: emailAddress,
-        },
-        subject: 'New contact form message',
-        layout: false,
-        template: 'email-contact-form',
-        templateData: {
-          emailAddress,
-          firstName,
-          lastName,
-          message,
-        },
-      });
-    } else {
-      await sails.helpers.sendTemplateEmail.with({
-        to: sails.config.custom.contactFormEmailAddress,
-        replyTo: {
-          name: firstName + ' '+ lastName,
-          emailAddress: emailAddress,
-        },
-        subject: 'New contact form message',
-        layout: false,
-        template: 'email-contact-form',
-        templateData: {
-          emailAddress,
-          firstName,
-          lastName,
-          message,
-        },
-      });
+      subject = 'New Fleet Premium customer message';
     }
 
-    await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-      text: `New contact form message: (cc: <@U05CS07KASK>) (Remember: we have to email back; can't just reply to this thread.)`+
-      `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
+    await sails.helpers.sendTemplateEmail.with({
+      to: sails.config.custom.fromEmailAddress,
+      replyTo: {
+        name: firstName + ' '+ lastName,
+        emailAddress: emailAddress,
+      },
+      subject,
+      layout: false,
+      template: 'email-contact-form',
+      templateData: {
+        emailAddress,
+        firstName,
+        lastName,
+        message,
+      },
     });
 
 

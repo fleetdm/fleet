@@ -286,10 +286,14 @@ func TestEnrollAgent(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 	}
-	ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
-		assert.Equal(t, ptr.Uint(3), teamID)
+	ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+		enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+		for _, opt := range opts {
+			opt(enrollConfig)
+		}
+		assert.Equal(t, ptr.Uint(3), enrollConfig.TeamID)
 		return &fleet.Host{
-			OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
+			OsqueryHostID: &enrollConfig.OsqueryHostID, NodeKey: &enrollConfig.NodeKey,
 		}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -317,10 +321,14 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 				return nil, errors.New("not found")
 			}
 		}
-		ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+		ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+			enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+			for _, opt := range opts {
+				opt(enrollConfig)
+			}
 			hostIDSeq++
 			return &fleet.Host{
-				ID: hostIDSeq, OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
+				ID: hostIDSeq, OsqueryHostID: &enrollConfig.OsqueryHostID, NodeKey: &enrollConfig.NodeKey,
 			}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -401,9 +409,13 @@ func TestEnrollAgentDetails(t *testing.T) {
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		return &fleet.EnrollSecret{}, nil
 	}
-	ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+	ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+		config := &fleet.DatastoreEnrollHostConfig{}
+		for _, opt := range opts {
+			opt(config)
+		}
 		return &fleet.Host{
-			OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
+			OsqueryHostID: &config.OsqueryHostID, NodeKey: &config.NodeKey,
 		}, nil
 	}
 	var gotHost *fleet.Host
@@ -2122,6 +2134,9 @@ func TestMDMQueries(t *testing.T) {
 	mdmEnabled := true
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: mdmEnabled}}, nil
+	}
+	ds.GetNanoMDMUserEnrollmentUsernameFunc = func(ctx context.Context, deviceID string) (string, error) {
+		return "", nil
 	}
 
 	host := fleet.Host{
@@ -4322,7 +4337,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			if tc.host != nil {
 				host = tc.host
 			}
-			preProcessSoftwareResults(host, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, tc.overrides, log.NewNopLogger())
+			preProcessSoftwareResults(host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, log.NewNopLogger())
 			require.Equal(t, tc.resultsOut, tc.resultsIn)
 		})
 	}
@@ -4365,8 +4380,8 @@ func BenchmarkFindPackDelimiterStringTeamPack(b *testing.B) {
 	}
 }
 
-func mockUbuntuResults() *fleet.OsqueryDistributedQueryResults {
-	results := &fleet.OsqueryDistributedQueryResults{
+func mockUbuntuResults() fleet.OsqueryDistributedQueryResults {
+	results := fleet.OsqueryDistributedQueryResults{
 		hostDetailQueryPrefix + "software_linux": make([]map[string]string, 0),
 	}
 
@@ -4374,7 +4389,7 @@ func mockUbuntuResults() *fleet.OsqueryDistributedQueryResults {
 	// Adding 2 python packages without matching deb packages
 	for i := 1; i <= 42; i++ {
 		pythonPkg := fmt.Sprintf("package%d", i)
-		(*results)[hostDetailQueryPrefix+"software_linux"] = append((*results)[hostDetailQueryPrefix+"software_linux"], map[string]string{
+		results[hostDetailQueryPrefix+"software_linux"] = append(results[hostDetailQueryPrefix+"software_linux"], map[string]string{
 			"source": "python_packages",
 			"name":   pythonPkg,
 		})
@@ -4388,7 +4403,7 @@ func mockUbuntuResults() *fleet.OsqueryDistributedQueryResults {
 		} else { // Non-python packages
 			debPkg = fmt.Sprintf("unrelated_package%d", i)
 		}
-		(*results)[hostDetailQueryPrefix+"software_linux"] = append((*results)[hostDetailQueryPrefix+"software_linux"], map[string]string{
+		results[hostDetailQueryPrefix+"software_linux"] = append(results[hostDetailQueryPrefix+"software_linux"], map[string]string{
 			"source": "deb_packages",
 			"name":   debPkg,
 		})
@@ -4400,7 +4415,7 @@ func mockUbuntuResults() *fleet.OsqueryDistributedQueryResults {
 func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
 	platform := "ubuntu"
 	results := mockUbuntuResults()
-	statuses := &map[string]fleet.OsqueryStatus{
+	statuses := map[string]fleet.OsqueryStatus{
 		hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
 	}
 

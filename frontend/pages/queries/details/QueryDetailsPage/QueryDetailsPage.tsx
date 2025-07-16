@@ -366,6 +366,10 @@ const QueryDetailsPage = ({
                 <strong>Log destination:</strong>{" "}
                 <LogDestinationIndicator
                   logDestination={config?.logging.result.plugin || ""}
+                  filesystemDestination={
+                    config?.logging.result.config?.result_log_file
+                  }
+                  webhookDestination={config?.logging.result.config?.result_url}
                 />
               </div>
             </div>

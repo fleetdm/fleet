@@ -67,8 +67,11 @@ const Slider = (props: ISliderProps): JSX.Element => {
     <FormField {...formFieldProps} type="slider">
       <div className={wrapperClassNames}>
         <button
+          role="switch"
+          aria-checked={value}
           className={`button button--unstyled ${sliderBtnClass}`}
           onClick={handleClick}
+          disabled={disabled}
           ref={sliderRef}
         >
           <div className={sliderDotClass} />

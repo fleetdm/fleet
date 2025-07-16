@@ -22,6 +22,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestPolicies(t *testing.T) {
@@ -78,6 +79,7 @@ func TestPolicies(t *testing.T) {
 		{"PolicyLabels", testPolicyLabels},
 		{"DeletePolicyWithSoftwareActivatesNextActivity", testDeletePolicyWithSoftwareActivatesNextActivity},
 		{"DeletePolicyWithScriptActivatesNextActivity", testDeletePolicyWithScriptActivatesNextActivity},
+		{"SimultaneousSavePolicy", testSimultaneousSavePolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -519,11 +521,23 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create hosts in each team
-	host3, err := ds.EnrollHost(ctx, false, "3", "", "", "3", &team1.ID, 0)
+	host3, err := ds.EnrollHost(ctx,
+		fleet.WithEnrollHostOsqueryHostID("3"),
+		fleet.WithEnrollHostNodeKey("3"),
+		fleet.WithEnrollHostTeamID(&team1.ID),
+	)
 	require.NoError(t, err)
-	host4, err := ds.EnrollHost(ctx, false, "4", "", "", "4", &team2.ID, 0)
+	host4, err := ds.EnrollHost(ctx,
+		fleet.WithEnrollHostOsqueryHostID("4"),
+		fleet.WithEnrollHostNodeKey("4"),
+		fleet.WithEnrollHostTeamID(&team2.ID),
+	)
 	require.NoError(t, err)
-	host5, err := ds.EnrollHost(ctx, false, "5", "", "", "5", &team2.ID, 0)
+	host5, err := ds.EnrollHost(ctx,
+		fleet.WithEnrollHostOsqueryHostID("5"),
+		fleet.WithEnrollHostNodeKey("5"),
+		fleet.WithEnrollHostTeamID(&team2.ID),
+	)
 	require.NoError(t, err)
 
 	// create some policy results
@@ -1568,7 +1582,11 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
-	host2, err := ds.EnrollHost(ctx, false, "2", "", "", "2", &team1.ID, 0)
+	host2, err := ds.EnrollHost(ctx,
+		fleet.WithEnrollHostOsqueryHostID("2"),
+		fleet.WithEnrollHostNodeKey("2"),
+		fleet.WithEnrollHostTeamID(&team1.ID),
+	)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host1.ID}))
@@ -1639,12 +1657,20 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(1, 1, 1, 2)
 
 	// all host policies are removed when a host is enrolled in the same team
-	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", &team1.ID, 0)
+	_, err = ds.EnrollHost(ctx,
+		fleet.WithEnrollHostOsqueryHostID("2"),
+		fleet.WithEnrollHostNodeKey("2"),
+		fleet.WithEnrollHostTeamID(&team1.ID),
+	)
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 
 	// team policies are removed if the host is enrolled in a different team
-	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", &team2.ID, 0)
+	_, err = ds.EnrollHost(ctx,
+		fleet.WithEnrollHostOsqueryHostID("2"),
+		fleet.WithEnrollHostNodeKey("2"),
+		fleet.WithEnrollHostTeamID(&team2.ID),
+	)
 	require.NoError(t, err)
 	// both hosts are now in team2
 	checkPassingCount(0, 0, 1, 1)
@@ -1654,7 +1680,10 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(1, 0, 2, 2)
 
 	// all host policies are removed when a host is re-enrolled
-	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", nil, 0)
+	_, err = ds.EnrollHost(ctx,
+		fleet.WithEnrollHostOsqueryHostID("2"),
+		fleet.WithEnrollHostNodeKey("2"),
+	)
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 }
@@ -6337,4 +6366,44 @@ func testDeletePolicyWithScriptActivatesNextActivity(t *testing.T, ds *Datastore
 
 	checkUpcomingActivities(t, ds, hostNoTm, scriptExec.ExecutionID)
 	checkUpcomingActivities(t, ds, hostTm)
+}
+
+// The UI can send simultaneous PATCH requests for policies (e.g. "Manage automations" page)
+// This is testing that the backend retries upon finding deadlocks.
+// Deadlocks will happen because all transactions may be trying to clear `policy_membership` for the same
+// host.
+func testSimultaneousSavePolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	var policies []*fleet.Policy
+	for i := range 10 {
+		policies = append(policies, newTestPolicy(t, ds, user1, fmt.Sprintf("policy%d", i), "darwin", &team1.ID))
+	}
+	host1 := newTestHostWithPlatform(t, ds, "host1", "darwin", &team1.ID)
+
+	// Record results for host1 for all policies
+	host1Results := make(map[uint]*bool)
+	for _, policy := range policies {
+		host1Results[policy.ID] = ptr.Bool(true)
+	}
+	err = ds.RecordPolicyQueryExecutions(ctx, host1, host1Results, time.Now(), false)
+	require.NoError(t, err)
+
+	// Run simultaneous
+	var g errgroup.Group
+	for i := range 10 {
+		g.Go(func() error {
+			policy := policies[i]
+			policy.Query += "just changing something here"
+			// NOTE: shouldRemoveAllPolicyMemberships is true when the user updates
+			// software item associated to an installer, so we set it to true here to
+			// simulate that.
+			return ds.SavePolicy(context.Background(), policy, true, true)
+		})
+	}
+
+	err = g.Wait()
+	require.NoError(t, err)
 }

@@ -2,8 +2,17 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -201,6 +210,54 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
 
+	installerBytes := []byte("1password")
+	h := sha256.New()
+	_, err := h.Write(installerBytes)
+	require.NoError(t, err)
+	onePasswordSHA := hex.EncodeToString(h.Sum(nil))
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "1",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:       fmt.Sprintf("/installer-%s.zip", slug),
+			InstallScriptRef:   "installscript",
+			UninstallScriptRef: "uninstallscript",
+			DefaultCategories:  []string{"Productivity"},
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"installscript":   "echo 'installing'",
+				"uninstallscript": "echo 'uninstalling'",
+			},
+		}
+
+		switch slug {
+		case "":
+			w.WriteHeader(http.StatusNotFound)
+			return
+
+		case "1password/darwin":
+			manifest.Versions[0].SHA256 = onePasswordSHA
+
+		case "google-chrome/darwin":
+			manifest.Versions[0].SHA256 = "no_check"
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(manifestServer.Close)
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
 	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
 		return &fleet.MaintainedApp{
 			ID:               1,
@@ -211,10 +268,29 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 	payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin")}
-	err := svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
 	require.NoError(t, err)
-	assert.Contains(t, payload.URL, "1password")
-	assert.NotEmpty(t, payload.SHA256)
+	assert.NotEmpty(t, payload.URL)
+	assert.Equal(t, onePasswordSHA, payload.SHA256)
+	assert.NotEmpty(t, payload.InstallScript)
+	assert.NotEmpty(t, payload.UninstallScript)
+	assert.True(t, payload.FleetMaintained)
+
+	// when SHA256 is no_check
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "Google Chrome",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.google.Chrome",
+			Slug:             "google-chrome/darwin",
+		}, nil
+	}
+	payload = fleet.SoftwareInstallerPayload{Slug: ptr.String("google-chrome/darwin")}
+	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	assert.NotEmpty(t, payload.URL)
+	assert.Empty(t, payload.SHA256)
 	assert.NotEmpty(t, payload.InstallScript)
 	assert.NotEmpty(t, payload.UninstallScript)
 	assert.True(t, payload.FleetMaintained)

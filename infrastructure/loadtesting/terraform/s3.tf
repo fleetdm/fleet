@@ -26,6 +26,9 @@ resource "aws_iam_role_policy_attachment" "software_installers" {
 
 resource "aws_s3_bucket" "software_installers" { #tfsec:ignore:aws-s3-encryption-customer-key:exp:2022-07-01  #tfsec:ignore:aws-s3-enable-versioning #tfsec:ignore:aws-s3-enable-bucket-logging:exp:2022-06-15
   bucket_prefix = terraform.workspace
+  
+  # Allow destroy of non-empty buckets
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "software_installers" {

@@ -17,11 +17,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
-
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -310,7 +309,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{})
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_windows_last_opened_at")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -2010,7 +2009,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"path":              "/Users/mna/Library/Keychains/login.keychain-db",
 	}
 
-	// row2 will not be ingeted because of the issue field containing an extra /
+	// row2 will be ingested correctly with the issue field containing a / in the value
 	row2 := map[string]string{
 		"ca":                "1",
 		"common_name":       "Cert 2 Common Name",
@@ -2031,7 +2030,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
-		require.Len(t, certs, 1)
+		require.Len(t, certs, 2)
 		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31", hex.EncodeToString(certs[0].SHA1Sum))
 		require.Equal(t, "Cert 1 Common Name", certs[0].CommonName)
 		require.Equal(t, "Subject 1 Common Name", certs[0].SubjectCommonName)
@@ -2053,10 +2052,30 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		require.EqualValues(t, "user", certs[0].Source)
 		require.Equal(t, "mna", certs[0].Username)
 
+		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd32", hex.EncodeToString(certs[1].SHA1Sum))
+		require.Equal(t, "Cert 2 Common Name", certs[1].CommonName)
+		require.Equal(t, "Subject 1 Common Name", certs[1].SubjectCommonName)
+		require.Equal(t, "Subject 1 Inc.", certs[1].SubjectOrganization)
+		require.Equal(t, "Subject 1 Org Unit", certs[1].SubjectOrganizationalUnit)
+		require.Equal(t, "US", certs[1].SubjectCountry)
+		require.Equal(t, "Issuer 2 Common Name", certs[1].IssuerCommonName)
+		require.Equal(t, "Issuer 2 Inc./foobar", certs[1].IssuerOrganization)
+		require.Empty(t, certs[1].IssuerOrganizationalUnit)
+		require.Equal(t, "US", certs[1].IssuerCountry)
+		require.Equal(t, "rsaEncryption", certs[1].KeyAlgorithm)
+		require.Equal(t, 2048, certs[1].KeyStrength)
+		require.Equal(t, "Data Encipherment, Key Encipherment, Digital Signature", certs[1].KeyUsage)
+		require.Equal(t, "123abcd", certs[1].Serial)
+		require.Equal(t, "sha256WithRSAEncryption", certs[1].SigningAlgorithm)
+		require.Equal(t, int64(1822755797), certs[1].NotValidAfter.Unix())
+		require.Equal(t, int64(1770228826), certs[1].NotValidBefore.Unix())
+		require.True(t, certs[1].CertificateAuthority)
+		require.EqualValues(t, "system", certs[1].Source)
+
 		return nil
 	}
 
-	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row2, row1})
+	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row1, row2})
 	require.NoError(t, err)
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
@@ -2241,5 +2260,246 @@ func TestLuksVerifyQueryIngester(t *testing.T) {
 			}
 			tc.expectations(t, ds, sut(ctx, logger, tc.host, ds, tc.rows))
 		})
+	}
+}
+
+func TestUserIngestNoUID(t *testing.T) {
+	ctx := context.Background()
+	host := fleet.Host{ID: 1}
+	ds := new(mock.Store)
+	savedUsers := 0
+
+	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+		savedUsers = len(users)
+		return nil
+	}
+
+	input := []map[string]string{
+		{"uid": "1000", "shell": "/bin/sh"},
+		// Missing uid
+		{"shell": "/bin/sh"},
+	}
+
+	err := usersQuery.DirectIngestFunc(ctx, nil, &host, ds, input)
+	require.NoError(t, err)
+	// Saved the good user, ignored the one missing a uid
+	require.Equal(t, 1, savedUsers)
+}
+
+func TestMaxString(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		a    string
+		b    string
+		want string
+	}{
+		{a: "", b: "", want: ""},
+		{a: "1", b: "", want: "1"},
+		{a: "", b: "2", want: "2"},
+		{a: "1751737544", b: "1751737555", want: "1751737555"},
+	}
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("a=%s,b=%s", tc.a, tc.b), func(t *testing.T) {
+			got := maxString(tc.a, tc.b)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestWindowsLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["windows_last_opened_at"].SoftwareProcessResults
+	prefetchResults := []map[string]string{
+		{"executable_path": "", "last_opened_at": "1751756656"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGECORE\\135.0.3179.73\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1744841906"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEUPDATE\\MICROSOFTEDGEUPDATE.EXE", "last_opened_at": "1751755072"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\135.0.3179.54\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1744305414"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\136.0.3240.64\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1747354446"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\137.0.3296.68\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1751739680"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\137.0.3296.93\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1751755195"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGE\\APPLICATION\\MSEDGE.EXE", "last_opened_at": "1744224613"},
+		{"executable_path": "\\PROGRAM FILES\\WINDOWSAPPS\\MICROSOFT.MSPAINT_6.2410.13017.0_X64__8WEKYB3D8BBWE\\PAINTSTUDIO.VIEW.EXE", "last_opened_at": "1751739848"},
+		{"executable_path": "\\PROGRAM FILES\\WINDOWSAPPS\\MICROSOFT.PAINT_11.2504.531.0_X64__8WEKYB3D8BBWE\\PAINTAPP\\MSPAINT.EXE", "last_opened_at": "1751739842"},
+		{"executable_path": "\\PROGRAM FILES\\CMAKE\\BIN\\CMAKE.EXE", "last_opened_at": "1751756660"},
+		{"executable_path": "\\PROGRAM FILES\\CMAKE\\BIN\\CTEST.EXE", "last_opened_at": "1751756665"},
+		{"executable_path": "\\PROGRAM FILES\\GIT\\CMD\\GIT.EXE", "last_opened_at": "1751756656"},
+		{"executable_path": "\\PROGRAM FILES\\MOZILLA FIREFOX\\CRASHHELPER.EXE", "last_opened_at": "1751650445"},
+		{"executable_path": "\\PROGRAM FILES\\MOZILLA FIREFOX\\FIREFOX.EXE", "last_opened_at": "1751755087"},
+		{"executable_path": "\\PROGRAM FILES\\MOZILLA FIREFOX\\PINGSENDER.EXE", "last_opened_at": "1750358363"},
+		{"executable_path": "\\PROGRAM FILES\\POWERTOYS\\POWERTOYS.EXE", "last_opened_at": "1747935582"},
+		{"executable_path": "\\STRAWBERRY\\PERL\\BIN\\PERL.EXE", "last_opened_at": "1749664524"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.24.5-WIN32-X64\\BIN\\CPPTOOLS-SRV.EXE", "last_opened_at": "1749678210"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.24.5-WIN32-X64\\LLVM\\BIN\\CLANG-FORMAT.EXE", "last_opened_at": "1749678028"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.25.3-WIN32-X64\\BIN\\CPPTOOLS-SRV.EXE", "last_opened_at": "1751739766"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.25.3-WIN32-X64\\BIN\\CPPTOOLS.EXE", "last_opened_at": "1751739736"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.26.3-WIN32-X64\\BIN\\CPPTOOLS-SRV.EXE", "last_opened_at": "1751756684"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.26.3-WIN32-X64\\BIN\\CPPTOOLS.EXE", "last_opened_at": "1751756656"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\1PASSWORD\\APP\\8\\1PASSWORD-BROWSERSUPPORT.EXE", "last_opened_at": "1751650028"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\1PASSWORD\\APP\\8\\1PASSWORD.EXE", "last_opened_at": "1751755191"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\1PASSWORD\\UPDATE\\8\\1PASSWORD.EXE", "last_opened_at": "1751650139"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\BIN\\CODE-TUNNEL.EXE", "last_opened_at": "1751756657"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\CODE.EXE", "last_opened_at": "1751756772"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\RESOURCES\\APP\\NODE_MODULES\\@VSCODE\\RIPGREP\\BIN\\RG.EXE", "last_opened_at": "1751756656"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\RESOURCES\\APP\\NODE_MODULES\\@VSCODE\\VSCE-SIGN\\BIN\\VSCE-SIGN.EXE", "last_opened_at": "1751739739"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\TOOLS\\INNO_UPDATER.EXE", "last_opened_at": "1751739781"},
+	}
+	softwareResults := []map[string]string{
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "", "source": "ie_extensions", "vendor": "", "version": ""},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\System32\\", "name": "", "source": "programs", "vendor": "Microsoft Corporation", "version": ""},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\windows\\System32\\", "name": "", "source": "programs", "vendor": "Microsoft Corporation", "version": ""},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "", "source": "programs", "vendor": "", "version": "1.3.195.61"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.FilePicker_cw5n1h2txyewy", "name": "1527c705-839a-4832-9118-54d4Bd6a0c89", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.19640.1000"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Users\\zach\\AppData\\Local\\1Password\\app\\8", "name": "1Password", "source": "programs", "vendor": "AgileBits, Inc.", "version": "8.10.82"},
+		{"browser": "firefox", "extension_id": "{d634138d-c276-4fc8-924b-40a0ea21d284}", "installed_path": "C:\\Users\\zach\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\0oxsfufm.default-release\\extensions\\{d634138d-c276-4fc8-924b-40a0ea21d284}.xpi", "name": "1Password – Password Manager", "source": "firefox_addons", "vendor": "", "version": "8.10.76.34"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\AppUp.IntelGraphicsExperience_1.100.5688.0_x64__8j3eq9eme6ctt", "name": "AppUp.IntelGraphicsExperience", "source": "programs", "vendor": "INTEL CORP", "version": "1.100.5688.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "Application Verifier x64 External Package", "source": "programs", "vendor": "Microsoft", "version": "10.1.20348.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\CMake\\", "name": "CMake", "source": "programs", "vendor": "Kitware", "version": "3.28.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.CapturePicker_cw5n1h2txyewy", "name": "CapturePicker", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.19580.1000"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\STMicroelectronicsMEMS.DellFreeFallDataProtection_1.0.27.0_x64__rp6h1c31mfy1y", "name": "Dell Free Fall Data Protection", "source": "programs", "vendor": "STMICROELECTRONICS S.R.L.", "version": "1.0.27.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\system32\\DellTPad", "name": "Dell PointStick Driver", "source": "programs", "vendor": "ALPS ELECTRIC CO., LTD.", "version": "10.3201.101.326"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.AppResolverUX_cw5n1h2txyewy", "name": "E2A4F912-2574-4A75-9BB0-0D023378592B", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.19640.1000"},
+		{"browser": "edge", "extension_id": "jmjflgjpcpepeafmmgdpfkogkghcpiha", "installed_path": "C:\\Users\\zach\\AppData\\Local\\Microsoft\\Edge\\User Data\\Default\\Extensions\\jmjflgjpcpepeafmmgdpfkogkghcpiha\\1.2.1_0", "name": "Edge relevant text changes", "source": "chrome_extensions", "vendor": "", "version": "1.2.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.AddSuggestedFoldersToLibraryDialog_cw5n1h2txyewy", "name": "F46D4000-FD22-4DB4-AC8E-4E1DDDE828FE", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.26100.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "Fleet osquery", "source": "programs", "vendor": "Fleet Device Management (fleetdm.com)", "version": "1.44.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxGamingOverlay_7.325.5191.0_x64__8wekyb3d8bbwe", "name": "Game Bar", "source": "programs", "vendor": "Microsoft Corporation", "version": "7.325.5191.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\Git\\", "name": "Git", "source": "programs", "vendor": "The Git Development Community", "version": "2.43.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "GitHub CLI", "source": "programs", "vendor": "GitHub, Inc.", "version": "2.69.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\138.0.3351.65\\BHO\\ie_to_edge_bho_64.dll", "name": "IEToEdge BHO", "source": "ie_extensions", "vendor": "", "version": "138.0.3351.65"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\AppUp.IntelOptaneMemoryandStorageManagement_18.1.1042.0_x64__8j3eq9eme6ctt", "name": "Intel® Optane™ Memory and Storage Management", "source": "programs", "vendor": "INTEL CORP", "version": "18.1.1042.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Framework.1.7_1.7.27413.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Framework Package 1.7", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.7.27413.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Framework.2.2_2.2.29512.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Framework Package 2.2", "source": "programs", "vendor": "Microsoft Corporation", "version": "2.2.29512.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Runtime.1.7_1.7.27422.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Runtime Package 1.7", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.7.27422.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Runtime.2.2_2.2.28604.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Runtime Package 2.2", "source": "programs", "vendor": "Microsoft Corporation", "version": "2.2.28604.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application", "name": "Microsoft Edge", "source": "programs", "vendor": "Microsoft Corporation", "version": "138.0.3351.65"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application", "name": "Microsoft Edge WebView2 Runtime", "source": "programs", "vendor": "Microsoft Corporation", "version": "137.0.3296.93"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Services.Store.Engagement_10.0.23012.0_x64__8wekyb3d8bbwe", "name": "Microsoft Engagement Framework", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.23012.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\Microsoft Office", "name": "Microsoft Office Home and Student 2019 - en-us", "source": "programs", "vendor": "Microsoft Corporation", "version": "16.0.18925.20138"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsStore_22505.1401.17.0_x64__8wekyb3d8bbwe", "name": "Microsoft Store", "source": "programs", "vendor": "Microsoft Corporation", "version": "22505.1401.17.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\MSTeams_25153.1010.3727.5483_x64__8wekyb3d8bbwe", "name": "Microsoft Teams", "source": "programs", "vendor": "Microsoft", "version": "25153.1010.3727.5483"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\System32\\ieframe.dll", "name": "Microsoft Url Search Hook", "source": "ie_extensions", "vendor": "", "version": "11.0.26100.4343"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33519.0_x64__8wekyb3d8bbwe", "name": "Microsoft Visual C++ 2015 UWP Desktop Runtime Package", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "14.0.33519.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.VCLibs.140.00_14.0.33519.0_x64__8wekyb3d8bbwe", "name": "Microsoft Visual C++ 2015 UWP Runtime Package", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "14.0.33519.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Users\\zach\\AppData\\Local\\Programs\\Microsoft VS Code\\", "name": "Microsoft Visual Studio Code (User)", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.101.2"},
+		{"browser": "", "extension_id": "", "installed_path": "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\"", "name": "Microsoft Visual Studio Installer", "source": "programs", "vendor": "Microsoft Corporation", "version": "3.12.2320.19252"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy", "name": "Microsoft.AAD.BrokerPlugin", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.19580.1000.2"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.AV1VideoExtension_1.3.20.0_x64__8wekyb3d8bbwe", "name": "Microsoft.AV1VideoExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.3.20.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.AVCEncoderVideoExtension_1.1.17.0_x64__8wekyb3d8bbwe", "name": "Microsoft.AVCEncoderVideoExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.1.17.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.AccountsControl_cw5n1h2txyewy", "name": "Microsoft.AccountsControl", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.ApplicationCompatibilityEnhancements_1.2411.16.0_x64__8wekyb3d8bbwe", "name": "Microsoft.ApplicationCompatibilityEnhancements", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2411.16.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.AsyncTextService_8wekyb3d8bbwe", "name": "Microsoft.AsyncTextService", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.BingSearch_1.1.34.0_x64__8wekyb3d8bbwe", "name": "Microsoft.BingSearch", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.1.34.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.BioEnrollment_cw5n1h2txyewy", "name": "Microsoft.BioEnrollment", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.19587.1000"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.CommandPalette_0.2.1.0_x64__8wekyb3d8bbwe", "name": "Microsoft.CommandPalette", "source": "programs", "vendor": "Microsoft Corporation", "version": "0.2.1.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\microsoft.creddialoghost_cw5n1h2txyewy", "name": "Microsoft.CredDialogHost", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.19595.1001"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.DesktopAppInstaller_1.26.400.0_x64__8wekyb3d8bbwe", "name": "Microsoft.DesktopAppInstaller", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.26.400.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\Microsoft.ECApp_8wekyb3d8bbwe", "name": "Microsoft.ECApp", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.4061"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Edge.GameAssist_1.0.3336.0_x64__8wekyb3d8bbwe", "name": "Microsoft.Edge.GameAssist", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1.0.3336.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.GetHelp_10.2409.22951.0_x64__8wekyb3d8bbwe", "name": "Microsoft.GetHelp", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.2409.22951.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.HEIFImageExtension_1.2.20.0_x64__8wekyb3d8bbwe", "name": "Microsoft.HEIFImageExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.20.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.LockApp_cw5n1h2txyewy", "name": "Microsoft.LockApp", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.4202"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.MPEG2VideoExtension_1.2.10.0_x64__8wekyb3d8bbwe", "name": "Microsoft.MPEG2VideoExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.10.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.MSPaint_6.2410.13017.0_x64__8wekyb3d8bbwe", "name": "Microsoft.MSPaint", "source": "programs", "vendor": "Microsoft Corporation", "version": "6.2410.13017.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.MicrosoftEdgeDevToolsClient_8wekyb3d8bbwe", "name": "Microsoft.MicrosoftEdgeDevToolsClient", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.25128.1000.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Paint_11.2504.531.0_x64__8wekyb3d8bbwe", "name": "Microsoft.Paint", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2504.531.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.People_10.2202.100.0_x64__8wekyb3d8bbwe", "name": "Microsoft.People", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.2202.100.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.PowerAutomateDesktop_1.0.1420.0_x64__8wekyb3d8bbwe", "name": "Microsoft.PowerAutomateDesktop", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.0.1420.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.RawImageExtension_2.5.5.0_x64__8wekyb3d8bbwe", "name": "Microsoft.RawImageExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "2.5.5.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.ScreenSketch_11.2504.42.0_x64__8wekyb3d8bbwe", "name": "Microsoft.ScreenSketch", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2504.42.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.SecHealthUI_1000.27840.1000.0_x64__8wekyb3d8bbwe", "name": "Microsoft.SecHealthUI", "source": "programs", "vendor": "Microsoft Corporation", "version": "1000.27840.1000.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.StorePurchaseApp_22505.1401.0.0_x64__8wekyb3d8bbwe", "name": "Microsoft.StorePurchaseApp", "source": "programs", "vendor": "Microsoft Corporation", "version": "22505.1401.0.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.0_2.1810.18004.0_x64__8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.2.0", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "2.1810.18004.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.7_7.2409.9001.0_x64__8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.2.7", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "7.2409.9001.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.8_8.2310.30001.0_x64__8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.2.8", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "8.2310.30001.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\Microsoft.UI.Xaml.CBS_8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.CBS", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "9.2311.10002.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.VP9VideoExtensions_1.2.6.0_x64__8wekyb3d8bbwe", "name": "Microsoft.VP9VideoExtensions", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.6.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WebMediaExtensions_1.2.14.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WebMediaExtensions", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.14.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WebpImageExtension_1.2.10.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WebpImageExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.10.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Win32WebViewHost_cw5n1h2txyewy", "name": "Microsoft.Win32WebViewHost", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.AppRep.ChxApp_cw5n1h2txyewy", "name": "Microsoft.Windows.Apprep.ChxApp", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.25128.1000.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsCalculator_11.2502.2.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsCalculator", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2502.2.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsCamera_2025.2505.2.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsCamera", "source": "programs", "vendor": "Microsoft Corporation", "version": "2025.2505.2.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsNotepad_11.2504.62.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsNotepad", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2504.62.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsTerminal_1.22.11141.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsTerminal", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.22.11141.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.XboxGameCallableUI_cw5n1h2txyewy", "name": "Microsoft.XboxGameCallableUI", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.25128.1000.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxIdentityProvider_12.115.1001.0_x64__8wekyb3d8bbwe", "name": "Microsoft.XboxIdentityProvider", "source": "programs", "vendor": "Microsoft Corporation", "version": "12.115.1001.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxSpeechToTextOverlay_1.97.17002.0_neutral_split.scale-125_8wekyb3d8bbwe", "name": "Microsoft.XboxSpeechToTextOverlay", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.97.17002.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.YourPhone_1.25052.76.0_x64__8wekyb3d8bbwe", "name": "Microsoft.YourPhone", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.25052.76.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.ZuneMusic_11.2505.2.0_x64__8wekyb3d8bbwe", "name": "Microsoft.ZuneMusic", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2505.2.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.54792954.Filons_cw5n1h2txyewy", "name": "MicrosoftWindows.54792954.Filons", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.56978801.Voiess_cw5n1h2txyewy", "name": "MicrosoftWindows.56978801.Voiess", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.57058570.Speion_cw5n1h2txyewy", "name": "MicrosoftWindows.57058570.Speion", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.57074914.Livtop_cw5n1h2txyewy", "name": "MicrosoftWindows.57074914.Livtop", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.CBS", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.107.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.Core_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.Core", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.46.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.CoreAI_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.CoreAI", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.FileExp_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.FileExp", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.3.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\MicrosoftWindows.Client.OOBE_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.OOBE", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.7.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\MicrosoftWindows.Client.Photon_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.Photon", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.8.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\MicrosoftWindows.CrossDevice_1.25061.25.0_x64__cw5n1h2txyewy", "name": "MicrosoftWindows.CrossDevice", "source": "programs", "vendor": "Microsoft Windows", "version": "1.25061.25.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\Mozilla Firefox", "name": "Mozilla Firefox (x64 en-US)", "source": "programs", "vendor": "Mozilla", "version": "139.0.4"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.OutlookForWindows_1.2025.129.300_x64__8wekyb3d8bbwe", "name": "Outlook for Windows", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2025.129.300"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.PinningConfirmationDialog_cw5n1h2txyewy", "name": "PinningConfirmationDialog", "source": "programs", "vendor": "Microsoft Corporation", "version": "1000.25140.1001.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\PowerToys\\", "name": "PowerToys (Preview)", "source": "programs", "vendor": "Microsoft Corporation", "version": "0.91.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "PowerToys (Preview) x64", "source": "programs", "vendor": "Microsoft Corporation", "version": "0.91.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Strawberry\\", "name": "Strawberry Perl (64-bit)", "source": "programs", "vendor": "strawberryperl.com project", "version": "5.38.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\MicrosoftWindows.UndockedDevKit_cw5n1h2txyewy", "name": "UDK Package", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.26100.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community", "name": "Visual Studio Community 2022", "source": "programs", "vendor": "Microsoft Corporation", "version": "17.12.4"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WidgetsPlatformRuntime_1.6.9.0_x64__8wekyb3d8bbwe", "name": "Widgets Platform Runtime", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.6.9.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "WinAppDeploy", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.1.20348.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\MicrosoftWindows.Client.WebExperience_525.15301.20.0_x64__cw5n1h2txyewy", "name": "Windows Web Experience Pack", "source": "programs", "vendor": "Microsoft Windows", "version": "525.15301.20.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Windows.CBSPreview_cw5n1h2txyewy", "name": "Windows.CBSPreview", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.19580.1000"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Windows.PrintDialog_cw5n1h2txyewy", "name": "Windows.PrintDialog", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "6.2.3.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.3_3000.934.1904.0_x86__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.3", "source": "programs", "vendor": "Microsoft Corporation", "version": "3000.934.1904.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.4_4000.1136.2333.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.4", "source": "programs", "vendor": "Microsoft Corporation", "version": "4000.1136.2333.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.5_5001.373.1736.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.5", "source": "programs", "vendor": "Microsoft Corporation", "version": "5001.373.1736.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.6_6000.486.517.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.6", "source": "programs", "vendor": "Microsoft Corporation", "version": "6000.486.517.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.7_7000.522.1444.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.7", "source": "programs", "vendor": "Microsoft Corporation", "version": "7000.522.1444.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.GamingApp_2506.1001.20.0_x64__8wekyb3d8bbwe", "name": "Xbox", "source": "programs", "vendor": "Microsoft Corporation", "version": "2506.1001.20.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxGameOverlay_1.54.4001.0_x64__8wekyb3d8bbwe", "name": "Xbox Game Bar Plugin", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.54.4001.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Xbox.TCUI_1.24.10001.0_x64__8wekyb3d8bbwe", "name": "Xbox TCUI", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.24.10001.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_cw5n1h2txyewy", "name": "c5e2524a-ea46-4f67-841f-6a9465d9d515", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.26100.1"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\microsoft.windowscommunicationsapps_16005.14326.22342.0_x64__8wekyb3d8bbwe", "name": "microsoft.windowscommunicationsapps", "source": "programs", "vendor": "Microsoft Corporation", "version": "16005.14326.22342.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "vcpp_crt.redist.clickonce", "source": "programs", "vendor": "Microsoft Corporation", "version": "14.29.30157"},
+		{"browser": "", "bundle_identifier": "", "extension_id": "99b17261-8f6e-45f0-9ad5-a69c6f509a4f", "installed_path": "/c:/Users/zach/.vscode/extensions/ms-vscode.cpptools-themes-2.0.0", "last_opened_at": "", "name": "ms-vscode.cpptools-themes", "source": "vscode_extensions", "vendor": "Microsoft", "version": "2.0.0"},
+		{"browser": "", "extension_id": "", "installed_path": "C:\\Users\\zach\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\pip-23.2.1.dist-info", "name": "pip", "source": "python_packages", "vendor": "", "version": "23.2.1"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, prefetchResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "programs" {
+			// Last opened at should only be set for programs
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["installed_path"] == "C:\\Windows\\System32\\" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "Strawberry Perl (64-bit)" {
+			assert.Equal(t, "1749664524", software["last_opened_at"])
+		}
+
+		if software["name"] == "Microsoft.MSPaint" {
+			assert.Equal(t, "1751739848", software["last_opened_at"])
+		}
+
+		if software["name"] == "Microsoft.Paint" {
+			assert.Equal(t, "1751739842", software["last_opened_at"])
+		}
+
+		if software["name"] == "Microsoft Visual Studio Code (User)" {
+			assert.Equal(t, "1751756772", software["last_opened_at"])
+		}
+
+		if software["name"] == "CMake" {
+			assert.Equal(t, "1751756665", software["last_opened_at"])
+		}
+
+		if software["name"] == "Mozilla Firefox (x64 en-US)" {
+			assert.Equal(t, "1751755087", software["last_opened_at"])
+		}
 	}
 }

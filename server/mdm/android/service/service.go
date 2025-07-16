@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"fmt"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -14,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/mdm/android/service/proxy"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
@@ -28,14 +30,16 @@ const (
 )
 
 type Service struct {
-	logger   kitlog.Logger
-	authz    *authz.Authorizer
-	ds       fleet.AndroidDatastore
-	proxy    android.Proxy
-	fleetSvc fleet.Service
+	logger           kitlog.Logger
+	authz            *authz.Authorizer
+	ds               fleet.AndroidDatastore
+	androidAPIClient androidmgmt.Client
+	fleetSvc         fleet.Service
 
 	// SignupSSEInterval can be overwritten in tests.
 	SignupSSEInterval time.Duration
+	// AllowLocalhostServerURL is set during tests.
+	AllowLocalhostServerURL bool
 }
 
 func NewService(
@@ -43,15 +47,21 @@ func NewService(
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
 	fleetSvc fleet.Service,
+	licenseKey string,
 ) (android.Service, error) {
-	prx := proxy.NewProxy(ctx, logger)
-	return NewServiceWithProxy(logger, ds, prx, fleetSvc)
+	var client androidmgmt.Client
+	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
+		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
+	} else {
+		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
+	}
+	return NewServiceWithClient(logger, ds, client, fleetSvc)
 }
 
-func NewServiceWithProxy(
+func NewServiceWithClient(
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
-	proxy android.Proxy,
+	client androidmgmt.Client,
 	fleetSvc fleet.Service,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
@@ -63,7 +73,7 @@ func NewServiceWithProxy(
 		logger:            logger,
 		authz:             authorizer,
 		ds:                ds,
-		proxy:             proxy,
+		androidAPIClient:  client,
 		fleetSvc:          fleetSvc,
 		SignupSSEInterval: DefaultSignupSSEInterval,
 	}, nil
@@ -91,6 +101,18 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, err
 	}
 
+	serverURL := appConfig.ServerSettings.ServerURL
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: "parsing Fleet server URL: " + err.Error(), InternalErr: err}
+	}
+	if !svc.AllowLocalhostServerURL {
+		host := u.Hostname()
+		if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Android Enterprise cannot be enabled with localhost server URL: %s", serverURL)}
+		}
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext
@@ -107,7 +129,7 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 	}
 
 	callbackURL := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/connect/%s", appConfig.ServerSettings.ServerURL, signupToken)
-	signupDetails, err := svc.proxy.SignupURLsCreate(callbackURL)
+	signupDetails, err := svc.androidAPIClient.SignupURLsCreate(ctx, appConfig.ServerSettings.ServerURL, callbackURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating signup url")
 	}
@@ -152,7 +174,7 @@ func (res enterpriseSignupCallbackResponse) Error() error { return res.Err }
 //go:embed enterpriseCallback.html
 var enterpriseCallbackHTML []byte
 
-func (res enterpriseSignupCallbackResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+func (res enterpriseSignupCallbackResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	_, _ = w.Write(enterpriseCallbackHTML)
 }
@@ -164,12 +186,12 @@ func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, 
 }
 
 // EnterpriseSignupCallback handles the callback from Google UI during signup flow.
-// signupToken is for authentication with Fleet
+// signupToken is for authentication with Fleet server
 // enterpriseToken is for authentication with Google
 func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken string, enterpriseToken string) error {
 	// Authorization is done by GetEnterpriseBySignupToken below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
-	// Also, this method call will fail if Proxy (Google Project) is not configured.
+	// Also, this method call will fail if ProxyClient (Google Project) is not configured.
 	svc.authz.SkipAuthorization(ctx)
 
 	appConfig, err := svc.checkIfAndroidAlreadyConfigured(ctx)
@@ -198,9 +220,9 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "inserting pubsub authentication token")
 	}
 
-	name, topicName, err := svc.proxy.EnterprisesCreate(
+	createRsp, err := svc.androidAPIClient.EnterprisesCreate(
 		ctx,
-		android.ProxyEnterprisesCreateRequest{
+		androidmgmt.EnterprisesCreateRequest{
 			Enterprise: androidmanagement.Enterprise{
 				EnabledNotificationTypes: []string{
 					string(android.PubSubEnrollment),
@@ -210,27 +232,42 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 				},
 			},
 			EnterpriseToken: enterpriseToken,
-			SignupUrlName:   enterprise.SignupName,
+			SignupURLName:   enterprise.SignupName,
 			PubSubPushURL:   appConfig.ServerSettings.ServerURL + pubSubPushPath + "?token=" + pubSubToken,
+			ServerURL:       appConfig.ServerSettings.ServerURL,
 		},
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating enterprise")
 	}
 
-	enterpriseID := strings.TrimPrefix(name, "enterprises/")
-	enterprise.EnterpriseID = enterpriseID
-	topicID, err := topicIDFromName(topicName)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing topic name")
+	if createRsp.FleetServerSecret != "" {
+		err = svc.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+			Name:  fleet.MDMAssetAndroidFleetServerSecret,
+			Value: []byte(createRsp.FleetServerSecret),
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting pubsub authentication token")
+		}
+		_ = svc.androidAPIClient.SetAuthenticationSecret(createRsp.FleetServerSecret)
 	}
-	enterprise.TopicID = topicID
+
+	enterpriseID := strings.TrimPrefix(createRsp.EnterpriseName, "enterprises/")
+	enterprise.EnterpriseID = enterpriseID
+	if createRsp.TopicName != "" {
+		topicID, err := topicIDFromName(createRsp.TopicName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing topic name")
+		}
+		enterprise.TopicID = topicID
+	}
 	err = svc.ds.UpdateEnterprise(ctx, enterprise)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	err = svc.proxy.EnterprisesPoliciesPatch(enterprise.EnterpriseID, fmt.Sprintf("%d", defaultAndroidPolicyID), &androidmanagement.Policy{
+	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
+	err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
 			MemoryInfoEnabled:            true,
@@ -245,7 +282,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			// applicationReports take a lot of space in device status reports. They are not free -- our current cost is $40 per TiB (2025-02-20).
 			// We should disable them for free accounts. To enable them for a server transitioning from Free to Premium, we will need to patch the existing policies.
 			// For server transitioning from Premium to Free, we will need to patch the existing policies to disable software inventory, which could also be done
-			// by the fleetdm.com proxy or manually. The proxy could also enforce this report setting.
+			// by the fleetdm.com androidAPIClient or manually. The androidAPIClient could also enforce this report setting.
 			ApplicationReportsEnabled:    false,
 			ApplicationReportingSettings: nil,
 		},
@@ -328,7 +365,12 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "getting enterprise")
 	default:
-		err = svc.proxy.EnterpriseDelete(ctx, enterprise.EnterpriseID)
+		secret, err := svc.getClientAuthenticationSecret(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting client authentication secret")
+		}
+		_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+		err = svc.androidAPIClient.EnterpriseDelete(ctx, enterprise.Name())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting enterprise via Google API")
 		}
@@ -353,9 +395,9 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
 	}
 
-	err = svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken})
+	err = svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken, fleet.MDMAssetAndroidFleetServerSecret})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting pubsub token")
+		return ctxerr.Wrap(ctx, err, "deleting MDM Android encrypted config assets")
 	}
 
 	return nil
@@ -402,6 +444,12 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
 	}
 
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
@@ -410,7 +458,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultAndroidPolicyID),
 		OneTimeOnly:        true,
 	}
-	token, err = svc.proxy.EnterprisesEnrollmentTokensCreate(enterprise.Name(), token)
+	token, err = svc.androidAPIClient.EnterprisesEnrollmentTokensCreate(ctx, enterprise.Name(), token)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating Android enrollment token")
 	}

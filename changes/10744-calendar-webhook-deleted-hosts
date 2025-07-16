@@ -1,0 +1,1 @@
+* Fixed bug with calendar/webhook endpoint that caused an error if the calendar event relates to a deleted host.
