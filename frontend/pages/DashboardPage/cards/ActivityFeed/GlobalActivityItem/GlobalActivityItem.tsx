@@ -814,10 +814,10 @@ const TAGGED_TEMPLATES = {
         deleted multiple queries{" "}
         {activity.details?.team_name ? (
           <>
-            from the <b>{activity.details.team_name}</b> team
+            from the <b>{activity.details.team_name}</b> team.
           </>
         ) : (
-          "globally"
+          "globally."
         )}
       </>
     );
@@ -1197,10 +1197,11 @@ const TAGGED_TEMPLATES = {
   createdSavedQuery: (activity: IActivity) => {
     let teamText;
     if (activity.details?.team_id === -1) {
-      teamText = "globally";
+      teamText = " globally";
     } else if (activity.details?.team_name) {
       teamText = (
         <>
+          {" "}
           on the <b>{activity.details.team_name}</b> team
         </>
       );
@@ -1210,17 +1211,19 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a query <b>{activity.details?.query_name}</b> {teamText}.
+        created a query <b>{activity.details?.query_name}</b>
+        {teamText}.
       </>
     );
   },
   editedSavedQuery: (activity: IActivity) => {
     let teamText;
     if (activity.details?.team_id === -1) {
-      teamText = "globally";
+      teamText = " globally";
     } else if (activity.details?.team_name) {
       teamText = (
         <>
+          {" "}
           on the <b>{activity.details.team_name}</b> team
         </>
       );
@@ -1230,17 +1233,19 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the query <b>{activity.details?.query_name}</b> {teamText}.
+        edited the query <b>{activity.details?.query_name}</b>
+        {teamText}.
       </>
     );
   },
   deletedSavedQuery: (activity: IActivity) => {
     let teamText;
     if (activity.details?.team_id === -1) {
-      teamText = "globally";
+      teamText = " globally";
     } else if (activity.details?.team_name) {
       teamText = (
         <>
+          {" "}
           on the <b>{activity.details.team_name}</b> team
         </>
       );
@@ -1250,23 +1255,26 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the query <b>{activity.details?.query_name}</b> {teamText}.
+        deleted the query <b>{activity.details?.query_name}</b>
+        {teamText}.
       </>
     );
   },
   createdPolicy: (activity: IActivity) => {
     let teamText;
     if (activity.details?.team_id === -1) {
-      teamText = "globally";
+      teamText = " globally";
     } else if (activity.details?.team_id === 0) {
       teamText = (
         <>
+          {" "}
           for <b>No Team</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
+          {" "}
           on the <b>{activity.details.team_name}</b> team
         </>
       );
@@ -1277,23 +1285,26 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a policy <b>{activity.details?.policy_name}</b> {teamText}.
+        created a policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
       </>
     );
   },
   editedPolicy: (activity: IActivity) => {
     let teamText;
     if (activity.details?.team_id === -1) {
-      teamText = "globally";
+      teamText = " globally";
     } else if (activity.details?.team_id === 0) {
       teamText = (
         <>
+          {" "}
           for <b>No Team</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
+          {" "}
           on the <b>{activity.details.team_name}</b> team
         </>
       );
@@ -1304,14 +1315,15 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the policy <b>{activity.details?.policy_name}</b> {teamText}.
+        edited the policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
       </>
     );
   },
   deletedPolicy: (activity: IActivity) => {
     let teamText;
     if (activity.details?.team_id === -1) {
-      teamText = "globally";
+      teamText = " globally";
     } else if (activity.details?.team_id === 0) {
       teamText = (
         <>
@@ -1321,6 +1333,7 @@ const TAGGED_TEMPLATES = {
     } else if (activity.details?.team_name) {
       teamText = (
         <>
+          {" "}
           on the <b>{activity.details.team_name}</b> team
         </>
       );
@@ -1331,7 +1344,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the policy <b>{activity.details?.policy_name}</b> {teamText}.
+        deleted the policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
       </>
     );
   },
