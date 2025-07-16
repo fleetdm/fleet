@@ -108,13 +108,7 @@ renews each host's SCEP certificates automatically every 180 days.
 
 ## Automatic Enrollment Failures
 
-If your Fleet instance is down for maintenance when a host attempts to automatically enroll during
-the Setup Assistant process, this may result in a failed enrollment. Alternatively, if a host powers
-down  due to user actions or a low battery during Setup Assistant this may also result in a failed
-enrollment. In these instances hosts exhibit a variety of behaviors based on the exact timing of the
-failure but commonly will attempt to restart the macOS Setup Assistant and display "Welcome to Mac"
-after the user next reboots the host. When this occurs the best course of action is to Wipe the host via
-Fleet if the host has network connectivity or reinstall macOS from Recovery.
+If a host is turned off due to user action or a low battery during the Setup Assistant, it may fail to enroll. This can also happen if your Fleet instance is down for maintenance when a host tries to enroll automatically during the Setup Assistant. In these cases, hosts usually restart after the user attempts to get past the “Welcome to Mac" screen. The best practice in this situation is to wipe the host with Fleet if it has network connectivity or to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
