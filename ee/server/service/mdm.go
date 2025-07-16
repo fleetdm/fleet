@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -718,6 +719,8 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (sessionID string, 
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
+	// Request the NameID as an email address instead of an unknown type
+	samlProvider.AuthnNameIDFormat = saml.EmailAddressNameIDFormat
 
 	// originalURL is unused in the MDM flow.
 	originalURL := "/"
