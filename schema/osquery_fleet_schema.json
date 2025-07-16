@@ -3859,7 +3859,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\nOn ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\nExamples of [malicious Chrome extensions](https://palant.info/2023/06/08/another-cluster-of-potentially-malicious-chrome-extensions/)\n\nLoosely restricted extension permissions can be an [indicator of malicious intent](https://developer.chrome.com/docs/extensions/reference/api/permissions)\n\nTracking browser extensions in an organization can help with:\n\n  - Compliance audits: Ensure extensions comply with company policies\n  - Security training: Educate users about Chrome extension risks\n  - Incident response: Identify suspicious or vulnerable extensions",
-    "examples": "\nBecause browser data lives in user space, this query uses a join to include a UID: \n\n```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\n\nThis query shows Chrome extensions that have full access to HTTPS browsing;\n\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
+    "examples": "\nBecause browser data lives in user space, this query uses a join to include a UID: \n\n```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\n\nThis query shows Chrome extensions that have full access to HTTPS browsing;\n\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u INNER JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
     "columns": [
       {
         "name": "browser_type",
@@ -11292,7 +11292,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
-    "examples": "```\nSELECT * FROM users CROSS JOIN firefox_addons USING (uid);\n```\n\nSee Firefox extensions by user as well as information about their creator and\nautomatic update status.\n\n```\nSELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u CROSS JOIN firefox_addons f USING (uid) WHERE f.active='1';\n```",
+    "examples": "```\nSELECT * FROM users CROSS JOIN firefox_addons USING (uid);\n```\n\nSee Firefox extensions by user as well as information about their creator and\nautomatic update status.\n\n```\nSELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u INNER JOIN firefox_addons f USING (uid) WHERE f.active='1';\n```",
     "columns": [
       {
         "name": "uid",

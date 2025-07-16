@@ -2,7 +2,7 @@
   task: "🦢📊 Product design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "1. For all stories that are not estimated, update their target engineering sprint and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board, remove their target engineering sprint, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. 2. Retro: What went well? What could go better? What to remember for next time?" 
+  description: "1. For all stories that are not estimated, update their target engineering sprint and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board, remove them from the roadmap board, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. 2. Retro: What went well? What could go better? What to remember for next time?" 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -

@@ -88,13 +88,17 @@ These are the default categories assigned to the installer in [self-service](htt
 
 #### `install_script_path` (optional)
 
-This is a filepath to an install script. If provided, this script will be used instead of the generated install script.
+This is a filepath to an install script. If provided, this script will be used instead of the generated install script. Only shell scripts (`.sh`) are supported.
+
+The script should be added to the `inputs/homebrew/scripts` directory.
 
 #### `uninstall_script_path` (optional)
 
-This is a filepath to an uninstall script. If provided, this script will be used instead of the generated uninstall script.
+This is a filepath to an uninstall script. If provided, this script will be used instead of the generated uninstall script. Only shell scripts (`.sh`) are supported.
 
 `uninstall_script_path` can't be used together with `pre_uninstall_scripts` and `post_uninstall_scripts`.
+
+The script should be added to the `inputs/homebrew/scripts` directory.
 
 ### Validating new additions to the Fleet-maintained apps
 

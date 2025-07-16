@@ -1,6 +1,10 @@
 package fleet
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+)
 
 // OrbitConfigNotifications are notifications that the fleet server sends to
 // fleetd (orbit) so that it can run commands or more generally react to this
@@ -114,6 +118,7 @@ type DatastoreEnrollOrbitConfig struct {
 	HostInfo     OrbitHostInfo
 	OrbitNodeKey string
 	TeamID       *uint
+	IdentityCert *types.HostIdentityCertificate
 }
 
 // DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
@@ -144,6 +149,12 @@ func WithEnrollOrbitNodeKey(nodeKey string) DatastoreEnrollOrbitOption {
 func WithEnrollOrbitTeamID(teamID *uint) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.TeamID = teamID
+	}
+}
+
+func WithEnrollOrbitIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.IdentityCert = identityCert
 	}
 }
 

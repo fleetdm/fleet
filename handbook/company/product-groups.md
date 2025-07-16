@@ -255,10 +255,10 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 |:---|:-----------------------------|:-|
 | XXS | ≤1 day for 1 contributor | 1-3 |
 | XS | ≤1 week for 1 contributor | 3-8 |
-| S  | 1 sprint for 1 contributor | 15-25 |
-| M  | 1 sprint for 2 contributors | 30-50 |
-| L  | 1 sprint for the whole team | Variable (>60) |
-| XL | >1 sprint for the whole team | Variable (>100) |
+| S  | 1 sprint for 1 contributor | 8-25 |
+| M  | 1 sprint for 2 contributors | 25-60 |
+| L  | 1 sprint for 3 contributors | Variable (>60) |
+| XL | >1 sprint for 3 contributors | Variable (>100) |
 
 
 ### Implementing
@@ -421,7 +421,7 @@ If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only 
 ### After the feature is accepted
 
 After the 🎁🗣 Feature fest meeting, the feature prioritization DRI will clear the 🎁 Feature fest board as follows:
-- Prioritized features: Remove the `~feature fest` label, add the `~customer request` label, create a new user story with the `:product` label, add a link from the original request to the user story, add the relevant `customer-` labels, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
+- Prioritized features: Remove the `~feature fest` label, add the `~customer request` label, create a new user story with the `:product` label, add the original request as parent issue in the user story, add the relevant `customer-` labels, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 - Put to the side features: Remove `~feature fest` label and notify the requestor.
 
 > The product team's commitment to the requester is that the prioritized user story will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the story.
