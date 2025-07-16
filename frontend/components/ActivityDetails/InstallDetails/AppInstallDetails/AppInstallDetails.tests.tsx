@@ -57,6 +57,23 @@ describe("getStatusMessage helper function", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows failed verification message", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isStatusNotNow: false,
+        isStatusAcknowledged: true,
+        software_title: "Logic Pro",
+        host_display_name: "Marko's MacBook Pro",
+      })
+    );
+    expect(
+      screen.getByText(
+        /but the installation has not beenverified. Please re-attempt this installation/i
+      )
+    ).toBeInTheDocument();
+  });
+
   it("shows default message for installed status", () => {
     render(
       getStatusMessage({
