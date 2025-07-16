@@ -26,6 +26,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const hostHasIdentityCertSQL = `EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0)`
+
 // Since many hosts may have issues, we need to batch the inserts of host issues.
 // This is a variable, so it can be adjusted during unit testing.
 var (
@@ -889,7 +891,7 @@ const hostMDMSelect = `,
 				    SELECT ne.id FROM nano_enrollments ne
 				    WHERE ne.id = h.uuid
 				    AND ne.enabled = 1
-				    AND ne.type = 'Device'
+				    AND ne.type IN ('Device', 'User Enrollment (Device)')
 				    AND hmdm.enrolled = 1
 				)
 				THEN CAST(TRUE AS JSON)
@@ -1101,7 +1103,11 @@ func (ds *Datastore) applyHostFilters(
 			switch {
 			case fleet.IsNotFound(err):
 				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
-				if err != nil {
+				if fleet.IsNotFound(err) {
+					// Neither installer nor VPP app exists → immediately return 0 hosts safelysts
+					softwareFilter = "FALSE"
+					break
+				} else if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
 				}
 				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
@@ -1169,7 +1175,7 @@ func (ds *Datastore) applyHostFilters(
 		opt.MacOSSettingsDiskEncryptionFilter.IsValid() ||
 		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		connectedToFleetJoin = `
-				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type = 'Device'
+				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
 				LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
 		whereParams = append(whereParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
@@ -2020,7 +2026,17 @@ func matchHostDuringEnrollment(
 	}, nil
 }
 
-func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+	enrollConfig := &fleet.DatastoreEnrollOrbitConfig{}
+	for _, opt := range opts {
+		opt(enrollConfig)
+	}
+
+	isMDMEnabled := enrollConfig.IsMDMEnabled
+	hostInfo := enrollConfig.HostInfo
+	orbitNodeKey := enrollConfig.OrbitNodeKey
+	teamID := enrollConfig.TeamID
+
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
 	}
@@ -2063,6 +2079,13 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 					"host_id", enrolledHostInfo.ID,
 				)
 			}
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil &&
+				*enrollConfig.IdentityCert.HostID != enrolledHostInfo.ID {
+				return ctxerr.New(ctx, "orbit host identity cert host id does not match enrolled host id. "+
+					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", hostInfo.OsqueryIdentifier))
+			}
+
 			refetchRequested := fleet.PlatformSupportsOsquery(enrolledHostInfo.Platform)
 
 			sqlUpdate := `
@@ -2108,6 +2131,12 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 			}
 
 		case errors.Is(err, sql.ErrNoRows):
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil {
+				return ctxerr.New(ctx, fmt.Sprintf("orbit host identity cert with identifier %s already belongs to another host with host id: %d",
+					hostInfo.OsqueryIdentifier, *enrollConfig.IdentityCert.HostID))
+			}
+
 			zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
@@ -2165,6 +2194,15 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 		default:
 			return ctxerr.Wrap(ctx, err, "orbit enroll error selecting host details")
 		}
+
+		// Update the host id for the identity certificate
+		if enrollConfig.IdentityCert != nil {
+			err = updateHostIdentityCertHostIDBySerial(ctx, tx, host.ID, enrollConfig.IdentityCert.SerialNumber)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update host identity cert host id")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -2175,7 +2213,20 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 }
 
 // EnrollHost enrolls the osquery agent to Fleet.
-func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+	enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+	for _, opt := range opts {
+		opt(enrollConfig)
+	}
+
+	isMDMEnabled := enrollConfig.IsMDMEnabled
+	osqueryHostID := enrollConfig.OsqueryHostID
+	hardwareUUID := enrollConfig.HardwareUUID
+	hardwareSerial := enrollConfig.HardwareSerial
+	nodeKey := enrollConfig.NodeKey
+	teamID := enrollConfig.TeamID
+	cooldown := enrollConfig.Cooldown
+
 	if osqueryHostID == "" {
 		return nil, ctxerr.New(ctx, "missing osquery host identifier")
 	}
@@ -2190,6 +2241,12 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
 		case errors.Is(err, sql.ErrNoRows):
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil {
+				return ctxerr.New(ctx, fmt.Sprintf("host identity cert with identifier %s already belongs to another host with host id: %d",
+					osqueryHostID, *enrollConfig.IdentityCert.HostID))
+			}
+
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
 			// the refetch is completed.
@@ -2241,6 +2298,13 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 				)
 			}
 
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil &&
+				*enrollConfig.IdentityCert.HostID != hostID {
+				return ctxerr.New(ctx, "host identity cert host id does not match enrolled host id. "+
+					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
+			}
+
 			if err := deleteAllPolicyMemberships(ctx, tx, []uint{enrolledHostInfo.ID}); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleanup policy membership on re-enroll")
 			}
@@ -2276,6 +2340,14 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 			hostID, time.Now().UTC())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
+		}
+
+		// Update the host id for the identity certificate
+		if enrollConfig.IdentityCert != nil {
+			err = updateHostIdentityCertHostIDBySerial(ctx, tx, hostID, enrollConfig.IdentityCert.SerialNumber)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update host identity cert host id")
+			}
 		}
 
 		sqlSelect := `
@@ -2322,7 +2394,8 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
         h.orbit_node_key,
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
         COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
+        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+        ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
       FROM
         hosts h
       LEFT OUTER JOIN
@@ -2422,7 +2495,8 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -2493,7 +2567,8 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
-      t.name as team_name
+      t.name as team_name,
+      ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -2580,7 +2655,8 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       hd.encrypted as disk_encryption_enabled,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+      ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
     FROM
       host_device_auth hda
     INNER JOIN
@@ -2949,6 +3025,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
+      t.name AS team_name,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
@@ -2956,6 +3033,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
     ` + hostMDMSelect + `
     FROM hosts h
+    LEFT JOIN teams t ON t.id = h.team_id
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id

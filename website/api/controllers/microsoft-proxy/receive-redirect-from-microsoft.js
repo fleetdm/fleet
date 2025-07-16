@@ -31,7 +31,8 @@ module.exports = {
     success: { description: 'The admin consent status of compliance tenant was successfully updated.', responseType: 'redirect'},
     redirect: { responseType: 'redirect' },
     adminDidNotConsent: { description: 'An entra admin did not grant permissions to the Fleet compliance partner application for entra', responseType: 'ok'},
-    noMatchingTenant: { description: 'This request did not match any existing Microsoft compliance tenant', responseType: 'notFound'}
+    noMatchingTenant: { description: 'This request did not match any existing Microsoft compliance tenant', responseType: 'notFound'},
+    badRequest: { description: 'This request is missing a tenant or state value', responseType: 'badRequest'}
   },
 
 
@@ -40,6 +41,8 @@ module.exports = {
     // If an error or error_description are provided, then the admin did not consent, and we will return a 200 response.
     if(error || error_description){// eslint-disable-line camelcase
       throw 'adminDidNotConsent';
+    } else if (!tenant || !state) {
+      throw 'badRequest';
     }
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: tenant, stateTokenForAdminConsent: state});

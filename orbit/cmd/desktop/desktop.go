@@ -175,6 +175,14 @@ func main() {
 
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
+		myDeviceItem.Hide()
+
+		// We are doing this using two menu items because line breaks
+		// are not rendered correctly on Windows and MacOS.
+		hostOfflineItemOne := systray.AddMenuItem("🛜🚫 Your computer is offline.", "")
+		hostOfflineItemTwo := systray.AddMenuItem("It might take up to 5 minutes to reconnect to Fleet.", "")
+		hostOfflineItemOne.Disable()
+		hostOfflineItemTwo.Disable()
 
 		selfServiceItem := systray.AddMenuItem("Self-service", "")
 		selfServiceItem.Disable()
@@ -183,6 +191,7 @@ func main() {
 
 		transparencyItem := systray.AddMenuItem("About Fleet", "")
 		transparencyItem.Disable()
+		transparencyItem.Hide()
 
 		tokenReader := token.Reader{Path: identifierPath}
 		if _, err := tokenReader.Read(); err != nil {
@@ -220,12 +229,18 @@ func main() {
 		disableTray := func() {
 			log.Debug().Msg("disabling tray items")
 			myDeviceItem.SetTitle("Connecting...")
+			myDeviceItem.Show()
 			myDeviceItem.Disable()
+
 			transparencyItem.Disable()
 			selfServiceItem.Disable()
 			selfServiceItem.Hide()
+
 			migrateMDMItem.Disable()
 			migrateMDMItem.Hide()
+
+			hostOfflineItemOne.Hide()
+			hostOfflineItemTwo.Hide()
 		}
 
 		reportError := func(err error, info map[string]any) {
@@ -283,8 +298,14 @@ func main() {
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
 						myDeviceItem.SetTitle("My device")
+						myDeviceItem.Show()
 						myDeviceItem.Enable()
+
 						transparencyItem.Enable()
+						transparencyItem.Show()
+
+						hostOfflineItemOne.Hide()
+						hostOfflineItemTwo.Hide()
 
 						// Hide Self-Service for Free tier
 						if errors.Is(err, service.ErrMissingLicense) || (summary.SelfService != nil && !*summary.SelfService) {
@@ -345,21 +366,33 @@ func main() {
 				sum, err := client.DesktopSummary(tokenReader.GetCached())
 				switch {
 				case err == nil:
-					// OK
+					hostOfflineItemOne.Hide()
+					hostOfflineItemTwo.Hide()
 				case errors.Is(err, service.ErrMissingLicense):
 					myDeviceItem.SetTitle("My device")
+					myDeviceItem.Show()
+					hostOfflineItemOne.Hide()
+					hostOfflineItemTwo.Hide()
 					continue
 				case errors.Is(err, service.ErrUnauthenticated):
 					disableTray()
+					hostOfflineItemOne.Hide()
+					hostOfflineItemTwo.Hide()
 					<-checkToken()
 					continue
 				default:
+					myDeviceItem.Hide()
+					transparencyItem.Disable()
+					transparencyItem.Hide()
+					hostOfflineItemOne.Show()
+					hostOfflineItemTwo.Show()
 					log.Error().Err(err).Msg("get desktop summary")
 					continue
 				}
 
 				refreshMenuItems(sum.DesktopSummary, selfServiceItem, myDeviceItem)
 				myDeviceItem.Enable()
+				myDeviceItem.Show()
 
 				// Check our file to see if we should migrate
 				var migrationType string

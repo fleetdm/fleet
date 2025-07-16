@@ -39,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/uuid"
 )
 
@@ -310,6 +311,9 @@ type agent struct {
 	certificatesMutex        sync.RWMutex
 	certificatesCache        []map[string]string
 	commonSoftwareNameSuffix string
+
+	entraIDDeviceID          string
+	entraIDUserPrincipalName string
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -465,6 +469,9 @@ func newAgent(
 		scheduledQueryData:       new(sync.Map),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
+
+		entraIDDeviceID:          uuid.NewString(),
+		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
 	}
 }
 
@@ -866,8 +873,8 @@ func (a *agent) runMacosMDMLoop() {
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
 
-			if mdmCommandPayload.Command.RequestType == "InstallProfile" {
-
+			switch mdmCommandPayload.Command.RequestType {
+			case "InstallProfile":
 				if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
 					errChain := []mdm.ErrorChain{
 						{
@@ -877,21 +884,37 @@ func (a *agent) runMacosMDMLoop() {
 						},
 					}
 					mdmCommandPayload, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, errChain)
+					if err != nil {
+						log.Printf("MDM Error request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
 				} else {
 					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+					if err != nil {
+						log.Printf("MDM Acknowledge request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
 				}
-
-			} else {
-				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
-			}
-
-			if err != nil {
-				log.Printf("MDM Acknowledge request failed: %s", err)
-				a.stats.IncrementMDMErrors()
-				break INNER_FOR_LOOP
-			}
-			if mdmCommandPayload != nil && mdmCommandPayload.Command.RequestType == "DeclarativeManagement" {
+			case "DeclarativeManagement":
+				// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
+				nextMdmCommandPayload, err := a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
 				a.doDeclarativeManagement(mdmCommandPayload)
+				mdmCommandPayload = nextMdmCommandPayload
+			default:
+				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
 			}
 		}
 	}
@@ -1250,7 +1273,7 @@ func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
 // now, we assume that the agent is not already enrolled, if you kill the agent
 // process then those Orbit node keys are gone.
 func (a *agent) orbitEnroll() error {
-	params := service.EnrollOrbitRequest{
+	params := contract.EnrollOrbitRequest{
 		EnrollSecret:   a.EnrollSecret,
 		HardwareUUID:   a.UUID,
 		HardwareSerial: a.SerialNumber,
@@ -1790,6 +1813,15 @@ func (a *agent) mdmMac() []map[string]string {
 	}
 }
 
+func (a *agent) entraConditionalAccess() []map[string]string {
+	return []map[string]string{
+		{
+			"device_id":           a.entraIDDeviceID,
+			"user_principal_name": a.entraIDUserPrincipalName,
+		},
+	}
+}
+
 func (a *agent) mdmEnrolled() bool {
 	a.isEnrolledToMDMMu.Lock()
 	defer a.isEnrolledToMDMMu.Unlock()
@@ -2139,6 +2171,14 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		ss := statusOK
 		if rand.Intn(10) > 0 { // 90% success
 			results = a.mdmMac()
+		} else {
+			ss = statusNotOK
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"conditional_access_microsoft_device_id":
+		ss := statusOK
+		if rand.Intn(10) > 0 { // 90% success
+			results = a.entraConditionalAccess()
 		} else {
 			ss = statusNotOK
 		}

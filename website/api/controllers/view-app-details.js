@@ -11,7 +11,7 @@ module.exports = {
     appIdentifier: {
       type: 'string',
       required: true,
-      description: 'the identifier of an app in Fleet\'s maintained app library.',
+      description: 'the identifier of an app in Fleet\'s maintained software catalog.',
       example: '1password'
     },
   },
@@ -44,7 +44,7 @@ module.exports = {
       throw 'notFound';
     }
     // FUTURE: make these better.
-    let pageTitleForMeta = thisApp.name + ' | Fleet app library';
+    let pageTitleForMeta = thisApp.name + ' | Fleet software catalog';
     // let pageDescriptionForMeta = 'TODO'
 
     // Respond with view.

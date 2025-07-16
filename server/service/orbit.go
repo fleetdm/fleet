@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -19,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
@@ -26,27 +28,6 @@ import (
 
 type setOrbitNodeKeyer interface {
 	setOrbitNodeKey(nodeKey string)
-}
-
-// EnrollOrbitRequest is the request Orbit instances use to enroll to Fleet.
-type EnrollOrbitRequest struct {
-	// EnrollSecret is the secret to authenticate the enroll request.
-	EnrollSecret string `json:"enroll_secret"`
-	// HardwareUUID is the device's hardware UUID.
-	HardwareUUID string `json:"hardware_uuid"`
-	// HardwareSerial is the device's serial number.
-	HardwareSerial string `json:"hardware_serial"`
-	// Hostname is the device's hostname.
-	Hostname string `json:"hostname"`
-	// Platform is the device's platform as defined by osquery.
-	Platform string `json:"platform"`
-	// OsqueryIdentifier holds the identifier used by osquery.
-	// If not set, then the hardware UUID is used to match orbit and osquery.
-	OsqueryIdentifier string `json:"osquery_identifier"`
-	// ComputerName is the device's friendly name (optional).
-	ComputerName string `json:"computer_name"`
-	// HardwareModel is the device's hardware model.
-	HardwareModel string `json:"hardware_model"`
 }
 
 type EnrollOrbitResponse struct {
@@ -89,7 +70,7 @@ func (r EnrollOrbitResponse) HijackRender(ctx context.Context, w http.ResponseWr
 }
 
 func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*EnrollOrbitRequest)
+	req := request.(*contract.EnrollOrbitRequest)
 	nodeKey, err := svc.EnrollOrbit(ctx, fleet.OrbitHostInfo{
 		HardwareUUID:      req.HardwareUUID,
 		HardwareSerial:    req.HardwareSerial,
@@ -120,6 +101,13 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: invalid orbit node key"))
 	default:
 		return nil, false, ctxerr.Wrap(ctx, err, "authentication error orbit")
+	}
+
+	if *host.HasHostIdentityCert {
+		err = httpsig.VerifyHostIdentity(ctx, svc.ds, host)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError(fmt.Sprintf("authentication error orbit: %s", err.Error())))
+		}
 	}
 
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
@@ -155,6 +143,24 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", fleet.OrbitError{Message: err.Error()}
 	}
 
+	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostInfo.OsqueryIdentifier)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
+	}
+
+	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
+	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
+	if identityCert != nil {
+		if !httpSigPresent {
+			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
+		}
+		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
+		}
+	} else if httpSigPresent { // but we couldn't find the cert in DB
+		return "", fleet.NewAuthFailedError("authentication error: certificate matching HTTP message signature not found")
+	}
+
 	orbitNodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to generate orbit node key: " + err.Error()}
@@ -165,7 +171,13 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", fleet.OrbitError{Message: "app config load failed: " + err.Error()}
 	}
 
-	host, err := svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
+	host, err := svc.ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithEnrollOrbitHostInfo(hostInfo),
+		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
+		fleet.WithEnrollOrbitTeamID(secret.TeamID),
+		fleet.WithEnrollOrbitIdentityCert(identityCert),
+	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
 	}
@@ -842,6 +854,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	}
 
 	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?
+	var fromSetupExperience bool
 	if action == "" && fleet.IsSetupExperienceSupported(host.Platform) {
 		// this might be a setup experience script result
 		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceScriptResult{
@@ -852,6 +865,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
+			fromSetupExperience = true
 			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host.UUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
@@ -910,6 +924,13 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
 			}
+
+			// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
+			if activityStatus == "uninstalled" {
+				if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+					return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
+				}
+			}
 		default:
 			// TODO(sarah): We may need to special case lock/unlock script results here?
 			var policyName *string
@@ -923,13 +944,14 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				ctx,
 				user,
 				fleet.ActivityTypeRanScript{
-					HostID:            host.ID,
-					HostDisplayName:   host.DisplayName(),
-					ScriptExecutionID: hsr.ExecutionID,
-					ScriptName:        scriptName,
-					Async:             !hsr.SyncRequest,
-					PolicyID:          hsr.PolicyID,
-					PolicyName:        policyName,
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					ScriptExecutionID:   hsr.ExecutionID,
+					ScriptName:          scriptName,
+					Async:               !hsr.SyncRequest,
+					PolicyID:            hsr.PolicyID,
+					PolicyName:          policyName,
+					FromSetupExperience: fromSetupExperience,
 				},
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
@@ -1291,7 +1313,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
-
+	var fromSetupExperience bool
 	if fleet.IsSetupExperienceSupported(host.Platform) {
 		// this might be a setup experience software install result
 		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceSoftwareInstallResult{
@@ -1302,6 +1324,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			// TODO: call next step of setup experience?
+			fromSetupExperience = true
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
 		}
 	}
@@ -1334,18 +1357,26 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			ctx,
 			user,
 			fleet.ActivityTypeInstalledSoftware{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-				SoftwareTitle:   hsi.SoftwareTitle,
-				SoftwarePackage: hsi.SoftwarePackage,
-				InstallUUID:     result.InstallUUID,
-				Status:          string(status),
-				SelfService:     hsi.SelfService,
-				PolicyID:        hsi.PolicyID,
-				PolicyName:      policyName,
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       hsi.SoftwareTitle,
+				SoftwarePackage:     hsi.SoftwarePackage,
+				InstallUUID:         result.InstallUUID,
+				Status:              string(status),
+				SelfService:         hsi.SelfService,
+				PolicyID:            hsi.PolicyID,
+				PolicyName:          policyName,
+				FromSetupExperience: fromSetupExperience,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
+		}
+
+		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
+		if status == fleet.SoftwareInstalled {
+			if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
+			}
 		}
 	}
 	return nil

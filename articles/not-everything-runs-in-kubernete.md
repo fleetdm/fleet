@@ -38,6 +38,6 @@ Fleet has become the central source for a lot of things. The visibility down int
 <meta name="articleTitle" value="Not everything runs in Kubernetes">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="authorGitHubUsername" value="zwass">
-<meta name="category" value="announcements">
+<meta name="category" value="articles">
 <meta name="publishedOn" value="2025-05-27">
 <meta name="description" value="Why Fleet goes beyond Kubernetes to manage real-world infrastructure.">

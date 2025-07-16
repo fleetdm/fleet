@@ -10,7 +10,12 @@
 import React from "react";
 
 import { getErrorReason } from "interfaces/errors";
-import { ISoftwarePackage, IAppStoreApp } from "interfaces/software";
+import {
+  IHostSoftware,
+  ISoftwarePackage,
+  IAppStoreApp,
+  ISoftwareTitle,
+} from "interfaces/software";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 /**
@@ -167,3 +172,15 @@ export const SELF_SERVICE_TOOLTIP = (
     <b>Fleet Desktop</b> &gt; <b>Self-service</b>.
   </>
 );
+
+export const getAutomaticInstallPoliciesCount = (
+  softwareTitle: ISoftwareTitle | IHostSoftware
+): number => {
+  const { software_package, app_store_app } = softwareTitle;
+  if (software_package) {
+    return software_package.automatic_install_policies?.length || 0;
+  } else if (app_store_app) {
+    return app_store_app.automatic_install_policies?.length || 0;
+  }
+  return 0;
+};

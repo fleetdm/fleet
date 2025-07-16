@@ -73,7 +73,7 @@ type MDMAppleEnrollmentProfile struct {
 	//
 	// DEPProfile is nil when Type is MDMAppleEnrollmentTypeManual.
 	DEPProfile *json.RawMessage `json:"dep_profile" db:"dep_profile"`
-	// EnrollmentURL is the URL where an enrollement is served.
+	// EnrollmentURL is the URL where an enrollment is served.
 	EnrollmentURL string `json:"enrollment_url" db:"-"`
 
 	UpdateCreateTimestamps
@@ -173,6 +173,13 @@ func (e MDMAppleCommandTimeoutError) StatusCode() int {
 	return http.StatusGatewayTimeout
 }
 
+type PayloadScope string
+
+const (
+	PayloadScopeUser   PayloadScope = "User"
+	PayloadScopeSystem PayloadScope = "System"
+)
+
 // MDMAppleConfigProfile represents an Apple MDM configuration profile in Fleet.
 // Configuration profiles are used to configure Apple devices .
 // See also https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
@@ -190,6 +197,11 @@ type MDMAppleConfigProfile struct {
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
+	// Scope is the PayloadScope attribute of the profile. It is used to determine how the profile
+	// is applied. Valid values are "User" and "System". System profiles are applied to the
+	// device channel whereas User scoped profiles are applied to the user channel if it exists for
+	// a given host, otherwise the device channel.
+	Scope PayloadScope `db:"scope" json:"scope"`
 	// Name corresponds to the payload display name of the associated mobileconfig payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
@@ -242,6 +254,7 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 		Identifier:   cp.PayloadIdentifier,
 		Name:         cp.PayloadDisplayName,
 		Mobileconfig: mc,
+		Scope:        PayloadScope(cp.PayloadScope),
 	}, nil
 }
 
@@ -270,6 +283,7 @@ type HostMDMAppleProfile struct {
 	OperationType      MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail             string             `db:"detail" json:"detail"`
 	VariablesUpdatedAt *time.Time         `db:"variables_updated_at" json:"-"`
+	Scope              PayloadScope       `db:"scope" json:"scope"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
@@ -332,6 +346,8 @@ type MDMAppleProfilePayload struct {
 	Detail            string             `db:"detail"`
 	CommandUUID       string             `db:"command_uuid"`
 	IgnoreError       bool               `db:"ignore_error"`
+	Scope             PayloadScope       `db:"scope"`
+	DeviceEnrolledAt  *time.Time         `db:"device_enrolled_at"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
@@ -365,6 +381,7 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	SecretsUpdatedAt   *time.Time
 	IgnoreError        bool
 	VariablesUpdatedAt *time.Time
+	Scope              PayloadScope
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
@@ -943,6 +960,20 @@ type MDMAppleMachineInfo struct {
 	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
 	UDID                        string `plist:"UDID"`
 	Version                     string `plist:"VERSION"`
+}
+
+// MDMAppleAccountDrivenUserEnrollDeviceInfo is a more minimal version of DeviceInfo sent on Account
+// Driven User Enrollment requests[1] that only describes the base product attempting enrollment.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/implementing-the-simple-authentication-user-enrollment-flow#Attempt-the-first-enrollment
+type MDMAppleAccountDrivenUserEnrollDeviceInfo struct {
+	Version  string `plist:"VERSION"`
+	Product  string `plist:"PRODUCT"`
+	Language string `plist:"LANGUAGE,omitempty"`
+	// The following keys are not described in the documentation above but have been observed in practice
+	OSVersion                string `plist:"OS_VERSION,omitempty"`
+	SoftwareUpdateDeviceID   string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
+	SupplementalBuildVersion string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
 }
 
 // MDMAppleSoftwareUpdateRequiredCode is the [code][1] specified by Apple to indicate that the device

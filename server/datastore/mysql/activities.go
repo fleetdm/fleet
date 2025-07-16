@@ -76,25 +76,33 @@ func (ds *Datastore) NewActivity(
 			cmdUUID = vppPtrAct.CommandUUID
 			hostID = vppPtrAct.HostID
 		}
-		// NOTE: ideally this would be called in the same transaction as storing
-		// the nanomdm command results, but the current design doesn't allow for
-		// that with the nano store being a distinct entity to our datastore (we
-		// should get rid of that distinction eventually, we've broken it already
-		// in some places and it doesn't bring much benefit anymore).
-		//
-		// Instead, this gets called from CommandAndReportResults, which is
-		// executed after the results have been saved in nano, but we already
-		// accept this non-transactional fact for many other states we manage in
-		// Fleet (wipe, lock results, setup experience results, etc. - see all
-		// critical data that gets updated in CommandAndReportResults) so there's
-		// no reason to treat the unified queue differently.
-		//
-		// This place here is a bit hacky but perfect for VPP apps as the activity
-		// gets created only when the MDM command status is in a final state
-		// (success or failure), which is exactly when we want to activate the next
-		// activity.
-		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+
+		activateNext := vppAct.Status != string(fleet.SoftwareInstalled)
+		if vppPtrAct != nil {
+			activateNext = vppPtrAct.Status != string(fleet.SoftwareInstalled)
+		}
+
+		if activateNext {
+			// NOTE: ideally this would be called in the same transaction as storing
+			// the nanomdm command results, but the current design doesn't allow for
+			// that with the nano store being a distinct entity to our datastore (we
+			// should get rid of that distinction eventually, we've broken it already
+			// in some places and it doesn't bring much benefit anymore).
+			//
+			// Instead, this gets called from CommandAndReportResults, which is
+			// executed after the results have been saved in nano, but we already
+			// accept this non-transactional fact for many other states we manage in
+			// Fleet (wipe, lock results, setup experience results, etc. - see all
+			// critical data that gets updated in CommandAndReportResults) so there's
+			// no reason to treat the unified queue differently.
+			//
+			// This place here is a bit hacky but perfect for VPP apps as the activity
+			// gets created only when the MDM command status is in a final state
+			// (success or failure), which is exactly when we want to activate the next
+			// activity.
+			if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+			}
 		}
 	}
 
@@ -206,7 +214,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 
 	if len(lookup) != 0 {
 		usersQ := `
-			SELECT u.id, u.name, u.gravatar_url, u.email
+			SELECT u.id, u.name, u.gravatar_url, u.email, u.api_only
 			FROM users u
 			WHERE id IN (?)
 		`
@@ -225,6 +233,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			Name        string `db:"name"`
 			GravatarUrl string `db:"gravatar_url"`
 			Email       string `db:"email"`
+			APIOnly     bool   `db:"api_only"`
 		}
 
 		err = sqlx.SelectContext(ctx, ds.reader(ctx), &usersR, usersQ, usersArgs...)
@@ -241,11 +250,13 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			email := r.Email
 			gravatar := r.GravatarUrl
 			name := r.Name
+			apiOnly := r.APIOnly
 
 			for _, idx := range entries {
 				activities[idx].ActorEmail = &email
 				activities[idx].ActorGravatar = &gravatar
 				activities[idx].ActorFullName = &name
+				activities[idx].ActorAPIOnly = &apiOnly
 			}
 		}
 	}
@@ -306,6 +317,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) as name,
 			u.id as user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:ran_script_type as activity_type,
@@ -345,6 +357,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
 			ua.user_id as user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:installed_software_type as activity_type,
@@ -386,6 +399,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
 			ua.user_id as user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:uninstalled_software_type as activity_type,
@@ -425,6 +439,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id AS uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
 			u.id AS user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:installed_app_store_app_type AS activity_type,
@@ -466,6 +481,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			user_id,
 			gravatar_url,
 			user_email,
+			api_only,
 			activity_type,
 			created_at,
 			details,
@@ -514,6 +530,7 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 		u.gravatar_url as gravatar_url,
 		a.created_at as created_at,
 		u.id as user_id,
+		u.api_only as api_only,
 		a.fleet_initiated as fleet_initiated
 	FROM
 		host_activities ha
@@ -1464,6 +1481,8 @@ WHERE
 <dict>
     <key>Command</key>
     <dict>
+		<key>InstallAsManaged</key>
+		<true/>
         <key>ManagementFlags</key>
         <integer>0</integer>
         <key>Options</key>

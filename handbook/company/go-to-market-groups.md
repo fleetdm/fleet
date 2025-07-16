@@ -8,8 +8,8 @@ This page covers the journey from prospect to customer and details what contribu
 When communicating with future or current customers, hand offs [between departments](https://fleetdm.com/handbook/company#org-chart), contributors, or external organizations can negatively effect the "Return On Investment" (ROI) for Fleet, our customers, and our friends in the community. Cross-functional GTM groups minimize hand offs between internal and external stakeholders and maximize iteration and efficiency in the way we engage with the market.
 
 
-> - Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
-> - Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), [🌐 Digital Experience](https://fleetdm.com/handbook/digital-experience), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
+> Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
+> Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), [🌐 Digital Experience](https://fleetdm.com/handbook/digital-experience), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
 
 
 ## Current GTM groups
@@ -22,13 +22,13 @@ When communicating with future or current customers, hand offs [between departme
 
 ### 🦄 Unicorns
 
-The goal of the 🦄 Unicorns group is to provide the best possible customer experience for organizations with 300+ hosts.
+The goal of the 🦄 Unicorns group is to provide the best possible customer experience for organizations with 700+ hosts.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Revenue DRI                       | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_
-| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Kendra McKeever](https://www.linkedin.com/in/kendramckeever/) _([@KendraAtFleet](https://github.com/KendraAtFleet))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_
+| Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_
+| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_
 | Pipeline DRI                      | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Account Development Rep (ADR)     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_  <br> [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
@@ -40,7 +40,7 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 
 ### 🌐 Buy online
 
-The goal of the 🌐 Buy online group is to provide the best possible customer experience for organizations and contributors with less than 300 hosts that prefer a more self-service experience.
+The goal of the 🌐 Buy online group is to provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -130,12 +130,15 @@ Here are some topics for social media posts:
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
+> **Is there a post that you would like to see on the company page?**
+>
+> Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, reach out in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) linking the team to your personal LinkedIn post (only original posts please, re-posts and quotes of other posts can not be promoted). Include any context in the Slack message and keep an eye on your inbox. The Demand team will request permission to use the post in a promoted post.   
+
 
 ##### Fleet on LinkedIn
 
-Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/marketing#contact-us) linking the team to your personal LinkedIn post (only original posts please, re-posts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox. The Demand team will request permission to use the post in a promoted post.
-
 > **Warning:** Do NOT buy LinkedIn Recruiter. AEs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail.
+
 
 #### Ads
 
@@ -151,13 +154,19 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
+##### Creating contacts in the wild
 
-##### Event follow-up
+Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM ASAP. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person [added to Fleet's CRM quickly](https://fleetdm.com/handbook/marketing#monitor-the-help-create-contact-channel). To do this:
+1. Locate the [help-create-contact](https://fleetdm.slack.com/archives/C091MLXQKQV) channel in Fleet Slack.
+2. Add the person's full name and any other details that can help the team identify the correct person. E.g.:
+  - LinkedIn profile URL (this is the best option)
+  - Company name
+  - Company website
+  - email
 
-Event-goers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/marketing#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
-
-1. Once a list of badge scans is available, fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
-2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
+> Please use the following guidelines when posting in the channel:
+>   - Use only one top-level message per contact. Don't batch contacts inside one message, and don't create multiple messages for a single person. Use thread replies to add context.
+>   - Add as much context as possible to help the team find the right info. At least a full name + one other piece of information is required, but more is preferred.
 
 
 #### Podcast
@@ -203,7 +212,7 @@ When the prospect is ready to "kick the tires/do a POC", the opportunity is move
 
 ### Spin up a POV
 
-You can set up a Fleet Managed Cloud environment for a prospect with >300 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
+You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
 
 - **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key).  Then, once the environment is set up, you'll get a notification and you can let the user know.
 - **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/start, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.

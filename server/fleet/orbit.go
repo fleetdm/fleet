@@ -1,6 +1,10 @@
 package fleet
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+)
 
 // OrbitConfigNotifications are notifications that the fleet server sends to
 // fleetd (orbit) so that it can run commands or more generally react to this
@@ -106,6 +110,52 @@ type OrbitHostInfo struct {
 	ComputerName string
 	// HardwareModel is the device's hardware model. For example: Standard PC (Q35 + ICH9, 2009)
 	HardwareModel string
+}
+
+// DatastoreEnrollOrbitConfig holds the configuration for datastore Orbit enrollment
+type DatastoreEnrollOrbitConfig struct {
+	IsMDMEnabled bool
+	HostInfo     OrbitHostInfo
+	OrbitNodeKey string
+	TeamID       *uint
+	IdentityCert *types.HostIdentityCertificate
+}
+
+// DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
+type DatastoreEnrollOrbitOption func(*DatastoreEnrollOrbitConfig)
+
+// WithEnrollOrbitMDMEnabled sets the MDM enabled flag for datastore Orbit enrollment
+func WithEnrollOrbitMDMEnabled(enabled bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.IsMDMEnabled = enabled
+	}
+}
+
+// WithEnrollOrbitHostInfo sets the host information for datastore Orbit enrollment
+func WithEnrollOrbitHostInfo(hostInfo OrbitHostInfo) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.HostInfo = hostInfo
+	}
+}
+
+// WithEnrollOrbitNodeKey sets the orbit node key for datastore Orbit enrollment
+func WithEnrollOrbitNodeKey(nodeKey string) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.OrbitNodeKey = nodeKey
+	}
+}
+
+// WithEnrollOrbitTeamID sets the team ID for datastore Orbit enrollment
+func WithEnrollOrbitTeamID(teamID *uint) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.TeamID = teamID
+	}
+}
+
+func WithEnrollOrbitIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.IdentityCert = identityCert
+	}
 }
 
 // ExtensionInfo holds the data of a osquery extension to apply to an Orbit client.

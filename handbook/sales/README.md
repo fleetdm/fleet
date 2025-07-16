@@ -23,6 +23,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
+### Respond to a customer feature comparison request
+
+AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spreadsheets from prospects to the "🎐🗣 Design review (#g-digital-experience)" meeting for CEO review. The rep will:
+- Add themselves and the [Contracts and Compliance Engineer](https://fleetdm.com/handbook/finance#team) to the "🎐🗣 Design review (#g-digital-experience)" calendar event (on the Office hours calendar).
+- Review with the CEO, and iterate on the comparison until approved by the CEO to provide to the prospect.  
+
+
 ### Demo Fleet to a prospect
 
 To run a demo for a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
@@ -54,6 +61,15 @@ Every week, the sales manager will review the necessary opportunities with inter
 If no opportunities meet these criteria, the meeting is used to discuss the oldest opportunities and close any that are stalled.
 
 
+### Communicate Gross new ARR added
+
+Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, the CEO and CRO will measure the ammount of "Gross new ARR" added towards the goal set forth by the CEO. To do this:
+1. Before the meeting, the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) will copy the goal from the gross new ARR goal from ["OCV GOH: Fleet" doc (confidential document)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) and add it to the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0). 
+2. Before the meeting, the Apprentice will take a screenshot of the [Ω Open ops (Next 45 days) oppty list](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Open_ops_Next_45_days) that includes the next 5+ deals set to close based off of "Close date" and add it to the doc. 
+3. Using the ["Ω ∆ARR won + open pipeline (current Q)" Salesforce report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000019LuH2AU/view) (and adjusting the filters if needed) the Apprentice will calculate the progress toward the goal and "Ammount left to close" and add it to the doc. 
+4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
+
+
 ### Send a subscription quote
 
 Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
@@ -66,7 +82,9 @@ Reseller partners occasionally reach out and ask Fleet for a quote on behalf of 
 
 ### Send an order form
 
-In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Contracts and Compliance Engineer](https://fleetdm.com/handbook/digital-experience#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
+In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Contracts and Compliance Engineer](https://fleetdm.com/handbook/finance#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
+
+> Check out this example of an [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A)!
 
 1. Navigate to the Salesforce opportunity and click the "Create a subscription order form" link (top-right corner of the op page) to copy the "[TEMPLATE - Order form](https://docs.google.com/document/u/0/?tgif=d&ftv=1). 
 2. Move the order for to the "[Contract drafts](https://drive.google.com/drive/u/0/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c)" folder in Google Drive.

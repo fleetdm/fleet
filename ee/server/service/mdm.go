@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -462,7 +463,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	return summary, nil
 }
 
-func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
+func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSeeker, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -489,10 +490,18 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
 	}
 
+	if dryRun {
+		return nil
+	}
+
+	hash := sha256.New()
+	_, _ = hash.Write(bytes)
+
 	eula := &fleet.MDMEULA{
-		Name:  name,
-		Token: uuid.New().String(),
-		Bytes: bytes,
+		Name:   name,
+		Token:  uuid.New().String(),
+		Sha256: hash.Sum(nil),
+		Bytes:  bytes,
 	}
 
 	if err := svc.ds.MDMInsertEULA(ctx, eula); err != nil {
@@ -510,9 +519,13 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 	return svc.ds.MDMGetEULABytes(ctx, token)
 }
 
-func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
+func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	if err := svc.ds.MDMDeleteEULA(ctx, token); err != nil {
@@ -672,7 +685,9 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	return nil
 }
 
-func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
+const appleMDMAccountDrivenEnrollmentUrl = "/api/mdm/apple/account_driven_enroll"
+
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
@@ -681,50 +696,70 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting app config")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
-	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
 	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
-	// Note: enable_end_user_authentication is a team-specific setting. This means some teams may not use SSO even if it is configured.
-	if settings.IsEmpty() {
+	//
+	// Note: enable_end_user_authentication is a team-specific setting,
+	// this means some teams may not use SSO even if it is configured.
+	if mdmSSOSettings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
-		return "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
 	}
 
-	metadata, err := sso.GetMetadata(&settings)
+	serverURL := appConfig.MDMUrl()
+	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback"
+
+	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(ctx,
+		mdmSSOSettings.EntityID,
+		acsURL,
+		&mdmSSOSettings,
+	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
+	// Request the NameID as an email address instead of an unknown type
+	samlProvider.AuthnNameIDFormat = saml.EmailAddressNameIDFormat
 
-	authSettings := sso.Settings{
-		Metadata:                    metadata,
-		AssertionConsumerServiceURL: appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
-		SessionStore:                svc.ssoSessionStore,
-		SessionTTL:                  uint(svc.config.Auth.SsoSessionValidityPeriod.Seconds()),
-		OriginalURL:                 "/api/v1/fleet/mdm/sso/callback",
+	// originalURL is unused in the Setup Experience initiated MDM flow
+	// however because we need slightly different behavior for account driven
+	// enrollment we use it to signal proper behavior on the callback.
+	originalURL := "/"
+	if initiator == "account_driven_enroll" {
+		originalURL = appleMDMAccountDrivenEnrollmentUrl
 	}
-
-	idpURL, err := sso.CreateAuthorizationRequest(&authSettings, settings.EntityID)
+	sessionDurationSeconds = int(svc.config.Auth.SsoSessionValidityPeriod.Seconds())
+	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
+		samlProvider, svc.ssoSessionStore, originalURL,
+		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateMDMAppleSSO creating authorization")
 	}
 
-	return idpURL, nil
+	return sessionID, sessionDurationSeconds, idpURL, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) string {
+func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
 	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
-	profileToken, enrollmentRef, eulaToken, err := svc.mdmSSOHandleCallbackAuth(ctx, auth)
+	profileToken, enrollmentRef, eulaToken, originalURL, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
+	}
+
+	// For account driven enrollment we have to use this special protocol URL scheme to pass the
+	// access token back to Apple which it will then use to request the enrollment profile.
+	if originalURL == appleMDMAccountDrivenEnrollmentUrl {
+		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef)
 	}
 
 	q := url.Values{
@@ -739,35 +774,53 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
 }
 
-func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (profileToken string, enrollmentReference string,
-	eulaToken string, err error,
+func (svc *Service) mdmSSOHandleCallbackAuth(
+	ctx context.Context,
+	sessionID string,
+	samlResponse []byte,
+) (profileToken string, enrollmentReference string,
+	eulaToken string, originalURL string, err error,
 ) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "get config for sso")
+		return "", "", "", "", ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
-	_, metadata, err := svc.ssoSessionStore.Fullfill(auth.RequestID())
+	serverURL := appConfig.MDMUrl()
+	acsURL, err := url.Parse(serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback")
 	if err != nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "validate request in session")
+		return "", "", "", "", ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
 
-	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+
 	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
-	if settings.IsEmpty() {
+	//
+	// Note: enable_end_user_authentication is a team-specific setting,
+	// this means some teams may not use SSO even if it is configured.
+	if mdmSSOSettings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
-		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
+		return "", "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
 
-	err = sso.ValidateAudiences(
-		*metadata,
-		auth,
-		settings.EntityID,
+	expectedAudiences := []string{
+		mdmSSOSettings.EntityID,
 		appConfig.MDMUrl(),
-		appConfig.MDMUrl()+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
+		appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
+	}
+	samlProvider, requestID, originalURL, err := sso.SAMLProviderFromSession(
+		ctx, sessionID, svc.ssoSessionStore, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
 	)
 	if err != nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "validating sso response")
+		return "", "", "", "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
+	}
+
+	// Parse and verify SAMLResponse (verifies fields, expected IDs and signature).
+	auth, err := sso.ParseAndVerifySAMLResponse(samlProvider, samlResponse, requestID, acsURL)
+	if err != nil {
+		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
+		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
+		return "", "", "", "", ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
 	}
 
 	// Store information for automatic account population/creation
@@ -788,7 +841,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		Email:    auth.UserID(),
 	})
 	if err != nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
+		return "", "", "", "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
 	}
 
 	idpAcc, err := svc.ds.GetMDMIdPAccountByEmail(
@@ -798,31 +851,36 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		auth.UserID(),
 	)
 	if err != nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "retrieving new account data from IdP")
+		return "", "", "", "", ctxerr.Wrap(ctx, err, "retrieving new account data from IdP")
 	}
 
 	eula, err := svc.ds.MDMGetEULAMetadata(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
-		return "", "", "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
+		return "", "", "", "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
 
 	if eula != nil {
 		eulaToken = eula.Token
 	}
 
+	// If this is account driven enrollment there is no need to fetch the profile
+	if originalURL == appleMDMAccountDrivenEnrollmentUrl {
+		return "", idpAcc.UUID, eulaToken, originalURL, nil
+	}
+
 	// get the automatic profile to access the authentication token.
 	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
 	if err != nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "listing profiles")
+		return "", "", "", "", ctxerr.Wrap(ctx, err, "listing profiles")
 	}
 
 	if depProf == nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "missing profile")
+		return "", "", "", "", ctxerr.Wrap(ctx, err, "missing profile")
 	}
 
 	// using the idp token as a reference just because that's the
 	// only thing we're referencing later on during enrollment.
-	return depProf.Token, idpAcc.UUID, eulaToken, nil
+	return depProf.Token, idpAcc.UUID, eulaToken, originalURL, nil
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {

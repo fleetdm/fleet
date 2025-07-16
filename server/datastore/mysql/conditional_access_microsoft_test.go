@@ -184,4 +184,59 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	require.NotZero(t, s.UpdatedAt)
 	require.Nil(t, s.Managed)
 	require.Nil(t, s.Compliant)
+
+	err = ds.SetHostConditionalAccessStatus(ctx, noTeamHost.ID, false, true)
+	require.NoError(t, err)
+
+	// Simulate a device with same device ID but empty username.
+	// This can happen on workstations with two user macOS accounts where one is registered and another one is not.
+	err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "")
+	require.NoError(t, err)
+	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, noTeamHost.ID, s.HostID)
+	require.Equal(t, "entraDeviceID2", s.DeviceID)
+	require.Equal(t, "", s.UserPrincipalName)
+	require.Equal(t, "host1", s.DisplayName)
+	require.Equal(t, "15.4.1", s.OSVersion)
+	require.NotZero(t, s.CreatedAt)
+	require.NotZero(t, s.UpdatedAt)
+	require.Nil(t, s.Managed)
+	require.Nil(t, s.Compliant)
+
+	err = ds.SetHostConditionalAccessStatus(ctx, noTeamHost.ID, false, true)
+	require.NoError(t, err)
+
+	// Simulate now that the second user has logged in to Entra.
+	err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar3@example.onmicrosoft.com")
+	require.NoError(t, err)
+	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, noTeamHost.ID, s.HostID)
+	require.Equal(t, "entraDeviceID2", s.DeviceID)
+	require.Equal(t, "foobar3@example.onmicrosoft.com", s.UserPrincipalName)
+	require.Equal(t, "host1", s.DisplayName)
+	require.Equal(t, "15.4.1", s.OSVersion)
+	require.NotZero(t, s.CreatedAt)
+	require.NotZero(t, s.UpdatedAt)
+	require.Nil(t, s.Managed)
+	require.Nil(t, s.Compliant)
+
+	err = ds.SetHostConditionalAccessStatus(ctx, noTeamHost.ID, false, true)
+	require.NoError(t, err)
+
+	// Simulate that the first user has logged in again to the workstation.
+	err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar@example.onmicrosoft.com")
+	require.NoError(t, err)
+	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, noTeamHost.ID, s.HostID)
+	require.Equal(t, "entraDeviceID2", s.DeviceID)
+	require.Equal(t, "foobar@example.onmicrosoft.com", s.UserPrincipalName)
+	require.Equal(t, "host1", s.DisplayName)
+	require.Equal(t, "15.4.1", s.OSVersion)
+	require.NotZero(t, s.CreatedAt)
+	require.NotZero(t, s.UpdatedAt)
+	require.Nil(t, s.Managed)
+	require.Nil(t, s.Compliant)
 }

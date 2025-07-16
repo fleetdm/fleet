@@ -3,3 +3,4 @@ macos_settings:
   - path: ../lib/some_team/profiles/team-macos-mobileconfig-profile.mobileconfig
 scripts:
 - path: ../lib/some_team/scripts/Script B.ps1
+macos_setup: 'TODO: update with your macos_setup configuration'

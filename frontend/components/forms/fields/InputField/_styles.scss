@@ -38,14 +38,6 @@
     }
   }
 
-  &--password {
-    letter-spacing: 4px;
-
-    &::placeholder {
-      letter-spacing: normal;
-    }
-  }
-
   &--error {
     color: $core-vibrant-red;
     border: 1px solid $core-vibrant-red;
