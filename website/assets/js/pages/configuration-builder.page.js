@@ -2727,6 +2727,9 @@ parasails.registerPage('configuration-builder', {
             this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true};
             if(this.selectedPlatform === 'windows') {
               this.configurationBuilderFormRules[payloadToAddSlug+'-access-type'] = {required: true};
+              if(payloadToAdd.supportedAccessTypes.length === 1){
+                this.configurationBuilderFormData[payloadToAddSlug+'-access-type'] = payloadToAdd.supportedAccessTypes[0];
+              }
             }
           }
         }
@@ -2758,6 +2761,9 @@ parasails.registerPage('configuration-builder', {
         if(this.selectedPlatform === 'windows') {
           this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-access-type'] = {required: true};
           this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-access-type'] = {required: true};
+          if(selectedPayload.supportedAccessTypes.length === 1){
+            this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-access-type'] = selectedPayload.supportedAccessTypes[0];
+          }
         }
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
         this.selectedPayloadSettings[payloadSlug] = true;
