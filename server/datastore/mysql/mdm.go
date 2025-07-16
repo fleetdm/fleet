@@ -1916,7 +1916,7 @@ FROM
 	JOIN host_mdm_apple_declarations hmad ON h.uuid = hmad.host_uuid
 WHERE
 	h.platform IN ('darwin', 'ios', 'ipados') AND
-	hmad.operation_type = :operation_install AND
+	( hmad.status NOT IN (:status_verified, :status_verifying) OR hmad.operation_type = :operation_install ) AND
 	hmad.declaration_uuid = :declaration_uuid
 GROUP BY
 	final_status HAVING final_status IS NOT NULL`

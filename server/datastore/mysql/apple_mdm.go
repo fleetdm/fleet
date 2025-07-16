@@ -3612,12 +3612,12 @@ func sqlJoinMDMAppleDeclarationsStatus() string {
 			host_uuid,
 			MAX( IF((status IS NULL OR status = ` + pending + `), 1, 0)) AS decl_pending,
 			MAX( IF(status = ` + failed + `, 1, 0)) AS decl_failed,
-			MAX( IF(status = ` + verifying + ` , 1, 0)) AS decl_verifying,
-			MAX( IF(status = ` + verified + ` , 1, 0)) AS decl_verified
+			MAX( IF(status = ` + verifying + ` AND operation_type = ` + install + ` , 1, 0)) AS decl_verifying,
+			MAX( IF(status = ` + verified + ` AND operation_type = ` + install + ` , 1, 0)) AS decl_verified
 		FROM
 			host_mdm_apple_declarations
 		WHERE
-			operation_type = ` + install + ` AND declaration_name NOT IN(` + reservedDeclNames + `)
+			declaration_name NOT IN(` + reservedDeclNames + `)
 		GROUP BY
 			host_uuid) hmad ON h.uuid = hmad.host_uuid
 `
