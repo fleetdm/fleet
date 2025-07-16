@@ -77,7 +77,7 @@ func (c *Metadata) populateMetadata(installer *fleet.SoftwareInstallDetails, orb
 	}
 
 	if strings.HasSuffix(path, ".dmg") || strings.HasSuffix(path, ".zip") {
-		return &file.InstallerMetadata{}, nil
+		return &file.InstallerMetadata{Name: path}, nil
 	}
 
 	// Figure out what we're actually installing here and add it to software inventory
