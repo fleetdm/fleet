@@ -1,0 +1,1 @@
+* Fixed cases where installed-then-uninstalled software would show up in software inventory

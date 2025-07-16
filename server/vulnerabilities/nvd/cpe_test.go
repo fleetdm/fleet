@@ -1745,6 +1745,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:             "vault",
+				Source:           "homebrew_packages",
+				Version:          "1.4.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:hashicorp:vault:1.4.0:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "pass",
 				Source:           "homebrew_packages",
 				Version:          "1.7.4",

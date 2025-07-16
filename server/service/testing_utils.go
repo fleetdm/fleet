@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -318,7 +319,7 @@ type mockMailService struct {
 	Invoked     bool
 }
 
-func (svc *mockMailService) SendEmail(e fleet.Email) error {
+func (svc *mockMailService) SendEmail(ctx context.Context, e fleet.Email) error {
 	svc.Invoked = true
 	return svc.SendEmailFn(e)
 }
@@ -363,6 +364,7 @@ type TestServerOpts struct {
 	DigiCertService                 fleet.DigiCertService
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
+	HostIdentitySCEPStorage         scep_depot.Depot
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -468,6 +470,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger))
 		rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
 		rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
+	}
+
+	if len(opts) > 0 && opts[0].HostIdentitySCEPStorage != nil {
+		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentitySCEPStorage, ds, logger))
 	}
 
 	server := httptest.NewUnstartedServer(rootMux)

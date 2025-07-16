@@ -578,6 +578,8 @@ type HTTPBasicAuthConfig struct {
 }
 
 // PackagingConfig holds configuration to build and retrieve Fleet packages
+//
+// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 type PackagingConfig struct {
 	// GlobalEnrollSecret is the enroll secret that will be used to enroll
 	// hosts in the global scope
@@ -617,11 +619,13 @@ type FleetConfig struct {
 	Sentry                     SentryConfig
 	GeoIP                      GeoIPConfig
 	Prometheus                 PrometheusConfig
-	Packaging                  PackagingConfig
 	MDM                        MDMConfig
 	Calendar                   CalendarConfig
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
+
+	// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
+	Packaging PackagingConfig
 }
 
 type PartnershipsConfig struct {
@@ -1095,7 +1099,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
 	man.addConfigBool("server.force_h2c", false, "Force the fleet server to use HTTP2 cleartext aka h2c (ignored if using TLS)")
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
-	man.addConfigDuration("server.vpp_verify_timeout", 5*time.Minute, "Maximum amout of time to wait for VPP app install verification")
+	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amout of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
@@ -1394,6 +1398,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("prometheus.basic_auth.disable", false, "Disable HTTP Basic Auth for Prometheus")
 
 	// Packaging config
+	//
+	// DEPRECATED: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 	man.addConfigString("packaging.global_enroll_secret", "", "Enroll secret to be used for the global domain (instead of randomly generating one)")
 	man.addConfigString("packaging.s3.bucket", "", "Bucket where to retrieve installers")
 	man.addConfigString("packaging.s3.prefix", "", "Prefix under which installers are stored")
@@ -1682,21 +1688,6 @@ func (man Manager) LoadConfig() FleetConfig {
 				Username: man.getConfigString("prometheus.basic_auth.username"),
 				Password: man.getConfigString("prometheus.basic_auth.password"),
 				Disable:  man.getConfigBool("prometheus.basic_auth.disable"),
-			},
-		},
-		Packaging: PackagingConfig{
-			GlobalEnrollSecret: man.getConfigString("packaging.global_enroll_secret"),
-			S3: S3Config{
-				Bucket:           man.getConfigString("packaging.s3.bucket"),
-				Prefix:           man.getConfigString("packaging.s3.prefix"),
-				Region:           man.getConfigString("packaging.s3.region"),
-				EndpointURL:      man.getConfigString("packaging.s3.endpoint_url"),
-				AccessKeyID:      man.getConfigString("packaging.s3.access_key_id"),
-				SecretAccessKey:  man.getConfigString("packaging.s3.secret_access_key"),
-				StsAssumeRoleArn: man.getConfigString("packaging.s3.sts_assume_role_arn"),
-				StsExternalID:    man.getConfigString("packaging.s3.sts_external_id"),
-				DisableSSL:       man.getConfigBool("packaging.s3.disable_ssl"),
-				ForceS3PathStyle: man.getConfigBool("packaging.s3.force_s3_path_style"),
 			},
 		},
 		MDM: MDMConfig{

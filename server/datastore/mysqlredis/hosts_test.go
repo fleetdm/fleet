@@ -26,10 +26,14 @@ func TestEnforceHostLimit(t *testing.T) {
 
 		ctx := context.Background()
 		ds := new(mock.Store)
-		ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+		ds.EnrollHostFunc = func(_ context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+			config := &fleet.DatastoreEnrollHostConfig{}
+			for _, opt := range opts {
+				opt(config)
+			}
 			hostIDSeq++
 			return &fleet.Host{
-				ID: hostIDSeq, OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
+				ID: hostIDSeq, OsqueryHostID: &config.OsqueryHostID, NodeKey: &config.NodeKey,
 			}, nil
 		}
 		ds.NewHostFunc = func(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
@@ -68,12 +72,20 @@ func TestEnforceHostLimit(t *testing.T) {
 		require.NotNil(t, h1)
 		requireInvokedAndReset(&ds.NewHostFuncInvoked)
 		requireCanEnroll(true)
-		h2, err := wrappedDS.EnrollHost(ctx, false, "osquery-2", "", "", "node-2", nil, time.Second)
+		h2, err := wrappedDS.EnrollHost(ctx,
+			fleet.WithEnrollHostOsqueryHostID("osquery-2"),
+			fleet.WithEnrollHostNodeKey("node-2"),
+			fleet.WithEnrollHostCooldown(time.Second),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, h2)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
 		requireCanEnroll(true)
-		h3, err := wrappedDS.EnrollHost(ctx, false, "osquery-3", "", "", "node-3", nil, time.Second)
+		h3, err := wrappedDS.EnrollHost(ctx,
+			fleet.WithEnrollHostOsqueryHostID("osquery-3"),
+			fleet.WithEnrollHostNodeKey("node-3"),
+			fleet.WithEnrollHostCooldown(time.Second),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, h3)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
@@ -83,7 +95,11 @@ func TestEnforceHostLimit(t *testing.T) {
 		err = wrappedDS.DeleteHost(ctx, h1.ID)
 		require.NoError(t, err)
 		requireCanEnroll(true)
-		h4, err := wrappedDS.EnrollHost(ctx, false, "osquery-4", "", "", "node-4", nil, time.Second)
+		h4, err := wrappedDS.EnrollHost(ctx,
+			fleet.WithEnrollHostOsqueryHostID("osquery-4"),
+			fleet.WithEnrollHostNodeKey("node-4"),
+			fleet.WithEnrollHostCooldown(time.Second),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, h4)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
@@ -93,7 +109,11 @@ func TestEnforceHostLimit(t *testing.T) {
 		err = wrappedDS.DeleteHosts(ctx, []uint{h1.ID, h2.ID, h3.ID})
 		require.NoError(t, err)
 		requireCanEnroll(true)
-		h5, err := wrappedDS.EnrollHost(ctx, false, "osquery-5", "", "", "node-5", nil, time.Second)
+		h5, err := wrappedDS.EnrollHost(ctx,
+			fleet.WithEnrollHostOsqueryHostID("osquery-5"),
+			fleet.WithEnrollHostNodeKey("node-5"),
+			fleet.WithEnrollHostCooldown(time.Second),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, h5)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
@@ -116,7 +136,11 @@ func TestEnforceHostLimit(t *testing.T) {
 		requireCanEnroll(true)
 
 		// can now create 2 more
-		h7, err := wrappedDS.EnrollHost(ctx, false, "osquery-7", "", "", "node-7", nil, time.Second)
+		h7, err := wrappedDS.EnrollHost(ctx,
+			fleet.WithEnrollHostOsqueryHostID("osquery-7"),
+			fleet.WithEnrollHostNodeKey("node-7"),
+			fleet.WithEnrollHostCooldown(time.Second),
+		)
 		require.NoError(t, err)
 		require.NotNil(t, h7)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)

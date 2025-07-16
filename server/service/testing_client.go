@@ -27,7 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
@@ -259,7 +258,12 @@ func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCo
 func (ts *withServer) DoRawWithHeaders(
 	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	return fleet_httptest.DoHTTPReq(ts.s.T(), decodeJSON, verb, rawBytes, ts.server.URL+path, headers, expectedStatusCode, queryParams...)
+	opts := []fleethttp.ClientOpt{}
+	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
+		opts = append(opts, fleethttp.WithFollowRedir(false))
+	}
+	client := fleethttp.NewClient(opts...)
+	return fleet_httptest.DoHTTPReq(ts.s.T(), client, decodeJSON, verb, rawBytes, ts.server.URL+path, headers, expectedStatusCode, queryParams...)
 }
 
 func decodeJSON(r io.Reader, v interface{}) error {
@@ -394,30 +398,76 @@ func (ts *withServer) applyTeamSpec(yamlSpec []byte) {
 	ts.Do("POST", "/api/latest/fleet/spec/teams", specsReq, http.StatusOK)
 }
 
-func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, string) {
+func (ts *withServer) LoginSSOUser(username, password string) string {
 	t := ts.s.T()
-	auth, res := ts.loginSSOUser(username, password, "/api/v1/fleet/sso", http.StatusOK)
+	res := ts.loginSSOUser(username, password, "/api/v1/fleet/sso", http.StatusOK)
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	return auth, string(body)
+	return string(body)
 }
 
 func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
-	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther)
+	res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther)
 	return res
 }
 
-func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) (fleet.Auth, *http.Response) {
+func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
+	requestParams := initiateMDMAppleSSORequest{
+		Initiator:      "account_driven_enroll",
+		UserIdentifier: username + "@example.com",
+	}
+	body, err := json.Marshal(requestParams)
+	require.NoError(ts.s.T(), err)
+	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
+	return res
+}
+
+func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID string) string {
+	t := ts.s.T()
+	res := ts.loginSSOUserIDPInitiated(
+		username, password,
+		"/api/v1/fleet/sso",
+		fmt.Sprintf("http://127.0.0.1:9080/simplesaml/saml2/idp/SSOService.php?spentityid=%s", entityID),
+		http.StatusOK,
+	)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	return string(body)
+}
+
+func (ts *withServer) doWithClient(
+	client *http.Client,
+	verb string, path string, rawBytes []byte,
+	expectedStatusCode int, headers map[string]string,
+	queryParams ...string,
+) *http.Response {
+	return fleet_httptest.DoHTTPReq(
+		ts.s.T(),
+		client,
+		decodeJSON,
+		verb,
+		rawBytes,
+		ts.server.URL+path,
+		headers,
+		expectedStatusCode,
+		queryParams...,
+	)
+}
+
+func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) *http.Response {
+	return ts.loginSSOUserWithBody(username, password, basePath, callbackStatus, []byte(`{}`))
+}
+
+func (ts *withServer) loginSSOUserWithBody(username, password string, basePath string, callbackStatus int, requestBody []byte) *http.Response {
 	t := ts.s.T()
 
 	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
 		t.Skip("SSO tests are disabled")
 	}
 
-	var resIni initiateSSOResponse
-	ts.DoJSON("POST", basePath, map[string]string{}, http.StatusOK, &resIni)
-
+	cookieSecure = false
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
 
@@ -425,6 +475,12 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 		fleethttp.WithFollowRedir(false),
 		fleethttp.WithCookieJar(jar),
 	)
+
+	var resIni initiateSSOResponse
+	httpResponse := ts.doWithClient(client, "POST", basePath, requestBody, http.StatusOK, nil)
+	err = json.NewDecoder(httpResponse.Body).Decode(&resIni)
+	require.NoError(ts.s.T(), err)
+	require.NoError(ts.s.T(), resIni.Error())
 
 	resp, err := client.Get(resIni.URL)
 	require.NoError(t, err)
@@ -446,17 +502,67 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	re := regexp.MustCompile(`value="(.*)"`)
+
+	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
+	matches := re.FindSubmatch(body)
+	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
+	samlResponse := string(matches[1])
+
+	callbackUrl := basePath + "/callback"
+	res := ts.doWithClient(client, "POST", callbackUrl, nil, callbackStatus, nil, "SAMLResponse", samlResponse)
+
+	return res
+}
+
+func (ts *withServer) loginSSOUserIDPInitiated(
+	username, password string,
+	callbackBasePath string,
+	idpURL string,
+	callbackStatus int,
+) *http.Response {
+	t := ts.s.T()
+
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
+
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient(
+		fleethttp.WithFollowRedir(false),
+		fleethttp.WithCookieJar(jar),
+	)
+
+	resp, err := client.Get(idpURL)
+	require.NoError(t, err)
+
+	// From the redirect Location header we can get the AuthState and the URL to
+	// which we submit the credentials
+	parsed, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+	data := url.Values{
+		"username":  {username},
+		"password":  {password},
+		"AuthState": {parsed.Query().Get("AuthState")},
+	}
+	resp, err = client.PostForm(parsed.Scheme+"://"+parsed.Host+parsed.Path, data)
+	require.NoError(t, err)
+
+	// The response is an HTML form, we can extract the base64-encoded response
+	// to submit to the Fleet server from here
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
 	matches := re.FindSubmatch(body)
 	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
 	rawSSOResp := string(matches[1])
 
-	auth, err := sso.DecodeAuthResponse(rawSSOResp)
-	require.NoError(t, err)
 	q := url.QueryEscape(rawSSOResp)
-	res := ts.DoRawNoAuth("POST", basePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
+	res := ts.DoRawNoAuth("POST", callbackBasePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
 
-	return auth, res
+	return res
 }
 
 func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {

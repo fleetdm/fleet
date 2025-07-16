@@ -405,7 +405,7 @@ const TeamDetailsWrapper = ({
                 selectedTeamId={currentTeamId}
                 currentUserTeams={userTeams || []}
                 isDisabled={isLoadingTeams}
-                includeAll={false}
+                includeAllTeams={false}
                 onChange={handleTeamChange}
               />
             )}

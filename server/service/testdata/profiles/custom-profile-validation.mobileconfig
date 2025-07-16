@@ -9,6 +9,8 @@
                 <string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
                 <key>LocalPart</key>
 								<string>${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}</string>
+                <key>Department</key>
+				<string>${FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT}</string>
                 <key>Groups</key>
                 <string>$FLEET_VAR_HOST_END_USER_IDP_GROUPS</string>
                 <key>Other</key>

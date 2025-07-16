@@ -105,3 +105,5 @@ labels:
   - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
   - path: ./lib/all/labels/keynote-installed.yml
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
+  - path: ./lib/all/labels/team-g-mdm.yml
+  - path: ./lib/all/labels/conditional-access-test-group.yml

@@ -56,16 +56,16 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
-/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
-/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
+/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB @ddribeiro
+/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB @ddribeiro
+/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB @ddribeiro
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @rachaelshaw
+/docs                                           @lukeheath # Temporarily replacing @rachaelshaw while she and @noahtalerman are both out of office
 /docs/Contributing                              @lukeheath # « Contributing guidelines
 /docs/Contributing/architecture/mdm             @lukeheath @georgekarrv
 /docs/Contributing/architecture/orchestration   @lukeheath @sharon-fdm
@@ -135,10 +135,5 @@ go.mod @fleetdm/go
 # 🚀 GitHub workflows
 ##############################################################################################
 /.github/workflows/ @lukeheath @georgekarrv @sharon-fdm @mostlikelee
-
-##############################################################################################
-# 🌐 Fleet-maintained apps
-##############################################################################################
-/ee/maintained-apps/outputs/apps.json @eashaw
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.
