@@ -3853,10 +3853,11 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 {
   "counts_updated_at": "2021-03-21T12:32:44Z",
   "mobile_device_management_enrollment_status": {
-    "enrolled_manual_hosts_count": 0,
-    "enrolled_automated_hosts_count": 2,
+    "enrolled_manual_hosts_count": 10,
+    "enrolled_automated_hosts_count": 200,
+    "enrolled_personal_hosts_count": 30,
     "unenrolled_hosts_count": 0,
-    "hosts_count": 2
+    "hosts_count": 240
   },
   "mobile_device_management_solution": [
     {

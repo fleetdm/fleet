@@ -894,9 +894,9 @@ After you've uploaded an Apple Business Manager (ABM) token, the `apple_business
 Currently, managing labels and users, ticket destinations (Jira and Zendesk), Apple Business Manager (ABM) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
 - `organization_name` is the organization name associated with the Apple Business Manager account.
-- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
-- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
-- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager.
+- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
 
 #### Example
 

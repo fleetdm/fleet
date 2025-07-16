@@ -756,9 +756,9 @@ None.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id | integer | path | *Required* The ABM token's ID |
-| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
-| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
-| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
+| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
+| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
+| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
 
 #### Example
 
