@@ -3052,7 +3052,7 @@ Returns the information of the specified host.
           "status": "verifying",
           "operation_type": "install",
           "scope": "device",
-          "managed_local_user": "[]",
+          "managed_local_user": "",
           "detail": ""
         }
       ]
