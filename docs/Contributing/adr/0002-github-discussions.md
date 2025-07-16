@@ -38,24 +38,24 @@ This decision was made after evaluating GitHub Discussions and discovering sever
 
 ## Consequences 🎭
 
-**Benefits:** ✨
+### Benefits ✨
 
 * 🎯 Avoids introducing a tool that doesn't solve our core problems
 * ⏱️ Saves time that would be spent on custom integration development
 * 🔄 Prevents workflow fragmentation across too many platforms
 
-**Drawbacks:** ⚠️
+### Drawbacks ⚠️
 
 * 📉 We still lose valuable discussion history after 90 days in Slack
 * 🤷 No clear path forward for preserving complex technical discussions
 * 🔍 Future contributors will continue to lack context on decision-making
 
-**Impact:** 💫
+### Impact 💫
 
 * 🚦 No change to current workflows
 * 🔎 Team will continue searching for a better solution
 
-**Future considerations:** 🔮
+### Future considerations 🔮
 
 * 🔍 Continue evaluating other tools and platforms for discussion preservation
 * 💡 Consider alternative approaches such as:
@@ -66,21 +66,21 @@ This decision was made after evaluating GitHub Discussions and discovering sever
 
 ## Alternatives considered 🤔
 
-**Alternative 1: Use GitHub Discussions despite limitations**
+### Alternative 1 — use GitHub Discussions despite limitations
 
 * **Description:** Adopt GitHub Discussions and work around the notification issues
 * **Pros:** Native GitHub feature, preserves discussions indefinitely, searchable
 * **Cons:** Poor Slack integration breaks our workflow, requires constant manual checking, no standard linkage to issues
 * **Reason not chosen:** The lack of Slack notifications would significantly disrupt our team's workflow and likely lead to missed discussions
 
-**Alternative 2: Build custom Slack integration**
+### Alternative 2 — build a custom Slack integration
 
 * **Description:** Develop our own integration to bridge GitHub Discussions and Slack
 * **Pros:** Could provide exactly the notifications we need, customizable
 * **Cons:** Significant development time, ongoing maintenance burden, diverts resources from core product
 * **Reason not chosen:** Too time-consuming and would require ongoing maintenance
 
-**Alternative 3: Use existing Slack webhook with modifications**
+### Alternative 3 — use an existing Slack webhook with modifications
 
 * **Description:** Configure Slack webhooks to notify about GitHub Discussions
 * **Pros:** No custom development needed, quick to implement
