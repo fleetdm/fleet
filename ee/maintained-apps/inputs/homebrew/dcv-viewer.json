@@ -3,5 +3,6 @@
   "unique_identifier": "com.nicesoftware.dcvviewer",
   "token": "dcv-viewer",
   "installer_format": "dmg",
-  "slug": "dcv-viewer/darwin"
+  "slug": "dcv-viewer/darwin",
+  "default_categories": ["Something invalid"]
 }
