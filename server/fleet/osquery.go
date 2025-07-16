@@ -1,6 +1,11 @@
 package fleet
 
-import "errors"
+import (
+	"errors"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+)
 
 // OsqueryDistributedQueryResults represents the format of the results of an
 // osquery distributed query.
@@ -69,3 +74,73 @@ type PermissivePackContent struct {
 type Packs map[string]PackContent
 
 type PermissivePacks map[string]PermissivePackContent
+
+// DatastoreEnrollHostConfig holds the configuration for datastore Host enrollment
+type DatastoreEnrollHostConfig struct {
+	IsMDMEnabled   bool
+	OsqueryHostID  string
+	HardwareUUID   string
+	HardwareSerial string
+	NodeKey        string
+	TeamID         *uint
+	Cooldown       time.Duration
+	IdentityCert   *types.HostIdentityCertificate
+}
+
+// DatastoreEnrollHostOption is a functional option for configuring datastore Host enrollment
+type DatastoreEnrollHostOption func(*DatastoreEnrollHostConfig)
+
+// WithEnrollHostMDMEnabled sets the MDM enabled flag for datastore Host enrollment
+func WithEnrollHostMDMEnabled(enabled bool) DatastoreEnrollHostOption {
+	return func(c *DatastoreEnrollHostConfig) {
+		c.IsMDMEnabled = enabled
+	}
+}
+
+// WithEnrollHostOsqueryHostID sets the osquery host ID for datastore Host enrollment
+func WithEnrollHostOsqueryHostID(osqueryHostID string) DatastoreEnrollHostOption {
+	return func(c *DatastoreEnrollHostConfig) {
+		c.OsqueryHostID = osqueryHostID
+	}
+}
+
+// WithEnrollHostHardwareUUID sets the hardware UUID for datastore Host enrollment
+func WithEnrollHostHardwareUUID(hardwareUUID string) DatastoreEnrollHostOption {
+	return func(c *DatastoreEnrollHostConfig) {
+		c.HardwareUUID = hardwareUUID
+	}
+}
+
+// WithEnrollHostHardwareSerial sets the hardware serial for datastore Host enrollment
+func WithEnrollHostHardwareSerial(hardwareSerial string) DatastoreEnrollHostOption {
+	return func(c *DatastoreEnrollHostConfig) {
+		c.HardwareSerial = hardwareSerial
+	}
+}
+
+// WithEnrollHostNodeKey sets the node key for datastore Host enrollment
+func WithEnrollHostNodeKey(nodeKey string) DatastoreEnrollHostOption {
+	return func(c *DatastoreEnrollHostConfig) {
+		c.NodeKey = nodeKey
+	}
+}
+
+// WithEnrollHostTeamID sets the team ID for datastore Host enrollment
+func WithEnrollHostTeamID(teamID *uint) DatastoreEnrollHostOption {
+	return func(c *DatastoreEnrollHostConfig) {
+		c.TeamID = teamID
+	}
+}
+
+// WithEnrollHostCooldown sets the cooldown duration for datastore Host enrollment
+func WithEnrollHostCooldown(cooldown time.Duration) DatastoreEnrollHostOption {
+	return func(c *DatastoreEnrollHostConfig) {
+		c.Cooldown = cooldown
+	}
+}
+
+func WithEnrollHostIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollHostOption {
+	return func(c *DatastoreEnrollHostConfig) {
+		c.IdentityCert = identityCert
+	}
+}

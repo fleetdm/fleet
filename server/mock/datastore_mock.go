@@ -715,6 +715,8 @@ type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet
 
 type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error)
 
+type IsHostDiskEncryptionKeyArchivedFunc func(ctx context.Context, hostID uint) (bool, error)
+
 type IsHostPendingEscrowFunc func(ctx context.Context, hostID uint) bool
 
 type ClearPendingEscrowFunc func(ctx context.Context, hostID uint) error
@@ -751,9 +753,9 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 
 type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error)
 
-type EnrollHostFunc func(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
+type EnrollHostFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error)
 
-type EnrollOrbitFunc func(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
+type EnrollOrbitFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -1414,6 +1416,10 @@ type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint
 type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
 type GetHostIdentityCertBySerialNumberFunc func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
+
+type GetHostIdentityCertByNameFunc func(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
+
+type UpdateHostIdentityCertHostIDBySerialFunc func(ctx context.Context, serialNumber uint64, hostID uint) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2453,6 +2459,9 @@ type DataStore struct {
 
 	GetHostArchivedDiskEncryptionKeyFunc        GetHostArchivedDiskEncryptionKeyFunc
 	GetHostArchivedDiskEncryptionKeyFuncInvoked bool
+
+	IsHostDiskEncryptionKeyArchivedFunc        IsHostDiskEncryptionKeyArchivedFunc
+	IsHostDiskEncryptionKeyArchivedFuncInvoked bool
 
 	IsHostPendingEscrowFunc        IsHostPendingEscrowFunc
 	IsHostPendingEscrowFuncInvoked bool
@@ -3503,6 +3512,12 @@ type DataStore struct {
 
 	GetHostIdentityCertBySerialNumberFunc        GetHostIdentityCertBySerialNumberFunc
 	GetHostIdentityCertBySerialNumberFuncInvoked bool
+
+	GetHostIdentityCertByNameFunc        GetHostIdentityCertByNameFunc
+	GetHostIdentityCertByNameFuncInvoked bool
+
+	UpdateHostIdentityCertHostIDBySerialFunc        UpdateHostIdentityCertHostIDBySerialFunc
+	UpdateHostIdentityCertHostIDBySerialFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5929,6 +5944,13 @@ func (s *DataStore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *
 	return s.GetHostArchivedDiskEncryptionKeyFunc(ctx, host)
 }
 
+func (s *DataStore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.IsHostDiskEncryptionKeyArchivedFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsHostDiskEncryptionKeyArchivedFunc(ctx, hostID)
+}
+
 func (s *DataStore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
 	s.mu.Lock()
 	s.IsHostPendingEscrowFuncInvoked = true
@@ -6055,18 +6077,18 @@ func (s *DataStore) IsEnrollSecretAvailable(ctx context.Context, secret string, 
 	return s.IsEnrollSecretAvailableFunc(ctx, secret, isNew, teamID)
 }
 
-func (s *DataStore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+func (s *DataStore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.EnrollHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnrollHostFunc(ctx, isMDMEnabled, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey, teamID, cooldown)
+	return s.EnrollHostFunc(ctx, opts...)
 }
 
-func (s *DataStore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (s *DataStore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.EnrollOrbitFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnrollOrbitFunc(ctx, isMDMEnabled, hostInfo, orbitNodeKey, teamID)
+	return s.EnrollOrbitFunc(ctx, opts...)
 }
 
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
@@ -8377,4 +8399,18 @@ func (s *DataStore) GetHostIdentityCertBySerialNumber(ctx context.Context, seria
 	s.GetHostIdentityCertBySerialNumberFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostIdentityCertBySerialNumberFunc(ctx, serialNumber)
+}
+
+func (s *DataStore) GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+	s.mu.Lock()
+	s.GetHostIdentityCertByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostIdentityCertByNameFunc(ctx, name)
+}
+
+func (s *DataStore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error {
+	s.mu.Lock()
+	s.UpdateHostIdentityCertHostIDBySerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostIdentityCertHostIDBySerialFunc(ctx, serialNumber, hostID)
 }

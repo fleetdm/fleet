@@ -65,7 +65,7 @@ The `slug` identifies a specific app and platform combination. It is used to nam
 
 The slug is composed of a filesystem-friendly version of the app name, and an operating system platform identifier, separated by a `/`.
 
-For the app name part, use `-` to separate words if necessary, for example `adobe-acrobat-reader`. 
+For the app name part, use `-` to separate words if necessary, for example `adobe-acrobat-reader`.
 
 Use `darwin` as the platform part.  For example, use a `slug` of `box-drive/darwin` for Box Drive on macOS.
 
@@ -85,6 +85,20 @@ These are the default categories assigned to the installer in [self-service](htt
 - `Communication`
 - `Developer Tools`
 - `Productivity`
+
+#### `install_script_path` (optional)
+
+This is a filepath to an install script. If provided, this script will be used instead of the generated install script. Only shell scripts (`.sh`) are supported.
+
+The script should be added to the `inputs/homebrew/scripts` directory.
+
+#### `uninstall_script_path` (optional)
+
+This is a filepath to an uninstall script. If provided, this script will be used instead of the generated uninstall script. Only shell scripts (`.sh`) are supported.
+
+`uninstall_script_path` can't be used together with `pre_uninstall_scripts` and `post_uninstall_scripts`.
+
+The script should be added to the `inputs/homebrew/scripts` directory.
 
 ### Validating new additions to the Fleet-maintained apps
 
@@ -180,5 +194,3 @@ If any app fails validation:
    ```
 
 5. Commit both the input change and the output file revert to the same PR.
-
-

@@ -47,6 +47,7 @@
       "dep_profile_error": false,
       "device_status": "unlocked",
       "encryption_key_available": false,
+      "encryption_key_archived": false,
       "enrollment_status": null,
       "name": "",
       "pending_action": "",

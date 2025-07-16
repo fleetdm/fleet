@@ -18,7 +18,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Contact us
 
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1)).
-  - Any Fleet team member can [view the kanban board](https://github.com/fleetdm/fleet#workspaces/-g-customer-success-642c83a53e96760014c978bd/board) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/79) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
 
@@ -132,8 +132,6 @@ The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet 
 - To reach the developer on-call for assistance, mention them in Fleet Slack using `@oncall` in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) channel. 
   - Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
 
-> **Note:** Additional help can be obtained by messaging a [Solutions Consultant](https://fleetdm.com/handbook/sales#team) in the [#help-solutions-consulting channel](https://fleetdm.slack.com/archives/C05HZ2LHEL8).
-
 - An automated weekly [on-call handoff](https://fleetdm.com/handbook/engineering#handoff) Slack thread in #g-engineering provides the opportunity to discuss highlights, improvements, and hand off ongoing issues.
 
 
@@ -190,7 +188,7 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) adds the `~customer request` label to the feature request issue and files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
-Sometimes during drafting or after the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring wireframes or released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `#g-customer-success` label.
+After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `#g-unicorns` label.
 
 If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the PD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the PD, and unsassign themselves from the request issue.
 

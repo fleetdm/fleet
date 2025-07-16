@@ -46,6 +46,37 @@ Exceptions:
 
 Use multiple hosts in unit tests and manual QA. For example, use a Windows VM and a Windows bare metal host when testing Windows profiles. Since our customers run Fleet on many hosts, we must be vigilant regarding multi-host use cases. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8290454302335084423).
 
+#### Assert vs require
+
+Use the `require` package (from `testify/require`) for most test assertions. The `require` package stops test execution immediately on failure, which is usually what you want.
+
+Use the `assert` package (from `testify/assert`) when you want to test multiple properties of a response so that you can fix all issues at once. This is particularly useful when validating multiple fields of a struct or API response.
+
+Example of when to use `assert`:
+```go
+// Testing multiple response fields - use assert to see all failures at once
+assert.Equal(t, http.StatusOK, resp.StatusCode)
+assert.NotNil(t, resp.Body)
+assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+assert.Greater(t, len(resp.Hosts), 0)
+```
+
+Example of when to use `require`:
+```go
+// Critical setup or early assertions - use require to fail fast
+require.NoError(t, err) // Stop if there's an error
+require.NotNil(t, user) // Stop if user is nil to avoid panic
+
+// Now safe to access user fields
+assert.Equal(t, "expected@example.com", user.Email)
+```
+
+General guidelines:
+- Use `require` for preconditions and critical assertions that would cause panics or make subsequent tests meaningless
+- Use `require` when testing a single thing or when the test should stop on the first failure
+- Use `assert` when validating multiple independent properties where seeing all failures helps debugging
+- In table-driven tests, prefer `require` within each test case to avoid confusion between different cases
+
 ## MySQL
 
 ### Timestamps

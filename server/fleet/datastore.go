@@ -988,8 +988,11 @@ type Datastore interface {
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
-	// GetHostArchivedDiskEncryptionKey returns the archived disk encryption key for a given host.
+	// GetHostArchivedDiskEncryptionKey returns the archived disk encryption key for the given host ID.
 	GetHostArchivedDiskEncryptionKey(ctx context.Context, host *Host) (*HostArchivedDiskEncryptionKey, error)
+	// IsHostDiskEncryptionKeyArchived returns true if there is a disk encryption key archived
+	// for the given host ID.
+	IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error)
 	IsHostPendingEscrow(ctx context.Context, hostID uint) bool
 	ClearPendingEscrow(ctx context.Context, hostID uint) error
 	ReportEscrowError(ctx context.Context, hostID uint, err string) error
@@ -1044,12 +1047,12 @@ type Datastore interface {
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
-	EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
+	EnrollHost(ctx context.Context, opts ...DatastoreEnrollHostOption) (*Host, error)
 
 	// EnrollOrbit will enroll a new orbit instance.
 	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
 	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
-	EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo OrbitHostInfo, orbitNodeKey string, teamID *uint) (*Host, error)
+	EnrollOrbit(ctx context.Context, opts ...DatastoreEnrollOrbitOption) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
@@ -2210,6 +2213,10 @@ type Datastore interface {
 
 	// GetHostIdentityCertBySerialNumber gets the unrevoked valid cert corresponding to the provided serial number.
 	GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
+	// GetHostIdentityCertByName gets the unrevoked valid cert corresponding to the provided name (CN).
+	GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
+	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
+	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
 }
 
 type AndroidDatastore interface {

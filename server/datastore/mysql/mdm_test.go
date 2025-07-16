@@ -7648,6 +7648,23 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, connected)
 
+	byodIpadH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "ipados-test",
+		OsqueryHostID: ptr.String("osquery-ipados"),
+		NodeKey:       ptr.String("node-key-ipados"),
+		UUID:          uuid.NewString(),
+		Platform:      "ipados",
+	})
+	require.NoError(t, err)
+
+	nanoEnrollUserDevice(t, ds, byodIpadH)
+	err = ds.SetOrUpdateMDMData(ctx, byodIpadH.ID, false, true, "http://foo.com", false, "foo", "")
+	require.NoError(t, err)
+
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, byodIpadH)
+	require.NoError(t, err)
+	require.True(t, connected)
+
 	windowsH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "windows-test",
 		OsqueryHostID: ptr.String("osquery-windows"),
@@ -7693,6 +7710,16 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.False(t, connected)
 
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
+	require.NoError(t, err)
+	require.False(t, connected)
+
+	// Simulate the ipad checking out(user removing work account)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, byodIpadH.UUID)
+		return err
+	})
+
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, byodIpadH)
 	require.NoError(t, err)
 	require.False(t, connected)
 }
