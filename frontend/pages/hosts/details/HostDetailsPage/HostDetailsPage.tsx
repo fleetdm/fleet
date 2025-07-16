@@ -809,7 +809,10 @@ const HostDetailsPage = ({
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
-        doesStoreEncryptionKey={host.mdm.encryption_key_available}
+        doesStoreEncryptionKey={
+          host.mdm.encryption_key_available ||
+          !!host.mdm.encryption_key_archived
+        }
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
       />

@@ -889,7 +889,7 @@ const hostMDMSelect = `,
 				    SELECT ne.id FROM nano_enrollments ne
 				    WHERE ne.id = h.uuid
 				    AND ne.enabled = 1
-				    AND ne.type = 'Device'
+				    AND ne.type IN ('Device', 'User Enrollment (Device)')
 				    AND hmdm.enrolled = 1
 				)
 				THEN CAST(TRUE AS JSON)
@@ -1173,7 +1173,7 @@ func (ds *Datastore) applyHostFilters(
 		opt.MacOSSettingsDiskEncryptionFilter.IsValid() ||
 		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		connectedToFleetJoin = `
-				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type = 'Device'
+				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
 				LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
 		whereParams = append(whereParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}

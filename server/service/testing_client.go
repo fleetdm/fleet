@@ -412,6 +412,17 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 	return res
 }
 
+func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
+	requestParams := initiateMDMAppleSSORequest{
+		Initiator:      "account_driven_enroll",
+		UserIdentifier: username + "@example.com",
+	}
+	body, err := json.Marshal(requestParams)
+	require.NoError(ts.s.T(), err)
+	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
+	return res
+}
+
 func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID string) string {
 	t := ts.s.T()
 	res := ts.loginSSOUserIDPInitiated(
@@ -446,6 +457,10 @@ func (ts *withServer) doWithClient(
 }
 
 func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) *http.Response {
+	return ts.loginSSOUserWithBody(username, password, basePath, callbackStatus, []byte(`{}`))
+}
+
+func (ts *withServer) loginSSOUserWithBody(username, password string, basePath string, callbackStatus int, requestBody []byte) *http.Response {
 	t := ts.s.T()
 
 	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
@@ -462,7 +477,7 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	)
 
 	var resIni initiateSSOResponse
-	httpResponse := ts.doWithClient(client, "POST", basePath, []byte(`{}`), http.StatusOK, nil)
+	httpResponse := ts.doWithClient(client, "POST", basePath, requestBody, http.StatusOK, nil)
 	err = json.NewDecoder(httpResponse.Body).Decode(&resIni)
 	require.NoError(ts.s.T(), err)
 	require.NoError(ts.s.T(), resIni.Error())
@@ -493,8 +508,8 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
 	samlResponse := string(matches[1])
 
-	ssoURL := basePath + "/callback"
-	res := ts.doWithClient(client, "POST", ssoURL, nil, callbackStatus, nil, "SAMLResponse", samlResponse)
+	callbackUrl := basePath + "/callback"
+	res := ts.doWithClient(client, "POST", callbackUrl, nil, callbackStatus, nil, "SAMLResponse", samlResponse)
 
 	return res
 }
