@@ -889,7 +889,7 @@ const hostMDMSelect = `,
 				    SELECT ne.id FROM nano_enrollments ne
 				    WHERE ne.id = h.uuid
 				    AND ne.enabled = 1
-				    AND ne.type = 'Device'
+				    AND ne.type IN ('Device', 'User Enrollment (Device)')
 				    AND hmdm.enrolled = 1
 				)
 				THEN CAST(TRUE AS JSON)
@@ -1173,7 +1173,7 @@ func (ds *Datastore) applyHostFilters(
 		opt.MacOSSettingsDiskEncryptionFilter.IsValid() ||
 		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		connectedToFleetJoin = `
-				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type = 'Device'
+				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
 				LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
 		whereParams = append(whereParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
@@ -2024,7 +2024,17 @@ func matchHostDuringEnrollment(
 	}, nil
 }
 
-func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+	orbitConfig := &fleet.DatastoreEnrollOrbitConfig{}
+	for _, opt := range opts {
+		opt(orbitConfig)
+	}
+
+	isMDMEnabled := orbitConfig.IsMDMEnabled
+	hostInfo := orbitConfig.HostInfo
+	orbitNodeKey := orbitConfig.OrbitNodeKey
+	teamID := orbitConfig.TeamID
+
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
 	}
@@ -2179,7 +2189,20 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 }
 
 // EnrollHost enrolls the osquery agent to Fleet.
-func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+	enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+	for _, opt := range opts {
+		opt(enrollConfig)
+	}
+
+	isMDMEnabled := enrollConfig.IsMDMEnabled
+	osqueryHostID := enrollConfig.OsqueryHostID
+	hardwareUUID := enrollConfig.HardwareUUID
+	hardwareSerial := enrollConfig.HardwareSerial
+	nodeKey := enrollConfig.NodeKey
+	teamID := enrollConfig.TeamID
+	cooldown := enrollConfig.Cooldown
+
 	if osqueryHostID == "" {
 		return nil, ctxerr.New(ctx, "missing osquery host identifier")
 	}

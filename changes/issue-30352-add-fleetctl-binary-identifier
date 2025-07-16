@@ -1,0 +1,1 @@
+- Fixes an issue where the fleetctl codesignature requirements couldn't be used to verify the codesignature of fleetctl.

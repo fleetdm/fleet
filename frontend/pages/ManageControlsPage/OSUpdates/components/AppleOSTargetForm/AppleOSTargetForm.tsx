@@ -180,7 +180,7 @@ const AppleOSTargetForm = ({
         <br />
         <br /> If a new or wiped host is below the minimum version and
         <br /> automatically enrolls (ADE), the host is updated to Apple&apos;s
-        <br /> lastest version during Setup Assistant.
+        <br /> latest version during Setup Assistant.
       </>
     );
   };

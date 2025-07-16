@@ -8,6 +8,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
+import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 const baseClass = "install-status-cell";
 
@@ -26,7 +27,7 @@ interface DisplayTextArgs {
   isSelfService?: boolean;
   isHostOnline?: boolean;
 }
-interface TootipArgs {
+interface TooltipArgs {
   isSelfService?: boolean;
   softwareName?: string | null;
   lastInstalledAt?: string;
@@ -37,7 +38,7 @@ interface TootipArgs {
 export type IStatusDisplayConfig = {
   iconName?: "success" | "pending-outline" | "error" | "install";
   displayText: string | ((args: DisplayTextArgs) => React.ReactNode);
-  tooltip: (args: TootipArgs) => ReactNode;
+  tooltip: (args: TooltipArgs) => ReactNode;
 };
 
 // Similar to SelfServiceTableConfig STATUS_CONFIG
@@ -57,16 +58,16 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
         </>
       ) : (
         <>
-          Software was installed{" "}
-          {!isSelfService && `(install script finished with exit code 0)`}
-          {lastInstalledAt ? ` ${dateAgo(lastInstalledAt)}.` : "."}
+          Software was installed
+          {!isSelfService && " (install script finished with exit code 0)"}
+          {lastInstalledAt && ` ${dateAgo(lastInstalledAt)}`}.
         </>
       ),
   },
   pending_install: {
     iconName: "pending-outline",
     displayText: ({ isSelfService, isHostOnline }) =>
-      isSelfService || isHostOnline ? "Installing..." : "Install pending",
+      isSelfService || isHostOnline ? "Installing..." : "Install (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
         "Fleet is installing software."
@@ -80,7 +81,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   pending_uninstall: {
     iconName: "pending-outline",
     displayText: ({ isSelfService, isHostOnline }) =>
-      isSelfService || isHostOnline ? "Uninstalling..." : "Uninstall pending",
+      isSelfService || isHostOnline ? "Uninstalling..." : "Uninstall (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
         "Fleet is uninstalling software."
@@ -98,9 +99,16 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: ({ lastInstalledAt = null, isSelfService }) => (
       <>
         Software failed to install
-        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-        <b>Retry</b> to install again
-        {isSelfService && ", or contact your IT department"}.
+        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
+        {isSelfService ? (
+          <>
+            Select <b>Retry</b> to install again, or contact your IT department.
+          </>
+        ) : (
+          <>
+            Select <b>Details &gt; Activity</b> to view errors.
+          </>
+        )}
       </>
     ),
   },
@@ -111,7 +119,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       <>
         Software failed to uninstall
         {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-        <b>Retry</b> to uninstall again{" "}
+        <b>Retry</b> to uninstall again
         {isSelfService && ", or contact your IT department"}.
       </>
     ),
@@ -121,129 +129,155 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
 type IInstallStatusCellProps = {
   software: IHostSoftware;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
-  onShowSSInstallDetails?: (uuid?: InstallOrCommandUuid) => void;
-  onShowSSUninstallDetails?: (scriptExecutionId?: string) => void;
+  onShowInstallDetails?: (uuid?: InstallOrCommandUuid) => void;
+  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   isSelfService?: boolean;
   isHostOnline?: boolean;
+  hostName?: string;
 };
+
+const getLastInstall = (software: IHostSoftware) =>
+  software.software_package?.last_install ||
+  software.app_store_app?.last_install ||
+  null;
+
+const getLastUninstall = (software: IHostSoftware) =>
+  software.software_package?.last_uninstall || null;
+
+const getSoftwareName = (software: IHostSoftware) =>
+  software.software_package?.name;
+
+const resolveDisplayText = (
+  displayText: IStatusDisplayConfig["displayText"],
+  isSelfService: boolean,
+  isHostOnline: boolean
+) =>
+  typeof displayText === "function"
+    ? displayText({ isSelfService, isHostOnline })
+    : displayText;
+
+const getEmptyCellTooltip = (hasAppStoreApp: boolean, softwareName?: string) =>
+  hasAppStoreApp ? (
+    <>
+      App Store app can be installed on the host. <br />
+      Select <b>Actions &gt; Install</b> to install.
+    </>
+  ) : (
+    <>
+      {softwareName ? <b>{softwareName}</b> : "Software"} can be installed on
+      the host.
+      <br /> Select <b>Actions &gt; Install</b> to install.
+    </>
+  );
 
 const InstallStatusCell = ({
   software,
   onShowSoftwareDetails,
-  onShowSSInstallDetails,
-  onShowSSUninstallDetails,
+  onShowInstallDetails,
+  onShowUninstallDetails,
   isSelfService = false,
   isHostOnline = false,
+  hostName,
 }: IInstallStatusCellProps) => {
-  const { app_store_app, software_package, status } = software;
-  // FIXME: Improve the way we handle polymophism of software_package and app_store_app
-  // const hasPackage = !!software_package;
-  const hasAppStoreApp = !!app_store_app;
-  const lastInstall =
-    software_package?.last_install || app_store_app?.last_install || null;
-  const lastUninstall = software_package?.last_uninstall || null;
+  const hasAppStoreApp = !!software.app_store_app;
+  const lastInstall = getLastInstall(software);
+  const lastUninstall = getLastUninstall(software);
+  const softwareName = getSoftwareName(software);
 
-  let displayStatus: keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS;
+  const displayStatus = software.status as
+    | keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS
+    | null;
 
-  if (status !== null) {
-    displayStatus = status;
-  } else {
+  // Status is null
+  if (displayStatus === null) {
     return (
       <TextCell
         grey
         italic
-        emptyCellTooltipText={
-          hasAppStoreApp ? (
-            <>
-              App Store app can be installed on the host. <br />
-              Select <b>Actions &gt; Install</b> to install.
-            </>
-          ) : (
-            <>
-              {software_package?.name ? (
-                <b>{software_package.name}</b>
-              ) : (
-                "Software"
-              )}{" "}
-              can be installed on the host.
-              <br /> Select <b>Actions &gt; Install</b> to install.
-            </>
-          )
-        }
+        emptyCellTooltipText={getEmptyCellTooltip(hasAppStoreApp, softwareName)}
       />
     );
   }
 
-  const onClickFailedInstall = () => {
-    if (isSelfService && onShowSSInstallDetails && lastInstall) {
-      if ("command_uuid" in lastInstall) {
-        onShowSSInstallDetails({ command_uuid: lastInstall.command_uuid });
-      } else if ("install_uuid" in lastInstall) {
-        onShowSSInstallDetails({ install_uuid: lastInstall.install_uuid });
-      } else {
-        onShowSSInstallDetails(undefined);
-      }
-    } else {
-      onShowSoftwareDetails && onShowSoftwareDetails(software);
-    }
-  };
-
-  const onClickFailedUninstall = () => {
-    if (isSelfService && onShowSSUninstallDetails && lastUninstall) {
-      if ("script_execution_id" in lastUninstall) {
-        onShowSSUninstallDetails(
-          (lastUninstall as { script_execution_id: string }).script_execution_id
-        );
-      } else {
-        onShowSSUninstallDetails(undefined);
-      }
-    } else {
-      onShowSoftwareDetails && onShowSoftwareDetails(software);
-    }
-  };
-
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
-  const resolveDisplayText = (
-    displayText: IStatusDisplayConfig["displayText"]
-  ) => {
-    if (typeof displayText === "function") {
-      return displayText({ isSelfService, isHostOnline });
+  const onClickInstallStatus = () => {
+    if (onShowInstallDetails && lastInstall) {
+      if ("command_uuid" in lastInstall) {
+        onShowInstallDetails({ command_uuid: lastInstall.command_uuid });
+      } else if ("install_uuid" in lastInstall) {
+        onShowInstallDetails({ install_uuid: lastInstall.install_uuid });
+      } else {
+        onShowInstallDetails(undefined);
+      }
+    } else if (onShowSoftwareDetails) {
+      onShowSoftwareDetails(software);
     }
-    return displayText;
+  };
+
+  const onClickUninstallStatus = () => {
+    if (onShowUninstallDetails && lastUninstall) {
+      if ("script_execution_id" in lastUninstall) {
+        onShowUninstallDetails({
+          ...lastUninstall,
+          status: software.status || undefined,
+          software_title: software.name,
+          host_display_name: hostName,
+        });
+      } else {
+        onShowUninstallDetails(undefined);
+      }
+    } else if (onShowSoftwareDetails) {
+      onShowSoftwareDetails(software);
+    }
   };
 
   const renderDisplayStatus = () => {
-    const resolvedDisplayText = resolveDisplayText(displayConfig.displayText);
+    const resolvedDisplayText = resolveDisplayText(
+      displayConfig.displayText,
+      isSelfService,
+      isHostOnline
+    );
 
-    if (lastInstall && resolvedDisplayText === "Failed") {
+    if (
+      lastInstall &&
+      (resolvedDisplayText === "Failed" ||
+        resolvedDisplayText === "Install (pending)" ||
+        resolvedDisplayText === "Installed")
+    ) {
       return (
         <Button
           className={`${baseClass}__item-status-button`}
-          variant="text-icon"
-          onClick={onClickFailedInstall}
+          variant="text-link"
+          onClick={onClickInstallStatus}
         >
           {resolvedDisplayText}
         </Button>
       );
     }
 
-    if (lastUninstall && resolvedDisplayText === "Failed (uninstall)") {
+    if (
+      lastUninstall &&
+      (resolvedDisplayText === "Failed (uninstall)" ||
+        resolvedDisplayText === "Uninstall (pending)" ||
+        resolvedDisplayText === "Uninstalled")
+    ) {
       return (
         <Button
           className={`${baseClass}__item-status-button`}
-          variant="text-icon"
-          onClick={onClickFailedUninstall}
+          variant="text-link"
+          onClick={onClickUninstallStatus}
         >
           {resolvedDisplayText}
         </Button>
       );
     }
 
+    // Defaults to text without modal button if:
+    // - there is neither last_install or last_uninstall information regardless of status
+    // - Display text is "Installing...", "Uninstalling..." (host is online/self-service)
     return resolvedDisplayText;
   };
-
-  const softwareName = software_package?.name;
 
   return (
     <TooltipWrapper
@@ -257,8 +291,9 @@ const InstallStatusCell = ({
       showArrow
       underline={false}
       position="top"
+      className={`${baseClass}__tooltip-wrapper`}
     >
-      <div className={`${baseClass}__status-content`}>
+      <div className={baseClass}>
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (
           <Spinner size="x-small" includeContainer={false} centered={false} />

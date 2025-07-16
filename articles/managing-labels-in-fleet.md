@@ -26,10 +26,12 @@ To add a new label:
 1. **Navigate to the Hosts page**: Click on the "Hosts" tab in the main navigation menu.
 2. **Access labels**: Click the "Filter by platform or label" drop-down.
 3. **Select "Add Label +"**: This option allows you to create a new label.
-4. **Choose label Type**: You will be prompted to choose between a "Dynamic" or "Manual" label.
-    1. **Dynamic**: Enter a name and description, then build your query and select the platforms to which this label applies.
-    2. **Manual**: Enter a name and description, then select the hosts to which you want to apply this label.
-5. **Save the label**: Click the "Save" button to create your label.
+4. **Enter a label name**: You may also provide an optional description for the label.
+5. **Choose label type**: You will be prompted to choose between "Dynamic", "Manual" or "Host vitals" label creation.
+    1. **Dynamic**: Build your query and select the platforms to which this label applies.
+    2. **Manual**: Select the hosts to which you want to apply this label.
+    3. **Host vitals**: Select an attribute from the "Label criteria" dropdown, and enter a value that each host in the label should match for that attribute.
+6. **Save the label**: Click the "Save" button to create your label.
 
 
 ### Editing a label
@@ -39,8 +41,8 @@ To edit an existing label:
 
 
 1. **Locate the label**: Find the label you want to edit in the list.
-2. **Click the pencil icon**: A pencil icon will appear next to the label. Clicking this icon allows you to edit the label.
-3. **Edit details**: For manually applied labels, you can change the name, description, and selected hosts. For dynamically applied labels, you can view the query.
+2. **Click the pencil icon**: A pencil icon will appear next to the label if it is editable. Clicking this icon allows you to edit the label.
+3. **Edit details**: For manually applied labels, you can change the name, description, and selected hosts. For dynamically applied labels, you can view the query.  Host vitals labels cannot be edited at this time.
 4. **Update restrictions**: To change the query or platforms a dynamic label targets, you must delete the existing label and create a new one. Once set, label queries and platforms are immutable.
 
 
@@ -78,6 +80,6 @@ Using labels in Fleet enhances your ability to effectively manage and scope prof
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-07-18">
+<meta name="publishedOn" value="2025-06-30">
 <meta name="articleImageUrl" value="../website/assets/images/articles/managing-labels-in-fleet-1600x900@2x.png">
 <meta name="description" value="This guide will walk you through managing labels using the Fleet web UI.">

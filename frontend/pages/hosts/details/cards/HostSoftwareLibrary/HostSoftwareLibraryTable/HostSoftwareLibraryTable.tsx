@@ -82,11 +82,12 @@ const HostSoftwareLibraryTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        ...(selfService && { self_service: "true" }),
       };
 
       return newQueryParam;
     },
-    []
+    [selfService]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -121,7 +122,7 @@ const HostSoftwareLibraryTable = ({
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
-      selfService: value === "selfService",
+      ...(value === "selfService" && { selfService: true }),
     };
 
     router.replace(

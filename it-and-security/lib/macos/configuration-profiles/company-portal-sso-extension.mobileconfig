@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>AuthenticationMethod</key>
+            <string>UserSecureEnclaveKey</string>
+            <key>ExtensionIdentifier</key>
+            <string>com.microsoft.CompanyPortalMac.ssoextension</string>
+            <key>PayloadDisplayName</key>
+            <string>Company Portal single sign-On extension</string>
+            <key>PayloadIdentifier</key>
+            <string>com.apple.extensiblesso.66CE60FD-2204-4F55-88A1-75CCACF00DBA</string>
+            <key>PayloadType</key>
+            <string>com.apple.extensiblesso</string>
+            <key>PayloadUUID</key>
+            <string>66CE60FD-2204-4F55-88A1-75CCACF00DBA</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>PlatformSSO</key>
+            <dict>
+                <key>AuthenticationMethod</key>
+                <string>UserSecureEnclaveKey</string>
+                <key>TokenToUserMapping</key>
+                <dict>
+                    <key>AccountName</key>
+                    <string>preferred_username</string>
+                    <key>FullName</key>
+                    <string>name</string>
+                </dict>
+                <key>UseSharedDeviceKeys</key>
+                <true/>
+            </dict>
+            <key>ScreenLockedBehavior</key>
+            <string>DoNotHandle</string>
+            <key>TeamIdentifier</key>
+            <string>UBF8T346G9</string>
+            <key>Type</key>
+            <string>Redirect</string>
+            <key>URLs</key>
+            <array>
+                <string>https://login.microsoftonline.com</string>
+                <string>https://login.microsoft.com</string>
+                <string>https://sts.windows.net</string>
+                <string>https://login.partner.microsoftonline.cn</string>
+                <string>https://login.chinacloudapi.cn</string>
+                <string>https://login.microsoftonline.us</string>
+                <string>https://login-us.microsoftonline.com</string>
+            </array>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Company Portal single sign-on extension</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.platformsso.DC91D29C-9892-43A7-8A80-084055C34DB8</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>DC91D29C-9892-43A7-8A80-084055C34DB8</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

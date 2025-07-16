@@ -202,27 +202,7 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 // NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and
 // returns the certificate and its private key.
 func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
-	key, err := newPrivateKey()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	caCert := depot.NewCACert(
-		depot.WithYears(10),
-		depot.WithCommonName("Fleet"),
-	)
-
-	crtBytes, err := caCert.SelfSign(rand.Reader, key.Public(), key)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cert, err := x509.ParseCertificate(crtBytes)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return cert, key, nil
+	return depot.NewSCEPCACertKey()
 }
 
 // NEWDEPKeyPairPEM generates a new public key certificate and private key for downloading the Apple DEP token.

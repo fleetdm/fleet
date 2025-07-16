@@ -3859,7 +3859,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\nOn ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\nExamples of [malicious Chrome extensions](https://palant.info/2023/06/08/another-cluster-of-potentially-malicious-chrome-extensions/)\n\nLoosely restricted extension permissions can be an [indicator of malicious intent](https://developer.chrome.com/docs/extensions/reference/api/permissions)\n\nTracking browser extensions in an organization can help with:\n\n  - Compliance audits: Ensure extensions comply with company policies\n  - Security training: Educate users about Chrome extension risks\n  - Incident response: Identify suspicious or vulnerable extensions",
-    "examples": "\nBecause browser data lives in user space, this query uses a join to include a UID: \n\n```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\n\nThis query shows Chrome extensions that have full access to HTTPS browsing;\n\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
+    "examples": "\nBecause browser data lives in user space, this query uses a join to include a UID: \n\n```\nSELECT * FROM users CROSS JOIN chrome_extensions USING (uid);\n```\n\nThis query shows Chrome extensions that have full access to HTTPS browsing;\n\n```\nSELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u INNER JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';\n```",
     "columns": [
       {
         "name": "browser_type",
@@ -11292,7 +11292,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
-    "examples": "```\nSELECT * FROM users CROSS JOIN firefox_addons USING (uid);\n```\n\nSee Firefox extensions by user as well as information about their creator and\nautomatic update status.\n\n```\nSELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u CROSS JOIN firefox_addons f USING (uid) WHERE f.active='1';\n```",
+    "examples": "```\nSELECT * FROM users CROSS JOIN firefox_addons USING (uid);\n```\n\nSee Firefox extensions by user as well as information about their creator and\nautomatic update status.\n\n```\nSELECT u.username, f.identifier, f.creator, f.description, f.version, f.autoupdate FROM users u INNER JOIN firefox_addons f USING (uid) WHERE f.active='1';\n```",
     "columns": [
       {
         "name": "uid",
@@ -13243,6 +13243,78 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/iptables.yml"
+  },
+  {
+    "name": "jetbrains_plugins",
+    "description": "JetBrains IDEs plugins.",
+    "url": "https://fleetdm.com/tables/jetbrains_plugins",
+    "platforms": [
+      "darwin",
+      "linux",
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect * from users cross join jetbrains_plugins using (uid)\n```",
+    "columns": [
+      {
+        "name": "product_type",
+        "description": "The product type (Valid values: CLion, DataGrip, GoLand, IntelliJIdea, IntelliJIdeaCommunityEdition, PhpStorm, PyCharm, PyCharmCommunityEdition, ReSharper, Rider, RubyMine, RustRover, WebStorm)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "uid",
+        "description": "The local user that owns the plugin",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "name",
+        "description": "Name of the plugin (Title Case)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "version",
+        "description": "Version of the plugin",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "vendor",
+        "description": "The vendor name or organization id that authored the plugin",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "The path on the filesystem for the plugin. This may be a folder or a jar filename",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/jetbrains_plugins.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fjetbrains_plugins.yml&value=name%3A%20jetbrains_plugins%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "kernel_extensions",
@@ -23308,6 +23380,76 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fquicklook_cache.yml&value=name%3A%20quicklook_cache%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
+    "name": "recent_files",
+    "description": "Recently files (as displayed in Start Menu or File Explorer).",
+    "url": "https://fleetdm.com/tables/recent_files",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nSELECT recent_files.* FROM users CROSS JOIN recent_files USING (uid) WHERE mtime > unixepoch('now') - 3600\n```",
+    "columns": [
+      {
+        "name": "uid",
+        "description": "The local user ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "filename",
+        "description": "The name of the file",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "The full path of the file",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "type",
+        "description": "Display type for the file",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "mtime",
+        "description": "Last modification time of the shortcut (usually corresponds to last opened time for the file)",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "shortcut_path",
+        "description": "Path to the shortcut where Windows stores the recent file data",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/recent_files.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Frecent_files.yml&value=name%3A%20recent_files%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
     "name": "registry",
     "description": "The Windows Registry is a database that stores Windows application data and low-level Windows settings like driver, security, service, system and user information. The `registry` osquery table expresses the data in the Windows Registry.",
     "url": "https://fleetdm.com/tables/registry",
@@ -26760,6 +26902,20 @@
           "macOS",
           "Windows",
           "Linux"
+        ]
+      },
+      {
+        "name": "emulated_cpu_type",
+        "description": "Emulated CPU type",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
         ]
       }
     ],

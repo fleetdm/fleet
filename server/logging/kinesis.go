@@ -9,13 +9,13 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	aws_config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
+	smithy "github.com/aws/smithy-go"
+	"github.com/fleetdm/fleet/v4/server/aws_common"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -32,64 +32,74 @@ const (
 	kinesisMaxSizeOfBatch    = 5 * 1000 * 1000 // 5 MB
 )
 
+type KinesisAPI interface {
+	PutRecords(ctx context.Context, params *kinesis.PutRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error)
+	DescribeStream(ctx context.Context, params *kinesis.DescribeStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.DescribeStreamOutput, error)
+}
+
 type kinesisLogWriter struct {
-	client kinesisiface.KinesisAPI
+	client KinesisAPI
 	stream string
 	logger log.Logger
 	rand   *rand.Rand
 }
 
 func NewKinesisLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger log.Logger) (*kinesisLogWriter, error) {
-	conf := &aws.Config{
-		Region:   &region,
-		Endpoint: &endpointURL, // empty string or nil will use default values
+	var opts []func(*aws_config.LoadOptions) error
+
+	// The service endpoint is deprecated, but we still set it
+	// in case users are using it.
+	if endpointURL != "" {
+		opts = append(opts, aws_config.WithEndpointResolver(aws.EndpointResolverFunc(
+			func(service, region string) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL: endpointURL,
+				}, nil
+			})),
+		)
 	}
 
 	// Only provide static credentials if we have them
-	// otherwise use the default credentials provider chain
+	// otherwise use the default credentials provider chain.
 	if id != "" && secret != "" {
-		conf.Credentials = credentials.NewStaticCredentials(id, secret, "")
+		opts = append(opts,
+			aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(id, secret, "")),
+		)
 	}
 
-	sess, err := session.NewSession(conf)
+	opts = append(opts, aws_config.WithRegion(region))
+	conf, err := aws_config.LoadDefaultConfig(context.Background(), opts...)
 	if err != nil {
-		return nil, fmt.Errorf("create Kinesis client: %w", err)
+		return nil, fmt.Errorf("failed to create default config: %w", err)
 	}
 
 	if stsAssumeRoleArn != "" {
-		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
-			if stsExternalID != "" {
-				provider.ExternalID = &stsExternalID
-			}
-		})
-		conf.Credentials = creds
-
-		sess, err = session.NewSession(conf)
-
+		conf, err = aws_common.ConfigureAssumeRoleProvider(conf, opts, stsAssumeRoleArn, stsExternalID)
 		if err != nil {
-			return nil, fmt.Errorf("create Kinesis client: %w", err)
+			return nil, fmt.Errorf("failed to configure assume role provider: %w", err)
 		}
 	}
-	client := kinesis.New(sess)
+
+	kinesisClient := kinesis.NewFromConfig(conf)
 
 	// This will be used to generate random partition keys to balance
 	// records across Kinesis shards.
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	k := &kinesisLogWriter{
-		client: client,
+		client: kinesisClient,
 		stream: stream,
 		logger: logger,
 		rand:   rand,
 	}
-	if err := k.validateStream(); err != nil {
-		return nil, fmt.Errorf("create Kinesis writer: %w", err)
+	if err := k.validateStream(context.Background()); err != nil {
+		return nil, fmt.Errorf("validate kinesis: %w", err)
 	}
 	return k, nil
 }
 
-func (k *kinesisLogWriter) validateStream() error {
-	out, err := k.client.DescribeStream(
+func (k *kinesisLogWriter) validateStream(ctx context.Context) error {
+	out, err := k.client.DescribeStream(ctx,
 		&kinesis.DescribeStreamInput{
 			StreamName: &k.stream,
 		},
@@ -98,7 +108,7 @@ func (k *kinesisLogWriter) validateStream() error {
 		return fmt.Errorf("describe stream %s: %w", k.stream, err)
 	}
 
-	if (*out.StreamDescription.StreamStatus) != kinesis.StreamStatusActive {
+	if out.StreamDescription.StreamStatus != types.StreamStatusActive {
 		return fmt.Errorf("stream %s not active", k.stream)
 	}
 
@@ -106,7 +116,7 @@ func (k *kinesisLogWriter) validateStream() error {
 }
 
 func (k *kinesisLogWriter) Write(ctx context.Context, logs []json.RawMessage) error {
-	var records []*kinesis.PutRecordsRequestEntry
+	var records []types.PutRecordsRequestEntry
 	totalBytes := 0
 	for _, log := range logs {
 		// so we get nice NDJSON
@@ -135,20 +145,23 @@ func (k *kinesisLogWriter) Write(ctx context.Context, logs []json.RawMessage) er
 		// adding any more.
 		if len(records) >= kinesisMaxRecordsInBatch ||
 			totalBytes+len(log)+len(partitionKey) > kinesisMaxSizeOfBatch {
-			if err := k.putRecords(0, records); err != nil {
+			if err := k.putRecords(ctx, 0, records); err != nil {
 				return ctxerr.Wrap(ctx, err, "put records")
 			}
 			totalBytes = 0
 			records = nil
 		}
 
-		records = append(records, &kinesis.PutRecordsRequestEntry{Data: []byte(log), PartitionKey: aws.String(partitionKey)})
+		records = append(records, types.PutRecordsRequestEntry{
+			Data:         []byte(log),
+			PartitionKey: aws.String(partitionKey),
+		})
 		totalBytes += len(log) + len(partitionKey)
 	}
 
 	// Push the final batch
 	if len(records) > 0 {
-		if err := k.putRecords(0, records); err != nil {
+		if err := k.putRecords(ctx, 0, records); err != nil {
 			return ctxerr.Wrap(ctx, err, "put records")
 		}
 	}
@@ -156,7 +169,7 @@ func (k *kinesisLogWriter) Write(ctx context.Context, logs []json.RawMessage) er
 	return nil
 }
 
-func (k *kinesisLogWriter) putRecords(try int, records []*kinesis.PutRecordsRequestEntry) error {
+func (k *kinesisLogWriter) putRecords(ctx context.Context, try int, records []types.PutRecordsRequestEntry) error {
 	if try > 0 {
 		time.Sleep(100 * time.Millisecond * time.Duration(math.Pow(2.0, float64(try))))
 	}
@@ -165,13 +178,13 @@ func (k *kinesisLogWriter) putRecords(try int, records []*kinesis.PutRecordsRequ
 		Records:    records,
 	}
 
-	output, err := k.client.PutRecords(input)
+	output, err := k.client.PutRecords(ctx, input)
 	if err != nil {
-		var ae awserr.Error
-		if errors.As(err, &ae) {
+		var anyAPIError smithy.APIError
+		if errors.As(err, &anyAPIError) {
 			if try < kinesisMaxRetries {
 				// Retry with backoff
-				return k.putRecords(try+1, records)
+				return k.putRecords(ctx, try+1, records)
 			}
 		}
 
@@ -199,7 +212,7 @@ func (k *kinesisLogWriter) putRecords(try int, records []*kinesis.PutRecordsRequ
 			)
 		}
 
-		var failedRecords []*kinesis.PutRecordsRequestEntry
+		var failedRecords []types.PutRecordsRequestEntry
 		// Collect failed records for retry
 		for i, record := range output.Records {
 			if record.ErrorCode != nil {
@@ -207,7 +220,7 @@ func (k *kinesisLogWriter) putRecords(try int, records []*kinesis.PutRecordsRequ
 			}
 		}
 
-		return k.putRecords(try+1, failedRecords)
+		return k.putRecords(ctx, try+1, failedRecords)
 	}
 
 	return nil

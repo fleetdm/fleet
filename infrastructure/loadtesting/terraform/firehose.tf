@@ -1,5 +1,8 @@
 resource "aws_s3_bucket" "osquery-results" { #tfsec:ignore:aws-s3-encryption-customer-key tfsec:ignore:aws-s3-enable-bucket-logging tfsec:ignore:aws-s3-enable-versioning
   bucket = "${local.prefix}-loadtest-osquery-logs-archive"
+  
+  # Allow destroy of non-empty buckets
+  force_destroy = true
 
   #checkov:skip=CKV_AWS_18:dev env
   #checkov:skip=CKV_AWS_144:dev env
@@ -39,6 +42,9 @@ resource "aws_s3_bucket_public_access_block" "osquery-results" {
 
 resource "aws_s3_bucket" "osquery-status" { #tfsec:ignore:aws-s3-encryption-customer-key tfsec:ignore:aws-s3-enable-bucket-logging tfsec:ignore:aws-s3-enable-versioning
   bucket = "${local.prefix}-loadtest-osquery-status-archive"
+  
+  # Allow destroy of non-empty buckets
+  force_destroy = true
 
   #checkov:skip=CKV_AWS_18:dev env
   #checkov:skip=CKV_AWS_144:dev env

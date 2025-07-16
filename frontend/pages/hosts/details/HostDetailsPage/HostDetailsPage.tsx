@@ -66,7 +66,9 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
-import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISoftwareUninstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -205,7 +207,7 @@ const HostDetailsPage = ({
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
-  ] = useState<IPackageInstallDetails | null>(null);
+  ] = useState<ISoftwareUninstallDetails | null>(null);
   const [
     appInstallDetails,
     setAppInstallDetails,
@@ -694,6 +696,16 @@ const HostDetailsPage = ({
     [setSelectedSoftwareDetails]
   );
 
+  const onShowUninstallDetails = useCallback(
+    (details?: ISoftwareUninstallDetails) => {
+      setPackageUninstallDetails({
+        ...details,
+        host_display_name: host?.display_name || "",
+      });
+    },
+    [setPackageUninstallDetails]
+  );
+
   const onCancelRunScriptDetailsModal = useCallback(() => {
     setScriptExecutiontId("");
     // refetch activities to make sure they up-to-date with what was displayed in the modal
@@ -797,7 +809,10 @@ const HostDetailsPage = ({
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
-        doesStoreEncryptionKey={host.mdm.encryption_key_available}
+        doesStoreEncryptionKey={
+          host.mdm.encryption_key_available ||
+          !!host.mdm.encryption_key_archived
+        }
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
       />
@@ -866,10 +881,12 @@ const HostDetailsPage = ({
   ];
 
   const getTabIndex = (path: string): number => {
-    return hostDetailsSubNav.findIndex((navItem) => {
+    const selected = hostDetailsSubNav.findIndex((navItem) => {
       // tab stays highlighted for paths that ends with same pathname
       return path.startsWith(navItem.pathname);
     });
+    // If our URL doesn't match anything, return the first (Details) tab by default
+    return selected === -1 ? 0 : selected;
   };
 
   const getSoftwareTabIndex = (path: string): number => {
@@ -924,6 +941,8 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
+  const isSoftwareLibrarySupported = isPremiumTier && !isAndroidHost;
+
   const showUsersCard =
     isDarwinHost ||
     generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
@@ -943,7 +962,7 @@ const HostDetailsPage = ({
         paddingSize="xlarge"
         includeShadow
       >
-        {isPremiumTier ? (
+        {isSoftwareLibrarySupported ? (
           <>
             <TabList>
               <Tab>Inventory</Tab>
@@ -956,7 +975,10 @@ const HostDetailsPage = ({
                 softwareUpdatedAt={host.software_updated_at}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
-                queryParams={parseHostSoftwareQueryParams(location.query)}
+                queryParams={{
+                  ...parseHostSoftwareQueryParams(location.query),
+                  include_available_for_install: false,
+                }}
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
@@ -983,7 +1005,9 @@ const HostDetailsPage = ({
                 }}
                 pathname={location.pathname}
                 onShowSoftwareDetails={onShowSoftwareDetails}
+                onShowUninstallDetails={onShowUninstallDetails}
                 hostTeamId={host.team_id || 0}
+                hostName={host.display_name}
                 hostMDMEnrolled={host.mdm.connected_to_fleet}
                 isHostOnline={host.status === "online"}
               />
@@ -997,7 +1021,10 @@ const HostDetailsPage = ({
               softwareUpdatedAt={host.software_updated_at}
               isSoftwareEnabled={featuresConfig?.enable_software_inventory}
               router={router}
-              queryParams={parseHostSoftwareQueryParams(location.query)}
+              queryParams={{
+                ...parseHostSoftwareQueryParams(location.query),
+                include_available_for_install: false,
+              }}
               pathname={location.pathname}
               onShowSoftwareDetails={setSelectedSoftwareDetails}
               hostTeamId={host.team_id || 0}

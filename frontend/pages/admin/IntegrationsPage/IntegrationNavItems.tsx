@@ -8,6 +8,8 @@ import ChangeManagement from "./cards/ChangeManagement";
 import CertificateAuthorities from "./cards/CertificateAuthorities";
 import ConditionalAccess from "./cards/ConditionalAccess";
 import IdentityProviders from "./cards/IdentityProviders";
+import Sso from "./cards/Sso";
+import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
 
 const getIntegrationSettingsNavItems = (
   isManagedCloud: boolean
@@ -38,6 +40,13 @@ const getIntegrationSettingsNavItems = (
       Card: ChangeManagement,
     },
     {
+      title: "Single sign-on options",
+      urlSection: "sso",
+      path: PATHS.ADMIN_INTEGRATIONS_SSO,
+      Card: Sso,
+    },
+
+    {
       title: "Certificates",
       urlSection: "certificates",
       path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
@@ -48,6 +57,12 @@ const getIntegrationSettingsNavItems = (
       urlSection: "identity-provider",
       path: PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
       Card: IdentityProviders,
+    },
+    {
+      title: "Host status webhook",
+      urlSection: "host-status-webhook",
+      path: PATHS.ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK,
+      Card: GlobalHostStatusWebhook,
     },
   ];
 

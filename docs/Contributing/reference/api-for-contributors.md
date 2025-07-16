@@ -14,6 +14,7 @@
 - [Software](#software)
 - [Users](#users)
 - [Conditional access](#conditional-access)
+- [Host identity](#host-identity)
 
 > These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
@@ -2039,7 +2040,7 @@ If the `name` is not already associated with an existing team, this API route cr
         }
       },
       "scripts": ["path/to/script.sh"],
-      "software": { 
+      "software": {
         "packages": [
           {
             "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
@@ -2054,7 +2055,7 @@ If the `name` is not already associated with an existing team, this API route cr
             "self_service": true
           }
         ]
-      }  
+      }
     }
   ]
 }
@@ -3521,7 +3522,9 @@ Lists the certificates installed on the current device.
         "organization": "Fleet Device Management Inc.",
         "organizational_unit": "Fleet Device Management Inc.",
         "common_name": "FleetDM"
-      }
+      },
+      "source": "user",
+      "username": "alice"
     }
   ],
   "meta": {
@@ -4986,3 +4989,21 @@ See the [Google documentation for enterprises.delete](https://developers.google.
 ```json
 {}
 ```
+
+---
+
+## Host identity
+
+### SCEP
+
+`/api/fleet/orbit/host_identity/scep`
+
+This endpoint is used to retrieve a host identity certificate. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894).
+
+Supported certificate algorithms are:
+- ECC NIST P-384
+- ECC NIST P-256
+
+The common name (CN) of the certificate must be either the hardware UUID or osquery identity. Only one valid certificate can exist matching the host identifier.
+
+The SCEP challenge password must be the enrollment secret.
