@@ -257,8 +257,8 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 | XS | ≤1 week for 1 contributor | 3-8 |
 | S  | 1 sprint for 1 contributor | 15-25 |
 | M  | 1 sprint for 2 contributors | 30-50 |
-| L  | 1 sprint for the whole team | Variable (>60) |
-| XL | >1 sprint for the whole team | Variable (>100) |
+| L  | 1 sprint for 3 contributors | Variable (>60) |
+| XL | >1 sprint for 3 contributors | Variable (>100) |
 
 
 ### Implementing
