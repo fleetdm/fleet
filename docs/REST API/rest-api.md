@@ -824,6 +824,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
+| id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
 | csr       | string | body | The signed certificate signing request (CSR). If left unspecified, Fleet will create the CSR with a shared key.        |
 | idp_oauth_url | string | body | OAuth URL from your identity provier (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
