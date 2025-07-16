@@ -18,7 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// run uses sudo to run the given path as login user.
+// base command to setup an exec.Cmd using `runuser`
 func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 	args, env, userContext, err := getUserAndDisplayArgs(path)
 	if err != nil {
