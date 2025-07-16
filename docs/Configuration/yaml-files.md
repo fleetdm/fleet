@@ -766,7 +766,7 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
