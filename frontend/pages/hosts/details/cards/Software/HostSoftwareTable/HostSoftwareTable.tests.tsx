@@ -54,7 +54,9 @@ describe("HostSoftwareTable", () => {
       screen.getByText(/software is not supported for this host/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/let us know/i)).toBeInTheDocument();
-    expect("Software installed on this host").not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Software installed on this host/i)
+    ).not.toBeInTheDocument();
   });
 
   it("renders custom filter button when filters are applied", () => {
