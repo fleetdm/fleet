@@ -14,6 +14,7 @@ import (
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/rs/zerolog"
 	"github.com/smallstep/scep"
 	"github.com/smallstep/scep/x509util"
@@ -37,7 +38,7 @@ type Client struct {
 	scepChallenge string
 	// scepURL: The URL of the SCEP server which supports the SCEP protocol (required)
 	scepURL string
-	timeout time.Duration
+	timeout *time.Duration
 	logger  zerolog.Logger
 
 	insecure bool
@@ -89,12 +90,15 @@ func WithCommonName(commonName string) Option {
 	}
 }
 
-func WithTimeout(timeout time.Duration) Option {
+// WithTimeout configures the timeout for SCEP client requests.
+func WithTimeout(timeout *time.Duration) Option {
 	return func(c *Client) {
 		c.timeout = timeout
 	}
 }
 
+// Insecure configures the client to not verify server certificates.
+// Only used for tests.
 func Insecure() Option {
 	return func(c *Client) {
 		c.insecure = true
@@ -105,13 +109,17 @@ func Insecure() Option {
 func NewClient(opts ...Option) (*Client, error) {
 	// Create client with default options
 	c := &Client{
-		logger:  zerolog.Nop(),
-		timeout: 30 * time.Second,
+		logger: zerolog.Nop(),
 	}
 
 	// Apply options
 	for _, opt := range opts {
 		opt(c)
+	}
+
+	if c.timeout == nil {
+		// Set a sane default for the timeout.
+		c.timeout = ptr.Duration(30 * time.Second)
 	}
 
 	// Check that required options are set.
@@ -131,7 +139,14 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	// We assume the required fields have already been validated by the NewClient factory.
 
 	kitLogger := &zerologAdapter{logger: c.logger}
-	scepClient, err := scepclient.New(c.scepURL, kitLogger, &c.timeout, c.rootCA, c.insecure)
+	opts := []scepclient.Option{
+		scepclient.WithTimeout(c.timeout),
+		scepclient.WithRootCA(c.rootCA),
+	}
+	if c.insecure {
+		opts = append(opts, scepclient.Insecure())
+	}
+	scepClient, err := scepclient.New(c.scepURL, kitLogger, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("create SCEP client: %w", err)
 	}

@@ -115,10 +115,46 @@ func MakeServerEndpointsWithIdentifier(svc ServiceWithIdentifier) *Endpoints {
 	}
 }
 
+type clientOpts struct {
+	timeout  *time.Duration
+	rootCA   string
+	insecure bool
+}
+
+// ClientOption is a functional option for configuring a SCEP Client
+type ClientOption func(*clientOpts)
+
+// WithClientRootCA sets the root CA file to use when connecting to the SCEP server.
+func WithClientRootCA(rootCA string) ClientOption {
+	return func(c *clientOpts) {
+		c.rootCA = rootCA
+	}
+}
+
+// ClientInsecure configures the client to not verify server certificates.
+// Only used for tests.
+func ClientInsecure() ClientOption {
+	return func(c *clientOpts) {
+		c.insecure = true
+	}
+}
+
+// WithClientTimeout configures the timeout for SCEP client requests.
+func WithClientTimeout(timeout *time.Duration) ClientOption {
+	return func(c *clientOpts) {
+		c.timeout = timeout
+	}
+}
+
 // MakeClientEndpoints returns an Endpoints struct where each endpoint invokes
 // the corresponding method on the remote instance, via a transport/http.Client.
 // Useful in a SCEP client.
-func MakeClientEndpoints(instance string, timeout *time.Duration, rootCA string, insecure bool) (*Endpoints, error) {
+func MakeClientEndpoints(instance string, opts ...ClientOption) (*Endpoints, error) {
+	var co clientOpts
+	for _, fn := range opts {
+		fn(&co)
+	}
+
 	if !strings.HasPrefix(instance, "http") {
 		instance = "http://" + instance
 	}
@@ -128,15 +164,17 @@ func MakeClientEndpoints(instance string, timeout *time.Duration, rootCA string,
 	}
 
 	var fleetOpts []fleethttp.ClientOpt
-	if timeout != nil {
-		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*timeout))
+	if co.timeout != nil {
+		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*co.timeout))
 	}
 
-	if rootCA != "" || insecure {
-		tlsConfig := &tls.Config{}
+	if co.rootCA != "" || co.insecure {
+		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
 		switch {
-		case rootCA != "":
-			certs, err := os.ReadFile(rootCA)
+		case co.rootCA != "":
+			certs, err := os.ReadFile(co.rootCA)
 			if err != nil {
 				return nil, fmt.Errorf("reading root CA: %w", err)
 			}
@@ -145,7 +183,7 @@ func MakeClientEndpoints(instance string, timeout *time.Duration, rootCA string,
 				return nil, errors.New("failed to add certificates to root CA pool")
 			}
 			tlsConfig.RootCAs = rootCAPool
-		case insecure:
+		case co.insecure:
 			// Ignoring "G402: TLS InsecureSkipVerify set true", needed for development/testing.
 			tlsConfig.InsecureSkipVerify = true //nolint:gosec
 		}

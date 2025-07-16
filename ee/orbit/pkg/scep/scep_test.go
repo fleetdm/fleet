@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
@@ -47,7 +48,7 @@ func TestNewClientValidation(t *testing.T) {
 				WithSigningKey(signingKey),
 				WithURL("https://example.com/scep"),
 				WithChallenge("test-challenge"),
-				WithTimeout(5 * time.Second),
+				WithTimeout(ptr.Duration(5 * time.Second)),
 			},
 			expectError: true,
 			errorMsg:    "should fail without commonName",
@@ -69,7 +70,7 @@ func TestNewClientValidation(t *testing.T) {
 				WithURL("https://example.com/scep"),
 				WithChallenge("test-challenge"),
 				WithCommonName("test-device"),
-				WithTimeout(5 * time.Second),
+				WithTimeout(ptr.Duration(5 * time.Second)),
 			},
 			expectError: true,
 			errorMsg:    "should fail without TEE",
@@ -81,7 +82,7 @@ func TestNewClientValidation(t *testing.T) {
 				WithURL("https://example.com/scep"),
 				WithChallenge("test-challenge"),
 				WithCommonName("test-device"),
-				WithTimeout(5 * time.Second),
+				WithTimeout(ptr.Duration(5 * time.Second)),
 			},
 			expectError: false,
 			errorMsg:    "should succeed with all required parameters",
@@ -103,8 +104,8 @@ func TestNewClientValidation(t *testing.T) {
 	}
 }
 
-// TestClient_FetchAndSaveCert tests the successful retrieval and saving of a certificate
-func TestClient_FetchAndSaveCert(t *testing.T) {
+// TestClient_FetchCert tests the successful retrieval of a certificate using SCEP.
+func TestClient_FetchCert(t *testing.T) {
 	// Start a test SCEP server
 	scepServer := StartTestSCEPServer(t)
 	defer scepServer.Close()
@@ -112,7 +113,7 @@ func TestClient_FetchAndSaveCert(t *testing.T) {
 	// Create a logger for testing
 	logger := zerolog.New(zerolog.NewTestWriter(t))
 
-	t.Run("successful fetch and save", func(t *testing.T) {
+	t.Run("successful fetch", func(t *testing.T) {
 		signingKey, err := newSigningKey()
 		require.NoError(t, err, "Failed to create test TEE")
 
@@ -122,7 +123,7 @@ func TestClient_FetchAndSaveCert(t *testing.T) {
 			WithURL(scepServer.URL+"/scep"),
 			WithChallenge(challengePassword),
 			WithLogger(logger),
-			WithTimeout(5*time.Second),
+			WithTimeout(ptr.Duration(5*time.Second)),
 			WithCommonName("test-device"),
 		)
 		require.NoError(t, err, "NewClient should succeed with all required parameters")
@@ -156,7 +157,7 @@ func TestClient_FetchAndSaveCert(t *testing.T) {
 			WithURL(scepServer.URL+"/scep"),
 			WithChallenge("BAD"),
 			WithLogger(logger),
-			WithTimeout(5*time.Second),
+			WithTimeout(ptr.Duration(5*time.Second)),
 			WithCommonName("test-device"),
 		)
 		require.NoError(t, err, "NewClient should succeed with all required parameters")

@@ -293,10 +293,10 @@ func packageCommand() *cli.Command {
 
 			if opt.FleetManagedClientCertificate {
 				if c.String("type") != "deb" && c.String("type") != "rpm" {
-					return fmt.Errorf("--fleet-managed-client-certificate is only supported for deb/rpm packages")
+					return errors.New("--fleet-managed-client-certificate is only supported for deb/rpm packages")
 				}
 				if opt.FleetTLSClientCertificate != "" {
-					return fmt.Errorf("--fleet-managed-client-certificate and --fleet-tls-client-certificate may not be provided together")
+					return errors.New("--fleet-managed-client-certificate and --fleet-tls-client-certificate may not be provided together")
 				}
 			}
 

@@ -969,7 +969,9 @@ func main() {
 			}
 
 			// TODO(lucas, victor): Use for HTTP signing.
-			_ = clientCertificate
+			log.Info().Str(
+				"commonName", clientCertificate.C.Subject.CommonName,
+			).Msg("certificate issued successfully")
 		}
 
 		orbitClient, err := service.NewOrbitClient(
