@@ -69,7 +69,7 @@ describe("getStatusMessage helper function", () => {
     );
     expect(
       screen.getByText(
-        /but the installation has not beenverified. Please re-attempt this installation/i
+        /but the installation has not been verified. Please re-attempt this installation/i
       )
     ).toBeInTheDocument();
   });
