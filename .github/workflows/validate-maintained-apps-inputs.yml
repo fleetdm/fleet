@@ -40,5 +40,5 @@ jobs:
       - name: Validate JSON
         run: |
           for i in $(ls fleet/ee/maintained-apps/inputs/homebrew/*.json); do
-            /root/.local/bin/check-jsonschema --schemafile fleet/ee/maintained-apps/inputs/homebrew/schema/input-schema.json $i
+            check-jsonschema --schemafile fleet/ee/maintained-apps/inputs/homebrew/schema/input-schema.json $i
           done
