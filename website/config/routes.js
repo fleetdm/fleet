@@ -27,6 +27,7 @@ module.exports.routes = {
       pageTitleForMeta: 'Contact us',
       pageDescriptionForMeta: 'Get in touch with our team.',
       hideFooterLinks: true,
+      currentSection: 'community',
     }
   },
 
@@ -98,6 +99,14 @@ module.exports.routes = {
   'GET /articles': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /articles/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
       currentSection: 'community',
     }
@@ -392,7 +401,7 @@ module.exports.routes = {
     action: 'view-software-management',
     locals: {
       pageTitleForMeta: 'Software management',
-      pageDescriptionForMeta: 'Pick from a curated app library or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.',
+      pageDescriptionForMeta: 'Pick from a curated software catalog or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.',
       currentSection: 'platform',
     }
   },
@@ -402,7 +411,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Support',
       pageDescriptionForMeta: 'Ask a question, chat with engineers, or get in touch with the Fleet team.',
-      currentSection: 'documentation',
+      currentSection: 'community',
     }
   },
 
@@ -449,11 +458,12 @@ module.exports.routes = {
     action: 'view-testimonials',
     locals: {
       pageTitleForMeta: 'What people are saying',
-      pageDescriptionForMeta: 'See what people are saying about Fleet.'
+      pageDescriptionForMeta: 'See what people are saying about Fleet.',
+      currentSection: 'community',
     }
   },
 
-  'GET /app-library': {
+  'GET /software-catalog': {
     action: 'view-app-library',
     locals: {
       pageTitleForMeta: 'Software',
@@ -461,7 +471,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /app-library/:appIdentifier': {
+  'GET /software-catalog/:appIdentifier': {
     action: 'view-app-details',// Meta title and description set in view action
   },
 
@@ -470,6 +480,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Meetups',
       pageDescriptionForMeta: 'See upcoming meetup locations.',
+      currentSection: 'community',
     }
   },
 
@@ -492,6 +503,22 @@ module.exports.routes = {
 
   'GET /configuration-builder': {
     action: 'view-configuration-builder',
+    locals: {
+      showConfigurationProfileLayout: true,
+      hideStartCTA: true,
+    }
+  },
+
+  'GET /microsoft-compliance-partner/remediate': {
+    action: 'microsoft-proxy/view-remediate',
+    locals: {
+      showConfigurationProfileLayout: true,
+      hideStartCTA: true,
+    }
+  },
+
+  'GET /microsoft-compliance-partner/enroll': {
+    action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
       hideStartCTA: true,
@@ -699,7 +726,12 @@ module.exports.routes = {
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
-
+  'GET /app-library': '/software-catalog',
+  'GET /app-library/:appIdentifier': {
+    fn: (req,res)=> {
+      return res.redirect('/software-catalog/'+req.param('appIdentifier'));
+    }
+  },
   // Release note article redirects.
   'GET /releases/fleet-3.10.0': '/releases/fleet-3-10-0',
   'GET /releases/fleet-3.12.0': '/releases/fleet-3-12-0',
@@ -774,6 +806,9 @@ module.exports.routes = {
   'GET /announcements/nvd-api-2.0': '/announcements/nvd-api-2-0',
   'GET /releases/osquery-5.11.0': '/releases/osquery-5-11-0',
   'GET /releases/osquery-5.8.1': '/releases/osquery-5-8-1',
+  'GET /announcements/one-agent-fewer-tools-fewer-gaps': '/articles/one-agent-fewer-tools-fewer-gaps',
+  'GET /announcements/i-work-in-operations-i-deployed-fleet-in-minutes': '/articles/i-work-in-operations-i-deployed-fleet-in-minutes',
+  'GET /announcements/not-everything-runs-in-kubernete': '/articles/not-everything-runs-in-kubernete',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -818,6 +853,7 @@ module.exports.routes = {
   'GET /vulnerability-management': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/software-management'+originalQueryString);},
   'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
   'GET /observability': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
+
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
@@ -906,6 +942,11 @@ module.exports.routes = {
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
+  'GET /learn-more-about/yaml-software-setup-experience': '/docs/configuration/yaml-files#self-service-labels-categories-and-setup-experience',
+  'GET /learn-more-about/microsoft-compliance-partner': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/microsoft-entra-setup': 'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/TenantProperties.ReactView',
+  'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
 
   // Sitemap
   // =============================================================================================================
@@ -939,8 +980,7 @@ module.exports.routes = {
   // Temporary redirects
   // =============================================================================================================
   // For events, etc. that can be removed after a certain date. Please leave a comment with a valid until date.
-  'GET /rsaparty':               'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm', // Valid until 2024-05-09
-  'GET /rsavip':                 'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm&discount=Fleet2024', // Valid until 2024-05-09
+  'GET /funding-announcement': 'https://www.businesswire.com/news/home/20250617550974/en/Fleet-Adds-%2427M-to-Usher-in-New-Era-of-Open-Device-Management',// This will be changed on 2025-06-17.
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
@@ -950,8 +990,9 @@ module.exports.routes = {
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
   'POST /api/v1/webhooks/receive-from-zapier': { action: 'webhooks/receive-from-zapier', csrf: false },
-  'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false},
   'POST /api/v1/webhooks/receive-from-clay': { action: 'webhooks/receive-from-clay', csrf: false},
+  'POST /api/v1/webhooks/receive-from-zoom': { action: 'webhooks/receive-from-zoom', csrf: false},
+  'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false},// TODO: change this route to match Sails conventions for webhooks and to be in the webhooks/ folder.  Then remove from policies: 'get-est-device-certificate': true, as it'll just be taken care of by being in the right place.
 
 
   //  ╔═╗╔╗╔╔╦╗╦═╗╔═╗╦╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
@@ -1015,6 +1056,6 @@ module.exports.routes = {
 
   // Well known resources https://datatracker.ietf.org/doc/html/rfc8615
   // =============================================================================================================
-  // Temporary enroll endpoint for https://github.com/fleetdm/fleet/issues/27391
-  'GET /.well-known/com.apple.remotemanagement': (req, res)=>{ return res.json({'Servers':[{'Version':'mdm-byod', 'BaseURL':'https://getvictor.ngrok.io/api/mdm/apple/enroll?token=bozo'}]});},
+  // Temporary enroll endpoint for https://github.com/fleetdm/fleet/issues/27390
+  'GET /.well-known/com.apple.remotemanagement': (req, res)=>{ return res.json({'Servers':[{'Version':'mdm-byod', 'BaseURL':'https://jordan-fleetdm.ngrok.app/api/mdm/apple/account_driven_enroll'}]});},
 };

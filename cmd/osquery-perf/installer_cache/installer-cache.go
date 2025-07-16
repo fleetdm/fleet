@@ -3,6 +3,8 @@ package installer_cache
 import (
 	"log"
 	"os"
+	"path"
+	"strings"
 	"sync"
 
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
@@ -53,9 +55,9 @@ func (c *Metadata) populateMetadata(installer *fleet.SoftwareInstallDetails, orb
 	}
 	defer os.RemoveAll(tmpDir)
 
-	var path string
+	var installerPath string
 	if installer.SoftwareInstallerURL != nil {
-		path, err = orbitClient.DownloadSoftwareInstallerFromURL(installer.SoftwareInstallerURL.URL,
+		installerPath, err = orbitClient.DownloadSoftwareInstallerFromURL(installer.SoftwareInstallerURL.URL,
 			installer.SoftwareInstallerURL.Filename, tmpDir, func(n int) {
 			})
 		if err != nil {
@@ -65,8 +67,8 @@ func (c *Metadata) populateMetadata(installer *fleet.SoftwareInstallDetails, orb
 		}
 	}
 
-	if path == "" {
-		path, err = orbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir, func(n int) {
+	if installerPath == "" {
+		installerPath, err = orbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir, func(n int) {
 		})
 		if err != nil {
 			log.Printf("level=error, msg=download software installer, err=%s", err)
@@ -74,8 +76,27 @@ func (c *Metadata) populateMetadata(installer *fleet.SoftwareInstallDetails, orb
 			return nil, err
 		}
 	}
+
+	// Installer might from a Fleet-maintained app. If so, it might be a .dmg or .zip.
+	// file.ExtractInstallerMetadata doesn't support .dmg or .zip files, so we have to create
+	// an InstallerMetadata manually.
+	var extension string
+	switch {
+	case strings.HasSuffix(installerPath, ".dmg"):
+		extension = ".dmg"
+	case strings.HasSuffix(installerPath, ".zip"):
+		extension = ".zip"
+	}
+
+	if extension != "" {
+		return &file.InstallerMetadata{
+			Name:      path.Base(installerPath),
+			Extension: extension,
+		}, nil
+	}
+
 	// Figure out what we're actually installing here and add it to software inventory
-	tfr, err := fleet.NewKeepFileReader(path)
+	tfr, err := fleet.NewKeepFileReader(installerPath)
 	if err != nil {
 		c.Stats.IncrementOrbitErrors()
 		log.Println("level=error, open installer:", err)

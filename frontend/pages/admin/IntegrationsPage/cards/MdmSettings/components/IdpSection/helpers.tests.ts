@@ -113,17 +113,6 @@ describe("IdPSection helpers", () => {
 
       expect(
         validateFormDataIdp({
-          entity_id: "enti",
-          idp_name: "idpImageUrl",
-          metadata: "metadata",
-          metadata_url: "https://metadataUrl.com",
-        })
-      ).toEqual({
-        entity_id: "Entity ID must be 5 or more characters.",
-      });
-
-      expect(
-        validateFormDataIdp({
           entity_id: "entityId",
           idp_name: "idpImageUrl",
           metadata: "",

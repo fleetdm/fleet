@@ -34,40 +34,20 @@
     }
   }
 
-  // Adjusts for edge cases of extra long MDM server URL and used by email
-  .info-flex {
-    display: flex;
-    flex-direction: column;
-    flex-wrap: wrap;
+  // we want the info section data to be displayed in a grid. This grid
+  // will be responsive and adjust the number of columns based on the
+  // screen width. We want the columns to only be as wide as the longest
+  // item in that column. when a item is too long to fit in the
+  // column we will truncate the text for that item. This is done with the
+  // TooltipTruncatedText component.
+  &__info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(150px, max-content));
     gap: $pad-medium $pad-xxlarge;
-    max-height: 350px;
-    align-content: flex-start;
 
-    .data-set {
-      min-width: none;
-    }
-
-    dd,
-    .component__tooltip-wrapper__element {
-      max-width: 350px;
-    }
-
-    @media (min-width: $break-md) {
-      max-height: 250px;
-
-      dd,
-      .component__tooltip-wrapper__element {
-        max-width: 340px;
-      }
-    }
-
-    @media (min-width: $break-lg) {
-      max-height: 200px;
-
-      dd,
-      .component__tooltip-wrapper__element {
-        max-width: 500px;
-      }
+    // at the larger screen widths we want to have 3 columns.
+    @media (min-width: $break-xxl) {
+      grid-template-columns: repeat(3, minmax(150px, max-content));
     }
   }
 

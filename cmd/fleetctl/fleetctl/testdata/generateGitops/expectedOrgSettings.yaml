@@ -1,7 +1,7 @@
 features:
   enable_host_users: true
   enable_software_inventory: true
-  additional_queries: 
+  additional_queries:
       time: "SELECT * FROM time"
       macs: "SELECT mac FROM interface_details"
   detail_query_overrides:
@@ -65,6 +65,7 @@ mdm:
     issuer_uri: https://some-mdm-issuer-uri.com
     metadata: ___GITOPS_COMMENT_6___
     metadata_url: ___GITOPS_COMMENT_7___
+  end_user_license_agreement: ./lib/eula/test.pdf
   volume_purchasing_program:
   - location: Fleet Device Management Inc.
     teams:

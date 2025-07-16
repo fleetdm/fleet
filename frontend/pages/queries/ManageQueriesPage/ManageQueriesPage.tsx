@@ -370,7 +370,10 @@ const ManageQueriesPage = ({
             availableQueries={queriesAvailableToAutomate}
             automatedQueryIds={automatedQueryIds}
             logDestination={config?.logging.result.plugin || ""}
-            webhookDestination={config?.logging.result.config.result_url}
+            webhookDestination={config?.logging.result.config?.result_url}
+            filesystemDestination={
+              config?.logging.result.config?.result_log_file
+            }
           />
         )}
         {showPreviewDataModal && (
@@ -387,6 +390,15 @@ const ManageQueriesPage = ({
     isTeamAdmin ||
     isTeamMaintainer ||
     isObserverPlus; // isObserverPlus checks global and selected team
+
+  let dropdownHelpText: string;
+  if (isAnyTeamSelected) {
+    dropdownHelpText = "Gather data about all hosts assigned to this team.";
+  } else if (config?.partnerships?.enable_primo) {
+    dropdownHelpText = "Gather data about your hosts.";
+  } else {
+    dropdownHelpText = "Gather data about all hosts.";
+  }
 
   return (
     <MainContent className={baseClass}>
@@ -422,11 +434,7 @@ const ManageQueriesPage = ({
           )}
         </div>
         <div className={`${baseClass}__description`}>
-          <p>
-            {isAnyTeamSelected
-              ? "Gather data about all hosts assigned to this team."
-              : "Gather data about all hosts."}
-          </p>
+          <p>{dropdownHelpText}</p>
         </div>
         {renderQueriesTable()}
         {renderModals()}

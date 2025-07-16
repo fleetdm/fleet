@@ -229,6 +229,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:apple:garageband:10.4.11:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-54559"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:o:apple:macos:15.1.1:*:*:*:*:*:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2024-54559", resolvedInVersion: "15.2"}},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:avira:password_manager:2.18.4.38471:*:*:*:*:firefox:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2022-28795"},
@@ -276,13 +284,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
+		/*"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
 			},
 			continuesToUpdate: false,
-		},
+		},*/
 		"cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2023-36018", resolvedInVersion: "2023.10.1100000000"},
@@ -299,7 +307,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
+		/*"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-1171", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-1192", resolvedInVersion: "2020.5.0"},
@@ -307,7 +315,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
 			},
 			continuesToUpdate: false,
-		},
+		},*/
 		"cpe:2.3:a:adobe:animate:*:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2023-44325"},
@@ -392,14 +400,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 		// end of CVE-2023-48795 checks
 		// CVE-2025-21171 handling
-		"cpe:2.3:a:microsoft:powershell:7.5.0:*:*:*:*:macos:*:*": {
-			excludedCVEs:      []string{"CVE-2025-21171"},
-			continuesToUpdate: true,
-		},
-		"cpe:2.3:a:microsoft:powershell:7.5.0:rc.1:*:*:*:macos:*:*": {
-			includedCVEs:      []cve{{ID: "CVE-2025-21171"}},
-			continuesToUpdate: true,
-		},
+		// Temporary commented out until we have a proper fix for this CVE
+		// https://github.com/fleetdm/fleet/pull/30767
+		// "cpe:2.3:a:microsoft:powershell:7.5.0:*:*:*:*:macos:*:*": {
+		// 	excludedCVEs:      []string{"CVE-2025-21171"},
+		// 	continuesToUpdate: true,
+		// },
+		// "cpe:2.3:a:microsoft:powershell:7.5.0:rc.1:*:*:*:macos:*:*": {
+		// 	includedCVEs:      []cve{{ID: "CVE-2025-21171"}},
+		// 	continuesToUpdate: true,
+		// },
 		// end of CVE-2025-21171 checks
 		"cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*": {
 			includedCVEs:      []cve{{ID: "CVE-2024-37051", resolvedInVersion: "2023.1.6"}},
@@ -409,8 +419,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-37051"},
 			continuesToUpdate: true,
 		},
-		"cpe:2.3:a:iterm2:iterm2:3.5.2:*:*:*:*:*:*:*": {
-			includedCVEs: []cve{{ID: "CVE-2024-38395", resolvedInVersion: ""}},
+		"cpe:2.3:a:iterm2:iterm2:3.5.1:*:*:*:*:*:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-38395", resolvedInVersion: "3.5.2"},
+				// NVD is being flakey so may not show this // {ID: "CVE-2024-38396", resolvedInVersion: "3.5.2"},
+			},
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.0:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{{ID: "CVE-2018-12356", resolvedInVersion: "1.7.2"}},

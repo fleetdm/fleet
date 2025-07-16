@@ -1,0 +1,36 @@
+<div id="turn-on-mdm" v-cloak>
+
+  <div purpose="page-container">
+    <div purpose="page-content" class="d-flex flex-column justify-content-between">
+      <h1>Turn on MDM</h1>
+      <p>Your organization has blocked sign-in because your computer does not have mobile device management (MDM) turned on. Follow the steps below to resolve.</p>
+      <ol purpose="remediation-steps">
+        <li>
+          <p>Click the Fleet icon in your menu bar, and select <strong>My device</strong>:</p>
+          <img alt="The Fleet Desktop menu" src="/images/remediate-step-1-456x170@2x.png">
+        </li>
+        <li>
+          <p>Click <strong>Turn on MDM </strong></p>
+          <img alt="The 'My Device' page in Fleet" src="/images/turn-on-mdm-step-2-456x170@2x.png">
+        </li>
+        <li>
+          <p>After enrolling in MDM, click the notification you receive from Microsoft Entra and complete registration.</p>
+          <img alt="A notification to register with Entra" class="mx-auto" src="/images/turn-on-mdm-step-3-456x170@2x.png">
+        </li>
+        <li>
+          <p>After registration in Entra, click the Fleet icon in your menu bar, and select <strong>My device</strong></p>
+          <img alt="The Fleet Desktop menu" src="/images/remediate-step-1-456x170@2x.png">
+        </li>
+        <li>
+          <p>Click the <strong>Refetch</strong> button:</p>
+          <img alt="Clicking the refetch button on the 'My device' page" src="/images/remediate-step-4-456x170@2x.png">
+        </li>
+      </ol>
+      <div purpose="bottom-logo" class="d-flex flex-row justify-content-center">
+        <a href="/"><img alt="The Fleet logo" src="/images/fleet-logo-muted-69x24@2x.png"></a>
+      </div>
+    </div>
+  </div>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

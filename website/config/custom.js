@@ -135,7 +135,7 @@ module.exports.custom = {
     'it-and-security': 'allenhouchins',
 
     // 🫧 Articles and release notes
-    'articles': 'mikermcneil',
+    'articles': 'rachaelshaw',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -182,7 +182,7 @@ module.exports.custom = {
     '.gitignore': 'sampfluger88',// « what files should not be checked in?
 
     // 🌐 Handbook
-    //'handbook': 'mikermcneil', Covered in CODEOWNERS (#16972 2024-02-19)
+    //'handbook': 'samfp', Covered in CODEOWNERS (#16972 2024-02-19)
 
 
     // 🌐 GitHub issue templates
@@ -190,7 +190,6 @@ module.exports.custom = {
 
     // 💝 Fleet-maintained apps
     'ee/maintained-apps/inputs': 'mostlikelee',
-    'ee/maintained-apps/outputs': 'eugkuo',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -331,7 +330,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.17.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.18.1',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -402,6 +401,7 @@ module.exports.custom = {
 
   // Contact form:
   // slackWebhookUrlForContactForm: '…',
+  // slackWebhookUrlForNewlyCreatedOppts: '…',
 
   // GitHub bot:
   // githubAccessToken: '…',

@@ -512,9 +512,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Len(t, installs, len(wantGlobalProfiles))
 	s.signedProfilesMatch(wantGlobalProfiles, installs)
 	require.Len(t, removes, len(wantTeamProfiles))
-	expectedNoTeamSummary = fleet.MDMProfilesSummary{Verifying: 1}
+	expectedNoTeamSummary = fleet.MDMProfilesSummary{Pending: 1}
 	expectedTeamSummary = fleet.MDMProfilesSummary{}
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // host now verifying global profiles
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // host now removing team profiles
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)
 
 	// can't resend profile from another team
@@ -2386,7 +2386,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	t := s.T()
 	ctx := context.Background()
 
-	createManualMDMEnrollWithOrbit := func(secret string) *fleet.Host {
+	createManualMDMEnrollWithOrbit := func(secret string, doUserEnroll bool) (*fleet.Host, *fleet.NanoEnrollment, *mdmtest.TestAppleMDMClient) {
 		// orbit enrollment happens before mdm enrollment, otherwise the host would
 		// always receive the "no team" profiles on mdm enrollment since it would
 		// not be part of any team yet (team assignment is done when it enrolls
@@ -2414,10 +2414,26 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		err = mdmDevice.Enroll()
 		require.NoError(t, err)
 
-		return h
+		var userEnrollment *fleet.NanoEnrollment
+		if doUserEnroll {
+			// Do a user enrollment with a bit of extra sanity checking
+			userEnrollment, err = s.ds.GetNanoMDMUserEnrollment(ctx, h.UUID)
+			require.NoError(t, err)
+			require.Nil(t, userEnrollment)
+
+			err = mdmDevice.UserEnroll()
+			require.NoError(t, err)
+
+			userEnrollment, err = s.ds.GetNanoMDMUserEnrollment(ctx, h.UUID)
+			require.NoError(t, err)
+			require.NotNil(t, userEnrollment)
+
+		}
+
+		return h, userEnrollment, mdmDevice
 	}
 
-	triggerReconcileProfiles := func() {
+	triggerReconcileProfilesMarkVerifying := func() {
 		s.awaitTriggerProfileSchedule(t)
 		// this will only mark them as "pending", as the response to confirm
 		// profile deployment is asynchronous, so we simulate it here by
@@ -2437,9 +2453,12 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	}
 
 	// add a couple global profiles
+	payloadScopeSystem := fleet.PayloadScopeSystem
+	payloadScopeUser := fleet.PayloadScopeUser
 	globalProfiles := [][]byte{
 		mobileconfigForTest("G1", "G1"),
-		mobileconfigForTest("G2", "G2"),
+		scopedMobileconfigForTest("G2", "G2", &payloadScopeSystem),
+		scopedMobileconfigForTest("G3", "G3.user", &payloadScopeUser),
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
@@ -2458,7 +2477,8 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	require.NoError(t, err)
 	tm1Profiles := [][]byte{
 		mobileconfigForTest("T1.1", "T1.1"),
-		mobileconfigForTest("T1.2", "T1.2"),
+		scopedMobileconfigForTest("T1.2", "T1.2", &payloadScopeSystem),
+		scopedMobileconfigForTest("T1.3", "T1.3.user", &payloadScopeUser),
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm1Profiles}, http.StatusNoContent,
@@ -2482,53 +2502,80 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		"team_id", fmt.Sprint(tm2.ID))
 
 	// enroll a couple hosts in no team
-	h1 := createManualMDMEnrollWithOrbit(globalEnrollSec)
+	h1, h1UserEnrollment, _ := createManualMDMEnrollWithOrbit(globalEnrollSec, true)
 	require.Nil(t, h1.TeamID)
-	h2 := createManualMDMEnrollWithOrbit(globalEnrollSec)
+	h2, _, _ := createManualMDMEnrollWithOrbit(globalEnrollSec, false)
 	require.Nil(t, h2.TeamID)
 	// run the cron
 	s.awaitTriggerProfileSchedule(t)
+
+	// G3 is user-scoped and the h2 host doesn't have a user-channel yet (and
+	// enrolled just now, so the minimum delay to give up and fail the profile
+	// delivery is not reached)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 	})
 
+	// Verify there is a command on the user channel for h1
+	enrollmentIds, err := s.ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	require.NoError(t, err)
+	assert.Contains(t, enrollmentIds, h1UserEnrollment.ID)
+	assert.Contains(t, enrollmentIds, h1.UUID)
+	assert.Contains(t, enrollmentIds, h2.UUID)
+
 	// enroll a couple hosts in team 1
-	h3 := createManualMDMEnrollWithOrbit(tm1EnrollSec)
+	h3, h3UserEnrollment, _ := createManualMDMEnrollWithOrbit(tm1EnrollSec, true)
 	require.NotNil(t, h3.TeamID)
 	require.Equal(t, tm1.ID, *h3.TeamID)
-	h4 := createManualMDMEnrollWithOrbit(tm1EnrollSec)
+	h4, _, h4Device := createManualMDMEnrollWithOrbit(tm1EnrollSec, false)
 	require.NotNil(t, h4.TeamID)
 	require.Equal(t, tm1.ID, *h4.TeamID)
+
 	// run the cron
 	s.awaitTriggerProfileSchedule(t)
+
+	// T1.3 is user-scoped and the h4 host doesn't have a user-channel yet (and
+	// enrolled just now, so the minimum delay to give up and send the
+	// user-scoped profiles to the device channel is not reached)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "T1.3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 		h4: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "T1.3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 	})
 
 	// apply the pending profiles
-	triggerReconcileProfiles()
+	triggerReconcileProfilesMarkVerifying()
+
+	// Verify there is a command on the user channel for h3
+	enrollmentIds, err = s.ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	require.NoError(t, err)
+	assert.Contains(t, enrollmentIds, h3UserEnrollment.ID)
+	assert.Contains(t, enrollmentIds, h3.UUID)
+	assert.Contains(t, enrollmentIds, h4.UUID)
 
 	// switch a no team host (h1) to a team (tm2)
 	var moveHostResp addHostsToTeamResponse
@@ -2538,6 +2585,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h1: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T2.1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2545,6 +2593,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2553,10 +2602,18 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	// switch a team host (h3) to another team (tm2)
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{h3.ID}}, http.StatusOK, &moveHostResp)
+
+	// create the user-enrollment for host h4
+	err = h4Device.UserEnroll()
+	require.NoError(t, err)
+
+	// run the cron
+	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "T1.3.user", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T2.1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2564,6 +2621,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h4: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "T1.3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2576,6 +2634,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "T1.3.user", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T2.1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2583,34 +2642,38 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h4: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "T1.3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending}, // still pending install due to cron not having run
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
 
 	// apply the pending profiles
-	triggerReconcileProfiles()
+	triggerReconcileProfilesMarkVerifying()
 
 	// add a profile to no team (h2 and h4 are now part of no team)
 	body, headers := generateNewProfileMultipartRequest(t,
-		"some_name", mobileconfigForTest("G3", "G3"), s.token, nil)
+		"some_name", mobileconfigForTest("G4", "G4"), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-		h2: {
+		h2: { // still no user channel
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 		h4: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 	})
 
@@ -2634,7 +2697,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	})
 
 	// apply the pending profiles
-	triggerReconcileProfiles()
+	triggerReconcileProfilesMarkVerifying()
 
 	// delete a no team profile
 	noTeamProfs, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
@@ -2654,14 +2717,16 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h4: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2696,17 +2761,18 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	})
 
 	// apply the pending profiles
-	triggerReconcileProfiles()
+	triggerReconcileProfilesMarkVerifying()
 
 	// bulk-set profiles for no team, with add/delete/edit
 	g2Edited := mobileconfigForTest("G2b", "G2b")
-	g4Content := mobileconfigForTest("G4", "G4")
+	g5Content := mobileconfigForTest("G5", "G5")
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{
 			Profiles: [][]byte{
 				g2Edited,
 				// G3 is deleted
-				g4Content,
+				// G4 is deleted
+				g5Content,
 			},
 		}, http.StatusNoContent)
 
@@ -2714,16 +2780,17 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h2: {
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-			{Identifier: "G3", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G4", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h4: {
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-			{Identifier: "G3", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G4", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2757,14 +2824,14 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	})
 
 	// apply the pending profiles
-	triggerReconcileProfiles()
+	triggerReconcileProfilesMarkVerifying()
 
 	// bulk-set profiles for no team and team 2, without changes, and team 1 added (but no host affected)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{
 			Profiles: [][]byte{
 				g2Edited,
-				g4Content,
+				g5Content,
 			},
 		}, http.StatusNoContent)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
@@ -2777,7 +2844,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{
 			Profiles: [][]byte{
-				mobileconfigForTest("T1.3", "T1.3"),
+				scopedMobileconfigForTest("T1.3", "T1.3.user", &payloadScopeUser),
 			},
 		}, http.StatusNoContent, "team_id", fmt.Sprint(tm1.ID))
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
@@ -2789,7 +2856,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		},
 		h2: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2801,7 +2868,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		},
 		h4: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2814,7 +2881,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 			{Identifier: "T2.2b", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T2.3", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2822,38 +2889,38 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 			{Identifier: "T2.2b", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T2.3", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
 
 	// apply the pending profiles
-	triggerReconcileProfiles()
+	triggerReconcileProfilesMarkVerifying()
 
 	// all profiles now verifying
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h2: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h3: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h4: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2866,25 +2933,25 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h2: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h3: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h4: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2938,30 +3005,30 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		},
 	)
 
-	triggerReconcileProfiles()
+	triggerReconcileProfilesMarkVerifying()
 
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "T1.3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "T1.3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "label_prof", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h2: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h3: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h4: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -2975,24 +3042,24 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h1: {
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "T1.3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "T1.3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "label_prof", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
 		},
 		h2: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h3: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 		h4: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
-			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "G5", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
@@ -3281,8 +3348,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// get the existing profiles work
 	expectedProfiles := []fleet.MDMConfigProfilePayload{
-		{ProfileUUID: noTeamAppleProfUUID, Platform: "darwin", Name: "apple-global-profile", Identifier: "test-global-ident", TeamID: nil},
-		{ProfileUUID: teamAppleProfUUID, Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID},
+		{ProfileUUID: noTeamAppleProfUUID, Platform: "darwin", Name: "apple-global-profile", Identifier: "test-global-ident", TeamID: nil, Scope: string(fleet.PayloadScopeSystem)},
+		{ProfileUUID: teamAppleProfUUID, Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID, Scope: string(fleet.PayloadScopeSystem)},
 		{ProfileUUID: noTeamWinProfUUID, Platform: "windows", Name: "win-global-profile", TeamID: nil},
 		{ProfileUUID: teamWinProfUUID, Platform: "windows", Name: "win-team-profile", TeamID: &testTeam.ID},
 		{
@@ -3292,13 +3359,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 			},
 		},
 		{
-			ProfileUUID: uuidAppleWithLabel, Platform: "darwin", Name: "apple-profile-with-labels", Identifier: "ident-with-labels", TeamID: nil,
+			ProfileUUID: uuidAppleWithLabel, Platform: "darwin", Name: "apple-profile-with-labels", Identifier: "ident-with-labels", TeamID: nil, Scope: string(fleet.PayloadScopeSystem),
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
 			},
 		},
 		{
-			ProfileUUID: uuidAppleWithInclAnyLabel, Platform: "darwin", Name: "apple-profile-with-incl-any-labels", Identifier: "ident-with-incl-any-labels", TeamID: nil,
+			ProfileUUID: uuidAppleWithInclAnyLabel, Platform: "darwin", Name: "apple-profile-with-incl-any-labels", Identifier: "ident-with-incl-any-labels", TeamID: nil, Scope: string(fleet.PayloadScopeSystem),
 			LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
 				{LabelID: labelBar.ID, LabelName: labelBar.Name},
 				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
@@ -3558,6 +3625,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Platform:    "darwin",
 		Identifier:  tm2ProfF.Identifier,
 		Checksum:    tm2ProfF.Checksum,
+		Scope:       string(fleet.PayloadScopeSystem),
 		// labels are ordered by name
 		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
@@ -3614,6 +3682,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Platform:    "darwin",
 		Identifier:  tm2ProfF.Identifier,
 		Checksum:    tm2ProfF.Checksum,
+		Scope:       string(fleet.PayloadScopeSystem),
 		// labels are ordered by name
 		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
@@ -6456,4 +6525,483 @@ func forceSetAppleHostDeclarationStatus(t *testing.T, ds *mysql.Datastore, hostU
 			profile.Identifier, hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.DeclarationUUID)
 		return err
 	})
+}
+
+func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	// create a macOS host, will enroll only with device
+	host, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// create some profiles, system- and user-scoped
+	payloadScopeSystem := fleet.PayloadScopeSystem
+	payloadScopeUser := fleet.PayloadScopeUser
+	profiles := []fleet.MDMProfileBatchPayload{
+		{Name: "A1", Contents: scopedMobileconfigForTest("A1", "A1", &payloadScopeSystem)},
+		{Name: "A2", Contents: scopedMobileconfigForTest("A2", "A2.user", &payloadScopeUser)},
+		{Name: "A3", Contents: scopedMobileconfigForTest("A3", "A3.user", &payloadScopeUser)},
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, http.StatusNoContent)
+
+	// ensure we are at least 1s after the profiles uploaded-at timestamp
+	time.Sleep(time.Second)
+
+	// list the profiles to get the UUIDs
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp)
+	profNameToPayload := make(map[string]*fleet.MDMConfigProfilePayload)
+	for _, prof := range listResp.Profiles {
+		if len(prof.Checksum) == 0 {
+			// not important, but must not be empty or it causes issues when forcing a status
+			prof.Checksum = []byte("checksum")
+		}
+		profNameToPayload[prof.Name] = prof
+		t.Logf("profile %s: %s", prof.Name, prof.ProfileUUID)
+	}
+
+	type hostProfile struct {
+		ProfileUUID       string  `db:"profile_uuid"`
+		ProfileIdentifier string  `db:"profile_identifier"`
+		ProfileName       string  `db:"profile_name"`
+		Status            *string `db:"status"`
+		OperationType     *string `db:"operation_type"`
+		Retries           int     `db:"retries"`
+		Scope             string  `db:"scope"`
+	}
+	assertHostProfiles := func(want []hostProfile) {
+		var got []hostProfile
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			// for the purpose of this test, we ignore the Fleet-internal profiles
+			// (we only care about the custom profiles)
+			return sqlx.SelectContext(t.Context(), q, &got, `
+				SELECT profile_uuid, profile_identifier, profile_name, status, operation_type, retries, scope
+				FROM host_mdm_apple_profiles
+				WHERE host_uuid = ? AND profile_identifier NOT IN (?, ?)`,
+				host.UUID, mobileconfig.FleetdConfigPayloadIdentifier, mobileconfig.FleetCARootConfigPayloadIdentifier)
+		})
+		require.ElementsMatch(t, want, got)
+	}
+
+	forceProfileUploadeddAtTimestamp := func(ident string, ts time.Time) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles
+				SET uploaded_at = ? WHERE identifier = ?`, ts, ident)
+			return err
+		})
+	}
+
+	// cron job hasn't run yet, so no profile exist for the host
+	assertHostProfiles([]hostProfile{})
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	// user-scoped profiles show up as status nil (no user-enrollment yet)
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+	})
+
+	// verify the profiles, only the system one is reported as installed
+	host.DetailUpdatedAt = time.Now().UTC()
+	err := s.ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, host, map[string]*fleet.HostMacOSProfile{
+		profNameToPayload["A1"].Identifier: {
+			DisplayName: profNameToPayload["A1"].Name,
+			Identifier:  profNameToPayload["A1"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+	})
+	require.NoError(t, err)
+
+	// user-scoped profiles were left untouched
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+	})
+
+	// create the user-enrollment
+	err = device.UserEnroll()
+	require.NoError(t, err)
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	// user-scoped profiles have been added as pending (not nil)
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+	})
+
+	// verify the profiles, A3 is missing but still within the grace period
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, host, map[string]*fleet.HostMacOSProfile{
+		profNameToPayload["A1"].Identifier: {
+			DisplayName: profNameToPayload["A1"].Name,
+			Identifier:  profNameToPayload["A1"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+		profNameToPayload["A2"].Identifier: {
+			DisplayName: profNameToPayload["A2"].Name,
+			Identifier:  profNameToPayload["A2"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+	})
+	require.NoError(t, err)
+
+	// A2 is now verified, A3 is still pending
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+	})
+
+	// rewind the uploaded_at timestamp of A3 so it is not in the grace period
+	forceProfileUploadeddAtTimestamp(profNameToPayload["A3"].Identifier, time.Now().Add(-24*time.Hour))
+
+	// report as still missing
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, host, map[string]*fleet.HostMacOSProfile{
+		profNameToPayload["A1"].Identifier: {
+			DisplayName: profNameToPayload["A1"].Name,
+			Identifier:  profNameToPayload["A1"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+		profNameToPayload["A2"].Identifier: {
+			DisplayName: profNameToPayload["A2"].Name,
+			Identifier:  profNameToPayload["A2"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+	})
+	require.NoError(t, err)
+
+	// A3 is now missing and retries
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           1,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+	})
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// force-set it to Verifying so that by being missing again it goes to failed
+	// (it doesn't go to failed if it is pending)
+	forceSetAppleHostProfileStatus(t, s.ds, host.UUID,
+		test.ToMDMAppleConfigProfile(profNameToPayload["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, host, map[string]*fleet.HostMacOSProfile{
+		profNameToPayload["A1"].Identifier: {
+			DisplayName: profNameToPayload["A1"].Name,
+			Identifier:  profNameToPayload["A1"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+		profNameToPayload["A2"].Identifier: {
+			DisplayName: profNameToPayload["A2"].Name,
+			Identifier:  profNameToPayload["A2"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+	})
+	require.NoError(t, err)
+
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryFailed)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           1,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+	})
+}
+
+func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
+	t := s.T()
+	ctx := context.Background()
+
+	// add a couple global profiles
+	payloadScopeSystem := fleet.PayloadScopeSystem
+	payloadScopeUser := fleet.PayloadScopeUser
+	globalProfiles := [][]byte{
+		mobileconfigForTest("G1", "G1"),
+		scopedMobileconfigForTest("G2", "G2", &payloadScopeSystem),
+		scopedMobileconfigForTest("G3", "G3.user", &payloadScopeUser),
+		scopedMobileconfigForTest("G4", "G4.user-but-actually-system", &payloadScopeUser),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+
+	// Create a profile with a scope that is System in the DB but User in the XML. This mimics
+	// our upgrade behavior from versions prior to 4.71 to 4.71+ when we added support for User
+	// scoped profiles
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE mdm_apple_configuration_profiles SET scope=? WHERE identifier=?;`
+		_, err := q.ExecContext(context.Background(), stmt, fleet.PayloadScopeSystem, "G4.user-but-actually-system")
+		return err
+	})
+
+	// create a team with a couple profiles
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team_profile_scope_changes_1"})
+	require.NoError(t, err)
+	tm1Profiles := [][]byte{
+		mobileconfigForTest("T1.1", "T1.1"),
+		scopedMobileconfigForTest("T1.2", "T1.2", &payloadScopeSystem),
+		scopedMobileconfigForTest("T1.3", "T1.3.user", &payloadScopeUser),
+	}
+
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: tm1Profiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm1.ID))
+
+	// create a second team with different profiles
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team_profile_scope_changes_2"})
+	require.NoError(t, err)
+	tm2Profiles := [][]byte{
+		mobileconfigForTest("T2.1", "T2.1"),
+		scopedMobileconfigForTest("T2.2", "T2.2.user", &payloadScopeSystem),
+		scopedMobileconfigForTest("T2.3", "T2.3.user", &payloadScopeUser),
+	}
+
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: tm2Profiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm2.ID))
+
+	// Do a no-op update of each team's profiles, verify no errors are returned
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: tm1Profiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm1.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: tm2Profiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm2.ID))
+
+	// Test a modification of an existing global profile with an implicit scope change
+	newGlobalProfiles := [][]byte{
+		globalProfiles[0],
+		globalProfiles[1],
+		globalProfiles[2],
+		scopedMobileconfigForTest("G4-bozo", "G4.user-but-actually-system", &payloadScopeUser),
+	}
+	response := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: newGlobalProfiles}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(response.Body)
+	require.Contains(t, errMsg, "Couldn't edit configuration profile (G4.user-but-actually-system) because it was previously delivered to some hosts on the device channel")
+
+	// Test a conflict of a profile on a team with an existing global profile and an implicit scope change
+	// Should error because "G4.user-but-actually-system" conflicts with global
+	// "G4.user-but-actually-system" profile scope
+	newTm1Profiles := [][]byte{
+		tm1Profiles[0], // T1.1
+		tm1Profiles[1], // T1.2
+		tm1Profiles[2], // T1.3.user
+		scopedMobileconfigForTest("G4-bozo", "G4.user-but-actually-system", &payloadScopeUser),
+	}
+	response = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusBadRequest,
+		"team_id", fmt.Sprint(tm1.ID))
+
+	errMsg = extractServerErrorText(response.Body)
+	require.Contains(t, errMsg, "Couldn't add configuration profile (G4.user-but-actually-system) because \"PayloadScope\" conflicts")
+
+	// Test a conflict of a profile on a team with an existing global profile
+	// Should error because "G2" conflicts with global "G2" profile
+	newTm1Profiles = [][]byte{
+		tm1Profiles[0], // T1.1
+		tm1Profiles[1], // T1.2
+		tm1Profiles[2], // T1.3.user
+		scopedMobileconfigForTest("G2", "G2", &payloadScopeUser),
+	}
+	response = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusBadRequest,
+		"team_id", fmt.Sprint(tm1.ID))
+
+	errMsg = extractServerErrorText(response.Body)
+	require.Contains(t, errMsg, "Couldn't add configuration profile (G2) because \"PayloadScope\" conflicts")
+
+	// Test a conflict of a profile on a team versus one with the same identifier but different
+	// scope on a different team.
+	// Should error because "T2.3.user" system-scoped profile conflicts with team2 "T2.3.user" user-scoped profile
+	newTm1Profiles = [][]byte{
+		tm1Profiles[0], // T1.1
+		tm1Profiles[1], // T1.2
+		tm1Profiles[2], // T1.3.user
+		scopedMobileconfigForTest("T2.3", "T2.3.user", &payloadScopeSystem), // T2.3.user changed to system scope
+	}
+	response = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusBadRequest,
+		"team_id", fmt.Sprint(tm1.ID))
+
+	errMsg = extractServerErrorText(response.Body)
+	require.Contains(t, errMsg, "Couldn't add configuration profile (T2.3.user) because \"PayloadScope\" conflicts")
+
+	// Profile edit of existing profile on team1 with a new scope
+	newTm1Profiles = [][]byte{
+		tm1Profiles[0], // T1.1
+		tm1Profiles[1], // T1.2
+		scopedMobileconfigForTest("T1.3", "T1.3.user", &payloadScopeSystem), // T1.3.user changed to system scope
+	}
+	response = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusBadRequest,
+		"team_id", fmt.Sprint(tm1.ID))
+
+	errMsg = extractServerErrorText(response.Body)
+	require.Contains(t, errMsg, "Couldn't edit configuration profile (T1.3.user) because the profile's \"PayloadScope\" has changed")
+
+	// Should be able to add these profiles to team1 with the proper scopes
+	newTm1Profiles = [][]byte{
+		tm1Profiles[0], // T1.1
+		tm1Profiles[1], // T1.2
+		tm1Profiles[2], // T1.3.user
+		scopedMobileconfigForTest("G2", "G2", &payloadScopeSystem),
+		scopedMobileconfigForTest("T2.3", "T2.3.user", &payloadScopeUser), // T2.3.user changed to system scope
+	}
+
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusNoContent,
+		"team_id", fmt.Sprint(tm1.ID))
 }

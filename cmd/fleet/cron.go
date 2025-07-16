@@ -706,11 +706,16 @@ func newWorkerIntegrationsSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 	}
+	vppVerify := &worker.AppleSoftware{
+		Datastore: ds,
+		Log:       logger,
+		Commander: commander,
+	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,
 		Log:       logger,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate)
+	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -1419,6 +1424,57 @@ func cronActivitiesStreaming(
 	}
 }
 
+func newHostVitalsLabelMembershipSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name     = string(fleet.CronHostVitalsLabelMembership)
+		interval = 5 * time.Minute
+	)
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob(
+			"cron_host_vitals_label_membership",
+			func(ctx context.Context) error {
+				return cronHostVitalsLabelMembership(ctx, ds)
+			},
+		),
+	)
+	return s, nil
+}
+
+func cronHostVitalsLabelMembership(
+	ctx context.Context,
+	ds fleet.Datastore,
+) error {
+	// Get all labels. We don't have a function for labels by membership type
+	// so we'll filter them later.
+	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
+		PerPage: 0, // No limit.
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list labels")
+	}
+	// Iterate over all labels.
+	for _, label := range labels {
+		// Skip ones that aren't host vitals labels.
+		if label.LabelMembershipType != fleet.LabelMembershipTypeHostVitals {
+			continue
+		}
+		// Update membership for the label.
+		_, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "update label membership for label %d (%s)", label.ID, label.Name)
+		}
+	}
+	return nil
+}
+
 func stringSliceToUintSlice(s []string, logger kitlog.Logger) []uint {
 	result := make([]uint, 0, len(s))
 	for _, v := range s {
@@ -1493,7 +1549,7 @@ func newMaintainedAppSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMaintainedApps)
-		defaultInterval = 24 * time.Hour
+		defaultInterval = 1 * time.Hour
 		priorJobDiff    = -(defaultInterval - 30*time.Second)
 	)
 

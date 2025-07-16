@@ -1,16 +1,18 @@
-import React from "react";
+import React, { useContext } from "react";
 import { useQuery } from "react-query";
 
 import idpAPI from "services/entities/idp";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { internationalTimeFormat } from "utilities/helpers";
 import { dateAgo } from "utilities/date_format";
+import { AppContext } from "context/app";
 
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import SectionCard from "../MdmSettings/components/SectionCard";
 
@@ -37,13 +39,13 @@ const AddEndUserInfoCard = () => {
   );
 };
 
-interface IRecievedEndUserInfoCardProps {
-  recievedAt: string;
+interface IReceivedEndUserInfoCardProps {
+  receivedAt: string;
 }
 
-const RecievedEndUserInfoCard = ({
-  recievedAt,
-}: IRecievedEndUserInfoCardProps) => {
+const ReceivedEndUserInfoCard = ({
+  receivedAt,
+}: IReceivedEndUserInfoCardProps) => {
   return (
     <SectionCard
       iconName="success"
@@ -61,11 +63,11 @@ const RecievedEndUserInfoCard = ({
         <TooltipWrapper
           showArrow
           position="top"
-          tipContent={internationalTimeFormat(new Date(recievedAt))}
+          tipContent={internationalTimeFormat(new Date(receivedAt))}
           underline={false}
-          className={`${baseClass}__recieved-tooltip`}
+          className={`${baseClass}__received-tooltip`}
         >
-          ({dateAgo(recievedAt)})
+          ({dateAgo(receivedAt)})
         </TooltipWrapper>
         .
       </p>
@@ -100,7 +102,7 @@ const FailedEndUserInfoCard = ({
           position="top"
           tipContent={`Error: ${details}`}
           underline={false}
-          className={`${baseClass}__recieved-tooltip`}
+          className={`${baseClass}__received-tooltip`}
         >
           Failed to receive end user information from your IdP (
           {dateAgo(receivedAt)}).
@@ -111,15 +113,22 @@ const FailedEndUserInfoCard = ({
 };
 
 const IdentityProviders = () => {
-  const { data, isLoading, isError } = useQuery(
+  const { isPremiumTier } = useContext(AppContext);
+
+  const { data: scimIdPDetails, isLoading, isError } = useQuery(
     ["scim_details"],
     () => idpAPI.getSCIMDetails(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
     }
   );
 
   const renderContent = () => {
+    if (!isPremiumTier) {
+      return <PremiumFeatureMessage />;
+    }
+
     if (isError) {
       return <DataError />;
     }
@@ -128,19 +137,21 @@ const IdentityProviders = () => {
       return <Spinner />;
     }
 
-    if (!data) return null;
+    if (!scimIdPDetails) return null;
 
-    if (data.last_request === null) {
+    if (scimIdPDetails.last_request === null) {
       return <AddEndUserInfoCard />;
-    } else if (data.last_request.status === "success") {
+    } else if (scimIdPDetails.last_request.status === "success") {
       return (
-        <RecievedEndUserInfoCard recievedAt={data.last_request.requested_at} />
+        <ReceivedEndUserInfoCard
+          receivedAt={scimIdPDetails.last_request.requested_at}
+        />
       );
-    } else if (data.last_request.status === "error") {
+    } else if (scimIdPDetails.last_request.status === "error") {
       return (
         <FailedEndUserInfoCard
-          receivedAt={data.last_request.requested_at}
-          details={data.last_request.details}
+          receivedAt={scimIdPDetails.last_request.requested_at}
+          details={scimIdPDetails.last_request.details}
         />
       );
     }
