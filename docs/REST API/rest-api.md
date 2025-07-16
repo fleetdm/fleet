@@ -564,6 +564,11 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ---
 
+## Certificates
+
+
+---
+
 ## File carving
 
 - [List carves](#list-carves)
