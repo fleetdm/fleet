@@ -2496,10 +2496,12 @@ parasails.registerPage('configuration-builder', {
           value = this.configurationBuilderFormData[payload.uniqueSlug+'-value'];
           // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
           if(payload.formInput.type === 'boolean'){
-            if(value) {
-              value = payload.formOutput.trueValue;
-            } else {
-              value = payload.formOutput.falseValue;
+            if(payload.formOutput.trueValue){
+              if(value) {
+                value = payload.formOutput.trueValue;
+              } else {
+                value = payload.formOutput.falseValue;
+              }
             }
           }
         }
