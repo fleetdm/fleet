@@ -19,8 +19,8 @@ resource "aws_ecs_task_definition" "loadtest" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = 2048
+  memory                   = 4096
   container_definitions = jsonencode(
     [
       {
@@ -55,7 +55,8 @@ resource "aws_ecs_task_definition" "loadtest" {
           "-server_url", "http://${aws_lb.internal.dns_name}",
           "--policy_pass_prob", "0.5",
           "--start_period", "5m",
-          "--orbit_prob", "0.0"
+          "--orbit_prob", "1",
+          "--os_templates", "macos_14.1.2:300,windows_11:100,ubuntu_22.04:100"
         ]
       }
   ])
