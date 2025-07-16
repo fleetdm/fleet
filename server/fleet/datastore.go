@@ -1908,7 +1908,7 @@ type Datastore interface {
 
 	// UpdateInstallerUpgradeCode updates the software installer corresponding to the id. Used to add upgrade codes.
 	UpdateInstallerUpgradeCode(ctx context.Context, id uint, upgradeCode string) error
-	
+
 	// ProcessInstallerUpdateSideEffects handles, in a transaction, the following based on whether metadata
 	// or package are dirty:
 	// 1. If metadata or package were updated, removes host_software_installer and queued script records for

@@ -233,7 +233,7 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 	// If $UPGRADE_CODE is in the script and we have one, replace it; if the var is included but we don't have one, error
 	if upgradeCodeRegex.MatchString(payload.UninstallScript) {
 		if payload.UpgradeCode == "" {
-			return fmt.Errorf("blank upgrade code when required in script")
+			return errors.New("blank upgrade code when required in script")
 		}
 
 		payload.UninstallScript = upgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", payload.UpgradeCode))
@@ -2033,7 +2033,7 @@ func (svc *Service) softwareBatchUpload(
 
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 			if err := preProcessUninstallScript(installer); err != nil {
-				return fmt.Errorf("$UPGRADE_CODE variable was used but package does not have an UpgradeCode")
+				return errors.New("$UPGRADE_CODE variable was used but package does not have an UpgradeCode")
 			}
 
 			// if filename was empty, try to extract it from the URL with the
