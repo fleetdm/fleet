@@ -343,7 +343,9 @@ const HostSoftware = ({
 
   return (
     <div className={baseClass}>
-      <CardHeader subheader="Software installed on this host" />
+      {!isAndroid(platform) && (
+        <CardHeader subheader="Software installed on this host" />
+      )}
       {renderHostSoftware()}
     </div>
   );
