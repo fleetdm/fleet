@@ -68,12 +68,29 @@ const FleetAppDetailsModal = ({
     return false;
   };
 
+  let versionElement = <>version</>;
+  if (version === "latest") {
+    versionElement = (
+      <TooltipWrapper
+        tipContent={
+          <>
+            To preview the version download
+            <br />
+            {name} using the URL below.
+          </>
+        }
+      >
+        Latest
+      </TooltipWrapper>
+    );
+  }
+
   return (
     <Modal className={baseClass} title="Software details" onExit={onCancel}>
       <>
         <div className={`${baseClass}__modal-content`}>
           <DataSet title="Name" value={name} />
-          <DataSet title="Version" value={version} />
+          <DataSet title="Version" value={versionElement} />
           {slug && (
             <DataSet
               title={

@@ -37,6 +37,7 @@ import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
 import FleetAppDetailsModal from "./FleetAppDetailsModal";
 
 import { getErrorMessage } from "./helpers";
+import TooltipWrapper from "../../../../../components/TooltipWrapper";
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
 const REQUEST_TIMEOUT_ERROR_MESSAGE =
@@ -57,6 +58,24 @@ const FleetAppSummary = ({
   version,
   onClickShowAppDetails,
 }: IFleetAppSummaryProps) => {
+  let versionElement = <>version</>;
+
+  if (version === "latest") {
+    versionElement = (
+      <TooltipWrapper
+        tipContent={
+          <>
+            To preview the version select <b>Show details</b>
+            <br />
+            and download {name} using the URL.
+          </>
+        }
+      >
+        Latest
+      </TooltipWrapper>
+    );
+  }
+
   return (
     <Card
       className={`${baseClass}__fleet-app-summary`}
@@ -77,7 +96,7 @@ const FleetAppSummary = ({
             <div
               className={`${baseClass}__fleet-app-summary--details--version`}
             >
-              {version}
+              {versionElement}
             </div>
           </div>
         </div>
