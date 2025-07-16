@@ -250,7 +250,8 @@ WHERE
 	case len(appleUUIDs) > 0 && len(winUUIDs) > 0:
 		listStmt = fmt.Sprintf(`SELECT * FROM ((%s) UNION ALL (%s)) u`,
 			appleStmt, winStmt)
-		params = append(appleParams, winParams...)
+		params = append(params, appleParams...)
+		params = append(params, winParams...)
 	case len(appleUUIDs) > 0:
 		listStmt = appleStmt
 		params = appleParams
