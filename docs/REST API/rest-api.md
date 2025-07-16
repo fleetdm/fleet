@@ -726,9 +726,9 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
 {
   "certificate_authorities": [
     {
-      "id": 1,
-      "name": "NDES_VPN",
-      "type": "ndes_scep_proxy"
+      "id": 3,
+      "name": "DIGICERT_PROD",
+      "type": "digicert"
     },
     {
       "id": 2,
@@ -736,19 +736,19 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
       "type": "digicert"
     },
     {
-      "id": 3,
-      "name": "DIGICERT_PROD",
-      "type": "digicert"
+      "id": 5,
+      "name": "HYDRANT_WIFI_STAGE",
+      "type": "hydrant"
+    },
+    {
+      "id": 1,
+      "name": "NDES_VPN",
+      "type": "ndes_scep_proxy"
     },
     {
       "id": 4,
       "name": "SCEP_CERTIFICATE_PROD",
       "type": "custom_scep_proxy"
-    },
-    {
-      "id": 5,
-      "name": "HYDRANT_WIFI_STAGE",
-      "type": "hydrant"
     }
   ]
 }
