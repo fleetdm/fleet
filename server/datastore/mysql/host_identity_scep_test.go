@@ -47,7 +47,7 @@ func insertTestCertificate(t *testing.T, ds *Datastore, serial uint64, hostID *u
 	require.NoError(t, err)
 
 	template := x509.Certificate{
-		SerialNumber: big.NewInt(int64(serial)),
+		SerialNumber: big.NewInt(int64(serial)), // nolint:gosec // ignore integer overflow
 		Subject: pkix.Name{
 			CommonName: name,
 		},
