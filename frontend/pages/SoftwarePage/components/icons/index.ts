@@ -37,6 +37,7 @@ import Postman from "./Postman";
 import OnePassword from "./OnePassword";
 import AmazonDCV from "./AmazonDCV";
 import Santa from "./Santa";
+import YubikeyManager from "./YubikeyManager";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -81,6 +82,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "1password": OnePassword,
   "amazon dcv": AmazonDCV,
   santa: Santa,
+  "yubikey manager": YubikeyManager,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
