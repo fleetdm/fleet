@@ -19,43 +19,51 @@ fix_import_spacing() {
   ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
 }
 
-if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 /path/to/App.app"
+# Defaults
+SLUG=""
+APP_PATH=""
+
+# Parse required arguments
+while getopts ":s:a:" opt; do
+  case "$opt" in
+    s) SLUG=$(echo "$OPTARG" | cut -d'/' -f1) ;;
+    a) APP_PATH="$OPTARG" ;;
+    \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
+    :) echo "Option -$OPTARG requires an argument." >&2; exit 1 ;;
+  esac
+done
+
+# Validate
+if [[ -z "$SLUG" || -z "$APP_PATH" ]]; then
+  echo "Usage: $0 -s slug-name -a /path/to/App.app"
   exit 1
 fi
-
-APP_PATH="$1"
 
 # Find the first .icns file in the app bundle
 ICNS_PATH=$(find "$APP_PATH/Contents/Resources" -maxdepth 1 -name "*.icns" | head -n 1 || true)
-
 if [[ ! -f "$ICNS_PATH" ]]; then
-  echo "Error: .icns file not found at $ICNS_PATH"
+  echo "Error: .icns file not found in $APP_PATH"
   exit 1
 fi
 
+# Extract iconset
 TMP_DIR=$(mktemp -d)
-echo "Extracting icons to: $TMP_DIR"
-
-# Convert .icns to iconset (PNG files in multiple sizes)
 ICON_DIR="$TMP_DIR/icons.iconset"
 mkdir -p "$ICON_DIR"
 iconutil -c iconset "$ICNS_PATH" -o "$ICON_DIR"
 
 # Find the 128x128 PNG
-ICON_32=$(find "$ICON_DIR" -name "*128x128*.png" | head -n 1)
-if [[ -z "$ICON_32" ]]; then
+ICON_128=$(find "$ICON_DIR" -name "*128x128.png" | head -n 1)
+if [[ -z "$ICON_128" ]]; then
   echo "Error: 128x128 icon not found."
   exit 1
 fi
-echo "Using 128x128 icon: $ICON_32"
+echo "Using icon for SVG and PNG: $ICON_128"
 
-# Fixed width and height
+# Generate SVG from 128 PNG
 WIDTH=32
 HEIGHT=32
-
-# Encode PNG to base64 and wrap it in an SVG
-BASE64_DATA=$(base64 -i "$ICON_32" | tr -d '\n')
+BASE64_DATA=$(base64 -i "$ICON_128" | tr -d '\n')
 OUTPUT_SVG="$TMP_DIR/$(basename "$APP_PATH" .app).svg"
 
 cat > "$OUTPUT_SVG" <<EOF
@@ -66,29 +74,36 @@ EOF
 
 echo "SVG saved to: $OUTPUT_SVG"
 
+# Generate TSX component
 svgr "$OUTPUT_SVG" --typescript --ext tsx --out-dir frontend/pages/SoftwarePage/components/icons/
 
-# Extract the base name without .app and with PascalCase for component name
+# Determine component and file names
 APP_NAME=$(basename "$APP_PATH" .app)
-COMPONENT_NAME="${APP_NAME//[^a-zA-Z0-9]/}"  # Optional cleanup if needed
+COMPONENT_NAME="${APP_NAME//[^a-zA-Z0-9]/}"
 TSX_FILE="frontend/pages/SoftwarePage/components/icons/${COMPONENT_NAME}.tsx"
 
 echo "Component name: $COMPONENT_NAME"
 
-# Fix import spacing in the generated TSX file
-# 1. Add blank line before `import type`
-# 2. Add blank line after `import type`
+# Fix import spacing
 fix_import_spacing "$TSX_FILE"
 
-# Dynamically find the actual component name in the TSX file (e.g., SvgITerm)
+# Adjust component name (remove Svg prefix)
 SVG_COMPONENT_NAME=$(grep -oE '^const Svg[A-Za-z0-9_]+' "$TSX_FILE" | awk '{print $2}')
 if [[ -z "$SVG_COMPONENT_NAME" ]]; then
   echo "Error: could not find Svg component name in $TSX_FILE"
   exit 1
 fi
 
-# Strip the 'Svg' prefix (e.g., SvgITerm -> ITerm)
 NEW_COMPONENT_NAME="${SVG_COMPONENT_NAME#Svg}"
-
-# Replace all occurrences in the file
 sed -i '' "s/$SVG_COMPONENT_NAME/$NEW_COMPONENT_NAME/g" "$TSX_FILE"
+
+######################################
+# Copy 128x128 PNG to asset location #
+######################################
+
+OUTPUT_IMAGE_DIR="website/assets/images"
+OUTPUT_PNG="$OUTPUT_IMAGE_DIR/app-icon-${SLUG}-60x60@2x.png"
+mkdir -p "$OUTPUT_IMAGE_DIR"
+cp "$ICON_128" "$OUTPUT_PNG"
+
+echo "Copied 128x128 PNG to: $OUTPUT_PNG"
