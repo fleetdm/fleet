@@ -4,5 +4,5 @@
   "token": "dcv-viewer",
   "installer_format": "dmg",
   "slug": "dcv-viewer/darwin",
-  "default_categories": ["Something invalid"]
+  "default_categories": ["Communication"]
 }
