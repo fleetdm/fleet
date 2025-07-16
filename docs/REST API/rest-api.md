@@ -3051,7 +3051,8 @@ Returns the information of the specified host.
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
-          "scioe": "device",
+          "scope": "device",
+          "users": [],
           "detail": ""
         }
       ]
