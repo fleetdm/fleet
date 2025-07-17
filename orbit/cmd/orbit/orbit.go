@@ -322,6 +322,10 @@ func main() {
 			return errors.New("insecure and update-tls-certificate may not be specified together")
 		}
 
+		if c.Bool("insecure") && c.String("fleet-managed-client-certificate") != "" {
+			return errors.New("insecure and fleet-managed-client-certificate may not be specified together")
+		}
+
 		if odb := c.String("osquery-db"); odb != "" && !filepath.IsAbs(odb) {
 			return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
 		}
@@ -1030,7 +1034,7 @@ func main() {
 			}
 
 			// TODO(lucas): Move this into its own package/function
-			proxy, err := httpsigproxy.NewProxy(fleetURL, signer)
+			proxy, err := httpsigproxy.NewProxy(fleetURL, c.String("fleet-certificate"), signer)
 			if err != nil {
 				return fmt.Errorf("create TLS proxy: %w", err)
 			}

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/remitly-oss/httpsig-go"
 )
@@ -65,7 +66,7 @@ type Proxy struct {
 }
 
 // NewProxy creates a new proxy implementation targeting the provided hostname.
-func NewProxy(targetURL string, rootCA string, insecure bool, signer *httpsig.Signer) (*Proxy, error) {
+func NewProxy(targetURL string, rootCA string, signer *httpsig.Signer) (*Proxy, error) {
 	cert, err := tls.X509KeyPair([]byte(ServerCert), []byte(serverKey))
 	if err != nil {
 		return nil, fmt.Errorf("load keypair: %w", err)
@@ -86,7 +87,7 @@ func NewProxy(targetURL string, rootCA string, insecure bool, signer *httpsig.Si
 		return nil, errors.New("listener is not *net.TCPAddr")
 	}
 
-	handler, err := newProxyHandler(targetURL, signer)
+	handler, err := newProxyHandler(targetURL, rootCA, signer)
 	if err != nil {
 		return nil, fmt.Errorf("make proxy handler: %w", err)
 	}
@@ -117,10 +118,19 @@ func (p *Proxy) Close() error {
 	return p.server.Shutdown(ctx)
 }
 
-func newProxyHandler(targetURL string, signer *httpsig.Signer) (*httputil.ReverseProxy, error) {
+func newProxyHandler(targetURL string, rootCA string, signer *httpsig.Signer) (*httputil.ReverseProxy, error) {
 	target, err := url.Parse(targetURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse target url: %w", err)
+	}
+
+	transport := fleethttp.NewTransport()
+	if rootCA != "" {
+		rootCAs, err := certificate.LoadPEM(rootCA)
+		if err != nil {
+			return nil, fmt.Errorf("loading server root CA: %w", err)
+		}
+		transport.TLSClientConfig.RootCAs = rootCAs
 	}
 
 	reverseProxy := &httputil.ReverseProxy{
@@ -132,7 +142,7 @@ func newProxyHandler(targetURL string, signer *httpsig.Signer) (*httputil.Revers
 		},
 		Transport: &signingRoundTripper{
 			signer:    signer,
-			transport: fleethttp.NewTransport(),
+			transport: transport,
 		},
 	}
 	return reverseProxy, nil
