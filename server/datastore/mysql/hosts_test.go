@@ -7498,6 +7498,19 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName")
 	require.NoError(t, err)
 
+	// Insert into host_identity_scep_certificates table
+	// First, create a serial number
+	result, err := ds.writer(context.Background()).Exec(`INSERT INTO host_identity_scep_serials () VALUES ()`)
+	require.NoError(t, err)
+	certSerial, err := result.LastInsertId()
+	require.NoError(t, err)
+	// Then create the certificate with all required fields
+	_, err = ds.writer(context.Background()).Exec(`
+		INSERT INTO host_identity_scep_certificates (serial, host_id, name, not_valid_before, not_valid_after, certificate_pem, public_key_raw)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, certSerial, host.ID, "test-host", time.Now().Add(-1*time.Hour), time.Now().Add(24*time.Hour), "-----BEGIN CERTIFICATE-----", []byte{0x04})
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
