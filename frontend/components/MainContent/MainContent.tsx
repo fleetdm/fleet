@@ -17,12 +17,11 @@ export interface IMainContentConfig {
 }
 
 interface IMainContentProps {
-  children?: ReactNode;
+  children: ReactNode | ((mainContentConfig: IMainContentConfig) => ReactNode);
   /** An optional classname to pass to the main content component.
    * This can be used to apply styles directly onto the main content div
    */
   className?: string;
-  renderChildren?: (mainContentConfig: IMainContentConfig) => ReactNode;
 }
 
 const baseClass = "main-content";
@@ -34,7 +33,6 @@ const baseClass = "main-content";
 const MainContent = ({
   children,
   className,
-  renderChildren,
 }: IMainContentProps): JSX.Element => {
   const classes = classnames(baseClass, className);
   const {
@@ -95,7 +93,7 @@ const MainContent = ({
   return (
     <div className={classes}>
       {appWideBanner}
-      {renderChildren ? renderChildren(mainContentConfig) : children}
+      {typeof children === "function" ? children(mainContentConfig) : children}
     </div>
   );
 };

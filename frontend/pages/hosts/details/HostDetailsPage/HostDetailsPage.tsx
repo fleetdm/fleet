@@ -1406,7 +1406,7 @@ const HostDetailsPage = ({
     );
   };
 
-  return <MainContent className={baseClass} renderChildren={renderContent} />;
+  return <MainContent className={baseClass}>{renderContent}</MainContent>;
 };
 
 export default HostDetailsPage;
