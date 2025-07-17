@@ -16,7 +16,6 @@ jest.mock("lodash", () => ({
   uniqueId: jest.fn(() => "test-tooltip-id"),
 }));
 
-const testSoftware = createMockHostSoftware();
 const testSoftwarePackage = createMockHostSoftwarePackage();
 
 describe("InstallStatusCell - component", () => {
@@ -38,6 +37,36 @@ describe("InstallStatusCell - component", () => {
     expect(screen.getByText("Installed")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Installed"));
+
+    // There SHOULD be a button with this label
+    expect(
+      screen.queryByRole("button", { name: /installed/i })
+    ).toBeInTheDocument();
+  });
+
+  it("renders non-interactive 'Installed' status (no button) if not installed via Fleet", () => {
+    renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "installed",
+            software_package: createMockHostSoftwarePackage({
+              last_install: null,
+            }),
+          }),
+          ui_status: "installed",
+        }}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
+      />
+    );
+
+    expect(screen.getByText("Installed")).toBeInTheDocument();
+
+    // There should NOT be a button with this label
+    expect(
+      screen.queryByRole("button", { name: /installed/i })
+    ).not.toBeInTheDocument();
   });
 
   it("renders 'Installing...' status with tooltip", async () => {
@@ -57,6 +86,7 @@ describe("InstallStatusCell - component", () => {
     );
 
     expect(screen.getByText("Installing...")).toBeInTheDocument();
+    expect(screen.getByTestId("spinner")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Installing..."));
     expect(
@@ -104,6 +134,7 @@ describe("InstallStatusCell - component", () => {
     );
 
     expect(screen.getByText("Uninstalling...")).toBeInTheDocument();
+    expect(screen.getByTestId("spinner")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Uninstalling..."));
     expect(
@@ -176,6 +207,63 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByText(/Software failed to uninstall/i)
     ).toBeInTheDocument();
+  });
+
+  it("renders 'Update available' for failed_install_update_available", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "failed_install_update_available",
+        }}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
+      />
+    );
+    expect(screen.getByText("Update available")).toBeInTheDocument();
+    await user.hover(screen.getByText("Update available"));
+    expect(screen.getByText(/Fleet can update software/i)).toBeInTheDocument();
+  });
+
+  it("renders 'Update available' for failed_uninstall_update_available", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_uninstall",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "failed_uninstall_update_available",
+        }}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
+      />
+    );
+    expect(screen.getByText("Update available")).toBeInTheDocument();
+    await user.hover(screen.getByText("Update available"));
+    expect(screen.getByText(/Fleet can update software/i)).toBeInTheDocument();
+  });
+
+  it("renders 'Update available' for status null but update_available", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "update_available",
+        }}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
+      />
+    );
+    expect(screen.getByText("Update available")).toBeInTheDocument();
+    await user.hover(screen.getByText("Update available"));
+    expect(screen.getByText(/Fleet can update software/i)).toBeInTheDocument();
   });
 
   it("renders '---' for package available for install", async () => {

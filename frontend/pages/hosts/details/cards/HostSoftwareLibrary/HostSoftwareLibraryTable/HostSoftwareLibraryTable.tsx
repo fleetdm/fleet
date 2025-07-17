@@ -24,7 +24,7 @@ import CustomLink from "components/CustomLink";
 
 import { DROPDOWN_OPTIONS, IHostSWLibraryDropdownFilterVal } from "../helpers";
 
-const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "host-sw-library-table";
 
@@ -213,7 +213,6 @@ const HostSoftwareLibraryTable = ({
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
         manualSortBy
-        isClientSidePagination
       />
     </div>
   );
