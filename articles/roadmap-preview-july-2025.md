@@ -14,7 +14,7 @@ In the next 3 months, Fleet will ship...
 - 👨‍💻 More Windows Fleet-maintained apps: Microsoft Office (Word, Excel, Teams), Google Chrome, Slack, and more.
 - 📦 Different apps, OS settings, and queries for different employees based on department
 - 👔 Customize first-time Windows and Linux setup
-- 💻 Inject foreign host vitals from your identity provider (IdP) and mask secrets (i.e. API tokens) in scripts and configuration profiles
+- 💻 Inject foreign host vitals from your identity provider (IdP) and variables in scripts and configuration profiles
 - 🧪 Deploy your pre-release iOS apps to the entire company
 - ⏰ Schedule scripts to run once, at a specific time, or on a recurring schedule
 
