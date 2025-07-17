@@ -55,15 +55,21 @@ func (h *HTTPSig) Verifier() (*httpsig.Verifier, error) {
 func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string) (httpsig.KeySpecer, error) {
 	keyIDInt, err := strconv.ParseUint(keyID, 16, 64)
 	if err != nil {
-		return nil, fmt.Errorf("invalid hex key ID: %w", err)
+		err = fmt.Errorf("invalid hex key ID: %w", err)
+		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "err", err)
+		return nil, err
 	}
 	identityCert, err := h.ds.GetHostIdentityCertBySerialNumber(ctx, keyIDInt)
 	if err != nil {
-		return nil, fmt.Errorf("loading certificate: %w", err)
+		err = fmt.Errorf("loading certificate: %w", err)
+		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "err", err)
+		return nil, err
 	}
 	publicKey, err := identityCert.UnmarshalPublicKey()
 	if err != nil {
-		return nil, fmt.Errorf("unmarshaling public key: %w", err)
+		err = fmt.Errorf("unmarshaling public key: %w", err)
+		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "err", err)
+		return nil, err
 	}
 
 	var algo httpsig.Algorithm
@@ -73,7 +79,9 @@ func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string)
 	case elliptic.P384():
 		algo = httpsig.Algo_ECDSA_P384_SHA384
 	default:
-		return nil, fmt.Errorf("unsupported elliptic curve: %s", publicKey.Curve.Params().Name)
+		err = fmt.Errorf("unsupported elliptic curve: %s", publicKey.Curve.Params().Name)
+		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "err", err)
+		return nil, err
 	}
 
 	return &KeySpecer{

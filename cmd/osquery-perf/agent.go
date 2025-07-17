@@ -29,6 +29,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/hostidentity"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/installer_cache"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -276,6 +277,9 @@ type agent struct {
 	// Software installed on the host via Fleet. Key is the software name + version + bundle identifier.
 	installedSoftware sync.Map
 
+	// Host identity client for HTTP message signatures
+	hostIdentityClient *hostidentity.Client
+
 	//
 	// The following are exported to be used by the templates.
 	//
@@ -379,6 +383,7 @@ func newAgent(
 	linuxUniqueSoftwareTitle bool,
 	commonSoftwareNameSuffix string,
 	mdmProfileFailureProb float64,
+	httpMessageSignatureProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -428,7 +433,10 @@ func newAgent(
 		}
 	}
 
-	return &agent{
+	// Determine if this agent should use HTTP message signatures
+	useHTTPSig := rand.Float64() < httpMessageSignatureProb // nolint:gosec // ignore weak randomizer
+
+	agent := &agent{
 		agentIndex:                    agentIndex,
 		serverAddress:                 serverAddress,
 		softwareCount:                 softwareCount,
@@ -473,6 +481,16 @@ func newAgent(
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
 	}
+
+	// Initialize host identity client
+	agent.hostIdentityClient = hostidentity.NewClient(hostidentity.Config{
+		ServerAddress: serverAddress,
+		EnrollSecret:  enrollSecret,
+		HostUUID:      hostUUID,
+		AgentIndex:    agentIndex,
+	}, useHTTPSig)
+
+	return agent
 }
 
 type enrollResponse struct {
@@ -501,6 +519,14 @@ func (a *agent) isOrbit() bool {
 }
 
 func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
+	// Request host identity certificate if this agent uses HTTP message signatures
+	if a.hostIdentityClient.IsEnabled() && !onlyAlreadyEnrolled {
+		if err := a.hostIdentityClient.RequestCertificate(); err != nil {
+			log.Printf("Agent %d: Failed to request host identity certificate: %v", a.agentIndex, err)
+			return
+		}
+	}
+
 	if a.isOrbit() {
 		if err := a.orbitEnroll(); err != nil {
 			// clean-up any placeholder mdm client that depended on orbit enrollment
@@ -1253,8 +1279,37 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 	}
 }
 
+// shouldSignRequest determines if a request should be signed based on its path
+func (a *agent) shouldSignRequest(req *http.Request) bool {
+	// Don't sign if HTTP signatures are not enabled
+	if !a.hostIdentityClient.IsEnabled() || !a.hostIdentityClient.HasSigner() {
+		return false
+	}
+
+	path := req.URL.Path
+
+	// Exclude ping endpoint from signing
+	if strings.HasSuffix(path, "/api/fleet/orbit/ping") {
+		return false
+	}
+
+	// Only sign specific API paths
+	return strings.Contains(path, "/api/fleet/orbit/") || strings.Contains(path, "/osquery/")
+}
+
+// sign applies HTTP message signature to a request if needed
+func (a *agent) sign(req *http.Request) *http.Request {
+	// Apply HTTP message signature if this request should be signed
+	if a.shouldSignRequest(req) {
+		if err := a.hostIdentityClient.SignRequest(req); err != nil {
+			log.Printf("Agent %d: Failed to sign HTTP request: %v", a.agentIndex, err)
+		}
+	}
+	return req
+}
+
 func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
-	response, err := http.DefaultClient.Do(fn())
+	response, err := http.DefaultClient.Do(a.sign(fn()))
 	for err != nil || response.StatusCode != http.StatusOK {
 		if err != nil {
 			log.Printf("failed to run request: %s", err)
@@ -1264,7 +1319,7 @@ func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
 		}
 		a.stats.IncrementErrors(1)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
-		response, err = http.DefaultClient.Do(fn())
+		response, err = http.DefaultClient.Do(a.sign(fn()))
 	}
 	return response
 }
@@ -1358,7 +1413,7 @@ func (a *agent) config() error {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return fmt.Errorf("config request failed to run: %w", err)
 	}
@@ -1697,7 +1752,7 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return nil, fmt.Errorf("distributed/read request failed to run: %w", err)
 	}
@@ -2086,7 +2141,7 @@ func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, sta
 	request.Header.Add("Content-type", "application/json")
 
 	// Make the request.
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		ss := fleet.OsqueryStatus(1)
 		return []map[string]string{}, &ss, ptr.String(fmt.Sprintf("yara request failed to run: %v", err)), nil
@@ -2421,7 +2476,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return fmt.Errorf("distributed/write request failed to run: %w", err)
 	}
@@ -2495,7 +2550,7 @@ func (a *agent) submitLogs(results []resultLog) error {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return fmt.Errorf("log request failed to run: %w", err)
 	}
@@ -2652,6 +2707,8 @@ func main() {
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
+
+		httpMessageSignatureProb = flag.Float64("http_message_signature_prob", 0.1, "Probability of hosts using HTTP message signatures")
 
 		// 50% failure probability is not realistic but this is our current baseline for the osquery-perf setup.
 		// We tried setting this to a more realistic value like 5% but it overloaded the MySQL Writer instance
@@ -2901,6 +2958,7 @@ func main() {
 			*linuxUniqueSoftwareTitle,
 			*commonSoftwareNameSuffix,
 			*mdmProfileFailureProb,
+			*httpMessageSignatureProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
