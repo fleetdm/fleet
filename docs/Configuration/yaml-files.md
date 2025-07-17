@@ -377,6 +377,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (c
 - `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`
 - `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
 - `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`
+- `$FLEET_VAR_HYDRANT_DATA_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [hydrant](#hydrant).)
 
 ### macos_setup
 
@@ -681,7 +682,7 @@ org_settings:
         email: user1@example.com
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
-    digicert:
+    digicert: # Available in Fleet Premium
       - name: DIGICERT_WIFI
         url: https://one.digicert.com
         api_token: $DIGICERT_API_TOKEN
@@ -690,15 +691,20 @@ org_settings:
         certificate_user_principal_names:
           - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
         certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-    ndes_scep_proxy:
+    ndes_scep_proxy: # Available in Fleet Premium
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
       username: Administrator@example.com
       password: myPassword
-    custom_scep_proxy:
+    custom_scep_proxy: # Available in Fleet Premium
       - name: SCEP_VPN
         url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
+    hydrant: # Available in Fleet Premium
+      - name: HYDRANT_WIFI
+        url: https://example.hydrantid.com/.well-known/est/abc123
+        client_id: $HYDRANT_CLIENT_ID
+        client_secret: $HYDRANT_CLIENT_SECRET
 ```
 
 `/teams/team-name.yml`
@@ -756,6 +762,15 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
 - `challenge` is the static challenge password used to authenticate requests to SCEP server.
+
+#### hydrant
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
+- `client_id` is the client ID provided by Hydrant.
+- `client_secret` is the client secret provided by Hydrant.
 
 ### webhook_settings
 
