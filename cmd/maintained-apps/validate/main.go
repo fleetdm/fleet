@@ -18,6 +18,8 @@ import (
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -36,6 +38,16 @@ func main() {
 	if operatingSystem != "darwin" && operatingSystem != "windows" {
 		fmt.Printf("Unsupported operating system: %s\n", operatingSystem)
 		os.Exit(1)
+	}
+	installationSearchDirectory := os.Getenv("INSTALLATION_SEARCH_DIRECTORY")
+	if installationSearchDirectory == "" {
+		switch operatingSystem {
+		case "darwin":
+			installationSearchDirectory = "/Applications"
+		case "windows":
+			installationSearchDirectory = "C:\\Program Files"
+		}
+		fmt.Printf("INSTALLATION_SEARCH_DIRECTORY environment variable is not set. Using default: '%s'\n", installationSearchDirectory)
 	}
 
 	apps, err := getListOfApps()
@@ -61,6 +73,8 @@ func main() {
 	totalApps := len(apps)
 	successfulApps := 0
 	appWithError := []string{}
+	installOutputForApp := make(map[string]string)
+	uninstallOutputForApp := make(map[string]string)
 	for _, app := range apps {
 		if app.Platform != operatingSystem {
 			continue
@@ -82,35 +96,33 @@ func main() {
 			continue
 		}
 
-		appListPre, err := listDirectoryContents("/Applications")
+		appListPre, err := listDirectoryContents(installationSearchDirectory)
 		if err != nil {
-			fmt.Printf("Error listing /Applications directory: %v\n", err)
+			fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
 		}
 
 		fmt.Print("Executing install script...\n")
-		err = executeScript(maintainedApp.InstallScript)
+		output, err := executeScript(maintainedApp.InstallScript)
+		installOutputForApp[app.Name] = output
 		if err != nil {
 			fmt.Printf("Error executing install script: %v\n", err)
 			appWithError = append(appWithError, app.Name)
 			continue
 		}
 
-		appListPost, err := listDirectoryContents("/Applications")
+		appListPost, err := listDirectoryContents(installationSearchDirectory)
 		if err != nil {
-			fmt.Printf("Error listing /Applications directory: %v\n", err)
+			fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
 		}
 
-		appPath := detectNewApplication(appListPre, appListPost)
-		err = forceLaunchServicesRefresh(appPath)
+		appPath := detectNewApplication(installationSearchDirectory, appListPre, appListPost)
+
+		err = postApplicationInstall(appPath)
 		if err != nil {
-			fmt.Printf("Error forcing LaunchServices refresh: %v. Attempting to continue.\n", err)
-		}
-		err = removeAppQuarentine(appPath)
-		if err != nil {
-			fmt.Printf("Error removing app quarantine: %v. Attempting to continue.\n", err)
+			fmt.Printf("Warning: Error detected in post-installation steps: %v\n", err)
 		}
 
-		existance, err := doesAppExists(app.Name, app.UniqueIdentifier, maintainedApp.Version)
+		existance, err := doesAppExists(appPath, app.Name, app.UniqueIdentifier, maintainedApp.Version)
 		if err != nil {
 			fmt.Printf("Error checking if app exists: %v\n", err)
 			appWithError = append(appWithError, app.Name)
@@ -123,7 +135,8 @@ func main() {
 		}
 
 		fmt.Print("Executing uninstall script...\n")
-		err = executeScript(maintainedApp.UninstallScript)
+		output, err = executeScript(maintainedApp.UninstallScript)
+		uninstallOutputForApp[app.Name] = output
 		if err != nil {
 			fmt.Printf("Error uninstalling app: %v\n", err)
 			appWithError = append(appWithError, app.Name)
@@ -252,7 +265,7 @@ func DownloadMaintainedApp(app fleet.MaintainedApp) error {
 	return nil
 }
 
-func executeScript(scriptContents string) error {
+func executeScript(scriptContents string) (string, error) {
 	// Similar code in:
 	// orbit/pkg/installer/installer.go:runInstallerScript
 	scriptExtension := ".sh"
@@ -262,28 +275,39 @@ func executeScript(scriptContents string) error {
 
 	scriptPath := filepath.Join(tmpDir, "script"+scriptExtension)
 	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
-		return fmt.Errorf("writing script: %w", err)
+		return "", fmt.Errorf("writing script: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, env)
-	fmt.Print("--------------------\n")
-	fmt.Printf("Script output:\n%s\n", string(output))
-	fmt.Print("--------------------\n")
+	result := fmt.Sprintf(`
+	--------------------
+	\n%s\n
+	--------------------
+	`, string(output))
+
 	if err != nil {
-		return err
+		return result, err
 	}
 	if exitCode != 0 {
-		return fmt.Errorf("script execution failed with exit code %d: %s", exitCode, string(output))
+		return result, fmt.Errorf("script execution failed with exit code %d: %s", exitCode, string(output))
 	}
-	return nil
+	return result, nil
 }
 
-func doesAppExists(appName, uniqueAppIdentifier, appVersion string) (bool, error) {
+func doesAppExists(appPath, appName, uniqueAppIdentifier, appVersion string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	if appVersion == "latest" { // download URL isn't version-pinned; extract version from installer
+		meta, err := file.ExtractInstallerMetadata(installerTFR)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "extracting installer metadata")
+		}
+		appVersion = meta.Version
+	}
 
 	fmt.Printf("Looking for app: %s, version: %s\n", appName, appVersion)
 	cmd := exec.CommandContext(ctx, "osqueryi", "--json", `
@@ -291,7 +315,8 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion string) (bool, error
     FROM apps
     WHERE 
     bundle_identifier LIKE '%`+uniqueAppIdentifier+`%' OR
-    name LIKE '%`+appName+`%'
+    name LIKE '%`+appName+`%' OR
+	path LIKE '%`+appPath+`%'
   `)
 	output, err := cmd.Output()
 	if err != nil {
@@ -335,55 +360,11 @@ func listDirectoryContents(dir string) (map[string]struct{}, error) {
 	return contents, nil
 }
 
-func detectNewApplication(appListPre, appListPost map[string]struct{}) string {
+func detectNewApplication(installationSearchDirectory string, appListPre, appListPost map[string]struct{}) string {
 	for app := range appListPost {
 		if _, exists := appListPre[app]; !exists {
-			return path.Join("/Applications", app)
+			return path.Join(installationSearchDirectory, app)
 		}
 	}
 	return ""
-}
-
-func removeAppQuarentine(appPath string) error {
-	if appPath == "" {
-		return nil
-	}
-	fmt.Printf("Attempting to remove quarantine for: '%s'\n", appPath)
-	cmd := exec.Command("xattr", "-p", "com.apple.quarantine", appPath)
-	output, err := cmd.Output()
-	if err != nil {
-		fmt.Printf("checking quarantine status: %v\n", err)
-	}
-	fmt.Printf("Quarantine status: %s\n", strings.TrimSpace(string(output)))
-	cmd = exec.Command("spctl", "-a", "-v", appPath)
-	output, err = cmd.Output()
-	if err != nil {
-		fmt.Printf("checking spctl status: %v\n", err)
-	}
-	fmt.Printf("spctl status: %s\n", strings.TrimSpace(string(output)))
-
-	cmd = exec.Command("sudo", "spctl", "--add", appPath)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("adding app to quarantine exceptions: %w", err)
-	}
-
-	cmd = exec.Command("sudo", "xattr", "-r", "-d", "com.apple.quarantine", appPath)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("removing quarantine attribute: %w", err)
-	}
-
-	return nil
-}
-
-func forceLaunchServicesRefresh(appPath string) error {
-	if appPath == "" {
-		return nil
-	}
-	fmt.Printf("Forcing LaunchServices refresh for: '%s'\n", appPath)
-	cmd := exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appPath)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("forcing LaunchServices refresh: %w", err)
-	}
-	time.Sleep(2 * time.Second)
-	return nil
 }

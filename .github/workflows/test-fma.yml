@@ -29,7 +29,7 @@ jobs:
       
       - name: Install osquery
         run: |
-          curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.17.0/osquery-5.17.0_1.macos_arm64.tar.gz"
+          curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1_1.macos_arm64.tar.gz"
           tar -xzf osquery.tar.gz
           sudo cp -r opt /
           sudo cp -r private /
