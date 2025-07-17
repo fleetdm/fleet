@@ -665,6 +665,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.NotEmpty(t, installCmdUUID)
 		require.NoError(t, err)
 
+		count = 99999
+
+		// We also should have cleared out host_mdm_commands to avoid a deadlocked state
+		err = sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?", mdmHost.ID, fleet.VerifySoftwareInstallVPPPrefix)
+		require.NoError(t, err)
+		require.Zero(t, count)
+
 		return nil
 	})
 
