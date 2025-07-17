@@ -2,7 +2,6 @@
 
 - [Authentication](#authentication)
 - [Activities](#activities)
-- [Certificates](#certificates) 
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
 - [Hosts](#hosts)
@@ -705,108 +704,6 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 ```
 ---
 
-## Certificates
-
-- [List certificate authorities (CAs)](#list-certificate-authorities-cas)
-- [Request certificate](#request-certificate)
-
-### List certificate authorities (CAs)
-
-`GET /api/v1/fleet/certificate_authorities`
-
-#### Example
-
-`GET /api/v1/fleet/certificate_authorities`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "certificate_authorities": [
-    {
-      "id": 3,
-      "name": "DIGICERT_PROD",
-      "type": "digicert"
-    },
-    {
-      "id": 2,
-      "name": "DIGICERT_STAGE",
-      "type": "digicert"
-    },
-    {
-      "id": 7,
-      "name": "HYDRANT_WIFI_PROD",
-      "type": "hydrant"
-    },
-    {
-      "id": 6,
-      "name": "HYDRANT_WIFI_STAGE",
-      "type": "hydrant"
-    },
-    {
-      "id": 1,
-      "name": "NDES_VPN",
-      "type": "ndes"
-    },
-    {
-      "id": 5,
-      "name": "SCEP_CERTIFICATE_PROD",
-      "type": "custom_scep"
-    },
-    {
-      "id": 4,
-      "name": "SCEP_CERTIFICATE_STAGE",
-      "type": "custom_scep"
-    }
-  ]
-}
-```
-
-### Request certificate
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
-
-`POST /api/v1/fleet/certificate_authorities/:id/certificate`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                 |
-| -------- | ------- | ---- | ------------------------------------------- |
-| id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. See your CAs [here](#list-certificate-authorities-cas). |
-| csr       | string | body | The signed certificate signing request (CSR). If left unspecified, Fleet will create the CSR with a shared key.        |
-| idp_oauth_url | string | body | OAuth URL from your identity provier (IdP). Required if `idp_token` is specified. |
-| idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
-
-#### Example
-
-`POST /api/v1/fleet/certificate_authorities/:id/certificate`
-
-##### Request body
-
-```json
-{
-  "csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIC/jCCAeYCAQAwITEfMB0GA1UEAwwWQ2lzY29Vc2VyTmV0d29ya0FjY2VzczCC\nASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJZtbxathh+RfK+Z613ar4E\nYSIem8yAvv2JZJtopjD3noy1yF+nGRyF/ocm+FhYvjR5u7teJXlcv24tAAHuWL4U\nuPIql0Slakjdsfl098salkj324lkjmtElWDi6XRjUIXEj1zyCnZTCxGmyHcYB/+f3fyv/\ngZ8SkPqocNOCpX6cSW8hxOlaF9aZUC+xMHRdjQgxQ79hleb5K/n2gCJjiW1sV0Es\nRg+MX0cbPCpahpzlvIAkzA7TTUTOd7ZN+V0GW0fH86uMstrqeW2QUuZmSDC9fNyj\nQhk6n5iURaHXdFjSmyrhW5AVvw1nIblHodhUtD6J+g9kjhBg1frss3ndQtnNrnMC\nAwEAAaCBlzCkldflkjc098dlkj2KoZIhvcNAQkOMYGGMIGDMIGABgNVHREEeTB3ggljaXNjby5j\nb22BEWthYW53YXJAY2lzY28uY29thjRJRDpGbGVldERNOkdVSUQ6Y2FkMTM4OTEt\nMzU3Ni00NzhmLTk1MzAtZmM1Y2VlZTEzZTkwoCEGCisGAQQBgjcUAgOgEwwRa2Fh\nbndhckBjaXNjby5jb20wDQYJKoZIhvcNAQELBQADggEBAH2U6Or14b4O22YjM22k\nXI9QDC5P+sDczcLjivv4MyXQL1ks8R6B1nXCrOmiLPPLaZ09f+UkeMnyuGAxW8Ce\n6LTKquwvlifZ+5TjyANz0I/d9ETLQF2MTphEZd4ySNLtq2RwYyDOBKaxMdW0sUsd\n6M3WyAuTBVgBkTVIqbMJBzFsgXSrr2a0LJEHszOO2BN3yT5muDQsKPJ1uXL7tNUv\n16pGaYpQZR8yGAmWyISHhAyLaJ1N1R8L77SLxdd/Sj7RunNNxqFqaEgIJMgsyu08\nGharLkQcIoW7qPHZuaLa54xMF/s/vfKH6rgGbbCAgw9kw8Klt+6H3OH1FSMeRfZ/\nDWs=\n-----END CERTIFICATE REQUEST-----",
-  "idp_oauth_url": "https://idp.oauth.com",
-  "idp_token": "AA598E2A-7952-46E3-B89D-526D45F7E233"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "certificate": "c3Viamdlkjfid098)d8f2k34jl;Yy4iLCBPVSA9IE1hbmFnZWQgTGludXgsIENOID0gQ2lzY29Vc2VyTmV0d29ya0FjY2Vzcwppc3N1ZXI9TyA9IENpc2NvLCBPVSA9IEVyaWRhbnVzLCBDTiA9IENpc2NvTmV0d29ya0FjY2VzcwotLS0tLUJFR0lOIENFUlRJRklDQVRFLS0tLS0KTUlJRkpUQ0NCQTJnQXdJQkFnSVVlSjdhYlBKd29QL0tXRlhvOXE4RmVrQlVqN293RFFZSktvWklodmNOQVFFTApCUUF3UURFT01Bd0dBMVVFQ2hNRlEybHpZMjh4RVRBUEJnTlZCQXNUQ0VWeWFXUmhiblZ6TVJzd0dRWURWUVFECkV4SkRhWE5qYjA1bGRIalskdjf098)DFj23lk4jRVMldoY05NalV3TnpJME1UYzAKTlRVMldqQlhNUnd3R2dZRFZRUUtEQk5EYVhOamJ5QlRlWE4wWlcxekxDQkpibU11TVJZd0ZBWURWUVFMREExTgpZVzVoWjJWa0lFeHBiblY0TVI4d0hRWURWUVFEREJaRGFYTmpiMVZ6WlhKT1pYUjNiM0pyUVdOalpYTnpNSUlCCklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF4dFZmWE1xaVMyelRPTEI4WE1ESFBEZmEKMjZIY2ZBdHpmOUVmMk1rQkdrL1VHNVJaTGFrZU0rTDltc0NXaWV0Wllkdf098DSlk23n34,nxo0dfQVdkRHpDbjM0MG1iaUFhS1lIb3JIczVYWW1uSmlrRkYyQgpsQThWWWpTZFZPNGVEN2QvVytwaGo2a2FZQ212dDcwL2tUaDFYL0QzZmM1U0Z4T09OSnZHeVY2MzlvVm9Qd0lECkFRQUJvNElCL2pDQ0Fmb3dEQVlEVlIwVEFRSC9CQUl3QURBZkJnTlZIU01FR0RBV2dCUmpwK2lwUENWTHJXWnkKTlIxdnBDc0owd2Y5WURDQmdnWUlLd1lCQlFVSEFRRUVkakIwTUVNR0NDc0dBUVVGQnpBQ2hqZG9kSFJ3T2k4dgpZM0pzTG1sdWRHVnlibUZzYUc5emRHNWhiV1Z6TG1OdmJTOURhWE5qYjA1bGRIZHZjbXRCWTJObGMzTXVZM0owCk1DMEdDQ3NHQVFVRkJ6QUJoaUZvZEhSd09pOHZiMk56Y0M1cGJuUmxjbTVoYkdodmMzUnVZVzFsY3k1amIyMHcKZ1p3R0ExVWRFUVNCbERDQmtZSVdRMmx6WTI5VmMyVnlUbVYwZDI5eWEwRmpZMlZ6YzRJSlkybHpZMjh1WTI5dApnUkp5WVdocGJXWjBaRUJqYVhOamJ5NWpiMjJnSWdZS0t3WUJCQUdDTnhRQ0E2QVVEQkp5WVdocGJXWjBaRUJqCmFYTmpieTVqYjIyR05FbEVPa1pzWldWMFJFMDZSMVZKUkRwa05XVmtOamMwWXkweU5XTXpMVEV4WWpJdFlUZzEKWXkxalpXTm1NVGc1WVRneFpUSXdGd1lEVlIwZ0JCQXdEakFNQmdvckJnRUVBUWtWQVNvQk1CTUdBMVVkSlFRTQpNQW9HQ0NzR0FRVUZCd01DTUVnR0ExVWRId1JCTUQ4d1BhQTdvRG1HTjJoMGRIQTZMeTlqY213dWFXNTBaWEp1CllXeG9iM04wYm1GdFpYTXVZMjl0TDBOcGMyTnZUbVYwZDI5eWEwRmpZMlZ6Y3k1amNtd3dIUVlEVlIwT0JCWUUKRkF0NjBHd0FwbVoyUkUrNFZsbkxEYkZhZGErTE1BNEdBMVVkRHdFQi93UUVBd0lGb0RBTkJna3Foa2lHOXcwQgpBUXNGQUFPQ0FRRUFsdnRseFJUaVlOVEQvWGpldkswT1BsaVhOdUtjVWlRcW5VSDlIZXowa0d6aWpHUkxrZ1VvCnRLbEJDRTB5QjNyOGhJd3dKbDRPS1cvUzdITXFnY2FNanJTaHIwamlsNDQwNXdOaHBGbzZHRkQwSTFzWjE5eFoKL21BMndsUkY0QkZoZ2QraUE5ZnpRNmNxdVFuV3JlemQxcUxNV0hpOGR5QUJ1c1VBQVZ1OUZORFU4N3BZa0Y4MgpsTjJVSTRLSUZlRDJnTDBXeFpzOVlWTGJlZG1MY0FhZk9HcmtuUDZvVlZMNGxzV1VYQlYxR2tydlkxNWUySnVkCkhVSVEvOTVKTWlkbm1EQVZCbjg1MjA2eDkxbXM3S1lYSmI0aW0yOFBtc1BrN1JJVnJNb2w5dkFlU2ppbHQ1eS8KVitacFBwSmtwWWRyNVpEeWI3WDcwMjR0ZU42QUxmZWRjZz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0KCg=="
-}
-```
-
----
-
 ## Fleet configuration
 
 - [Get configuration](#get-configuration)
@@ -1095,14 +992,6 @@ None.
         "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
       }
     ],
-    "hydrant": [
-      {
-        "name": "HYDRANT_WIFI",
-        "url": "https://example.hydrantid.com/.well-known/est/abc123",
-        "client_id": "********",
-        "client_secret": "********"
-      }
-    ],
     "ndes_scep_proxy": {
       "admin_url": "https://example.com/certsrv/mscep_admin/",
       "password": "********",
@@ -1181,7 +1070,7 @@ Modifies the Fleet's configuration with the supplied information.
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
 | gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
-| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `hydrant`, `custom_scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
+| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `custom_scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
@@ -1749,7 +1638,6 @@ _Available in Fleet Premium._
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | digicert | array | _Available in Fleet Premium._ See [`integrations.digicert`](#integrations-digicert). |
 | ndes_scep_proxy | object | _Available in Fleet Premium._ See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
-| hydrant | array | _Available in Fleet Premium._ See [`integrations.ndes_scep_proxy`](#integrations-hydrant). |
 | custom_scep_proxy | array | _Available in Fleet Premium._ See [`integrations.custom_scep_proxy`](#integrations-scep-proxy). |
 
 
@@ -1835,20 +1723,6 @@ _Available in Fleet Premium._
 
 Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
 
-##### integrations.hydrant
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-`integrations.hydrant` is an object with the following structure:
-
-| Name      | Type   | Description                                             |
-|-----------|--------|---------------------------------------------------------|
-| url       | string | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.        |
-| client_id | string | **Required**. The client ID provided by Hydrant.       |
-| client_secret  | string | **Required**. The client secret provided by Hydrant. |
-
-Setting `integrations.hydrant` to `null` will clear existing settings. Not specifying `integrations.hydrant` in the payload will not change the existing settings.
-
 ##### integrations.custom_scep_proxy
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -1897,14 +1771,6 @@ Setting `integrations.hydrant` to `null` will clear existing settings. Not speci
         "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
         "certificate_subject_alternative_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
         "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
-      }
-    ],
-    "hydrant": [
-      {
-        "name": "HYDRANT_WIFI",
-        "url": "https://example.hydrantid.com/.well-known/est/abc123",
-        "client_id": "********",
-        "client_secret": "********"
       }
     ],
     "ndes_scep_proxy": {
