@@ -2805,6 +2805,9 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	acc1.UUID = out.UUID
 	require.Equal(t, acc1, out)
 
+	err = ds.InsertMDMIdPAccount(ctx, acc2)
+	require.NoError(t, err)
+
 	out, err = ds.GetMDMIdPAccountByEmail(ctx, acc2.Email)
 	require.NoError(t, err)
 	// update the acc UUID
