@@ -21,7 +21,7 @@ In the next 3 months, Fleet will ship...
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
 - 📊 Vulnerability burn-down chart (open CVEs over time)
-- 🔊 Network scanning (via Nmap)
+- 🔊 Find missing assets and their vulnerabilities (via Nmap)
 - 📉 Report time-to-fix (aka "timeframes") for vulnerabilities
 
 Any feedback or a questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
