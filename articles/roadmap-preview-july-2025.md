@@ -9,7 +9,7 @@ The Fleet roadmap is set for summer 2025. Watch the video above for a walkthroug
 In the next 3 months, Fleet will ship...
 
 - 🍏 Account-based user enrollment for personal Apple devices (BYOD)
-- 🤖 Manage BYOD Android: configuration profiles, OS updates, and software management
+- 🤖 Manage BYOD Android: enforce OS settings and manage software in work profiles
 - 📄 Deploy certificates for Wi-Fi and VPN on personal mobile devices (iOS/iPadOS, Android) and company-owned Windows, & Linux computers
 - 👨‍💻 100 Fleet-maintained apps for macOS & Windows (50 each)
 - 📦 Different apps, OS settings, and queries for different employees based on department
