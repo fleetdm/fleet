@@ -44,57 +44,47 @@
         <% } %>
 
         </div>
-        <div purpose="button-row" class="d-flex align-items-center pt-3">
-          <a purpose="cta-button" href="/contact">Talk to an engineer</a>
-          <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>
-        </div>
+        <div purpose="button-row" class="d-flex justify-content-start align-items-center">
+              <a purpose="cta-button" href="/contact">Talk to an engineer</a>
+              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png"> Watch demo <span>3 mins</span></a>
+            </div>
       </div>
       <logo-carousel></logo-carousel>
 
-    <%/* Debunk the cross-platform myth */%>
-      <div purpose="page-section" class="pb-0">
-        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-          <div purpose="feature-text" class="d-flex flex-column">
-            <h2>Debunk the cross-platform myth</h2>
-            <p>Conventional wisdom holds that cross-platform MDM solutions don't hold up at scale. Few, if any, have lived up to the hype.</p>
-            <p>Instead, Fleet lets you work directly with data and events from each native operating system. So while you can still use familiar concepts like smart groups and extension attributes, you don’t get stuck “talking Windows” to Apple devices.</p>
-          </div>
-          <div purpose="feature-image" class="right">
-            <img alt="Transparency for end users" src="/images/mdm-debunk-cross-platform-myth-528x377@2x.png">
-          </div>
-        </div>
+      <div purpose="page-section" class="pb-0 mt-5">
 
         <div purpose="three-column-features" class="mx-auto">
           <div purpose="responsive-feature-row" class="row d-flex flex-sm-row flex-column justify-content-lg-between justify-content-center align-items-center align-items-sm-start">
             <div purpose="feature-item" class="pl-0 col-12 col-sm-6 col-lg-4">
               <h5>Operating systems</h5>
-              <p>Enforce OS updates with Declarative Device Management (DDM), <a href="https://github.com/macadmins/nudge" target="_blank">Nudge</a>, and Windows Update from one console.</p>
+              <p>Manage Apple, Windows, Linux, and Android devices in one place. Fleet supports diverse, mixed environments with no vendor lock-in.</p>
             </div>
 
             <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4" >
               <h5>Automated enrollment</h5>
-              <p>Drop-ship devices to your end users with Apple Business Manager or Autopilot and let them set up their own account. No IT help needed.</p>
+              <p>Drop ship devices with Apple Business Manager or Autopilot. End users set up their own devices. No IT help needed.</p>
             </div>
 
             <div purpose="feature-item" class="pl-0 pl-lg-4 pr-lg-0 col-12 col-sm-6 col-lg-4">
               <h5>Config management</h5>
-              <p>Manage settings with configuration profiles for Apple and device profiles for Windows. Use a canary team to test changes before they go live.</p>
+              <p>Bring devices into a secure, predictable state, no matter where they start. Define, target, and deploy the right settings to the right devices without compromising visibility or flexibility.</p>
             </div>
             <div purpose="feature-item" class="pr-0 pr-lg-4 pl-lg-0 col-12 col-sm-6 col-lg-4">
-              <h5>App management</h5>
+              <h5>Software management</h5>
               <p>Keep applications and plugins secure and up-to-date automatically. Install the software end users need or let them install it themselves via self service.</p>
               <p><a href="/software-management">More about software management</a></p>
             </div>
 
             <div purpose="feature-item" class="pl-0 pl-lg-4 col-12 col-sm-6 col-lg-4">
-              <h5>Scripts and events</h5>
-              <p>Easily manage and version control your custom script library. Execute shell and PowerShell scripts when computers drift from the baseline.</p> 
+              <h5>Custom Scripts</h5>
+              <p>Run the right script at the right time, across any platform. Remediate drift, gather diagnostics, or automate fleet-wide tasks on demand.</p> 
               <p><a href="/orchestration">More about orchestration</a></p>
             </div>
 
             <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4">
-              <h5>Keep up with Apple</h5>
-              <p>Fleet's team and community stay on top of the latest features and releases from all supported platform vendors—not just Apple.</p>
+              <h5>Flexible by design</h5>
+              <p>Manage devices via Fleet’s API, UI, or GitOps. 
+The open-source community helps extend what’s possible, from platform support to deployment workflows.</p>
             </div>
           </div>
 
@@ -833,9 +823,9 @@
           </div>
         </div>
 
-        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/pricing">Compare all features</a>
-          <animated-arrow-button  href="/testimonials">What are people saying?</animated-arrow-button>
+        <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" href="/register">Try it yourself</a>
+          <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
         </div>
       </div>
       <%/* Shorten the feedback loop section */%>
@@ -843,11 +833,11 @@
         <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
           <div purpose="feature-text" class="d-flex flex-column">
             <h2>Shorten the feedback loop</h2>
-            <p>Spend less time debugging whether changes actually happened.</p>
+            <p>Built for speed and transparency. No more waiting for closed systems to catch up.</p>
             <div purpose="checklist" class="flex-column d-flex">
               <p><a href="/orchestration">Get near-instant visibility</a> into your Apple, Linux, and Windows devices from a single, open platform.</p>
-              <p>Verify security changes in seconds — every action is tracked in Fleet’s UI or your logs.</p>
-              <p>Avoid tickets with real-time confirmation of patch and config changes.</p>
+              <p>Verify changes in real time, with full audit logs.</p>
+              <p>Confidently resolve issues before users notice.</p>
             </div>
           </div>
           <div purpose="feature-image">
@@ -855,7 +845,41 @@
           </div>
         </div>
       </div>
-      <%/* Mordern change management section */%>
+      <%/* Deploy anywhere you want section */%>
+      <div purpose="page-section">
+        <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+          <div purpose="feature-image" class="right">
+            <img alt="Deploy anywhere you want" src="/images/mdm-deploy-anywhere-you-want-528x377@2x.png">
+          </div>
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h2>Deploy anywhere you want</h2>
+            <p>On-prem, cloud, or air-gapped. Fleet works where you need it. No lock-in or black boxes. Fleet adapts as you grow.</p>
+            <div purpose="checklist" class="flex-column d-flex">
+              <p>No hidden dependencies or forced cloud services.</p>
+              <p>Flexible APIs and open data formats.</p>
+              <p>Keep control of your infrastructure and your data.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <%/* Scope transparency section */%>
+      <div purpose="page-section">
+        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h2>Scope transparency</h2>
+            <p>Increase <a href="https://fleetdm.com/handbook/company/why-this-way#why-open-source">buy-in</a> from end users by clarifying how their devices are managed.</p>
+            <div purpose="checklist" class="flex-column d-flex">
+              <p>Give end users assurance about what actions IT can take on their computer.</p>
+              <p>Build trust with transparency, not secrecy and confusion.</p>
+              <p>Reveal what data is collected, down to the source code.</p>
+            </div>
+          </div>
+          <div purpose="feature-image" class="right">
+            <img alt="Transparency for end users" src="/images/mdm-scope-transparency-528x377@2x.png">
+          </div>
+        </div>
+      </div>
+      <%/* Modern change management section */%>
       <div purpose="page-section">
         <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
           <div purpose="feature-image" class="right">
@@ -869,23 +893,6 @@
               <p>Maintain reliable employee experiences with version-controlled changes and enhancements.</p>
               <p>Use CI/CD and peer reviews to look before you leap. (Configurable)</p>
             </div>
-          </div>
-        </div>
-      </div>
-      <%/* Scope transparency section */%>
-      <div purpose="page-section">
-        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-          <div purpose="feature-text" class="d-flex flex-column">
-            <h2>Scope transparency</h2>
-            <p>Increase <a href="https://fleetdm.com/handbook/company/why-this-way#why-open-source">buy-in</a> from end users by clarifying how their work computers are managed.</p>
-            <div purpose="checklist" class="flex-column d-flex">
-              <p>Give end users assurance about what actions IT can take on their computer</p>
-              <p>Let end users see exactly what data is collected, all the way down to the source code</p>
-              <p>Set clear expectations about how to configure company devices</p>
-            </div>
-          </div>
-          <div purpose="feature-image" class="right">
-            <img alt="Transparency for end users" src="/images/mdm-scope-transparency-528x377@2x.png">
           </div>
         </div>
       </div>
@@ -915,5 +922,8 @@
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
+  <modal purpose="video-modal" v-if="modal === 'fleet-in-three-minutes'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
