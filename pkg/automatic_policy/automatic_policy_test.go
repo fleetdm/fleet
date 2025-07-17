@@ -24,14 +24,14 @@ func TestGenerateErrors(t *testing.T) {
 		BundleIdentifier: "",
 		PackageIDs:       []string{""},
 	})
-	require.ErrorIs(t, err, ErrMissingProductCode)
+	require.ErrorIs(t, err, ErrMissingUpgradeCode)
 	_, err = Generate(FullInstallerMetadata{
 		Title:            "Foobar",
 		Extension:        "msi",
 		BundleIdentifier: "",
 		PackageIDs:       []string{},
 	})
-	require.ErrorIs(t, err, ErrMissingProductCode)
+	require.ErrorIs(t, err, ErrMissingUpgradeCode)
 
 	_, err = Generate(MacInstallerMetadata{
 		Title:            "Foobar",
