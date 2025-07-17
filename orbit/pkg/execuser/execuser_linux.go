@@ -68,6 +68,7 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 	return
 }
 
+// run a command, passing its output to stdout and stderr.
 func run(path string, opts eopts) (lastLogs string, err error) {
 	cmd, err := baserun(path, opts)
 	if err != nil {
@@ -84,7 +85,7 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	return "", nil
 }
 
-// run uses sudo to run the given path as login user and waits for the process to finish.
+// run a command and return its output and exit code.
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
 	cmd, err := baserun(path, opts)
 	if err != nil {
@@ -103,6 +104,7 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 	return output, exitCode, nil
 }
 
+// run a command that requires stdin input, returning a pipe to write to stdin.
 func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
 	cmd, err := baserun(path, opts)
 	if err != nil {
@@ -175,7 +177,7 @@ func getConfigForCommand(path string) (args []string, env []string, userContext 
 		Int64("id", user.ID).
 		Str("display", display).
 		Str("session_type", userDisplaySessionType.String()).
-		Msg("running sudo")
+		Msg("running runuser")
 
 	args = []string{"-l", user.Name}
 	env = make([]string, 0)
