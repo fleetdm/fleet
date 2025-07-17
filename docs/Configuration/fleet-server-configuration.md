@@ -631,7 +631,6 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
     private_key: 72414F4A688151F75D032F5CDA095FC4
   ```
 
-
 ## Auth
 
 ## auth_sso_session_validity_period
