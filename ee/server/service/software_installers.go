@@ -236,7 +236,7 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 			return errors.New("blank upgrade code when required in script")
 		}
 
-		payload.UninstallScript = upgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", payload.UpgradeCode))
+		payload.UninstallScript = upgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("\"%s\"${suffix}", payload.UpgradeCode))
 	}
 
 	return nil
@@ -402,6 +402,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.Filename = payloadForNewInstallerFile.Filename
 			payload.Version = payloadForNewInstallerFile.Version
 			payload.PackageIDs = payloadForNewInstallerFile.PackageIDs
+			payload.UpgradeCode = payloadForNewInstallerFile.UpgradeCode
 
 			dirty["Package"] = true
 		} else { // noop if uploaded installer is identical to previous installer
@@ -415,6 +416,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.Filename = existingInstaller.Name
 		payload.Version = existingInstaller.Version
 		payload.PackageIDs = existingInstaller.PackageIDs()
+		payload.UpgradeCode = existingInstaller.UpgradeCode
 	}
 
 	// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
@@ -451,6 +453,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
 		if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
 			uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
+			if payload.UpgradeCode != "" {
+				uninstallScript = file.UninstallMsiWithUpgradeCodeScript
+			}
 		}
 		if uninstallScript == "" {
 			return nil, &fleet.BadRequestError{
