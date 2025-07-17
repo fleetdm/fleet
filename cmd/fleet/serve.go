@@ -928,7 +928,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
+				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, config.Partnerships.EnablePrimo)
 			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
