@@ -6,9 +6,9 @@ import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
 import { customDeviceSoftwareHandler } from "test/handlers/device-handler";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
+import { DEFAULT_INSTALLED_VERSION } from "__mocks__/hostMock";
 
 import SelfService, { ISoftwareSelfServiceProps } from "./SelfService";
-import { DEFAULT_INSTALLED_VERSION } from "__mocks__/hostMock";
 
 const TEST_PROPS: ISoftwareSelfServiceProps = {
   contactUrl: "http://example.com",
