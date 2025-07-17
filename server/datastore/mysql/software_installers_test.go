@@ -773,7 +773,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	// create a couple hosts
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID, host2.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID, host2.ID}))
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
@@ -1194,7 +1194,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 
 	// create a host
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID}))
 	host1.TeamID = &team.ID
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -2222,7 +2222,7 @@ func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) 
 		if len(c.payload) > 0 {
 			// create pending install requests for each updated installer, to see if
 			// it cancels it or not as expected.
-			err := ds.AddHostsToTeam(ctx, teamID, []uint{host.ID})
+			err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{host.ID}))
 			require.NoError(t, err)
 			for i, payload := range c.payload {
 				if payload.ShouldCancelPending != nil {

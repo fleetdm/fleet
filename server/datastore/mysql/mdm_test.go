@@ -1400,7 +1400,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// move darwinHosts[0] and windowsHosts[0] to that team
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{darwinHosts[0].ID, windowsHosts[0].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{darwinHosts[0].ID, windowsHosts[0].ID}))
 	require.NoError(t, err)
 
 	// 6 are still reported as "to install" because op=install and status=nil
@@ -1573,7 +1573,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// move enrolledHosts[1] to that team
-	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{darwinHosts[1].ID, windowsHosts[1].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{darwinHosts[1].ID, windowsHosts[1].ID}))
 	require.NoError(t, err)
 
 	// 3 are still reported as "to install" because op=install and status=nil
@@ -5354,7 +5354,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 1"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5391,7 +5391,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 2"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5470,7 +5470,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 3"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5566,7 +5566,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 4"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team
@@ -5649,7 +5649,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 5"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5739,7 +5739,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 6"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// Include any labels
@@ -5853,7 +5853,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 1"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5890,7 +5890,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 2"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5969,7 +5969,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 3"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -6065,7 +6065,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 4"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team
@@ -6148,7 +6148,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 5"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// Include any labels
@@ -8020,7 +8020,7 @@ func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
 	// create a team and make host4 part of that team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host4.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host4.ID}))
 	require.NoError(t, err)
 
 	// create some profiles , a and b for no team, c for team
@@ -8257,7 +8257,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	}
 
 	// host 4, 5 and 8 are on team
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host4.ID, host5.ID, host8.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host4.ID, host5.ID, host8.ID}))
 	require.NoError(t, err)
 	_, _, _ = host1, host2, host3
 

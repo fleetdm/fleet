@@ -307,8 +307,8 @@ type Datastore interface {
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
-	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
-	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
+	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if params.TeamID is nil.
+	AddHostsToTeam(ctx context.Context, params *AddHostsToTeamParams) error
 	// HostnamesByIdentifiers returns the hostnames corresponding to the provided identifiers,
 	// as understood by HostByIdentifier.
 	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
