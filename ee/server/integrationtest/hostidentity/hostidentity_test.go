@@ -216,6 +216,7 @@ func createHTTPSigner(t *testing.T, eccPrivateKey *ecdsa.PrivateKey, cert *x509.
 }
 
 func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
+	ctx := t.Context()
 	// Test orbit enrollment with the certificate
 	enrollRequest := contract.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
@@ -365,9 +366,39 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 			})
 		}
 	})
+
+	// Important: since this subtest deletes the host, it should run last.
+	// Test deleting host and trying to enroll with same certificate
+	t.Run("delete host and enroll with same certificate", func(t *testing.T) {
+		// Get the host using the orbit node key (standard pattern used in Fleet tests)
+		hostToDelete, err := s.DS.LoadHostByOrbitNodeKey(ctx, signedEnrollResp.OrbitNodeKey)
+		require.NoError(t, err)
+		require.NotNil(t, hostToDelete, "Should find the enrolled host")
+
+		// Delete the host using the API endpoint
+		s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
+
+		// Try to enroll the same host with the same certificate - this should fail
+		// because deleting the host should have invalidated its certificate
+		req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		err = signer.Sign(req)
+		require.NoError(t, err)
+
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		// This should fail because the host certificate should be deleted when the host is deleted.
+		// The host needs to request a new cert to re-enroll.
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with deleted host certificate should fail")
+	})
 }
 
 func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
+	ctx := t.Context()
 	// Test osquery enrollment with the certificate
 	enrollRequest := contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   testEnrollmentSecret,
@@ -506,6 +537,35 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 				require.Equal(t, tc.expectedStatus, httpResp.StatusCode)
 			})
 		}
+	})
+
+	// Important: since this subtest deletes the host, it should run last.
+	// Test deleting host and trying to enroll with same certificate
+	t.Run("delete host and enroll with same certificate", func(t *testing.T) {
+		// Get the host using the osquery node key (standard pattern used in Fleet tests)
+		hostToDelete, err := s.DS.LoadHostByNodeKey(ctx, enrollResp.NodeKey)
+		require.NoError(t, err)
+		require.NotNil(t, hostToDelete, "Should find the enrolled host")
+
+		// Delete the host using the API endpoint
+		s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
+
+		// Try to enroll the same host with the same certificate - this should fail
+		// because deleting the host should have invalidated its certificate
+		req, err := http.NewRequest("POST", s.Server.URL+"/api/osquery/enroll", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		err = signer.Sign(req)
+		require.NoError(t, err)
+
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		// This should fail because the host certificate should be deleted when the host is deleted.
+		// The host needs to request a new cert to re-enroll.
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with deleted host certificate should fail")
 	})
 }
 

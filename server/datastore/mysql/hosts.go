@@ -550,6 +550,7 @@ var hostRefs = []string{
 	"batch_script_execution_host_results",
 	"host_mdm_commands",
 	"microsoft_compliance_partner_host_statuses",
+	"host_identity_scep_certificates",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
