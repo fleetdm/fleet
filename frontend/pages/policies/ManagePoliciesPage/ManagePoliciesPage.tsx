@@ -57,7 +57,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
-import DeletePolicyModal from "./components/DeletePolicyModal";
+import DeletePoliciesModal from "./components/DeletePoliciesModal";
 import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
 import InstallSoftwareModal from "./components/InstallSoftwareModal";
@@ -160,7 +160,7 @@ const ManagePolicyPage = ({
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
 
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
-  const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
+  const [showDeletePoliciesModal, setShowDeletePoliciesModal] = useState(false);
   const [showInstallSoftwareModal, setShowInstallSoftwareModal] = useState(
     false
   );
@@ -359,7 +359,7 @@ const ManagePolicyPage = ({
     }
   );
 
-  const canAddOrDeletePolicy =
+  const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -374,7 +374,7 @@ const ManagePolicyPage = ({
       return configAPI.loadAll();
     },
     {
-      enabled: isRouteOk && canAddOrDeletePolicy,
+      enabled: isRouteOk && canAddOrDeletePolicies,
       onSuccess: (data) => {
         setConfig(data);
       },
@@ -391,7 +391,7 @@ const ManagePolicyPage = ({
     () => teamsAPI.load(teamIdForApi),
     {
       // no call for no team (teamIdForApi === 0)
-      enabled: isRouteOk && !!teamIdForApi && canAddOrDeletePolicy,
+      enabled: isRouteOk && !!teamIdForApi && canAddOrDeletePolicies,
       select: (data) => data.team,
     }
   );
@@ -473,8 +473,8 @@ const ManagePolicyPage = ({
   const toggleOtherWorkflowsModal = () =>
     setShowOtherWorkflowsModal(!showOtherWorkflowsModal);
 
-  const toggleDeletePolicyModal = () =>
-    setShowDeletePolicyModal(!showDeletePolicyModal);
+  const toggleDeletePoliciesModal = () =>
+    setShowDeletePoliciesModal(!showDeletePoliciesModal);
 
   const toggleInstallSoftwareModal = () => {
     setShowInstallSoftwareModal(!showInstallSoftwareModal);
@@ -850,8 +850,8 @@ const ManagePolicyPage = ({
     );
   };
 
-  const onDeletePolicyClick = (selectedTableIds: number[]): void => {
-    toggleDeletePolicyModal();
+  const onDeletePoliciesClick = (selectedTableIds: number[]): void => {
+    toggleDeletePoliciesModal();
     setSelectedPolicyIds(selectedTableIds);
   };
 
@@ -880,7 +880,7 @@ const ManagePolicyPage = ({
         }. Please try again.`
       );
     } finally {
-      toggleDeletePolicyModal();
+      toggleDeletePoliciesModal();
       setIsUpdatingPolicies(false);
     }
   };
@@ -974,8 +974,8 @@ const ManagePolicyPage = ({
         <PoliciesTable
           policiesList={globalPolicies || []}
           isLoading={isFetchingGlobalPolicies || isFetchingGlobalConfig}
-          onDeletePolicyClick={onDeletePolicyClick}
-          canAddOrDeletePolicy={canAddOrDeletePolicy}
+          onDeletePoliciesClick={onDeletePoliciesClick}
+          canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
           currentTeam={currentTeamSummary}
           currentAutomatedPolicies={currentAutomatedPolicies}
@@ -1009,8 +1009,8 @@ const ManagePolicyPage = ({
             isFetchingTeamConfig ||
             isFetchingGlobalConfig
           }
-          onDeletePolicyClick={onDeletePolicyClick}
-          canAddOrDeletePolicy={canAddOrDeletePolicy}
+          onDeletePoliciesClick={onDeletePoliciesClick}
+          canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
           currentTeam={currentTeamSummary}
           currentAutomatedPolicies={currentAutomatedPolicies}
@@ -1249,7 +1249,7 @@ const ManagePolicyPage = ({
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
               {automationsDropdown}
-              {canAddOrDeletePolicy && (
+              {canAddOrDeletePolicies && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button
                     className={`${baseClass}__select-policy-button`}
@@ -1278,10 +1278,10 @@ const ManagePolicyPage = ({
             gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
-        {showDeletePolicyModal && (
-          <DeletePolicyModal
+        {showDeletePoliciesModal && (
+          <DeletePoliciesModal
             isUpdatingPolicies={isUpdatingPolicies}
-            onCancel={toggleDeletePolicyModal}
+            onCancel={toggleDeletePoliciesModal}
             onSubmit={onDeletePolicySubmit}
           />
         )}
