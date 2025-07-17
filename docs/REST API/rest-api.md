@@ -1354,6 +1354,8 @@ Modifies the Fleet's configuration with the supplied information.
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
 | query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`) |
 
+> Note: If `server_url` changes hosts already are already enrolled will no longer communicate with Fleet. They need to be re-enrolled.
+
 <br/>
 
 ##### Example request body
