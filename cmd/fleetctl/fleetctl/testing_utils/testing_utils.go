@@ -3,6 +3,7 @@ package testing_utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -84,6 +85,14 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 				Resolution:  &args.Resolution,
 				AuthorID:    authorID,
 			},
+		}, nil
+	}
+	ds.NewScriptFunc = func(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
+		if !strings.HasPrefix(script.ScriptContents, "#!/") {
+			return nil, errors.New("script not uploaded properly")
+		}
+		return &fleet.Script{
+			ID: 1,
 		}, nil
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
