@@ -49,12 +49,11 @@ func NewClient(config Config, useHTTPSignatures bool) *Client {
 }
 
 // createTempRSAKeyAndCert creates a temporary RSA key and certificate for SCEP protocol
-func createTempRSAKeyAndCert(hostIdentifier string) (*rsa.PrivateKey, *x509.Certificate) {
+func createTempRSAKeyAndCert(hostIdentifier string) (*rsa.PrivateKey, *x509.Certificate, error) {
 	// Generate temporary RSA key for SCEP protocol
 	tempRSAKey, err := rsa.GenerateKey(cryptorand.Reader, 2048)
 	if err != nil {
-		log.Printf("Failed to generate temp RSA key: %v", err)
-		return nil, nil
+		return nil, nil, fmt.Errorf("failed to generate temp RSA key: %w", err)
 	}
 
 	// Create temporary certificate for SCEP
@@ -72,17 +71,15 @@ func createTempRSAKeyAndCert(hostIdentifier string) (*rsa.PrivateKey, *x509.Cert
 
 	certDER, err := x509.CreateCertificate(cryptorand.Reader, &certTemplate, &certTemplate, &tempRSAKey.PublicKey, tempRSAKey)
 	if err != nil {
-		log.Printf("Failed to create temp certificate: %v", err)
-		return nil, nil
+		return nil, nil, fmt.Errorf("failed to create temp certificate: %w", err)
 	}
 
 	cert, err := x509.ParseCertificate(certDER)
 	if err != nil {
-		log.Printf("Failed to parse temp certificate: %v", err)
-		return nil, nil
+		return nil, nil, fmt.Errorf("failed to parse temp certificate: %w", err)
 	}
 
-	return tempRSAKey, cert
+	return tempRSAKey, cert, nil
 }
 
 // RequestCertificate requests a host identity certificate from Fleet via SCEP
@@ -157,9 +154,10 @@ func (c *Client) RequestCertificate() error {
 	}
 
 	// Create temporary RSA key and cert for SCEP protocol
-	tempRSAKey, deviceCert := createTempRSAKeyAndCert(hostIdentifier)
-	if tempRSAKey == nil || deviceCert == nil {
-		return errors.New("failed to create temporary RSA key and certificate")
+	tempRSAKey, deviceCert, err := createTempRSAKeyAndCert(hostIdentifier)
+	if err != nil {
+		log.Printf("Agent %d: %v", c.config.AgentIndex, err)
+		return err
 	}
 
 	// Create SCEP PKI message
@@ -238,7 +236,7 @@ func (c *Client) RequestCertificate() error {
 		Metadata:  []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
 	}, httpsig.SigningKey{
 		Key:       eccPrivateKey,
-		MetaKeyID: fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+		MetaKeyID: cert.SerialNumber.String(),
 	})
 	if err != nil {
 		log.Printf("Agent %d: Failed to create HTTP signer: %v", c.config.AgentIndex, err)
@@ -268,4 +266,9 @@ func (c *Client) IsEnabled() bool {
 // HasSigner returns whether the client has a valid HTTP signer
 func (c *Client) HasSigner() bool {
 	return c.httpSigner != nil
+}
+
+// GetSigner returns the HTTP signer for use with httpsig.NewHTTPClient
+func (c *Client) GetSigner() *httpsig.Signer {
+	return c.httpSigner
 }

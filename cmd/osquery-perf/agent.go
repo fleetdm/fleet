@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/uuid"
+	"github.com/remitly-oss/httpsig-go"
 )
 
 var (
@@ -720,6 +721,15 @@ func (a *agent) removeBuffered(batchSize int) {
 }
 
 func (a *agent) runOrbitLoop() {
+	// Create signerWrapper if HTTP signatures are enabled
+	var signerWrapper func(*http.Client) *http.Client
+	if a.hostIdentityClient.IsEnabled() && a.hostIdentityClient.HasSigner() {
+		signer := a.hostIdentityClient.GetSigner()
+		signerWrapper = func(client *http.Client) *http.Client {
+			return httpsig.NewHTTPClient(client, signer, nil)
+		}
+	}
+
 	orbitClient, err := service.NewOrbitClient(
 		"",
 		a.serverAddress,
@@ -733,6 +743,7 @@ func (a *agent) runOrbitLoop() {
 			Hostname:       a.CachedString("hostname"),
 		},
 		nil,
+		signerWrapper,
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)

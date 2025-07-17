@@ -53,7 +53,7 @@ func (h *HTTPSig) Verifier() (*httpsig.Verifier, error) {
 }
 
 func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string) (httpsig.KeySpecer, error) {
-	keyIDInt, err := strconv.ParseUint(keyID, 16, 64)
+	keyIDInt, err := strconv.ParseUint(keyID, 10, 64)
 	if err != nil {
 		err = fmt.Errorf("invalid hex key ID: %w", err)
 		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "err", err)
@@ -62,7 +62,7 @@ func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string)
 	identityCert, err := h.ds.GetHostIdentityCertBySerialNumber(ctx, keyIDInt)
 	if err != nil {
 		err = fmt.Errorf("loading certificate: %w", err)
-		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "err", err)
+		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "keyID", keyIDInt, "err", err)
 		return nil, err
 	}
 	publicKey, err := identityCert.UnmarshalPublicKey()
