@@ -679,6 +679,8 @@ The key size of the salt which is generated when hashing user passwords.
 
 ### auth_require_http_message_signature
 
+*Available in Fleet Premium.*
+
 When enabled, Fleet server will require HTTP message signatures for all incoming fleetd(orbit and osquery) requests to verify request authenticity and integrity. The fleetd agents must run with `--fleet-managed-client-certificate` flag so they can request a host identity certificate from Fleet server and then use it to create HTTP message signatures (orbit 1.46.0 or higher).
 
 - Default value: `false`
