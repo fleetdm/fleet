@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -146,11 +145,11 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	if c.insecure {
 		opts = append(opts, scepclient.Insecure())
 	}
+
 	scepClient, err := scepclient.New(c.scepURL, kitLogger, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("create SCEP client: %w", err)
 	}
-
 	resp, _, err := scepClient.GetCACert(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("get CA cert: %w", err)
@@ -164,7 +163,6 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get signer: %w", err)
 	}
-	publicKey := signer.Public()
 
 	// Create a temporary RSA key pair in memory for SCEP envelope decryption
 	// ECC keys cannot be used for decryption, so we need RSA for this purpose
@@ -173,24 +171,14 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("generate temporary RSA key: %w", err)
 	}
 
-	// Determine signature algorithm based on the key type
-	var sigAlg x509.SignatureAlgorithm
-	switch publicKey.(type) {
-	case *ecdsa.PublicKey:
-		sigAlg = x509.ECDSAWithSHA256
-	case *rsa.PublicKey:
-		sigAlg = x509.SHA256WithRSA
-	default:
-		return nil, fmt.Errorf("unsupported key type: %T", publicKey)
-	}
-
 	// Generate CSR using signing key
 	csrTemplate := x509util.CertificateRequest{
 		CertificateRequest: x509.CertificateRequest{
 			Subject: pkix.Name{
 				CommonName: c.commonName,
 			},
-			SignatureAlgorithm: sigAlg,
+			// Currently, signer.Public() will always be of type *ecdsa.PublicKey.
+			SignatureAlgorithm: x509.ECDSAWithSHA256,
 		},
 		ChallengePassword: c.scepChallenge,
 	}
@@ -212,8 +200,6 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 			CommonName:   c.commonName,
 			Organization: csr.Subject.Organization,
 		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,

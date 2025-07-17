@@ -84,7 +84,10 @@ func (t *tpm2TEE) CreateKey() (Key, error) {
 			SensitiveDataOrigin: true,
 			UserWithAuth:        true, // Required even if password is nil
 			SignEncrypt:         true,
-			Decrypt:             true,
+			// We will just use this child key for signing.
+			// If we need encryption in the future we can create a separate key for it.
+			// It's usually recommended to have separate keys for signing and encryption.
+			Decrypt: false,
 		},
 		Parameters: tpm2.NewTPMUPublicParms(
 			tpm2.TPMAlgECC,

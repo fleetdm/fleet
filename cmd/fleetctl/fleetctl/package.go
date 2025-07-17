@@ -257,7 +257,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:        "fleet-managed-client-certificate",
-				Usage:       "Configures fleetd to use TPM-backed key to sign HTTP requests",
+				Usage:       "Configures fleetd to use TPM-backed key to sign HTTP requests. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
 				EnvVars:     []string{"FLEETCTL_FLEET_MANAGED_CLIENT_CERTIFICATE"},
 				Destination: &opt.FleetManagedClientCertificate,
 			},
