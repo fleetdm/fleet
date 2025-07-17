@@ -47,6 +47,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
@@ -6921,4 +6923,61 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	}
 
 	return signed, nil
+}
+
+// EnsureMDMAppleServiceDiscovery checks if the service discovery URL is set up correctly with Apple
+// and assigns it if necessary.
+func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger kitlog.Logger) error {
+	var depSvc *apple_mdm.DEPService
+	if depSvc == nil {
+		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
+	}
+
+	ac, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking account driven enrollment service discovery")
+	}
+	// TODO: check with lucas if we need to account for svc.config.Server.URLPrefix
+	wantURL := strings.TrimSuffix(ac.MDMUrl(), "/") + `/mdm/apple/service_discovery`
+
+	tokens, err := ds.ListABMTokens(ctx)
+	switch {
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	case len(tokens) == 0:
+		level.Info(logger).Log("msg", "no ABM tokens found, skipping account driven enrollment service discovery")
+		return nil
+	case len(tokens) > 1:
+		level.Debug(logger).Log("msg", "multiple ABM tokens found, using the first one for account driven enrollment service discovery")
+	}
+	orgName := tokens[0].OrganizationName
+
+	details, err := depSvc.GetMDMAppleServiceDiscoveryDetails(ctx, orgName)
+	if err != nil {
+		switch {
+		case godep.IsServiceDiscoveryNotFound(err):
+			level.Info(logger).Log("msg", "account driven enrollment profile not found") // proceed to assignment
+		case godep.IsServiceDiscoveryNotSupported(err):
+			level.Info(logger).Log("msg", "account driven enrollment org not supported, skipping assignment")
+			return nil // skip assignment
+		default:
+			return ctxerr.Wrap(ctx, err, "fetching account driven enrollment profile") // skip assignment
+		}
+	}
+
+	var gotURL string
+	var lastUpdated time.Time
+	if details != nil {
+		gotURL = details.MDMServiceDiscoveryURL
+		lastUpdated = details.LastUpdatedTimestamp
+	}
+	level.Info(logger).Log("msg", "account driven enrollment service discovery url confirmed", "service_discovery_url", gotURL, "last_updated", lastUpdated)
+
+	if gotURL != wantURL {
+		// proced to assignment
+		return ctxerr.Wrap(ctx, depSvc.AssignMDMAppleServiceDiscoveryURL(ctx, orgName, wantURL),
+			"assigning account driven enrollment service discovery URL")
+	}
+
+	return nil
 }
