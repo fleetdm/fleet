@@ -54,7 +54,7 @@ func (h *HTTPSig) Verifier() (*httpsig.Verifier, error) {
 }
 
 func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string) (httpsig.KeySpecer, error) {
-	keyIDInt, err := strconv.ParseUint(keyID, 10, 64)
+	keyIDInt, err := strconv.ParseUint(keyID, 16, 64)
 	if err != nil {
 		err = fmt.Errorf("invalid hex key ID: %w", err)
 		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "err", err)
