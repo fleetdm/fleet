@@ -1142,11 +1142,19 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 		},
 		{
 			SoftwareID: 2,
+			CVE:        "CVE-2020-1235", // overlaps software ID 1
+		},
+		{
+			SoftwareID: 2,
 			CVE:        "CVE-2020-1236",
 		},
 		{
 			SoftwareID: 2,
 			CVE:        "CVE-2020-1237",
+		},
+		{
+			SoftwareID: 2,
+			CVE:        "CVE-2020-1238", // overlaps between software and OS
 		},
 	}
 
@@ -1374,7 +1382,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 
 	// Insert Software Vuln
 	for _, vuln := range softwareVulns {
-		_, err = ds.InsertSoftwareVulnerability(context.Background(), vuln, fleet.NVDSource)
+		_, err = ds.InsertSoftwareVulnerability(context.Background(), vuln, fleet.CustomSource)
 		require.NoError(t, err)
 	}
 
