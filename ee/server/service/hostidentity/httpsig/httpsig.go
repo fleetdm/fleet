@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/remitly-oss/httpsig-go"
 )
 
@@ -60,15 +61,18 @@ func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string)
 		return nil, err
 	}
 	identityCert, err := h.ds.GetHostIdentityCertBySerialNumber(ctx, keyIDInt)
-	if err != nil {
+	switch {
+	case fleet.IsNotFound(err):
+		return nil, fmt.Errorf("certificate not found with keyID: %d", keyIDInt)
+	case err != nil:
 		err = fmt.Errorf("loading certificate: %w", err)
-		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "keyID", keyIDInt, "err", err)
+		level.Error(h.logger).Log("msg", "FetchByKeyID error", "err", err)
 		return nil, err
 	}
 	publicKey, err := identityCert.UnmarshalPublicKey()
 	if err != nil {
 		err = fmt.Errorf("unmarshaling public key: %w", err)
-		h.logger.Log("level", "info", "msg", "FetchByKeyID error", "err", err)
+		level.Error(h.logger).Log("msg", "FetchByKeyID error", "err", err)
 		return nil, err
 	}
 

@@ -1297,15 +1297,13 @@ func (a *agent) shouldSignRequest(req *http.Request) bool {
 		return false
 	}
 
-	path := req.URL.Path
-
 	// Exclude ping endpoint from signing
-	if strings.HasSuffix(path, "/api/fleet/orbit/ping") {
+	if strings.HasSuffix(req.URL.Path, "/api/fleet/orbit/ping") {
 		return false
 	}
 
 	// Only sign specific API paths
-	return strings.Contains(path, "/api/fleet/orbit/") || strings.Contains(path, "/osquery/")
+	return strings.Contains(req.URL.Path, "/api/fleet/orbit/") || strings.Contains(req.URL.Path, "/osquery/")
 }
 
 // sign applies HTTP message signature to a request if needed
