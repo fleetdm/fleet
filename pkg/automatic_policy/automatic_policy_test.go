@@ -104,7 +104,7 @@ func TestGenerate(t *testing.T) {
 	require.Equal(t, "[Install software] Barfoo (msi)", policyData.Name)
 	require.Equal(t, "Policy triggers automatic install of Barfoo on each host that's missing this software.", policyData.Description)
 	require.Equal(t, "windows", policyData.Platform)
-	require.Equal(t, "SELECT 1 FROM programs WHERE identifying_number = 'foo';", policyData.Query)
+	require.Equal(t, "SELECT 1 FROM programs WHERE upgrade_code = 'foo';", policyData.Query)
 
 	policyData, err = Generate(FullInstallerMetadata{
 		Title:            "Zoobar",
