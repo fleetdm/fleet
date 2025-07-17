@@ -1553,7 +1553,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	}
 
 	defaultUninstallScript := file.GetUninstallScript(meta.Extension)
-	if payload.UninstallScript == "" || payload.UninstallScript == defaultUninstallScript {
+	if payload.UninstallScript == "" || payload.UninstallScript == defaultUninstallScript || payload.UninstallScript == file.UninstallMsiWithUpgradeCodeScript {
 		payload.UninstallScript = defaultUninstallScript
 		if payload.UpgradeCode != "" {
 			payload.UninstallScript = file.UninstallMsiWithUpgradeCodeScript
