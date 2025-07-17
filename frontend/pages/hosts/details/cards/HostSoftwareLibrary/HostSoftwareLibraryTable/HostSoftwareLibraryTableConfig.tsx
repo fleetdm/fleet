@@ -113,7 +113,7 @@ export const generateHostSWLibraryTableHeaders = ({
       },
     },
     {
-      Header: (cellProps: ITableHeaderProps) => <HeaderCell value="Status" />,
+      Header: () => <HeaderCell disableSortBy value="Status" />,
       disableSortBy: true,
       accessor: "ui_status",
       sortType: installStatusSortType,
