@@ -11,6 +11,7 @@ import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
 
 import { NotificationContext } from "context/notification";
+import { INotification } from "interfaces/notification";
 
 import deviceApi, {
   IDeviceSoftwareQueryKey,
@@ -91,7 +92,7 @@ const SoftwareSelfService = ({
   onShowInstallDetails,
   onShowUninstallDetails,
 }: ISoftwareSelfServiceProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
   const [selfServiceData, setSelfServiceData] = useState<
     IGetDeviceSoftwareResponse | undefined
@@ -103,14 +104,6 @@ const SoftwareSelfService = ({
   const [updatesPageSize, setUpdatesPageSize] = useState(() =>
     getUpdatesPageSize(window.innerWidth)
   );
-
-  useEffect(() => {
-    const handleResize = () => {
-      setUpdatesPageSize(getUpdatesPageSize(window.innerWidth));
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   const enhancedSoftware = useMemo(() => {
     if (!selfServiceData) return [];
@@ -130,6 +123,23 @@ const SoftwareSelfService = ({
       software.ui_status === "failed_uninstall_update_available"
   );
 
+  useEffect(() => {
+    const handleResize = () => {
+      const newPageSize = getUpdatesPageSize(window.innerWidth);
+      setUpdatesPageSize(() => {
+        const newTotalPages = Math.ceil(updateSoftware.length / newPageSize);
+        setUpdatesPage((prevPage) => {
+          // If the current page is now out of range, go to the last valid page
+          return Math.min(prevPage, Math.max(0, newTotalPages - 1));
+        });
+        return newPageSize;
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [updateSoftware.length]);
+
   const paginatedUpdates = useMemo(() => {
     const start = updatesPage * updatesPageSize;
     return updateSoftware.slice(start, start + updatesPageSize);
@@ -146,12 +156,10 @@ const SoftwareSelfService = ({
   };
 
   const disableUpdateAllButton = useMemo(() => {
-    // Disable if all statuses are "pending_update"
+    // Disable if all statuses are "updating"
     return (
       updateSoftware.length > 0 &&
-      updateSoftware.every(
-        (software) => software.ui_status === "pending_update"
-      )
+      updateSoftware.every((software) => software.ui_status === "updating")
     );
   }, [updateSoftware]);
 
@@ -307,41 +315,65 @@ const SoftwareSelfService = ({
         await deviceApi.installSelfServiceSoftware(deviceToken, id);
         onInstallOrUninstall();
       } catch (error) {
-        // We only show toast message if API returns an error
-        renderFlash("error", "Couldn't install. Please try again.");
+        // Only show toast message if API returns an error
+        renderFlash("error", "Couldn't update software. Please try again.");
       }
     },
     [deviceToken, onInstallOrUninstall, renderFlash]
   );
 
-  const onClickUpdateAll = useCallback(() => {
-    const pendingSoftware = enhancedSoftware.filter(
-      (software) => software.ui_status === "update_available"
+  const onClickUpdateAll = useCallback(async () => {
+    const updateAvailableSoftware = enhancedSoftware.filter(
+      (software) =>
+        software.ui_status === "update_available" ||
+        software.ui_status === "failed_install_update_available" ||
+        software.ui_status === "failed_uninstall_update_available"
     );
-    if (!pendingSoftware || pendingSoftware.length === 0) {
-      renderFlash("error", "No updates available.");
+
+    // This should not happen
+    if (!updateAvailableSoftware.length) {
+      renderFlash("success", "No updates available.");
       return;
     }
 
-    const pendingIds = pendingSoftware.map((s) => String(s.id));
-    startPollingForPendingInstallsOrUninstalls(pendingIds);
+    // Trigger updates
+    const promises = updateAvailableSoftware.map((software) =>
+      deviceApi.installSelfServiceSoftware(deviceToken, software.id)
+    );
 
-    // Trigger install for each pending software
-    pendingSoftware.forEach((software) => {
-      deviceApi
-        .installSelfServiceSoftware(deviceToken, software.id)
-        .catch(() => {
-          renderFlash(
-            "error",
-            `Couldn't update ${software.name}. Please try again.`
-          );
-        });
-    });
+    const results = await Promise.allSettled(promises);
+
+    // Only show toast message for updates that API returns an error
+    const failedUpdates = results
+      .map((result, idx) =>
+        result.status === "rejected" ? updateAvailableSoftware[idx] : null
+      )
+      .filter(Boolean) as typeof updateAvailableSoftware;
+
+    if (failedUpdates.length > 0) {
+      const errorNotifications: INotification[] = failedUpdates.map(
+        (software) => ({
+          id: `update-error-${software.id}`,
+          alertType: "error",
+          isVisible: true,
+          message: `Couldn't update ${software.name}. Please try again.`,
+          persistOnPageChange: false,
+        })
+      );
+
+      renderMultiFlash({
+        notifications: errorNotifications,
+      });
+    }
+
+    // Refresh the data after updates triggered
+    onInstallOrUninstall();
   }, [
     deviceToken,
-    startPollingForPendingInstallsOrUninstalls,
     renderFlash,
+    renderMultiFlash,
     enhancedSoftware,
+    onInstallOrUninstall,
   ]);
 
   const onSearchQueryChange = (value: string) => {
@@ -427,7 +459,12 @@ const SoftwareSelfService = ({
         setShowUninstallSoftwareModal(true);
       },
     });
-  }, [deviceToken, onInstallOrUninstall, onShowInstallDetails]);
+  }, [
+    deviceToken,
+    onInstallOrUninstall,
+    onShowInstallDetails,
+    onShowUninstallDetails,
+  ]);
 
   const renderUpdatesCard = () => {
     if (isLoading) {
