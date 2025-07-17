@@ -30,7 +30,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
 	httpsigproxy "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsigproxy"
-	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
@@ -55,6 +54,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -320,10 +320,6 @@ func main() {
 
 		if c.Bool("insecure") && c.String("update-tls-certificate") != "" {
 			return errors.New("insecure and update-tls-certificate may not be specified together")
-		}
-
-		if c.Bool("insecure") && c.String("fleet-managed-client-certificate") != "" {
-			return errors.New("insecure and fleet-managed-client-certificate may not be specified together")
 		}
 
 		if odb := c.String("osquery-db"); odb != "" && !filepath.IsAbs(odb) {
@@ -835,7 +831,11 @@ func main() {
 		}
 
 		var certPath string
-		if fleetURL != "https://" && c.Bool("insecure") {
+
+		// Both options --fleet-managed-client-certificate and --insecure make use of a local HTTPS proxy.
+		// If the user sets both --fleet-managed-client-certificate and --insecure then only the proxy
+		// for the fleet managed client certificate will be executed.
+		if fleetURL != "https://" && c.Bool("insecure") && !c.Bool("fleet-managed-client-certificate") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
 			if err != nil {
 				return fmt.Errorf("create TLS proxy: %w", err)
@@ -964,7 +964,7 @@ func main() {
 			if c.String("host-identifier") == "instance" {
 				commonName = osqueryHostInfo.InstanceID
 			}
-			clientCertificate, err := hostidentity.CreateOrLoadClientCertificate(
+			hostIdentityCredentials, err := hostidentity.Setup(
 				c.Context,
 				c.String("root-dir"),
 				fleetURL+"/api/fleet/orbit/host_identity/scep",
@@ -977,119 +977,66 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("failed to create or load client certificate: %w", err)
 			}
-			defer clientCertificate.Close()
+			defer hostIdentityCredentials.Close()
 
 			log.Info().Str(
-				"commonName", clientCertificate.C.Subject.CommonName,
+				"commonName", hostIdentityCredentials.Certificate.Subject.CommonName,
 			).Msg("certificate issued successfully")
 
-			// Compare the TPM key with the certificate public key
-			tpmPubKey, err := clientCertificate.TEEKey.Public()
+			cryptoSigner, err := hostIdentityCredentials.SecureHWKey.HTTPSigner()
 			if err != nil {
-				return fmt.Errorf("error getting TEE public key: %w", err)
-			}
-			keysEqual, err := scep.PublicKeysEqual(tpmPubKey, clientCertificate.C.PublicKey)
-			if err != nil {
-				return fmt.Errorf("error comparing public keys: %w", err)
-			}
-			if !keysEqual {
-				return errors.New("TEE key does not match certificate public key")
-			}
-			log.Debug().Msg("TEE public key matches certificate public key")
-
-			cryptoSigner, err := clientCertificate.TEEKey.HTTPSigner()
-			if err != nil {
-				return fmt.Errorf("error getting TEE-backed signer: %w", err)
+				return fmt.Errorf("error getting secure HW backed signer: %w", err)
 			}
 
 			// Get serial number as hex string
-			certSN := strings.ToUpper(clientCertificate.C.SerialNumber.Text(16))
+			certSN := strings.ToUpper(hostIdentityCredentials.Certificate.SerialNumber.Text(16))
 
 			// Get ECC algorithm for signing.
-			var algo httpsig.Algorithm
+			var signingAlgorithm httpsig.Algorithm
 			switch v := cryptoSigner.ECCAlgorithm(); v {
 			case securehw.ECCAlgorithmP256:
-				algo = httpsig.Algo_ECDSA_P256_SHA256
+				signingAlgorithm = httpsig.Algo_ECDSA_P256_SHA256
 			case securehw.ECCAlgorithmP384:
-				algo = httpsig.Algo_ECDSA_P384_SHA384
+				signingAlgorithm = httpsig.Algo_ECDSA_P384_SHA384
 			default:
 				return fmt.Errorf("invalid ECC algorithm: %v", v)
 			}
 
-			signer, err := httpsig.NewSigner(httpsig.SigningProfile{
-				Algorithm: algo,
-				// We are not using @target-uri in the signature so that we don't run into issues with
-				// HTTPS forwarding and proxies (http vs https).
-				Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
-				Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
-			}, httpsig.SigningKey{
-				Key:       cryptoSigner,
-				MetaKeyID: certSN,
-			})
+			httpSigner, err := fleethttpsig.Signer(certSN, cryptoSigner, signingAlgorithm)
 			if err != nil {
-				return fmt.Errorf("error creating signer: %w", err)
-			}
-			signerWrapper = func(client *http.Client) *http.Client {
-				return httpsig.NewHTTPClient(client, signer, nil)
+				return fmt.Errorf("failed to create HTTP signer: %w", err)
 			}
 
-			// TODO(lucas): Move this into its own package/function
-			proxy, err := httpsigproxy.NewProxy(fleetURL, c.String("fleet-certificate"), signer)
+			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
+			proxy, err := httpsigproxy.NewProxy(proxyDirectory, fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), httpSigner)
 			if err != nil {
 				return fmt.Errorf("create TLS proxy: %w", err)
 			}
 
-			// Directory to store proxy related assets
-			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
-			if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
-				return fmt.Errorf("there was a problem creating the proxy directory: %w", err)
-			}
-
-			certPath = filepath.Join(proxyDirectory, "fleet.crt")
-
-			// Write cert that proxy uses
-			err = os.WriteFile(certPath, []byte(httpsigproxy.ServerCert), os.FileMode(0o644))
-			if err != nil {
-				return fmt.Errorf("write server cert: %w", err)
-			}
-
-			// Rewrite URL to the proxy URL. Note the proxy handles any URL
-			// prefix so we don't need to carry that over here.
-			// We use 127.0.0.1 and NOT localhost due to security.
-			// A misconfigured /etc/hosts could resolve localhost to something unexpected.
-			parsedURL := &url.URL{
-				Scheme: "https",
-				Host:   fmt.Sprintf("127.0.0.1:%d", proxy.Port),
-			}
-
-			// Check and log if there are any errors with TLS connection.
-			pool, err := certificate.LoadPEM(certPath)
-			if err != nil {
-				return fmt.Errorf("load certificate: %w", err)
-			}
-			if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
-				log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
-			}
-
-			addSubsystem(&g, "httpsig proxy", &wrapSubsystem{
+			addSubsystem(&g, "httpsig localhost proxy", &wrapSubsystem{
 				execute: func() error {
 					log.Info().
-						Str("addr", fmt.Sprintf("127.0.0.1:%d", proxy.Port)).
-						Str("target", c.String("fleet-url")).
-						Msg("using HTTP signing proxy")
-					err := proxy.Serve()
-					return err
+						Str("addr", proxy.ParsedURL.String()).
+						Str("target", fleetURL).
+						Msg("httpsig localhost proxy")
+					return proxy.Serve()
 				},
 				interrupt: func(_ error) {
 					if err := proxy.Close(); err != nil {
-						log.Error().Err(err).Msg("close proxy")
+						log.Error().Err(err).Msg("close httpsig proxy")
 					}
 				},
 			})
 
+			signerWrapper = func(client *http.Client) *http.Client {
+				return httpsig.NewHTTPClient(client, httpSigner, nil)
+			}
+
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
-				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
+				osquery.WithFlags(osquery.FleetFlags(proxy.ParsedURL)),
+
+				// This is overriding the previous set of --tls_server_certs in osquery.FleetFlags above.
+				osquery.WithFlags([]string{"--tls_server_certs", proxy.CertificatePath}),
 			)
 		}
 

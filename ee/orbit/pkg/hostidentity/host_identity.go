@@ -15,23 +15,26 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// ClientCertificate holds a certificate and its corresponding private key handle stored in a TEE.
-type ClientCertificate struct {
-	C      *x509.Certificate
-	TEEKey securehw.Key
+// Credentials holds a certificate and its corresponding private key handle stored in secure hardware.
+type Credentials struct {
+	// Certificate holds the
+	Certificate *x509.Certificate
+	// SecureHWKey holds the private key protected by secure hardware.
+	SecureHWKey securehw.Key
 
-	teeDevice securehw.TEE
+	secureHW securehw.TEE
 }
 
-func (c *ClientCertificate) Close() {
-	c.teeDevice.Close()
+// Close releases key resources.
+func (c *Credentials) Close() {
+	c.secureHW.Close()
 }
 
-// CreateOrLoadClientCertificate creates a private key using a TEE and generates a new client
+// Setup creates a private key using a TEE and generates a new client
 // certificate using SCEP.
-//
 // If there's already a key and certificate in the metadata directory it will return them.
-func CreateOrLoadClientCertificate(
+// The returned Credentials needs to be closed after its use.
+func Setup(
 	ctx context.Context,
 	metadataDir string,
 	scepURL string,
@@ -40,18 +43,18 @@ func CreateOrLoadClientCertificate(
 	rootCA string,
 	insecure bool,
 	logger zerolog.Logger,
-) (*ClientCertificate, error) {
+) (*Credentials, error) {
 	teeDevice, err := securehw.New(metadataDir, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize TEE device: %w", err)
 	}
-	teeKey, err := teeDevice.LoadKey()
+	secureHWKey, err := teeDevice.LoadKey()
 	switch {
 	case err == nil:
 		// OK
 	case errors.As(err, &securehw.ErrKeyNotFound{}):
 		// Key doesn't exist yet, let's create it.
-		teeKey, err = teeDevice.CreateKey()
+		secureHWKey, err = teeDevice.CreateKey()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create TEE key: %w", err)
 		}
@@ -67,7 +70,7 @@ func CreateOrLoadClientCertificate(
 		// We don't have a certificate, let's issue one using SCEP.
 		opts := []scep.Option{
 			scep.WithRootCA(rootCA),
-			scep.WithSigningKey(teeKey),
+			scep.WithSigningKey(secureHWKey),
 			scep.WithLogger(logger),
 			scep.WithURL(scepURL),
 			scep.WithChallenge(scepChallenge),
@@ -88,16 +91,41 @@ func CreateOrLoadClientCertificate(
 			return nil, fmt.Errorf("failed to save certificate: %w", err)
 		}
 	}
-	return &ClientCertificate{
-		C:      clientCert,
-		TEEKey: teeKey,
 
-		teeDevice: teeDevice,
+	// Sanity check in case the public key material on the secure HW
+	// does not match the certificate public key.
+	// This can happen if something or someone deletes the private and public blobs
+	// and they are re-generated at startup.
+
+	secureHWPubKey, err := secureHWKey.Public()
+	if err != nil {
+		return nil, fmt.Errorf("error getting public key from secure HW key: %w", err)
+	}
+	keysEqual, err := scep.PublicKeysEqual(secureHWPubKey, clientCert.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("error comparing public keys: %w", err)
+	}
+	if !keysEqual {
+		// Cleanup the certificate in the metadata directory so that on next start up it will re-issue
+		// a new certificate.
+		certPath := filepath.Join(metadataDir, constant.FleetHTTPSignatureCertificateFileName)
+		if err := os.Remove(certPath); err != nil {
+			return nil, fmt.Errorf("error cleaning up %s: %w", certPath, err)
+		}
+		return nil, fmt.Errorf("secure HW key does not match certificate public key, deleted %q to re-issue a new certificate in the next restart", certPath)
+	}
+	logger.Debug().Msg("secure HW key matches certificate public key")
+
+	return &Credentials{
+		Certificate: clientCert,
+		SecureHWKey: secureHWKey,
+
+		secureHW: teeDevice,
 	}, nil
 }
 
-func loadSCEPClientCert(rootDir string) (*x509.Certificate, error) {
-	certPath := filepath.Join(rootDir, constant.FleetHTTPSignatureCertificateFileName)
+func loadSCEPClientCert(metadataDir string) (*x509.Certificate, error) {
+	certPath := filepath.Join(metadataDir, constant.FleetHTTPSignatureCertificateFileName)
 	certPEMBytes, err := os.ReadFile(certPath)
 	if err != nil {
 		return nil, fmt.Errorf("open %q: %w", certPath, err)
@@ -109,8 +137,8 @@ func loadSCEPClientCert(rootDir string) (*x509.Certificate, error) {
 	return x509.ParseCertificate(block.Bytes)
 }
 
-func saveSCEPClientCert(rootDir string, cert *x509.Certificate) error {
-	certPath := filepath.Join(rootDir, constant.FleetHTTPSignatureCertificateFileName)
+func saveSCEPClientCert(metadataDir string, cert *x509.Certificate) error {
+	certPath := filepath.Join(metadataDir, constant.FleetHTTPSignatureCertificateFileName)
 	certFile, err := os.OpenFile(certPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return fmt.Errorf("create cert file: %w", err)

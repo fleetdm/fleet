@@ -9,11 +9,15 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/remitly-oss/httpsig-go"
 )
 
@@ -30,8 +34,8 @@ const (
 	// -subj "/CN=httpsig-proxy" \
 	// -addext "subjectAltName = IP:127.0.0.1, IP:::1"
 
-	// ServerCert is the certificate used by the proxy server to connect to osquery via 127.0.0.1.
-	ServerCert = `-----BEGIN CERTIFICATE-----
+	// serverCert is the certificate used by the proxy server to connect to osquery via 127.0.0.1.
+	serverCert = `-----BEGIN CERTIFICATE-----
 MIIBqTCCAU6gAwIBAgIUCvG0XCIQmOo/16H+G4pE3tgIlg0wCgYIKoZIzj0EAwIw
 GDEWMBQGA1UEAwwNaHR0cHNpZy1wcm94eTAeFw0yNTA2MjQwMzQzMTFaFw00ODAx
 MjUwMzQzMTFaMBgxFjAUBgNVBAMMDWh0dHBzaWctcHJveHkwWTATBgcqhkjOPQIB
@@ -58,16 +62,33 @@ a4JMJ7AEZSMX3Lc4hwBR9WJ8bpAnvTqnF1shU01oGIOgOaH0xh84pcO+
 // Proxy is the TLS proxy implementation for adding HTTP signatures. This type should only be
 // initialized via NewProxy.
 type Proxy struct {
-	// Port is the port the TLS proxy is listening on (always at 127.0.0.1).
-	Port int
+	// ParsedURL is the localhost URL the proxy is listening too.
+	ParsedURL       *url.URL
+	CertificatePath string
 
 	listener net.Listener
 	server   *http.Server
 }
 
 // NewProxy creates a new proxy implementation targeting the provided hostname.
-func NewProxy(targetURL string, rootCA string, signer *httpsig.Signer) (*Proxy, error) {
-	cert, err := tls.X509KeyPair([]byte(ServerCert), []byte(serverKey))
+func NewProxy(
+	proxyDirectory string,
+	targetURL string,
+	rootCA string,
+	insecure bool,
+	signer *httpsig.Signer,
+) (*Proxy, error) {
+	// Directory to store proxy related assets
+	if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
+		return nil, fmt.Errorf("there was a problem creating the proxy directory: %w", err)
+	}
+	// Write certificate that the local proxy will use.
+	certPath := filepath.Join(proxyDirectory, "proxy.crt")
+	if err := os.WriteFile(certPath, []byte(serverCert), os.FileMode(0o644)); err != nil {
+		return nil, fmt.Errorf("write server cert: %w", err)
+	}
+
+	cert, err := tls.X509KeyPair([]byte(serverCert), []byte(serverKey))
 	if err != nil {
 		return nil, fmt.Errorf("load keypair: %w", err)
 	}
@@ -87,15 +108,26 @@ func NewProxy(targetURL string, rootCA string, signer *httpsig.Signer) (*Proxy, 
 		return nil, errors.New("listener is not *net.TCPAddr")
 	}
 
-	handler, err := newProxyHandler(targetURL, rootCA, signer)
+	handler, err := newProxyHandler(targetURL, rootCA, insecure, signer)
 	if err != nil {
 		return nil, fmt.Errorf("make proxy handler: %w", err)
 	}
 
 	proxy := &Proxy{
-		Port:     addr.Port,
-		listener: listener,
-		server:   &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Minute},
+		// Rewrite URL to the proxy URL. Note the proxy handles any URL
+		// prefix so we don't need to carry that over here.
+		// We use 127.0.0.1 and NOT localhost due to security.
+		// A misconfigured /etc/hosts could resolve localhost to something unexpected.
+		ParsedURL: &url.URL{
+			Scheme: "https",
+			Host:   fmt.Sprintf("127.0.0.1:%d", addr.Port),
+		},
+		CertificatePath: certPath,
+		listener:        listener,
+		server: &http.Server{
+			Handler:           handler,
+			ReadHeaderTimeout: 5 * time.Minute,
+		},
 	}
 
 	return proxy, nil
@@ -118,14 +150,17 @@ func (p *Proxy) Close() error {
 	return p.server.Shutdown(ctx)
 }
 
-func newProxyHandler(targetURL string, rootCA string, signer *httpsig.Signer) (*httputil.ReverseProxy, error) {
+func newProxyHandler(targetURL string, rootCA string, insecure bool, signer *httpsig.Signer) (*httputil.ReverseProxy, error) {
 	target, err := url.Parse(targetURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse target url: %w", err)
 	}
 
 	transport := fleethttp.NewTransport()
-	if rootCA != "" {
+	switch {
+	case insecure:
+		transport.TLSClientConfig.InsecureSkipVerify = true
+	case rootCA != "":
 		rootCAs, err := certificate.LoadPEM(rootCA)
 		if err != nil {
 			return nil, fmt.Errorf("loading server root CA: %w", err)
