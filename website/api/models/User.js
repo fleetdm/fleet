@@ -211,6 +211,11 @@ without necessarily having a billing card.`
         'eo-it',
         'mdm',
         'vm',
+        'security-misc',
+        'security-vm',
+        'it-major-mdm',
+        'it-gap-filler-mdm',
+        'it-misc'
       ]
     },
 
