@@ -275,6 +275,7 @@ INSERT INTO software_installers (
 					Extension:        payload.Extension,
 					BundleIdentifier: payload.BundleIdentifier,
 					PackageIDs:       payload.PackageIDs,
+					UpgradeCode:      payload.UpgradeCode,
 				}
 			}
 
