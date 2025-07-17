@@ -4109,11 +4109,12 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					// Make sure the user's email made it into the profile
 					var fullCmd micromdm.CommandPayload
 					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-					if id[0] == "hostUUID1" {
+					switch id[0] {
+					case "hostUUID1":
 						require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(user1Email)), "The profile for hostUUID 1 should contain the associated user email")
-					} else if id[0] == "hostUUID2" {
+					case "hostUUID2":
 						require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(user2Email)), "The profile for hostUUID 2 should contain the associated user email")
-					} else {
+					default:
 						require.Fail(t, "Unexpected host ID for command: %s", id[0])
 					}
 					return map[string]error{}, nil
@@ -4162,11 +4163,14 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					// Make sure the user's email made it into the profile if it was returned
 					var fullCmd micromdm.CommandPayload
 					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-					if id[0] == "hostUUID1" {
+					switch id[0] {
+					// Only hostUUID1 has an email associated with it
+					// so we expect it to be present in the profile
+					case "hostUUID1":
 						require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(user1Email)), "The profile for hostUUID 1 should contain the associated user email")
-					} else if id[0] == "hostUUID2" {
+					case "hostUUID2":
 						require.False(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte("@example.com")), "The profile for hostUUID 2 should not contain any user email")
-					} else {
+					default:
 						require.Fail(t, "Unexpected host ID for command: %s", id[0])
 					}
 					return map[string]error{}, nil
