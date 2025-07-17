@@ -807,7 +807,7 @@ func getAppConfigCommand() *cli.Command {
 func getHostsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "hosts",
-		Aliases: []string{"host", "h"},
+		Aliases: []string{"host", "H"},
 		Usage:   "List information about hosts",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
