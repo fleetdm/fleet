@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"os"
 	"os/exec"
@@ -19,8 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/pkg/file"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdm_maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
 // memoized directory path
@@ -73,8 +72,6 @@ func main() {
 	totalApps := len(apps)
 	successfulApps := 0
 	appWithError := []string{}
-	installOutputForApp := make(map[string]string)
-	uninstallOutputForApp := make(map[string]string)
 	for _, app := range apps {
 		if app.Platform != operatingSystem {
 			continue
@@ -89,12 +86,13 @@ func main() {
 
 		maintainedApp := appFromJson(appJson)
 
-		err = DownloadMaintainedApp(maintainedApp)
+		installerTFR, err := DownloadMaintainedApp(maintainedApp)
 		if err != nil {
 			fmt.Printf("Error downloading maintained app: %v\n", err)
 			appWithError = append(appWithError, app.Name)
 			continue
 		}
+		defer installerTFR.Close()
 
 		appListPre, err := listDirectoryContents(installationSearchDirectory)
 		if err != nil {
@@ -103,9 +101,9 @@ func main() {
 
 		fmt.Print("Executing install script...\n")
 		output, err := executeScript(maintainedApp.InstallScript)
-		installOutputForApp[app.Name] = output
 		if err != nil {
 			fmt.Printf("Error executing install script: %v\n", err)
+			fmt.Printf("Output: %s\n", output)
 			appWithError = append(appWithError, app.Name)
 			continue
 		}
@@ -122,7 +120,13 @@ func main() {
 			fmt.Printf("Warning: Error detected in post-installation steps: %v\n", err)
 		}
 
-		existance, err := doesAppExists(appPath, app.Name, app.UniqueIdentifier, maintainedApp.Version)
+		appVersion, err := extractAppVersion(maintainedApp, installerTFR)
+		if err != nil {
+			fmt.Printf("Error extracting installer version: %v. Using '%s'\n", err, appVersion)
+			appWithError = append(appWithError, app.Name)
+		}
+
+		existance, err := doesAppExists(appPath, app.Name, app.UniqueIdentifier, appVersion)
 		if err != nil {
 			fmt.Printf("Error checking if app exists: %v\n", err)
 			appWithError = append(appWithError, app.Name)
@@ -136,14 +140,14 @@ func main() {
 
 		fmt.Print("Executing uninstall script...\n")
 		output, err = executeScript(maintainedApp.UninstallScript)
-		uninstallOutputForApp[app.Name] = output
 		if err != nil {
 			fmt.Printf("Error uninstalling app: %v\n", err)
+			fmt.Printf("Output: %s\n", output)
 			appWithError = append(appWithError, app.Name)
 			continue
 		}
 
-		existance, err = doesAppExists(app.Name, app.UniqueIdentifier, maintainedApp.Version)
+		existance, err = doesAppExists(appPath, app.Name, app.UniqueIdentifier, appVersion)
 		if err != nil {
 			fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
 			appWithError = append(appWithError, app.Name)
@@ -211,58 +215,55 @@ func appFromJson(manifest *maintained_apps.FMAManifestFile) fleet.MaintainedApp 
 	return app
 }
 
-func getFilename(resp *http.Response, url string) string {
-	cd := resp.Header.Get("Content-Disposition")
-	if cd != "" {
-		_, params, err := mime.ParseMediaType(cd)
-		if err == nil && params["filename"] != "" {
-			return params["filename"]
+func extractAppVersion(maintainedApp fleet.MaintainedApp, installerTFR *fleet.TempFileReader) (string, error) {
+	appVersion := maintainedApp.Version
+
+	if appVersion == "latest" {
+		meta, err := file.ExtractInstallerMetadata(installerTFR)
+		if err != nil {
+			return appVersion, err
 		}
+		appVersion = meta.Version
 	}
-	// fallback: get the last part of the URL path
-	parts := strings.Split(url, "/")
-	return parts[len(parts)-1]
+
+	return appVersion, nil
 }
 
-func DownloadMaintainedApp(app fleet.MaintainedApp) error {
-	// Similar to code in:
-	// server/service/orbit_client.go:DownloadSoftwareInstallerFromURL
-	// server/service/orbit_client.go:requestWithExternal
+func DownloadMaintainedApp(app fleet.MaintainedApp) (*fleet.TempFileReader, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	request, err := http.NewRequestWithContext(ctx, "GET", app.InstallerURL, nil)
+	fmt.Print("Downloading...\n")
+	installerTFR, filename, err := mdm_maintained_apps.DownloadInstaller(ctx, app.InstallerURL, http.DefaultClient)
 	if err != nil {
-		return err
-	}
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return fmt.Errorf("GET %s: %w", app.InstallerURL, err)
-	}
-	defer response.Body.Close()
-	// server/service/base_client.go:parseResponse
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("GET %s returned status %d", app.InstallerURL, response.StatusCode)
+		return nil, fmt.Errorf("downloading installer: %w", err)
 	}
 
-	filePath := filepath.Join(tmpDir, getFilename(response, app.InstallerURL))
+	// Create a file in tmpDir for the installer
+	filePath := filepath.Join(tmpDir, filename)
 	out, err := os.Create(filePath)
 	if err != nil {
-		return fmt.Errorf("creating file: %w", err)
+		return nil, fmt.Errorf("creating file: %w", err)
 	}
 	defer out.Close()
 
-	fmt.Print("Downloading...\n")
-	_, err = io.Copy(out, response.Body)
+	// Copy from TempFileReader to our file
+	_, err = io.Copy(out, installerTFR)
 	if err != nil {
-		return fmt.Errorf("failed to save file: %w", err)
+		return nil, fmt.Errorf("failed to save file: %w", err)
+	}
+
+	// Rewind the TempFileReader for future use
+	err = installerTFR.Rewind()
+	if err != nil {
+		return nil, fmt.Errorf("rewinding temp file: %w", err)
 	}
 
 	env = os.Environ()
 	installerPathEnv := fmt.Sprintf("INSTALLER_PATH=%s", filePath)
 	env = append(env, installerPathEnv)
 
-	return nil
+	return installerTFR, nil
 }
 
 func executeScript(scriptContents string) (string, error) {
@@ -300,14 +301,6 @@ func executeScript(scriptContents string) (string, error) {
 func doesAppExists(appPath, appName, uniqueAppIdentifier, appVersion string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-
-	if appVersion == "latest" { // download URL isn't version-pinned; extract version from installer
-		meta, err := file.ExtractInstallerMetadata(installerTFR)
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "extracting installer metadata")
-		}
-		appVersion = meta.Version
-	}
 
 	fmt.Printf("Looking for app: %s, version: %s\n", appName, appVersion)
 	cmd := exec.CommandContext(ctx, "osqueryi", "--json", `
