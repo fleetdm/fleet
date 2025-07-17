@@ -631,6 +631,7 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
     private_key: 72414F4A688151F75D032F5CDA095FC4
   ```
 
+
 ## Auth
 
 ## auth_sso_session_validity_period
@@ -675,6 +676,18 @@ The key size of the salt which is generated when hashing user passwords.
   ```yaml
   auth:
     salt_key_size: 36
+  ```
+
+### auth_require_http_message_signature
+
+When enabled, Fleet server will require HTTP message signatures for all incoming fleetd(orbit and osquery) requests to verify request authenticity and integrity. The fleetd agents must run with `--fleet-managed-client-certificate` flag so they can request a host identity certificate from Fleet server and then use it to create HTTP message signatures (orbit 1.46.0 or higher).
+
+- Default value: `false`
+- Environment variable: `FLEET_AUTH_REQUIRE_HTTP_MESSAGE_SIGNATURE`
+- Config file format:
+  ```yaml
+  auth:
+    require_http_message_signature: true
   ```
 
 ## App
