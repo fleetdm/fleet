@@ -1812,7 +1812,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	require.Empty(t, toRemove)
 
 	// add host1 to team
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID}))
 	require.NoError(t, err)
 
 	// simulate an update that bulk-sets the no team's profiles to NULL pending
@@ -2350,7 +2350,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 
 	// add hosts[9] to team
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{hosts[9].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hosts[9].ID}))
 	require.NoError(t, err)
 
 	// remove profiles from hosts[9]
@@ -2660,7 +2660,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.True(t, checkListHosts(fleet.OSSettingsVerified, &tm.ID, []*fleet.Host{}))
 
 	// transfer hosts[9] to new team
-	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{hosts[9].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[9].ID}))
 	require.NoError(t, err)
 	// remove all no team profiles from hosts[9]
 	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, ctx, ds, t)
@@ -3148,7 +3148,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.NoError(t, err)
 	team1FVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, tm.ID), nil)
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{verifyingTeam1Host.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{verifyingTeam1Host.ID}))
 	require.NoError(t, err)
 
 	upsertHostCPs([]*fleet.Host{verifyingTeam1Host}, []*fleet.MDMAppleConfigProfile{team1FVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
@@ -3569,7 +3569,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	// assign enrolledHosts[2] to tm1
-	err = ds.AddHostsToTeam(ctx, &tm1.ID, []uint{enrolledHosts[2].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm1.ID, []uint{enrolledHosts[2].ID}))
 	require.NoError(t, err)
 
 	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
@@ -4124,7 +4124,7 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// assign hosts[2,4,5] to tm1
-	err = ds.AddHostsToTeam(ctx, &tm1.ID, []uint{hosts[2].ID, hosts[4].ID, hosts[5].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm1.ID, []uint{hosts[2].ID, hosts[4].ID, hosts[5].ID}))
 	require.NoError(t, err)
 
 	// list serials in team 2, has none
@@ -7495,7 +7495,7 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 	}
 
 	// transfer ios and ipados to the team
-	err = ds.AddHostsToTeam(context.Background(), &team.ID, []uint{hostIDsByKey["ios"], hostIDsByKey["ipados"]})
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostIDsByKey["ios"], hostIDsByKey["ipados"]}))
 	require.NoError(t, err)
 
 	checkDevice(t, team.ID, "ios", "")    // team settings are empty to start
@@ -7513,7 +7513,7 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 	checkDevice(t, 0, "macos", "14.5")        // no change, still global
 
 	// transfer macos to the team
-	err = ds.AddHostsToTeam(context.Background(), &team.ID, []uint{hostIDsByKey["macos"]})
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostIDsByKey["macos"]}))
 	require.NoError(t, err)
 	checkDevice(t, team.ID, "macos", "") // team settings are empty for macos
 

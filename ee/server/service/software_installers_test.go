@@ -84,7 +84,16 @@ quotes and braces for (
 )`
 	assert.Equal(t, expected, payload.UninstallScript)
 
+<<<<<<< HEAD
 	// TODO test upgrade code swapping, error handling on upgrade code in script but not in installer
+=======
+	payload.UninstallScript = "$UPGRADE_CODE"
+	require.Error(t, preProcessUninstallScript(&payload))
+
+	payload.UpgradeCode = "foo"
+	require.NoError(t, preProcessUninstallScript(&payload))
+	assert.Equal(t, `"foo"`, payload.UninstallScript)
+>>>>>>> main
 }
 
 func TestInstallUninstallAuth(t *testing.T) {

@@ -67,7 +67,18 @@ export const getStatusMessage = ({
     );
   }
 
-  // VPP failed state
+  // Verification failed (timeout)
+  if (displayStatus === "failed_install" && isStatusAcknowledged) {
+    return (
+      <>
+        The MDM command (request) to install <b>{software_title}</b> on{" "}
+        {formattedHost} was acknowledged but the installation has not been
+        verified. Please re-attempt this installation.
+      </>
+    );
+  }
+
+  // Install command failed
   if (displayStatus === "failed_install") {
     return (
       <>

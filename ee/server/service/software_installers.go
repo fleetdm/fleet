@@ -236,7 +236,7 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 			return errors.New("blank upgrade code when required in script")
 		}
 
-		payload.UninstallScript = upgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", payload.UpgradeCode))
+		payload.UninstallScript = upgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("\"%s\"${suffix}", payload.UpgradeCode))
 	}
 
 	return nil
@@ -402,6 +402,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.Filename = payloadForNewInstallerFile.Filename
 			payload.Version = payloadForNewInstallerFile.Version
 			payload.PackageIDs = payloadForNewInstallerFile.PackageIDs
+			payload.UpgradeCode = payloadForNewInstallerFile.UpgradeCode
 
 			dirty["Package"] = true
 		} else { // noop if uploaded installer is identical to previous installer
@@ -415,6 +416,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.Filename = existingInstaller.Name
 		payload.Version = existingInstaller.Version
 		payload.PackageIDs = existingInstaller.PackageIDs()
+		payload.UpgradeCode = existingInstaller.UpgradeCode
 	}
 
 	// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
@@ -451,6 +453,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
 		if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
 			uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
+			if payload.UpgradeCode != "" {
+				uninstallScript = file.UninstallMsiWithUpgradeCodeScript
+			}
 		}
 		if uninstallScript == "" {
 			return nil, &fleet.BadRequestError{
@@ -2284,46 +2289,57 @@ func UpgradeCodeMigration(
 		return nil
 	}
 
-	// Download each package and parse it
+	upgradeCodesByStorageID := map[string]string{}
+
+	// Download each package and parse it, if we haven't already
 	for id, storageID := range idMap {
-		// check if the installer exists in the store
-		exists, err := softwareInstallStore.Exists(ctx, storageID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking if installer exists")
-		}
-		if !exists {
-			level.Warn(logger).Log("msg", "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
-			continue
+		if _, hasParsedUpgradeCode := upgradeCodesByStorageID[storageID]; !hasParsedUpgradeCode {
+			// check if the installer exists in the store
+			exists, err := softwareInstallStore.Exists(ctx, storageID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "checking if installer exists")
+			}
+			if !exists {
+				level.Warn(logger).Log("msg", "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
+				upgradeCodesByStorageID[storageID] = "" // set to empty string to avoid duplicating work
+				continue
+			}
+
+			// get the installer from the store
+			installer, _, err := softwareInstallStore.Get(ctx, storageID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting installer from store")
+			}
+
+			tfr, err := fleet.NewTempFileReader(installer, nil)
+			_ = installer.Close()
+			if err != nil {
+				level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
+					err)
+				upgradeCodesByStorageID[storageID] = ""
+				continue
+			}
+			meta, err := file.ExtractInstallerMetadata(tfr)
+			_ = tfr.Close() // best-effort closing and deleting of temp file
+			if err != nil {
+				level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
+					err)
+				upgradeCodesByStorageID[storageID] = ""
+				continue
+			}
+			if meta.UpgradeCode == "" {
+				level.Debug(logger).Log("msg", "no upgrade code found in metadata", "software_installer_id", id, "storage_id", storageID)
+			} // fall through since we're going to set the upgrade code even if it's blank
+
+			upgradeCodesByStorageID[storageID] = meta.UpgradeCode
 		}
 
-		// get the installer from the store
-		installer, _, err := softwareInstallStore.Get(ctx, storageID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting installer from store")
-		}
-
-		tfr, err := fleet.NewTempFileReader(installer, nil)
-		_ = installer.Close()
-		if err != nil {
-			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
-				err)
-			continue
-		}
-		meta, err := file.ExtractInstallerMetadata(tfr)
-		_ = tfr.Close() // best-effort closing and deleting of temp file
-		if err != nil {
-			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
-				err)
-			continue
-		}
-		if meta.UpgradeCode == "" {
-			level.Debug(logger).Log("msg", "no upgrade code found in metadata", "software_installer_id", id, "storage_id", storageID)
-			continue
-		}
-
-		// Update the upgrade_code of the software package
-		if err := ds.UpdateInstallerUpgradeCode(ctx, id, meta.UpgradeCode); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating package_id in software installer")
+		if upgradeCode, hasParsedUpgradeCode := upgradeCodesByStorageID[storageID]; hasParsedUpgradeCode && upgradeCode != "" {
+			// Update the upgrade_code of the software package if we have one
+			if err := ds.UpdateInstallerUpgradeCode(ctx, id, upgradeCode); err != nil {
+				level.Warn(logger).Log("msg", "failed to update upgrade code", "software_installer_id", id, "error", err)
+				continue
+			}
 		}
 	}
 

@@ -707,7 +707,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	// move host 1 to team 1
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID})
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID}))
 	require.NoError(t, err)
 
 	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
@@ -743,7 +743,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 		host := test.NewHost(t, ds, fmt.Sprintf("host%d", i+4), fmt.Sprintf("192.168.0.%d", i+4), fmt.Sprintf("%d", i+4444), fmt.Sprintf("%d", i+4444), time.Now())
 		err = ds.UpdateHostOperatingSystem(context.Background(), host.ID, macOS)
 		require.NoError(t, err)
-		err = ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host.ID}))
 		require.NoError(t, err)
 	}
 
@@ -851,7 +851,7 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	for i := 0; i < 2; i++ {
-		err = ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[i].ID})
+		err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[i].ID}))
 		require.NoError(t, err)
 	}
 
@@ -1065,17 +1065,17 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	// move 4 windows hosts to team 1
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(context.Background(), &team1.ID, hostids[:4])
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, hostids[:4]))
 	require.NoError(t, err)
 
 	// move 3 windows hosts to team 2
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(context.Background(), &team2.ID, hostids[4:7])
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, hostids[4:7]))
 	require.NoError(t, err)
 
 	// move 1 macOS host to team 2
-	err = ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{hostids[10]})
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{hostids[10]}))
 	require.NoError(t, err)
 
 	err = ds.UpdateOSVersions(context.Background())

@@ -225,7 +225,7 @@ type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fle
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
-type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
+type AddHostsToTeamFunc func(ctx context.Context, params *fleet.AddHostsToTeamParams) error
 
 type HostnamesByIdentifiersFunc func(ctx context.Context, identifiers []string) ([]string, error)
 
@@ -4239,11 +4239,11 @@ func (s *DataStore) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite,
 	return s.HostLiteByIDFunc(ctx, id)
 }
 
-func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+func (s *DataStore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 	s.mu.Lock()
 	s.AddHostsToTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
+	return s.AddHostsToTeamFunc(ctx, params)
 }
 
 func (s *DataStore) HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error) {
