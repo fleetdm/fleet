@@ -33,6 +33,11 @@ while getopts ":s:a:" opt; do
   esac
 done
 
+if ! command -v svgr &> /dev/null; then
+  echo "Error: 'svgr' is not installed. Install it with 'npm install -g @svgr/cli'"
+  exit 1
+fi
+
 # Validate
 if [[ -z "$SLUG" || -z "$APP_PATH" ]]; then
   echo "Usage: $0 -s slug-name -a /path/to/App.app"
