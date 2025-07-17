@@ -633,7 +633,8 @@ SELECT
 	si.uploaded_at,
 	COALESCE(st.name, '') AS software_title,
 	si.platform,
-	si.fleet_maintained_app_id
+	si.fleet_maintained_app_id,
+	si.upgrade_code
 FROM
 	software_installers si
 	LEFT OUTER JOIN software_titles st ON st.id = si.title_id
