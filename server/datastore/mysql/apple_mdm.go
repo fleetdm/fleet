@@ -655,6 +655,22 @@ func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sq
 		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_declarations that have not been sent to host")
 	}
 
+	const deleteStmt = `
+	DELETE FROM
+		host_mdm_apple_declarations
+	WHERE
+		declaration_uuid IN (?) AND
+		status IN (?) AND
+		operation_type = 'install'`
+	stmt, args, err = sqlx.In(deleteStmt, declUUIDs, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in delete statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_declarations that were pending or failed installs")
+	}
+
 	const updStmt = `
 	UPDATE
 		host_mdm_apple_declarations
@@ -5887,6 +5903,8 @@ ON DUPLICATE KEY UPDATE
 				c.SecretsUpdatedAt)
 		}
 	}
+
+	// TODO: Do we want to take action if an update coming from the host is not found in the current "expected" declarations?
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if len(args) != 0 {
