@@ -31,12 +31,28 @@ type Key interface {
 	// The returned Signer is safe for concurrent use.
 	Signer() (crypto.Signer, error)
 
+	// HTTPSigner returns a crypto.Signer configured for RFC 9421-compatible HTTP signatures.
+	// The returned Signer produces fixed-width r||s format signatures.
+	HTTPSigner() (HTTPSigner, error)
+
 	// Public returns the public key associated with this TEE key.
 	Public() (crypto.PublicKey, error)
 
 	// Close releases any resources associated with this key.
 	Close() error
 }
+
+type HTTPSigner interface {
+	crypto.Signer
+	ECCAlgorithm() ECCAlgorithm
+}
+
+type ECCAlgorithm int
+
+const (
+	ECCAlgorithmP256 ECCAlgorithm = iota + 1
+	ECCAlgorithmP384
+)
 
 func New(metadataDir string, logger zerolog.Logger) (TEE, error) {
 	logger = logger.With().Str("component", "securehw").Logger()

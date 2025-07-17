@@ -707,6 +707,7 @@ func (a *agent) runOrbitLoop() {
 			Hostname:       a.CachedString("hostname"),
 		},
 		nil,
+		nil,
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)

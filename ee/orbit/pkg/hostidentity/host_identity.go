@@ -19,6 +19,12 @@ import (
 type ClientCertificate struct {
 	C      *x509.Certificate
 	TEEKey securehw.Key
+
+	teeDevice securehw.TEE
+}
+
+func (c *ClientCertificate) Close() {
+	c.teeDevice.Close()
 }
 
 // CreateOrLoadClientCertificate creates a private key using a TEE and generates a new client
@@ -39,7 +45,6 @@ func CreateOrLoadClientCertificate(
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize TEE device: %w", err)
 	}
-	defer teeDevice.Close()
 	teeKey, err := teeDevice.LoadKey()
 	switch {
 	case err == nil:
@@ -86,6 +91,8 @@ func CreateOrLoadClientCertificate(
 	return &ClientCertificate{
 		C:      clientCert,
 		TEEKey: teeKey,
+
+		teeDevice: teeDevice,
 	}, nil
 }
 

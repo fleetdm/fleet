@@ -432,28 +432,52 @@ type tpm2Key struct {
 }
 
 func (k *tpm2Key) Signer() (crypto.Signer, error) {
-	return k.createSigner()
+	signer, _, err := k.createSigner(false)
+	if err != nil {
+		return nil, err
+	}
+	return signer, nil
 }
 
-func (k *tpm2Key) createSigner() (crypto.Signer, error) {
+func (k *tpm2Key) HTTPSigner() (HTTPSigner, error) {
+	signer, algo, err := k.createSigner(true)
+	if err != nil {
+		return nil, err
+	}
+	return &httpSigner{
+		Signer: signer,
+		algo:   algo,
+	}, nil
+}
+
+type httpSigner struct {
+	crypto.Signer
+	algo ECCAlgorithm
+}
+
+func (h *httpSigner) ECCAlgorithm() ECCAlgorithm {
+	return h.algo
+}
+
+func (k *tpm2Key) createSigner(httpsign bool) (s crypto.Signer, algo ECCAlgorithm, err error) {
 	// Parse public key
 	pub, err := k.public.Contents()
 	if err != nil {
-		return nil, fmt.Errorf("get public key contents: %w", err)
+		return nil, 0, fmt.Errorf("get public key contents: %w", err)
 	}
 
 	if pub.Type != tpm2.TPMAlgECC {
-		return nil, errors.New("not an ECC key")
+		return nil, 0, errors.New("not an ECC key")
 	}
 
 	eccDetail, err := pub.Parameters.ECCDetail()
 	if err != nil {
-		return nil, fmt.Errorf("get ECC details: %w", err)
+		return nil, 0, fmt.Errorf("get ECC details: %w", err)
 	}
 
 	eccUnique, err := pub.Unique.ECC()
 	if err != nil {
-		return nil, fmt.Errorf("get ECC unique: %w", err)
+		return nil, 0, fmt.Errorf("get ECC unique: %w", err)
 	}
 
 	// Create crypto.PublicKey based on curve
@@ -465,21 +489,24 @@ func (k *tpm2Key) createSigner() (crypto.Signer, error) {
 			X:     new(big.Int).SetBytes(eccUnique.X.Buffer),
 			Y:     new(big.Int).SetBytes(eccUnique.Y.Buffer),
 		}
+		algo = ECCAlgorithmP256
 	case tpm2.TPMECCNistP384:
 		publicKey = &ecdsa.PublicKey{
 			Curve: elliptic.P384(),
 			X:     new(big.Int).SetBytes(eccUnique.X.Buffer),
 			Y:     new(big.Int).SetBytes(eccUnique.Y.Buffer),
 		}
+		algo = ECCAlgorithmP384
 	default:
-		return nil, fmt.Errorf("unsupported ECC curve: %v", eccDetail.CurveID)
+		return nil, 0, fmt.Errorf("unsupported ECC curve: %v", eccDetail.CurveID)
 	}
 
 	return &tpm2Signer{
 		tpm:       k.tpm,
 		handle:    k.handle,
 		publicKey: publicKey,
-	}, nil
+		httpsign:  httpsign,
+	}, algo, nil
 }
 
 func (k *tpm2Key) Public() (crypto.PublicKey, error) {
@@ -507,6 +534,7 @@ type tpm2Signer struct {
 	tpm       transport.TPMCloser
 	handle    tpm2.NamedHandle
 	publicKey *ecdsa.PublicKey
+	httpsign  bool // true for RFC 9421-compatible HTTP signatures, false for standard ECDSA
 }
 
 // _ ensures tpm2Signer satisfies the crypto.Signer interface at compile time.
@@ -563,6 +591,32 @@ func (s *tpm2Signer) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) ([
 	ecdsaSig, err := rsp.Signature.Signature.ECDSA()
 	if err != nil {
 		return nil, fmt.Errorf("get ECDSA signature: %w", err)
+	}
+
+	if s.httpsign {
+		// RFC 9421-compatible HTTP signature format: fixed-width r||s
+		curveBits := s.publicKey.Curve.Params().BitSize
+		coordSize := (curveBits + 7) / 8 // bytes per coordinate
+
+		// Allocate the output buffer
+		sig := make([]byte, 2*coordSize)
+
+		// Copy R, left-padded
+		sigR := ecdsaSig.SignatureR.Buffer
+		if len(sigR) > coordSize {
+			return nil, fmt.Errorf("TPM ECDSA signature R too long: got %d bytes, expected max %d", len(sigR), coordSize)
+		}
+		copy(sig[coordSize-len(sigR):coordSize], sigR)
+
+		// Copy S, left-padded
+		sigS := ecdsaSig.SignatureS.Buffer
+		if len(sigS) > coordSize {
+			return nil, fmt.Errorf("TPM ECDSA signature S too long: got %d bytes, expected max %d", len(sigS), coordSize)
+		}
+		copy(sig[2*coordSize-len(sigS):], sigS)
+
+		// The final signature contains r||s, fixed-width, RFC 9421–compatible
+		return sig, nil
 	}
 
 	// Standard ECDSA signature format for certificate signing requests
