@@ -200,6 +200,12 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 			CommonName:   c.commonName,
 			Organization: csr.Subject.Organization,
 		},
+
+		// The server will set these on the final certificate,
+		// but we need to set them otherwise the CSR is rejected.
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(365 * 24 * time.Hour),
+
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,

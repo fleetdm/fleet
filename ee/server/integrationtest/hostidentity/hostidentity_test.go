@@ -69,7 +69,6 @@ func testGetCertAndSignReq(t *testing.T, s *Suite) {
 		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
 		testOsqueryEnrollment(t, s, cert, eccPrivateKey)
 	})
-
 }
 
 func generateRandomString(length int) string {
@@ -984,5 +983,4 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 		// Should fail because the certificate doesn't match the host identifier
 		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with wrong certificate should fail even after other hosts are enrolled")
 	})
-
 }
