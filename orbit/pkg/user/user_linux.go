@@ -72,6 +72,11 @@ func GetLoginUser() (*User, error) {
 	}, nil
 }
 
+// GetUserContext returns the SELinux context for the given user.
+// Example: `unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023`
+//
+// If SELinux is not enabled, the `runcon` command is not available,
+// or context cannot be determined, it returns nil.
 func GetUserContext(user *User) *string {
 	// If SELinux is not enabled, return nil right away.
 	if _, err := os.Stat("/sys/fs/selinux/enforce"); err != nil {

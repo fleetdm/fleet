@@ -20,7 +20,7 @@ import (
 
 // base command to setup an exec.Cmd using `runuser`
 func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
-	args, env, userContext, err := getUserAndDisplayArgs(path)
+	args, env, userContext, err := getConfigForCommand(path)
 	if err != nil {
 		return nil, fmt.Errorf("get args: %w", err)
 	}
@@ -121,7 +121,7 @@ func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
 	return stdin, nil
 }
 
-func getUserAndDisplayArgs(path string) ([]string, []string, *string, error) {
+func getConfigForCommand(path string) (args []string, env []string, userContext *string, err error) {
 	user, err := userpkg.GetLoginUser()
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("get user: %w", err)
@@ -177,8 +177,8 @@ func getUserAndDisplayArgs(path string) ([]string, []string, *string, error) {
 		Str("session_type", userDisplaySessionType.String()).
 		Msg("running sudo")
 
-	args := []string{"-l", user.Name}
-	env := make([]string, 0)
+	args = []string{"-l", user.Name}
+	env = make([]string, 0)
 
 	if userDisplaySessionType == userpkg.GuiSessionTypeWayland {
 		env = append(env, "WAYLAND_DISPLAY="+display)
@@ -200,9 +200,9 @@ func getUserAndDisplayArgs(path string) ([]string, []string, *string, error) {
 	)
 
 	// Get the user's SELinux context (if any).
-	context := userpkg.GetUserContext(user)
+	userContext = userpkg.GetUserContext(user)
 
-	return args, env, context, nil
+	return args, env, userContext, nil
 }
 
 var whoLineRegexp = regexp.MustCompile(`(\w+)\s+(:\d+)\s+`)
