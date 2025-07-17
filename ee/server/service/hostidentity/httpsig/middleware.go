@@ -32,7 +32,7 @@ func FromContext(ctx context.Context) (types.HostIdentityCertificate, bool) {
 // to it, and then calls the handler passed as parameter to the MiddlewareFunc.
 type MiddlewareFunc func(http.Handler) http.Handler
 
-func Middleware(ds fleet.Datastore, logger kitlog.Logger) (MiddlewareFunc, error) {
+func Middleware(ds fleet.Datastore, requireSignature bool, logger kitlog.Logger) (MiddlewareFunc, error) {
 	// Initialize HTTP signature verifier
 	httpSig := NewHTTPSig(ds, logger)
 	verifier, err := httpSig.Verifier()
@@ -55,6 +55,12 @@ func Middleware(ds fleet.Datastore, logger kitlog.Logger) (MiddlewareFunc, error
 				// If the request does not have an HTTP message signature, we do not verify it AND
 				// we do not set the host identity cert in the context
 				if req.Header.Get("signature") == "" || req.Header.Get("signature-input") == "" {
+					if requireSignature {
+						handleError(req.Context(), w,
+							ctxerr.Errorf(req.Context(), "missing required HTTP message signature: path=%s", req.URL.Path),
+							http.StatusUnauthorized)
+						return
+					}
 					next.ServeHTTP(w, req)
 					return
 				}
@@ -70,14 +76,13 @@ func Middleware(ds fleet.Datastore, logger kitlog.Logger) (MiddlewareFunc, error
 				keySpecer, ok := result.KeySpecer.(*KeySpecer)
 				if !ok {
 					handleError(req.Context(), w,
-						ctxerr.New(req.Context(), fmt.Sprintf("could not extract host identity certificate key: path=%s", req.URL.Path)),
+						ctxerr.Errorf(req.Context(), "could not extract host identity certificate key: path=%s", req.URL.Path),
 						http.StatusInternalServerError)
 					return
 				}
 				if !result.Verified {
 					handleError(req.Context(), w,
-						ctxerr.New(req.Context(), fmt.Sprintf("request not verified: path=%s host_uuid=%s", req.URL.Path,
-							keySpecer.hostIdentityCert.CommonName)),
+						ctxerr.Errorf(req.Context(), "request not verified: path=%s host_uuid=%s", req.URL.Path, keySpecer.hostIdentityCert.CommonName),
 						http.StatusUnauthorized)
 					return
 				}

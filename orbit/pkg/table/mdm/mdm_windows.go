@@ -10,6 +10,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"github.com/scjalliance/comshim"
 	"io"
 	"os"
 	"strings"
@@ -359,6 +360,9 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
+	comshim.Add(1)
+	defer comshim.Done()
+
 	// checking if input MDM command is valid
 	if validCommand, err := isValidMDMcommand(inputCMD); !validCommand {
 		return "", err
@@ -550,16 +554,9 @@ func enableCmdExecution() error {
 	// initialize MDM stack management by generating SHA256 hash of SMBIOS UUID and calling RegisterDeviceWithLocalManagement()
 	// this is wrapped by sync.Once so it only executes once
 	mdmManagementStackInit.Do(func() {
-		// making sure that COM is initialized
-		// this is a best effort call as COM stack could have been initialized already by other components
-		err := windows.CoInitializeEx(0, windows.COINIT_MULTITHREADED)
-		if err != nil {
-			log.Error().Msgf("there was an error calling CoInitializeEx(): (%s)", err)
-		}
-
-		// calling RegisterDeviceWithLocalManagement() to initialize the MDM stack
-		// The code below is just using returnCode to determine if call was successul or not. The err
-		// variable returns status above call dispatching so it not needed and actually introduce
+		// calling RegisterDeviceWithLocalManagement() to initialize the MDM stack,
+		// The code below is just using returnCode to determine if the call was successful or not. The err
+		// variable returns the status above call dispatching, so it is unnecessary and actually introduces
 		// confusion about the status of the call.
 		// This is a best effort call as MDM management stack could have been initialized already by other components
 		if returnCode, _, _ := procRegisterDeviceWithLocalManagement.Call(uintptr(unsafe.Pointer(nil))); returnCode != uintptr(windows.ERROR_SUCCESS) {

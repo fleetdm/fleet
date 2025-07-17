@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "title": "Homebrew-based Fleet-maintained apps input schema",
+  "description": "Specify metadata to source a Fleet-maintained app from Homebrew.",
+  "required": [
+    "name",
+    "unique_identifier",
+    "token",
+    "installer_format",
+    "slug",
+    "default_categories"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The user-facing name of the application.",
+      "minLength": 1
+    },
+    "unique_identifier": {
+      "type": "string",
+      "description": "The platform-specific unique identifier for the app. On macOS, this is the app's bundle identifier.",
+      "minLength": 1
+    },
+    "token": {
+      "type": "string",
+      "description": "The identifier used by homebrew for the app; it is the token field on the homebrew API response.",
+      "minLength": 1
+    },
+    "installer_format": {
+      "type": "string",
+      "description": "The file format for the app's installer.",
+      "enum": ["zip", "dmg", "pkg"]
+    },
+    "slug": {
+      "type": "string",
+      "description": "The slug identifies a specific app and platform combination. It is used to name the manifest files that contain the metadata that Fleet needs to add, install, and uninstall this app. Format: app-name/platform (e.g., adobe-acrobat-reader/darwin)",
+      "pattern": "^[a-z0-9-]+/darwin$",
+      "minLength": 1
+    },
+    "pre_uninstall_scripts": {
+      "type": "array",
+      "description": "Command lines that will be run before the generated uninstall script is executed.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "post_uninstall_scripts": {
+      "type": "array",
+      "description": "Command lines that will be run after the generated uninstall script is executed.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "default_categories": {
+      "type": "array",
+      "description": "The default categories assigned to the installer in self-service if no categories are specified when it is added to a team's library.",
+      "items": {
+        "type": "string",
+        "enum": ["Browsers", "Communication", "Developer tools", "Productivity"]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "install_script_path": {
+      "type": "string",
+      "description": "A filepath to an install script. If provided, this script will override the generated install script.",
+      "minLength": 1,
+      "pattern": "\\.sh$"
+    },
+    "uninstall_script_path": {
+      "type": "string",
+      "description": "A filepath to an uninstall script. If provided, this script will override the generated uninstall script.",
+      "minLength": 1,
+      "pattern": "\\.sh$"
+    }
+  },
+  "not": {
+    "allOf": [
+      {
+        "properties": {
+          "uninstall_script_path": {
+            "type": "string"
+          }
+        },
+        "required": ["uninstall_script_path"]
+      },
+      {
+        "anyOf": [
+          {
+            "properties": {
+              "pre_uninstall_scripts": {
+                "type": "array"
+              }
+            },
+            "required": ["pre_uninstall_scripts"]
+          },
+          {
+            "properties": {
+              "post_uninstall_scripts": {
+                "type": "array"
+              }
+            },
+            "required": ["post_uninstall_scripts"]
+          }
+        ]
+      }
+    ]
+  },
+  "additionalProperties": false
+}
