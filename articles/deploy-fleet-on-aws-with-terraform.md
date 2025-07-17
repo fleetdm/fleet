@@ -1,8 +1,5 @@
 # Deploy Fleet on AWS with Terraform
 
-<h2 style="display: none;" class="markdown-heading"><a href="#aws" class="markdown-link">AWS</a></h2>
-<h2 id="aws">Deploy at scale with AWS and Terraform</h2>
-
 The simplest way to get started with Fleet at scale is to use AWS with Terraform.
 
 This workflow takes about 30 minutes to complete and supports between 10 and 350,000 hosts.
