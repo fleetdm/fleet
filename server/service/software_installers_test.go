@@ -175,16 +175,19 @@ func TestUpgradeCodeMigration(t *testing.T) {
 	require.NoError(t, softwareInstallStore.Put(ctx, "deadbeef", tfr))
 
 	ds.GetMSIInstallersWithoutUpgradeCodeFunc = func(ctx context.Context) (map[uint]string, error) {
-		return map[uint]string{uint(1): "deadbeef", uint(2): "noexist"}, nil
+		return map[uint]string{uint(1): "deadbeef", uint(2): "deadbeef", uint(3): "noexist", uint(4): "noexist"}, nil
 	}
+
+	var updatedInstallerIDs = map[uint]struct{}{}
 	ds.UpdateInstallerUpgradeCodeFunc = func(ctx context.Context, installerID uint, upgradeCode string) error {
-		require.Equal(t, uint(1), installerID)
+		updatedInstallerIDs[installerID] = struct{}{}
 		require.Equal(t, "{B681CB20-107E-428A-9B14-2D3C1AFED244}", upgradeCode)
 		return nil
 	}
 
 	require.NoError(t, eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, kitlog.NewNopLogger()))
 	require.True(t, ds.UpdateInstallerUpgradeCodeFuncInvoked)
+	require.Len(t, updatedInstallerIDs, 2)
 }
 
 // TestValidateSoftwareLabels tests logic for validating labels associated with software (VPP apps,
