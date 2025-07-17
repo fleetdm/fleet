@@ -236,7 +236,7 @@ func (c *Client) RequestCertificate() error {
 		Metadata:  []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
 	}, httpsig.SigningKey{
 		Key:       eccPrivateKey,
-		MetaKeyID: fmt.Sprintf("%x", cert.SerialNumber),
+		MetaKeyID: fmt.Sprintf("%X", cert.SerialNumber),
 	})
 	if err != nil {
 		log.Printf("Agent %d: Failed to create HTTP signer: %v", c.config.AgentIndex, err)
@@ -245,7 +245,7 @@ func (c *Client) RequestCertificate() error {
 
 	c.httpSigner = signer
 
-	log.Printf("Agent %d: Successfully obtained host identity certificate with serial %x", c.config.AgentIndex, cert.SerialNumber)
+	log.Printf("Agent %d: Successfully obtained host identity certificate with serial %X", c.config.AgentIndex, cert.SerialNumber)
 	return nil
 }
 
