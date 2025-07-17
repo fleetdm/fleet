@@ -48,9 +48,10 @@ func SAMLProviderFromConfiguredMetadata(
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
 	return &saml.ServiceProvider{
-		EntityID:    entityID,
-		AcsURL:      *parsedACSURL,
-		IDPMetadata: entityDescriptor,
+		EntityID:          entityID,
+		AcsURL:            *parsedACSURL,
+		IDPMetadata:       entityDescriptor,
+		AuthnNameIDFormat: saml.EmailAddressNameIDFormat,
 	}, nil
 }
 

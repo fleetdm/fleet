@@ -61,6 +61,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	authReq := inflate(t, encoded)
 	assert.Equal(t, "issuer", authReq.Issuer.Value)
 	assert.Equal(t, "Fleet", authReq.ProviderName)
+	assert.Equal(t, string(saml.EmailAddressNameIDFormat), authReq.NameIDPolicy.Element().Attr[0].Value)
 	assert.True(t, strings.HasPrefix(authReq.ID, "id"), authReq.ID)
 
 	ssn := store.session
