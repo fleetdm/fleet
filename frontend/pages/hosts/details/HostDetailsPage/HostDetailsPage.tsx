@@ -1046,7 +1046,7 @@ const HostDetailsPage = ({
     return (
       <>
         <>
-          {mainContentConfig.renderedBanner && (
+          {!mainContentConfig.renderedBanner && (
             <HostDetailsBanners
               mdmEnrollmentStatus={host?.mdm.enrollment_status}
               hostPlatform={host?.platform}
