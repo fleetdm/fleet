@@ -405,7 +405,7 @@ const InstallStatusCell = ({
     // Status groups and their click handlers
     const displayStatusConfig = [
       {
-        condition: lastInstall,
+        condition: true, // Allow click even if no last install to see details modal
         statuses: ["Failed", "Install (pending)", "Installed"],
         onClick: onClickInstallStatus,
       },
