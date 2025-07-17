@@ -1,11 +1,9 @@
-- `fleetctl api` now supports setting variables in the body of requests using the `-B` flag.
-  - Using the syntax `-B field=<path`, the file at "path" will be read and the field will be set to the file's contents.
-  - Using the syntax `-B field=@path`, the file at "path" will be uploaded as a multipart upload.
-  - Using the `-B` flag automatically changes the default method from `GET` to `POST`, but the method can still be set with the `-X` flag as before.
+- `fleetctl api` now supports sending data in the body of non-GET requests using the `-F` flag.
+  - For methods other than `GET`, using the syntax `-F field=<path`, the file at "path" will be read and the field will be set to the file's contents.
+  - For methods other than `GET`, using the syntax `-F field=@path`, the file at "path" will be uploaded as a multipart upload.
   - When no file uploads are present, the body is encoded as a JSON dictionary.
   - To ensure JSON values can be passed correctly, it is no longer possible to set multiple values for a repeatable flag using a comma (`,`). You must now specify the flag multiple times.
-  - `fleetctl` will attempt to parse values as JSON. If successful, the value will be embedded in the JSON body. For example, `fleetctl api -B field=true endpoint` will encode as `{"field":true}`. To use the literal string "true", write `-B 'field="true"'`.
+  - `fleetctl` will attempt to parse values as JSON. If successful, the value will be embedded in the JSON body. For example, `fleetctl api -F field=true endpoint` will encode as `{"field":true}`. To use the literal string "true", write `-F 'field="true"'`.
   - If the value cannot be parsed as JSON, it is sent as a string.
   - When `--debug` is specified, the body is written to standard error, unless it contains non-Unicode characters.
-  - To upload a software package, use `fleetctl api -B software=@/path/to/software.pkg -B team_id=0 -B install_script=... -B uninstall_script=... software/package`
-
+  - To upload a software package, use `fleetctl api -X POST -F software=@/path/to/software.pkg -F team_id=0 -F install_script=... -F uninstall_script=... software/package`

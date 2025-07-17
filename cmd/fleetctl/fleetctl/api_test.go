@@ -81,6 +81,11 @@ func TestRunApiCommand(t *testing.T) {
 }
 `
 
+	expectedNewScript := `{
+  "script_id": 1
+}
+`
+
 	cases := []testCase{
 		{
 			name: "get scripts",
@@ -137,15 +142,26 @@ func TestRunApiCommand(t *testing.T) {
 		{
 			name: "create policy",
 			args: []string{
-				"-B", "name=Test Policy",
-				"-B", "query=SELECT 1;",
-				"-B", "platform=darwin,windows,linux,chrome",
-				"-B", "critical=false",
-				"-B", "description=",
-				"-B", "resolution=",
+				"-X", "POST",
+				"-F", "name=Test Policy",
+				"-F", "query=SELECT 1;",
+				"-F", "platform=darwin,windows,linux,chrome",
+				"-F", "critical=false",
+				"-F", "description=",
+				"-F", "resolution=",
 				"/api/latest/fleet/policies",
 			},
 			expectOutput: expectedNewPolicy,
+		},
+		{
+			name: "upload script",
+			args: []string{
+				"-X", "POST",
+				"-F", "script=@testdata/testscript.sh",
+				"-F", "team_id=0",
+				"/api/latest/fleet/scripts",
+			},
+			expectOutput: expectedNewScript,
 		},
 	}
 

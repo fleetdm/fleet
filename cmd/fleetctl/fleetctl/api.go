@@ -216,8 +216,6 @@ func clientConfigFromCLI(c *cli.Context) (Context, error) {
 
 // apiCommand fleetctl api [options] uri
 // -F, --field <key=value>
-// Add a parameter to the query string in key=value format
-// -B, --body-field <key=value>
 // Add a value to the body in key=value format. If the value is in the format of "@filename", upload
 // that file as a MIME multipart upload. If the value is in the format of "<filename", use the
 // contents of that file as the value of this key.
@@ -227,8 +225,7 @@ func clientConfigFromCLI(c *cli.Context) (Context, error) {
 // The HTTP method for the request
 func apiCommand() *cli.Command {
 	var (
-		flQuery  []string
-		flBody   []string
+		flField  []string
 		flHeader []string
 		flMethod string
 	)
@@ -240,15 +237,11 @@ func apiCommand() *cli.Command {
 			&cli.StringSliceFlag{
 				Name:    "F",
 				Aliases: []string{"field"},
-				Usage:   "Add a parameter to the query string in key=value format",
-			},
-			&cli.StringSliceFlag{
-				Name:    "B",
-				Aliases: []string{"body-field"},
-				Usage: `Add a value to the body in key=value format. If the value is in the ` +
-					`format of "@filename", upload that file using a MIME multipart upload. If ` +
-					`the value is in the format of "<filename", use the contents of that file as ` +
-					`the value of this key.`,
+				Usage: `Add a parameter to the query string (for GET requests) or request body ` +
+					`(for all other methods) in key=value format. For non-GET requests only: if ` +
+					`the value is in the format of "@filename", upload that file using a MIME ` +
+					`multipart upload. If the value is in the format of "<filename", use the ` +
+					`contents of that file as the value of this key.`,
 			},
 			&cli.StringSliceFlag{
 				Name:    "H",
@@ -257,20 +250,24 @@ func apiCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "X",
-				Value:       "",
+				Value:       "GET",
 				Destination: &flMethod,
-				Usage: "The HTTP method for the request. Defaults to GET, or POST when -B " +
-					"arguments are present.",
+				Usage:       "The HTTP method for the request.",
 			},
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
+			var (
+				body any
+				err  error
+			)
+
 			uriString := c.Args().First()
 			params := url.Values{}
-			method := "GET"
-			// TODO add param for body for POST etc
+			method := c.String("X")
+			headers := map[string]string{}
 
 			if uriString == "" {
 				return errors.New("must provide uri first argument")
@@ -279,29 +276,23 @@ func apiCommand() *cli.Command {
 					strings.Join(c.Args().Slice()[1:], " "))
 			}
 
-			flQuery = c.StringSlice("F")
+			flField = c.StringSlice("F")
 			flHeader = c.StringSlice("H")
-			flBody = c.StringSlice("B")
 
-			if len(flQuery) > 0 {
-				for _, each := range flQuery {
+			switch method {
+			case "GET":
+				for _, each := range flField {
 					k, v, found := strings.Cut(each, "=")
 					if !found {
 						continue
 					}
 					params.Add(k, v)
 				}
-			}
-
-			body, headers, err := parseBodyFlags(flBody)
-			if err != nil {
-				return err
-			}
-			if body != nil {
-				// If a body is present, change the default method to POST. It can
-				// still be overridden with -X. If the user attempts to send a body
-				// with a GET request, an error is returned.
-				method = "POST"
+			default:
+				body, headers, err = parseBodyFlags(flField)
+				if err != nil {
+					return err
+				}
 			}
 
 			if len(flHeader) > 0 {
@@ -355,7 +346,7 @@ func apiCommand() *cli.Command {
 	}
 }
 
-// parseBodyFlags parses the value of the "-B" (request body data field) and returns the body,
+// parseBodyFlags parses the value of the "-F" (request body data field) and returns the body,
 // headers and any fatal errors encountered.
 func parseBodyFlags(flBody []string) (body any, headers map[string]string, err error) {
 	headers = make(map[string]string)
