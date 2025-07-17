@@ -200,7 +200,7 @@ func getConfigForCommand(path string) (args []string, env []string, userContext 
 	)
 
 	// Get the user's SELinux context (if any).
-	userContext = userpkg.GetUserContext(user)
+	userContext = userpkg.GetSELinuxUserContext(user)
 
 	return args, env, userContext, nil
 }
