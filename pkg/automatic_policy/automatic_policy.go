@@ -95,7 +95,7 @@ type FullInstallerMetadata struct {
 	// Extension is the extension of the software package.
 	Extension string
 
-	// PackageIDs contains the product code for 'msi' packages.
+	// PackageIDs contains the upgrade code for 'msi' packages.
 	PackageIDs []string
 }
 
