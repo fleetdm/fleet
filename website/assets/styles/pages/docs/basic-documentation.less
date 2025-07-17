@@ -93,6 +93,7 @@
     width: 100%;
     margin-bottom: 16px;
     margin-top: 16px;
+    margin-bottom: 32px;
     p {
       color: #192147;
       font-family: Inter;
@@ -540,39 +541,47 @@
         position: relative;
       }
       [purpose='deploying-guide-buttons'] {
-        margin-top: 40px;
-        // padding-bottom: 40px;
-        div {
-          display: flex;
-          flex-direction: column;
-          align-content: center;
-          justify-content: center;
-          text-align: center;
-          flex-grow: 1;
-          p {
-            font-size: 14px;
-            font-style: normal;
-            font-weight: 400;
-            margin-bottom: 16px;
+        margin-bottom: 32px;
+        [purpose="deploying-guide-button-row"]{
+          margin-bottom: 16px;
+          // padding-bottom: 40px;
+          div {
+            display: flex;
+            flex-direction: column;
+            align-content: center;
+            justify-content: center;
+            text-align: center;
+            flex-grow: 1;
+            p {
+              font-size: 14px;
+              font-style: normal;
+              font-weight: 400;
+              margin-bottom: 0px;
+              line-height: 150%;
+            }
+            img {
+              padding: 0;
+              width: auto;
+              height: 48px;
+              margin-bottom: 8px;
+            }
           }
-          img {
-            padding: 0;
-            width: auto;
-            height: 80px;
-          }
-        }
-        a {
-          margin-bottom: 40px;
-          padding: 24px;
-          border: 1px solid @core-fleet-black-25;
-          margin-left: 8px;
-          margin-right: 8px;
-          border-radius: 12px;
-          flex-grow: 1;
-          text-decoration: none;
-          color: unset;
-          &:hover {
-            box-shadow: 0px 0px 0px 2px rgba(234, 235, 237, 1);
+          a {
+            width: 50%;
+            // margin-bottom: 40px;
+            padding: 24px;
+            border: 1px solid @core-fleet-black-25;
+            margin-left: 8px;
+            margin-right: 8px;
+            border-radius: 12px;
+            flex-grow: 1;
+            text-decoration: none;
+            color: unset;
+            display: flex;
+            align-items: center;
+            &:hover {
+              box-shadow: 0px 0px 0px 2px rgba(234, 235, 237, 1);
+            }
           }
         }
       }
@@ -982,6 +991,7 @@
       [purpose='page-title'] {
         h1 {
           display: block;
+          margin-right: 100px;
         }
       }
 
@@ -1132,7 +1142,7 @@
         // Note: we're specifying a minimum height for this element to be the height of the edit page button.
         // Even if there are no subtopics on a documentation page, we can be sure that the edit page button will not overlap the pages content.
         min-height: 30px;
-        margin-bottom: 32px;
+
         [purpose='subtopics'] {
           color: @core-fleet-black;
           a {
@@ -1157,9 +1167,15 @@
   }
 
   @media (max-width: 768px) {
+    [purpose='content'] {
+      h1:first-of-type {
+        // Note: We're adding right margin to the first h1 to make sure it won't overlap the edit page button.
+        margin-right: 100px;
+      }
+    }
     [purpose='docs-template'] {
       [purpose='edit-button'] {
-        top: 80px;
+        top: -20px;
         right: 0px;
       }
     }
