@@ -22,7 +22,7 @@ Big opportunities that Fleet is building towards in the near future (next 180 da
 
 - 📊 Vulnerability burn-down chart (open CVEs over time)
 - 🔊 Network scanning (via Nmap)
-- 📉 Report time-to-fix (aka "timeframes") for top vulnerabilities
+- 📉 Report time-to-fix (aka "timeframes") for vulnerabilities
 
 Any feedback or a questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
