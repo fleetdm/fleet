@@ -31,7 +31,7 @@ import (
 const testEnrollmentSecret = "test_secret"
 
 func TestHostIdentity(t *testing.T) {
-	s := SetUpSuite(t, "integrationtest.HostIdentity")
+	s := SetUpSuite(t, "integrationtest.HostIdentity", false)
 
 	cases := []struct {
 		name string
@@ -217,11 +217,6 @@ func createHTTPSigner(t *testing.T, eccPrivateKey *ecdsa.PrivateKey, cert *x509.
 
 func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
 	// Test orbit enrollment with the certificate
-	type EnrollOrbitResponse struct {
-		OrbitNodeKey string `json:"orbit_node_key,omitempty"`
-		Err          error  `json:"error,omitempty"`
-	}
-
 	enrollRequest := contract.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
@@ -231,7 +226,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	}
 
 	// This request is sent without an HTTP signature, so it should fail.
-	var enrollResp EnrollOrbitResponse
+	var enrollResp enrollOrbitResponse
 	s.DoJSON(t, "POST", "/api/fleet/orbit/enroll", enrollRequest, http.StatusUnauthorized, &enrollResp)
 
 	// Now send the same request with an HTTP signature
@@ -259,7 +254,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Request with HTTP signature should succeed")
 
 	// Parse the response
-	var signedEnrollResp EnrollOrbitResponse
+	var signedEnrollResp enrollOrbitResponse
 	err = json.NewDecoder(httpResp.Body).Decode(&signedEnrollResp)
 	require.NoError(t, err)
 	require.NotEmpty(t, signedEnrollResp.OrbitNodeKey, "Should receive orbit node key")
@@ -271,7 +266,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	defer httpResp.Body.Close()
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Same request with HTTP signature should succeed")
 	// Parse the response
-	signedEnrollResp = EnrollOrbitResponse{}
+	signedEnrollResp = enrollOrbitResponse{}
 	err = json.NewDecoder(httpResp.Body).Decode(&signedEnrollResp)
 	require.NoError(t, err)
 	require.NotEmpty(t, signedEnrollResp.OrbitNodeKey, "Should receive orbit node key")
@@ -279,9 +274,6 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 
 	// Test /api/fleet/orbit/config endpoint with different signature scenarios
 	t.Run("config endpoint signature tests", func(t *testing.T) {
-		type configRequest struct {
-			OrbitNodeKey string `json:"orbit_node_key"`
-		}
 
 		testCases := []struct {
 			name           string
@@ -291,7 +283,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 			{
 				name: "without signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
+					configReq := orbitConfigRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -308,7 +300,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 			{
 				name: "with valid signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
+					configReq := orbitConfigRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -330,7 +322,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 			{
 				name: "with corrupted signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
+					configReq := orbitConfigRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -424,9 +416,6 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 
 	// Test /api/osquery/config endpoint with different signature scenarios
 	t.Run("osquery config endpoint signature tests", func(t *testing.T) {
-		type configRequest struct {
-			NodeKey string `json:"node_key"`
-		}
 
 		testCases := []struct {
 			name           string
@@ -436,7 +425,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 			{
 				name: "without signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{NodeKey: enrollResp.NodeKey}
+					configReq := osqueryConfigRequest{NodeKey: enrollResp.NodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -453,7 +442,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 			{
 				name: "with valid signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{NodeKey: enrollResp.NodeKey}
+					configReq := osqueryConfigRequest{NodeKey: enrollResp.NodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -475,7 +464,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 			{
 				name: "with corrupted signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{NodeKey: enrollResp.NodeKey}
+					configReq := osqueryConfigRequest{NodeKey: enrollResp.NodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -783,10 +772,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Enrollment with correct certificate should succeed")
 
-	type EnrollOrbitResponse struct {
-		OrbitNodeKey string `json:"orbit_node_key"`
-	}
-	var enrollResp EnrollOrbitResponse
+	var enrollResp enrollOrbitResponse
 	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
 	require.NoError(t, err)
 	require.NotEmpty(t, enrollResp.OrbitNodeKey)
@@ -850,7 +836,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Enrollment with correct certificate should succeed")
 
-	enrollResp = EnrollOrbitResponse{}
+	enrollResp = enrollOrbitResponse{}
 	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
 	require.NoError(t, err)
 	require.NotEmpty(t, enrollResp.OrbitNodeKey)
