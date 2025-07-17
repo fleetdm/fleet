@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/rs/zerolog/log"
 )
 
@@ -485,7 +486,7 @@ func (oc *OrbitClient) Ping() error {
 
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
-	params := EnrollOrbitRequest{
+	params := contract.EnrollOrbitRequest{
 		EnrollSecret:      oc.enrollSecret,
 		HardwareUUID:      oc.hostInfo.HardwareUUID,
 		HardwareSerial:    oc.hostInfo.HardwareSerial,

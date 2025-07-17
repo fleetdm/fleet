@@ -495,7 +495,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	team2, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	require.NoError(t, db.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))
+	require.NoError(t, db.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID})))
 
 	userFilter := fleet.TeamFilter{User: test.UserAdmin}
 	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
@@ -601,7 +601,7 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 
 	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	require.NoError(t, db.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, db.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	l1 := fleet.LabelSpec{
 		ID:    1,

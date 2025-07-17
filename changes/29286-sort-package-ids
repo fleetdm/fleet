@@ -1,0 +1,1 @@
+* Fixed issue with package ids ordering causing software installers' scripts to be inconsistently generated

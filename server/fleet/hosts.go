@@ -385,6 +385,11 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+
+	// nil -> field isn't loaded
+	// true -> at least one non-revoked cert exists
+	// false -> we know there is no cert
+	HasHostIdentityCert *bool `json:"-" db:"has_host_identity_cert" csv:"-"`
 }
 
 type HostForeignVitalGroup struct {
@@ -1471,4 +1476,29 @@ func IsMacOSMajorVersionOK(host *Host) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// AddHostsToTeamParams contains the parameters to use when calling AddHostsToTeam.
+type AddHostsToTeamParams struct {
+	TeamID  *uint
+	HostIDs []uint
+	// A large number of hosts could be changing teams at once,
+	// so we need to batch this operation to prevent excessive locks
+	BatchSize uint
+}
+
+// NewAddHostsToTeamParams creates a new AddHostsToTeamParams instance, setting the BatchSize to a
+// sensible default.
+func NewAddHostsToTeamParams(teamID *uint, hostIDs []uint) *AddHostsToTeamParams {
+	return &AddHostsToTeamParams{
+		TeamID:    teamID,
+		HostIDs:   hostIDs,
+		BatchSize: 10_000,
+	}
+}
+
+// WithBatchSize overrides the default BatchSize with the provided value.
+func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTeamParams {
+	params.BatchSize = batchSize
+	return params
 }

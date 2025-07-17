@@ -3,5 +3,6 @@
   "slug": "yubico-yubikey-manager/darwin",
   "unique_identifier": "com.yubico.ykman",
   "token": "yubico-yubikey-manager",
-  "installer_format": "pkg"
-} 
+  "installer_format": "pkg",
+  "default_categories": ["Productivity"]
+}

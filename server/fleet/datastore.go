@@ -307,8 +307,8 @@ type Datastore interface {
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
-	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
-	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
+	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if params.TeamID is nil.
+	AddHostsToTeam(ctx context.Context, params *AddHostsToTeamParams) error
 	// HostnamesByIdentifiers returns the hostnames corresponding to the provided identifiers,
 	// as understood by HostByIdentifier.
 	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
@@ -1904,8 +1904,14 @@ type Datastore interface {
 	// GetSoftwareInstallersWithoutPackageIDs returns a map of software installers to storage ids that do not have a package ID.
 	GetSoftwareInstallersWithoutPackageIDs(ctx context.Context) (map[uint]string, error)
 
+	// GetMSIInstallersWithoutUpgradeCode returns a map of MSI software installers to storage ids that do not have an upgrade code set.
+	GetMSIInstallersWithoutUpgradeCode(ctx context.Context) (map[uint]string, error)
+
 	// UpdateSoftwareInstallerWithoutPackageIDs updates the software installer corresponding to the id. Used to add uninstall scripts.
 	UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint, payload UploadSoftwareInstallerPayload) error
+
+	// UpdateInstallerUpgradeCode updates the software installer corresponding to the id. Used to add upgrade codes.
+	UpdateInstallerUpgradeCode(ctx context.Context, id uint, upgradeCode string) error
 
 	// ProcessInstallerUpdateSideEffects handles, in a transaction, the following based on whether metadata
 	// or package are dirty:
@@ -2217,6 +2223,10 @@ type Datastore interface {
 
 	// GetHostIdentityCertBySerialNumber gets the unrevoked valid cert corresponding to the provided serial number.
 	GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
+	// GetHostIdentityCertByName gets the unrevoked valid cert corresponding to the provided name (CN).
+	GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
+	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
+	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
 }
 
 type AndroidDatastore interface {
