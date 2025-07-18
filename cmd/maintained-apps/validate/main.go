@@ -118,6 +118,8 @@ func main() {
 		if appPath == "" {
 			fmt.Printf("Warning: no new application detected in %s directory after installation.\n", installationSearchDirectory)
 			appWithWarning = append(appWithWarning, app.Name)
+		} else {
+			fmt.Printf("New application detected at: %s\n", appPath)
 		}
 
 		err = postApplicationInstall(appPath)
