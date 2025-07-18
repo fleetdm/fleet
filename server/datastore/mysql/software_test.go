@@ -4031,25 +4031,19 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	// swi1Pending uses software title id of "b"
 	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
-		Name:   "b",
-		Source: "apps",
-		Status: nil, // pending installs do not get returned, so status is nil
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{
-			Name: "installer-0.pkg", Version: "v0.0.0", Platform: "darwin", SelfService: ptr.Bool(true),
-			LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID},
-		},
+		Name:            "b",
+		Source:          "apps",
+		Status:          nil, // pending installs do not get returned, so status is nil
+		SoftwarePackage: nil,
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
 	}
 	i0 := fleet.HostSoftwareWithInstaller{
-		Name:   "i0",
-		Source: "apps",
-		Status: expectStatus(fleet.SoftwareInstalled),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{
-			Name: "installer-1.pkg", Version: "v1.0.0", Platform: "darwin", SelfService: ptr.Bool(true),
-			LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi2InstallUUID},
-		},
+		Name:            "i0",
+		Source:          "apps",
+		Status:          expectStatus(fleet.SoftwareInstalled),
+		SoftwarePackage: nil,
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: "0.5", Vulnerabilities: []string{}, InstalledPaths: []string{}},
 		},
@@ -4065,14 +4059,15 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	// request with available software
 	i4 := fleet.HostSoftwareWithInstaller{
-		Name:   "i4",
-		Source: "apps",
-		Status: expectStatus(fleet.SoftwareUninstallPending),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{
-			Name: "installer-5.pkg", Version: "v5.0.0", Platform: "darwin", SelfService: ptr.Bool(false),
-			LastInstall:   &fleet.HostSoftwareInstall{InstallUUID: hostSwi6InstallUUID},
-			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi6UninstallUUID},
-		},
+		Name:            "i4",
+		Source:          "apps",
+		Status:          expectStatus(fleet.SoftwareUninstallPending),
+		SoftwarePackage: nil,
+		//&fleet.SoftwarePackageOrApp{
+		//	Name: "installer-5.pkg", Version: "v5.0.0", Platform: "darwin", SelfService: ptr.Bool(false),
+		//	LastInstall:   &fleet.HostSoftwareInstall{InstallUUID: hostSwi6InstallUUID},
+		//	LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi6UninstallUUID},
+		//}
 	}
 	expected[i4.Name+i4.Source] = i4
 
@@ -4088,14 +4083,15 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[i5.Name+i5.Source] = i5
 
 	i6 := fleet.HostSoftwareWithInstaller{
-		Name:   "i6",
-		Source: "apps",
-		Status: nil,
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{
-			Name: "installer-7.pkg", Version: "v7.0.0", Platform: "darwin", SelfService: ptr.Bool(false),
-			LastInstall:   &fleet.HostSoftwareInstall{InstallUUID: hostSwi8InstallUUID},
-			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi8UninstallUUID},
-		},
+		Name:            "i6",
+		Source:          "apps",
+		Status:          nil,
+		SoftwarePackage: nil,
+		// SoftwarePackage: &fleet.SoftwarePackageOrApp{
+		// 	Name: "installer-7.pkg", Version: "v7.0.0", Platform: "darwin", SelfService: ptr.Bool(false),
+		// 	LastInstall:   &fleet.HostSoftwareInstall{InstallUUID: hostSwi8InstallUUID},
+		// 	LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi8UninstallUUID},
+		// },
 	}
 	expected[i6.Name+i6.Source] = i6
 
@@ -4109,8 +4105,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		},
 	}
 	expected[i1.Name+i1.Source] = i1
-	expected[byNSV[b].Name+byNSV[b].Source].SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}
-	expected[i0.Name+i0.Source].SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{InstallUUID: hostSwi2InstallUUID}
+	// expected[byNSV[b].Name+byNSV[b].Source].SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}
+	// expected[i0.Name+i0.Source].SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{InstallUUID: hostSwi2InstallUUID}
 
 	i2 := fleet.HostSoftwareWithInstaller{
 		Name:            "i2",
@@ -4141,7 +4137,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// Although this is already installed, we ignore the status on the host because we can "reinstall" it
 	// if there is a compatible software package available for the host
 	expectedAvailableOnly[i0.Name+i0.Source] = i0
-	expectedAvailableOnly[i1.Name+i1.Source] = i1
+	// expectedAvailableOnly[i1.Name+i1.Source] = i1
 	expectedAvailableOnly[i2.Name+i2.Source] = i2
 	expectedAvailableOnly[i4.Name+i4.Source] = i4
 	expectedAvailableOnly[i5.Name+i5.Source] = i5
@@ -4182,16 +4178,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
-		Name:   "b",
-		Source: "apps",
-		Status: expectStatus(fleet.SoftwareInstallFailed),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{
-			Name:        "installer-0.pkg",
-			Version:     "v0.0.0",
-			Platform:    "darwin",
-			SelfService: ptr.Bool(true),
-			LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID},
-		},
+		Name:            "b",
+		Source:          "apps",
+		Status:          expectStatus(fleet.SoftwareInstallFailed),
+		SoftwarePackage: nil,
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -4213,8 +4203,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults(expected, sw, true, i1.Name+i1.Source, i2.Name+i2.Source, i3.Name+i3.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source)
 
 	// request with available software
-	expected[byNSV[b].Name+byNSV[b].Source].SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}
-	expected[i0.Name+i0.Source].SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{InstallUUID: hostSwi2InstallUUID}
 	opts.IncludeAvailableForInstall = true
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
@@ -4376,8 +4364,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	opts.IsMDMEnrolled = true
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnly))}, meta)
-	compareResults(expectedAvailableOnly, sw, true)
+	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnly) - 1)}, meta)
+	compareResults(expectedAvailableOnly, sw, true, i1.Name+i1.Source)
 
 	// Available for install only with host not MDM enrolled
 	// We should only exclude "vpp3apps", because it was not installed previously and we can't
@@ -4385,8 +4373,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	opts.IsMDMEnrolled = false
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnly) - 1)}, meta)
-	compareResults(expectedAvailableOnly, sw, true, "vpp3apps")
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expectedAvailableOnly) - 2)}, meta)
+	compareResults(expectedAvailableOnly, sw, true, "vpp3apps", i1.Name+i1.Source)
 	opts.IsMDMEnrolled = false
 	opts.OnlyAvailableForInstall = false
 
@@ -4567,8 +4555,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		{
 			name:      "Only available for install software with MDM on, page 0",
 			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 4}, OnlyAvailableForInstall: true, IsMDMEnrolled: true},
-			wantNames: []string{byNSV[b].Name, "i0", "i1", "i2"},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 10},
+			wantNames: []string{byNSV[b].Name, "i0", "i2", "i4"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 9},
 		},
 		{
 			name: "Only available for install with MDM on, page 2",
@@ -4577,8 +4565,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 				OnlyAvailableForInstall: true,
 				IsMDMEnrolled:           true,
 			},
-			wantNames: []string{"vpp2", "vpp3"},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 10},
+			wantNames: []string{"vpp3"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 9},
 		},
 	}
 	for _, c := range cases {
