@@ -258,6 +258,15 @@ The `created` and `nonce` fields can be used in the future to prevent replay att
 - **fleetd proxy → TPM**: Proxy uses TPM to sign the intercepted requests
 - **fleetd proxy → Fleet Server**: Proxy forwards signed requests to the server
 
+### Fleet desktop authentication
+
+Fleet desktop (the Fleet UI that is shown in the browser) uses a token-based authentication approach that integrates with TPM-backed signing:
+
+1. **Token retrieval**: Fleet Desktop retrieves an authentication token from the Fleet server using an HTTP-signed endpoint
+2. **TPM-backed security**: The token retrieval request is signed using the TPM-backed key, ensuring the token is only issued to the authenticated device
+3. **Token validity**: The token is valid for 1 hour
+4. **API access**: Fleet Desktop uses this token to access `/fleet/device` API endpoints
+
 ## Configuration
 
 ### Client configuration
