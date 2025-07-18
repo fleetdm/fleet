@@ -492,18 +492,18 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
-	}{ /*
-			{ // See #29570
-					software: fleet.Software{
-						Name:             "Adobe Acrobat Reader DC.app",
-						Source:           "apps",
-						Version:          "22.002.20191",
-						Vendor:           "",
-						BundleIdentifier: "com.adobe.Reader",
-					},
-					cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
-				},
-		*/{
+	}{
+		{
+			software: fleet.Software{
+				Name:             "Adobe Acrobat Reader DC.app",
+				Source:           "apps",
+				Version:          "22.002.20191",
+				Vendor:           "",
+				BundleIdentifier: "com.adobe.Reader",
+			},
+			cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
+		},
+		{
 			software: fleet.Software{
 				Name:             "Adobe Lightroom.app",
 				Source:           "apps",
