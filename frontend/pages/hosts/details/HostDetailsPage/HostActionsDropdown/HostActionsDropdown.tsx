@@ -42,6 +42,7 @@ const HostActionsDropdown = ({
     isMacMdmEnabledAndConfigured = false,
     isWindowsMdmEnabledAndConfigured = false,
     currentUser,
+    config: globalConfig,
   } = useContext(AppContext);
 
   if (!currentUser) return null;
@@ -73,6 +74,7 @@ const HostActionsDropdown = ({
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
+    isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
   });
 
   // No options to render. Exit early

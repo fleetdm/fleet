@@ -101,7 +101,8 @@ const PoliciesTable = ({
             selectedTeamId: currentTeam?.id,
             hasPermissionAndPoliciesToDelete,
           },
-          isPremiumTier
+          isPremiumTier,
+          config?.partnerships?.enable_primo
         )}
         data={generateDataSet(
           policiesList,
