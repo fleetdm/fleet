@@ -659,8 +659,6 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
-In addition, you can configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi.
-
 #### Example
 
 `default.yml`
@@ -682,29 +680,6 @@ org_settings:
         email: user1@example.com
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
-    digicert: # Available in Fleet Premium
-      - name: DIGICERT_WIFI
-        url: https://one.digicert.com
-        api_token: $DIGICERT_API_TOKEN
-        profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
-        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-        certificate_user_principal_names:
-          - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-    ndes_scep_proxy: # Available in Fleet Premium
-      url: https://example.com/certsrv/mscep/mscep.dll
-      admin_url: https://example.com/certsrv/mscep_admin/
-      username: Administrator@example.com
-      password: myPassword
-    custom_scep_proxy: # Available in Fleet Premium
-      - name: SCEP_VPN
-        url: https://example.com/scep
-        challenge: $SCEP_VPN_CHALLENGE
-    hydrant: # Available in Fleet Premium
-      - name: HYDRANT_WIFI
-        url: https://example.hydrantid.com/.well-known/est/abc123
-        client_id: $HYDRANT_CLIENT_ID
-        client_secret: $HYDRANT_CLIENT_SECRET
 ```
 
 `/teams/team-name.yml`
@@ -737,6 +712,44 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
+### certificate_authorities
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
+
+#### Example
+
+`default.yml`
+
+```yaml
+org_settings:
+  certificate_authorities:
+    digicert: # Available in Fleet Premium
+      - name: DIGICERT_WIFI
+        url: https://one.digicert.com
+        api_token: $DIGICERT_API_TOKEN
+        profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
+        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+        certificate_user_principal_names:
+          - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+    ndes_scep_proxy: # Available in Fleet Premium
+      url: https://example.com/certsrv/mscep/mscep.dll
+      admin_url: https://example.com/certsrv/mscep_admin/
+      username: Administrator@example.com
+      password: myPassword
+    custom_scep_proxy: # Available in Fleet Premium
+      - name: SCEP_VPN
+        url: https://example.com/scep
+        challenge: $SCEP_VPN_CHALLENGE
+    hydrant: # Available in Fleet Premium
+      - name: HYDRANT_WIFI
+        url: https://example.hydrantid.com/.well-known/est/abc123
+        client_id: $HYDRANT_CLIENT_ID
+        client_secret: $HYDRANT_CLIENT_SECRET
+```
+
 #### digicert
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -750,6 +763,9 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert.
 
 #### ndes_scep_proxy
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 - `url` is the URL of the NDES SCEP endpoint (default: `""`).
 - `admin_url` is the URL of the NDES admin endpoint (default: `""`).
 - `username` is the username of the NDES admin endpoint (default: `""`).
@@ -771,6 +787,8 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
+
+
 
 ### webhook_settings
 
