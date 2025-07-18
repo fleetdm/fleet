@@ -284,6 +284,7 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
+- `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startu. `enable_disk_encryption` must be set to `true`. (default: `false`).
 
 #### Example
 
