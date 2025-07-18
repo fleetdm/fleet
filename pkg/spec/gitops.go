@@ -675,8 +675,14 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 		if l.Name == "" {
 			multiError = multierror.Append(multiError, errors.New("name is required for each label"))
 		}
-		if l.Query == "" && len(l.Hosts) == 0 && l.HostVitalsCriteria == nil {
-			multiError = multierror.Append(multiError, errors.New("a SQL query, hosts list or host vitals criteria is required for each label"))
+
+		if l.LabelMembershipType != fleet.LabelMembershipTypeManual && l.Query == "" && l.HostVitalsCriteria == nil {
+			multiError = multierror.Append(multiError, errors.New("a SQL query or host vitals criteria is required for each non-manual label"))
+		}
+
+		// Manual labels can have empty hosts lists, just make sure we initialize the empty list
+		if l.LabelMembershipType == fleet.LabelMembershipTypeManual && l.Hosts == nil {
+			l.Hosts = []string{}
 		}
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
