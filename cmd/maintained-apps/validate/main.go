@@ -68,7 +68,7 @@ func main() {
 		return nil
 	}()
 
-	totalApps := len(apps)
+	totalApps := 0
 	successfulApps := 0
 	appWithError := []string{}
 	appWithWarning := []string{}
@@ -76,6 +76,7 @@ func main() {
 		if app.Platform != operatingSystem {
 			continue
 		}
+		totalApps++
 		fmt.Print("\n\nValidating app: ", app.Name, " (", app.Slug, ")\n")
 		appJson, err := getAppJson(app.Slug)
 		if err != nil {
@@ -169,13 +170,13 @@ func main() {
 	}
 
 	if successfulApps == totalApps {
-		fmt.Printf("All %d apps were successfully validated.\n", totalApps)
+		fmt.Printf("\nAll %d apps were successfully validated.\n", totalApps)
 		if len(appWithWarning) > 0 {
 			fmt.Printf("Some apps were validated with warnings: %v\n", appWithWarning)
 		}
 		os.Exit(0)
 	} else {
-		fmt.Printf("Validated %d out of %d apps successfully.\n", successfulApps, totalApps)
+		fmt.Printf("\nValidated %d out of %d apps successfully.\n", successfulApps, totalApps)
 		if len(appWithWarning) > 0 {
 			fmt.Printf("Some apps were validated with warnings: %v\n", appWithWarning)
 		}
@@ -290,7 +291,11 @@ func executeScript(scriptContents string) (string, error) {
 		return "", fmt.Errorf("writing script: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	timeout := 5 * time.Minute
+	if runtime.GOOS == "windows" {
+		timeout = 15 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, env)

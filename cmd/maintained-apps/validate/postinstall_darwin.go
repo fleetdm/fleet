@@ -77,7 +77,7 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bo
 		FROM apps
 		WHERE 
 		bundle_identifier LIKE '%` + uniqueAppIdentifier + `%' OR
-		name LIKE '%` + appName + `%'
+		name ILIKE '%` + appName + `%'
 	`
 	if appPath != "" {
 		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", appPath)

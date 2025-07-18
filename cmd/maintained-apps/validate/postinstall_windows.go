@@ -21,7 +21,13 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bo
 	fmt.Printf("Looking for app: %s, version: %s\n", appName, appVersion)
 	query := `
 		SELECT name, install_location, version 
-		FROM programs`
+		FROM programs
+		WHERE
+		name ILIKE '%` + appName + `%'
+	`
+	if appPath != "" {
+		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
+	}
 	cmd := exec.CommandContext(ctx, "osqueryi", "--json", query)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
