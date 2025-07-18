@@ -361,7 +361,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, h3, false)
 
 	// move h3 to team1
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{h3.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h3.ID}))
 	require.NoError(t, err)
 
 	// simulate an install request of vpp1 on h1

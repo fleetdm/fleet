@@ -143,7 +143,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", fleet.OrbitError{Message: err.Error()}
 	}
 
-	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostInfo.OsqueryIdentifier)
+	identifier := hostInfo.OsqueryIdentifier
+	if identifier == "" {
+		identifier = hostInfo.HardwareUUID
+	}
+
+	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, identifier)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
 	}

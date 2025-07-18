@@ -864,6 +864,14 @@ the way that the Fleet server works.
 				); err != nil {
 					initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUninstallSoftwareMigration))
 				}
+
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return cronUpgradeCodeSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
+					},
+				); err != nil {
+					initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUpgradeCodeSoftwareMigration))
+				}
 			}
 
 			if config.Server.FrequentCleanupsEnabled {
@@ -920,7 +928,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
+				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, config.Partnerships.EnablePrimo)
 			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
@@ -1076,7 +1084,7 @@ the way that the Fleet server works.
 
 			var httpSigVerifier func(http.Handler) http.Handler
 			if license.IsPremium() {
-				httpSigVerifier, err = httpsig.Middleware(ds, kitlog.With(logger, "component", "http-sig-verifier"))
+				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
 				if err != nil {
 					initFatal(err, "initializing HTTP signature verifier")
 				}

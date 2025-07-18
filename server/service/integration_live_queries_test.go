@@ -1102,7 +1102,7 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedReadWithFeatures() {
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
 	require.NoError(t, err)

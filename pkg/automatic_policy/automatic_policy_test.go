@@ -24,14 +24,14 @@ func TestGenerateErrors(t *testing.T) {
 		BundleIdentifier: "",
 		PackageIDs:       []string{""},
 	})
-	require.ErrorIs(t, err, ErrMissingProductCode)
+	require.ErrorIs(t, err, ErrMissingProductAndUpgradeCode)
 	_, err = Generate(FullInstallerMetadata{
 		Title:            "Foobar",
 		Extension:        "msi",
 		BundleIdentifier: "",
 		PackageIDs:       []string{},
 	})
-	require.ErrorIs(t, err, ErrMissingProductCode)
+	require.ErrorIs(t, err, ErrMissingProductAndUpgradeCode)
 
 	_, err = Generate(MacInstallerMetadata{
 		Title:            "Foobar",
@@ -94,6 +94,7 @@ func TestGenerate(t *testing.T) {
 	require.Equal(t, "darwin", policyData.Platform)
 	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo.bar';", policyData.Query)
 
+	// MSI with only product code
 	policyData, err = Generate(FullInstallerMetadata{
 		Title:            "Barfoo",
 		Extension:        "msi",
@@ -105,6 +106,20 @@ func TestGenerate(t *testing.T) {
 	require.Equal(t, "Policy triggers automatic install of Barfoo on each host that's missing this software.", policyData.Description)
 	require.Equal(t, "windows", policyData.Platform)
 	require.Equal(t, "SELECT 1 FROM programs WHERE identifying_number = 'foo';", policyData.Query)
+
+	// MSI with upgrade code
+	policyData, err = Generate(FullInstallerMetadata{
+		Title:            "Barfoo",
+		Extension:        "msi",
+		BundleIdentifier: "",
+		PackageIDs:       []string{"foo"},
+		UpgradeCode:      "bar",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "[Install software] Barfoo (msi)", policyData.Name)
+	require.Equal(t, "Policy triggers automatic install of Barfoo on each host that's missing this software.", policyData.Description)
+	require.Equal(t, "windows", policyData.Platform)
+	require.Equal(t, "SELECT 1 FROM programs WHERE upgrade_code = 'bar';", policyData.Query)
 
 	policyData, err = Generate(FullInstallerMetadata{
 		Title:            "Zoobar",

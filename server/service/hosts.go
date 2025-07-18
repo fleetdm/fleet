@@ -862,7 +862,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 
-	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+	if err := svc.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, hostIDs)); err != nil {
 		return err
 	}
 	if !skipBulkPending {
@@ -999,7 +999,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 	}
 
 	// Apply the team to the selected hosts.
-	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+	if err := svc.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, hostIDs)); err != nil {
 		return err
 	}
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {

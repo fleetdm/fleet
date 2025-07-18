@@ -36,9 +36,6 @@ var (
 	hostsDeleteBatchSize                     = 5000
 )
 
-// A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
-var addHostsToTeamBatchSize = 10000
-
 var (
 	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
 	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
@@ -550,6 +547,7 @@ var hostRefs = []string{
 	"batch_script_execution_host_results",
 	"host_mdm_commands",
 	"microsoft_compliance_partner_host_statuses",
+	"host_identity_scep_certificates",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -3059,14 +3057,18 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	return host, nil
 }
 
-func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+	teamID := params.TeamID
+	hostIDs := params.HostIDs
+	batchSize := int(params.BatchSize)
+
 	if len(hostIDs) == 0 {
 		return nil
 	}
 
-	for i := 0; i < len(hostIDs); i += addHostsToTeamBatchSize {
+	for i := 0; i < len(hostIDs); i += batchSize {
 		start := i
-		end := i + addHostsToTeamBatchSize
+		end := i + batchSize
 		if end > len(hostIDs) {
 			end = len(hostIDs)
 		}
