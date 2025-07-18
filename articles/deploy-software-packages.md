@@ -74,6 +74,8 @@ An uninstall script will run when an admin chooses to uninstall the software fro
 
 In addition to the `$INSTALLER_PATH` environment variable supported by install scripts, you can use `$PACKAGE_ID` in uninstall scripts as a placeholder for the package IDs (for .pkg files), package name (for Linux installers), product code (for MSIs), or software name (for EXE installers). The Fleet server will substitute `$PACKAGE_ID` on upload.
 
+Fleet also provides an `$UPGRADE_CODE` placeholder for MSIs. This placeholder is replaced with the `UpgradeCode` extracted from the MSI on upload. If Fleet cannot extract an upgrade code from an MSI when using the default uninstall script, Fleet will use a product code-based uninstall script instead. If Fleet cannot extract an upgrade code from an MSI when a user-provided uninstall script uses the placeholder, the software upload will fail.
+
 > Currently, the default MSI uninstaller script only uninstalls that exact installer, rather than earlier/later versions of the same application.
 
 > Uninstall scripts do _not_ download the installer package to a host before running; if a .tar.gz archive includes an uninstall script, the contents of that script and any dependencies should be copied into the uninstall script text field rather than referred to by filename.
