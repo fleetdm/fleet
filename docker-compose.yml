@@ -7,7 +7,7 @@ services:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
-      - mysql-persistent-volume:/tmp/fleet
+      - mysql-persistent-volume:/tmp
     command: [
         "mysqld",
         "--datadir=/tmp/mysqldata",
