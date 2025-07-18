@@ -336,10 +336,6 @@ fleetctl package \
   --fleet-managed-client-certificate
 ```
 
-#### Platform support
-
-Currently, host identity certificates are only supported for `.deb` and `.rpm` packages on Linux systems.
-
 #### Important considerations
 
 - Hosts without TPM 2.0 will fail to enroll when this option is enabled
