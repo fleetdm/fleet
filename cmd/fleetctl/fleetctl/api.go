@@ -227,7 +227,6 @@ func apiCommand() *cli.Command {
 	var (
 		flField  []string
 		flHeader []string
-		flMethod string
 	)
 	return &cli.Command{
 		Name:      "api",
@@ -249,10 +248,9 @@ func apiCommand() *cli.Command {
 				Usage:   "Add a HTTP request header in key:value format",
 			},
 			&cli.StringFlag{
-				Name:        "X",
-				Value:       "GET",
-				Destination: &flMethod,
-				Usage:       "The HTTP method for the request.",
+				Name:  "X",
+				Value: "GET",
+				Usage: "The HTTP method for the request.",
 			},
 			configFlag(),
 			contextFlag(),
@@ -303,14 +301,6 @@ func apiCommand() *cli.Command {
 					}
 					headers[k] = v
 				}
-			}
-
-			if flMethod != "" {
-				method = flMethod
-			}
-
-			if body != nil && method == "GET" {
-				return fmt.Errorf("GET requests may not include a body")
 			}
 
 			if !strings.HasPrefix(uriString, "/") {
@@ -364,7 +354,14 @@ func parseBodyFlags(flBody []string) (body any, headers map[string]string, err e
 		k, v, found := strings.Cut(each, "=")
 		if !found {
 			// if no "=", set body field to true
-			multipartWriter.WriteField(k, "true")
+			err = multipartWriter.WriteField(k, "true")
+			if err != nil {
+				// this is not likely to ever happen because multipartWriter is backed
+				// by a bytes.Buffer, but log anyway
+				fmt.Fprintf(os.Stderr,
+					"warning: failed to write key %q to multipart writer buffer: %v",
+					k, err)
+			}
 			jsonBody[k] = true
 			continue
 		}
@@ -399,18 +396,25 @@ func parseBodyFlags(flBody []string) (body any, headers map[string]string, err e
 					if fileWriter, err := multipartWriter.CreateFormFile(k, path.Base(v[1:])); err == nil {
 						if fp, err := os.Open(v[1:]); err == nil {
 							defer fp.Close()
-							io.Copy(fileWriter, fp)
+							_, err = io.Copy(fileWriter, fp)
+							if err != nil {
+								// this is not likely to ever happen because multipartWriter is backed
+								// by a bytes.Buffer, but log anyway
+								fmt.Fprintf(os.Stderr,
+									"warning: failed to write key %q to multipart writer buffer: %v",
+									k, err)
+							}
 							// from here on out, this is definitely a multipart upload
 							isMultiPart = true
 							// skip the rest of the loop so we don't attempt to write as a regular
 							// form field
 							continue
-						} else {
-							fmt.Fprintf(os.Stderr,
-								"warning: while processing body field %s: error opening file %q "+
-									"for upload: %v; the field will be sent as the literal string %q",
-								k, v[1:], err, v)
 						}
+
+						fmt.Fprintf(os.Stderr,
+							"warning: while processing body field %s: error opening file %q "+
+								"for upload: %v; the field will be sent as the literal string %q",
+							k, v[1:], err, v)
 					} else {
 						fmt.Fprintf(os.Stderr,
 							"warning: while processing body field %s: error creating form file "+
@@ -421,7 +425,15 @@ func parseBodyFlags(flBody []string) (body any, headers map[string]string, err e
 			}
 		}
 		var jsonValue any
-		multipartWriter.WriteField(k, v)
+		err = multipartWriter.WriteField(k, v)
+		if err != nil {
+			// this is not likely to ever happen because multipartWriter is backed
+			// by a bytes.Buffer, but log anyway
+			fmt.Fprintf(os.Stderr,
+				"warning: failed to write key %q to multipart writer buffer: %v",
+				k, err)
+		}
+
 		if err := json.Unmarshal([]byte(v), &jsonValue); err == nil {
 			jsonBody[k] = jsonValue
 		} else {

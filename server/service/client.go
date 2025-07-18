@@ -224,7 +224,7 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	} else {
 		defer reqBody.Close()
 		buf := &bytes.Buffer{}
-		io.Copy(buf, reqBody)
+		_, _ = io.Copy(buf, reqBody)
 		if utf8.Valid(buf.Bytes()) {
 			fmt.Fprintf(os.Stderr, "[body length: %d bytes]\n", buf.Len())
 			if _, err := io.Copy(os.Stderr, buf); err != nil {
