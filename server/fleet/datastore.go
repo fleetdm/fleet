@@ -1326,6 +1326,8 @@ type Datastore interface {
 	// GetMDMIdPAccountByEmail returns MDM IdP account that matches the given email.
 	GetMDMIdPAccountByEmail(ctx context.Context, email string) (*MDMIdPAccount, error)
 
+	GetMDMIdPAccountsByHostUUIDs(ctx context.Context, hostUUIDs []string) (map[string]*MDMIdPAccount, error)
+
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
@@ -1583,6 +1585,8 @@ type Datastore interface {
 	ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *MDMAppleMachineInfo) (string, error)
 	// GetMDMIdPAccountByHostUUID returns the MDM IdP account that associated with the given host UUID.
 	GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*MDMIdPAccount, error)
+	// AssociateHostMDMIdPAccount associates the given host UUID with the MDM IdP account UUID
+	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID string, accountUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM

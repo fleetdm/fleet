@@ -6220,9 +6220,10 @@ type scepPayload struct {
 }
 
 type enrollmentPayload struct {
-	PayloadType    string
-	ServerURL      string      // used by the enrollment payload
-	PayloadContent scepPayload // scep contains a nested payload content dict
+	PayloadType            string
+	ServerURL              string      // used by the enrollment payload
+	PayloadContent         scepPayload // scep contains a nested payload content dict
+	AssignedManagedAppleID string      // used by account driven enrollment. Not always present
 }
 
 type enrollmentProfile struct {
@@ -6274,7 +6275,7 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(t *testing.
 	require.NoError(t, err)
 	require.Equal(t, len(body), headerLen)
 
-	return s.verifyEnrollmentProfile(body, "")
+	return s.verifyEnrollmentProfile(body, "", "")
 }
 
 func (s *integrationMDMTestSuite) downloadAndVerifyOTAEnrollmentProfile(path string) {
@@ -6332,10 +6333,10 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfileManual(t *te
 	require.NoError(t, err)
 	require.Equal(t, len(body), headerLen)
 
-	s.verifyEnrollmentProfile(body, "")
+	s.verifyEnrollmentProfile(body, "", "")
 }
 
-func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enrollmentRef string) *enrollmentProfile {
+func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enrollmentRef, managedAppleAccount string) *enrollmentProfile {
 	t := s.T()
 	var profile enrollmentProfile
 
@@ -6365,6 +6366,9 @@ func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enr
 			require.Contains(t, p.ServerURL, s.getConfig().ServerSettings.ServerURL+apple_mdm.MDMPath)
 			if enrollmentRef != "" {
 				require.Contains(t, p.ServerURL, enrollmentRef)
+			}
+			if managedAppleAccount != "" {
+				require.Equal(t, p.AssignedManagedAppleID, managedAppleAccount)
 			}
 		default:
 			require.Failf(t, "unrecognized payload type in enrollment profile: %s", p.PayloadType)
@@ -13864,6 +13868,11 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	require.NoError(t, iPhoneMdmDevice.Enroll())
 	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user@example.com")
 
+	linkedIDPAccount, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPhoneMdmDevice.EnrollmentID())
+	require.NoError(t, err)
+	require.NotNil(t, linkedIDPAccount)
+	assert.Equal(t, linkedIDPAccount.Email, "sso_user@example.com")
+
 	iPadHwModel := "iPad14,5"
 	iPadMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
 		s.server.URL,
@@ -13879,6 +13888,11 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	)
 	require.NoError(t, iPadMdmDevice.Enroll())
 	assert.Equal(t, iPadMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user2@example.com")
+
+	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPadMdmDevice.EnrollmentID())
+	require.NoError(t, err)
+	require.NotNil(t, linkedIDPAccount)
+	assert.Equal(t, linkedIDPAccount.Email, "sso_user2@example.com")
 
 	// Account driven enrollment is not yet supported for macOS devices so we expect an error in
 	// either case

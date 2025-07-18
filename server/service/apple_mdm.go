@@ -1975,10 +1975,8 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 	if err != nil {
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
-	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.MDMUrl(), enrollRef)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
-	}
+	enrollURL := appConfig.MDMUrl()
+
 	enrollmentProf, err := apple_mdm.GenerateAccountDrivenEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		enrollURL,
@@ -3461,6 +3459,27 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	}
 	if idp != nil {
 		acctUUID = idp.UUID
+	}
+
+	// User (Device) enrollments, also known as Account Driven enrollments or BYOD enrollments,
+	// are a special case where the bearer token is used to link the enrollment to the IDP account.
+	if r.Type == mdm.UserEnrollmentDevice && idp == nil && strings.HasPrefix(r.Authorization, "Bearer ") {
+		// Split off the Bearer prefix
+		accountUUID := strings.TrimPrefix(r.Authorization, "Bearer ")
+		idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(r.Context, accountUUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(r.Context, err, "getting idp account by UUID")
+		}
+		if fleet.IsNotFound(err) || idpAccount == nil {
+			// This should never happen but we still want to process the token update
+			level.Error(svc.logger).Log("msg", "no IDP account found for User (Device) enrollment even though a bearer token was passed", "host_uuid", r.ID, "account_uuid", accountUUID)
+		} else {
+			acctUUID = idpAccount.UUID
+			err = svc.ds.AssociateHostMDMIdPAccount(r.Context, r.ID, acctUUID)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "associating host with idp account")
+			}
+		}
 	}
 
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
@@ -5936,9 +5955,18 @@ func RenewSCEPCertificates(
 	// using the process described in
 	// https://github.com/fleetdm/fleet/issues/19387
 	assocsFromMigration := []fleet.SCEPIdentityAssociation{}
+	// userDeviceAssocs stores hosts enrolled using Account Driven User Enrollment
+	// which results in a "User Enrollment (Device)" enrollment type and requires
+	// a different type of enrollment profile sent to the host.
+	userDeviceAssocs := []fleet.SCEPIdentityAssociation{}
 	for _, assoc := range certAssociations {
 		if assoc.EnrolledFromMigration {
 			assocsFromMigration = append(assocsFromMigration, assoc)
+			continue
+		}
+
+		if assoc.EnrollmentType == "User Enrollment (Device)" {
+			userDeviceAssocs = append(userDeviceAssocs, assoc)
 			continue
 		}
 
@@ -5976,6 +6004,45 @@ func RenewSCEPCertificates(
 
 		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsWithoutRefs, profile); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
+		}
+	}
+
+	if len(userDeviceAssocs) > 0 {
+		hostUUIDs := make([]string, 0, len(userDeviceAssocs))
+		for i := 0; i < len(userDeviceAssocs); i++ {
+			hostUUIDs = append(hostUUIDs, userDeviceAssocs[i].HostUUID)
+		}
+		idpAccountsByHostUUID, err := ds.GetMDMIdPAccountsByHostUUIDs(ctx, hostUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting IDP accounts for user device associations")
+		}
+		for _, assoc := range userDeviceAssocs {
+			idpAccount := idpAccountsByHostUUID[assoc.HostUUID]
+
+			// This will end up not passing an email which is not idea, Apple says it is required
+			// and cannot change however in testing an iOS 18 device still renewed in this case so
+			// it is probably our best option for now.
+			email := ""
+			if idpAccount != nil {
+				email = idpAccount.Email
+			} else {
+				level.Error(logger).Log("msg", "no IDP account associated with account driven user enrollment host, sending renewal without email", "host_uuid", assoc.HostUUID)
+			}
+			profile, err := apple_mdm.GenerateAccountDrivenEnrollmentProfileMobileconfig(
+				appConfig.OrgInfo.OrgName,
+				appConfig.MDMUrl(),
+				scepChallenge,
+				mdmPushCertTopic,
+				email,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
+			}
+
+			// each host with association needs a different enrollment profile, and thus a different command.
+			if err := renewSCEPWithProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+				return ctxerr.Wrap(ctx, err, "sending account driven enrollment profile renewal to hosts")
+			}
 		}
 	}
 

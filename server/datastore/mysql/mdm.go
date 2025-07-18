@@ -1534,7 +1534,8 @@ SELECT
     h.uuid AS host_uuid,
     ncaa.sha256 AS sha256,
     COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference,
-    ne.enrolled_from_migration
+    ne.enrolled_from_migration,
+    ne.type
 FROM (
     -- grab only the latest certificate associated with this device
     SELECT

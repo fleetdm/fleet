@@ -907,6 +907,8 @@ type GetMDMIdPAccountByUUIDFunc func(ctx context.Context, uuid string) (*fleet.M
 
 type GetMDMIdPAccountByEmailFunc func(ctx context.Context, email string) (*fleet.MDMIdPAccount, error)
 
+type GetMDMIdPAccountsByHostUUIDsFunc func(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error)
+
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
 
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
@@ -1054,6 +1056,8 @@ type ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc func(ctx context.Context
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
 
 type GetMDMIdPAccountByHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error)
+
+type AssociateHostMDMIdPAccountFunc func(ctx context.Context, hostUUID string, accountUUID string) error
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -2752,6 +2756,9 @@ type DataStore struct {
 	GetMDMIdPAccountByEmailFunc        GetMDMIdPAccountByEmailFunc
 	GetMDMIdPAccountByEmailFuncInvoked bool
 
+	GetMDMIdPAccountsByHostUUIDsFunc        GetMDMIdPAccountsByHostUUIDsFunc
+	GetMDMIdPAccountsByHostUUIDsFuncInvoked bool
+
 	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
 	GetMDMAppleFileVaultSummaryFuncInvoked bool
 
@@ -2973,6 +2980,9 @@ type DataStore struct {
 
 	GetMDMIdPAccountByHostUUIDFunc        GetMDMIdPAccountByHostUUIDFunc
 	GetMDMIdPAccountByHostUUIDFuncInvoked bool
+
+	AssociateHostMDMIdPAccountFunc        AssociateHostMDMIdPAccountFunc
+	AssociateHostMDMIdPAccountFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -6626,6 +6636,13 @@ func (s *DataStore) GetMDMIdPAccountByEmail(ctx context.Context, email string) (
 	return s.GetMDMIdPAccountByEmailFunc(ctx, email)
 }
 
+func (s *DataStore) GetMDMIdPAccountsByHostUUIDs(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error) {
+	s.mu.Lock()
+	s.GetMDMIdPAccountsByHostUUIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMIdPAccountsByHostUUIDsFunc(ctx, hostUUIDs)
+}
+
 func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
 	s.mu.Lock()
 	s.GetMDMAppleFileVaultSummaryFuncInvoked = true
@@ -7142,6 +7159,13 @@ func (s *DataStore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID str
 	s.GetMDMIdPAccountByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMIdPAccountByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID string, accountUUID string) error {
+	s.mu.Lock()
+	s.AssociateHostMDMIdPAccountFuncInvoked = true
+	s.mu.Unlock()
+	return s.AssociateHostMDMIdPAccountFunc(ctx, hostUUID, accountUUID)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

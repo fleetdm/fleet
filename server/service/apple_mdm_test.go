@@ -4072,6 +4072,153 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 			},
 			expectedError: true,
 		},
+		{
+			name: "InstallProfile for userDeviceAssocs",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				wantCommandUUIDs := make(map[string]string)
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollmentType: "User Enrollment (Device)"}, {HostUUID: "hostUUID2", EnrollmentType: "User Enrollment (Device)"}}, nil
+				}
+				user1Email := "user1@example.com"
+				user2Email := "user2@example.com"
+				ds.GetMDMIdPAccountsByHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error) {
+					require.Len(t, hostUUIDs, 2)
+					return map[string]*fleet.MDMIdPAccount{
+						"hostUUID2": {
+							UUID:     "userUUID2",
+							Username: "user2",
+							Email:    user2Email,
+						},
+						"hostUUID1": {
+							UUID:     "userUUID1",
+							Username: "user1",
+							Email:    user1Email,
+						},
+					}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error,
+				) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					require.Equal(t, 1, len(id))
+					_, idAlreadyExists := wantCommandUUIDs[id[0]]
+					// Should only get one for each host
+					require.False(t, idAlreadyExists, "Command UUID for host %s already exists: %s", id[0], wantCommandUUIDs[id[0]])
+					wantCommandUUIDs[id[0]] = cmd.CommandUUID
+
+					// Make sure the user's email made it into the profile
+					var fullCmd micromdm.CommandPayload
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					switch id[0] {
+					case "hostUUID1":
+						require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(user1Email)), "The profile for hostUUID 1 should contain the associated user email")
+					case "hostUUID2":
+						require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(user2Email)), "The profile for hostUUID 2 should contain the associated user email")
+					default:
+						require.Fail(t, "Unexpected host ID for command: %s", id[0])
+					}
+					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1)
+					require.Contains(t, []string{"hostUUID1", "hostUUID2"}, assocs[0].HostUUID)
+					require.Equal(t, cmdUUID, wantCommandUUIDs[assocs[0].HostUUID])
+					return nil
+				}
+				t.Cleanup(func() {
+					require.True(t, appleStore.EnqueueCommandFuncInvoked)
+					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked)
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "InstallProfile for userDeviceAssocs does not return email for one device",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				wantCommandUUIDs := make(map[string]string)
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollmentType: "User Enrollment (Device)"}, {HostUUID: "hostUUID2", EnrollmentType: "User Enrollment (Device)"}}, nil
+				}
+				user1Email := "user1@example.com"
+				ds.GetMDMIdPAccountsByHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error) {
+					require.Len(t, hostUUIDs, 2)
+					return map[string]*fleet.MDMIdPAccount{
+						"hostUUID1": {
+							UUID:     "userUUID1",
+							Username: "user1",
+							Email:    user1Email,
+						},
+					}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error,
+				) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					require.Equal(t, 1, len(id))
+					_, idAlreadyExists := wantCommandUUIDs[id[0]]
+					// Should only get one for each host
+					require.False(t, idAlreadyExists, "Command UUID for host %s already exists: %s", id[0], wantCommandUUIDs[id[0]])
+					wantCommandUUIDs[id[0]] = cmd.CommandUUID
+
+					// Make sure the user's email made it into the profile if it was returned
+					var fullCmd micromdm.CommandPayload
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					switch id[0] {
+					// Only hostUUID1 has an email associated with it
+					// so we expect it to be present in the profile
+					case "hostUUID1":
+						require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(user1Email)), "The profile for hostUUID 1 should contain the associated user email")
+					case "hostUUID2":
+						require.False(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte("@example.com")), "The profile for hostUUID 2 should not contain any user email")
+					default:
+						require.Fail(t, "Unexpected host ID for command: %s", id[0])
+					}
+					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1)
+					require.Contains(t, []string{"hostUUID1", "hostUUID2"}, assocs[0].HostUUID)
+					require.Equal(t, cmdUUID, wantCommandUUIDs[assocs[0].HostUUID])
+					return nil
+				}
+				t.Cleanup(func() {
+					require.True(t, appleStore.EnqueueCommandFuncInvoked)
+					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked)
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "InstallProfile for userDeviceAssocs fails",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollmentType: "User Enrollment (Device)"}, {HostUUID: "hostUUID2", EnrollmentType: "User Enrollment (Device)"}}, nil
+				}
+				user1Email := "user1@example.com"
+				user2Email := "user2@example.com"
+				ds.GetMDMIdPAccountsByHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error) {
+					require.Len(t, hostUUIDs, 2)
+					return map[string]*fleet.MDMIdPAccount{
+						"hostUUID2": {
+							UUID:     "userUUID2",
+							Username: "user2",
+							Email:    user2Email,
+						},
+						"hostUUID1": {
+							UUID:     "userUUID1",
+							Username: "user1",
+							Email:    user1Email,
+						},
+					}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error,
+				) {
+					return map[string]error{}, errors.New("foo")
+				}
+			},
+			expectedError: true,
+		},
 	}
 
 	for _, tc := range tests {

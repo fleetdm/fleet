@@ -2780,37 +2780,102 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 
 func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	acc := &fleet.MDMIdPAccount{
-		Username: "email@example.com",
-		Email:    "email@example.com",
+	acc1 := &fleet.MDMIdPAccount{
+		Username: "email1@example.com",
+		Email:    "email1@example.com",
 		Fullname: "John Doe",
 	}
 
-	err := ds.InsertMDMIdPAccount(ctx, acc)
+	acc2 := &fleet.MDMIdPAccount{
+		Username: "email2@example.com",
+		Email:    "email2@example.com",
+		Fullname: "Jane Doe",
+	}
+
+	err := ds.InsertMDMIdPAccount(ctx, acc1)
 	require.NoError(t, err)
 
 	// try to instert the same account
-	err = ds.InsertMDMIdPAccount(ctx, acc)
+	err = ds.InsertMDMIdPAccount(ctx, acc1)
 	require.NoError(t, err)
 
-	out, err := ds.GetMDMIdPAccountByEmail(ctx, acc.Email)
+	out, err := ds.GetMDMIdPAccountByEmail(ctx, acc1.Email)
 	require.NoError(t, err)
 	// update the acc UUID
-	acc.UUID = out.UUID
-	require.Equal(t, acc, out)
+	acc1.UUID = out.UUID
+	require.Equal(t, acc1, out)
+
+	err = ds.InsertMDMIdPAccount(ctx, acc2)
+	require.NoError(t, err)
+
+	out, err = ds.GetMDMIdPAccountByEmail(ctx, acc2.Email)
+	require.NoError(t, err)
+	// update the acc UUID
+	acc2.UUID = out.UUID
+	require.Equal(t, acc2, out)
 
 	var nfe fleet.NotFoundError
 	out, err = ds.GetMDMIdPAccountByEmail(ctx, "bad@email.com")
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, out)
 
-	out, err = ds.GetMDMIdPAccountByUUID(ctx, acc.UUID)
+	out, err = ds.GetMDMIdPAccountByUUID(ctx, acc1.UUID)
 	require.NoError(t, err)
-	require.Equal(t, acc, out)
+	require.Equal(t, acc1, out)
 
 	out, err = ds.GetMDMIdPAccountByUUID(ctx, "BAD-TOKEN")
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, out)
+
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host1-osquery-id"),
+		NodeKey:         ptr.String("host1-node-key"),
+		UUID:            "host1-test-mdm-profiles",
+		Hostname:        "hostname1",
+	})
+	require.NoError(t, err)
+
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host2-osquery-id"),
+		NodeKey:         ptr.String("host2-node-key"),
+		UUID:            "host2-test-mdm-profiles",
+		Hostname:        "hostname2",
+	})
+	require.NoError(t, err)
+
+	idpAccounts, err := ds.GetMDMIdPAccountsByHostUUIDs(ctx, []string{host1.UUID, host2.UUID})
+	require.NoError(t, err)
+	require.Len(t, idpAccounts, 0)
+
+	// Get account by UUID should also return nothing
+	idpAccount, err := ds.GetMDMIdPAccountByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Nil(t, idpAccount)
+
+	err = ds.AssociateHostMDMIdPAccount(ctx, host1.UUID, acc1.UUID)
+	require.NoError(t, err)
+
+	err = ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, acc2.UUID)
+	require.NoError(t, err)
+
+	idpAccounts, err = ds.GetMDMIdPAccountsByHostUUIDs(ctx, []string{host1.UUID, host2.UUID})
+	require.NoError(t, err)
+	require.Len(t, idpAccounts, 2)
+	require.Equal(t, *acc1, *idpAccounts[host1.UUID])
+	require.Equal(t, *acc2, *idpAccounts[host2.UUID])
+
+	idpAccount, err = ds.GetMDMIdPAccountByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, idpAccount)
+	require.Equal(t, *acc1, *idpAccount)
 }
 
 func testDoNotIgnoreMDMClientError(t *testing.T, ds *Datastore) {

@@ -6930,6 +6930,16 @@ func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID str
 	return res[0].LastMDMEnrollmentTime, res[0].LastMDMSeenTime, nil
 }
 
+func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := associateHostMDMIdPAccountDB(ctx, tx, hostUUID, idpAcctUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "associate host mdm idp account")
+		}
+		return nil
+	})
+	return err
+}
+
 func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
 	if machineInfo == nil {
 		level.Info(ds.logger).Log("msg", "reconcile mdm apple enroll ref: machine info is nil")
@@ -7122,6 +7132,37 @@ func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger
 	}
 
 	return &idp, nil
+}
+
+func (ds *Datastore) GetMDMIdPAccountsByHostUUIDs(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error) {
+	type HostMDMIDPAccountRow struct {
+		fleet.MDMIdPAccount
+		HostUUID string `db:"host_uuid"`
+	}
+	stmt := `
+SELECT
+	mia.uuid, mia.username, mia.fullname, mia.email, hmia.host_uuid
+FROM
+	mdm_idp_accounts mia
+INNER JOIN
+	host_mdm_idp_accounts hmia ON hmia.account_uuid = mia.uuid
+WHERE
+	hmia.host_uuid IN (?)`
+	stmt, args, err := sqlx.In(stmt, hostUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare get mdm idp accounts by host uuids")
+	}
+	res := []*HostMDMIDPAccountRow{}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...)
+	if err != nil {
+		return nil, err
+	}
+	// map the results to a map of host UUIDs to MDMIdPAccount
+	idpAccounts := make(map[string]*fleet.MDMIdPAccount, len(res))
+	for _, row := range res {
+		idpAccounts[row.HostUUID] = &row.MDMIdPAccount
+	}
+	return idpAccounts, nil
 }
 
 func (ds *Datastore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
