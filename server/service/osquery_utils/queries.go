@@ -1907,6 +1907,11 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
+	// isPersonalEnrollment is always false for macOS hosts as our current account driven user
+	// enrollment flow does not support macOS however we will need to detect it here if that ever
+	// changes.
+	isPersonalEnrollment := false
+
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
 
@@ -1918,6 +1923,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		installedFromDep,
 		mdmSolutionName,
 		fleetEnrollRef,
+		isPersonalEnrollment,
 	)
 }
 
@@ -1990,6 +1996,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		automatic,
 		mdmSolutionName,
 		"",
+		false, // isPersonalEnrollment is always false for Windows hosts
 	)
 }
 
