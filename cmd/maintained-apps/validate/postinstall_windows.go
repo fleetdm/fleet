@@ -23,7 +23,7 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bo
 		SELECT name, install_location, version 
 		FROM programs
 		WHERE
-		name ILIKE '%` + appName + `%'
+		LOWER(name) LIKE LOWER('%` + appName + `%')
 	`
 	if appPath != "" {
 		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
