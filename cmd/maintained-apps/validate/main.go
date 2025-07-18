@@ -14,8 +14,6 @@ import (
 	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -278,36 +276,6 @@ func DownloadMaintainedApp(app fleet.MaintainedApp) (*fleet.TempFileReader, erro
 	env = append(env, installerPathEnv)
 
 	return installerTFR, nil
-}
-
-func executeScript(scriptContents string) (string, error) {
-	// Similar code in:
-	// orbit/pkg/installer/installer.go:runInstallerScript
-	scriptExtension := ".sh"
-	if runtime.GOOS == "windows" {
-		scriptExtension = ".ps1"
-	}
-
-	scriptPath := filepath.Join(tmpDir, "script"+scriptExtension)
-	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
-		return "", fmt.Errorf("writing script: %w", err)
-	}
-
-	ctx := context.Background()
-	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, env)
-	result := fmt.Sprintf(`
---------------------
-%s
---------------------
-`, string(output))
-
-	if err != nil {
-		return result, err
-	}
-	if exitCode != 0 {
-		return result, fmt.Errorf("script execution failed with exit code %d: %s", exitCode, string(output))
-	}
-	return result, nil
 }
 
 func listDirectoryContents(dir string) (map[string]struct{}, error) {

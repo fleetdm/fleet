@@ -6,9 +6,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 )
 
 func postApplicationInstall(appPath string) error {
@@ -109,4 +114,29 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bo
 	}
 
 	return false, nil
+}
+
+func executeScript(scriptContents string) (string, error) {
+	scriptExtension := ".sh"
+	scriptPath := filepath.Join(tmpDir, "script"+scriptExtension)
+	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
+		return "", fmt.Errorf("writing script: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, env)
+	result := fmt.Sprintf(`
+--------------------
+%s
+--------------------`, string(output))
+
+	if err != nil {
+		return result, err
+	}
+	if exitCode != 0 {
+		return result, fmt.Errorf("script execution failed with exit code %d: %s", exitCode, string(output))
+	}
+	return result, nil
 }

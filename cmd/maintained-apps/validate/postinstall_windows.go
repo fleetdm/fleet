@@ -6,8 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 )
 
 func postApplicationInstall(appPath string) error {
@@ -56,4 +60,40 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bo
 	}
 
 	return false, nil
+}
+
+func executeScript(scriptContents string) (string, error) {
+	scriptExtension := ".ps1"
+	scriptPath := filepath.Join(tmpDir, "script"+scriptExtension)
+	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
+		return "", fmt.Errorf("writing script: %w", err)
+	}
+
+	// Use custom execution with non-interactive flags for Windows
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+	cmd.WaitDelay = 1 * time.Minute
+	cmd.Env = env
+	cmd.Dir = filepath.Dir(scriptPath)
+
+	output, err := cmd.CombinedOutput()
+
+	exitCode := -1
+
+	// Only set exitCode if process completed and context wasn't cancelled
+	if cmd.ProcessState != nil {
+		exitCode = int(int32(cmd.ProcessState.ExitCode()))
+	}
+
+	result := fmt.Sprintf(`
+--------------------
+%s
+--------------------`, string(output))
+
+	if err != nil {
+		return result, err
+	}
+	if exitCode != 0 {
+		return result, fmt.Errorf("script execution failed with exit code %d: %s", exitCode, string(output))
+	}
+	return result, nil
 }
