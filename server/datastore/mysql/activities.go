@@ -938,6 +938,11 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 			if _, err := tx.ExecContext(ctx, updNanoStmt, hostUUID, executionID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
 			}
+
+			const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
+			if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "delete vpp verify from host_mdm_commands")
+			}
 		}
 
 		var titleID uint
