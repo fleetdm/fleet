@@ -198,6 +198,8 @@ This setting should not usually be used.
 
 ## Redis
 
+AWS ElastiCache IAM authentication is automatically enabled when there is an ElastiCache endpoint in `redis_address` and no `redis_password` is specified.
+
 Note that to test a TLS connection to a Redis instance, run the
 `tlsconnect` Go program in `tools/redis-tests`, e.g., from the root of the repository:
 
@@ -267,6 +269,30 @@ Use a TLS connection to the Redis server.
   ```yaml
   redis:
     use_tls: true
+  ```
+
+### redis_sts_assume_role_arn
+
+The ARN of the IAM role to assume when using AWS IAM authentication for ElastiCache. When specified along with no password, Fleet will assume this role to generate temporary authentication tokens. If no role and no password are specified with an ElastiCache endpoint, the credentials from the environment will be used.
+
+- Default value: `""`
+- Environment variable: `FLEET_REDIS_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  redis:
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/elasticache-auth-role
+  ```
+
+### redis_sts_external_id
+
+The external ID to use when assuming the IAM role for ElastiCache authentication. This provides an additional layer of security when assuming roles across accounts.
+
+- Default value: `""`
+- Environment variable: `FLEET_REDIS_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  redis:
+    sts_external_id: your_unique_id
   ```
 
 ### redis_duplicate_results

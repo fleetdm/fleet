@@ -59,6 +59,8 @@ type RedisConfig struct {
 	Password                  string
 	Database                  int
 	UseTLS                    bool          `yaml:"use_tls"`
+	StsAssumeRoleArn          string        `yaml:"sts_assume_role_arn"`
+	StsExternalID             string        `yaml:"sts_external_id"`
 	DuplicateResults          bool          `yaml:"duplicate_results"`
 	ConnectTimeout            time.Duration `yaml:"connect_timeout"`
 	KeepAlive                 time.Duration `yaml:"keep_alive"`
@@ -1077,6 +1079,8 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait)")
 	man.addConfigDuration("redis.write_timeout", 10*time.Second, "Redis maximum amount of time to wait for a write (send) on a connection")
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
+	man.addConfigString("redis.sts_assume_role_arn", "", "ARN of role to assume for AWS authentication")
+	man.addConfigString("redis.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1516,6 +1520,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
 			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
+			StsAssumeRoleArn:          man.getConfigString("redis.sts_assume_role_arn"),
+			StsExternalID:             man.getConfigString("redis.sts_external_id"),
 		},
 		Server: ServerConfig{
 			Address:                     man.getConfigString("server.address"),

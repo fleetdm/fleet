@@ -111,3 +111,140 @@ func TestConnectRetry(t *testing.T) {
 		})
 	}
 }
+
+func TestParseElastiCacheEndpoint(t *testing.T) {
+	tests := []struct {
+		name          string
+		endpoint      string
+		wantRegion    string
+		wantCacheName string
+		wantErr       bool
+	}{
+		{
+			name:          "serverless endpoint from AWS stack with port",
+			endpoint:      "fleet-iam-test-cache-6l5khx.serverless.use2.cache.amazonaws.com:6379",
+			wantRegion:    "us-east-2",
+			wantCacheName: "fleet-iam-test-cache",
+			wantErr:       false,
+		},
+		{
+			name:          "serverless endpoint from AWS stack without port",
+			endpoint:      "fleet-iam-test-cache-6l5khx.serverless.use2.cache.amazonaws.com",
+			wantRegion:    "us-east-2",
+			wantCacheName: "fleet-iam-test-cache",
+			wantErr:       false,
+		},
+		{
+			name:          "standalone master endpoint from AWS stack",
+			endpoint:      "master.fleet-iam-standalone.6l5khx.use2.cache.amazonaws.com:6379",
+			wantRegion:    "us-east-2",
+			wantCacheName: "fleet-iam-standalone",
+			wantErr:       false,
+		},
+		{
+			name:          "standalone cluster node endpoint from AWS stack",
+			endpoint:      "fleet-iam-standalone-001.fleet-iam-standalone.6l5khx.use2.cache.amazonaws.com:6379",
+			wantRegion:    "us-east-2",
+			wantCacheName: "fleet-iam-standalone",
+			wantErr:       false,
+		},
+		// Additional test cases for different regions
+		{
+			name:          "serverless endpoint us-east-1",
+			endpoint:      "my-cache-abc123.serverless.use1.cache.amazonaws.com",
+			wantRegion:    "us-east-1",
+			wantCacheName: "my-cache",
+			wantErr:       false,
+		},
+		{
+			name:          "serverless endpoint eu-west-1",
+			endpoint:      "prod-cache-xyz789.serverless.euw1.cache.amazonaws.com",
+			wantRegion:    "eu-west-1",
+			wantCacheName: "prod-cache",
+			wantErr:       false,
+		},
+		// Cluster mode endpoints with different node numbers
+		{
+			name:          "cluster mode endpoint node 002",
+			endpoint:      "my-cluster-002.my-cluster.abc123.euc1.cache.amazonaws.com:6379",
+			wantRegion:    "eu-central-1",
+			wantCacheName: "my-cluster",
+			wantErr:       false,
+		},
+		{
+			name:          "cluster mode endpoint node 003",
+			endpoint:      "redis-cluster-003.redis-cluster.xyz789.apne1.cache.amazonaws.com",
+			wantRegion:    "ap-northeast-1",
+			wantCacheName: "redis-cluster",
+			wantErr:       false,
+		},
+		// Different regions
+		{
+			name:          "ap-southeast-1 endpoint",
+			endpoint:      "cache-name.xyz123.apse1.cache.amazonaws.com",
+			wantRegion:    "ap-southeast-1",
+			wantCacheName: "cache-name",
+			wantErr:       false,
+		},
+		{
+			name:          "us-west-2 endpoint",
+			endpoint:      "test-cache.def456.usw2.cache.amazonaws.com:6379",
+			wantRegion:    "us-west-2",
+			wantCacheName: "test-cache",
+			wantErr:       false,
+		},
+		// Edge cases
+		{
+			name:          "cache name with multiple hyphens",
+			endpoint:      "my-long-cache-name.serverless.usw2.cache.amazonaws.com",
+			wantRegion:    "us-west-2",
+			wantCacheName: "my-long-cache-name",
+			wantErr:       false,
+		},
+		{
+			name:          "already full region name",
+			endpoint:      "test-cache.us-east-1.cache.amazonaws.com",
+			wantRegion:    "us-east-1",
+			wantCacheName: "test-cache",
+			wantErr:       false,
+		},
+		// Error cases
+		{
+			name:          "invalid endpoint format",
+			endpoint:      "not-a-valid-endpoint",
+			wantRegion:    "",
+			wantCacheName: "",
+			wantErr:       true,
+		},
+		{
+			name:          "missing cache.amazonaws.com",
+			endpoint:      "my-cache.use1.amazonaws.com",
+			wantRegion:    "",
+			wantCacheName: "",
+			wantErr:       true,
+		},
+		{
+			name:          "empty endpoint",
+			endpoint:      "",
+			wantRegion:    "",
+			wantCacheName: "",
+			wantErr:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotRegion, gotCacheName, err := parseElastiCacheEndpoint(tt.endpoint)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseElastiCacheEndpoint() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotRegion != tt.wantRegion {
+				t.Errorf("parseElastiCacheEndpoint() gotRegion = %v, want %v", gotRegion, tt.wantRegion)
+			}
+			if gotCacheName != tt.wantCacheName {
+				t.Errorf("parseElastiCacheEndpoint() gotCacheName = %v, want %v", gotCacheName, tt.wantCacheName)
+			}
+		})
+	}
+}
