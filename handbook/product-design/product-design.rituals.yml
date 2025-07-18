@@ -84,8 +84,17 @@
   description: "Review user stories in the 'In review' column on the drafting board with each product group's Product Designer, Engineering Mananger, and Quality Assurance Engineer."
   dri: "noahtalerman"
 - 
-  task: "🦢🚀🔄 Design sync"
+  task: "🦢🚀🤝 Product Design + Frontend Engineering"
   startedOn: "2025-04-23"
   frequency: "Triweekly"
   description: "Product Designers and Frontend Engineers meet to discuss proposed changes to design conventions, UI components, and potential overlap/collisions between in progress wireframes."
   dri: "rachaelshaw"
+- 
+  task: "Revise quarterly roadmap blog post"
+  startedOn: "2025-07-18"
+  frequency: "Triweekly"
+  description: "Go back and edit, for the current quarter's roadmap blog post, anything that isn't going to be true."
+  dri: "noahtalerman"
+  autoIssue:   
+    labels: [ ":product" ]
+    repo: "fleet"
