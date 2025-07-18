@@ -126,7 +126,7 @@ func main() {
 			appWithError = append(appWithError, app.Name)
 		}
 
-		existance, err := doesAppExists(appPath, app.Name, app.UniqueIdentifier, appVersion)
+		existance, err := doesAppExists(app.Name, app.UniqueIdentifier, appVersion, appPath)
 		if err != nil {
 			fmt.Printf("Error checking if app exists: %v\n", err)
 			appWithError = append(appWithError, app.Name)
@@ -147,7 +147,7 @@ func main() {
 			continue
 		}
 
-		existance, err = doesAppExists(appPath, app.Name, app.UniqueIdentifier, appVersion)
+		existance, err = doesAppExists(app.Name, app.UniqueIdentifier, appVersion, appPath)
 		if err != nil {
 			fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
 			appWithError = append(appWithError, app.Name)
@@ -298,19 +298,22 @@ func executeScript(scriptContents string) (string, error) {
 	return result, nil
 }
 
-func doesAppExists(appPath, appName, uniqueAppIdentifier, appVersion string) (bool, error) {
+func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	fmt.Printf("Looking for app: %s, version: %s\n", appName, appVersion)
-	cmd := exec.CommandContext(ctx, "osqueryi", "--json", `
-    SELECT name, path, bundle_short_version, bundle_version 
-    FROM apps
-    WHERE 
-    bundle_identifier LIKE '%`+uniqueAppIdentifier+`%' OR
-    name LIKE '%`+appName+`%' OR
-	path LIKE '%`+appPath+`%'
-  `)
+	query := `
+		SELECT name, path, bundle_short_version, bundle_version 
+		FROM apps
+		WHERE 
+		bundle_identifier LIKE '%` + uniqueAppIdentifier + `%' OR
+		name LIKE '%` + appName + `%'
+	`
+	if appPath != "" {
+		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", appPath)
+	}
+	cmd := exec.CommandContext(ctx, "osqueryi", "--json", query)
 	output, err := cmd.Output()
 	if err != nil {
 		return false, fmt.Errorf("executing osquery command: %w", err)
