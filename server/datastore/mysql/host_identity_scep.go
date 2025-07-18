@@ -47,7 +47,7 @@ func updateHostIdentityCertHostIDBySerial(ctx context.Context, tx sqlx.ExtContex
 func (ds *Datastore) GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
 	var hostIdentityCert types.HostIdentityCertificate
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostIdentityCert, `
-		SELECT serial, host_id, name, not_valid_after, public_key_raw
+		SELECT serial, host_id, name, not_valid_after, public_key_raw, created_at
 		FROM host_identity_scep_certificates
 		WHERE name = ?
 			AND not_valid_after > NOW()
