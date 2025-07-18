@@ -2,6 +2,8 @@ package tables
 
 import (
 	"database/sql"
+
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -24,7 +26,12 @@ GENERATED ALWAYS AS (
 		ELSE NULL
 	END
 ) VIRTUAL NULL`); err != nil {
-		return err
+		return errors.Wrap(err, "add is_personal_enrollment column and modify enrollment_status on host_mdm table")
+	}
+
+	// Remove the old index and create a new one that includes is_personal_enrollment.
+	if _, err := tx.Exec(`ALTER TABLE host_mdm DROP INDEX host_mdm_enrolled_installed_from_dep_idx, ADD INDEX host_mdm_enrolled_installed_from_dep_is_personal_enrollment_idx (enrolled, installed_from_dep, is_personal_enrollment);`); err != nil {
+		return errors.Wrap(err, "create enrollment status index")
 	}
 	return nil
 }
