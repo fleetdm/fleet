@@ -27,17 +27,17 @@ func removeAppQuarentine(appPath string) error {
 	}
 	fmt.Printf("Attempting to remove quarantine for: '%s'\n", appPath)
 	cmd := exec.Command("xattr", "-p", "com.apple.quarantine", appPath)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("checking quarantine status: %v\n", err)
 	}
-	fmt.Printf("Quarantine status: %s\n", strings.TrimSpace(string(output)))
+	fmt.Printf("Quarantine status: '%s'\n", strings.TrimSpace(string(output)))
 	cmd = exec.Command("spctl", "-a", "-v", appPath)
-	output, err = cmd.Output()
+	output, err = cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("checking spctl status: %v\n", err)
 	}
-	fmt.Printf("spctl status: %s\n", strings.TrimSpace(string(output)))
+	fmt.Printf("spctl status: '%s'\n", strings.TrimSpace(string(output)))
 
 	cmd = exec.Command("sudo", "spctl", "--add", appPath)
 	if err := cmd.Run(); err != nil {

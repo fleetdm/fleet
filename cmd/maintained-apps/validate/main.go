@@ -72,6 +72,7 @@ func main() {
 	totalApps := len(apps)
 	successfulApps := 0
 	appWithError := []string{}
+	appWithWarning := []string{}
 	for _, app := range apps {
 		if app.Platform != operatingSystem {
 			continue
@@ -114,10 +115,15 @@ func main() {
 		}
 
 		appPath := detectNewApplication(installationSearchDirectory, appListPre, appListPost)
+		if appPath == "" {
+			fmt.Printf("Warning: no new application detected in %s directory after installation.\n", installationSearchDirectory)
+			appWithWarning = append(appWithWarning, app.Name)
+		}
 
 		err = postApplicationInstall(appPath)
 		if err != nil {
 			fmt.Printf("Warning: Error detected in post-installation steps: %v\n", err)
+			appWithWarning = append(appWithWarning, app.Name)
 		}
 
 		appVersion, err := extractAppVersion(maintainedApp, installerTFR)
@@ -159,15 +165,21 @@ func main() {
 			continue
 		}
 
-		fmt.Print("All checks passed for app: ", app.Name, "\n")
+		fmt.Print("All checks passed for app: ", app.Name, "\n\n")
 		successfulApps++
 	}
 
 	if successfulApps == totalApps {
 		fmt.Printf("All %d apps were successfully validated.\n", totalApps)
+		if len(appWithWarning) > 0 {
+			fmt.Printf("Some apps were validated with warnings: %v\n", appWithWarning)
+		}
 		os.Exit(0)
 	} else {
 		fmt.Printf("Validated %d out of %d apps successfully.\n", successfulApps, totalApps)
+		if len(appWithWarning) > 0 {
+			fmt.Printf("Some apps were validated with warnings: %v\n", appWithWarning)
+		}
 		fmt.Printf("Apps with errors: %v\n", appWithError)
 		os.Exit(1)
 	}
