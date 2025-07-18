@@ -633,7 +633,7 @@ func (svc *Service) filterExtensionsForHost(ctx context.Context, extensions json
 	}
 
 	// Filter the extensions by platform.
-	extensionsInfo.FilterByHostPlatform(host.Platform)
+	extensionsInfo.FilterByHostPlatform(host.Platform, host.CPUType)
 
 	// Filter the extensions by labels (premium only feature).
 	if license, _ := license.FromContext(ctx); license != nil && license.IsPremium() {

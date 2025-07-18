@@ -101,8 +101,10 @@ fleetd_tables_*
 
 # Location of test extensions executables
 tools/test_extensions/hello_world/macos
-tools/test_extensions/hello_world/windows
 tools/test_extensions/hello_world/linux
+tools/test_extensions/hello_world/linux-arm64
+tools/test_extensions/hello_world/windows
+tools/test_extensions/hello_world/windows-arm64
 
 # Residual files when building fleet_tables extension.
 fleet_tables_*.ext

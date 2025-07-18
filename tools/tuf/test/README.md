@@ -54,7 +54,9 @@ Here's a sample to use the `hello_world` and `hello_mars` test extensions:
 [...]
 MACOS_TEST_EXTENSIONS="./tools/test_extensions/hello_world/macos/hello_world_macos.ext,./tools/test_extensions/hello_world/macos/hello_mars_macos.ext" \
 WINDOWS_TEST_EXTENSIONS="./tools/test_extensions/hello_world/windows/hello_world_windows.ext.exe,./tools/test_extensions/hello_world/windows/hello_mars_windows.ext.exe" \
+WINDOWS_ARM64_TEST_EXTENSIONS="./tools/test_extensions/hello_world/windows-arm64/hello_world_windows_arm64.ext.exe,./tools/test_extensions/hello_world/windows-arm64/hello_mars_windows_arm64.ext.exe" \
 LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_linux.ext,./tools/test_extensions/hello_world/linux/hello_mars_linux.ext" \
+LINUX_ARM64_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux-arm64/hello_world_linux_arm64.ext,./tools/test_extensions/hello_world/linux-arm64/hello_mars_linux_arm64.ext" \
 [...]
 ./tools/tuf/test/main.sh
 ```

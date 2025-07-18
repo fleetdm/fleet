@@ -173,14 +173,20 @@ type ExtensionInfo struct {
 type Extensions map[string]ExtensionInfo
 
 // FilterByHostPlatform filters out extensions that are not targeted for hostPlatform.
-// It supports host platforms reported by osquery and by Go's runtime.GOOS.
-func (es *Extensions) FilterByHostPlatform(hostPlatform string) {
+// It supports host platforms reported by osquery (e.g. x86_64, aarch64, ARM)
+// and by Go's runtime.GOOS (arm64 and amd64).
+func (es *Extensions) FilterByHostPlatform(hostPlatform string, hostCPU string) {
 	switch {
-	case IsLinux(hostPlatform):
+	case IsLinux(hostPlatform) && (hostCPU == "x86_64" || hostCPU == "amd64"):
 		hostPlatform = "linux"
+	case IsLinux(hostPlatform) && (hostCPU == "aarch64" || hostCPU == "arm64"):
+		hostPlatform = "linux-arm64"
 	case hostPlatform == "darwin":
-		// Osquery uses "darwin", whereas the extensions feature uses "macos".
-		hostPlatform = "macos"
+		hostPlatform = "macos" // osquery uses "darwin", whereas the extensions feature uses "macos".
+	case hostPlatform == "windows" && (hostCPU == "x86_64" || hostCPU == "amd64"):
+		hostPlatform = "windows"
+	case hostPlatform == "windows" && (hostCPU == "ARM" || hostCPU == "arm64"):
+		hostPlatform = "windows-arm64"
 	}
 	for extensionName, extensionInfo := range *es {
 		if hostPlatform != extensionInfo.Platform {
