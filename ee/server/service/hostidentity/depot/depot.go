@@ -8,9 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -26,12 +30,13 @@ type HostIdentitySCEPDepot struct {
 	db     *sqlx.DB
 	ds     fleet.Datastore
 	logger log.Logger
+	config *config.FleetConfig
 }
 
 var _ depot.Depot = (*HostIdentitySCEPDepot)(nil)
 
 // NewHostIdentitySCEPDepot creates and returns a *HostIdentitySCEPDepot.
-func NewHostIdentitySCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger log.Logger) (*HostIdentitySCEPDepot, error) {
+func NewHostIdentitySCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger log.Logger, cfg *config.FleetConfig) (*HostIdentitySCEPDepot, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
@@ -39,6 +44,7 @@ func NewHostIdentitySCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger log.Logger
 		db:     db,
 		ds:     ds,
 		logger: logger,
+		config: cfg,
 	}, nil
 }
 
@@ -99,6 +105,22 @@ func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 		return fmt.Errorf("creating public key raw: %w", err)
 	}
 	certPEM := certificate.EncodeCertPEM(crt)
+
+	// Apply rate limiting if configured
+	cooldown := d.config.Osquery.EnrollCooldown
+	if cooldown > 0 {
+		existingCert, err := d.ds.GetHostIdentityCertByName(context.Background(), name)
+		switch {
+		case err != nil && !fleet.IsNotFound(err):
+			return fmt.Errorf("checking existing certificate: %w", err)
+		case err == nil:
+			// Certificate exists, check if rate limit applies
+			if time.Since(existingCert.CreatedAt) < cooldown {
+				return backoff.Permanent(ctxerr.Errorf(context.Background(), "host identified by %s requesting certificates too often", name))
+			}
+		}
+		// If certificate doesn't exist or rate limit doesn't apply, continue
+	}
 
 	return common_mysql.WithRetryTxx(context.Background(), d.db, func(tx sqlx.ExtContext) error {
 		// Revoke existing certs for this host id.

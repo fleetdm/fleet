@@ -96,8 +96,12 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "storing software installer")
 	}
 
-	// Update $PACKAGE_ID in uninstall script
-	preProcessUninstallScript(payload)
+	// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
+	if err := preProcessUninstallScript(payload); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message: "Couldn't add. $UPGRADE_CODE variable was used but package does not have an UpgradeCode.",
+		}
+	}
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
 		// We redo the validation on each script to find out which script has the missing secret.
@@ -199,18 +203,19 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, labelsInclud
 }
 
 var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
+var upgradeCodeRegex = regexp.MustCompile(`((("\$UPGRADE_CODE")|(\$UPGRADE_CODE))(?P<suffix>\W|$))|(("\${UPGRADE_CODE}")|(\${UPGRADE_CODE}))`)
 
-func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
+func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) error {
 	// We assume that we already validated that payload.PackageIDs is not empty.
 	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
 	if len(payload.PackageIDs) == 0 {
 		// do nothing, this could be a FMA which won't include the installer when editing the scripts
-		return
+		return nil
 	}
 	var packageID string
 	switch payload.Extension {
 	case "dmg", "zip":
-		return
+		return nil
 	case "pkg":
 		var sb strings.Builder
 		_, _ = sb.WriteString("(\n")
@@ -224,6 +229,17 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	}
 
 	payload.UninstallScript = packageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
+
+	// If $UPGRADE_CODE is in the script and we have one, replace it; if the var is included but we don't have one, error
+	if upgradeCodeRegex.MatchString(payload.UninstallScript) {
+		if payload.UpgradeCode == "" {
+			return errors.New("blank upgrade code when required in script")
+		}
+
+		payload.UninstallScript = upgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("\"%s\"${suffix}", payload.UpgradeCode))
+	}
+
+	return nil
 }
 
 func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
@@ -386,6 +402,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.Filename = payloadForNewInstallerFile.Filename
 			payload.Version = payloadForNewInstallerFile.Version
 			payload.PackageIDs = payloadForNewInstallerFile.PackageIDs
+			payload.UpgradeCode = payloadForNewInstallerFile.UpgradeCode
 
 			dirty["Package"] = true
 		} else { // noop if uploaded installer is identical to previous installer
@@ -399,6 +416,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.Filename = existingInstaller.Name
 		payload.Version = existingInstaller.Version
 		payload.PackageIDs = existingInstaller.PackageIDs()
+		payload.UpgradeCode = existingInstaller.UpgradeCode
 	}
 
 	// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
@@ -435,6 +453,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
 		if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
 			uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
+			if payload.UpgradeCode != "" {
+				uninstallScript = file.UninstallMsiWithUpgradeCodeScript
+			}
 		}
 		if uninstallScript == "" {
 			return nil, &fleet.BadRequestError{
@@ -446,12 +467,19 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			Extension:       existingInstaller.Extension,
 			UninstallScript: uninstallScript,
 			PackageIDs:      existingInstaller.PackageIDs(),
+			UpgradeCode:     existingInstaller.UpgradeCode,
 		}
 		if payloadForNewInstallerFile != nil {
 			payloadForUninstallScript.PackageIDs = payloadForNewInstallerFile.PackageIDs
+			payloadForUninstallScript.UpgradeCode = payloadForNewInstallerFile.UpgradeCode
 		}
 
-		preProcessUninstallScript(payloadForUninstallScript)
+		if err := preProcessUninstallScript(payloadForUninstallScript); err != nil {
+			return nil, &fleet.BadRequestError{
+				Message: "Couldn't add. $UPGRADE_CODE variable was used but package does not have an UpgradeCode.",
+			}
+		}
+
 		if payloadForUninstallScript.UninstallScript != existingInstaller.UninstallScript {
 			dirty["UninstallScript"] = true
 		}
@@ -1511,6 +1539,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	payload.BundleIdentifier = meta.BundleIdentifier
 	payload.PackageIDs = meta.PackageIDs
 	payload.Extension = meta.Extension
+	payload.UpgradeCode = meta.UpgradeCode
 
 	// reset the reader (it was consumed to extract metadata)
 	if err := payload.InstallerFile.Rewind(); err != nil {
@@ -1528,8 +1557,12 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		}
 	}
 
-	if payload.UninstallScript == "" {
-		payload.UninstallScript = file.GetUninstallScript(meta.Extension)
+	defaultUninstallScript := file.GetUninstallScript(meta.Extension)
+	if payload.UninstallScript == "" || payload.UninstallScript == defaultUninstallScript || payload.UninstallScript == file.UninstallMsiWithUpgradeCodeScript {
+		payload.UninstallScript = defaultUninstallScript
+		if payload.UpgradeCode != "" {
+			payload.UninstallScript = file.UninstallMsiWithUpgradeCodeScript
+		}
 	}
 	if payload.UninstallScript == "" && failOnBlankScript {
 		return "", &fleet.BadRequestError{
@@ -2004,8 +2037,10 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
-			// Update $PACKAGE_ID in uninstall script
-			preProcessUninstallScript(installer)
+			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
+			if err := preProcessUninstallScript(installer); err != nil {
+				return errors.New("$UPGRADE_CODE variable was used but package does not have an UpgradeCode")
+			}
 
 			// if filename was empty, try to extract it from the URL with the
 			// now-known extension
@@ -2239,6 +2274,78 @@ func packageExtensionToPlatform(ext string) string {
 	return requiredPlatform
 }
 
+func UpgradeCodeMigration(
+	ctx context.Context,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger kitlog.Logger,
+) error {
+	// Find MSI installers without upgrade_code
+	idMap, err := ds.GetMSIInstallersWithoutUpgradeCode(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting msi installers without upgrade_code")
+	}
+	if len(idMap) == 0 {
+		return nil
+	}
+
+	upgradeCodesByStorageID := map[string]string{}
+
+	// Download each package and parse it, if we haven't already
+	for id, storageID := range idMap {
+		if _, hasParsedUpgradeCode := upgradeCodesByStorageID[storageID]; !hasParsedUpgradeCode {
+			// check if the installer exists in the store
+			exists, err := softwareInstallStore.Exists(ctx, storageID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "checking if installer exists")
+			}
+			if !exists {
+				level.Warn(logger).Log("msg", "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
+				upgradeCodesByStorageID[storageID] = "" // set to empty string to avoid duplicating work
+				continue
+			}
+
+			// get the installer from the store
+			installer, _, err := softwareInstallStore.Get(ctx, storageID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting installer from store")
+			}
+
+			tfr, err := fleet.NewTempFileReader(installer, nil)
+			_ = installer.Close()
+			if err != nil {
+				level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
+					err)
+				upgradeCodesByStorageID[storageID] = ""
+				continue
+			}
+			meta, err := file.ExtractInstallerMetadata(tfr)
+			_ = tfr.Close() // best-effort closing and deleting of temp file
+			if err != nil {
+				level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
+					err)
+				upgradeCodesByStorageID[storageID] = ""
+				continue
+			}
+			if meta.UpgradeCode == "" {
+				level.Debug(logger).Log("msg", "no upgrade code found in metadata", "software_installer_id", id, "storage_id", storageID)
+			} // fall through since we're going to set the upgrade code even if it's blank
+
+			upgradeCodesByStorageID[storageID] = meta.UpgradeCode
+		}
+
+		if upgradeCode, hasParsedUpgradeCode := upgradeCodesByStorageID[storageID]; hasParsedUpgradeCode && upgradeCode != "" {
+			// Update the upgrade_code of the software package if we have one
+			if err := ds.UpdateInstallerUpgradeCode(ctx, id, upgradeCode); err != nil {
+				level.Warn(logger).Log("msg", "failed to update upgrade code", "software_installer_id", id, "error", err)
+				continue
+			}
+		}
+	}
+
+	return nil
+}
+
 func UninstallSoftwareMigration(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -2301,7 +2408,9 @@ func UninstallSoftwareMigration(
 		payload.UninstallScript = file.GetUninstallScript(payload.Extension)
 
 		// Update $PACKAGE_ID in uninstall script
-		preProcessUninstallScript(&payload)
+		if err := preProcessUninstallScript(&payload); err != nil {
+			return ctxerr.Wrap(ctx, err, "applying uninstall script template")
+		}
 
 		// Update the package_id and extension in the software installer and the uninstall script
 		if err := ds.UpdateSoftwareInstallerWithoutPackageIDs(ctx, id, payload); err != nil {

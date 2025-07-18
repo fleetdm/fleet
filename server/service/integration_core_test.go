@@ -1101,7 +1101,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	req := deleteHostsRequest{
 		Filters: &map[string]interface{}{"team_id": float64(team1.ID)},
@@ -2373,7 +2373,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	// set disk space information for hosts [0] and [1]
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
@@ -2726,7 +2726,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 		require.NoError(t, err)
 		hosts[i] = h.ID
 	}
-	err = s.ds.AddHostsToTeam(context.Background(), &team1.ID, hosts)
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, hosts))
 	require.NoError(t, err)
 
 	tpName := "TestPolicy3"
@@ -3008,7 +3008,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 		Description: "desc team1",
 	})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID}))
 	require.NoError(t, err)
 
 	gpParams := globalPolicyRequest{
@@ -4899,7 +4899,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 		},
 	)
 	require.NoError(t, err)
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
 	// Add pack
 	_, err = s.ds.NewPack(
@@ -7720,7 +7720,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		Name: t.Name(),
 	})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{hosts[19].ID, hosts[18].ID, hosts[17].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[19].ID, hosts[18].ID, hosts[17].ID})))
 	expectedTeamVersionsCount := 3
 
 	assertSoftwareDetails := func(expectedSoftware []fleet.Software, team string) {
@@ -8198,7 +8198,7 @@ func (s *integrationTestSuite) TestCountTargets() {
 		hostIDs = append(hostIDs, h.ID)
 	}
 
-	err = s.ds.AddHostsToTeam(context.Background(), ptr.Uint(team.ID), []uint{hostIDs[0]})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(ptr.Uint(team.ID), []uint{hostIDs[0]}))
 	require.NoError(t, err)
 
 	var countResp countTargetsResponse
@@ -9740,7 +9740,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	err = s.ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
@@ -11537,7 +11537,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{host2Team1.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host2Team1.ID}))
 	require.NoError(t, err)
 
 	host1Team2, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -11556,7 +11556,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.AddHostsToTeam(ctx, &team2.ID, []uint{host1Team2.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host1Team2.ID}))
 	require.NoError(t, err)
 
 	osqueryInfoQuery, err := s.ds.NewQuery(ctx, &fleet.Query{

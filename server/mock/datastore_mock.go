@@ -225,7 +225,7 @@ type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fle
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
-type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
+type AddHostsToTeamFunc func(ctx context.Context, params *fleet.AddHostsToTeamParams) error
 
 type HostnamesByIdentifiersFunc func(ctx context.Context, identifiers []string) ([]string, error)
 
@@ -1209,7 +1209,11 @@ type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, 
 
 type GetSoftwareInstallersWithoutPackageIDsFunc func(ctx context.Context) (map[uint]string, error)
 
+type GetMSIInstallersWithoutUpgradeCodeFunc func(ctx context.Context) (map[uint]string, error)
+
 type UpdateSoftwareInstallerWithoutPackageIDsFunc func(ctx context.Context, id uint, payload fleet.UploadSoftwareInstallerPayload) error
+
+type UpdateInstallerUpgradeCodeFunc func(ctx context.Context, id uint, upgradeCode string) error
 
 type ProcessInstallerUpdateSideEffectsFunc func(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
 
@@ -3201,8 +3205,14 @@ type DataStore struct {
 	GetSoftwareInstallersWithoutPackageIDsFunc        GetSoftwareInstallersWithoutPackageIDsFunc
 	GetSoftwareInstallersWithoutPackageIDsFuncInvoked bool
 
+	GetMSIInstallersWithoutUpgradeCodeFunc        GetMSIInstallersWithoutUpgradeCodeFunc
+	GetMSIInstallersWithoutUpgradeCodeFuncInvoked bool
+
 	UpdateSoftwareInstallerWithoutPackageIDsFunc        UpdateSoftwareInstallerWithoutPackageIDsFunc
 	UpdateSoftwareInstallerWithoutPackageIDsFuncInvoked bool
+
+	UpdateInstallerUpgradeCodeFunc        UpdateInstallerUpgradeCodeFunc
+	UpdateInstallerUpgradeCodeFuncInvoked bool
 
 	ProcessInstallerUpdateSideEffectsFunc        ProcessInstallerUpdateSideEffectsFunc
 	ProcessInstallerUpdateSideEffectsFuncInvoked bool
@@ -4229,11 +4239,11 @@ func (s *DataStore) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite,
 	return s.HostLiteByIDFunc(ctx, id)
 }
 
-func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+func (s *DataStore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 	s.mu.Lock()
 	s.AddHostsToTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
+	return s.AddHostsToTeamFunc(ctx, params)
 }
 
 func (s *DataStore) HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error) {
@@ -7673,11 +7683,25 @@ func (s *DataStore) GetSoftwareInstallersWithoutPackageIDs(ctx context.Context) 
 	return s.GetSoftwareInstallersWithoutPackageIDsFunc(ctx)
 }
 
+func (s *DataStore) GetMSIInstallersWithoutUpgradeCode(ctx context.Context) (map[uint]string, error) {
+	s.mu.Lock()
+	s.GetMSIInstallersWithoutUpgradeCodeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMSIInstallersWithoutUpgradeCodeFunc(ctx)
+}
+
 func (s *DataStore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint, payload fleet.UploadSoftwareInstallerPayload) error {
 	s.mu.Lock()
 	s.UpdateSoftwareInstallerWithoutPackageIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateSoftwareInstallerWithoutPackageIDsFunc(ctx, id, payload)
+}
+
+func (s *DataStore) UpdateInstallerUpgradeCode(ctx context.Context, id uint, upgradeCode string) error {
+	s.mu.Lock()
+	s.UpdateInstallerUpgradeCodeFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateInstallerUpgradeCodeFunc(ctx, id, upgradeCode)
 }
 
 func (s *DataStore) ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error {
