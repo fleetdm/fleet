@@ -61,7 +61,7 @@ func TestRunApiCommand(t *testing.T) {
   "policy": {
     "id": 0,
     "name": "Test Policy",
-    "query": "SELECT 1;",
+    "query": "%s",
     "critical": false,
     "description": "",
     "author_id": 1,
@@ -144,14 +144,32 @@ func TestRunApiCommand(t *testing.T) {
 			args: []string{
 				"-X", "POST",
 				"-F", "name=Test Policy",
-				"-F", "query=SELECT 1;",
+				"-F", "query=<testdata/test-policy-query.sql",
 				"-F", "platform=darwin,windows,linux,chrome",
 				"-F", "critical=false",
 				"-F", "description=",
 				"-F", "resolution=",
 				"/api/latest/fleet/policies",
 			},
-			expectOutput: expectedNewPolicy,
+			expectOutput: fmt.Sprintf(
+				expectedNewPolicy,
+				"SELECT 1;"),
+		},
+		{
+			name: "create policy, missing input file",
+			args: []string{
+				"-X", "POST",
+				"-F", "name=Test Policy",
+				"-F", "query=<testdata/does-not-exist.sql",
+				"-F", "platform=darwin,windows,linux,chrome",
+				"-F", "critical=false",
+				"-F", "description=",
+				"-F", "resolution=",
+				"/api/latest/fleet/policies",
+			},
+			expectOutput: fmt.Sprintf(
+				expectedNewPolicy,
+				"\\u003ctestdata/does-not-exist.sql"),
 		},
 		{
 			name: "upload script",
@@ -162,6 +180,14 @@ func TestRunApiCommand(t *testing.T) {
 				"/api/latest/fleet/scripts",
 			},
 			expectOutput: expectedNewScript,
+		},
+		{
+			name: "args after uri",
+			args: []string{
+				"/api/latest/fleet/foo",
+				"-X", "DELETE",
+			},
+			expectErrMsg: "Ensure any flags are before the URL",
 		},
 	}
 

@@ -227,7 +227,6 @@ func apiCommand() *cli.Command {
 	var (
 		flField  []string
 		flHeader []string
-		flMethod string
 	)
 	return &cli.Command{
 		Name:      "api",
@@ -249,10 +248,9 @@ func apiCommand() *cli.Command {
 				Usage:   "Add a HTTP request header in key:value format",
 			},
 			&cli.StringFlag{
-				Name:        "X",
-				Value:       "GET",
-				Destination: &flMethod,
-				Usage:       "The HTTP method for the request.",
+				Name:  "X",
+				Value: "GET",
+				Usage: "The HTTP method for the request.",
 			},
 			configFlag(),
 			contextFlag(),
@@ -303,14 +301,6 @@ func apiCommand() *cli.Command {
 					}
 					headers[k] = v
 				}
-			}
-
-			if flMethod != "" {
-				method = flMethod
-			}
-
-			if body != nil && method == "GET" {
-				return fmt.Errorf("GET requests may not include a body")
 			}
 
 			if !strings.HasPrefix(uriString, "/") {
