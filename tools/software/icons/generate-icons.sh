@@ -79,7 +79,10 @@ EOF
 
 echo "SVG saved to: $OUTPUT_SVG"
 
-# Generate TSX component
+## Generate TSX component
+# TODO: we could just have a template file that we populated with the base64 PNG and the component name,
+# rather than needing a separate tool. Particularly since we have to do tweaks on the output of the
+# svgr tool to make the result pass linting.
 svgr "$OUTPUT_SVG" --typescript --ext tsx --out-dir frontend/pages/SoftwarePage/components/icons/
 
 # Determine component and file names
