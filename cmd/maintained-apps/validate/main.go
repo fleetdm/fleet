@@ -293,13 +293,7 @@ func executeScript(scriptContents string) (string, error) {
 		return "", fmt.Errorf("writing script: %w", err)
 	}
 
-	timeout := 5 * time.Minute
-	if runtime.GOOS == "windows" {
-		timeout = 15 * time.Minute
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
+	ctx := context.Background()
 	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, env)
 	result := fmt.Sprintf(`
 --------------------
