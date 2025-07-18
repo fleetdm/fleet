@@ -84,9 +84,6 @@ func (d *HostIdentitySCEPDepot) HasCN(cn string, allowTime int, cert *x509.Certi
 }
 
 // Put stores a certificate under the given name.
-//
-// If the provided certificate has empty crt.Subject.CommonName,
-// then the hex sha256 of the crt.Raw is used as name.
 func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 	if crt.Subject.CommonName == "" || len(crt.Subject.CommonName) > maxCommonNameLength {
 		return errors.New("common name empty or too long")

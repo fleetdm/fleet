@@ -98,7 +98,7 @@ func requestSCEPCertificate(t *testing.T, s *Suite, hostIdentifier string) (*htt
 	// Create SCEP client
 	scepURL := s.Server.URL + "/api/fleet/orbit/host_identity/scep"
 	timeout := 30 * time.Second
-	scepClient, err := scepclient.New(scepURL, s.Logger, &timeout)
+	scepClient, err := scepclient.New(scepURL, s.Logger, scepclient.WithTimeout(&timeout))
 	require.NoError(t, err)
 
 	// Get CA certificate

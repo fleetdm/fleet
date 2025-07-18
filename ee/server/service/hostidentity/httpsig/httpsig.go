@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -43,14 +44,7 @@ func NewHTTPSig(ds fleet.Datastore, logger log.Logger) *HTTPSig {
 var _ httpsig.KeyFetcher = (*HTTPSig)(nil)
 
 func (h *HTTPSig) Verifier() (*httpsig.Verifier, error) {
-	return httpsig.NewVerifier(h, httpsig.VerifyProfile{
-		SignatureLabel:    httpsig.DefaultSignatureLabel,
-		AllowedAlgorithms: []httpsig.Algorithm{httpsig.Algo_ECDSA_P256_SHA256, httpsig.Algo_ECDSA_P384_SHA384},
-		// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
-		RequiredFields:     httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
-		RequiredMetadata:   []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
-		DisallowedMetadata: []httpsig.Metadata{httpsig.MetaAlgorithm}, // The algorithm should be looked up from the keyid not an explicit setting.
-	})
+	return fleethttpsig.Verifier(h)
 }
 
 func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string) (httpsig.KeySpecer, error) {

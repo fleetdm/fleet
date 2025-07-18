@@ -255,6 +255,12 @@ func packageCommand() *cli.Command {
 				Value:       "",
 				Destination: &opt.CustomOutfile,
 			},
+			&cli.BoolFlag{
+				Name:        "fleet-managed-client-certificate",
+				Usage:       "Configures fleetd to use TPM-backed key to sign HTTP requests. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
+				EnvVars:     []string{"FLEETCTL_FLEET_MANAGED_CLIENT_CERTIFICATE"},
+				Destination: &opt.FleetManagedClientCertificate,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -282,6 +288,15 @@ func packageCommand() *cli.Command {
 			if opt.FleetTLSClientKey != "" {
 				if _, err := tls.LoadX509KeyPair(opt.FleetTLSClientCertificate, opt.FleetTLSClientKey); err != nil {
 					return fmt.Errorf("error loading fleet client certificate and key: %w", err)
+				}
+			}
+
+			if opt.FleetManagedClientCertificate {
+				if c.String("type") != "deb" && c.String("type") != "rpm" {
+					return errors.New("--fleet-managed-client-certificate is only supported for deb/rpm packages")
+				}
+				if opt.FleetTLSClientCertificate != "" {
+					return errors.New("--fleet-managed-client-certificate and --fleet-tls-client-certificate may not be provided together")
 				}
 			}
 

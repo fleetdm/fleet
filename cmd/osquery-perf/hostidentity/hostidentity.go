@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	kitlog "github.com/go-kit/log"
@@ -104,7 +105,10 @@ func (c *Client) RequestCertificate() error {
 	// Create SCEP client with no-op logger and 30-second timeout
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", c.config.ServerAddress)
 	timeout := 30 * time.Second
-	scepClient, err := scepclient.New(scepURL, kitlog.NewNopLogger(), &timeout)
+	scepClient, err := scepclient.New(scepURL, kitlog.NewNopLogger(),
+		scepclient.WithTimeout(&timeout),
+		scepclient.Insecure(),
+	)
 	if err != nil {
 		log.Printf("Agent %d: Failed to create SCEP client: %v", c.config.AgentIndex, err)
 		return err
@@ -230,19 +234,11 @@ func (c *Client) RequestCertificate() error {
 		return fmt.Errorf("unsupported curve: %v", eccPrivateKey.Curve)
 	}
 
-	signer, err := httpsig.NewSigner(httpsig.SigningProfile{
-		Algorithm: algo,
-		Fields:    httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
-		Metadata:  []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
-	}, httpsig.SigningKey{
-		Key:       eccPrivateKey,
-		MetaKeyID: fmt.Sprintf("%X", cert.SerialNumber),
-	})
+	signer, err := fleethttpsig.Signer(fmt.Sprintf("%X", cert.SerialNumber), eccPrivateKey, algo)
 	if err != nil {
 		log.Printf("Agent %d: Failed to create HTTP signer: %v", c.config.AgentIndex, err)
 		return err
 	}
-
 	c.httpSigner = signer
 
 	log.Printf("Agent %d: Successfully obtained host identity certificate with serial %X", c.config.AgentIndex, cert.SerialNumber)
