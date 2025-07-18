@@ -21,7 +21,7 @@ For IT Admins:
 - ~~⬇️ Easier agent downloads~~ *
 - 🍏 Account-based user enrollment for personal Apple devices (BYOD)
 - 🤖 Configuration profiles, ~~OS updates~~, and software management for BYOD Android
-- ~~⏳ See upcoming and past MDM command history~~
+- ~~⏳ See upcoming and past MDM command history~~ *
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 - ~~🤖 Auto-complete osquery queries (SQL), Bash scripts, and PowerShell scripts~~ *
