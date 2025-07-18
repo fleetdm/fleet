@@ -1,8 +1,8 @@
-# TPM-backed HTTP signing for fleetd requests
+# TPM-backed HTTP message signing for fleetd requests
 
 ## Overview
 
-TPM-backed HTTP signing is a security feature that uses the device’s TPM 2.0 (Trusted Platform Module) hardware to securely generate and store cryptographic keys for signing HTTP requests. By ensuring that private keys never leave the TPM's secure boundary, this feature provides hardware-backed assurance that requests to the Fleet server originate from the same physical device that initially enrolled.
+TPM-backed HTTP message signing is a security feature that uses the device’s TPM 2.0 (Trusted Platform Module) hardware to securely generate and store cryptographic keys for signing HTTP requests. By ensuring that private keys never leave the TPM's secure boundary, this feature provides hardware-backed assurance that requests to the Fleet server originate from the same physical device that initially enrolled.
 
 A **device identity certificate** is an X.509 certificate whose private key is bound to the TPM, enabling cryptographic proof of device identity.
 
@@ -34,7 +34,7 @@ Together, these mechanisms establish a strong trust foundation for authenticated
 
 ### Components
 
-The TPM-backed HTTP signing feature consists of several key components:
+The TPM-backed HTTP message signing feature consists of several key components:
 
 #### orbit components
 
@@ -43,8 +43,8 @@ fleetd is the Fleet agent that includes orbit (the main agent process), osquery,
 1. **Secure hardware interface** - Hardware-agnostic Go abstraction for TPM (and, in the future, Apple's Secure Enclave)
 2. **TPM 2.0 implementation** - Linux-specific TPM 2.0 integration with automatic ECC curve selection
 3. **SCEP client** - Certificate enrollment client for obtaining device identity certificates
-4. **HTTP signing proxy** - Proxy component that intercepts osquery traffic and adds HTTP signature headers
-5. **HTTP signing integration** - Direct HTTP signature support for orbit's own communications
+4. **HTTP message signing proxy** - Proxy component that intercepts osquery traffic and adds HTTP signature headers
+5. **HTTP message signing integration** - Direct HTTP signature support for orbit's own communications
 
 #### Server components
 1. **SCEP server interface** - Certificate Authority (CA) with dedicated keys for issuing device identity certificates
@@ -56,7 +56,7 @@ fleetd is the Fleet agent that includes orbit (the main agent process), osquery,
 
 ```mermaid
 ---
-title: TPM-backed HTTP signing (high level)
+title: TPM-backed HTTP message signing (high level)
 ---
 flowchart TD
     subgraph Host
@@ -86,7 +86,7 @@ flowchart TD
 
 ```mermaid
 ---
-title: TPM-backed HTTP signing
+title: TPM-backed HTTP message signing
 ---
 sequenceDiagram
     autonumber
@@ -154,7 +154,7 @@ Filename used is `host_identity_tpm.pem`
 
 ### Overview
 
-The SCEP (Simple Certificate Enrollment Protocol) client enables fleetd to obtain device identity certificates from a Certificate Authority. The certificates are used to establish device identity and can be used in conjunction with HTTP signing for enhanced authentication.
+The SCEP (Simple Certificate Enrollment Protocol) client enables fleetd to obtain device identity certificates from a Certificate Authority. The certificates are used to establish device identity and can be used in conjunction with HTTP message signing for enhanced authentication.
 
 ### Certificate enrollment process
 
@@ -187,7 +187,7 @@ This separation is necessary because:
 
 ### Architecture overview
 
-The TPM-backed HTTP signing operates at two levels within fleetd:
+The TPM-backed HTTP message signing operates at two levels within fleetd:
 
 1. **Direct Integration**: orbit's own HTTP communications are signed directly using TPM keys
 2. **Proxy Integration**: A proxy component intercepts osquery traffic and adds HTTP signature headers
@@ -198,7 +198,7 @@ The TPM implementation produces RFC 9421-compatible ECDSA signatures.
 
 ### Implementation details
 
-The HTTP signing implementation uses a `signerWrapper` pattern that wraps HTTP clients to automatically sign requests:
+The HTTP message signing implementation uses a `signerWrapper` pattern that wraps HTTP clients to automatically sign requests:
 
 ```go
 // signerWrapper wraps an HTTP client to add signing capabilities
@@ -262,7 +262,7 @@ The `created` and `nonce` fields can be used in the future to prevent replay att
 
 ### Client configuration
 
-Enable TPM-backed HTTP signing when packaging or running fleetd:
+Enable TPM-backed HTTP message signing when packaging or running fleetd:
 
 ```bash
 # Package with TPM signing enabled
@@ -274,13 +274,28 @@ orbit --fleet-managed-client-certificate ...
 
 ### Server configuration
 
-No additional server configuration is required. The SCEP endpoint is automatically available on Fleet servers with:
+The SCEP endpoint is automatically available on Fleet servers with:
 - **Premium license**
 - **Configured server private key**
 
-The server automatically verifies that:
+#### HTTP message signature enforcement
+
+To require HTTP message signatures for host identity endpoints:
+
+```yaml
+auth:
+  require_http_message_signature: true  # Default: false
+```
+
+When `require_http_message_signature` is enabled:
+- Orbit and osquery requests will require valid HTTP message signatures
+- Hosts without valid signatures will be rejected
+- This allows organizations to enforce TPM-backed authentication for enhanced security
+
+The server always verifies that:
 - Requests with HTTP message signatures match the certificate public key and the host node key
-- Requests without HTTP message signatures do not have associated host identity certificates
+- When the above switch is disabled, requests without HTTP message signatures from hosts **without certificates** are allowed
+- When the above switch is enabled, all requests to protected server endpoints must have valid signatures
 
 #### Rate limiting configuration
 
@@ -296,6 +311,23 @@ When rate limiting is enabled:
 - Rate limiting applies per host based on the certificate Common Name (CN)
 - Different hosts are not affected by each other's rate limits
 - Rate limiting uses the same configuration as host enrollment cooldown
+
+### Load testing configuration
+
+For load testing TPM-backed HTTP message signing without actual TPM hardware, use the `osquery-perf` tool with the following flag (other flags not shown):
+
+```bash
+# Run with 10% of hosts using HTTP signatures (default)
+go run agent.go
+
+# Run with 30% of hosts using HTTP signatures
+go run agent.go --http_message_signature_prob 0.3
+
+# Run with all hosts using HTTP signatures
+go run agent.go --http_message_signature_prob 1.0
+```
+
+The `--http_message_signature_prob` flag controls the probability (0.0 to 1.0) that each simulated host will use HTTP message signatures. This allows testing Fleet's HTTP message signing feature at scale without requiring actual TPM hardware on load testing machines.
 
 ## Future enhancements
 
