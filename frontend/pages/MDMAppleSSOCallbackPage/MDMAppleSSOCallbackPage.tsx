@@ -40,7 +40,7 @@ const EnrollmentGate = ({
       <div className={`${baseClass}__eula-wrapper`}>
         <h3>Terms and conditions</h3>
         <iframe
-          src={`/api/${endpoints.MDM_EULA(eulaToken)}`}
+          src={`/api${endpoints.MDM_EULA(eulaToken)}`}
           width="100%"
           title="eula"
         />
