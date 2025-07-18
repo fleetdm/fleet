@@ -708,6 +708,7 @@ func (a *agent) runOrbitLoop() {
 		},
 		nil,
 		nil,
+		"",
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)
