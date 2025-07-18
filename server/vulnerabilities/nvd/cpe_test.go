@@ -1258,15 +1258,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			}, cpe: "cpe:2.3:a:python:setuptools:63.2.0:*:*:*:*:python:*:*",
 		},
 		// FIXME: https://github.com/fleetdm/fleet/issues/28490
-		// {
-		// 	software: fleet.Software{
-		// 		Name:             "urllib3",
-		// 		Source:           "python_packages",
-		// 		Version:          "1.26.5",
-		// 		Vendor:           "",
-		// 		BundleIdentifier: "",
-		// 	}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
-		// },
+		{
+			software: fleet.Software{
+				Name:             "urllib3",
+				Source:           "python_packages",
+				Version:          "1.26.5",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "UTM.app",
