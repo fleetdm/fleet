@@ -1882,8 +1882,15 @@ WHERE
 	AND host_id = ?
 	`
 
+	// We want to clear this table out, because otherwise we'll stop future installs from verifying.
+	deleteHostMDMCommandStmt := `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
+
 	if _, err := tx.ExecContext(ctx, installFailStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+	}
+
+	if _, err := tx.ExecContext(ctx, deleteHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pending host mdm command records")
 	}
 
 	return nil
