@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
@@ -33,6 +34,10 @@ type Suite struct {
 }
 
 func SetUpSuite(t *testing.T, uniqueTestName string, requireSignature bool) *Suite {
+	return SetUpSuiteWithConfig(t, uniqueTestName, requireSignature, nil)
+}
+
+func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, requireSignature bool, configModifier func(cfg *config.FleetConfig)) *Suite {
 	// Note: t.Parallel() is called when MySQL datastore options are processed
 	license := &fleet.LicenseInfo{
 		Tier: fleet.TierPremium,
@@ -40,6 +45,12 @@ func SetUpSuite(t *testing.T, uniqueTestName string, requireSignature bool) *Sui
 	ds, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndService(t, uniqueTestName, &service.TestServerOpts{
 		License: license,
 	})
+
+	// Apply config modifications
+	if configModifier != nil {
+		configModifier(&fleetCfg)
+	}
+
 	logger := log.NewLogfmtLogger(os.Stdout)
 	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
