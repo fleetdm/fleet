@@ -980,6 +980,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	checkRenewCertCommand(automaticEnrolledDevice, "", "", "")
 	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "", "")
+	checkRenewCertCommand(iPhoneMdmDevice, "", "", iphoneUser.Email)
 
 	// migrated device is still marked as migrated
 	var stillMigrated bool
