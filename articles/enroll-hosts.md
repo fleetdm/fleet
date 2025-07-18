@@ -316,20 +316,17 @@ To use mTLS use the [AutoSelectCertificateForUrls policy](https://chromeenterpri
 
 `Applies only to Fleet Premium`
 
-Host identity certificates allow Fleet's agent (fleetd) to use hardware-backed client certificates for authentication to the Fleet server. This feature uses the host's TPM (Trusted Platform Module) to generate and store cryptographic keys, providing strong hardware-based authentication.
+Host identity certificates allow Fleet's agent (fleetd) to use hardware-backed client certificates for authentication to the Fleet server. All orbit and osquery requests (except ping requests) to the Fleet server will include an HTTP message signature for enhanced security.
+
+This feature uses the host's TPM (Trusted Platform Module) to generate and store cryptographic keys, providing strong hardware-based authentication.
 
 This provides a level of security similar to [mTLS](#using-mtls), but the certificate is hardware-backed and managed by the TPM rather than being stored as a file on disk. The TPM ensures the private key cannot be extracted or copied, providing stronger security guarantees.
 
-#### Requirements
-
-- Linux hosts only
-- TPM 2.0 hardware (or vTPM for VMs)
-- Linux kernel 4.12 or later
-- Fleet Premium license
+Currently, host identity certificates are only supported for Linux hosts (`.deb` and `.rpm` fleetd agents) with TPM 2.0 hardware (or vTPM for VMs) and Linux kernel 4.12 or later.
 
 #### Generating fleetd with host identity certificates
 
-When generating fleetd with host identity certificates, use the `--fleet-managed-client-certificate` flag:
+To use host identity certificates, generate fleetd with the `--fleet-managed-client-certificate` flag:
 
 ```sh
 fleetctl package \
@@ -338,8 +335,6 @@ fleetctl package \
   --enroll-secret=your-enroll-secret \
   --fleet-managed-client-certificate
 ```
-
-This flag enables the use of hardware-backed client certificates for authentication. All orbit and osquery requests (except ping requests) to the Fleet server will include an HTTP message signature for enhanced security.
 
 #### Platform support
 
