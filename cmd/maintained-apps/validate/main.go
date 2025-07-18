@@ -76,7 +76,7 @@ func main() {
 		if app.Platform != operatingSystem {
 			continue
 		}
-		fmt.Print("Validating app: ", app.Name, " (", app.Slug, ")\n")
+		fmt.Print("\n\nValidating app: ", app.Name, " (", app.Slug, ")\n")
 		appJson, err := getAppJson(app.Slug)
 		if err != nil {
 			fmt.Printf("Error getting app json manifest: %v\n", err)
@@ -164,7 +164,7 @@ func main() {
 			continue
 		}
 
-		fmt.Print("All checks passed for app: ", app.Name, "\n\n")
+		fmt.Print("All checks passed for app: ", app.Name)
 		successfulApps++
 	}
 
@@ -295,10 +295,10 @@ func executeScript(scriptContents string) (string, error) {
 
 	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, env)
 	result := fmt.Sprintf(`
-	--------------------
-	\n%s\n
-	--------------------
-	`, string(output))
+--------------------
+%s
+--------------------
+`, string(output))
 
 	if err != nil {
 		return result, err
