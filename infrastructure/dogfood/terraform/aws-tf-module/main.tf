@@ -48,6 +48,7 @@ variable "webhook_url" {
   description = "Webhook URL used for Webhook Logging Destination"
 }
 
+data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
@@ -72,6 +73,11 @@ locals {
     FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
     FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
     FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
+
+
+    # Load TLS Certificate for RDS Authentication
+    FLEET_MYSQL_TLS_CA              = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
   }
   entra_conditional_access_secrets = {
     # Entra Conditional Access Proxy API Key
@@ -81,6 +87,46 @@ locals {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
   }
   # idp_metadata_file = "${path.module}/files/idp-metadata.xml"
+
+  /* 
+    configurations below are necessary for MySQL TLS authentication
+    MySQL TLS Settings to download and store TLS Certificate
+
+    ca_thumbprint is maintained in the infrastructure/cloud/shared/
+    ca_thumbprint is the sha1 thumbprint value of the following certificate: aws rds describe-db-instances --filters='Name=db-cluster-id,Values='${cluster_name}'' | jq '.DBInstances.[0].CACertificateIdentifier' | sed 's/\"//g'
+    You can retrieve the value with the following command: aws rds describe-certificates --certificate-identifier=${ca_cert_val} | jq '.Certificates.[].Thumbprint' | sed 's/\"//g'
+  */
+  rds_container_path = "/tmp/rds-tls"
+  cert_path          = "${local.rds_container_path}/${data.aws_region.current.id}.pem"
+
+  # load the certificate with a side car into a volume mount
+  sidecars = [
+    {
+      name       = "rds-tls-ca-retriever"
+      image      = "public.ecr.aws/docker/library/alpine@sha256:8a1f59ffb675680d47db6337b49d22281a139e9d709335b492be023728e11715"
+      entrypoint = ["/bin/sh", "-c"]
+      command = [templatefile("../shared/templates/mysql_ca_tls_retrieval.sh.tpl", {
+        aws_region         = data.aws_region.current.id
+        container_path     = local.rds_container_path
+        ca_cert_thumbprint = data.terraform_remote_state.shared.outputs.mysql_tls_ca_region_thumbprints[data.aws_region.current.id]
+      })]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = local.customer
+          "awslogs-region"        = data.aws_region.current.id
+          "awslogs-stream-prefix" = "rds-tls-ca-retriever"
+        }
+      }
+      mountPoints = [
+        {
+          sourceVolume  = "rds-tls-certs",
+          containerPath = local.rds_container_path
+        }
+      ]
+      essential = false
+    }
+  ]
 }
 
 module "main" {
@@ -179,6 +225,24 @@ module "main" {
         backup = "true"
       }
     }
+    volumes = [
+      {
+        name = "rds-tls-certs"
+      }
+    ]
+    mount_points = [
+      {
+        sourceVolume  = "rds-tls-certs",
+        containerPath = local.rds_container_path
+      }
+    ]
+    depends_on = [
+      {
+        containerName = "rds-tls-ca-retriever"
+        condition     = "SUCCESS"
+      }
+    ]
+    sidecars = local.sidecars
     # sidecars = [
     #   {
     #     name        = "osquery"
@@ -590,7 +654,7 @@ module "geolite2" {
 }
 
 module "vuln-processing" {
-  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.2.0"
+  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.2.1"
   ecs_cluster                         = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   execution_iam_role_arn              = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
   subnets                             = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
