@@ -96,7 +96,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger, nil)
+	scepClient, err := scepclient.New(scepURL, s.Logger)
 	require.NoError(t, err)
 
 	// Get CA certificate
@@ -274,7 +274,6 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 
 	// Test /api/fleet/orbit/config endpoint with different signature scenarios
 	t.Run("config endpoint signature tests", func(t *testing.T) {
-
 		testCases := []struct {
 			name           string
 			setupRequest   func() (*http.Request, error)
@@ -446,7 +445,6 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 
 	// Test /api/osquery/config endpoint with different signature scenarios
 	t.Run("osquery config endpoint signature tests", func(t *testing.T) {
-
 		testCases := []struct {
 			name           string
 			setupRequest   func() (*http.Request, error)
@@ -664,7 +662,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger, nil)
+	scepClient, err := scepclient.New(scepURL, s.Logger)
 	require.NoError(t, err)
 
 	// Get CA certificate

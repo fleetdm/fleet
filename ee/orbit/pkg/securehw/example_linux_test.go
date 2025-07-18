@@ -17,7 +17,7 @@ import (
 
 func TestExampleTPM20Linux(t *testing.T) {
 	if os.Geteuid() != 0 {
-		log.Panic("Test needs to be run as root")
+		t.Skip("Test needs to be run as root")
 	}
 	if _, err := os.Stat("/dev/tpmrm0"); err != nil {
 		t.Skip("Could not read TPM 2.0 device")
