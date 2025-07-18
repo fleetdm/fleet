@@ -1,7 +1,5 @@
 # TPM-backed HTTP signing for fleetd requests
 
-> **⚠️ Proof of Concept**: This is currently a Proof of Concept (POC) implementation in the `victor/29935-tpm-agent` branch. Additional features and refinements are currently being added.
-
 ## Overview
 
 TPM-backed HTTP signing is a security feature that uses the device’s TPM 2.0 (Trusted Platform Module) hardware to securely generate and store cryptographic keys for signing HTTP requests. By ensuring that private keys never leave the TPM's secure boundary, this feature provides hardware-backed assurance that requests to the Fleet server originate from the same physical device that initially enrolled.
@@ -11,7 +9,9 @@ A **device identity certificate** is an X.509 certificate whose private key is b
 This feature includes:
 
 * **Device identity certificate enrollment** via SCEP (Simple Certificate Enrollment Protocol)
+  * **Rate limiting** for certificate enrollment to prevent abuse
 * **HTTP request signing** using TPM-protected keys
+  * **Server-side signature verification** with certificate validation
 
 Together, these mechanisms establish a strong trust foundation for authenticated communication between `fleetd` and the Fleet server.
 
@@ -48,6 +48,8 @@ fleetd is the Fleet agent that includes orbit (the main agent process), osquery,
 
 #### Server components
 1. **SCEP server interface** - Certificate Authority (CA) with dedicated keys for issuing device identity certificates
+   * **Rate limiting** - Configurable cooldown periods to prevent certificate enrollment abuse
+   * **Certificate management** - Automatic certificate lifecycle management including revocation and cleanup
 2. **HTTP signature verification** - Server-side verification of TPM-signed HTTP requests and associated certificates
 
 ### Architecture diagrams
@@ -163,9 +165,10 @@ The SCEP enrollment process follows these steps:
 3. **CSR Creation**: Generate a Certificate Signing Request using the TPM key
 4. **Temporary RSA Key**: Create a temporary RSA key for SCEP protocol encryption/decryption
 5. **SCEP Request**: Send the CSR to the SCEP server with challenge authentication
-  * challenge is the enrollment secret
-6. **Certificate Retrieval**: Decrypt and parse the issued certificate
-7. **Certificate Storage**: Save the certificate as `host_identity.crt` in the specified directory
+   * challenge is the enrollment secret
+6. **Rate Limit Check**: Server validates that the host is not requesting certificates too frequently
+7. **Certificate Retrieval**: Decrypt and parse the issued certificate
+8. **Certificate Storage**: Save the certificate as `host_identity.crt`
 
 #### Key usage separation
 
@@ -193,6 +196,19 @@ This proxy approach allows osquery (which doesn't natively support HTTP signatur
 
 The TPM implementation produces RFC 9421-compatible ECDSA signatures.
 
+### Implementation details
+
+The HTTP signing implementation uses a `signerWrapper` pattern that wraps HTTP clients to automatically sign requests:
+
+```go
+// signerWrapper wraps an HTTP client to add signing capabilities
+signerWrapper := func(client *http.Client) *http.Client {
+    return httpsig.NewHTTPClient(client, signer, nil)
+}
+```
+
+This approach allows existing HTTP client code to be enhanced with signing capabilities without requiring extensive modifications to the codebase.
+
 ### HTTP signature fields
 
 Both direct and proxy signing use the same HTTP signature fields:
@@ -206,7 +222,7 @@ Both direct and proxy signing use the same HTTP signature fields:
 > **Note**: We did not include the scheme (e.g., http, https) as part of the signature to prevent potential hard-to-debug issues with proxies and HTTP forwarding. We did not include Content-Type header in the signature because not all requests have this header.
 
 Additional metadata included:
-- **`keyid`**: Identifier for the signing key, which maps to identity certificate's serial number
+- **`keyid`**: Identifier for the signing key, which maps to identity certificate's serial number in uppercase hexadecimal format
 - **`created`**: Timestamp of signature creation
 - **`nonce`**: Random value for replay protection
 
@@ -266,20 +282,34 @@ The server automatically verifies that:
 - Requests with HTTP message signatures match the certificate public key and the host node key
 - Requests without HTTP message signatures do not have associated host identity certificates
 
+#### Rate limiting configuration
+
+Certificate enrollment rate limiting is configurable through the Fleet server configuration, using the same setting as for host enrollment rate limiting:
+
+```yaml
+osquery:
+  enroll_cooldown: 5m
+```
+
+When rate limiting is enabled:
+- Hosts requesting certificates too frequently receive HTTP 429 (Too Many Requests) responses
+- Rate limiting applies per host based on the certificate Common Name (CN)
+- Different hosts are not affected by each other's rate limits
+- Rate limiting uses the same configuration as host enrollment cooldown
+
 ## Future enhancements
 
-As this an initial implementation, future features may include:
+Additional features that may be implemented in future releases:
 
-1. **One-time enrollment secret**: This provides additional security to make sure an unauthorized device cannot get an identity certificate and enroll in Fleet.
-2. **Key Rotation/Renewal**: Automatic key rotation policies and certificate renewal
-3. **Rate limits**: Limit the rate/number of certificates issues for the same host. This guards against agent issues.
-4. **Fleet server visibility**: Allow IT admin to see which hosts have host identity certificates. For example, we can add a field to `orbit_info` table and IT admin could set up a policy to make sure all hosts have certificates.
-5. **Windows Support**: TPM support for Windows platforms using TBS (TPM Base Services)
-6. **Apple Secure Enclave**: Integration with Apple's Secure Enclave for macOS devices
-7. **Multiple Key Support**: Support for multiple signing keys and certificates, like a separate key for WiFi/VPN.
-8. **Hardware Attestation**: TPM-based device attestation and platform integrity
-9. **SCEP Extensions**: Support for additional SCEP features and external CA integrations
-10. **ACME**: Use ACME protocol instead of SCEP to get a certificate.
+1. **Key Rotation/Renewal**: Automatic key rotation policies and certificate renewal
+2. **One-time enrollment secret**: This provides additional security to make sure an unauthorized device cannot get an identity certificate and enroll in Fleet.
+3. **Windows Support**: TPM support for Windows platforms using TBS (TPM Base Services)
+4. **Apple Secure Enclave**: Integration with Apple's Secure Enclave for macOS devices
+5. **Fleet server visibility**: Allow IT admin to see which hosts have host identity certificates. For example, we can add a field to `orbit_info` table and IT admin could set up a policy to make sure all hosts have certificates.
+6. **Multiple Key Support**: Support for multiple signing keys and certificates, like a separate key for WiFi/VPN.
+7. **Hardware Attestation**: TPM-based device attestation and platform integrity
+8. **SCEP Extensions**: Support for additional SCEP features and external CA integrations
+9. **ACME**: Use ACME protocol instead of SCEP to get a certificate.
 
 ## Troubleshooting
 
@@ -310,6 +340,12 @@ As this an initial implementation, future features may include:
 
 3. **Certificate enrollment failures**
    - Review SCEP server logs for rejection reasons
+   - Check if rate limiting is causing HTTP 429 responses
+
+4. **Rate limiting issues**
+   - Check if the host is requesting certificates too frequently
+   - Verify the configured cooldown period in server configuration
+   - Monitor for HTTP 429 responses indicating rate limiting
 
 ### General debugging
 
