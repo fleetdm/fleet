@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -308,50 +307,6 @@ func executeScript(scriptContents string) (string, error) {
 		return result, fmt.Errorf("script execution failed with exit code %d: %s", exitCode, string(output))
 	}
 	return result, nil
-}
-
-func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	fmt.Printf("Looking for app: %s, version: %s\n", appName, appVersion)
-	query := `
-		SELECT name, path, bundle_short_version, bundle_version 
-		FROM apps
-		WHERE 
-		bundle_identifier LIKE '%` + uniqueAppIdentifier + `%' OR
-		name LIKE '%` + appName + `%'
-	`
-	if appPath != "" {
-		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", appPath)
-	}
-	cmd := exec.CommandContext(ctx, "osqueryi", "--json", query)
-	output, err := cmd.Output()
-	if err != nil {
-		return false, fmt.Errorf("executing osquery command: %w", err)
-	}
-
-	type AppResult struct {
-		Name           string `json:"name"`
-		Path           string `json:"path"`
-		Version        string `json:"bundle_short_version"`
-		BundledVersion string `json:"bundle_version"`
-	}
-	var results []AppResult
-	if err := json.Unmarshal(output, &results); err != nil {
-		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
-	}
-
-	if len(results) > 0 {
-		for _, result := range results {
-			fmt.Printf("Found app: '%s' at %s, Version: %s, Bundled Version: %s\n", result.Name, result.Path, result.Version, result.BundledVersion)
-			if result.Version == appVersion || result.BundledVersion == appVersion {
-				return true, nil
-			}
-		}
-	}
-
-	return false, nil
 }
 
 func listDirectoryContents(dir string) (map[string]struct{}, error) {

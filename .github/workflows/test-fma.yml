@@ -41,7 +41,9 @@ jobs:
       - name: Verify Fleet Maintained Apps windows
         run: |
           cd fleet
+          $env:GOOS = "windows"
           go run ./cmd/maintained-apps/validate
+        shell: pwsh
 
       # - name: Install osquery mac
       #   run: |
