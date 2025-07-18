@@ -875,7 +875,7 @@ func main() {
 			// prefix so we don't need to carry that over here.
 			parsedURL := &url.URL{
 				Scheme: "https",
-				Host:   fmt.Sprintf("127.0.0.1:%d", proxy.Port),
+				Host:   fmt.Sprintf("localhost:%d", proxy.Port),
 			}
 
 			// Check and log if there are any errors with TLS connection.
