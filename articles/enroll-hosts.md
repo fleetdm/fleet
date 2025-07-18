@@ -146,6 +146,7 @@ How to unenroll a host from Fleet:
 - [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
 - [Using mTLS](#using-mtls)
+- [Using host identity certificates](#using-host-identity-certificates)
 - [Specifying update channels](#specifying-update-channels)
 - [Testing osquery queries locally](#testing-osquery-queries-locally)
 - [Finding fleetd logs](#finding-fleetd-logs)
@@ -310,6 +311,47 @@ If this setting is not used, you will need to configure client TLS certificates 
 #### fleetd Chrome browswer extension
 
 To use mTLS use the [AutoSelectCertificateForUrls policy](https://chromeenterprise.google/policies/?policy=AutoSelectCertificateForUrls) to point Chrome to your client certificates
+
+### Using host identity certificates
+
+`Applies only to Fleet Premium`
+
+Host identity certificates allow Fleet's agent (fleetd) to use hardware-backed client certificates for authentication to the Fleet server. This feature uses the host's TPM (Trusted Platform Module) to generate and store cryptographic keys, providing strong hardware-based authentication.
+
+This provides a level of security similar to [mTLS](#using-mtls), but the certificate is hardware-backed and managed by the TPM rather than being stored as a file on disk. The TPM ensures the private key cannot be extracted or copied, providing stronger security guarantees.
+
+#### Requirements
+
+- Linux hosts only
+- TPM 2.0 hardware (or vTPM for VMs)
+- Linux kernel 4.12 or later
+- Fleet Premium license
+
+#### Generating fleetd with host identity certificates
+
+When generating fleetd with host identity certificates, use the `--fleet-managed-client-certificate` flag:
+
+```sh
+fleetctl package \
+  --type deb \
+  --fleet-url=https://fleet.example.com \
+  --enroll-secret=your-enroll-secret \
+  --fleet-managed-client-certificate
+```
+
+This flag enables the use of hardware-backed client certificates for authentication. All orbit and osquery requests (except ping requests) to the Fleet server will include an HTTP message signature for enhanced security.
+
+#### Platform support
+
+Currently, host identity certificates are only supported for `.deb` and `.rpm` packages on Linux systems.
+
+#### Important considerations
+
+- Hosts without TPM 2.0 will fail to enroll when this option is enabled
+- This feature cannot be combined with other client certificate options (`--fleet-tls-client-certificate`)
+- SCEP certificate requests can be throttled by the [osquery_enroll_cooldown](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-enroll-cooldown) server option, similar to how fleetd enrollments are throttled
+- When a host requests a host identity certificate, the server will expect all future traffic from that host to be signed with HTTP message signatures. This allows mixed environments where some hosts use managed client certificates and others do not
+- Fleet administrators can enforce HTTP message signature requirements server-wide using the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option
 
 ### Specifying update channels
 
