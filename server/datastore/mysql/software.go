@@ -3171,9 +3171,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	bySoftwareTitleID := make(map[uint]*hostSoftware)
 	bySoftwareID := make(map[uint]*hostSoftware)
 
+	var err error
 	var hostSoftwareInstallsList []*hostSoftware
 	if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
-		hostSoftwareInstallsList, err := hostSoftwareInstalls(ds, ctx, host.ID)
+		hostSoftwareInstallsList, err = hostSoftwareInstalls(ds, ctx, host.ID)
 		if err != nil {
 			return nil, nil, err
 		}
