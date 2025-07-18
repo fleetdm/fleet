@@ -933,12 +933,11 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Nil(t, cmd)
 
 	// devices renew their SCEP cert by re-enrolling.
-	// Note I am explicitly not re-enrolling the iPhone here as I don't believe that particular
-	// device and enrollment type actually supports re-enrollment like this
 	require.NoError(t, manualEnrolledDevice.Enroll())
 	require.NoError(t, automaticEnrolledDevice.Enroll())
 	require.NoError(t, automaticEnrolledDeviceWithRef.Enroll())
 	require.NoError(t, migratedDevice.Enroll())
+	require.NoError(t, iPhoneMdmDevice.Enroll())
 
 	// no new commands are enqueued right after enrollment
 	cmd, err = manualEnrolledDevice.Idle()
