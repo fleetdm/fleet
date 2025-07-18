@@ -316,7 +316,7 @@ To use mTLS use the [AutoSelectCertificateForUrls policy](https://chromeenterpri
 
 `Applies only to Fleet Premium`
 
-Host identity certificates allow Fleet's agent (fleetd) to use hardware-backed client certificates for authentication to the Fleet server. All orbit and osquery requests (except [`/device/{token}/ping` requests](https://github.com/fleetdm/fleet/blob/1164ddd6a60d969fcee059a37c0cf9f780d6f164/docs/Contributing/reference/api-for-contributors.md#ping-server-with-device-token)) to the Fleet server will include an HTTP message signature for enhanced security.
+Host identity certificates allow Fleet's agent (fleetd) to use hardware-backed client certificates for authentication to the Fleet server. All orbit and osquery requests (except `/api/fleet/orbit/ping` requests) to the Fleet server will include an HTTP message signature for enhanced security.
 
 This feature uses the host's TPM (Trusted Platform Module) to generate and store cryptographic keys, providing strong hardware-based authentication.
 
