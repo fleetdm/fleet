@@ -333,7 +333,7 @@ func listDirectoryContents(dir string) (map[string]struct{}, error) {
 func detectNewApplication(installationSearchDirectory string, appListPre, appListPost map[string]struct{}) string {
 	for app := range appListPost {
 		if _, exists := appListPre[app]; !exists {
-			return path.Join(installationSearchDirectory, app)
+			return filepath.Join(installationSearchDirectory, app)
 		}
 	}
 	return ""
