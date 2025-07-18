@@ -22,7 +22,7 @@ Big opportunities that Fleet is building towards in the near future (next 180 da
 - ~~🗓️ Native patching for apps and OS during maintenance windows~~ *
 - ~~🤖 AI-generated osquery queries~~ *
 
-* For the up-to-date roadmap, see the [July 2025 preview](https://fleetdm.com/announcements/roadmap-preview-july-2025).
+* To see the up-to-date roadmap, find the latest roadmap article in [Fleet's announcements](https://fleetdm.com/announcements).
 
 Any feedback or a questions?  Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
