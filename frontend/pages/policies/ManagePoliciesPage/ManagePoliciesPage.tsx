@@ -934,7 +934,7 @@ const ManagePolicyPage = ({
     setResetSelectedRows,
     teamIdForApi,
     teamPolicies,
-    toggleDeletePolicyModal,
+    toggleDeletePoliciesModal,
   ]);
 
   const policiesErrors = !isAllTeamsSelected
