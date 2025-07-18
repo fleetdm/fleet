@@ -17,10 +17,13 @@ import (
 
 // Credentials holds a certificate and its corresponding private key handle stored in secure hardware.
 type Credentials struct {
-	// Certificate holds the
+	// Certificate holds the public certificate issued via SCEP.
 	Certificate *x509.Certificate
 	// SecureHWKey holds the private key protected by secure hardware.
 	SecureHWKey securehw.Key
+
+	// CertificatePath is the file path to the public certificate issued via SCEP.
+	CertificatePath string
 
 	secureHW securehw.TEE
 }
@@ -117,8 +120,9 @@ func Setup(
 	logger.Debug().Msg("secure HW key matches certificate public key")
 
 	return &Credentials{
-		Certificate: clientCert,
-		SecureHWKey: secureHWKey,
+		Certificate:     clientCert,
+		SecureHWKey:     secureHWKey,
+		CertificatePath: filepath.Join(metadataDir, constant.FleetHTTPSignatureCertificateFileName),
 
 		secureHW: teeDevice,
 	}, nil

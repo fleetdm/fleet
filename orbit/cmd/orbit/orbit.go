@@ -958,7 +958,10 @@ func main() {
 			}))
 		}
 
-		var signerWrapper func(*http.Client) *http.Client
+		var (
+			signerWrapper               func(*http.Client) *http.Client
+			hostIdentityCertificatePath string
+		)
 		if c.Bool("fleet-managed-client-certificate") {
 			commonName := osqueryHostInfo.HardwareUUID
 			if c.String("host-identifier") == "instance" {
@@ -1031,6 +1034,7 @@ func main() {
 			signerWrapper = func(client *http.Client) *http.Client {
 				return httpsig.NewHTTPClient(client, httpSigner, nil)
 			}
+			hostIdentityCertificatePath = hostIdentityCredentials.CertificatePath
 
 			options = append(options,
 				osquery.WithFlags(osquery.FleetFlags(proxy.ParsedURL)),
@@ -1057,6 +1061,7 @@ func main() {
 				},
 			},
 			signerWrapper,
+			hostIdentityCertificatePath,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -1325,7 +1330,6 @@ func main() {
 		}
 		addSubsystem(&g, "osqueryd runner", r)
 
-		// rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string
 		checkerClient, err := service.NewOrbitClient(
 			c.String("root-dir"),
 			fleetURL,
@@ -1343,6 +1347,7 @@ func main() {
 				},
 			},
 			nil,
+			"",
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
