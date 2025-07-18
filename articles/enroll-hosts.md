@@ -326,14 +326,14 @@ Currently, host identity certificates are only supported for Linux hosts (`.deb`
 
 #### Generating fleetd with host identity certificates
 
-To use host identity certificates, generate fleetd with the `--fleet-managed-client-certificate` flag:
+To use host identity certificates, generate fleetd with the `--fleet-managed-host-identity-certificate` flag:
 
 ```sh
 fleetctl package \
   --type deb \
   --fleet-url=https://fleet.example.com \
   --enroll-secret=your-enroll-secret \
-  --fleet-managed-client-certificate
+  ----fleet-managed-host-identity-certificate
 ```
 
 #### Important considerations
