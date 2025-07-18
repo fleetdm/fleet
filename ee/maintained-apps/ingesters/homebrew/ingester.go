@@ -37,6 +37,10 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath, slugFilte
 	var manifestApps []*maintained_apps.FMAManifestApp
 
 	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+
 		fileBytes, err := os.ReadFile(path.Join(inputsPath, f.Name()))
 		if err != nil {
 			return nil, ctxerr.WrapWithData(ctx, err, "reading app input file", map[string]any{"fileName": f.Name()})
@@ -85,8 +89,8 @@ type brewIngester struct {
 	client  *http.Client
 }
 
-func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained_apps.FMAManifestApp, error) {
-	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, app.Token)
+func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
+	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, input.Token)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
@@ -118,54 +122,89 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 
 	var cask brewCask
 	if err := json.Unmarshal(body, &cask); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", app.Token)
+		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
 	}
 
 	out := &maintained_apps.FMAManifestApp{}
 
 	// validate required fields
 	if len(cask.Name) == 0 || cask.Name[0] == "" {
-		return nil, ctxerr.Errorf(ctx, "missing name for cask %s", app.Token)
+		return nil, ctxerr.Errorf(ctx, "missing name for cask %s", input.Token)
 	}
 	if cask.Token == "" {
-		return nil, ctxerr.Errorf(ctx, "missing token for cask %s", app.Token)
+		return nil, ctxerr.Errorf(ctx, "missing token for cask %s", input.Token)
 	}
 	if cask.Version == "" {
-		return nil, ctxerr.Errorf(ctx, "missing version for cask %s", app.Token)
+		return nil, ctxerr.Errorf(ctx, "missing version for cask %s", input.Token)
 	}
 	if cask.URL == "" {
-		return nil, ctxerr.Errorf(ctx, "missing URL for cask %s", app.Token)
+		return nil, ctxerr.Errorf(ctx, "missing URL for cask %s", input.Token)
 	}
 	_, err = url.Parse(cask.URL)
 	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.Token)
+		return nil, ctxerr.Wrapf(ctx, err, "parse URL for cask %s", input.Token)
 	}
 
-	out.Name = app.Name
+	out.Name = input.Name
 	out.Version = strings.Split(cask.Version, ",")[0]
 	out.InstallerURL = cask.URL
-	out.UniqueIdentifier = app.UniqueIdentifier
+	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
-	out.Slug = app.Slug
-	out.DefaultCategories = app.DefaultCategories
-	if len(app.PreUninstallScripts) != 0 {
-		cask.PreUninstallScripts = app.PreUninstallScripts
+	out.Slug = input.Slug
+	out.DefaultCategories = input.DefaultCategories
+
+	var installScript, uninstallScript string
+
+	switch input.InstallScriptPath {
+	case "":
+		installScript, err = installScriptForApp(input, &cask)
+		if err != nil {
+			return nil, ctxerr.WrapWithData(ctx, err, "generating install script for maintained app", map[string]any{"unique_identifier": input.UniqueIdentifier})
+		}
+	default:
+		scriptBytes, err := os.ReadFile(input.InstallScriptPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided install script file")
+		}
+
+		installScript = string(scriptBytes)
 	}
 
-	if len(app.PostUninstallScripts) != 0 {
-		cask.PostUninstallScripts = app.PostUninstallScripts
+	switch input.UninstallScriptPath {
+	case "":
+		if len(input.PreUninstallScripts) != 0 {
+			cask.PreUninstallScripts = input.PreUninstallScripts
+		}
+
+		if len(input.PostUninstallScripts) != 0 {
+			cask.PostUninstallScripts = input.PostUninstallScripts
+		}
+
+		uninstallScript = uninstallScriptForApp(&cask)
+	default:
+		if len(input.PreUninstallScripts) != 0 {
+			return nil, ctxerr.New(ctx, "cannot provide pre-uninstall scripts if uninstall script is provided")
+		}
+
+		if len(input.PostUninstallScripts) != 0 {
+			return nil, ctxerr.New(ctx, "cannot provide post-uninstall scripts if uninstall script is provided")
+		}
+
+		scriptBytes, err := os.ReadFile(input.UninstallScriptPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided uninstall script file")
+		}
+
+		uninstallScript = string(scriptBytes)
 	}
 
-	out.UninstallScript = uninstallScriptForApp(&cask)
-	installScript, err := installScriptForApp(app, &cask)
-	if err != nil {
-		return nil, ctxerr.WrapWithData(ctx, err, "generating install script for maintained app", map[string]any{"unique_identifier": app.UniqueIdentifier})
-	}
 	out.InstallScript = installScript
+	out.UninstallScript = uninstallScript
 
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
+	out.Frozen = input.Frozen
 
 	return out, nil
 }
@@ -184,6 +223,9 @@ type inputApp struct {
 	PreUninstallScripts  []string `json:"pre_uninstall_scripts"`
 	PostUninstallScripts []string `json:"post_uninstall_scripts"`
 	DefaultCategories    []string `json:"default_categories"`
+	Frozen               bool     `json:"frozen"`
+	InstallScriptPath    string   `json:"install_script_path"`
+	UninstallScriptPath  string   `json:"uninstall_script_path"`
 }
 
 type brewCask struct {

@@ -29,6 +29,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/hostidentity"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/installer_cache"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -39,7 +40,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/uuid"
+	"github.com/remitly-oss/httpsig-go"
 )
 
 var (
@@ -201,13 +204,14 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type mdmAgent struct {
-	agentIndex         int
-	MDMCheckInInterval time.Duration
-	model              string
-	serverAddress      string
-	softwareCount      softwareEntityCount
-	stats              *osquery_perf.Stats
-	strings            map[string]string
+	agentIndex            int
+	MDMCheckInInterval    time.Duration
+	model                 string
+	serverAddress         string
+	softwareCount         softwareEntityCount
+	stats                 *osquery_perf.Stats
+	strings               map[string]string
+	mdmProfileFailureProb float64
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -274,6 +278,9 @@ type agent struct {
 	// Software installed on the host via Fleet. Key is the software name + version + bundle identifier.
 	installedSoftware sync.Map
 
+	// Host identity client for HTTP message signatures
+	hostIdentityClient *hostidentity.Client
+
 	//
 	// The following are exported to be used by the templates.
 	//
@@ -287,6 +294,7 @@ type agent struct {
 	QueryInterval         time.Duration
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
+	mdmProfileFailureProb float64
 
 	// Note that a sync.Map is safe for concurrent use, but we still need a mutex
 	// because we read and write the field itself (not data in the map) from
@@ -308,6 +316,9 @@ type agent struct {
 	certificatesMutex        sync.RWMutex
 	certificatesCache        []map[string]string
 	commonSoftwareNameSuffix string
+
+	entraIDDeviceID          string
+	entraIDUserPrincipalName string
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -372,6 +383,8 @@ func newAgent(
 	linuxUniqueSoftwareVersion bool,
 	linuxUniqueSoftwareTitle bool,
 	commonSoftwareNameSuffix string,
+	mdmProfileFailureProb float64,
+	httpMessageSignatureProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -421,7 +434,10 @@ func newAgent(
 		}
 	}
 
-	return &agent{
+	// Determine if this agent should use HTTP message signatures
+	useHTTPSig := rand.Float64() < httpMessageSignatureProb // nolint:gosec // ignore weak randomizer
+
+	agent := &agent{
 		agentIndex:                    agentIndex,
 		serverAddress:                 serverAddress,
 		softwareCount:                 softwareCount,
@@ -461,7 +477,21 @@ func newAgent(
 		bufferedResults:          make(map[resultLog]int),
 		scheduledQueryData:       new(sync.Map),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
+		mdmProfileFailureProb:    mdmProfileFailureProb,
+
+		entraIDDeviceID:          uuid.NewString(),
+		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
 	}
+
+	// Initialize host identity client
+	agent.hostIdentityClient = hostidentity.NewClient(hostidentity.Config{
+		ServerAddress: serverAddress,
+		EnrollSecret:  enrollSecret,
+		HostUUID:      hostUUID,
+		AgentIndex:    agentIndex,
+	}, useHTTPSig)
+
+	return agent
 }
 
 type enrollResponse struct {
@@ -490,6 +520,14 @@ func (a *agent) isOrbit() bool {
 }
 
 func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
+	// Request host identity certificate if this agent uses HTTP message signatures
+	if a.hostIdentityClient.IsEnabled() && !onlyAlreadyEnrolled {
+		if err := a.hostIdentityClient.RequestCertificate(); err != nil {
+			log.Printf("Agent %d: Failed to request host identity certificate: %v", a.agentIndex, err)
+			return
+		}
+	}
+
 	if a.isOrbit() {
 		if err := a.orbitEnroll(); err != nil {
 			// clean-up any placeholder mdm client that depended on orbit enrollment
@@ -683,6 +721,15 @@ func (a *agent) removeBuffered(batchSize int) {
 }
 
 func (a *agent) runOrbitLoop() {
+	// Create signerWrapper if HTTP signatures are enabled
+	var signerWrapper func(*http.Client) *http.Client
+	if a.hostIdentityClient.IsEnabled() && a.hostIdentityClient.HasSigner() {
+		signer := a.hostIdentityClient.GetSigner()
+		signerWrapper = func(client *http.Client) *http.Client {
+			return httpsig.NewHTTPClient(client, signer, nil)
+		}
+	}
+
 	orbitClient, err := service.NewOrbitClient(
 		"",
 		a.serverAddress,
@@ -696,6 +743,8 @@ func (a *agent) runOrbitLoop() {
 			Hostname:       a.CachedString("hostname"),
 		},
 		nil,
+		signerWrapper,
+		"",
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)
@@ -861,14 +910,49 @@ func (a *agent) runMacosMDMLoop() {
 	INNER_FOR_LOOP:
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
-			mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
-			if err != nil {
-				log.Printf("MDM Acknowledge request failed: %s", err)
-				a.stats.IncrementMDMErrors()
-				break INNER_FOR_LOOP
-			}
-			if mdmCommandPayload != nil && mdmCommandPayload.Command.RequestType == "DeclarativeManagement" {
+
+			switch mdmCommandPayload.Command.RequestType {
+			case "InstallProfile":
+				if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+					errChain := []mdm.ErrorChain{
+						{
+							ErrorCode:            89,
+							ErrorDomain:          "ErrorDomain",
+							LocalizedDescription: "The profile did not install",
+						},
+					}
+					mdmCommandPayload, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, errChain)
+					if err != nil {
+						log.Printf("MDM Error request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
+				} else {
+					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+					if err != nil {
+						log.Printf("MDM Acknowledge request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
+				}
+			case "DeclarativeManagement":
+				// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
+				nextMdmCommandPayload, err := a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
 				a.doDeclarativeManagement(mdmCommandPayload)
+				mdmCommandPayload = nextMdmCommandPayload
+			default:
+				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
 			}
 		}
 	}
@@ -1000,6 +1084,9 @@ func (a *agent) runWindowsMDMLoop() {
 			a.stats.IncrementMDMCommandsReceived()
 
 			status := syncml.CmdStatusOK
+			if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+				status = syncml.CmdStatusBadRequest
+			}
 			a.winMDMClient.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
@@ -1204,8 +1291,35 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 	}
 }
 
+// shouldSignRequest determines if a request should be signed based on its path
+func (a *agent) shouldSignRequest(req *http.Request) bool {
+	// Don't sign if HTTP signatures are not enabled
+	if !a.hostIdentityClient.IsEnabled() || !a.hostIdentityClient.HasSigner() {
+		return false
+	}
+
+	// Exclude ping endpoint from signing
+	if strings.HasSuffix(req.URL.Path, "/api/fleet/orbit/ping") {
+		return false
+	}
+
+	// Only sign specific API paths
+	return strings.Contains(req.URL.Path, "/api/fleet/orbit/") || strings.Contains(req.URL.Path, "/osquery/")
+}
+
+// sign applies HTTP message signature to a request if needed
+func (a *agent) sign(req *http.Request) *http.Request {
+	// Apply HTTP message signature if this request should be signed
+	if a.shouldSignRequest(req) {
+		if err := a.hostIdentityClient.SignRequest(req); err != nil {
+			log.Printf("Agent %d: Failed to sign HTTP request: %v", a.agentIndex, err)
+		}
+	}
+	return req
+}
+
 func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
-	response, err := http.DefaultClient.Do(fn())
+	response, err := http.DefaultClient.Do(a.sign(fn()))
 	for err != nil || response.StatusCode != http.StatusOK {
 		if err != nil {
 			log.Printf("failed to run request: %s", err)
@@ -1215,7 +1329,7 @@ func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
 		}
 		a.stats.IncrementErrors(1)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
-		response, err = http.DefaultClient.Do(fn())
+		response, err = http.DefaultClient.Do(a.sign(fn()))
 	}
 	return response
 }
@@ -1224,7 +1338,7 @@ func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
 // now, we assume that the agent is not already enrolled, if you kill the agent
 // process then those Orbit node keys are gone.
 func (a *agent) orbitEnroll() error {
-	params := service.EnrollOrbitRequest{
+	params := contract.EnrollOrbitRequest{
 		EnrollSecret:   a.EnrollSecret,
 		HardwareUUID:   a.UUID,
 		HardwareSerial: a.SerialNumber,
@@ -1309,7 +1423,7 @@ func (a *agent) config() error {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return fmt.Errorf("config request failed to run: %w", err)
 	}
@@ -1648,7 +1762,7 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return nil, fmt.Errorf("distributed/read request failed to run: %w", err)
 	}
@@ -1760,6 +1874,15 @@ func (a *agent) mdmMac() []map[string]string {
 			"server_url":         a.macMDMClient.EnrollInfo.MDMURL,
 			"installed_from_dep": "false",
 			"payload_identifier": apple_mdm.FleetPayloadIdentifier,
+		},
+	}
+}
+
+func (a *agent) entraConditionalAccess() []map[string]string {
+	return []map[string]string{
+		{
+			"device_id":           a.entraIDDeviceID,
+			"user_principal_name": a.entraIDUserPrincipalName,
 		},
 	}
 }
@@ -2028,7 +2151,7 @@ func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, sta
 	request.Header.Add("Content-type", "application/json")
 
 	// Make the request.
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		ss := fleet.OsqueryStatus(1)
 		return []map[string]string{}, &ss, ptr.String(fmt.Sprintf("yara request failed to run: %v", err)), nil
@@ -2113,6 +2236,14 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		ss := statusOK
 		if rand.Intn(10) > 0 { // 90% success
 			results = a.mdmMac()
+		} else {
+			ss = statusNotOK
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"conditional_access_microsoft_device_id":
+		ss := statusOK
+		if rand.Intn(10) > 0 { // 90% success
+			results = a.entraConditionalAccess()
 		} else {
 			ss = statusNotOK
 		}
@@ -2355,7 +2486,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return fmt.Errorf("distributed/write request failed to run: %w", err)
 	}
@@ -2429,7 +2560,7 @@ func (a *agent) submitLogs(results []resultLog) error {
 	}
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := http.DefaultClient.Do(a.sign(request))
 	if err != nil {
 		return fmt.Errorf("log request failed to run: %w", err)
 	}
@@ -2491,6 +2622,20 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
+			case "InstallProfile":
+				if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+					errChain := []mdm.ErrorChain{
+						{
+							ErrorCode:            89,
+							ErrorDomain:          "ErrorDomain",
+							LocalizedDescription: "The profile did not install",
+						},
+					}
+					mdmCommandPayload, err = mdmClient.Err(mdmCommandPayload.CommandUUID, errChain)
+				} else {
+					mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				}
+
 			default:
 				mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
 			}
@@ -2573,6 +2718,8 @@ func main() {
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
+		httpMessageSignatureProb = flag.Float64("http_message_signature_prob", 0.1, "Probability of hosts using HTTP message signatures")
+
 		// 50% failure probability is not realistic but this is our current baseline for the osquery-perf setup.
 		// We tried setting this to a more realistic value like 5% but it overloaded the MySQL Writer instance
 		// during hosts enroll.
@@ -2630,8 +2777,9 @@ func main() {
 		defaultSerialProb = flag.Float64("default_serial_prob", 0.05,
 			"Probability of osquery returning a default (-1) serial number. See: #19789")
 
-		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
-		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
+		mdmProb               = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
+		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
+		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
 
 		liveQueryFailProb      = flag.Float64("live_query_fail_prob", 0.0, "Probability of a live query failing execution in the host")
 		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
@@ -2751,8 +2899,9 @@ func main() {
 					uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
 					uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
 				},
-				stats:   stats,
-				strings: make(map[string]string),
+				stats:                 stats,
+				strings:               make(map[string]string),
+				mdmProfileFailureProb: *mdmProfileFailureProb,
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
 			time.Sleep(sleepTime)
@@ -2818,6 +2967,8 @@ func main() {
 			*linuxUniqueSoftwareVersion,
 			*linuxUniqueSoftwareTitle,
 			*commonSoftwareNameSuffix,
+			*mdmProfileFailureProb,
+			*httpMessageSignatureProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

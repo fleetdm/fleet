@@ -72,6 +72,9 @@ var uninstallPkgScript string
 //go:embed scripts/uninstall_msi.ps1
 var uninstallMsiScript string
 
+//go:embed scripts/uninstall_msi_with_upgrade_code.ps1
+var UninstallMsiWithUpgradeCodeScript string
+
 //go:embed scripts/uninstall_deb.sh
 var uninstallDebScript string
 

@@ -175,22 +175,25 @@ type Service interface {
 	// InitiateSSO is used to initiate an SSO session and returns a URL that can be used in a redirect to the IDP.
 	// Arguments: redirectURL is the URL of the protected resource that the user was trying to access when they were
 	// prompted to log in.
-	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
+	InitiateSSO(ctx context.Context, redirectURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitiateMDMAppleSSO initiates SSO for MDM flows, this method is
 	// different from InitiateSSO because it receives a different
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
-	InitiateMDMAppleSSO(ctx context.Context) (string, error)
+	InitiateMDMAppleSSO(ctx context.Context, initiator string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
-	// InitSSOCallback handles the IDP response and ensures the credentials
-	// are valid
-	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
+	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
+	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.
+	InitSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (auth Auth, redirectURL string, err error)
 
-	// InitiateMDMAppleSSOCallback handles the IDP response and ensures the
-	// credentials are valid, then responds with an URL to the Fleet UI to
+	// MDMAppleSSOCallback handles the IdP SAMLResponse and ensures the
+	// credentials are valid, then responds with a URL to the Fleet UI to
 	// handle next steps based on the query parameters provided.
-	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) string
+	MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string
+
+	// GetMDMAccountDrivenEnrollmentSSOURL returns the URL to redirect to for MDM Account Driven Enrollment SSO Authentication
+	GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error)
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
@@ -834,6 +837,10 @@ type Service interface {
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
 
+	// GetMDMAppleEnrollmentProfileByToken returns the Apple account-driven user enrollment profile for a given enrollment reference.
+	GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollReference string) (profile []byte, err error)
+	SkipAuth(ctx context.Context)
+
 	// ReconcileMDMAppleEnrollRef reconciles the enrollment reference for the
 	// specified device. It performs several related tasks:
 	//
@@ -985,9 +992,9 @@ type Service interface {
 	// be used by clients to display information.
 	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
 	// MDMCreateEULA adds a new EULA file.
-	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
+	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
 	// MDMAppleDelete EULA removes an EULA entry.
-	MDMDeleteEULA(ctx context.Context, token string) error
+	MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
@@ -1151,6 +1158,9 @@ type Service interface {
 	// GetScriptResult returns the result of a script run
 	GetScriptResult(ctx context.Context, execID string) (*HostScriptResult, error)
 
+	// GetSelfServiceUninstallScriptResult returns the result of a script run if it's a self-service uninstall for the specified host
+	GetSelfServiceUninstallScriptResult(ctx context.Context, host *Host, execID string) (*HostScriptResult, error)
+
 	// NewScript creates a new (saved) script with its content provided by the
 	// io.Reader r.
 	NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*Script, error)
@@ -1183,7 +1193,7 @@ type Service interface {
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
-	WipeHost(ctx context.Context, hostID uint) error
+	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software installers
@@ -1244,6 +1254,19 @@ type Service interface {
 
 	// ScimDetails returns the details of last access to Fleet's SCIM endpoints
 	ScimDetails(ctx context.Context) (ScimDetails, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Microsoft Conditional Access
+
+	// ConditionalAccessMicrosoftCreateIntegration kicks-off the integration with Entra
+	// and returns the consent URL to redirect the admin to.
+	ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID string) (adminConsentURL string, err error)
+	// ConditionalAccessMicrosoftGet returns the current (currently unique) integration.
+	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
+	// ConditionalAccessMicrosoftConfirm finalizes the integration (marks integration as done).
+	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error)
+	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
+	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 }
 
 type KeyValueStore interface {

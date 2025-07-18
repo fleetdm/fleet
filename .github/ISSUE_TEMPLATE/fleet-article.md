@@ -2,7 +2,7 @@
 name: 📝 Article
 about: Propose a new article.
 title: 'Article: _________________'
-labels: ':help-marketing'
+labels: '#g-digital-experience'
 assignees: ''
 ---
 

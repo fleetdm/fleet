@@ -219,8 +219,6 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
     failed_uninstall: 1,
   },
   automatic_install_policies: [],
-  last_install: null,
-  last_uninstall: null,
   url: "https://fakeurl.testpackageurlforfalconapp.fake/test/package",
   hash_sha256: "abcd1234",
   labels_include_any: null,

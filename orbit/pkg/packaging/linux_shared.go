@@ -242,6 +242,9 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 	}
 	filename := pkger.ConventionalFileName(info)
+	if opt.CustomOutfile != "" {
+		filename = opt.CustomOutfile
+	}
 	if opt.NativeTooling {
 		filename = filepath.Join("build", filename)
 	}
@@ -330,6 +333,7 @@ ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST={{ .FleetDesktopAlternativeBrowserH
 {{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}ORBIT_HOST_IDENTIFIER={{.HostIdentifier}}{{ end }}
 {{ if .OsqueryDB }}ORBIT_OSQUERY_DB={{.OsqueryDB}}{{ end }}
 {{ if .EndUserEmail }}ORBIT_END_USER_EMAIL={{.EndUserEmail}}{{ end }}
+{{ if .FleetManagedClientCertificate }}ORBIT_FLEET_MANAGED_CLIENT_CERTIFICATE=true{{ end }}
 `))
 
 func writeEnvFile(opt Options, rootPath string) error {

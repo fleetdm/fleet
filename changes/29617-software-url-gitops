@@ -1,0 +1,1 @@
+* Added missing "url" parameter when exporting YAML on software packages that have a URL specified (thanks @drvcodenta!)

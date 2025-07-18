@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -22,6 +23,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -57,6 +60,15 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}
 
+	if *host.HasHostIdentityCert {
+		err = httpsig.VerifyHostIdentity(ctx, svc.ds, host)
+		if err != nil {
+			osqueryError := newOsqueryError("authentication error: " + err.Error())
+			osqueryError.StatusCode = http.StatusUnauthorized
+			return nil, false, osqueryError
+		}
+	}
+
 	// Update the "seen" time used to calculate online status. These updates are
 	// batched for MySQL performance reasons. Because this is done
 	// asynchronously, it is possible for the server to shut down before
@@ -75,26 +87,13 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 // Enroll Agent
 ////////////////////////////////////////////////////////////////////////////////
 
-type enrollAgentRequest struct {
-	EnrollSecret   string                         `json:"enroll_secret"`
-	HostIdentifier string                         `json:"host_identifier"`
-	HostDetails    map[string](map[string]string) `json:"host_details"`
-}
-
-type enrollAgentResponse struct {
-	NodeKey string `json:"node_key,omitempty"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r enrollAgentResponse) Error() error { return r.Err }
-
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*enrollAgentRequest)
+	req := request.(*contract.EnrollOsqueryAgentRequest)
 	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
-		return enrollAgentResponse{Err: err}, nil
+		return contract.EnrollOsqueryAgentResponse{Err: err}, nil
 	}
-	return enrollAgentResponse{NodeKey: nodeKey}, nil
+	return contract.EnrollOsqueryAgentResponse{NodeKey: nodeKey}, nil
 }
 
 func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
@@ -106,6 +105,24 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("enroll failed: " + err.Error())
+	}
+
+	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
+	}
+
+	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
+	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
+	if identityCert != nil {
+		if !httpSigPresent {
+			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
+		}
+		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
+		}
+	} else if httpSigPresent { // but we couldn't find cert in DB
+		return "", fleet.NewAuthFailedError("authentication error: certificate matching HTTP message signature not found")
 	}
 
 	nodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
@@ -139,7 +156,16 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
-	host, err := svc.ds.EnrollHost(ctx, appConfig.MDM.EnabledAndConfigured, hostIdentifier, hardwareUUID, hardwareSerial, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
+	host, err := svc.ds.EnrollHost(ctx,
+		fleet.WithEnrollHostMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithEnrollHostOsqueryHostID(hostIdentifier),
+		fleet.WithEnrollHostHardwareUUID(hardwareUUID),
+		fleet.WithEnrollHostHardwareSerial(hardwareSerial),
+		fleet.WithEnrollHostNodeKey(nodeKey),
+		fleet.WithEnrollHostTeamID(secret.TeamID),
+		fleet.WithEnrollHostCooldown(svc.config.Osquery.EnrollCooldown),
+		fleet.WithEnrollHostIdentityCert(identityCert),
+	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
 	}
@@ -150,7 +176,9 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	}
 
 	// Save enrollment details if provided
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: false, // here we are just using a few ingestion functions, so no need to set.
+	})
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
@@ -697,7 +725,9 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+	})
 	for name, query := range detailQueries {
 		if criticalQueriesOnly && !criticalDetailQueries[name] {
 			continue
@@ -743,6 +773,24 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	return queries, discovery, nil
 }
 
+func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.Context, host *fleet.Host) bool {
+	if host.Platform != "darwin" {
+		return false
+	}
+
+	conditionalAccessConfigured, conditionalAccessEnabledForTeam, err := svc.conditionalAccessConfiguredAndEnabledForTeam(ctx, host.TeamID)
+	if err != nil {
+		level.Error(svc.logger).Log(
+			"msg", "load conditional access configured and enabled, skipping ingestion",
+			"host_id", host.ID,
+			"err", err,
+		)
+		return false
+	}
+
+	return conditionalAccessConfigured && conditionalAccessEnabledForTeam
+}
+
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
 	svc.jitterMu.Lock()
 	defer svc.jitterMu.Unlock()
@@ -784,16 +832,18 @@ func (svc *Service) disablePoliciesDuringSetupExperience(ctx context.Context, ho
 // It returns (nil, true, nil) if the interval is so that policies should be executed on the host, but there are no policies
 // assigned to such host.
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (policyQueries map[string]string, noPoliciesForHost bool, err error) {
+	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
+	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
+		return nil, false, nil
+	}
+	// This must come after the check above to avoid unnecessary queries to the database. Most
+	// requests from live connected hosts will not reach this point
 	disablePolicies, err := svc.disablePoliciesDuringSetupExperience(ctx, host)
 	if err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
 	}
 	if disablePolicies {
 		level.Debug(svc.logger).Log("msg", "skipping policy queries for host in setup experience", "host_id", host.ID)
-		return nil, false, nil
-	}
-	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
-	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, false, nil
 	}
 	policyQueries, err = svc.ds.PolicyQueriesForHost(ctx, host)
@@ -958,7 +1008,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(host, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+	preProcessSoftwareResults(host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -1006,13 +1056,18 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
-
 		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
 		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
 			logging.WithErr(ctx, err)
+		}
+
+		if host.Platform == "darwin" {
+			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, policyResults); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 
 		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
@@ -1246,9 +1301,9 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
 	host *fleet.Host,
-	results *fleet.OsqueryDistributedQueryResults,
-	statuses *map[string]fleet.OsqueryStatus,
-	messages *map[string]string,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
 	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
@@ -1271,7 +1326,7 @@ func preProcessSoftwareResults(
 
 // pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.
 // python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
-func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
+func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus) {
 	const pythonPrefix = "python3-"
 	const pythonSource = "python_packages"
 	const debSource = "deb_packages"
@@ -1284,11 +1339,11 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	}
 
 	// Check the 'software_linux' result and status
-	sw, ok := (*results)[linuxSoftware]
+	sw, ok := results[linuxSoftware]
 	if !ok {
 		return
 	}
-	if status, ok := (*statuses)[linuxSoftware]; !ok || status != fleet.StatusOK {
+	if status, ok := statuses[linuxSoftware]; !ok || status != fleet.StatusOK {
 		return
 	}
 
@@ -1342,23 +1397,23 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	}
 
 	// Store the updated software result back in the results map
-	(*results)[linuxSoftware] = sw
+	results[linuxSoftware] = sw
 }
 
 func preProcessSoftwareExtraResults(
 	softwareExtraQuery string,
 	hostID uint,
-	results *fleet.OsqueryDistributedQueryResults,
-	statuses *map[string]fleet.OsqueryStatus,
-	messages *map[string]string,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
 	override osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
 	// We always remove the extra query and its results
 	// in case the main or extra software query failed to execute.
-	defer delete(*results, softwareExtraQuery)
+	defer delete(results, softwareExtraQuery)
 
-	status, ok := (*statuses)[softwareExtraQuery]
+	status, ok := statuses[softwareExtraQuery]
 	if !ok {
 		return // query did not execute, e.g. the table does not exist.
 	}
@@ -1367,14 +1422,14 @@ func preProcessSoftwareExtraResults(
 		// extra query executed but with errors, so we return without changing anything.
 		level.Error(logger).Log(
 			"query", softwareExtraQuery,
-			"message", (*messages)[softwareExtraQuery],
+			"message", messages[softwareExtraQuery],
 			"hostID", hostID,
 		)
 		return
 	}
 
 	// Extract the results of the extra query.
-	softwareExtraRows := (*results)[softwareExtraQuery]
+	softwareExtraRows := results[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
 		return
 	}
@@ -1386,18 +1441,18 @@ func preProcessSoftwareExtraResults(
 		hostDetailQueryPrefix + "software_windows",
 		hostDetailQueryPrefix + "software_linux",
 	} {
-		if _, ok := (*results)[query]; !ok {
+		if _, ok := results[query]; !ok {
 			continue
 		}
-		if status, ok := (*statuses)[query]; ok && status != fleet.StatusOK {
+		if status, ok := statuses[query]; ok && status != fleet.StatusOK {
 			// Do not append results if the main query failed to run.
 			continue
 		}
 		if override.SoftwareProcessResults != nil {
-			(*results)[query] = override.SoftwareProcessResults((*results)[query], softwareExtraRows)
+			results[query] = override.SoftwareProcessResults(results[query], softwareExtraRows)
 		} else {
-			(*results)[query] = removeOverrides((*results)[query], override)
-			(*results)[query] = append((*results)[query], softwareExtraRows...)
+			results[query] = removeOverrides(results[query], override)
+			results[query] = append(results[query], softwareExtraRows...)
 		}
 		return
 	}
@@ -1518,7 +1573,9 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+	})
 	query, ok := detailQueries[name]
 	if !ok {
 		return false, newOsqueryError("unknown detail query " + name)
@@ -1660,7 +1717,9 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 		return newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+	})
 	query, ok := detailQueries[name]
 	if !ok {
 		return newOsqueryError("unknown detail query " + name)
@@ -2187,6 +2246,238 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			"msg", "script run request sent",
 			"execution_id", scriptResult.ExecutionID,
 		)
+	}
+
+	return nil
+}
+
+func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Context, hostTeamID *uint) (configured bool, enabledForTeam bool, err error) {
+	// Check if the needed server configuration for Conditional Access is set.
+	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+		return false, false, nil
+	}
+
+	// Check if the integration is fully configured.
+	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, false, nil
+		}
+		return false, false, ctxerr.Wrap(ctx, err, "failed to load the integration")
+	}
+	if !integration.SetupDone {
+		return false, false, nil
+	}
+
+	if hostTeamID == nil {
+		// Configuration for "No team" is stored in the main appconfig.
+		cfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, false, ctxerr.Wrap(ctx, err, "failed to load appconfig")
+		}
+		var conditionalAccessEnabled bool
+		if cfg.Integrations.ConditionalAccessEnabled.Set {
+			conditionalAccessEnabled = cfg.Integrations.ConditionalAccessEnabled.Value
+		}
+		return true, conditionalAccessEnabled, nil
+	}
+
+	// Host belongs to a team, thus we load the team configuration.
+	team, err := svc.ds.Team(ctx, *hostTeamID)
+	if err != nil {
+		return false, false, ctxerr.Wrap(ctx, err, "failed to load team config")
+	}
+	var teamConditionalAccessEnabled bool
+	if team.Config.Integrations.ConditionalAccessEnabled.Set {
+		teamConditionalAccessEnabled = team.Config.Integrations.ConditionalAccessEnabled.Value
+	}
+	return true, teamConditionalAccessEnabled, nil
+}
+
+func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostOrbitNodeKey *string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		// Vanilla osquery hosts cannot do conditional access.
+		return nil
+	}
+
+	configured, enabledForTeam, err := svc.conditionalAccessConfiguredAndEnabledForTeam(ctx, hostTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to check for conditional access configuration")
+	}
+
+	if !configured || !enabledForTeam {
+		// Nothing to do, feature not configured or not enabled for this host's team.
+		return nil
+	}
+
+	hostConditionalAccessStatus, err := svc.ds.LoadHostConditionalAccessStatus(ctx, hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Nothing to do because Fleet hasn't ingested the Entra's "Device ID" or
+			// "User Principal Name" from the device yet (we cannot perform any actions
+			// for the host on Entra without it).
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "failed to load host conditional access status")
+	}
+
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	var mdmEnrolled bool
+	hostMDM, err := svc.ds.GetHostMDM(ctx, hostID)
+	if err != nil {
+		// If GetHostMDM returns not found then it means that
+		// the host may not be MDM enrolled yet.
+		if !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "failed to get host mdm")
+		}
+	} else {
+		mdmEnrolled = hostMDM.Enrolled
+	}
+
+	// Get policies configured for conditional access.
+	conditionalAccessPolicyIDs, err := svc.ds.GetPoliciesForConditionalAccess(ctx, policyTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with conditional access")
+	}
+
+	hostIsCompliantInFleet := true
+	conditionalAccessPolicyIDsSet := make(map[uint]struct{}, len(conditionalAccessPolicyIDs))
+	for _, policyID := range conditionalAccessPolicyIDs {
+		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
+	}
+	for incomingPolicyID, incomingPolicyResult := range incomingPolicyResults {
+		if _, ok := conditionalAccessPolicyIDsSet[incomingPolicyID]; !ok {
+			// Ignore results for policies that are not for conditional access.
+			continue
+		}
+		if incomingPolicyResult != nil && !*incomingPolicyResult {
+			hostIsCompliantInFleet = false
+			break
+		}
+	}
+
+	if hostConditionalAccessStatus.Managed != nil && mdmEnrolled == *hostConditionalAccessStatus.Managed &&
+		hostConditionalAccessStatus.Compliant != nil && hostIsCompliantInFleet == *hostConditionalAccessStatus.Compliant {
+		// Nothing to do, nothing has changed.
+		return nil
+	}
+
+	svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
+
+	return nil
+}
+
+func (svc *Service) setHostConditionalAccessAsync(
+	hostID uint,
+	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
+	managed bool,
+	compliant bool,
+) {
+	go func() {
+		logger := log.With(svc.logger,
+			"msg", "set host conditional access",
+			"host_id", hostID,
+			"managed", managed,
+			"compliant", compliant,
+		)
+		start := time.Now()
+		if err := svc.setHostConditionalAccess(hostID, hostConditionalAccessStatus, managed, compliant); err != nil {
+			level.Error(logger).Log("took", time.Since(start), "err", err)
+		}
+		level.Debug(logger).Log("took", time.Since(start))
+	}()
+}
+
+// conditionalAccessSetWaitTime is the interval to check for message status.
+// It's a global variable to be set in tests.
+var conditionalAccessSetWaitTime = 10 * time.Second
+
+func (svc *Service) setHostConditionalAccess(
+	hostID uint,
+	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
+	managed bool,
+	compliant bool,
+) error {
+	ctx := context.Background()
+
+	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get integration")
+	}
+	logger := log.With(svc.logger,
+		"msg", "set compliance status",
+		"host_id", hostID,
+		"managed", managed,
+		"compliant", compliant,
+	)
+	level.Debug(logger).Log()
+	response, err := svc.conditionalAccessMicrosoftProxy.SetComplianceStatus(ctx,
+		integration.TenantID,
+		integration.ProxyServerSecret,
+
+		hostConditionalAccessStatus.DeviceID,
+		hostConditionalAccessStatus.UserPrincipalName,
+
+		managed,
+		hostConditionalAccessStatus.DisplayName,
+		"macOS",
+		hostConditionalAccessStatus.OSVersion,
+		compliant,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to set compliance status")
+	}
+	const (
+		timeout = 1 * time.Minute
+	)
+	level.Debug(logger).Log("msg", "set compliance status message sent")
+	startTime := time.Now()
+	for range time.Tick(conditionalAccessSetWaitTime) {
+		if time.Since(startTime) > timeout {
+			return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
+		}
+		level.Debug(logger).Log("msg", "get compliance status message wait")
+		messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(ctx,
+			integration.TenantID, integration.ProxyServerSecret, response.MessageID,
+		)
+		if err != nil {
+			// Retry again in case of network or transient errors.
+			level.Info(logger).Log("msg", "get message status, retrying", "err", err)
+			continue
+		}
+		if messageStatus.Status == conditional_access_microsoft_proxy.MessageStatusCompleted {
+			level.Debug(logger).Log(
+				"msg", "set device compliance status completed",
+				"took", time.Since(startTime),
+			)
+			break
+		}
+		detail := ""
+		if messageStatus.Detail != nil {
+			detail = *messageStatus.Detail
+		}
+		level.Info(logger).Log(
+			"msg", "get message status, retrying",
+			"status", messageStatus.Status,
+			"detail", detail,
+		)
+	}
+
+	if err := svc.ds.SetHostConditionalAccessStatus(ctx, hostID, managed, compliant); err != nil {
+		return ctxerr.Wrap(ctx, err, "set conditional access status on datastore")
 	}
 
 	return nil

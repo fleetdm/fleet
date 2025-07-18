@@ -97,6 +97,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -129,7 +130,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 	ssoSettings := fleet.SSOProviderSettings{
 		EntityID:    "foo",
 		MetadataURL: "https://example.com/metadata.xml",
-		IssuerURI:   "https://example.com",
 	}
 	appConfig := &fleet.AppConfig{MDM: fleet.MDM{
 		EnabledAndConfigured:  true,
@@ -265,6 +265,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 			return 0, nil
+		}
+		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+			return nil, &eeservice.NotFoundError{}
 		}
 	}
 

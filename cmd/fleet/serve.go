@@ -25,6 +25,8 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -55,6 +57,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -137,7 +140,7 @@ the way that the Fleet server works.
 			logger := initLogger(config)
 
 			if dev {
-				createTestBucketForInstallers(&config, logger)
+				createTestBuckets(&config, logger)
 			}
 
 			// Init tracing
@@ -250,41 +253,6 @@ the way that the Fleet server works.
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {
 					initFatal(err, "loading built in data")
-				}
-			}
-
-			if config.Packaging.GlobalEnrollSecret != "" {
-				secrets, err := ds.GetEnrollSecrets(cmd.Context(), nil)
-				if err != nil {
-					initFatal(err, "loading enroll secrets")
-				}
-
-				var globalEnrollSecret string
-				for _, secret := range secrets {
-					if secret.TeamID == nil {
-						globalEnrollSecret = secret.Secret
-						break
-					}
-				}
-
-				if globalEnrollSecret != "" {
-					if globalEnrollSecret != config.Packaging.GlobalEnrollSecret {
-						fmt.Printf("################################################################################\n" +
-							"# WARNING:\n" +
-							"#  You have provided a global enroll secret config, but there's\n" +
-							"#  already one set up for your application.\n" +
-							"#\n" +
-							"#  This is generally an error and the provided value will be\n" +
-							"#  ignored, if you really need to configure an enroll secret please\n" +
-							"#  remove the global enroll secret from the database manually.\n" +
-							"################################################################################\n")
-						os.Exit(1)
-					}
-				} else {
-					if err := ds.ApplyEnrollSecrets(cmd.Context(), nil,
-						[]*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}}); err != nil {
-						level.Debug(logger).Log("err", err, "msg", "failed to apply enroll secrets")
-					}
 				}
 			}
 
@@ -712,6 +680,25 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
+			var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
+			if config.MicrosoftCompliancePartner.IsSet() {
+				var err error
+				conditionalAccessMicrosoftProxy, err = conditional_access_microsoft_proxy.New(
+					config.MicrosoftCompliancePartner.ProxyURI,
+					config.MicrosoftCompliancePartner.ProxyAPIKey,
+					func() (string, error) {
+						appCfg, err := ds.AppConfig(ctx)
+						if err != nil {
+							return "", fmt.Errorf("failed to load appconfig: %w", err)
+						}
+						return appCfg.ServerSettings.ServerURL, nil
+					},
+				)
+				if err != nil {
+					initFatal(err, "new microsoft compliance proxy")
+				}
+			}
+
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
@@ -740,6 +727,7 @@ the way that the Fleet server works.
 				wstepCertManager,
 				eeservice.NewSCEPConfigService(logger, nil),
 				digicert.NewService(digicert.WithLogger(logger)),
+				conditionalAccessMicrosoftProxy,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -749,6 +737,7 @@ the way that the Fleet server works.
 				logger,
 				ds,
 				svc,
+				config.License.Key,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -875,6 +864,14 @@ the way that the Fleet server works.
 				); err != nil {
 					initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUninstallSoftwareMigration))
 				}
+
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return cronUpgradeCodeSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
+					},
+				); err != nil {
+					initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUpgradeCodeSoftwareMigration))
+				}
 			}
 
 			if config.Server.FrequentCleanupsEnabled {
@@ -931,7 +928,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
+				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, config.Partnerships.EnablePrimo)
 			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
@@ -1035,6 +1032,13 @@ the way that the Fleet server works.
 				}
 			}
 
+			// Start the service that calculates and updates host vitals label membership.
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newHostVitalsLabelMembershipSchedule(ctx, instanceID, ds, logger)
+			}); err != nil {
+				initFatal(err, "failed to register host vitals label membership schedule")
+			}
+
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
@@ -1078,6 +1082,14 @@ the way that the Fleet server works.
 				KeyPrefix: "ratelimit::",
 			}
 
+			var httpSigVerifier func(http.Handler) http.Handler
+			if license.IsPremium() {
+				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+				if err != nil {
+					initFatal(err, "initializing HTTP signature verifier")
+				}
+			}
+
 			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
@@ -1091,6 +1103,7 @@ the way that the Fleet server works.
 				if config.MDM.SSORateLimitPerMinute > 0 {
 					extra = append(extra, service.WithMdmSsoRateLimit(throttled.PerMin(config.MDM.SSORateLimitPerMinute)))
 				}
+				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
 					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
@@ -1149,6 +1162,8 @@ the way that the Fleet server works.
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
 				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 
+				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
+
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {
 					initFatal(err, "checking SCEP challenge in database")
@@ -1196,6 +1211,18 @@ the way that the Fleet server works.
 				}
 				if err = scim.RegisterSCIM(rootMux, ds, svc, logger); err != nil {
 					initFatal(err, "setup SCIM")
+				}
+				// Host identify SCEP feature only works if a private key has been set up
+				if len(config.Server.PrivateKey) > 0 {
+					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &config)
+					if err != nil {
+						initFatal(err, "setup host identity SCEP depot")
+					}
+					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger); err != nil {
+						initFatal(err, "setup host identity SCEP")
+					}
+				} else {
+					level.Warn(logger).Log("msg", "Host identity SCEP is not available because no server private key has been set up.")
 				}
 			}
 
@@ -1450,7 +1477,7 @@ func printMissingMigrationsWarning(tables []int64, data []int64) {
 func initLicense(config configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {
 	if devLicense {
 		// This license key is valid for development only
-		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzUxMjQxNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY1NjY5NDA4N30.dvfterOvfTGdrsyeWYH9_lPnyovxggM5B7tkSl1q1qgFYk_GgOIxbaqIZ6gJlL0cQuBF9nt5NgV0AUT9RmZUaA"
+		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzY3MTM5MjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiQ3JlYXRlZCB3aXRoIEZsZWV0IExpY2Vuc2Uga2V5IGRpc3BlbnNlciIsInRpZXIiOiJwcmVtaXVtIiwicGFydG5lciI6ImRldmVsb3BtZW50LW9ubHkiLCJpYXQiOjE3NTEyOTcyOTh9.dAR7M0yjKYXF57z_kWaXCsT97XEpWeJlwkJolEzSB9sJmiTgd-oXRqw10tsrwSs8x_WczgDSgyWliImBOtqmBQ"
 	} else if devExpiredLicense {
 		// An expired license key
 		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
@@ -1623,17 +1650,29 @@ func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, e
 	return nil, nil
 }
 
-func createTestBucketForInstallers(config *configpkg.FleetConfig, logger log.Logger) {
-	store, err := s3.NewSoftwareInstallerStore(config.S3)
+func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
+	softwareInstallerStore, err := s3.NewSoftwareInstallerStore(config.S3)
 	if err != nil {
 		initFatal(err, "initializing S3 software installer store")
 	}
-	if err := store.CreateTestBucket(config.S3.SoftwareInstallersBucket); err != nil {
+	if err := softwareInstallerStore.CreateTestBucket(context.Background(), config.S3.SoftwareInstallersBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
 		level.Info(logger).Log(
 			"err", err,
-			"msg", "failed to create test bucket",
+			"msg", "failed to create test software installer bucket",
 			"name", config.S3.SoftwareInstallersBucket,
+		)
+	}
+	carveStore, err := s3.NewCarveStore(config.S3, nil)
+	if err != nil {
+		initFatal(err, "initializing S3 carve store")
+	}
+	if err := carveStore.CreateTestBucket(context.Background(), config.S3.CarvesBucket); err != nil {
+		// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+		level.Info(logger).Log(
+			"err", err,
+			"msg", "failed to create test carve bucket",
+			"name", config.S3.CarvesBucket,
 		)
 	}
 }

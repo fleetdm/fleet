@@ -48,6 +48,8 @@ jobs:
           go-version-file: 'fleet/go.mod'
 
       - name: Ingest maintained apps
+        env:
+          NETWORK_TEST_GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
         run: |
           cd fleet
           go mod download

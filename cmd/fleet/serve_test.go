@@ -296,7 +296,7 @@ func TestAutomationsSchedule(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet, false)
 	require.NoError(t, err)
 	s.Start()
 
@@ -802,7 +802,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet(), false)
 	require.NoError(t, err)
 	s.Start()
 
@@ -868,7 +868,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet(), false)
 	require.NoError(t, err)
 	s.Start()
 
@@ -1245,4 +1245,34 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
 		require.Equal(t, 2, calls)
 	})
+}
+
+func TestHostVitalsLabelMembershipJob(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+
+	// Make some mock labels
+	labels := []*fleet.Label{
+		{Name: "Dynamic Dave", ID: 1, Query: "query1", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+		{Name: "Manual Michel", ID: 2, LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeManual},
+		{Name: "Vital Vince", ID: 3, HostVitalsCriteria: ptr.RawMessage(json.RawMessage(`{"vital":"owl", "value":"hoot"}`)), LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeHostVitals},
+	}
+
+	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+		return labels, nil
+	}
+
+	numCalls := 0
+	ds.UpdateLabelMembershipByHostCriteriaFunc = func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
+		label := hvl.GetLabel()
+		// Only the host vitals label should be processed.
+		require.Equal(t, label, labels[2])
+		numCalls++
+		return nil, nil
+	}
+
+	err := cronHostVitalsLabelMembership(ctx, ds)
+	require.NoError(t, err)
+	// Only one label (the host vitals label) should have been processed.
+	require.Equal(t, 1, numCalls)
 }

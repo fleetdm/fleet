@@ -37,6 +37,8 @@ import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
+import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -75,7 +77,7 @@ import {
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
-import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceTableConfig";
+import { InstallOrCommandUuid } from "../cards/Software/InstallStatusCell/InstallStatusCell";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 const baseClass = "device-user";
@@ -136,6 +138,10 @@ const DeviceUserPage = ({
   const [selectedSelfServiceUuid, setSelectedSelfServiceUuid] = useState<
     InstallOrCommandUuid | undefined
   >(undefined);
+  const [
+    selectedSelfServiceScriptDetails,
+    setSelectedSelfServiceScriptDetails,
+  ] = useState<ISoftwareUninstallDetails | undefined>(undefined);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
@@ -335,11 +341,18 @@ const DeviceUserPage = ({
     setShowOSSettingsModal(!showOSSettingsModal);
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
-  const onShowInstallerDetails = useCallback(
+  const onShowInstallDetails = useCallback(
     (uuid?: InstallOrCommandUuid) => {
       setSelectedSelfServiceUuid(uuid);
     },
     [setSelectedSelfServiceUuid]
+  );
+
+  const onShowUninstallDetails = useCallback(
+    (details?: ISoftwareUninstallDetails) => {
+      setSelectedSelfServiceScriptDetails(details);
+    },
+    [setSelectedSelfServiceScriptDetails]
   );
 
   const onCancelPolicyDetailsModal = useCallback(() => {
@@ -515,7 +528,8 @@ const DeviceUserPage = ({
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
                       router={router}
-                      onShowInstallerDetails={onShowInstallerDetails}
+                      onShowInstallDetails={onShowInstallDetails}
+                      onShowUninstallDetails={onShowUninstallDetails}
                     />
                   </TabPanel>
                 )}
@@ -571,7 +585,6 @@ const DeviceUserPage = ({
                     <SoftwareCard
                       id={deviceAuthToken}
                       softwareUpdatedAt={host.software_updated_at}
-                      hostCanWriteSoftware={!!host.orbit_version}
                       router={router}
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
@@ -657,6 +670,16 @@ const DeviceUserPage = ({
               deviceAuthToken={deviceAuthToken}
             />
           )}
+        {selectedSelfServiceScriptDetails && !!host && (
+          <SoftwareUninstallDetailsModal
+            details={{
+              ...selectedSelfServiceScriptDetails,
+              host_display_name: host.display_name,
+            }}
+            onCancel={() => setSelectedSelfServiceScriptDetails(undefined)}
+            deviceAuthToken={deviceAuthToken}
+          />
+        )}
         {selectedSelfServiceUuid &&
           "command_uuid" in selectedSelfServiceUuid &&
           !!host && (

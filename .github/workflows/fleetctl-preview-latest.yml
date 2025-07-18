@@ -1,7 +1,7 @@
 name: Test latest changes in fleetctl preview
 
 # Tests the `fleetctl preview` command with latest changes in fleetctl and
-# docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+# docs/01-Using-Fleet/starter-library/starter-library.yml
 
 on:
   push:
@@ -16,7 +16,8 @@ on:
       - 'server/context/**.go'
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
-      - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
+      - 'docs/01-Using-Fleet/starter-library/starter-library.yml'
+      - '.github/workflows/fleetctl-preview-latest.yml'
       - 'tools/osquery/in-a-box'
   pull_request:
     paths:
@@ -26,7 +27,8 @@ on:
       - 'server/context/**.go'
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
-      - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
+      - 'docs/01-Using-Fleet/starter-library/starter-library.yml'
+      - '.github/workflows/fleetctl-preview-latest.yml'
       - 'tools/osquery/in-a-box'
   workflow_dispatch: # Manual
 
@@ -75,11 +77,12 @@ jobs:
     - name: Run fleetctl preview
       run: |
         ./build/fleetctl preview \
-          --preview-config-path ./tools/osquery/in-a-box \
-          --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+          --disable-open-browser \
+          --starter-library-file-path $(pwd)/docs/01-Using-Fleet/starter-library/starter-library.yml \
+          --preview-config-path ./tools/osquery/in-a-box
         sleep 10
         ./build/fleetctl get hosts | tee hosts.txt
-        [ $( cat hosts.txt | grep online | wc -l) -eq 9 ]
+        [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
 
     - name: Get fleet logs
       if: always()

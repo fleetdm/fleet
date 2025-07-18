@@ -10,7 +10,7 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's GitOps wo
 
 For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles. Fleet signs these profiles for you. If you have self-signed profiles, run this command to unsign them: `usr/bin/security cms -D -i  /path/to/profile/profile.mobileconfig | xmllint --format -`
 
-For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any configuration service providers (CSPs) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/). Learn more about Windows CSPs [here](https://fleetdm.com/guides/creating-windows-csps).
+For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any [configuration service providers (CSPs)](https://fleetdm.com/guides/creating-windows-csps) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
 
 Fleet UI:
 
@@ -22,7 +22,7 @@ Fleet UI:
 
 4. To edit the OS setting, first remove the old configuration profile and then add the new one. On macOS, iOS, and iPadOS, removing a configuration profile will remove enforcement of the OS setting.
 
-Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile)
+Fleet API: Use the [Add custom OS setting (configuration profile) endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) in the Fleet API.
 
 ### See status
 
@@ -36,11 +36,24 @@ In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, 
 
 * **Pending**: hosts that are running MDM commands or will run MDM commands to apply OS settings when they come online.
 
-* **Failed**: hosts that failed to apply OS settings. For Windows profiles, the status codes are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
+* **Failed**: hosts that failed to apply OS settings. For Windows profiles, status codes are listed in [Microsoft's OMA DM docs](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
 In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
 
-Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the profile's status to update to "Pending."
+Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the
+profile's status to update to "Pending."
+
+## How user scoped configuration profiles are assigned
+
+Currently, Fleet supports hosts with one local user. If the host has multiple local users
+(eg. User1 and User2), the profile is delivered to the user that turns on MDM on the host. For example, if User1 enrolls
+to Fleet during ADE or installs the enrollment profile during BYOD enrollment, User1's local user will get
+certificates.
+
+For configuration profiles the default **PayloadScope** is **System**. You must assign **PayloadScope** to be
+**User** in your configuration profile to apply it to the user channel.
+
+Finally, only **.mobileconfig** configuration profiles are supported for the user channel. Support for declaration (DDM) profiles is coming soon.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

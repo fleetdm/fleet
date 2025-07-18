@@ -30,6 +30,7 @@ type Activity struct {
 	ActorID        *uint            `json:"actor_id,omitempty" db:"user_id"`
 	ActorGravatar  *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
 	ActorEmail     *string          `json:"actor_email,omitempty" db:"user_email"`
+	ActorAPIOnly   *bool            `json:"actor_api_only,omitempty" db:"api_only"`
 	Type           string           `json:"type" db:"activity_type"`
 	Details        *json.RawMessage `json:"details" db:"details"`
 	Streamed       *bool            `json:"-" db:"streamed"`
@@ -158,7 +159,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeRanScript{},
 	ActivityTypeAddedScript{},
 	ActivityTypeDeletedScript{},
-	ActivityTypeEditedScript{},
+	ActivityTypeEditedScript{},  // via GitOps
+	ActivityTypeUpdatedScript{}, // via individual script update endpoint
 
 	ActivityTypeCreatedWindowsProfile{},
 	ActivityTypeDeletedWindowsProfile{},
@@ -205,6 +207,11 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCanceledInstallSoftware{},
 	ActivityTypeCanceledUninstallSoftware{},
 	ActivityTypeCanceledInstallAppStoreApp{},
+
+	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
+	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
+	ActivityTypeEnabledConditionalAccessAutomations{},
+	ActivityTypeDisabledConditionalAccessAutomations{},
 }
 
 type ActivityDetails interface {
@@ -1355,13 +1362,14 @@ func (a ActivityTypeDisabledWindowsMDMMigration) Documentation() (activity, deta
 }
 
 type ActivityTypeRanScript struct {
-	HostID            uint    `json:"host_id"`
-	HostDisplayName   string  `json:"host_display_name"`
-	ScriptExecutionID string  `json:"script_execution_id"`
-	ScriptName        string  `json:"script_name"`
-	Async             bool    `json:"async"`
-	PolicyID          *uint   `json:"policy_id"`
-	PolicyName        *string `json:"policy_name"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	ScriptExecutionID   string  `json:"script_execution_id"`
+	ScriptName          string  `json:"script_name"`
+	Async               bool    `json:"async"`
+	PolicyID            *uint   `json:"policy_id"`
+	PolicyName          *string `json:"policy_name"`
+	FromSetupExperience bool    `json:"-"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
@@ -1373,7 +1381,7 @@ func (a ActivityTypeRanScript) HostIDs() []uint {
 }
 
 func (a ActivityTypeRanScript) WasFromAutomation() bool {
-	return a.PolicyID != nil
+	return a.PolicyID != nil || a.FromSetupExperience
 }
 
 func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExample string) {
@@ -1730,15 +1738,16 @@ func (a ActivityTypeResentConfigurationProfileBatch) Documentation() (activity s
 }
 
 type ActivityTypeInstalledSoftware struct {
-	HostID          uint    `json:"host_id"`
-	HostDisplayName string  `json:"host_display_name"`
-	SoftwareTitle   string  `json:"software_title"`
-	SoftwarePackage string  `json:"software_package"`
-	SelfService     bool    `json:"self_service"`
-	InstallUUID     string  `json:"install_uuid"`
-	Status          string  `json:"status"`
-	PolicyID        *uint   `json:"policy_id"`
-	PolicyName      *string `json:"policy_name"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	SoftwarePackage     string  `json:"software_package"`
+	SelfService         bool    `json:"self_service"`
+	InstallUUID         string  `json:"install_uuid"`
+	Status              string  `json:"status"`
+	PolicyID            *uint   `json:"policy_id"`
+	PolicyName          *string `json:"policy_name"`
+	FromSetupExperience bool    `json:"-"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1750,7 +1759,7 @@ func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 }
 
 func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
-	return a.PolicyID != nil
+	return a.PolicyID != nil || a.FromSetupExperience
 }
 
 func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
@@ -2147,15 +2156,16 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
 }
 
 type ActivityInstalledAppStoreApp struct {
-	HostID          uint    `json:"host_id"`
-	HostDisplayName string  `json:"host_display_name"`
-	SoftwareTitle   string  `json:"software_title"`
-	AppStoreID      string  `json:"app_store_id"`
-	CommandUUID     string  `json:"command_uuid"`
-	Status          string  `json:"status,omitempty"`
-	SelfService     bool    `json:"self_service"`
-	PolicyID        *uint   `json:"policy_id"`
-	PolicyName      *string `json:"policy_name"`
+	HostID              uint    `json:"host_id"`
+	HostDisplayName     string  `json:"host_display_name"`
+	SoftwareTitle       string  `json:"software_title"`
+	AppStoreID          string  `json:"app_store_id"`
+	CommandUUID         string  `json:"command_uuid"`
+	Status              string  `json:"status,omitempty"`
+	SelfService         bool    `json:"self_service"`
+	PolicyID            *uint   `json:"policy_id"`
+	PolicyName          *string `json:"policy_name"`
+	FromSetupExperience bool    `json:"-"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -2167,7 +2177,7 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 }
 
 func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
-	return a.PolicyID != nil
+	return a.PolicyID != nil || a.FromSetupExperience
 }
 
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
@@ -2505,5 +2515,65 @@ func (a ActivityTypeRanScriptBatch) Documentation() (string, string, string) {
   "script_name": "set-timezones.sh",
   "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "host_count": 12
+}`
+}
+
+type ActivityTypeAddedConditionalAccessIntegrationMicrosoft struct{}
+
+func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) ActivityName() string {
+	return "added_conditional_access_integration_microsoft"
+}
+
+func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
+	return "Generated when Microsoft Entra is connected for conditonal access.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeDeletedConditionalAccessIntegrationMicrosoft struct{}
+
+func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) ActivityName() string {
+	return "deleted_conditional_access_integration_microsoft"
+}
+
+func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
+	return "Generated when Microsoft Entra is integration is disconnected.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeEnabledConditionalAccessAutomations struct {
+	TeamID   *uint  `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+func (a ActivityTypeEnabledConditionalAccessAutomations) ActivityName() string {
+	return "enabled_conditional_access_automations"
+}
+
+func (a ActivityTypeEnabledConditionalAccessAutomations) Documentation() (string, string, string) {
+	return "Generated when conditional access automations are enabled for a team.",
+		`This activity contains the following field:
+- "team_id": The ID of the team  ("null" for "No team").
+- "team_name": The name of the team (empty for "No team").`, `{
+  "team_id": 5,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDisabledConditionalAccessAutomations struct {
+	TeamID   *uint  `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+func (a ActivityTypeDisabledConditionalAccessAutomations) ActivityName() string {
+	return "disabled_conditional_access_automations"
+}
+
+func (a ActivityTypeDisabledConditionalAccessAutomations) Documentation() (string, string, string) {
+	return "Generated when conditional access automations are disabled for a team.",
+		`This activity contains the following field:
+- "team_id": The ID of the team (` + "`null`" + ` for "No team").
+- "team_name": The name of the team (empty for "No team").`, `{
+  "team_id": 5,
+  "team_name": "Workstations"
 }`
 }

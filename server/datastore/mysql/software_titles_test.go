@@ -1,10 +1,16 @@
 package mysql
 
 import (
+	"compress/gzip"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,6 +40,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"UploadedSoftwareExists", testUploadedSoftwareExists},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
+		{"ListSoftwareTitlesDoesnotIncludeDuplicates", testListSoftwareTitlesDoesnotIncludeDuplicates},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -130,12 +137,12 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host3.ID}))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host3.ID})))
 	host4 := test.NewHost(t, ds, "host4", "", "host4key", "host4uuid", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(ctx, &team2.ID, []uint{host4.ID}))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host4.ID})))
 
 	// assign existing host1 to team1 too, so we have a team with multiple hosts
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 	// use some software for host3 and host4
 	software3 := []fleet.Software{
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
@@ -611,9 +618,9 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host1.ID}))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(ctx, &team2.ID, []uint{host2.ID}))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host2.ID})))
 
 	userGlobalAdmin, err := ds.NewUser(ctx, &fleet.User{Name: "user1", Password: []byte("test"), Email: "test1@email.com", GlobalRole: ptr.String(fleet.RoleAdmin)})
 	require.NoError(t, err)
@@ -1791,4 +1798,217 @@ func testUpdateSoftwareTitleName(t *testing.T, ds *Datastore) {
 	title2, err := ds.SoftwareTitleByID(ctx, installer2, &tm.ID, fleet.TeamFilter{User: user1})
 	require.NoError(t, err)
 	require.Equal(t, "installer2", title2.Name)
+}
+
+func testListSoftwareTitlesDoesnotIncludeDuplicates(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Santa", Version: "2025.4", Source: "apps", BundleIdentifier: "com.northpolesec.santa"},
+	})
+	require.NoError(t, err)
+
+	var sw []fleet.Software
+	err = ds.writer(ctx).SelectContext(ctx, &sw,
+		`SELECT id, name, version, bundle_identifier, source, browser, title_id FROM software ORDER BY name, source, browser, version`)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.NotNil(t, sw[0].TitleID)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	// same bundle identifier, different name
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.northpolesec.santa",
+		Title:            "Santa",
+		Version:          "2025.2",
+		Extension:        "pkg",
+		StorageID:        "storage0",
+		Filename:         "santa123",
+		Source:           "pkg_packages",
+		UserID:           user.ID,
+		TeamID:           &team1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.northpolesec.santa",
+		Title:            "Santa",
+		Version:          "2025.3",
+		Extension:        "pkg",
+		StorageID:        "storage0",
+		Filename:         "santa123",
+		Source:           "pkg_packages",
+		UserID:           user.ID,
+		TeamID:           &team2.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// We should only have a single title on the DB ...
+	var swt []fleet.SoftwareTitle
+	err = ds.writer(ctx).SelectContext(ctx, &swt,
+		`SELECT id, name, bundle_identifier, source, browser FROM software_titles ORDER BY name, source, browser`)
+	require.NoError(t, err)
+	require.Len(t, swt, 1)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey:       "name",
+			OrderDirection: fleet.OrderAscending,
+		},
+	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+	// We should have a single software title since when specifying 'All Teams' (TeamID = nil).
+	// installers are excluded
+	require.Len(t, titles, 1)
+}
+
+func TestSelectSoftwareTitlesSQLGeneration(t *testing.T) {
+	fixturePath := filepath.Join("testdata", "select_software_titles_sql_fixture.gz")
+
+	testData := []struct {
+		Args        []any
+		Opts        fleet.SoftwareTitleListOptions
+		Fingerprint string
+	}{}
+
+	file, err := os.Open(fixturePath)
+	require.NoError(t, err)
+	defer file.Close()
+
+	gzipReader, err := gzip.NewReader(file)
+	require.NoError(t, err)
+	defer gzipReader.Close()
+
+	decoder := json.NewDecoder(gzipReader)
+	err = decoder.Decode(&testData)
+	require.NoError(t, err)
+
+	for _, tt := range testData {
+		stm, args, err := selectSoftwareTitlesSQL(tt.Opts)
+		require.NoError(t, err)
+		require.Equal(t, tt.Fingerprint, NormalizeSQL(stm), tt.Opts)
+		require.Equal(t, tt.Args, args)
+	}
+}
+
+// Use this to generate the select_software_titles_sql_fixture.gz testdata fixture.
+// It generates a bunch of SoftwareTitleListOptions combinations, all SQL statements
+// generated are normalized and written to the fixture file.
+func generateSelectSoftwareTitlesSQLFixture(t *testing.T) { //nolint: unused
+	queryParams := struct {
+		Match               []string
+		Platforms           []string
+		VulnerableOnly      []bool
+		AvailableForInstall []bool
+		SelfService         []bool
+		KnownExploit        []bool
+		MinVCSScores        []float64
+		MaxVCSScores        []float64
+		PackagesOnly        []bool
+		TeamIDs             []*uint
+	}{
+		Match:               []string{"", "chrome"},
+		Platforms:           []string{"", "darwin,linux"},
+		VulnerableOnly:      []bool{true, false},
+		AvailableForInstall: []bool{true, false},
+		SelfService:         []bool{true, false},
+		KnownExploit:        []bool{true, false},
+		MinVCSScores:        []float64{0, 5.0},
+		MaxVCSScores:        []float64{0, 5.0},
+		PackagesOnly:        []bool{true, false},
+		TeamIDs:             []*uint{nil, ptr.Uint(0), ptr.Uint(1)},
+	}
+	combinations := make([]fleet.SoftwareTitleListOptions, 0)
+	currentValues := make(map[string]interface{})
+
+	generateSoftwareTitleListOptionsCombinations(
+		reflect.ValueOf(queryParams),
+		currentValues,
+		&combinations,
+	)
+
+	testData := []struct {
+		Args        []any
+		Opts        fleet.SoftwareTitleListOptions
+		Fingerprint string
+	}{}
+
+	for _, c := range combinations {
+		sqlStm, args, err := selectSoftwareTitlesSQL(c)
+		testData = append(testData, struct {
+			Args        []any
+			Opts        fleet.SoftwareTitleListOptions
+			Fingerprint string
+		}{Args: args, Opts: c, Fingerprint: NormalizeSQL(sqlStm)})
+		require.NoError(t, err)
+	}
+
+	asJSON, err := json.Marshal(testData)
+	require.NoError(t, err)
+
+	fPath := filepath.Join("testdata", "select_software_titles_sql_fixture.gz")
+
+	file, err := os.Create(fPath)
+	require.NoError(t, err)
+	defer file.Close()
+
+	gzipWriter := gzip.NewWriter(file)
+	defer gzipWriter.Close()
+
+	_, err = gzipWriter.Write(asJSON)
+	require.NoError(t, err)
+}
+
+// nolint: unused
+func generateSoftwareTitleListOptionsCombinations(
+	v reflect.Value,
+	currentValues map[string]interface{},
+	combinations *[]fleet.SoftwareTitleListOptions,
+) {
+	t := v.Type()
+	if len(currentValues) == t.NumField() {
+		opt := &fleet.SoftwareTitleListOptions{
+			TeamID:              currentValues["TeamIDs"].(*uint),
+			Platform:            currentValues["Platforms"].(string),
+			VulnerableOnly:      currentValues["VulnerableOnly"].(bool),
+			PackagesOnly:        currentValues["PackagesOnly"].(bool),
+			SelfServiceOnly:     currentValues["SelfService"].(bool),
+			AvailableForInstall: currentValues["AvailableForInstall"].(bool),
+			MinimumCVSS:         currentValues["MinVCSScores"].(float64),
+			MaximumCVSS:         currentValues["MaxVCSScores"].(float64),
+			KnownExploit:        currentValues["KnownExploit"].(bool),
+			ListOptions: fleet.ListOptions{
+				MatchQuery: currentValues["Match"].(string),
+			},
+		}
+		*combinations = append(*combinations, *opt)
+		return
+	}
+
+	fieldIndex := len(currentValues)
+	field := t.Field(fieldIndex)
+	slice := v.Field(fieldIndex)
+
+	for i := 0; i < slice.Len(); i++ {
+		currentValues[field.Name] = slice.Index(i).Interface()
+		generateSoftwareTitleListOptionsCombinations(v, currentValues, combinations)
+	}
+	delete(currentValues, field.Name)
 }

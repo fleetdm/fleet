@@ -100,6 +100,7 @@ controls:
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
+    - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -116,6 +117,7 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
+  - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:
@@ -125,6 +127,7 @@ software:
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
     - path: ../lib/macos/software/santa.yml # Santa for macOS
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
+    - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
@@ -144,12 +147,11 @@ software:
     - app_store_id: '409183694' # Keynote
       self_service: true
   fleet_maintained_apps:
+    # macOS apps
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
-    - slug: brave-browser/windows # Brave for Windows
-      self_service: true
     - slug: docker/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
@@ -160,8 +162,10 @@ software:
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+    - slug: microsoft-teams/darwin # Microsoft Teams for macOS
+      self_service: true
+    # Windows apps
+    - slug: brave-browser/windows # Brave for Windows
+      self_service: true
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
-      categories:
-        - Communication
-        - Productivity

@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
@@ -96,7 +97,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 			"mdm": {
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
-					"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 					"idp_name": "SimpleSAML",
 					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 				},
@@ -237,7 +237,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 			       }],
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
-					"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 					"idp_name": "SimpleSAML",
 					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 				},
@@ -1085,7 +1084,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	var device1ID uint
 	for _, h := range listHostsRes.Hosts {
 		if h.HardwareSerial == devices[1].SerialNumber {
-			err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{h.ID})
+			err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h.ID}))
 			require.NoError(t, err)
 			device1ID = h.ID
 			break
@@ -2134,6 +2133,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAutoRelease() {
 	t := s.T()
 	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
 
 	teamDevice, enrolledHost, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
@@ -2385,7 +2385,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 }
 	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, installUUID)
 
-	s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0)
+	s.lastActivityMatchesExtended(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0, ptr.Bool(true))
 
 	// Validate upcoming activity for the script
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", enrolledHost.ID),
@@ -2753,12 +2753,12 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 	}, http.StatusOK, &applyResp)
 
 	// simulate a matching host enrolling via osquery
-	j, err := json.Marshal(&enrollAgentRequest{
+	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   t.Name(),
 		HostIdentifier: mdmDevice.UUID,
 	})
 	require.NoError(t, err)
-	var enrollResp enrollAgentResponse
+	var enrollResp contract.EnrollOsqueryAgentResponse
 	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollResp))
@@ -2899,7 +2899,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{teamHost.ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
 
 	// this helper function calls the /enroll endpoint with the supplied machineInfo (from the test
 	// case) and checks for the expected response
@@ -3114,7 +3114,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			"mdm": {
 				"macos_updates": { "minimum_version": null, "deadline": null },
 				"macos_setup": { "enable_end_user_authentication": false },
-				"end_user_authentication": { "entity_id": "", "idp_name": "", "metadata_url": "", "issuer_uri": "", "metadata": "" }
+				"end_user_authentication": { "entity_id": "", "idp_name": "", "metadata_url": "", "metadata": "" }
 			}
 		}`), http.StatusOK, &acResp)
 	})
@@ -3852,4 +3852,458 @@ func (s *integrationMDMTestSuite) TestDeleteMultipleHostsPendingDEP() {
 		}
 
 	}
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	// Set up some additional VPP apps on the mock Apple servers
+	s.appleITunesSrvData["6"] = `{"bundleId": "f-6", "artworkUrl512": "https://example.com/images/6", "version": "6.0.0", "trackName": "App 6", "TrackID": 6}`
+	s.appleITunesSrvData["7"] = `{"bundleId": "g-7", "artworkUrl512": "https://example.com/images/7", "version": "7.0.0", "trackName": "App 7", "TrackID": 7}`
+	s.appleITunesSrvData["8"] = `{"bundleId": "h-8", "artworkUrl512": "https://example.com/images/8", "version": "8.0.0", "trackName": "App 8", "TrackID": 8}`
+	s.appleITunesSrvData["9"] = `{"bundleId": "i-9", "artworkUrl512": "https://example.com/images/9", "version": "9.0.0", "trackName": "App 9", "TrackID": 9}`
+	s.appleITunesSrvData["10"] = `{"bundleId": "j-10", "artworkUrl512": "https://example.com/images/10", "version": "10.0.0", "trackName": "App 10", "TrackID": 10}`
+
+	s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, []vpp.Asset{{
+		AdamID:         "6",
+		PricingParam:   "STDQ",
+		AvailableCount: 1,
+	},
+		{
+			AdamID:         "7",
+			PricingParam:   "STDQ",
+			AvailableCount: 1,
+		},
+		{
+			AdamID:         "8",
+			PricingParam:   "STDQ",
+			AvailableCount: 1,
+		},
+		{
+			AdamID:         "9",
+			PricingParam:   "STDQ",
+			AvailableCount: 1,
+		},
+		{
+			AdamID:         "10",
+			PricingParam:   "STDQ",
+			AvailableCount: 1,
+		}}...)
+
+	t.Cleanup(func() {
+		delete(s.appleITunesSrvData, "6")
+		delete(s.appleITunesSrvData, "7")
+		delete(s.appleITunesSrvData, "8")
+		delete(s.appleITunesSrvData, "9")
+		delete(s.appleITunesSrvData, "10")
+		s.appleVPPConfigSrvConfig.Assets = defaultVPPAssetList
+	})
+
+	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
+		var titleID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			ctx := context.Background()
+			return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, app.AdamID, app.Platform)
+		})
+
+		return titleID
+	}
+
+	teamDevice, enrolledHost, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
+	require.NotNil(t, enrolledHost.TeamID)
+
+	s.setVPPTokenForTeam(*enrolledHost.TeamID)
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, teamDevice.SerialNumber)
+
+	// Add some VPP apps
+	macOSApp1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "1",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 1",
+		BundleIdentifier: "a-1",
+		IconURL:          "https://example.com/images/1",
+		LatestVersion:    "1.0.0",
+	}
+
+	macOSApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "6",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 6",
+		BundleIdentifier: "f-6",
+		IconURL:          "https://example.com/images/6",
+		LatestVersion:    "6.0.0",
+	}
+	macOSApp3 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "7",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 7",
+		BundleIdentifier: "g-7",
+		IconURL:          "https://example.com/images/7",
+		LatestVersion:    "7.0.0",
+	}
+	macOSApp4 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "8",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 8",
+		BundleIdentifier: "h-8",
+		IconURL:          "https://example.com/images/8",
+		LatestVersion:    "8.0.0",
+	}
+	macOSApp5 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "9",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 9",
+		BundleIdentifier: "i-9",
+		IconURL:          "https://example.com/images/9",
+		LatestVersion:    "9.0.0",
+	}
+	macOSApp6 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "10",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 10",
+		BundleIdentifier: "j-10",
+		IconURL:          "https://example.com/images/10",
+		LatestVersion:    "10.0.0",
+	}
+
+	expectedApps := []*fleet.VPPApp{macOSApp1, macOSApp2, macOSApp3, macOSApp4, macOSApp5, macOSApp6}
+
+	expectedAppsByName := map[string]*fleet.VPPApp{
+		macOSApp1.Name: macOSApp1,
+		macOSApp2.Name: macOSApp2,
+		macOSApp3.Name: macOSApp3,
+		macOSApp4.Name: macOSApp4,
+		macOSApp5.Name: macOSApp5,
+		macOSApp6.Name: macOSApp6,
+	}
+
+	var addAppResp addAppStoreAppResponse
+	// Add remaining as non-self-service
+	var titleIDs []uint
+	for _, app := range expectedApps {
+		addAppResp = addAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{TeamID: enrolledHost.TeamID, AppStoreID: app.AdamID, Platform: app.Platform},
+			http.StatusOK, &addAppResp)
+		titleIDs = append(titleIDs, getSoftwareTitleIDFromApp(app))
+	}
+
+	// Add VPP apps to setup experience
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: *enrolledHost.TeamID, TitleIDs: titleIDs}, http.StatusOK, &swInstallResp)
+
+	// enroll the host
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDevice.SerialNumber = teamDevice.SerialNumber
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// run the worker to process the DEP enroll request
+	s.runWorker()
+	// run the worker to assign configuration profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	var cmds []*micromdm.CommandPayload
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+		// Can be useful for debugging
+		// switch cmd.Command.RequestType {
+		// case "InstallProfile":
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		// case "InstallEnterpriseApplication":
+		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+		// 	} else {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// 	}
+		// default:
+		// 	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
+		// }
+
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// expected commands: install fleetd (install enterprise), install profiles
+	// (custom one, fleetd configuration, fleet CA root)
+	require.Len(t, cmds, 4)
+	var installProfileCount, installEnterpriseCount, otherCount int
+	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen, profileFileVaultSeen bool
+	for _, cmd := range cmds {
+		switch cmd.Command.RequestType {
+		case "InstallProfile":
+			installProfileCount++
+			switch {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>"):
+				profileCustomSeen = true
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)):
+				profileFleetdSeen = true
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)):
+				profileFleetCASeen = true
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
+				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant"):
+				profileFileVaultSeen = true
+			}
+
+		case "InstallEnterpriseApplication":
+			installEnterpriseCount++
+		default:
+			otherCount++
+		}
+	}
+	require.Equal(t, 3, installProfileCount)
+	require.Equal(t, 1, installEnterpriseCount)
+	require.Equal(t, 0, otherCount)
+	require.True(t, profileCustomSeen)
+	require.True(t, profileFleetdSeen)
+	require.True(t, profileFleetCASeen)
+	require.False(t, profileFileVaultSeen)
+
+	// simulate fleetd being installed and the host being orbit-enrolled now
+	enrolledHost.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	enrolledHost.UUID = mdmDevice.UUID
+	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
+	enrolledHost.OrbitNodeKey = &orbitKey
+
+	// there shouldn't be a worker Release Device pending job (we don't release that way anymore)
+	pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+	require.NoError(t, err)
+	require.Len(t, pending, 0)
+
+	// call the /status endpoint, the software and script should be pending
+	var statusResp getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+	var profNames []string
+	var profStatuses []fleet.MDMDeliveryStatus
+	for _, prof := range statusResp.Results.ConfigurationProfiles {
+		profNames = append(profNames, prof.Name)
+		profStatuses = append(profStatuses, prof.Status)
+	}
+	require.ElementsMatch(t, []string{"N1", "Fleetd configuration", "Fleet root certificate authority (CA)"}, profNames)
+	require.ElementsMatch(t, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerifying}, profStatuses)
+
+	// the software and script are still pending
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 6)
+	for _, software := range statusResp.Results.Software {
+		_, ok := expectedAppsByName[software.Name]
+		require.True(t, ok)
+		require.Equal(t, fleet.SetupExperienceStatusPending, software.Status)
+		require.NotNil(t, software.SoftwareTitleID)
+		require.NotZero(t, *software.SoftwareTitleID)
+	}
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "host_vpp_software_installs", "command_uuid", "adam_id")
+		return nil
+	})
+
+	checkCommandsInFlight := func(expectedCount int) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var count int
+			err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE command_type = ?", fleet.VerifySoftwareInstallVPPPrefix)
+			require.NoError(t, err)
+			require.Equal(t, expectedCount, count)
+			return nil
+		})
+	}
+
+	type vppInstallOpts struct {
+		failOnInstall      bool
+		appInstallTimeout  bool
+		softwareResultList []fleet.Software
+	}
+
+	processVPPInstallOnClient := func(mdmClient *mdmtest.TestAppleMDMClient, opts *vppInstallOpts) string {
+		var installCmdUUID string
+
+		// Process the InstallApplication command
+		s.runWorker()
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			switch cmd.Command.RequestType {
+			case "InstallApplication":
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				installCmdUUID = cmd.CommandUUID
+				if opts.failOnInstall {
+					t.Logf("Failed command UUID: %s", installCmdUUID)
+					cmd, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
+					require.NoError(t, err)
+					continue
+				}
+
+				cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+			case "InstalledApplicationList":
+				// If we are polling to verify the install, we should get an
+				// InstalledApplicationList command instead of an InstallApplication command.
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				_, err = mdmClient.AcknowledgeInstalledApplicationList(
+					mdmClient.UUID,
+					cmd.CommandUUID,
+					opts.softwareResultList,
+				)
+				require.NoError(t, err)
+				return ""
+			default:
+				require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+			}
+		}
+
+		if opts.failOnInstall {
+			return installCmdUUID
+		}
+
+		if opts.appInstallTimeout {
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(context.Background(), "UPDATE nano_command_results SET updated_at = ? WHERE command_uuid = ?", time.Now().Add(-11*time.Minute), installCmdUUID)
+				return err
+			})
+		}
+
+		// Process the verification command (InstalledApplicationList)
+		s.runWorker()
+		// Check that there is now a verify command in flight
+		checkCommandsInFlight(1)
+		cmd, err = mdmClient.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				cmd, err = mdmClient.AcknowledgeInstalledApplicationList(
+					mdmClient.UUID,
+					cmd.CommandUUID,
+					opts.softwareResultList,
+				)
+				require.NoError(t, err)
+			default:
+				require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
+			}
+		}
+
+		return installCmdUUID
+	}
+
+	// Simulate successful installation on the host
+	opts := &vppInstallOpts{}
+	opts.appInstallTimeout = false
+	opts.failOnInstall = false
+	// App 1 is installed now
+	opts.softwareResultList = []fleet.Software{
+		{
+			Name:             macOSApp1.Name,
+			BundleIdentifier: macOSApp1.BundleIdentifier,
+			Version:          macOSApp1.LatestVersion,
+			Installed:        true,
+		},
+	}
+	processVPPInstallOnClient(mdmDevice, opts)
+
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 6)
+	for _, software := range statusResp.Results.Software {
+		_, ok := expectedAppsByName[software.Name]
+		require.True(t, ok)
+		if software.Name == macOSApp1.Name {
+			require.Equal(t, fleet.SetupExperienceStatusSuccess, software.Status)
+		} else {
+			require.Equal(t, fleet.SetupExperienceStatusRunning, software.Status)
+		}
+		require.NotNil(t, software.SoftwareTitleID)
+		require.NotZero(t, *software.SoftwareTitleID)
+	}
+
+	// All apps should have an install record at this point
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var count int
+		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_vpp_software_installs")
+		require.NoError(t, err)
+		require.Equal(t, 6, count)
+		return nil
+	})
+
+	installedApps := map[string]struct{}{
+		macOSApp1.Name: {},
+	}
+
+	for _, app := range expectedApps {
+		opts.softwareResultList = append(opts.softwareResultList, fleet.Software{
+			Name:             app.Name,
+			BundleIdentifier: app.BundleIdentifier,
+			Version:          app.LatestVersion,
+			Installed:        true,
+		})
+
+		installedApps[app.Name] = struct{}{}
+
+		processVPPInstallOnClient(mdmDevice, opts)
+
+		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+
+		require.NotNil(t, statusResp.Results.Script)
+		require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+		require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+		require.Len(t, statusResp.Results.Software, 6)
+		for _, software := range statusResp.Results.Software {
+			_, ok := expectedAppsByName[software.Name]
+			require.True(t, ok)
+			_, shouldBeInstalled := installedApps[software.Name]
+			if shouldBeInstalled {
+				require.Equal(t, fleet.SetupExperienceStatusSuccess, software.Status, software.Name, software.Status)
+			} else {
+				require.Equal(t, fleet.SetupExperienceStatusRunning, software.Status)
+			}
+			require.NotNil(t, software.SoftwareTitleID)
+			require.NotZero(t, *software.SoftwareTitleID)
+		}
+
+	}
+
 }

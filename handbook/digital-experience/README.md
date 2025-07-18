@@ -10,12 +10,10 @@ This page details processes specific to working [with](#contact-us) and [within]
 | [CEO](https://fleetdm.com/handbook/company/leadership#ceo-flaws) | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Head of People / HR / Legal     | <sup><sub> See [CEO](https://www.fleetdm.com/handbook/digital-experience#team) <sup><sub>
 | Head of Digital Experience      | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
-| Apprentice                      | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_, [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
+| GTM Engineer | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 | Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Contracts and Compliance Engineer       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
-| Marketing Apprentice            | [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
- 
+| Apprentice                      | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_, [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_, [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 
 
 ## Contact us
@@ -29,9 +27,9 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 The Digital Experience department is directly responsible for the culture, training, framework, content design, and technology behind Fleet's remote work culture, including fleetdm.com, the handbook, issue templates, UI style guides, internal tooling, Zapier flows, Docusign templates, key spreadsheets, contracts, compliance, receiving and responding to legal notices, SOC2, deal desk, project management processes, human resources, benefits, opening positions, compensation planning, onboarding, and offboarding.
 
-> _**Note:**: Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance)._
+> Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance)._
 
-> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
+> If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
 
 
 ### Respond to a "Contact us" submission
@@ -43,6 +41,7 @@ The Digital Experience department is directly responsible for the culture, train
 5. Mark the Slack message as complete with the "✅" emoji.
 
 > For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+
 
 ### Prepare "Let's get you set up!" meeting notes
 
@@ -209,6 +208,7 @@ Fleet has several brand fronts that need to be updated from time to time. Check 
 - The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
 
 
+<!--
 ### Update the host count of a premium subscription
 
 When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Marketing department](https://fleetdm.com/handbook/marketing) will create a confidential issue detailing the request and add it to the new requests column of [Digital Experience kanban board](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board). A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
@@ -235,6 +235,7 @@ Use the following steps to cancel a Fleet Premium subscription:
 1. Log into [Stripe](https://dashboard.stripe.com/dashboard) (login in 1Password) and paste the customer's email they used to sign up in the search bar at the top of the page.
 2. Select the subscription related to the email and use the "Actions" drop-down to "Cancel immediately".
 3. Reach out to the community member (using the [correct email template](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit#heading=h.vw9mkh5e9msx)) and let them know their subscription was canceled.
+-->
 
 
 ### Register a domain for Fleet
@@ -250,14 +251,6 @@ When procuring SaaS tools and services, analyze the purchase of these subscripti
 - Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
 - Programability: Does it have a publicly documented legible REST API that requires at most a single API token?
 - Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
-
-
-### Track a Fleet applicant
-
-Use the following steps to track a Fleet applicant:
-1. Once a day, check the [Fleet LinkedIn inbox](https://www.linkedin.com/company/71111416/admin/inbox/thread/2-YzE0M2M3YzgtMjQzZS00NDlhLWJjMGQtYWQwMTY1ODhlMmY3XzAxMA==/) for any applicants expressing interest in joining the team.
-2. Navigate to the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and copy the relevant details from the candidate's LinkedIn:
-3. Using a Google doc comment, at-mention the hiring manager. If none exist or you aren't sure, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
 
 
 ### Secure company-issued equipment for a team member
@@ -309,45 +302,6 @@ Once the Digital Experience department approves inventory to be shipped from Fle
   - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=) for IT to troubleshoot the device.
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
-
-
-### Fix a laptop that's not checking in
-
-It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything). 
-
-If the host has MDM turned on, use the `fleetctl mdm run-command` CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/commands/macos-send-fleetd.xml to the device, which will reinstall fleetd.
-
-If the host doesn't have MDM turned on or isn't enrolled to dogfood, it is beyond our ability to control remotely.
-
-
-### Enroll a macOS host in dogfood
-
-When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
-You can confirm that the device has been ordered correctly by following these steps:
-- Log into ABM
-- Use the device serial number to find the device.
-  - Note: if the device cannot be found, you will need to manually enroll the device.
-- View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
-
-On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
-- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
-- If you do not have physical access to the device, the user will need to undertake the following steps:
-  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
-  - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
-  - In Fleet desktop, follow the instructions to turn on MDM.
-  - Once complete, follow instructions to reset disk encryption key.
-- Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
-
-
-### Enroll a Windows or Ubuntu Linux device in dogfood
-
-To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
-Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
-
-
-### Enroll a ChromeOS device in dogfood
-
-ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
 
 
 ### Update personnel details
@@ -450,38 +404,9 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 7. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
 
 
-
-### Grant equity
-
-Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/digital-experience#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
-
-Doing an equity grant involves:
-- Executing a board consent
-- The recipient and CEO signing paperwork about the stock options
-- Updating the number of shares for the recipient in the equity plan
-- Updating Carta to reflect the grant
-
-For the status of stock option grants, exercises, and all other _common stock_ including advisor, founder, and team member equity ownership, see [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).  For information about investor ownership, see [Carta](https://app.carta.com/corporations/1234715/summary/).
-
-> Fleet's [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) is the source of truth, not Carta.  Neither are pro formas sent in an email attachment, even if they come from lawyers.
-> 
-> Anyone can make mistakes, and none of us are perfect.  Even when we triple check.  Small mistakes in share counts can be hard to attribute, and can cause headaches and eat up nights of our CEO's and operations team's time.  If you notice what might be a discrepancy between the equity plan and any other secondary source of information, please speak up and let Fleet's CEO know ASAP.  Even if you're wrong, your note will be appreciated.
-
-
 ### Grant role-specific license to a team member
 
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
-
-| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
-|:-----------------|:---|:---|:----|:---|:---|
-| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
-| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
-| ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
-| ⚗️ PD            | ❌ | ❌ | ❌ | ✅ | ✅
-| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
-|   Other roles    | ❌ | ❌ | ❌ | ❌ | ✅
-
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) and we will make sure there is no license redundancy in that department.
 
 
 ### Process a tool upgrade request from a team member
@@ -546,7 +471,7 @@ Then, to finalize a new advisor after signing is complete:
 
 ### Approve a new position
 
-When review is requested on a proposal to open a new position, the Apprentice to the CEO will complete the following steps when reviewing the pull request:
+When review is requested on a proposal to open a new position, the Head of Digital Experience will complete the following steps when reviewing the pull request:
 1. Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is set to the first Monday of the next month.
 2. Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. Ballpark and document compensation research for the role based on 
@@ -590,7 +515,7 @@ Salesforce requires that the password to the "Integrations admin" account is cha
 
 1. Log into the "Integrations admin" account in Salesforce.
 2. Change the password and save it in the shared 1Password vault.
-3. Request a new security token for the "Integrations admin" account (This will be sent to the email address associated with the account).
+3. Request a new security token for the "Integrations admin" account by clicking the profile picture » `Settings` » `Reset my security token` (This will be sent to the email address associated with the account).
 4. Update the `sails_config__custom_salesforceIntegrationPasskey` config variable in Heroku to be `[password][security token]` (For both the Fleet website and Hydroplane).
 
 
@@ -602,108 +527,7 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 3. Complete the survey questions, aiming for minimal changes.
 4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
 5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
-
-
-### Access a background check
-
-All Fleet team members undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
-
-
-### Review an NDA
-
-We need to review an NDA anytime a vendor, customer or other party wants to:
-- Use their own NDA rather than Fleet's standard NDA, or
-- "Redline" (modify) Fleet's NDA by removing, adding or altering its terms.
-
-We should always seek to use Fleet's own NDA first, without alteration. 
-
-When reading an NDA, we want to pay close attention to the following:
-- We want to be sure that the confidentiality obligations of the NDA are reciprocal.  Fleet and the other party to the agreement should be bound to the same standards of confidentiality toward the handling of each other's confidential information.
-- Fleet does not agree to _"do not compete"_ or _"do not solicit clauses"_. An NDA should not contain provisions beyond the scope of an NDA. The two most commonly encountered examples of this are the "do not compete" and "do not solicit" clauses. We want to be free to hire the best people and make the best products, so when reading through an NDA it is important to keep an eye out for language that prohibits Fleet from hiring or soliciting current or former employees of other companies or that prohibit Fleet from independently developing products that compete with another company's products.  Using the `cmd + f` function to search for "solici", "compet" and "hir" and reading through the results is a helpful method to quickly scan for these clauses.
-- Look for any language that discusses a transfer of property rights. Rarely, you may find a clause snuck into an agreement that discusses the transfer of intellectual property rights.  _We want to avoid any situation where Fleet transfers its intellectual property to another party as part of an NDA_.  
-- Should you find any clauses in steps 2 or 3 that are beyond the scope of protecting both party's confidential information in a customer NDA or an altered version of Fleet's NDA, reject this language and communicate that Fleet cannot agree to those terms.
-- Any concerns or uncertainty over _any_ provisions in an NDA should be brought to Nathanael Holliday in Digital Experience, who will consult legal counsel if necessary to resolve any concerns.
-
-
-### Review a vendor agreement
-
-When reviewing contracts from a vendor, Fleet is concerned about the following:
-- If there are confidentiality provisions in the agreement in place of a stand-alone NDA, verify the confidentiality provisions are appropriate and protect Fleet when sensitive data is involved that isn't otherwise available to the public.
-- We want to make sure there are no _do not solicit_ or _do not compete_ clauses in the contract.  To aid in this search, we double check by using the cmd + f function and searching for "solici", "compet" and "hir" and then looking through the results to be sure that nothing prohibits Fleet from independently developing competing products or from hiring personnel with ties to the vendor.
-- We want to make sure that contracts can be terminated relatively easily and be aware of what the process is for terminating them, avoiding commitments over 12 months in length.
-- We want to make sure the payment terms work for us (i.e. being able to pay via wire transfer, credit card or bill.com) and that the price in any contract or order form is what we have agreed to.  While almost never malicious, mistakes often occur in the steps between agreeing on a price, negotiating a contract, and receiving an invoice.  We want to be sure at every step that the dollar amount and service provided is consistent with what has been negotiated and agreed upon.
-- Remember, once we have signed the agreement - we're stuck with it. If any clause in the agreement appears strange or gives you pause or concern, it is better to seek clarification than to commit to something that might be detrimental to Fleet.  Contracts are fairly standardized, and you'll quickly learn what is normal and what feels out of place.  Unusual clauses or wording that seems out of the ordinary should get a second set of eyes just to be sure, do not hesitate to reach out to Nathanael Holliday with questions, who will reach out to legal counsel as necessary.
-
-
-### Review an order form
-
-Using the this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A) and the [TEMPLATE - Subscription order form (confidential document)](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0) as an examples, check the document for correct format, pricing info, terms, "Fast-track deployment services" info, or any other missing details. 
-1. Be sure the order form includes a quality logo that matches the customer company and is correctly sized.
-2. Navigate to the future customer's opportunity in Salesforce and verify the contact information + billing address and information so that Fleet knows how and who to invoice for payment.
-3. Verify. There is a good quality and decently sized customer logo in the top right corner of the order form a good way to pull this is off of Linkedin. If you're having trouble finding it.
-4. Next, as you're going down the page, you're going to verify the customer information and terms. Verify the customer name and address, the billing contact. And you'll be verifying these against the same information that should be in Salesforce. The billing contact (or an economic buyer) in salesforce should be the same person as your billing contact on the order form.
-5. Verify the effective dates and total term match that in salesforce. E.g. If your effective dates are January 1st to December 31st of the same year, your total term is 12 months . If your effective dates are January 1st of 2025 to December 31st of 2028, your total term is 36 months. It's very important that the breakdown table, effective dates, and the total term all match. Otherwise the math won't come out correct.
-6. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form caluculator as the source of truth, if needed, adjust the values in the table to be correct.
-7. Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to Nathanael Holliday in Digital Experience with concerns.
-
-
-### Review a non-standard subscription agreement
-
-We want to use our standard terms whenever possible with our customers, but it is common that customers want to use their own agreement or redline (modify) Fleet's terms.  
-When reviewing subscription agreements on customer paper or when a customer has made changes to Fleet's terms, we review it using [these guidelines](https://docs.google.com/document/d/1aGgN5It1i3fdsBF37vWSbvukO_gQhy5vCp4fINg191Q/edit?usp=sharing).
-
-
-### Obtain a signature from the CEO
-
-When an agreement is routed to the CEO for signature, the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) is responsible for obtaining a signature from the CEO using the following steps:
-1. Drag the email to the ["🔏 SAM: Signature wanted"](https://mail.google.com/mail/u/0/#label/SAM%3A+Signature+wanted) label making sure to mark the email as unread.
-2. The [Contracts and Compliance Engineer](https://fleetdm.com/handbook/digital-experience#team) will at-mention the Apprentice in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
-
-> If the agreement closes a deal, inform the CEO (via Slack DM) that a subscription agreement is ready for his review/signature. The SLA for CEO review and signature is 48hrs.
-
-3. Comment in the issue once the CEO has signed the agreement and assign the issue to [Nathan Holiday](https://fleetdm.com/handbook/digital-experience#team).
-
-
-### Troubleshoot signature automation
-
-We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
-When the final signature is added to an envelope in DocuSign, it is marked as completed and sent to Zapier, where it goes through these steps:
-1. Zapier sends the following information about the DocuSign envelope to our Hydroplane webhook:
-   - **`emailSubject`** - The subject of the envelope sent by DocuSign. Our DocuSign templates are configured to format the email subject as `[type of document] for [signer's name]`.
-   - **`emailCsv`** - A comma-separated list of signers' email addresses.
-2. The Hydroplane webhook matches the document type to the correct Google Drive folder, orders the list of signers, creates a timestamp, and sends that data back to Zapier as
-   - **`destinationFolderID`** - The slug for the Google Drive folder where we store this type of document.
-   - **`emailCsv`** - A sorted list of signers' email addresses.
-   - **`date`** - The date the document was completed in DocuSign, formatted YYYY-MM-DD.
-3. Zapier uses this information to upload the file to the matched Google Drive folder, with the filename formatted as `[date] - [emailSubject] - [emailCvs].PDF`.
-4. Once the file is uploaded, Zapier uses the Slack integration to post in the #help-classified channel with the message:
-   ```
-   Now complete with all signatures:
-      [email subject]
-      link: drive.google.com/[destinationFolderID]
-   ```
-
-### Send the weekly update
-
-We like to be open about milestones and announcements. Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. CT. Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
-    - A link to view KPIs
-    - Who was on-call that week
-    - Fleeties who are currently onboarding
-    - Planned hires who haven't started yet
-    - Fleeties that departed that week
-  
-  To send the weekly update follow these steps:  
-  
-1. Navigate to the current weeks row in the [KPIs Google Sheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
-2. Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and [document performance feedback](https://fleetdm.com/handbook/digital-experience#document-performance-feedback).
-3. Copy the entire formula in this weeks "Weekly update" update cell and paste without formating (CMD+⇧+V) back into the same cell. The formula will now look like this:
-
-<img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
-
-3. In the "Weekly update" column (column E) for that row, double-click into that cell and change the "⚡️" to "🔭" in the beginning of the formula.  
-4. Paste the newly formatted message in the [#general Slack channel](https://fleetdm.slack.com/archives/C019FNQPA23) and delete the double quotes around the message and any links that unfurl from links in the weekly update message.
-5. Use the drop-down next to the send button and select "Custom time" and schedule the message to send "Today" at 18:00 or 6pm CT.
-
+   
 
 ### Prepare for the All hands
 
@@ -723,10 +547,9 @@ We like to be open about milestones and announcements. Every Friday, e-group mem
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
 
-#### Share recording of all hands meeting
+### Share recording of all hands meeting
 
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
-
 Template to use:
 
 ```
@@ -818,20 +641,6 @@ Mike and the Fleet team
 5. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
 
 
-### Schedule press release
-
-Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. Use the following steps to schedule a press release:  
-
-1. Add context for the next press release to the [e-group agenda](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit) as a "DISCUSS:" to be reviewed by Fleet's executive team for alignment and finalization of date.
-2. Once a release date is set, at-mention our public relations firm in the [#help-public-relations-firm--mindshare-pr--brand-marketing](https://fleetdm.slack.com/archives/C04PC9H34LF) and schedule a 30m call for our CEO and to communicate the press release.
-
-> The above must be completed 6 weeks before the press release date. 
-
-3. Schedule a 1.5h discussion between the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) and the CEO to review the first draft linked as "Agenda: LINK" to the calendar event description.
-4. Schedule a 60m call with the CEO and public relations firm to review the first draft linked as above to the calendar event (first draft provided by the PR firm)
-5. Schedule 2.5 hrs of async time for the CEO work on edits and a 60m followup postgame (solo) where CEO edits and then settles+sends final release.
-
-
 ### Archive a document
 
 Follow these steps to archive any document:
@@ -843,16 +652,6 @@ Follow these steps to archive any document:
 3. Save this backup copy to the same location in Google Drive where the original is found.
 4. Link to the backup copy at the top of the original document. Be sure to use the full URL, no abbreviated pill links (e.g. "Notes from last time: URL_OF_MOST_RECENT_BACKUP_DOCUMENT").
 5. Delete all non-structural content from the original document, including past meeting notes and current answers to "evergreen" questions.
-
-
-<!-- ### Prepare for CEO office minutes !!!COMMENTING THIS OUT AS WE'VE DEPRIORITIZED THIS MEETING ON THE CEO's CALENDAR!!!
-
-Before the start of the meeting, the Apprentice will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true:
-1. All agenda items are prefixed with a date of when the item will be covered and name of the person requesting to discuss the issue.
-2. All team members with an agenda item have added themselves **and their manager** to the correct calendar event. If the team member or manager hasn't been added to the calendar event before the meeting begins, the agenda item is de-prioritized in favor of others with representatives in attendance. 
-3. If there are more that two team members attending, the Apprentice will work with the team members to schedule additional time to cover the agenda.  
-
-> If the manager is unable to attend the scheduled time of the meeting, the Apprentice will work with the team member to schedule an adhoc meeting between them, their manager, and the CEO. -->
 
 
 ### Process the CEO's inbox
@@ -926,7 +725,7 @@ To add the most recent connections from Linkedin to our CRM, follow these steps:
 Once a week, the Apprentice will review the "community activity report" and add the LinkedIn URLs into the campaign. This will send out a connection request to those who liked, shared, commented, etc. a post on LinkedIn. 
  1. Export the [community activity report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002j3wf2AA/view).
  2. Copy the LinkedIn URLs.
- 3. Paste the LinkedIn URLs [here](https://app.dripify.io/campaigns/1291030).
+ 3. Paste the LinkedIn URLs in the [appropriate Dripify campaign](https://app.dripify.io/campaigns/1291030).
 
  ![image](https://github.com/user-attachments/assets/dc20c4c2-9691-4e70-bb9c-90b725403571)
 
@@ -934,7 +733,7 @@ Once a week, the Apprentice will review the "community activity report" and add 
 
 ### Schedule travel for the CEO
 
-The Apprentice schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
+The Apprentice will verify daily that the CEO's calendar is accurate for any commitment or booked travel. The Apprentice is the DRI for scheduling all travel arrangements for the CEO, including flights, hotels, and reservations if needed. The CEO's traveling preferences in descending order of importance are:
   - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
   - Select a non-middle seat, whenever possible
   - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
@@ -942,6 +741,7 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
   - Default to carry-on only, no checked bags.  (For trips longer than 5 nights, add 1 checked bag.)
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
+  - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
 
 
 ### Schedule CEO interview
@@ -991,9 +791,14 @@ Use the following steps to confirm CEO shadow dates:
 > After the team member notifies the Head of Digital Experience (via Slack), the Head of DigExp will bring the dates to the next "🐈‍⬛🌪️ Roundup (~ceo)".
 
 
-### Check GitHub terms
+### Monitor compliance tests
 
-Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@latest/github/site-policy/github-terms-of-service) and search “inbound=outbound” to find the clause, if still there as is, paste a screenshot into the table in this [document](https://docs.google.com/document/d/101rcp9v3Zdml4YolGRmqYS5ruAKzQvXLOTHLXCavPuE/edit#heading=h.xu6qsi0wrns). If the clause has changed, contact Mike M. and let him know. 
+1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
+2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
+3. Click on a test, then click on "Tasks".  
+4. Click on "Create task." Then, "Create GitHub issue."
+5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the "#g-digital-experience" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, Fleet's CTO, or the Head of Digital Experience. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date. 
 
 
 ## Rituals

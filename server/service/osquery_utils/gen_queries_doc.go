@@ -25,10 +25,13 @@ func main() {
 				EnableScheduledQueryStats: true,
 			},
 		},
-		&fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}},
+		&fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}},
 		&fleet.Features{
 			EnableSoftwareInventory: true,
 			EnableHostUsers:         true,
+		},
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: true,
 		},
 	)
 	var b strings.Builder
@@ -70,7 +73,11 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 		if q.detailQuery.Discovery != "" {
 			fmt.Fprintf(&b, "- Discovery query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Discovery))
 		}
-		fmt.Fprintf(&b, "- Query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Query))
+		if q.detailQuery.Query != "" {
+			fmt.Fprintf(&b, "- Query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Query))
+		} else if q.detailQuery.QueryFunc != nil {
+			fmt.Fprintf(&b, "- Query:\n```\n<dynamically generated>\n```\n\n")
+		}
 	}
 
 	// Footnotes

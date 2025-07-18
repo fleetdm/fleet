@@ -1,3 +1,35 @@
+## Orbit 1.45.1 (Jul 14th, 2025)
+
+* Added feature for showing an informational message on Fleet Desktop if the host cannot connect to Fleet.
+
+* Added new flag `--fleet-certificate` to `sudo orbit shell` command (which sets osquery's `--tls_server_certs` flag).
+
+* Fixed issue with macOS MDM migration where fleetd did not fallback to parsing the `ConfigurationURL` when `ConfigurationWebURL` was not set in the MDM enrollment profile.
+
+* Added the `macos_user_profiles` osquery extension table on darwin.
+
+* Fixed an issue where Orbit would attempt to launch Fleet Desktop on Linux systems without a logged-in GUI user.
+
+## Orbit 1.44.0 (Jun 26, 2025)
+
+* Added `app_sso_platform` table to get Platform SSO extensions state information.
+
+* Updated go to 1.24.4
+
+## Orbit 1.43.0 (Jun 10, 2025)
+
+* Fixed an issue where the setup experience window would never finish and close if a software installer was deleted while it was running.
+
+* Add `containerd_containers` table on Linux.
+
+* Revised "Migrate to Fleet" link anchor text.
+
+* Added two new Linux tables:
+  * `lsblk`: populated from the output of running `lsblk -n -O`.
+  * `cryptsetup_luks_salt`: given a device path it returns all the key_slots and salts of said device.
+
+* Added new column `cdhash_sha256` to `codesign` table.
+
 ## Orbit 1.42.0 (May 15, 2025)
 
 * Made the macOS Setup Experience dialog more reliable by preventing system sleep while it is shown, changing the key combo to cmd+shift+x to exit, keeping it on top of all other windows and making sure it closes once it completes.

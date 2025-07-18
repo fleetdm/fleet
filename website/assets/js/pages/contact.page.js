@@ -70,6 +70,10 @@ parasails.registerPage('contact', {
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
       this.psychologicalStage = this.me.psychologicalStage;
     }
+
+    if (window.location.hash === '#message') {// prefill from URL bar
+      this.formToDisplay = 'contact';
+    }
   },
   mounted: async function() {
     //…
@@ -105,7 +109,7 @@ parasails.registerPage('contact', {
       if(typeof analytics !== 'undefined'){
         analytics.track('fleet_website__contact_forms');
       }
-      if(this.formData.numberOfHosts > 300){
+      if(this.formData.numberOfHosts >= 700){
         this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);
       } else {
         this.goto(`https://calendly.com/fleetdm/chat?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);

@@ -83,11 +83,17 @@ interface IHostActionConfigOptions {
   doesStoreEncryptionKey: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
+  isPrimoMode: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
-  const { isPremiumTier, isGlobalAdmin, isGlobalMaintainer } = config;
-  return isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
+  const {
+    isPremiumTier,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isPrimoMode,
+  } = config;
+  return isPremiumTier && (isGlobalAdmin || isGlobalMaintainer) && !isPrimoMode;
 };
 
 const canTurnOffMdm = (config: IHostActionConfigOptions) => {
@@ -299,8 +305,6 @@ export const getDropdownOptionTooltipContent = (
     wipe: "wipe",
     lock: "lock",
     unlock: "unlock",
-    installSoftware: "install software on", // Host software dropdown option
-    uninstallSoftware: "uninstall software on", // Host software dropdown option
   };
   if (tooltipAction[value]) {
     return (

@@ -1,21 +1,21 @@
 {
   "versions": [
     {
-      "version": "25.2.664.0",
+      "version": "25.5.893.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND publisher = 'Cloudflare, Inc.';"
       },
-      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.2.664.0",
+      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.5.893.0",
       "install_script_ref": "8959087b",
-      "uninstall_script_ref": "d3c95af7",
-      "sha256": "abadabc597ec33ade211d161936cb17d0e7fd50f43208d23ac29b4f77fd8a855",
+      "uninstall_script_ref": "1d523e72",
+      "sha256": "ff77a76288adf412e819614795476b9b834b79e5a036aaa554c6e2eabd45c623",
       "default_categories": [
         "Productivity"
       ]
     }
   ],
   "refs": {
-    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
-    "d3c95af7": "$product_code = \"{4A67FBB8-472C-4AF1-AADA-570FABC9A0E8}\"\n\n# Fleet uninstalls app using product code that's extracted on upload\nmsiexec /quiet /x $product_code\nExit $LASTEXITCODE\n"
+    "1d523e72": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\nforeach ($product_code in $inst.RelatedProducts('{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}')) {\n    msiexec /quiet /x $product_code\n}\n\nExit $LASTEXITCODE\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
   }
 }

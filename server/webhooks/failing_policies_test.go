@@ -100,7 +100,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		}
 		return SendFailingPoliciesBatchedPOSTs(
 			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, kitlog.NewNopLogger())
-	})
+	}, false)
 	require.NoError(t, err)
 	timestamp, err := mockClock.MarshalJSON()
 	require.NoError(t, err)
@@ -125,7 +125,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "failing_host_count": 2,
         "host_count_updated_at": null,
 		"critical": true,
-		"calendar_events_enabled": false
+		"calendar_events_enabled": false,
+		"conditional_access_enabled": false
     },
     "hosts": [
         {
@@ -156,7 +157,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		}
 		return SendFailingPoliciesBatchedPOSTs(
 			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, kitlog.NewNopLogger())
-	})
+	}, false)
 	require.NoError(t, err)
 	assert.Empty(t, requestBody)
 }
@@ -284,7 +285,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		}
 		return SendFailingPoliciesBatchedPOSTs(
 			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, kitlog.NewNopLogger())
-	})
+	}, false)
 	require.NoError(t, err)
 
 	timestamp, err := now.MarshalJSON()
@@ -312,7 +313,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "failing_host_count": 1,
         "host_count_updated_at": null,
 		"critical": false,
-		"calendar_events_enabled": true
+		"calendar_events_enabled": true,
+		"conditional_access_enabled": false
     },
     "hosts": [
         {
@@ -337,7 +339,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		}
 		return SendFailingPoliciesBatchedPOSTs(
 			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, kitlog.NewNopLogger())
-	})
+	}, false)
 	require.NoError(t, err)
 	assert.Empty(t, webhookBody)
 }

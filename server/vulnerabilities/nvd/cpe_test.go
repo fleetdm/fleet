@@ -492,18 +492,18 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
-	}{ /*
-			{ // See #29570
-					software: fleet.Software{
-						Name:             "Adobe Acrobat Reader DC.app",
-						Source:           "apps",
-						Version:          "22.002.20191",
-						Vendor:           "",
-						BundleIdentifier: "com.adobe.Reader",
-					},
-					cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
-				},
-		*/{
+	}{
+		{
+			software: fleet.Software{
+				Name:             "Adobe Acrobat Reader DC.app",
+				Source:           "apps",
+				Version:          "22.002.20191",
+				Vendor:           "",
+				BundleIdentifier: "com.adobe.Reader",
+			},
+			cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
+		},
+		{
 			software: fleet.Software{
 				Name:             "Adobe Lightroom.app",
 				Source:           "apps",
@@ -1257,16 +1257,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:python:setuptools:63.2.0:*:*:*:*:python:*:*",
 		},
-		// FIXME: https://github.com/fleetdm/fleet/issues/28490
-		// {
-		// 	software: fleet.Software{
-		// 		Name:             "urllib3",
-		// 		Source:           "python_packages",
-		// 		Version:          "1.26.5",
-		// 		Vendor:           "",
-		// 		BundleIdentifier: "",
-		// 	}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
-		// },
+		{
+			software: fleet.Software{
+				Name:             "urllib3",
+				Source:           "python_packages",
+				Version:          "1.26.5",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "UTM.app",
@@ -1742,6 +1741,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "",
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "vault",
+				Source:           "homebrew_packages",
+				Version:          "1.4.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:hashicorp:vault:1.4.0:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{

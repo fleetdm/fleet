@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.44.209",
+      "version": "2.45.187",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.';"
       },
-      "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.44.209.msi",
+      "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.45.187.msi",
       "install_script_ref": "8959087b",
-      "uninstall_script_ref": "de1e8a93",
-      "sha256": "d52c46b8b1c3ee383f712c1e1672eccde790bf8a3cf52d28440be89220924a1b",
+      "uninstall_script_ref": "eeaecda2",
+      "sha256": "7c3bce4aa53e99fd153542aef4d17beba2a54b4d3d67fdfd260c53cf6f0fbc14",
       "default_categories": [
         "Productivity"
       ]
@@ -16,6 +16,6 @@
   ],
   "refs": {
     "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
-    "de1e8a93": "$product_code = \"{4C462062-5BE1-4757-9796-73C3A2D942E1}\"\n\n# Fleet uninstalls app using product code that's extracted on upload\nmsiexec /quiet /x $product_code\nExit $LASTEXITCODE\n"
+    "eeaecda2": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\nforeach ($product_code in $inst.RelatedProducts('{46AF5B38-D258-487A-92BD-792911248CCD}')) {\n    msiexec /quiet /x $product_code\n}\n\nExit $LASTEXITCODE\n"
   }
 }

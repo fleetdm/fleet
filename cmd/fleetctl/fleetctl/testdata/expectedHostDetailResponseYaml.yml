@@ -38,6 +38,7 @@ spec:
     dep_profile_error: false
     device_status: unlocked
     encryption_key_available: false
+    encryption_key_archived: false
     enrollment_status: null
     name: ""
     pending_action: ""
@@ -68,6 +69,7 @@ spec:
       updated_at: "0001-01-01T00:00:00Z"
       critical: false
       calendar_events_enabled: true
+      conditional_access_enabled: false
     - author_email: "alice@example.com"
       author_id: 1
       author_name: Alice
@@ -82,6 +84,7 @@ spec:
       updated_at: "0001-01-01T00:00:00Z"
       critical: false
       calendar_events_enabled: false
+      conditional_access_enabled: false
   policy_updated_at: "0001-01-01T00:00:00Z"
   public_ip: ""
   primary_ip: ""

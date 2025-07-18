@@ -159,6 +159,11 @@ func gitopsCommand() *cli.Command {
 				}
 			}
 
+			// fail if scripts are supplied on no-team and global config is missing
+			if noTeamPresent && !globalConfigLoaded {
+				return errors.New("global config must be provided alongside no-team.yml")
+			}
+
 			for _, configFile := range configs {
 				config := configFile.Config
 				flFilename := configFile.Filename

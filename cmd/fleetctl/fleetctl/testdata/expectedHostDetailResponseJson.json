@@ -47,6 +47,7 @@
       "dep_profile_error": false,
       "device_status": "unlocked",
       "encryption_key_available": false,
+      "encryption_key_archived": false,
       "enrollment_status": null,
       "name": "",
       "pending_action": "",
@@ -83,7 +84,8 @@
         "updated_at": "0001-01-01T00:00:00Z",
         "created_at": "0001-01-01T00:00:00Z",
         "critical": false,
-        "calendar_events_enabled": true
+        "calendar_events_enabled": true,
+        "conditional_access_enabled": false
       },
       {
         "id": 2,
@@ -99,7 +101,8 @@
         "updated_at": "0001-01-01T00:00:00Z",
         "created_at": "0001-01-01T00:00:00Z",
         "critical": false,
-        "calendar_events_enabled": false
+        "calendar_events_enabled": false,
+        "conditional_access_enabled": false
       }
     ],
     "status": "offline",

@@ -27,7 +27,6 @@ windows_updates:
 windows_enabled_and_configured: true
 windows_migration_enabled: true
 enable_disk_encryption: true
-macos_setup: "TODO: update with your macos_setup configuration"
 macos_migration: # Available in Fleet Premium
   enable: true
   mode: voluntary

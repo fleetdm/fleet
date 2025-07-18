@@ -13,6 +13,11 @@ import { find, isEmpty, isEqual, omit } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
+import scriptsAPI, {
+  IScriptBatchSummaryQueryKey,
+  IScriptBatchSummaryResponse,
+  ScriptBatchExecutionStatus,
+} from "services/entities/scripts";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
@@ -68,6 +73,7 @@ import {
 
 import sortUtils from "utilities/sort";
 import {
+  DEFAULT_USE_QUERY_OPTIONS,
   HOSTS_SEARCH_BOX_PLACEHOLDER,
   HOSTS_SEARCH_BOX_TOOLTIP,
   MAX_SCRIPT_BATCH_TARGETS,
@@ -161,9 +167,15 @@ const ManageHostsPage = ({
     setFilteredQueriesPath,
     setFilteredSoftwarePath,
   } = useContext(AppContext);
+  const isPrimoMode = config?.partnerships?.enable_primo;
   const { renderFlash } = useContext(NotificationContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
+
+  const shouldStripScriptBatchExecParamOnTeamChange = (
+    newTeamId?: number,
+    curTeamId?: number
+  ) => newTeamId !== curTeamId;
 
   const {
     currentTeamId,
@@ -186,6 +198,9 @@ const ManageHostsPage = ({
       // remove the software status filter when selecting All teams
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
         newTeamId === API_ALL_TEAMS_ID,
+      // remove batch script summary results filters on team change
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripScriptBatchExecParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripScriptBatchExecParamOnTeamChange,
     },
   });
 
@@ -289,6 +304,11 @@ const ManageHostsPage = ({
     queryParams?.bootstrap_package;
   const configProfileStatus = queryParams?.profile_status;
   const configProfileUUID = queryParams?.profile_uuid;
+  const scriptBatchExecutionId =
+    queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID];
+  const scriptBatchExecutionStatus: ScriptBatchExecutionStatus =
+    queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
+    (scriptBatchExecutionId ? "ran" : undefined);
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -324,7 +344,11 @@ const ManageHostsPage = ({
   //   missingHosts ||
   //   osSettingsStatus ||
   //   diskEncryptionStatus ||
-  //   vulnerability
+  //   vulnerability ||
+  // scriptBatchExecutionId ||
+  // scriptBatchExecutionStatus
+  // configProfileStatus ||
+  // configProfileUUID
 
   const runScriptBatchFilterNotSupported = !!(
     // all above, except acceptable filters
@@ -358,7 +382,11 @@ const ManageHostsPage = ({
       missingHosts ||
       osSettingsStatus ||
       diskEncryptionStatus ||
-      vulnerability
+      vulnerability ||
+      scriptBatchExecutionId ||
+      scriptBatchExecutionStatus ||
+      configProfileStatus ||
+      configProfileUUID
     )
   );
 
@@ -440,6 +468,30 @@ const ManageHostsPage = ({
   );
 
   const {
+    data: scriptBatchSummary,
+    isLoading: isLoadingScriptBatchSummary,
+    isError: isErrorScriptBatchSummary,
+  } = useQuery<
+    IScriptBatchSummaryResponse,
+    Error,
+    IScriptBatchSummaryResponse,
+    IScriptBatchSummaryQueryKey[]
+  >(
+    [
+      {
+        scope: "script_batch_summary",
+        batch_execution_id: scriptBatchExecutionId,
+      },
+    ],
+    ({ queryKey: [{ batch_execution_id }] }) =>
+      scriptsAPI.getRunScriptBatchSummary({ batch_execution_id }),
+    {
+      enabled: !!scriptBatchExecutionId && isRouteOk,
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
+
+  const {
     data: configProfile,
     isLoading: isLoadingConfigProfile,
     error: errorConfigProfile,
@@ -448,7 +500,6 @@ const ManageHostsPage = ({
     () => configProfileAPI.getConfigProfile(configProfileUUID),
     {
       enabled: isRouteOk && !!configProfileUUID,
-      // select: (data) => data.policy,
     }
   );
 
@@ -508,6 +559,8 @@ const ManageHostsPage = ({
         macSettingsStatus,
         configProfileStatus,
         configProfileUUID,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -551,6 +604,8 @@ const ManageHostsPage = ({
         macSettingsStatus,
         configProfileStatus,
         configProfileUUID,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
       },
     ],
     ({ queryKey }) => hostCountAPI.load(queryKey[0]),
@@ -591,7 +646,11 @@ const ManageHostsPage = ({
   };
 
   const hasErrors =
-    !!errorHosts || !!errorHostsCount || !!errorPolicy || !!errorConfigProfile;
+    !!errorHosts ||
+    !!errorHostsCount ||
+    !!errorPolicy ||
+    !!errorConfigProfile ||
+    isErrorScriptBatchSummary;
 
   const toggleDeleteSecretModal = () => {
     // open and closes delete modal
@@ -862,6 +921,23 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleChangeScriptBatchStatusFilter = (
+    newStatus: ScriptBatchExecutionStatus
+  ) => {
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: {
+          ...queryParams,
+          [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: newStatus,
+          page: 0, // resets page index
+        },
+      })
+    );
+  };
+
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
       const path = PATHS.HOST_DETAILS(row.original.id);
@@ -1002,6 +1078,13 @@ const ManageHostsPage = ({
       } else if (configProfileStatus && configProfileUUID) {
         newQueryParams.profile_status = configProfileStatus;
         newQueryParams.profile_uuid = configProfileUUID;
+      } else if (scriptBatchExecutionStatus && scriptBatchExecutionId) {
+        newQueryParams[
+          HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS
+        ] = scriptBatchExecutionStatus;
+        newQueryParams[
+          HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID
+        ] = scriptBatchExecutionId;
       }
 
       router.replace(
@@ -1041,6 +1124,8 @@ const ManageHostsPage = ({
       bootstrapPackageStatus,
       configProfileStatus,
       configProfileUUID,
+      scriptBatchExecutionStatus,
+      scriptBatchExecutionId,
       router,
       routeTemplate,
       routeParams,
@@ -1356,7 +1441,8 @@ const ManageHostsPage = ({
 
   const renderEnrollSecretModal = () => (
     <EnrollSecretModal
-      selectedTeam={teamIdForApi || 0}
+      selectedTeamId={teamIdForApi || 0}
+      primoMode={isPrimoMode || false}
       teams={teams || []}
       onReturnToApp={() => setShowEnrollSecretModal(false)}
       toggleSecretEditorModal={toggleSecretEditorModal}
@@ -1419,7 +1505,7 @@ const ManageHostsPage = ({
   );
 
   const renderHeaderContent = () => {
-    if (isPremiumTier && !config?.partnerships?.enable_primo && userTeams) {
+    if (isPremiumTier && !isPrimoMode && userTeams) {
       if (userTeams.length > 1 || isOnGlobalTeam) {
         return (
           <TeamsDropdown
@@ -1498,6 +1584,8 @@ const ManageHostsPage = ({
       visibleColumns,
       configProfileUUID,
       configProfileStatus,
+      scriptBatchExecutionStatus,
+      scriptBatchExecutionId,
     };
 
     options = {
@@ -1678,7 +1766,10 @@ const ManageHostsPage = ({
         buttonText: "Transfer",
         variant: "text-icon",
         iconSvg: "transfer",
-        hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
+        hideButton:
+          !isPremiumTier ||
+          (!isGlobalAdmin && !isGlobalMaintainer) ||
+          isPrimoMode,
       },
     ];
 
@@ -1734,7 +1825,8 @@ const ManageHostsPage = ({
           isLoadingHosts ||
           isLoadingHostsCount ||
           isLoadingPolicy ||
-          isLoadingConfigProfile
+          isLoadingConfigProfile ||
+          isLoadingScriptBatchSummary
         }
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
@@ -1874,6 +1966,10 @@ const ManageHostsPage = ({
               configProfileStatus,
               configProfileUUID,
               configProfile,
+              scriptBatchExecutionStatus,
+              scriptBatchExecutionId,
+              scriptBatchRanAt: scriptBatchSummary?.created_at || null,
+              scriptBatchScriptName: scriptBatchSummary?.script_name || null,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}
@@ -1892,6 +1988,9 @@ const ManageHostsPage = ({
               handleSoftwareInstallStatusChange
             }
             onChangeConfigProfileStatusFilter={handleConfigProfileStatusChange}
+            onChangeScriptBatchStatusFilter={
+              handleChangeScriptBatchStatusFilter
+            }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
           />
@@ -1912,18 +2011,19 @@ const ManageHostsPage = ({
         totalFilteredHostsCount !== undefined && (
           <RunScriptBatchModal
             runByFilters={isAllMatchingHostsSelected}
-            // run script batch supports only these filters, plust team id
+            // run script batch supports only these filters, plus team id
             filters={{
               query: searchQuery || undefined,
               label_id: isNaN(Number(labelID)) ? undefined : Number(labelID),
               status: status || undefined,
             }}
-            // when running by filter, modal needs this count to report number of targeted hosts
+            // when running by filter, modal needs this count to report the number of targeted hosts
             totalFilteredHostsCount={totalFilteredHostsCount}
-            // when running by selected hosts, modal can use length of this array to report number of targeted
+            // when running by selected hosts, modal can use the length of this array to report the number of targeted
             // hosts
             selectedHostIds={selectedHostIds}
             teamId={currentTeamId}
+            isFreeTier={isFreeTier}
             onCancel={toggleRunScriptBatchModal}
           />
         )}

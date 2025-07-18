@@ -43,6 +43,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-14 16:30:01
 
+### [CVE-2025-22874](https://nvd.nist.gov/vuln/detail/CVE-2025-22874)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet does not perform any verification of policies in client certificates (CertificatePolicies not set in VerifyOptions).
+- **Products:**: `fleet`,`pkg:golang/stdlib@1.24.2`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-06-23 16:48:42
+
 ### [CVE-2025-21614](https://nvd.nist.gov/vuln/detail/CVE-2025-21614)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -85,11 +93,35 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleetctl` docker image
 
+### [CVE-2025-49796](https://nvd.nist.gov/vuln/detail/CVE-2025-49796)
+- **Author:** @sgress454
+- **Status:** `not_affected`
+- **Status notes:** The affected dependency (libxml2) is not utilized by fleetctl itself, but by Apple’s iTMSTransporter tool, which is included in the Docker image for code signing purposes. fleetctl does not process untrusted XML input. Additionally, this CVE describes a denial-of-service (DoS) vulnerability, and fleetctl is a CLI tool, not a long-running service, and therefore is not susceptible to DoS-style exploitation.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libxml2@2.9.14+dfsg-1.3~deb12u1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-06-13 15:57:38
+
+### [CVE-2025-49795](https://nvd.nist.gov/vuln/detail/CVE-2025-49795)
+- **Author:** @sgress454
+- **Status:** `not_affected`
+- **Status notes:** The affected dependency (libxml2) is not utilized by fleetctl itself, but by Apple’s iTMSTransporter tool, which is included in the Docker image for code signing purposes. fleetctl does not process untrusted XML input. Additionally, this CVE describes a denial-of-service (DoS) vulnerability, and fleetctl is a CLI tool, not a long-running service, and therefore is not susceptible to DoS-style exploitation.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libxml2@2.9.14+dfsg-1.3~deb12u1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-06-13 15:57:25
+
+### [CVE-2025-49794](https://nvd.nist.gov/vuln/detail/CVE-2025-49794)
+- **Author:** @sgress454
+- **Status:** `not_affected`
+- **Status notes:** The affected dependency (libxml2) is not utilized by fleetctl itself, but by Apple’s iTMSTransporter tool, which is included in the Docker image for code signing purposes. fleetctl does not process untrusted XML input. Additionally, this CVE describes a denial-of-service (DoS) vulnerability, and fleetctl is a CLI tool, not a long-running service, and therefore is not susceptible to DoS-style exploitation.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libxml2@2.9.14+dfsg-1.3~deb12u1`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-06-13 15:56:50
+
 ### [CVE-2025-48734](https://nvd.nist.gov/vuln/detail/CVE-2025-48734)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** The fleetctl tool is used by IT admins to generate packages so the vulnerable code cannot be controlled by attackers.
-- **Products:**: `fleetctl`,`pkg:golang/github.com/goreleaser/nfpm/v2`
+- **Products:**: `fleetctl`,`pkg:maven/commons-beanutils/commons-beanutils`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2025-06-02 07:33:44
 

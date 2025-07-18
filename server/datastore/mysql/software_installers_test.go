@@ -48,6 +48,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersSetupExperienceSideEffects", testBatchSetSoftwareInstallersSetupExperienceSideEffects},
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
+		{"SaveInstallerUpdatesClearsFleetMaintainedAppID", testSaveInstallerUpdatesClearsFleetMaintainedAppID},
 	}
 
 	for _, c := range cases {
@@ -772,7 +773,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	// create a couple hosts
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID, host2.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID, host2.ID}))
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
@@ -1193,7 +1194,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 
 	// create a host
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID}))
 	host1.TeamID = &team.ID
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -2221,7 +2222,7 @@ func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) 
 		if len(c.payload) > 0 {
 			// create pending install requests for each updated installer, to see if
 			// it cancels it or not as expected.
-			err := ds.AddHostsToTeam(ctx, teamID, []uint{host.ID})
+			err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{host.ID}))
 			require.NoError(t, err)
 			for i, payload := range c.payload {
 				if payload.ShouldCancelPending != nil {
@@ -2424,6 +2425,18 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
+
+	// check upgrade code handling
+	msiPackagesWithNoUpgradeCode, err := ds.GetMSIInstallersWithoutUpgradeCode(ctx)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]string{installerID2: "storage2"}, msiPackagesWithNoUpgradeCode)
+	require.NoError(t, ds.UpdateInstallerUpgradeCode(ctx, installerID2, "upgradecode"))
+	msiPackagesWithNoUpgradeCode, err = ds.GetMSIInstallersWithoutUpgradeCode(ctx)
+	require.NoError(t, err)
+	require.Empty(t, msiPackagesWithNoUpgradeCode)
+	msiThatShouldHaveUpgradeCode, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID2)
+	require.NoError(t, err)
+	require.Equal(t, "upgradecode", msiThatShouldHaveUpgradeCode.UpgradeCode)
 
 	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -3087,4 +3100,64 @@ func testBatchSetSoftwareInstallersActivateNextActivity(t *testing.T, ds *Datast
 	checkUpcomingActivities(t, ds, host1, host1Script.ExecutionID)
 	checkUpcomingActivities(t, ds, host2, host2Script.ExecutionID)
 	checkUpcomingActivities(t, ds, host3)
+}
+
+func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+
+	// Create a maintained app
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	// Create an installer with a non-NULL fleet_maintained_app_id
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "testpkg",
+		Source:               "apps",
+		InstallScript:        "echo install",
+		PreInstallQuery:      "SELECT 1",
+		UninstallScript:      "echo uninstall",
+		InstallerFile:        tfr,
+		StorageID:            "storageid1",
+		Filename:             "test.pkg",
+		Version:              "1.0",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: ptr.Uint(maintainedApp.ID),
+	})
+	require.NoError(t, err)
+
+	// Prepare update payload with a new installer file (should clear FMA id)
+	installScript := "echo install updated"
+	uninstallScript := "echo uninstall updated"
+	preInstallQuery := "SELECT 2"
+	selfService := true
+	payload := &fleet.UpdateSoftwareInstallerPayload{
+		InstallerID:     installerID,
+		StorageID:       "storageid2", // different storage id
+		Filename:        "test2.pkg",
+		Version:         "2.0",
+		PackageIDs:      []string{"com.test.pkg"},
+		InstallScript:   &installScript,
+		UninstallScript: &uninstallScript,
+		PreInstallQuery: &preInstallQuery,
+		SelfService:     &selfService,
+		InstallerFile:   tfr, // triggers clearing
+		UserID:          user.ID,
+	}
+
+	require.NoError(t, ds.SaveInstallerUpdates(ctx, payload))
+
+	// Assert that fleet_maintained_app_id is now NULL
+	var fmaID *uint
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &fmaID, `SELECT fleet_maintained_app_id FROM software_installers WHERE id = ?`, installerID)
+	require.NoError(t, err)
+	assert.Nil(t, fmaID, "fleet_maintained_app_id should be NULL after update")
 }

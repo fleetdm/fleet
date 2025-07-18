@@ -30,6 +30,7 @@ import (
 	"io"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -462,6 +463,11 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 		packageIDs = append(packageIDs, identifier)
 	}
 
+	// Sorting package IDs to ensure consistent order
+	// Ex: the uninstall_pkg.sh uses this slice and we want it to
+	// remain consistent/deterministic across generations
+	sort.Strings(packageIDs)
+
 	// for the name, try to use the title and fallback to the bundle
 	// identifier
 	if name == "" && d.Title != "" {
@@ -565,6 +571,12 @@ func getPackageInfo(p *packageInfoXML) (name string, identifier string, version 
 		identifier = fleet.Preprocess(p.Identifier)
 	}
 
+	// if we didn't find a name and the install path looks like a .app, try using that
+	if name == "" && strings.HasSuffix(p.InstallLocation, ".app") {
+		pathParts := strings.Split(p.InstallLocation, "/")
+		name = strings.TrimSuffix(pathParts[len(pathParts)-1], ".app")
+	}
+
 	// if we didn't find a name, grab the name from the identifier
 	if name == "" {
 		idParts := strings.Split(identifier, ".")
@@ -577,6 +589,11 @@ func getPackageInfo(p *packageInfoXML) (name string, identifier string, version 
 	if len(packageIDs) == 0 && identifier != "" {
 		packageIDs = append(packageIDs, identifier)
 	}
+
+	// Sorting package IDs to ensure consistent order
+	// Ex: the uninstall_pkg.sh uses this slice and we want it to
+	// remain consistent/deterministic across generations
+	sort.Strings(packageIDs)
 
 	return name, identifier, version, packageIDs
 }

@@ -266,3 +266,19 @@
   quoteAuthorJobTitle: Redditor
   quoteAuthorProfileImageFilename: testimonial-author-redditor-48x48@2x.png  
   productCategories: [Device management]
+-
+  quote: We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying. Fleet gives me the peace of mind knowing that our Linux Fleet is properly managed, monitored, and secure.
+  quoteImageFilename: logo-nutanix-140x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/roger-cantrell-964580130/
+  quoteAuthorName: Roger Cantrell
+  quoteAuthorJobTitle: IT Operations Engineer
+  quoteAuthorProfileImageFilename: testimonial-author-roger-cantrell-100x100@2x.png 
+  productCategories: [Device management]
+-
+  quote: The POC actually went really well for us. Within the first couple of days I was already on-board and ready to go. I knew it was the solution for us and didn't need to look at anything else [for Linux MDM].
+  quoteImageFilename: logo-northwestern-162x20@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/chotipradit/
+  quoteAuthorName: Philip Chotipradit
+  quoteAuthorJobTitle: System Administrator - Endpoint Engineering
+  quoteAuthorProfileImageFilename: testimonial-author-philip-chotipradit-100x100@2x.png
+  productCategories: [Device management]

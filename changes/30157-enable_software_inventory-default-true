@@ -1,0 +1,1 @@
+- Changed enable_software_inventory to default to true if missing from gitops config

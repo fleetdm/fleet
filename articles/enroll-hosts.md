@@ -133,7 +133,7 @@ How to unenroll a host from Fleet:
 
 2. For macOS hosts with MDM turned on, select **Actions > Turn off MDM** to turn MDM off. Instructions for turning off MDM on Windows hosts coming soon.
 
-3. Determine the platform of the host you're trying to unenroll and follow the instructions to uninstall the fleetd agent [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
+3. Determine the platform of the host you're trying to unenroll, then follow the [uninstall instructions](https://fleetdm.com/guides/how-to-uninstall-fleetd) for that platform.
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
@@ -266,9 +266,13 @@ You can then look for `orbit` or `osquery` to narrow down results.
 
 `Applies only to Fleet Premium`
 
-Fleetd supports using TLS client certificates for authentication to the Fleet server and [TUF](https://theupdateframework.io/) server.
+Fleet's agent (fleetd) and the fleetd Chrome browser extension support mTLS.
 
-When generating the packages, use the following flags:
+#### Fleetd agent
+
+The fleetd agent supports using TLS client certificates for authentication to the Fleet server and [TUF](https://theupdateframework.io/) server.
+
+When generating fleetd, use the following flags:
 ```sh
 fleetctl package \
   [...]
@@ -302,6 +306,10 @@ fleetctl package
   [...]
 ```
 If this setting is not used, you will need to configure client TLS certificates on devices' browsers.
+
+#### fleetd Chrome browswer extension
+
+To use mTLS use the [AutoSelectCertificateForUrls policy](https://chromeenterprise.google/policies/?policy=AutoSelectCertificateForUrls) to point Chrome to your client certificates
 
 ### Specifying update channels
 
@@ -362,8 +370,7 @@ When generating Fleet's agent (fleetd) for Windows hosts (**.msi**) on a Windows
 use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
 `light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
 so:
-  1. Install the WiX v3 binaries. To install, you can download them
-     [here](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip), then unzip the downloaded file.
+  1. Download the [WiX v3 binaries](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip), then unzip the downloaded file.
   2. Find the absolute filepath of the directory containing your local WiX v3 binaries. This will be wherever you saved the unzipped package contents.
   3. Run `fleetctl package`, and pass the absolute path above as the string argument to the
      `--local-wix-dir` flag. For example:
@@ -372,7 +379,7 @@ so:
      ```
      If the provided path doesn't contain all 3 binaries, the command will fail.
 
->**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. To install Wine see the script [here](https://fleetdm.com/install-wine).
+>**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. We've built a [Wine installation script](https://fleetdm.com/install-wine) to help you get it.
 
 ### Config-less fleetd agent deployment
 

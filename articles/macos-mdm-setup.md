@@ -62,7 +62,7 @@ Hosts that automatically enroll will be assigned to a default team. You can conf
 
 > Available in Fleet Premium
 
-To connect Fleet to Apple's VPP, head to the guide [here](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet).
+To connect Fleet to Apple's VPP, follow the instructions in our [VPP guide](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#prerequisites).
 
 ## Best practice
 
@@ -103,7 +103,12 @@ The acquisitions's VPP token will be assigned to the above teams.
 
 ## Simple Certificate Enrollment Protocol (SCEP)
 
-Fleet uses SCEP certificates (1 year expiry) to authenticate the requests hosts make to Fleet. Fleet renews each host's SCEP certificates automatically every 180 days.
+Fleet uses SCEP certificates (1 year expiry) to authenticate the requests hosts make to Fleet. Fleet
+renews each host's SCEP certificates automatically every 180 days.
+
+## Troubleshooting failed enrollments
+
+If a host is turned off due to user action or a low battery during the Setup Assistant, it may fail to enroll. This can also happen if your Fleet instance is down for maintenance when a host tries to enroll automatically during the Setup Assistant. In these cases, hosts usually restart after the user attempts to get past the “Welcome to Mac" screen. The best practice in this situation is to wipe the host with Fleet if it has network connectivity or to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">

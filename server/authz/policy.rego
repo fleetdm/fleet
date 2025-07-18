@@ -906,6 +906,20 @@ allow {
   action == write
 }
 
+# Global admins can read, write, and list MDM apple eula information.
+allow {
+  object.type == "mdm_apple_eula"
+  subject.global_role == admin
+  action == [read, write, list][_]
+}
+
+# Global gitops can read and write the EULA.
+allow {
+  object.type == "mdm_apple_eula"
+  subject.global_role == gitops
+  action == [read, write][_]
+}
+
 ##
 # MDM Apple Setup Assistant
 ##
@@ -1070,4 +1084,14 @@ allow {
   object.type == "scim_user"
   subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
+}
+
+##
+# Microsoft Compliance Partner
+##
+# Global admins can configure Microsoft conditional access.
+allow {
+  object.type == "conditional_access_microsoft"
+  subject.global_role == admin
+  action == write
 }

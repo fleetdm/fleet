@@ -479,8 +479,12 @@ func testGetMaintainedAppBySlug(t *testing.T, ds *Datastore) {
 		Platform:         string(fleet.MacOSPlatform),
 		BundleIdentifier: maintainedApp.UniqueIdentifier,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		URL:              "https://example.com/maintained-app-team1.pkg",
 	})
 	require.NoError(t, err)
+	installer1, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team1.ID, titleId1, false)
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/maintained-app-team1.pkg", installer1.URL)
 
 	// maintained app 2
 	maintainedApp2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{

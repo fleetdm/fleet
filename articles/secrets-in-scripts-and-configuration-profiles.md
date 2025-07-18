@@ -1,4 +1,4 @@
-# Hide secrets in scripts in configuration profiles
+# Hide secrets in scripts and configuration profiles
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/VRK-3rN7-aY" frameborder="0" allowfullscreen></iframe>
@@ -88,7 +88,7 @@ The dollar sign (`$`) can be escaped so it's not considered a variable by using 
 - There is no way to explicitly delete a secret variable. Instead, you can overwrite it with any value.
 - Do not use deprecated API endpoint(s) to upload profiles containing secret variables. Use endpoints documented in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
-<meta name="articleTitle" value="Hide secrets in scripts in configuration profiles">
+<meta name="articleTitle" value="Hide secrets in scripts and configuration profiles">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">

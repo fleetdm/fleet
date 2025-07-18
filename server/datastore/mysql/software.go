@@ -1865,6 +1865,10 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get min/max software_id")
 	}
+	if minMax.Min == 0 {
+		minMax.Min = 1
+		level.Warn(ds.logger).Log("msg", "software_id 0 found in host_software table; performing counts without those entries")
+	}
 
 	for minSoftwareID, maxSoftwareID := minMax.Min-1, minMax.Min-1+countHostSoftwareBatchSize; minSoftwareID < minMax.Max; minSoftwareID, maxSoftwareID = maxSoftwareID, maxSoftwareID+countHostSoftwareBatchSize {
 
@@ -2663,7 +2667,10 @@ func filterSoftwareInstallersByLabel(
 					COUNT(label_membership.label_id) AS count_host_labels,
 					SUM(
 						CASE
-							WHEN labels.created_at IS NOT NULL AND :host_label_updated_at >= labels.created_at THEN 1
+							WHEN labels.created_at IS NOT NULL AND (
+								labels.label_membership_type = 1 OR
+								(labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at)
+							) THEN 1
 							ELSE 0
 						END
 					) AS count_host_updated_after_labels
@@ -2682,7 +2689,10 @@ func filterSoftwareInstallersByLabel(
 					COUNT(*) > 0
 					AND COUNT(*) = SUM(
 						CASE
-							WHEN labels.created_at IS NOT NULL AND :host_label_updated_at >= labels.created_at THEN 1
+							WHEN labels.created_at IS NOT NULL AND (
+								labels.label_membership_type = 1 OR
+								(labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at)
+							) THEN 1
 							ELSE 0
 						END
 					)
@@ -3140,18 +3150,35 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if host.TeamID != nil {
 		globalOrTeamID = *host.TeamID
 	}
+
+	// By default, installer platform takes care of omitting incompatible packages, but for Linux platforms the installer
+	// type is a bit too broad, so we filter further here. Note that we do *not* enforce this on installations, in case
+	// an admin knows that e.g. alien is installed and wants to push a package anyway. We also don't check software
+	// inventory for deb/rpm to match that way; this differs from the logic we use for auto-install queries for rpm/deb
+	// packages.
+	incompatibleExtensions := []string{"noop"}
+	if fleet.IsLinux(host.Platform) {
+		if !host.PlatformSupportsDebPackages() {
+			incompatibleExtensions = append(incompatibleExtensions, "deb")
+		}
+		if !host.PlatformSupportsRpmPackages() {
+			incompatibleExtensions = append(incompatibleExtensions, "rpm")
+		}
+	}
+
 	namedArgs := map[string]any{
-		"host_id":               host.ID,
-		"host_platform":         host.FleetPlatform(),
-		"global_or_team_id":     globalOrTeamID,
-		"is_mdm_enrolled":       opts.IsMDMEnrolled,
-		"host_label_updated_at": host.LabelUpdatedAt,
-		"avail":                 opts.OnlyAvailableForInstall,
-		"self_service":          opts.SelfServiceOnly,
-		"min_cvss":              opts.MinimumCVSS,
-		"max_cvss":              opts.MaximumCVSS,
-		"vpp_apps_platforms":    fleet.VPPAppsPlatforms,
-		"known_exploit":         1,
+		"host_id":                 host.ID,
+		"host_platform":           host.FleetPlatform(),
+		"incompatible_extensions": incompatibleExtensions,
+		"global_or_team_id":       globalOrTeamID,
+		"is_mdm_enrolled":         opts.IsMDMEnrolled,
+		"host_label_updated_at":   host.LabelUpdatedAt,
+		"avail":                   opts.OnlyAvailableForInstall,
+		"self_service":            opts.SelfServiceOnly,
+		"min_cvss":                opts.MinimumCVSS,
+		"max_cvss":                opts.MaximumCVSS,
+		"vpp_apps_platforms":      fleet.VPPAppsPlatforms,
+		"known_exploit":           1,
 	}
 	var hasCVEMetaFilters bool
 	if opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
@@ -3175,19 +3202,30 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 
 	hostSoftwareUninstalls, err := hostSoftwareUninstalls(ds, ctx, host.ID)
+	uninstallQuarantineSet := make(map[uint]*hostSoftware)
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, s := range hostSoftwareUninstalls {
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
-			bySoftwareTitleID[s.ID] = s
+			if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
+				bySoftwareTitleID[s.ID] = s
+			} else {
+				uninstallQuarantineSet[s.ID] = s
+			}
 		} else if bySoftwareTitleID[s.ID].LastInstallInstalledAt == nil ||
 			(s.LastUninstallUninstalledAt != nil && s.LastUninstallUninstalledAt.After(*bySoftwareTitleID[s.ID].LastInstallInstalledAt)) {
+
 			// if the uninstall is more recent than the install, we should update the status
 			bySoftwareTitleID[s.ID].Status = s.Status
 			bySoftwareTitleID[s.ID].LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
 			bySoftwareTitleID[s.ID].LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
 			bySoftwareTitleID[s.ID].ExitCode = s.ExitCode
+
+			if !opts.OnlyAvailableForInstall && !opts.IncludeAvailableForInstall {
+				uninstallQuarantineSet[s.ID] = bySoftwareTitleID[s.ID]
+				delete(bySoftwareTitleID, s.ID)
+			}
 		}
 	}
 
@@ -3198,6 +3236,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		return nil, nil, err
 	}
 	for _, s := range hostInstalledSoftware {
+		if unInstalled, ok := uninstallQuarantineSet[s.ID]; ok {
+			// We have an uninstall record according to host_software_installs,
+			// however, osquery says the software is installed.
+			// Put it back into the set of returned software
+			bySoftwareTitleID[s.ID] = unInstalled
+		}
+
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
 			bySoftwareTitleID[s.ID] = s
 		} else {
@@ -3279,6 +3324,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			s.Version = installedTitle.Version
 			s.BundleIdentifier = installedTitle.BundleIdentifier
 		}
+		if s.VPPAppAdamID != nil {
+			// Override the status; if there's a pending re-install, we should show that status.
+			if hs, ok := byVPPAdamID[*s.VPPAppAdamID]; ok {
+				s.Status = hs.Status
+			}
+		}
 		hostVPPInstalledTitles[s.ID] = s
 	}
 
@@ -3315,7 +3366,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software_titles st
 			LEFT OUTER JOIN
 				-- filter out software that is not available for install on the host's platform
-				software_installers si ON st.id = si.title_id AND si.platform = :host_compatible_platforms AND si.global_or_team_id = :global_or_team_id
+				software_installers si ON st.id = si.title_id AND si.platform = :host_compatible_platforms AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id
 			LEFT OUTER JOIN
 				-- include VPP apps only if the host is on a supported platform
 				vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
@@ -4243,6 +4294,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		hs := hs
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
+
 	return software, metaData, nil
 }
 

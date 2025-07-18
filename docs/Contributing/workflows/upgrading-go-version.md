@@ -12,19 +12,13 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@<your golangci-li
 
 See the "Go linter" section below about upgrading the Go linter version.
 
-## Files to update
+## Upgrading go for all Fleet
 
-### Go.mod
-
-Update the Go version in [the main go.mod file in Fleet](https://github.com/fleetdm/fleet/blob/main/go.mod) to the new version.
-
-Also update the version in the go.mod files of compiled tools including:
-
-  * [Bitlocker manager](https://github.com/fleetdm/fleet/blob/main/tools/mdm/windows/bitlocker/go.mod)
-  * [DB snapshot](https://github.com/fleetdm/fleet/blob/main/tools/snapshot/go.mod)
-  * [Fleet teams terraform provider](https://github.com/fleetdm/fleet/blob/main/tools/terraform/go.mod)
-
-Do a search for go.mod files to find others that may need updating!
+1. Run `make update-go version={target_version}` (for example, `make update-go version=1.24.5`)
+2. Manually update the index digest sha256 of the updated Dockerfiles with the updated value of the
+   relevant OS/Arch of the official Docker image from
+   https://hub.docker.com/_/golang/tags?name=<image_for_the_dockerfile> (e.g.,
+   `https://hub.docker.com/_/golang/tags?name=1.24.5-bullseye` when upgrading to 1.24.5)
 
 ### Go Linter
 
@@ -32,20 +26,12 @@ The golangci-lint linter used in the [golangci-lint](https://github.com/fleetdm/
 
 Update the instructions in the [Testing and local development doc](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/getting-started/testing-and-local-development.md#test-suite) to reflect the new version of golangci-lint.
 
-### Docker files
-
-Find the `bullseye` and `alpine` variants of the Docker images for the new Go version on [Dockerhub](https://hub.docker.com/_/golang).  Then update any Dockerfiles to pull the new images, including:
-
-  * [Dockerfile-desktop-linux](https://github.com/fleetdm/fleet/blob/main/Dockerfile-desktop-linux)
-  * [loadtest.Dockerfile](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile_)
-  * [mdmproxy/Dockerfile](https://github.com/fleetdm/fleet/blob/main/tools/mdm/migration/mdmproxy/Dockerfile)
-
 ## Smoke-testing the new version locally
 
 1. Build `fleet` and `fleetctl` using `make build`. 
 2. Verify that `fleet serve` runs, the site is accessible, and basic API/db functionality works (try creating a new team, query and policy)
 3. Verify that `fleetctl` works by using `fleetctl get config`
-4. Run `make go-lint` locally to find and fix any new issues.
+4. Run `make lint-go` locally to find and fix any new issues.
 5. Create a draft pull request from your branch and verify that tests pass.
 
 ## Updating this guide

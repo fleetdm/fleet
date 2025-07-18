@@ -116,8 +116,8 @@ export enum ActivityType {
   CanceledUninstallSoftware = "canceled_uninstall_software",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
-  ConfiguredMSEntraConditionalAccess = "added_conditional_access_microsoft",
-  DeletedMSEntraConditionalAccess = "deleted_conditional_access_microsoft",
+  ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
+  DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
@@ -152,6 +152,7 @@ export interface IActivity {
   actor_id: number;
   actor_gravatar: string;
   actor_email?: string;
+  actor_api_only: boolean;
   type: ActivityType;
   fleet_initiated: boolean;
   details?: IActivityDetails;
@@ -181,6 +182,7 @@ export interface IActivityDetails {
   deadline_days?: number;
   deadline?: string;
   email?: string;
+  enrollment_id?: string;
   global?: boolean;
   grace_period_days?: number;
   host_display_name?: string;
@@ -200,6 +202,7 @@ export interface IActivityDetails {
   name?: string;
   pack_id?: number;
   pack_name?: string;
+  personal_host?: boolean;
   platform?: Platform; // software platform
   policy_id?: number;
   policy_name?: string;
