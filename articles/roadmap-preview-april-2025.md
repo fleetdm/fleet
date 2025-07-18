@@ -28,7 +28,7 @@ Big opportunities that Fleet is building towards in the near future (next 180 da
 - ~~👻 Fleet for configuration management (ala Puppet)~~ *
 - ~~📉 Report time-to-fix (aka "timeframes") for top vulnerabilities~~ *
 
-* To see the up-to-date roadmap, see the [July 2025 preview](https://fleetdm.com/announcements/roadmap-preview-july-2025).
+* For the up-to-date roadmap, see the [July 2025 preview](https://fleetdm.com/announcements/roadmap-preview-july-2025).
 
 Any feedback or a questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
