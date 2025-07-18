@@ -947,6 +947,12 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newMDMAppleServiceDiscoverySchedule(ctx, instanceID, ds, depStorage, logger)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_apple_service_discovery schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newAppleMDMProfileManagerSchedule(
 					ctx,
 					instanceID,
