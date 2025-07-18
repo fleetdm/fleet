@@ -7,7 +7,7 @@ services:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
-      - mysql-persistent-volume:/tmp/fleet2
+      - mysql-persistent-volume:/tmp/fleet
     command: [
         "mysqld",
         "--datadir=/tmp/mysqldata",
@@ -49,7 +49,7 @@ services:
       ]
     environment: *mysql-default-environment
     ports:
-      - "3317:3306"
+      - "3307:3306"
     tmpfs:
       - /var/lib/mysql:rw,noexec,nosuid
       - /tmpfs
