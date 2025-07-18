@@ -23,11 +23,11 @@ Big opportunities that Fleet is building towards in the near future (next 180 da
 - 📊 Vulnerability burn-down chart (open CVEs over time)
 - 🔊 Find missing assets and their vulnerabilities (via Nmap)
 
-Any feedback or a questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
+Any feedback or questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2025-07-01">
+<meta name="publishedOn" value="2025-07-18">
 <meta name="articleTitle" value="Roadmap preview, July 2025">
 <meta name="description" value="The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future.">
