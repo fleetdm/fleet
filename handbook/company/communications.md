@@ -225,7 +225,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
 - **"¶":** _(E-group - Direct reports the the CEO)_
-- **"¶¶":** _(Classified - CEO, Head of Digital Experience, and Apprentice)_
+- **"¶¶":** _(Classified - CEO, CFO, Head of Digital Experience)_
 
 
 ## Company database

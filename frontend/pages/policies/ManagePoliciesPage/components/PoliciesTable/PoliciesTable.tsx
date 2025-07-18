@@ -24,8 +24,8 @@ const baseClass = "policies-table";
 interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
-  onDeletePolicyClick: (selectedTableIds: number[]) => void;
-  canAddOrDeletePolicy?: boolean;
+  onDeletePoliciesClick: (selectedTableIds: number[]) => void;
+  canAddOrDeletePolicies?: boolean;
   hasPoliciesToDelete?: boolean;
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
@@ -42,8 +42,8 @@ interface IPoliciesTableProps {
 const PoliciesTable = ({
   policiesList,
   isLoading,
-  onDeletePolicyClick,
-  canAddOrDeletePolicy,
+  onDeletePoliciesClick,
+  canAddOrDeletePolicies,
   hasPoliciesToDelete,
   currentTeam,
   currentAutomatedPolicies,
@@ -76,7 +76,7 @@ const PoliciesTable = ({
     }
   }
 
-  if (!canAddOrDeletePolicy) {
+  if (!canAddOrDeletePolicies) {
     emptyState.info = "";
   }
 
@@ -90,7 +90,7 @@ const PoliciesTable = ({
   const searchable = !(policiesList?.length === 0 && searchQuery === "");
 
   const hasPermissionAndPoliciesToDelete =
-    canAddOrDeletePolicy && hasPoliciesToDelete;
+    canAddOrDeletePolicies && hasPoliciesToDelete;
 
   return (
     <div className={baseClass}>
@@ -122,7 +122,7 @@ const PoliciesTable = ({
           buttonText: "Delete",
           iconSvg: "trash",
           variant: "text-icon",
-          onClick: onDeletePolicyClick,
+          onClick: onDeletePoliciesClick,
         }}
         emptyComponent={() =>
           EmptyTable({
