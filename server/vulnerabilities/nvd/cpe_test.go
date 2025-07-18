@@ -1257,7 +1257,6 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:python:setuptools:63.2.0:*:*:*:*:python:*:*",
 		},
-		// FIXME: https://github.com/fleetdm/fleet/issues/28490
 		{
 			software: fleet.Software{
 				Name:             "urllib3",
