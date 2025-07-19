@@ -74,6 +74,132 @@ This has an impact on real devices because they will not be notified of any comm
 - `-mdm_prob 1.0`
 - `-mdm_scep_challenge` set to the same value as `FLEET_MDM_APPLE_SCEP_CHALLENGE` above.
 
+### Enabling Cloudfront
+
+> Do not commit your `BRANCH_NAME` if any files exist in `resources/TERRAFORM_WORKSPACE/` without a .encrypted extension.
+> This step assumes that you've already successfully executed terraform apply and have a `kms_key_id` output.
+
+1. Under the loadtesting directory, create directory `resources/TERRAFORM_WORKSPACE/`
+2. Create your keys
+
+```
+openssl genrsa -out cloudfront.key 2048
+openssl rsa -pubout -in cloudfront.key -out cloudfront.pem
+```
+
+3. Change directory to `resources/TERRAFORM_WORKSPACE/`
+4. Create `encrypt.sh` (store the script in in the loadtesting directory, two directories up `../..`)
+
+```
+#!/bin/bash
+
+set -e
+
+function usage() {
+	cat <<-EOUSAGE
+	
+	Usage: $(basename ${0}) <KMS_KEY_ID> <SOURCE> <DESTINATION> [AWS_PROFILE]
+	
+		This script encrypts an plaintext file from SOURCE into an
+		AWS KMS encrypted DESTINATION file.  Optionally you
+		may provide the AWS_PROFILE you wish to use to run the aws kms
+		commands.
+
+	EOUSAGE
+	exit 1
+}
+
+[ $# -lt 3 ] && usage
+
+if [ -n "${4}" ]; then
+	export AWS_PROFILE=${4}
+fi
+
+aws kms encrypt --key-id "${1:?}" --plaintext fileb://<(cat "${2:?}") --output text --query CiphertextBlob > "${3:?}"
+```
+
+5. Encrypt the objects using `encrypt.sh`
+
+```
+for i in *; do ../../encrypt.sh <KMS_KEY_ID> $i $i.encrypted; done
+for i in *.encrypted; do rm ${i/.encrypted/}; done
+```
+
+6. Change back to the loadtesting directory (two directories up ../..)
+
+7. If the name of your public/private cloudfront key is not `cloudfront.pem|.key`, update `locals.tf`
+
+```
+# Set the following variable value to the base name of your cloudfront key, no extension.
+cloudfront_key_basename = cloudfront
+```
+
+8. Copy and make `cloudfront.tf`
+
+```
+cp template/cloudfront.tf.disabled cloudfront.tf
+```
+
+9. In `locals.tf` uncomment the following line, under `extra_secrets`
+
+```
+module.cloudfront-software-installers.extra_secrets,
+```
+
+Example: You should end up with something that looks like the following block
+
+```
+  extra_secrets = merge(
+    module.cloudfront-software-installers.extra_secrets
+  )
+```
+
+10. Initialize terraform and upgrade any necessary dependencies
+
+```
+terraform init -upgrade
+```
+
+11. Apply the terraform
+
+```
+terraform apply -var tag=BRANCH_NAME
+```
+
+12. In `locals.tf` uncomment the following line, under `extra_execution_iam_policies`.
+
+```
+module.cloudfront-software-installers.extra_execution_iam_policies,
+```
+
+You should end up with something that looks like this.
+
+```
+  extra_execution_iam_policies = concat(
+    module.cloudfront-software-installers.extra_execution_iam_policies,
+    []
+  )
+```
+
+13. Apply the terraform
+
+```
+terraform apply -var tag=BRANCH_NAME
+```
+
+14. Cloudfront should now be enabled.
+
+15. If you had previously uploaded any software installers, they need to be re-encrypted by finding and targeting your bucket with the following commands.
+
+```
+# List buckets matching your BRANCH_NAME
+aws s3 ls | grep BRANCH_NAME
+
+# Replace <bucket-name> with the software_instalelrs bucket name.
+aws s3 cp s3://<bucket-name>/ s3://<bucket-name>/ --recursive
+```
+
+
 ### Running a loadtest
 
 We run simulated hosts in containers of 500 at a time. Once the infrastructure is running, you can run the following command:
