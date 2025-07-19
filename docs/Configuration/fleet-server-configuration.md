@@ -633,7 +633,7 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
 
 ## Auth
 
-## auth_sso_session_validity_period
+### auth_sso_session_validity_period
 
 How long an SSO authentication process can take between initiation and callback. Applies to both users logging into the Fleet web UI and end users during MDM enrollment.
 
