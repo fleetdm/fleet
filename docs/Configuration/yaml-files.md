@@ -457,6 +457,7 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 
 ### packages
 
+- `path` specifies a YAML file describing one or more packages
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist, Fleet will download the package, then verify that the hash matches, bailing out if it does not match.
 
@@ -499,6 +500,25 @@ You can view the hash for existing software in the software detail page in the F
 ```yaml
 # Mozilla Firefox (Firefox 136.0.1.pkg) version 136.0.1
 - hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
+```
+
+##### Multiple packages in a single included file
+
+`teams/example-team.yml`:
+
+```yaml
+software:
+  packages:
+    - path: ../lib/packages-windows.yml
+```
+
+`lib/packages-windows.yml`:
+
+```yaml
+- url: https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.0.4/win64/en-US/Firefox%20Setup%20140.0.4.msi
+- url: https://2.na.dl.wireshark.org/win64/Wireshark-4.4.7-x64.exe
+  install_script:
+    path: software/wireshark-install-script.ps1
 ```
 
 ### app_store_apps
