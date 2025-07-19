@@ -231,8 +231,8 @@ Generated when deleting multiple saved queries.
 
 This activity contains the following fields:
 - "query_ids": list of IDs of the deleted saved queries.
-- "team_id": the ID of the team the queries belonged to. `-1` for global queries, `null` for no team.
-- "team_name": the name of the team the queries belonged to. `null` for global or no team queries.
+- "team_id": the ID of the team the queries belonged to. -1 for global queries, null for no team.
+- "team_name": the name of the team the queries belonged to. null for global or no team queries.
 
 #### Example
 
