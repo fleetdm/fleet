@@ -1,0 +1,1 @@
+- Fixed Fleet Desktop failing to launch a browser installed as a Flatpak or Snap and the user is running a Wayland session.
