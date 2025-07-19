@@ -156,6 +156,7 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 	extensions.FilterByHostPlatform(runtime.GOOS)
 
 	var sb strings.Builder
+	var extensionsMissing bool
 	for extensionName, extensionInfo := range extensions {
 		// infer filename from extension name
 		// osquery enforces .ext, so we just add that
@@ -199,10 +200,27 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 			return fmt.Errorf("unable to lookup metadata for target: %s, %w", targetName, err)
 		}
 
+		if !r.updateRunner.HasLocalHash(targetName) {
+			log.Info().Msgf("extension %q not present locally; scheduling update", extensionName)
+			extensionsMissing = true
+		}
+
 		sb.WriteString(path + "\n")
 	}
 	if err := os.WriteFile(extensionAutoLoadFile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("error writing extensions autoload file: %w", err)
+	}
+
+	if extensionsMissing {
+		didUpdate, err := r.updateRunner.UpdateAction()
+		switch {
+		case didUpdate && err == nil:
+			log.Info().Msgf("missing extensions successfully retrieved and installed")
+		case !didUpdate && err != nil:
+			log.Info().Msgf("missing extensions not retrieved; err=%v", err)
+		case !didUpdate && err == nil:
+			log.Info().Msgf("missing extensions not retrieved; no error reported")
+		}
 	}
 
 	return nil
