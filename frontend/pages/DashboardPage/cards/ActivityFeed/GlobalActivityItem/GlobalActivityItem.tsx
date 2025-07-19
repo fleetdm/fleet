@@ -808,17 +808,24 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedMultipleSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
     return (
       <>
         {" "}
-        deleted multiple queries{" "}
-        {activity.details?.team_name ? (
-          <>
-            from the <b>{activity.details.team_name}</b> team.
-          </>
-        ) : (
-          "globally."
-        )}
+        deleted multiple queries
+        {teamText}.
       </>
     );
   },
