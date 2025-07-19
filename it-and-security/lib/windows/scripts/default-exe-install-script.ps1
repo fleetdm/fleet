@@ -11,10 +11,15 @@ function Try-Install($param) {
         Write-Host "Attempting installation with parameter: '$param'"
         $processOptions = @{
             FilePath = "$exeFilePath"
-            ArgumentList = $param
             PassThru = $true
             Wait = $true
         }
+        
+        # Only add ArgumentList if the parameter is not empty
+        if ($param -ne "") {
+            $processOptions.ArgumentList = $param
+        }
+        
         $process = Start-Process @processOptions
         $exitCode = $process.ExitCode
         Write-Host "Install exit code: $exitCode"
