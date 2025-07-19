@@ -19,6 +19,37 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+type ParseTypeError struct {
+	Keys  []string // The complete path to the field
+	Field string   // The field we tried to assign to
+	Type  string   // The type that we want to have
+	Value string   // The value that we received
+	err   error    // The original error
+}
+
+func (e *ParseTypeError) Error() string {
+	return fmt.Sprintf("couldn't edit %s. %q must have type %s, found value %q", strings.Join(e.Keys, "."), e.Field, e.Type, e.Value)
+}
+
+func (e *ParseTypeError) Unwrap() error {
+	return e.err
+}
+
+func MaybeParseTypeError(keysPath []string, err error) error {
+	unmarshallErr := &json.UnmarshalTypeError{}
+	if errors.As(err, &unmarshallErr) {
+		return &ParseTypeError{
+			Keys:  keysPath,
+			Field: unmarshallErr.Field,
+			Type:  unmarshallErr.Type.String(),
+			Value: unmarshallErr.Value,
+			err:   err,
+		}
+	}
+
+	return fmt.Errorf("failed to unmarshal %s: %w", strings.Join(keysPath, "."), err)
+}
+
 type BaseItem struct {
 	Path *string `json:"path"`
 }
@@ -245,7 +276,7 @@ const noTeam = "No team"
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop BaseItem
 	if err := json.Unmarshal(raw, &orgSettingsTop); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal org_settings: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError([]string{"org_settings"}, err))
 	}
 	noError := true
 	if orgSettingsTop.Path != nil {
@@ -266,7 +297,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multi
 				if err := yaml.Unmarshal(fileBytes, &pathOrgSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
-						multiError, fmt.Errorf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, err),
+						multiError, fmt.Errorf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, MaybeParseTypeError([]string{"org_settings"}, err)),
 					)
 				} else {
 					if pathOrgSettings.Path != nil {
@@ -285,7 +316,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multi
 	if noError {
 		if err := yaml.Unmarshal(raw, &result.OrgSettings); err != nil {
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
-			multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal org settings: %v", err))
+			multiError = multierror.Append(multiError, MaybeParseTypeError([]string{"org_settings"}, err))
 		} else {
 			multiError = parseSecrets(result, multiError)
 		}
@@ -297,7 +328,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multi
 func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	var teamSettingsTop BaseItem
 	if err := json.Unmarshal(raw, &teamSettingsTop); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal team_settings: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError([]string{"team_settings"}, err))
 	}
 	noError := true
 	if teamSettingsTop.Path != nil {
