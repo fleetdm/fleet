@@ -99,6 +99,27 @@ func OfficeProductFromBundleId(bundleId string) (ProductType, bool) {
 	return WholeSuite, false
 }
 
+// BuildNumber returns the build number from the release note version.
+// "16.69 (Build 23010700)" would return "23010700"
+func (or *ReleaseNote) BuildNumber() string {
+	matches := BuildNumberPattern.FindStringSubmatch(or.Version)
+	if len(matches) >= 2 {
+		return matches[1]
+	}
+	return ""
+}
+
+// ShortVersionFormat returns the version without the build number.
+// "16.69 (Build 23010700)" would return "16.69".
+// If the version cannot be extracted, an empty string is returned.
+func (or *ReleaseNote) ShortVersionFormat() string {
+	matches := VersionPattern.FindStringSubmatch(or.Version)
+	if len(matches) >= 2 {
+		return matches[1]
+	}
+	return ""
+}
+
 type ReleaseNotes []ReleaseNote
 
 func (rn ReleaseNotes) Serialize(d time.Time, dir string) error {
