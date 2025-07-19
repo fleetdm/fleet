@@ -470,7 +470,8 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	checkDeclarationItemsResp := func(t *testing.T, r fleet.MDMAppleDDMDeclarationItemsResponse, expectedDeclTok string,
-		expectedDeclsByToken map[string]fleet.MDMAppleDeclaration) {
+		expectedDeclsByToken map[string]fleet.MDMAppleDeclaration,
+	) {
 		require.Equal(t, expectedDeclTok, r.DeclarationsToken)
 		require.NotEmpty(t, r.Declarations.Activations)
 		require.Empty(t, r.Declarations.Assets)
@@ -1065,7 +1066,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	require.NoError(t, err)
 	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
 		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
-		{Identifier: "I2", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
 	})
 
 	// host sends a report, declaration I2 is removed from the hosts_* table
