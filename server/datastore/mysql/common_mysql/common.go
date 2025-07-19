@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
 	"net/url"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
+	_ "github.com/shogo82148/rdsmysql/v2"
 )
 
 type DBOptions struct {
@@ -29,6 +31,33 @@ type DBOptions struct {
 
 func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB, error) {
 	driverName := "mysql"
+
+	// Parse host and port
+	host, port, err := net.SplitHostPort(conf.Address)
+	if err != nil {
+		host = conf.Address
+		port = "3306"
+	}
+
+	// Auto-detect RDS and use IAM auth if no password is provided
+	var iamTokenGen *awsIAMAuthTokenGenerator
+	useIAMAuth := false
+	if conf.Password == "" && conf.PasswordPath == "" {
+		// Check if this is an RDS endpoint
+		if isRDSEndpoint(host) {
+			useIAMAuth = true
+			region, err := extractRDSRegion(host)
+			if err != nil {
+				return nil, err
+			}
+
+			iamTokenGen, err = newAWSIAMAuthTokenGenerator(host, conf.Username, port, region, conf.StsAssumeRoleArn, conf.StsExternalID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create IAM token generator: %w", err)
+			}
+		}
+	}
+
 	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
 		if opts.TracingConfig.TracingType == "opentelemetry" {
 			driverName = otelDriverName
@@ -44,8 +73,22 @@ func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*s
 		conf.SQLMode = opts.SqlMode
 	}
 
-	dsn := generateMysqlConnectionString(*conf)
-	db, err := sqlx.Open(driverName, dsn)
+	var db *sqlx.DB
+	if useIAMAuth {
+		connector := &awsIAMAuthConnector{
+			driverName: driverName,
+			baseDSN:    generateMysqlConnectionString(*conf),
+			tokenGen:   iamTokenGen,
+			logger:     opts.Logger,
+		}
+		db = sqlx.NewDb(sql.OpenDB(connector), driverName)
+	} else {
+		dsn := generateMysqlConnectionString(*conf)
+		db, err = sqlx.Open(driverName, dsn)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +133,21 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		"group_concat_max_len": []string{"4194304"},
 		"multiStatements":      []string{"true"},
 	}
-	if conf.TLSConfig != "" {
+	// Configure TLS based on connection type
+	// Check if this is RDS with no password (IAM auth)
+	host, _, _ := net.SplitHostPort(conf.Address)
+	if host == "" {
+		host = conf.Address
+	}
+	if conf.Password == "" && conf.PasswordPath == "" && isRDSEndpoint(host) {
+		// RDS Proxy uses public certificates, while direct RDS connections use rdsmysql
+		if isRDSProxyEndpoint(conf.Address) {
+			params.Set("tls", "true")
+		} else {
+			params.Set("tls", "rdsmysql")
+		}
+		params.Set("allowCleartextPasswords", "true")
+	} else if conf.TLSConfig != "" {
 		params.Set("tls", conf.TLSConfig)
 	}
 	if conf.SQLMode != "" {

@@ -19,6 +19,8 @@ This section describes the configuration options for the primary. Suppose you al
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
+AWS RDS IAM authentication is automatically enabled when there is an RDS endpoint in `mysql_address` and no `mysql_password`/`mysql_password_path` is specified.
+
 ### mysql_address
 
 For the address of the MySQL server that Fleet should connect to, include the hostname and port.
@@ -194,6 +196,30 @@ This setting should not usually be used.
   ```yaml
   mysql:
     sql_mode: ANSI
+  ```
+
+### mysql_sts_assume_role_arn
+
+The ARN of the IAM role to assume when using AWS IAM authentication for RDS. When specified along with no password, Fleet will assume this role to generate temporary authentication tokens. If no role and no password are specified with an RDS endpoint, the credentials from the environment will be used.
+
+- Default value: `""`
+- Environment variable: `FLEET_MYSQL_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  mysql:
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/rds-auth-role
+  ```
+
+### mysql_sts_external_id
+
+The external ID to use when assuming the IAM role for RDS authentication. This provides an additional layer of security when assuming roles across accounts.
+
+- Default value: `""`
+- Environment variable: `FLEET_MYSQL_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  mysql:
+    sts_external_id: your_unique_id
   ```
 
 ## Redis

@@ -35,21 +35,23 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Protocol        string `yaml:"protocol"`
-	Address         string `yaml:"address"`
-	Username        string `yaml:"username"`
-	Password        string `yaml:"password"`
-	PasswordPath    string `yaml:"password_path"`
-	Database        string `yaml:"database"`
-	TLSCert         string `yaml:"tls_cert"`
-	TLSKey          string `yaml:"tls_key"`
-	TLSCA           string `yaml:"tls_ca"`
-	TLSServerName   string `yaml:"tls_server_name"`
-	TLSConfig       string `yaml:"tls_config"` // tls=customValue in DSN
-	MaxOpenConns    int    `yaml:"max_open_conns"`
-	MaxIdleConns    int    `yaml:"max_idle_conns"`
-	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
-	SQLMode         string `yaml:"sql_mode"`
+	Protocol         string `yaml:"protocol"`
+	Address          string `yaml:"address"`
+	Username         string `yaml:"username"`
+	Password         string `yaml:"password"`
+	PasswordPath     string `yaml:"password_path"`
+	Database         string `yaml:"database"`
+	TLSCert          string `yaml:"tls_cert"`
+	TLSKey           string `yaml:"tls_key"`
+	TLSCA            string `yaml:"tls_ca"`
+	TLSServerName    string `yaml:"tls_server_name"`
+	TLSConfig        string `yaml:"tls_config"` // tls=customValue in DSN
+	MaxOpenConns     int    `yaml:"max_open_conns"`
+	MaxIdleConns     int    `yaml:"max_idle_conns"`
+	ConnMaxLifetime  int    `yaml:"conn_max_lifetime"`
+	SQLMode          string `yaml:"sql_mode"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StsExternalID    string `yaml:"sts_external_id"`
 }
 
 // RedisConfig defines configs related to Redis
@@ -1046,6 +1048,8 @@ func (man Manager) addConfigs() {
 		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused"+usageSuffix)
 		man.addConfigString(prefix+".sql_mode", "", "MySQL sql_mode"+usageSuffix)
+		man.addConfigString(prefix+".sts_assume_role_arn", "", "ARN of role to assume for AWS authentication"+usageSuffix)
+		man.addConfigString(prefix+".sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity"+usageSuffix)
 	}
 	// MySQL
 	addMysqlConfig("mysql", "localhost:3306", ".")
@@ -1475,21 +1479,23 @@ func (man Manager) LoadConfig() FleetConfig {
 
 	loadMysqlConfig := func(prefix string) MysqlConfig {
 		return MysqlConfig{
-			Protocol:        man.getConfigString(prefix + ".protocol"),
-			Address:         man.getConfigString(prefix + ".address"),
-			Username:        man.getConfigString(prefix + ".username"),
-			Password:        man.getConfigString(prefix + ".password"),
-			PasswordPath:    man.getConfigString(prefix + ".password_path"),
-			Database:        man.getConfigString(prefix + ".database"),
-			TLSCert:         man.getConfigString(prefix + ".tls_cert"),
-			TLSKey:          man.getConfigString(prefix + ".tls_key"),
-			TLSCA:           man.getConfigString(prefix + ".tls_ca"),
-			TLSServerName:   man.getConfigString(prefix + ".tls_server_name"),
-			TLSConfig:       man.getConfigString(prefix + ".tls_config"),
-			MaxOpenConns:    man.getConfigInt(prefix + ".max_open_conns"),
-			MaxIdleConns:    man.getConfigInt(prefix + ".max_idle_conns"),
-			ConnMaxLifetime: man.getConfigInt(prefix + ".conn_max_lifetime"),
-			SQLMode:         man.getConfigString(prefix + ".sql_mode"),
+			Protocol:         man.getConfigString(prefix + ".protocol"),
+			Address:          man.getConfigString(prefix + ".address"),
+			Username:         man.getConfigString(prefix + ".username"),
+			Password:         man.getConfigString(prefix + ".password"),
+			PasswordPath:     man.getConfigString(prefix + ".password_path"),
+			Database:         man.getConfigString(prefix + ".database"),
+			TLSCert:          man.getConfigString(prefix + ".tls_cert"),
+			TLSKey:           man.getConfigString(prefix + ".tls_key"),
+			TLSCA:            man.getConfigString(prefix + ".tls_ca"),
+			TLSServerName:    man.getConfigString(prefix + ".tls_server_name"),
+			TLSConfig:        man.getConfigString(prefix + ".tls_config"),
+			MaxOpenConns:     man.getConfigInt(prefix + ".max_open_conns"),
+			MaxIdleConns:     man.getConfigInt(prefix + ".max_idle_conns"),
+			ConnMaxLifetime:  man.getConfigInt(prefix + ".conn_max_lifetime"),
+			SQLMode:          man.getConfigString(prefix + ".sql_mode"),
+			StsAssumeRoleArn: man.getConfigString(prefix + ".sts_assume_role_arn"),
+			StsExternalID:    man.getConfigString(prefix + ".sts_external_id"),
 		}
 	}
 
