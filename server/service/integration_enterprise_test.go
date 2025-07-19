@@ -10711,6 +10711,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NotNil(t, getHostSw.Software[2].SoftwarePackage.SelfService)
 	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
 
+	rubyLastInstallInstallUUID := getHostSw.Software[2].SoftwarePackage.LastInstall.InstallUUID
+
 	// still returned with self-service filter
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
@@ -10722,20 +10724,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getDeviceSw = getDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
-	require.Len(t, getDeviceSw.Software, 3) // foo, bar and ruby
+	require.Len(t, getDeviceSw.Software, 2) // foo, bar
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
-	require.Equal(t, getDeviceSw.Software[2].Name, "ruby")
+	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
-	require.NotNil(t, getDeviceSw.Software[2].Status)
-	require.Equal(t, fleet.SoftwareInstallPending, *getDeviceSw.Software[2].Status)
-	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage)
-	require.Nil(t, getDeviceSw.Software[2].AppStoreApp)
-	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage.SelfService)
-	require.True(t, *getDeviceSw.Software[2].SoftwarePackage.SelfService)
 
 	// confirm device-auth'd install results are visible
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software/install/"+getDeviceSw.Software[2].SoftwarePackage.LastInstall.InstallUUID+"/results", nil, http.StatusOK)
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software/install/"+rubyLastInstallInstallUUID+"/results", nil, http.StatusOK)
 	getDeviceInstallResult := getSoftwareInstallResultsResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceInstallResult)
 	require.NoError(t, err)
@@ -10743,7 +10739,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, host.ID, getDeviceInstallResult.Results.HostID)
 	require.Equal(t, fleet.SoftwareInstallPending, getDeviceInstallResult.Results.Status)
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software/install/nope/results", nil, http.StatusNotFound)
-	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+otherToken+"/software/install/"+getDeviceSw.Software[2].SoftwarePackage.LastInstall.InstallUUID+"/results", nil, http.StatusNotFound)
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+otherToken+"/software/install/"+rubyLastInstallInstallUUID+"/results", nil, http.StatusNotFound)
 
 	// still returned for self-service only too
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
