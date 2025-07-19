@@ -46,8 +46,10 @@ const StatusMessage = ({
     updated_at,
     created_at,
   },
+  isDUP,
 }: {
   result: ISoftwareInstallResult;
+  isDUP: boolean;
 }) => {
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
@@ -66,15 +68,55 @@ const StatusMessage = ({
         addSuffix: true,
       })})`
     : "";
+  const isInstalledByFleet = true; // QUESTION - how to determine if SW is installed by Fleet?
+
+  const renderStatusCopy = () => {
+    if (isInstalledByFleet) {
+      const prefix = (
+        <>
+          Fleet {getInstallDetailsStatusPredicate(status)}{" "}
+          <b>{software_title}</b>
+        </>
+      );
+      let middle = null;
+      if (!isDUP) {
+        middle = (
+          <>
+            {" "}
+            ({software_package}) on {formattedHost}
+            {status === "pending_install" ? " when it comes online" : ""}
+            {/* TODO - need to add "about" before timestamp? */}
+            {displayTimeStamp}
+          </>
+        );
+      }
+      // return (
+      //   <span>
+      //     Fleet {getInstallDetailsStatusPredicate(status)}{" "}
+      //     <b>{software_title}</b> ({software_package}) on {formattedHost}
+      //     {status === "pending_install" ? " when it comes online" : ""}
+      //     {displayTimeStamp}.
+      //   </span>
+      // );
+      return (
+        <span>
+          {prefix}
+          {middle}
+          {"."}
+        </span>
+      );
+    }
+    return (
+      <>
+        <b>{software_title}</b> is installed.
+      </>
+    );
+  };
+
   return (
     <div className={`${baseClass}__status-message`}>
       <Icon name={INSTALL_DETAILS_STATUS_ICONS[status] ?? "pending-outline"} />
-      <span>
-        Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
-        ({software_package}) on {formattedHost}
-        {status === "pending_install" ? " when it comes online" : ""}
-        {displayTimeStamp}.
-      </span>
+      {renderStatusCopy()}
     </div>
   );
 };
@@ -154,12 +196,23 @@ export const SoftwareInstallDetails = ({
     );
   }
 
+  if (
+    !["installed", "pending_install", "failed_install"].includes(result.status)
+  ) {
+    return (
+      <DataError
+        description={`Unexpected software install status ${result.status}`}
+      />
+    );
+  }
+
   return (
     <>
       <StatusMessage
         result={
           result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
         }
+        isDUP={!!deviceAuthToken}
       />
       {result.status !== "pending_install" && (
         <>
