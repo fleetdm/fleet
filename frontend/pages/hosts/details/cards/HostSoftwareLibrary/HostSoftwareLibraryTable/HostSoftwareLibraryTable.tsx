@@ -10,6 +10,7 @@ import { convertParamsToSnakeCase, QueryParams } from "utilities/url";
 import { SUPPORT_LINK } from "utilities/constants";
 
 import { HostPlatform, isAndroid } from "interfaces/platform";
+import { IHostSoftwareWithUiStatus } from "interfaces/software";
 
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import TableContainer from "components/TableContainer";
@@ -30,6 +31,7 @@ const baseClass = "host-sw-library-table";
 interface IHostSoftwareLibraryTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
+  enhancedData?: IHostSoftwareWithUiStatus[];
   platform: HostPlatform;
   isLoading: boolean;
   router: InjectedRouter;
@@ -44,6 +46,7 @@ interface IHostSoftwareLibraryTableProps {
 const HostSoftwareLibraryTable = ({
   tableConfig,
   data,
+  enhancedData,
   platform,
   isLoading,
   router,
@@ -194,7 +197,7 @@ const HostSoftwareLibraryTable = ({
       <TableContainer
         renderCount={memoizedSoftwareCount}
         columnConfigs={tableConfig}
-        data={data?.software || []}
+        data={enhancedData || []}
         isLoading={isLoading}
         defaultSortHeader={sortHeader}
         defaultSortDirection={sortDirection}

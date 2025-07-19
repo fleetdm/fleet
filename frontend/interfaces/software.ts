@@ -407,7 +407,27 @@ export interface IHostSoftware {
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
+export type IHostSoftwareUiStatus =
+  | "installed"
+  | "uninstalled"
+  | "installing"
+  | "uninstalling"
+  | "updating"
+  | "pending_install"
+  | "pending_uninstall"
+  | "pending_update"
+  | "failed_install"
+  | "failed_install_update_available"
+  | "failed_uninstall"
+  | "failed_uninstall_update_available"
+  | "update_available";
+
+export interface IHostSoftwareWithUiStatus extends IHostSoftware {
+  ui_status: IHostSoftwareUiStatus;
+}
+
 export type IDeviceSoftware = IHostSoftware;
+export type IDeviceSoftwareWithUiStatus = IHostSoftwareWithUiStatus;
 
 const INSTALL_STATUS_PREDICATES: Record<
   SoftwareInstallStatus | "pending",

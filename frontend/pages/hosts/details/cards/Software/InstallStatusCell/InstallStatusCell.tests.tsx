@@ -16,34 +16,71 @@ jest.mock("lodash", () => ({
   uniqueId: jest.fn(() => "test-tooltip-id"),
 }));
 
-const testSoftware = createMockHostSoftware();
 const testSoftwarePackage = createMockHostSoftwarePackage();
 
 describe("InstallStatusCell - component", () => {
   it("renders 'Installed' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "installed",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "installed",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "installed",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
     );
 
     expect(screen.getByText("Installed")).toBeInTheDocument();
+    expect(screen.getByTestId("success-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Installed"));
+
+    // There SHOULD be a button with this label
+    expect(
+      screen.queryByRole("button", { name: /installed/i })
+    ).toBeInTheDocument();
+  });
+
+  it("renders 'Installed' status with tooltip button even if not installed via Fleet", () => {
+    renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "installed",
+            software_package: createMockHostSoftwarePackage({
+              last_install: null,
+            }),
+          }),
+          ui_status: "installed",
+        }}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
+      />
+    );
+
+    expect(screen.getByText("Installed")).toBeInTheDocument();
+    expect(screen.getByTestId("success-icon")).toBeInTheDocument();
+
+    // There should NOT be a button with this label
+    expect(
+      screen.queryByRole("button", { name: /installed/i })
+    ).toBeInTheDocument();
   });
 
   it("renders 'Installing...' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "pending_install",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_install",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "installing",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
         isHostOnline
@@ -51,6 +88,7 @@ describe("InstallStatusCell - component", () => {
     );
 
     expect(screen.getByText("Installing...")).toBeInTheDocument();
+    expect(screen.getByTestId("spinner")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Installing..."));
     expect(
@@ -61,16 +99,20 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Install (pending)' status with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "pending_install",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_install",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "pending_install",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
     );
 
     expect(screen.getByText("Install (pending)")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Install (pending)"));
     expect(
@@ -81,10 +123,13 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Uninstalling...' status with tooltip if host is online", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "pending_uninstall",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_uninstall",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "uninstalling",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
         isHostOnline
@@ -92,6 +137,7 @@ describe("InstallStatusCell - component", () => {
     );
 
     expect(screen.getByText("Uninstalling...")).toBeInTheDocument();
+    expect(screen.getByTestId("spinner")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Uninstalling..."));
     expect(
@@ -102,16 +148,20 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Uninstall (pending)' status with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "pending_uninstall",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_uninstall",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "pending_uninstall",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
     );
 
     expect(screen.getByText("Uninstall (pending)")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Uninstall (pending)"));
     expect(
@@ -122,16 +172,20 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Failed' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "failed_install",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "failed_install",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
     );
 
     expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Failed"));
     expect(screen.getByText(/Software failed to install/i)).toBeInTheDocument();
@@ -140,16 +194,20 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Failed (uninstall)' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: "failed_uninstall",
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_uninstall",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "failed_uninstall",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
     );
 
     expect(screen.getByText("Failed (uninstall)")).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Failed (uninstall)"));
     expect(
@@ -157,13 +215,76 @@ describe("InstallStatusCell - component", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders 'Update available' for failed_install_update_available", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "failed_install_update_available",
+        }}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
+      />
+    );
+    expect(screen.getByText("Update available")).toBeInTheDocument();
+    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+    await user.hover(screen.getByText("Update available"));
+    expect(screen.getByText(/Fleet can update software/i)).toBeInTheDocument();
+  });
+
+  it("renders 'Update available' for failed_uninstall_update_available", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_uninstall",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "failed_uninstall_update_available",
+        }}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
+      />
+    );
+    expect(screen.getByText("Update available")).toBeInTheDocument();
+    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+    await user.hover(screen.getByText("Update available"));
+    expect(screen.getByText(/Fleet can update software/i)).toBeInTheDocument();
+  });
+
+  it("renders 'Update available' for status null but update_available", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "update_available",
+        }}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
+      />
+    );
+    expect(screen.getByText("Update available")).toBeInTheDocument();
+    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+    await user.hover(screen.getByText("Update available"));
+    expect(screen.getByText(/Fleet can update software/i)).toBeInTheDocument();
+  });
+
   it("renders '---' for package available for install", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: null,
-          software_package: testSoftwarePackage,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "uninstalled",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -178,10 +299,13 @@ describe("InstallStatusCell - component", () => {
   it("renders '---' for App Store app that's available for install", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: null,
-          software_package: { ...testSoftwarePackage, self_service: false },
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            software_package: { ...testSoftwarePackage, self_service: false },
+          }),
+          ui_status: "uninstalled",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -196,14 +320,17 @@ describe("InstallStatusCell - component", () => {
   it("renders '---' even for package with self_service true", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: null,
-          software_package: {
-            ...testSoftwarePackage,
-            name: "SelfService Software",
-            self_service: true,
-          },
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            software_package: {
+              ...testSoftwarePackage,
+              name: "SelfService Software",
+              self_service: true,
+            },
+          }),
+          ui_status: "uninstalled",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -218,10 +345,13 @@ describe("InstallStatusCell - component", () => {
   it("renders '---' even for App Store app with self_service true", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: null,
-          app_store_app: createMockHostAppStoreApp({ self_service: true }),
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            app_store_app: createMockHostAppStoreApp({ self_service: true }),
+          }),
+          ui_status: "uninstalled",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -238,11 +368,14 @@ describe("InstallStatusCell - component", () => {
   it("renders placeholder for missing status and packages", () => {
     render(
       <InstallStatusCell
-        software={createMockHostSoftware({
-          status: null,
-          app_store_app: null,
-          software_package: null,
-        })}
+        software={{
+          ...createMockHostSoftware({
+            status: null,
+            app_store_app: null,
+            software_package: null,
+          }),
+          ui_status: "uninstalled",
+        }}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
