@@ -6,12 +6,12 @@ locals {
   )
   iam = {
     role = {
-      name        = "${local.customer}-role"
-      policy_name = "${local.customer}-iam-policy"
+      name        = "${terraform.workspace}-role"
+      policy_name = "${terraform.workspace}-iam-policy"
     }
     execution = {
-      name        = "${local.customer}-execution-role"
-      policy_name = "${local.customer}-iam-policy-execution"
+      name        = "${terraform.workspace}-execution-role"
+      policy_name = "${terraform.workspace}-iam-policy-execution"
     }
   }
   additional_env_vars = [for k, v in merge({

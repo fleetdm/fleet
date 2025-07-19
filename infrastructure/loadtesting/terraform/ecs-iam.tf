@@ -103,7 +103,7 @@ resource "aws_iam_role_policy_attachment" "execution_extras" {
 }
 
 resource "aws_iam_policy" "execution" {
-  name        = local.execution.policy_name
+  name        = local.iam.execution.policy_name
   description = "IAM policy that Fleet application uses to define access to AWS resources"
   policy      = data.aws_iam_policy_document.fleet-execution.json
 }
