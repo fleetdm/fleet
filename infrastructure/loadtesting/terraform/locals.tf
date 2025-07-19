@@ -3,6 +3,7 @@ locals {
   prefix = "fleet-${terraform.workspace}"
   extra_execution_iam_policies = concat(
     # module.cloudfront-software-installers.extra_execution_iam_policies,
+    []
   )
   iam = {
     role = {
