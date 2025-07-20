@@ -1,145 +1,247 @@
-# Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
-# variable
+# Slack Uninstall Script
+# This script handles both MSI and EXE installations, including per-user installations
+
 $softwareName = "Slack"
-
-# It is recommended to use exact software name here if possible to avoid
-# uninstalling unintended software.
-$softwareNameLike = "*$softwareName*"
-
-# Define an array of common silent uninstall parameters to try
-$silentParams = @("/S", "/s", "/silent", "/quiet", "-s", "--silent", "/SILENT", "/VERYSILENT", "/NORESTART", "-q", "--quiet")
-
-$machineKey = `
-'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
-$machineKey32on64 = `
-'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-
 $exitCode = 0
+$uninstalled = $false
 
-try {
-    [array]$uninstallKeys = Get-ChildItem `
-        -Path @($machineKey, $machineKey32on64) `
-        -ErrorAction SilentlyContinue |
-            ForEach-Object { Get-ItemProperty $_.PSPath }
+Write-Host "Starting Slack uninstallation process..."
 
-    $foundUninstaller = $false
-    foreach ($key in $uninstallKeys) {
-        # If needed, add -notlike to the comparison to exclude certain similar
-        # software
-        if ($key.DisplayName -like $softwareNameLike) {
-            $foundUninstaller = $true
-            Write-Host "Found software: $($key.DisplayName)"
+# Function to uninstall MSI packages
+function Remove-SlackMSI {
+    Write-Host "Checking for MSI-based Slack installations..."
+    
+    # Find all Slack MSI products
+    $msiProducts = Get-WmiObject -Class Win32_Product -Filter "Name LIKE '%Slack%'" -ErrorAction SilentlyContinue
+    
+    if ($msiProducts) {
+        foreach ($product in $msiProducts) {
+            Write-Host "Found MSI: $($product.Name) - Version: $($product.Version)"
+            Write-Host "Attempting to uninstall MSI..."
             
-            # Get the uninstall string without any arguments
-            $baseUninstallCommand = $key.UninstallString
-            
-            # The uninstall command may contain command and args, like:
-            # "C:\Program Files\Software\uninstall.exe" --uninstall --silent
-            # Extract just the executable path
-            $splitArgs = $baseUninstallCommand.Split('"')
-            if ($splitArgs.Length -gt 1) {
-                $baseUninstallCommand = $splitArgs[1]
-                # Get any existing arguments
-                $existingArgs = ""
-                if ($splitArgs.Length -ge 3) {
-                    $existingArgs = $splitArgs[2].Trim()
+            try {
+                $result = $product.Uninstall()
+                if ($result.ReturnValue -eq 0) {
+                    Write-Host "Successfully uninstalled MSI: $($product.Name)"
+                    return $true
+                } else {
+                    Write-Host "MSI uninstall returned code: $($result.ReturnValue)"
                 }
+            } catch {
+                Write-Host "Error uninstalling MSI: $_"
             }
-            
-            Write-Host "Base uninstall command: $baseUninstallCommand"
-            
-            $uninstallSuccess = $false
-            
-            # First, try QuietUninstallString if it exists
-            if ($key.QuietUninstallString) {
-                Write-Host "Trying QuietUninstallString: $($key.QuietUninstallString)"
-                
-                $processOptions = @{
-                    FilePath = $baseUninstallCommand
-                    PassThru = $true
-                    Wait = $true
-                }
-                
-                # Extract arguments from QuietUninstallString if they exist
-                $quietSplitArgs = $key.QuietUninstallString.Split('"')
-                if ($quietSplitArgs.Length -ge 3) {
-                    $quietArgs = $quietSplitArgs[2].Trim()
-                    if ($quietArgs) {
-                        $processOptions.ArgumentList = "$quietArgs"
-                    }
-                }
-                
-                # Start process and track exit code
-                $process = Start-Process @processOptions
-                $exitCode = $process.ExitCode
-                
-                Write-Host "QuietUninstallString exit code: $exitCode"
-                
-                if ($exitCode -eq 0) {
-                    Write-Host "Uninstallation successful with QuietUninstallString"
-                    $uninstallSuccess = $true
-                }
-            }
-            
-            # If QuietUninstallString didn't work or doesn't exist, try each silent parameter
-            if (-not $uninstallSuccess) {
-                foreach ($param in $silentParams) {
-                    Write-Host "Attempting uninstallation with parameter: $param"
-                    
-                    # Combine existing args with silent parameter
-                    $combinedArgs = if ($existingArgs) {
-                        "$existingArgs $param"
-                    } else {
-                        "$param"
-                    }
-                    
-                    $processOptions = @{
-                        FilePath = "$baseUninstallCommand"
-                        ArgumentList = "$combinedArgs"
-                        PassThru = $true
-                        Wait = $true
-                    }
-                    
-                    # Start process and track exit code
-                    $process = Start-Process @processOptions
-                    $exitCode = $process.ExitCode
-                    
-                    Write-Host "Uninstall exit code: $exitCode"
-                    
-                    # Check if uninstallation was successful (typically exit code 0)
-                    if ($exitCode -eq 0) {
-                        Write-Host "Uninstallation successful with parameter: $param"
-                        $uninstallSuccess = $true
-                        break  # Exit the loop if uninstallation was successful
-                    }
-                    
-                    Write-Host "Uninstallation with parameter $param failed. Trying next parameter..."
-                    
-                    # Add a short delay between attempts
-                    Start-Sleep -Seconds 2
-                }
-            }
-            
-            if (-not $uninstallSuccess) {
-                Write-Host "All uninstallation attempts failed."
-                $exitCode = 1
-            }
-            
-            # Exit the loop once the software is found and uninstallation is attempted
-            break
         }
     }
+    
+    # Also try using msiexec with product codes from registry
+    $msiKeys = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    
+    foreach ($keyPath in $msiKeys) {
+        $keys = Get-ChildItem -Path $keyPath -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
+        
+        foreach ($key in $keys) {
+            if ($key.DisplayName -like "*Slack*" -and $key.PSChildName -match '^{[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}}$') {
+                Write-Host "Found MSI product code: $($key.PSChildName)"
+                Write-Host "Attempting msiexec uninstall..."
+                
+                $msiArgs = @("/x", $key.PSChildName, "/qn", "/norestart", "REBOOT=ReallySuppress")
+                $process = Start-Process -FilePath "msiexec.exe" -ArgumentList $msiArgs -Wait -PassThru -NoNewWindow
+                
+                if ($process.ExitCode -eq 0) {
+                    Write-Host "Successfully uninstalled via msiexec"
+                    return $true
+                } else {
+                    Write-Host "msiexec returned exit code: $($process.ExitCode)"
+                }
+            }
+        }
+    }
+    
+    return $false
+}
 
-    if (-not $foundUninstaller) {
-        Write-Host "Uninstaller for '$softwareName' not found."
-        # Change exit code to 0 if you don't want to fail if uninstaller is not
-        # found. This could happen if program was already uninstalled.
+# Function to uninstall EXE-based installations
+function Remove-SlackEXE {
+    Write-Host "Checking for EXE-based Slack installations..."
+    
+    $uninstallKeys = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    
+    $foundAny = $false
+    
+    foreach ($keyPath in $uninstallKeys) {
+        $keys = Get-ChildItem -Path $keyPath -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
+        
+        foreach ($key in $keys) {
+            if ($key.DisplayName -like "*Slack*") {
+                $foundAny = $true
+                Write-Host "Found: $($key.DisplayName) at $($keyPath)"
+                
+                if ($key.UninstallString) {
+                    # Extract the executable path and arguments
+                    $uninstallString = $key.UninstallString
+                    $exePath = ""
+                    $arguments = ""
+                    
+                    if ($uninstallString -match '^"([^"]+)"(.*)') {
+                        $exePath = $matches[1]
+                        $arguments = $matches[2].Trim()
+                    } elseif ($uninstallString -match '^([^\s]+)(.*)') {
+                        $exePath = $matches[1]
+                        $arguments = $matches[2].Trim()
+                    }
+                    
+                    Write-Host "Uninstall executable: $exePath"
+                    
+                    # For Slack, common silent parameters
+                    $silentParams = @(
+                        "--uninstall --force-uninstall",
+                        "--uninstall",
+                        "/S",
+                        "/SILENT",
+                        "-s"
+                    )
+                    
+                    # First try QuietUninstallString if available
+                    if ($key.QuietUninstallString) {
+                        Write-Host "Trying QuietUninstallString..."
+                        $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$($key.QuietUninstallString)`"" -Wait -PassThru -NoNewWindow
+                        if ($process.ExitCode -eq 0) {
+                            Write-Host "Successfully uninstalled using QuietUninstallString"
+                            return $true
+                        }
+                    }
+                    
+                    # Try each silent parameter
+                    foreach ($param in $silentParams) {
+                        Write-Host "Trying with parameters: $param"
+                        
+                        try {
+                            $fullArgs = if ($arguments) { "$arguments $param" } else { $param }
+                            $process = Start-Process -FilePath $exePath -ArgumentList $fullArgs -Wait -PassThru -NoNewWindow -ErrorAction Stop
+                            
+                            if ($process.ExitCode -eq 0) {
+                                Write-Host "Successfully uninstalled with parameters: $param"
+                                return $true
+                            } else {
+                                Write-Host "Exit code: $($process.ExitCode)"
+                            }
+                        } catch {
+                            Write-Host "Error: $_"
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if (-not $foundAny) {
+        Write-Host "No EXE-based Slack installations found in registry"
+    }
+    
+    return $false
+}
+
+# Function to kill Slack processes
+function Stop-SlackProcesses {
+    Write-Host "Checking for running Slack processes..."
+    $processes = Get-Process -Name "Slack*" -ErrorAction SilentlyContinue
+    
+    if ($processes) {
+        Write-Host "Found $($processes.Count) Slack process(es). Attempting to stop..."
+        foreach ($proc in $processes) {
+            try {
+                $proc | Stop-Process -Force -ErrorAction Stop
+                Write-Host "Stopped process: $($proc.ProcessName) (PID: $($proc.Id))"
+            } catch {
+                Write-Host "Failed to stop process: $($proc.ProcessName) - $_"
+            }
+        }
+        Start-Sleep -Seconds 2
+    }
+}
+
+# Function to clean up Slack folders
+function Remove-SlackFolders {
+    Write-Host "Cleaning up Slack folders..."
+    
+    $foldersToRemove = @(
+        "$env:LOCALAPPDATA\Slack",
+        "$env:APPDATA\Slack",
+        "$env:ProgramFiles\Slack",
+        "${env:ProgramFiles(x86)}\Slack"
+    )
+    
+    foreach ($folder in $foldersToRemove) {
+        if (Test-Path $folder) {
+            Write-Host "Removing folder: $folder"
+            try {
+                Remove-Item -Path $folder -Recurse -Force -ErrorAction Stop
+                Write-Host "Successfully removed: $folder"
+            } catch {
+                Write-Host "Failed to remove folder: $_"
+            }
+        }
+    }
+}
+
+# Main uninstallation logic
+try {
+    # Stop Slack processes first
+    Stop-SlackProcesses
+    
+    # Try MSI uninstallation first
+    $msiResult = Remove-SlackMSI
+    if ($msiResult) {
+        $uninstalled = $true
+        Write-Host "Slack uninstalled via MSI method"
+    }
+    
+    # Try EXE uninstallation
+    $exeResult = Remove-SlackEXE
+    if ($exeResult) {
+        $uninstalled = $true
+        Write-Host "Slack uninstalled via EXE method"
+    }
+    
+    # Clean up folders regardless of uninstall method success
+    Remove-SlackFolders
+    
+    # Final verification
+    Start-Sleep -Seconds 3
+    $remainingInstalls = @(
+        Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like "*Slack*" }
+        Get-ItemProperty "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like "*Slack*" }
+        Get-ItemProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like "*Slack*" }
+    )
+    
+    if ($remainingInstalls.Count -eq 0) {
+        Write-Host "Verification: No Slack installations found in registry"
+        $exitCode = 0
+    } elseif ($uninstalled) {
+        Write-Host "Warning: Some Slack registry entries remain, but uninstallation was attempted"
+        $exitCode = 0
+    } else {
+        Write-Host "Error: Slack uninstallation failed"
         $exitCode = 1
     }
-
+    
 } catch {
-    Write-Host "Error: $_"
+    Write-Host "Critical error during uninstallation: $_"
     $exitCode = 1
 }
 
+Write-Host "Slack uninstallation script completed with exit code: $exitCode"
 Exit $exitCode
