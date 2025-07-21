@@ -13919,6 +13919,69 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		iPadAccessToken, // Using iPad's access token. It doesn't matter because it should fail before checking it
 	)
 	require.ErrorContains(t, macbookMdmDevice.Enroll(), "400 Bad Request")
+
+	// Fetch the hosts we enrolled and check their details. Specifically we want to verify that MDM
+	// shows a personal enrollment via all 3 endpoints(list hosts, host details and host MDM
+	// details) since they query for the information slightly differently
+	listHostsRes := listHostsResponse{}
+	var iPhoneHostID *uint
+	var iPadHostID *uint
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 2)
+	for _, host := range listHostsRes.Hosts {
+		if host.UUID == iPhoneMdmDevice.EnrollmentID() {
+			assert.Equal(t, iPhoneHwModel, host.HardwareModel)
+			assert.Equal(t, iPhoneMdmDevice.EnrollmentID(), host.UUID)
+			assert.Equal(t, iPhoneMdmDevice.EnrollmentID(), host.HardwareSerial)
+			require.NotNil(t, host.MDM.EnrollmentStatus)
+			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+			assert.True(t, *host.MDM.ConnectedToFleet)
+			iPhoneHostID = ptr.Uint(host.ID)
+		} else if host.UUID == iPadMdmDevice.EnrollmentID() {
+			assert.Equal(t, "ipados", host.Platform)
+			assert.Equal(t, iPadMdmDevice.EnrollmentID(), host.UUID)
+			assert.Equal(t, iPadMdmDevice.EnrollmentID(), host.HardwareSerial)
+			assert.Equal(t, iPadHwModel, host.HardwareModel)
+			require.NotNil(t, host.MDM.EnrollmentStatus)
+			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+			assert.True(t, *host.MDM.ConnectedToFleet)
+			iPadHostID = ptr.Uint(host.ID)
+		}
+	}
+
+	require.NotNil(t, iPhoneHostID, "iPhone host not found in the list of hosts")
+	require.NotNil(t, iPadHostID, "iPad host not found in the list of hosts")
+
+	// Confirm that host details endpoint contains the expected values for the iPhone
+	getHostResp := getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", *iPhoneHostID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (personal)", *getHostResp.Host.MDM.EnrollmentStatus)
+	assert.True(t, *getHostResp.Host.MDM.ConnectedToFleet)
+	assert.Equal(t, iPhoneHwModel, getHostResp.Host.HardwareModel)
+
+	// Confirm that the host MDM endpoint contains the expected values for the iPhone
+	// using an inline struct because the definition of fleet.HostMDM makes it unusable here
+	getHostMDMResponse := struct {
+		EnrollmentStatus string `json:"enrollment_status"`
+		ServerURL        string `json:"server_url"`
+		Name             string `json:"name"`
+		ID               uint   `json:"id"`
+	}{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", *iPhoneHostID), nil, http.StatusOK, &getHostMDMResponse)
+	assert.Equal(t, "On (personal)", getHostMDMResponse.EnrollmentStatus)
+	assert.Equal(t, fleet.WellKnownMDMFleet, getHostMDMResponse.Name)
+
+	// Confirm that host details endpoint contains the expected values for the iPad
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", *iPadHostID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (personal)", *getHostResp.Host.MDM.EnrollmentStatus)
+	assert.True(t, *getHostResp.Host.MDM.ConnectedToFleet)
+
+	// Confirm that the host MDM endpoint contains the expected values for the iPad
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", *iPadHostID), nil, http.StatusOK, &getHostMDMResponse)
+	assert.Equal(t, "On (personal)", getHostMDMResponse.EnrollmentStatus)
+	assert.Equal(t, fleet.WellKnownMDMFleet, getHostMDMResponse.Name)
 }
 
 func (s *integrationMDMTestSuite) TestSCEPProxy() {
