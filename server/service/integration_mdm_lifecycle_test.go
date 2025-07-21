@@ -940,6 +940,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, automaticEnrolledDevice.Enroll())
 	require.NoError(t, automaticEnrolledDeviceWithRef.Enroll())
 	require.NoError(t, migratedDevice.Enroll())
+	require.NoError(t, iPhoneMdmDevice.Enroll())
 
 	// no new commands are enqueued right after enrollment
 	cmd, err = manualEnrolledDevice.Idle()
@@ -982,6 +983,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	checkRenewCertCommand(automaticEnrolledDevice, "", "", "")
 	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "", "")
+	checkRenewCertCommand(iPhoneMdmDevice, "", "", iphoneUser.Email)
 
 	// migrated device is still marked as migrated
 	var stillMigrated bool

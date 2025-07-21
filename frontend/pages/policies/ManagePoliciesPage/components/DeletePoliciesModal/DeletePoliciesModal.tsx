@@ -5,17 +5,17 @@ import Button from "components/buttons/Button";
 
 const baseClass = "delete-policy-modal";
 
-interface IDeletePolicyModalProps {
+interface IDeletePoliciesModalProps {
   isUpdatingPolicies: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
-const DeletePolicyModal = ({
-  isUpdatingPolicies,
+const DeletePoliciesModal = ({
+  isUpdatingPolicies, // shared state from parent, not only for deletes
   onCancel,
   onSubmit,
-}: IDeletePolicyModalProps): JSX.Element => {
+}: IDeletePoliciesModalProps): JSX.Element => {
   return (
     <Modal
       title="Delete policies"
@@ -45,4 +45,4 @@ const DeletePolicyModal = ({
   );
 };
 
-export default DeletePolicyModal;
+export default DeletePoliciesModal;
