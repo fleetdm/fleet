@@ -15,7 +15,7 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 - The latest version of HashiCorp Terraform
 
-- A Fully-Qualified Domain Name (FQDN) for hosting Fleet
+- A fully qualified domain name (FQDN) for hosting Fleet
 
 ### Instructions
 
