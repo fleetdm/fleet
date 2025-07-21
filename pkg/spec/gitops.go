@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -32,7 +33,20 @@ func (e *ParseTypeError) Error() string {
 	var keyPath []string
 	keyPath = append(keyPath, e.Keys...)
 	if e.Field != "" {
-		keyPath = append(keyPath, e.Field)
+		var clearFields []string
+		fields := strings.Split(e.Field, ".")
+	fieldcheck:
+		for _, field := range fields {
+			for _, r := range field {
+				// Any field name that contains an upper case letter is probably an embedded struct,
+				// remove it from the field path to reduce end user confusion
+				if unicode.IsUpper(r) {
+					continue fieldcheck
+				}
+			}
+			clearFields = append(clearFields, field)
+		}
+		keyPath = append(keyPath, strings.Join(clearFields, "."))
 	}
 	return fmt.Sprintf("couldn't parse %s:%s, must have type %s, found type %s", e.Filename, strings.Join(keyPath, "."), e.Type, e.Value)
 }
@@ -42,6 +56,7 @@ func (e *ParseTypeError) Unwrap() error {
 }
 
 func MaybeParseTypeError(filename string, keysPath []string, err error) error {
+	fmt.Printf("reflect.TypeOf(err): %v\n", reflect.TypeOf(err))
 	unmarshallErr := &json.UnmarshalTypeError{}
 	if errors.As(err, &unmarshallErr) {
 		return &ParseTypeError{
@@ -55,6 +70,21 @@ func MaybeParseTypeError(filename string, keysPath []string, err error) error {
 	}
 
 	return fmt.Errorf("failed to unmarshal %s:%s: %w", filename, strings.Join(keysPath, "."), err)
+}
+
+// YamlUnmarshal unmarshals YAML bytes into JSON and then into the output struct. We have to do this
+// because the yaml package stringifys the JSON parsing error before returning it, so we can't
+// extract field information to produce a helpful error for users.
+func YamlUnmarshal(yamlBytes []byte, out any) error {
+	jsonBytes, err := yaml.YAMLToJSON(yamlBytes)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal YAML to JSON: %w", err)
+	}
+	if err := json.Unmarshal(jsonBytes, out); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON bytes: %w", err)
+	}
+
+	return nil
 }
 
 type BaseItem struct {
@@ -301,7 +331,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 				)
 			} else {
 				var pathOrgSettings BaseItem
-				if err := yaml.Unmarshal(fileBytes, &pathOrgSettings); err != nil {
+				if err := YamlUnmarshal(fileBytes, &pathOrgSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
 						multiError, MaybeParseTypeError(*orgSettingsTop.Path, []string{"org_settings"}, err),
@@ -321,7 +351,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 		}
 	}
 	if noError {
-		if err := yaml.Unmarshal(raw, &result.OrgSettings); err != nil {
+		if err := YamlUnmarshal(raw, &result.OrgSettings); err != nil {
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 		} else {
@@ -353,7 +383,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 				)
 			} else {
 				var pathTeamSettings BaseItem
-				if err := yaml.Unmarshal(fileBytes, &pathTeamSettings); err != nil {
+				if err := YamlUnmarshal(fileBytes, &pathTeamSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
 						multiError, MaybeParseTypeError(*teamSettingsTop.Path, []string{"team_settings"}, err),
@@ -373,7 +403,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 		}
 	}
 	if noError {
-		if err := yaml.Unmarshal(raw, &result.TeamSettings); err != nil {
+		if err := YamlUnmarshal(raw, &result.TeamSettings); err != nil {
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
 		} else {
@@ -462,7 +492,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 				)
 			} else {
 				var pathAgentOptions BaseItem
-				if err := yaml.Unmarshal(fileBytes, &pathAgentOptions); err != nil {
+				if err := YamlUnmarshal(fileBytes, &pathAgentOptions); err != nil {
 					return multierror.Append(
 						multiError, MaybeParseTypeError(*agentOptionsTop.Path, []string{"agent_options"}, err),
 					)
@@ -474,7 +504,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 					)
 				}
 				var raw json.RawMessage
-				if err := yaml.Unmarshal(fileBytes, &raw); err != nil {
+				if err := YamlUnmarshal(fileBytes, &raw); err != nil {
 					// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 					return multierror.Append(
 						multiError, MaybeParseTypeError(*agentOptionsTop.Path, []string{"agent_options"}, err),
@@ -612,7 +642,7 @@ func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, con
 	}
 
 	var pathControls GitOpsControls
-	if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
+	if err := YamlUnmarshal(fileBytes, &pathControls); err != nil {
 		return MaybeParseTypeError(*controlsTop.Path, []string{"controls"}, err)
 	}
 	if pathControls.Path != nil {
@@ -689,7 +719,7 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 				)
 			} else {
 				var pathLabels []*Label
-				if err := yaml.Unmarshal(fileBytes, &pathLabels); err != nil {
+				if err := YamlUnmarshal(fileBytes, &pathLabels); err != nil {
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"labels"}, err))
 					continue
 				}
@@ -783,7 +813,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				)
 			} else {
 				var pathPolicies []*Policy
-				if err := yaml.Unmarshal(fileBytes, &pathPolicies); err != nil {
+				if err := YamlUnmarshal(fileBytes, &pathPolicies); err != nil {
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"policies"}, err))
 					continue
 				}
@@ -900,8 +930,8 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			return fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err)
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
-		if err := yaml.Unmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
-			return fmt.Errorf("failed to unmarshal install_software.package_path file %s: %v", policy.InstallSoftware.PackagePath, err)
+		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
+			return MaybeParseTypeError(policy.InstallSoftware.PackagePath, []string{"policy", "install_software", "package_path"}, err)
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
@@ -964,7 +994,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 				)
 			} else {
 				var pathQueries []*Query
-				if err := yaml.Unmarshal(fileBytes, &pathQueries); err != nil {
+				if err := YamlUnmarshal(fileBytes, &pathQueries); err != nil {
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"queries"}, err))
 					continue
 				}
@@ -1072,8 +1102,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environmet in file %s: %v", *item.Path, err))
 				continue
 			}
-			if err := yaml.Unmarshal(fileBytes, &softwarePackageSpec); err != nil {
-				multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, nil, err))
+			if err := YamlUnmarshal(fileBytes, &softwarePackageSpec); err != nil {
+				multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"software", "packages"}, err))
 				continue
 			}
 
