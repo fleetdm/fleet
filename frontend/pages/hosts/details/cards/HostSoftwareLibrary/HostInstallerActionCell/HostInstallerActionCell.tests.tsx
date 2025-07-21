@@ -10,8 +10,8 @@ import {
 import { noop } from "lodash";
 import {
   getActionButtonState,
-  InstallerActionCell,
-} from "./InstallerActionCell";
+  HostInstallerActionCell,
+} from "./HostInstallerActionCell";
 
 const mockSoftwarePackage = createMockHostSoftwarePackage();
 const mockAppStoreApp = createMockHostAppStoreApp();
@@ -111,13 +111,13 @@ describe("getButtonActionState helper function", () => {
   });
 });
 
-describe("InstallerActionCell component", () => {
+describe("HostInstallerActionCell component", () => {
   const baseClass = "test";
   const defaultSoftware = createMockHostSoftware();
 
   it("renders install and uninstall buttons with correct text and enabled state", () => {
     render(
-      <InstallerActionCell
+      <HostInstallerActionCell
         software={{ ...defaultSoftware, ui_status: "installed" }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
@@ -144,7 +144,7 @@ describe("InstallerActionCell component", () => {
 
   it("disables install button and shows tooltip", () => {
     render(
-      <InstallerActionCell
+      <HostInstallerActionCell
         software={{ ...defaultSoftware, ui_status: "installed" }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
@@ -160,7 +160,7 @@ describe("InstallerActionCell component", () => {
 
   it("does not render uninstall button for app store app", () => {
     render(
-      <InstallerActionCell
+      <HostInstallerActionCell
         software={{
           ...defaultSoftware,
           software_package: null,
@@ -183,7 +183,7 @@ describe("InstallerActionCell component", () => {
 
   it("does not render uninstall button if no softwarePackage", () => {
     render(
-      <InstallerActionCell
+      <HostInstallerActionCell
         software={{
           ...defaultSoftware,
           ui_status: "installed",
@@ -205,7 +205,7 @@ describe("InstallerActionCell component", () => {
 
   it("updates button text/icon when status changes to non-pending", () => {
     const { rerender } = render(
-      <InstallerActionCell
+      <HostInstallerActionCell
         software={{
           ...createMockHostSoftware({ installed_versions: [] }),
           status: "pending_install",
@@ -232,7 +232,7 @@ describe("InstallerActionCell component", () => {
 
     // Change status to installed
     rerender(
-      <InstallerActionCell
+      <HostInstallerActionCell
         software={{
           ...defaultSoftware,
           status: "installed",
@@ -260,7 +260,7 @@ describe("InstallerActionCell component", () => {
 
   it("shows tooltip on disabled install button for MDM enrollment", async () => {
     const { user } = renderWithSetup(
-      <InstallerActionCell
+      <HostInstallerActionCell
         software={{
           ...defaultSoftware,
           app_store_app: mockAppStoreApp,

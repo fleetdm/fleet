@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import ReactTooltip from "react-tooltip";
 
 import {
@@ -11,7 +11,6 @@ import {
   SoftwareInstallStatus,
 } from "interfaces/software";
 import { dateAgo } from "utilities/date_format";
-import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
 import Button from "components/buttons/Button";
@@ -20,7 +19,7 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Spinner from "components/Spinner";
 
-import { InstallerActionButton } from "../../../HostSoftwareLibrary/InstallerActionCell/InstallerActionCell";
+import { HostInstallerActionButton } from "../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 import {
   InstallOrCommandUuid,
   IStatusDisplayConfig,
@@ -101,6 +100,7 @@ const InstallerStatus = ({
   id,
   status,
   last_install,
+  onShowInstallerDetails,
 }: IInstallerStatusProps) => {
   const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
   if (!displayConfig) {
@@ -126,7 +126,7 @@ const InstallerStatus = ({
               className={`${baseClass}__item-status-button`}
               variant="text-icon"
               onClick={() => {
-                console.log("todo");
+                onShowInstallerDetails();
               }}
             >
               {displayConfig.displayText}
@@ -175,6 +175,8 @@ const InstallerStatusAction = ({
     };
   }, []);
 
+  const showFailedInstallStatus = status === "failed_install";
+
   return (
     <div className={`${baseClass}__item-action-status`}>
       <div className={`${baseClass}__item-action`}>
@@ -184,7 +186,7 @@ const InstallerStatusAction = ({
             Updating...{" "}
           </>
         ) : (
-          <InstallerActionButton
+          <HostInstallerActionButton
             baseClass={baseClass}
             disabled={false}
             onClick={onInstall}
@@ -194,7 +196,7 @@ const InstallerStatusAction = ({
           />
         )}
       </div>
-      {status === "failed_install" && (
+      {showFailedInstallStatus && (
         <div className={`${baseClass}__item-status`}>
           <InstallerStatus
             id={id}

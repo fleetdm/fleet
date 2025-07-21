@@ -14,6 +14,10 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import {
+  getLastInstall,
+  getLastUninstall,
+} from "../../HostSoftwareLibrary/helpers";
 
 const baseClass = "install-status-cell";
 
@@ -213,10 +217,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   failed_install_update_available: {
-    // TODO: Waiting on Design to clarify what to show here
-    iconName: "error-outline",
-    iconColor: "ui-fleet-black-50",
-    displayText: "Update available",
+    iconName: "error",
+    displayText: "Failed",
     tooltip: ({ isSelfService, isHostOnline, lastInstalledAt }) =>
       isSelfService || isHostOnline ? (
         <>
@@ -257,10 +259,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   failed_uninstall_update_available: {
-    // TODO: Waiting on Design to clarify what to show here
-    iconName: "error-outline",
-    iconColor: "ui-fleet-black-50",
-    displayText: "Update available",
+    iconName: "error",
+    displayText: "Failed (uninstall)",
     tooltip: ({ isSelfService, isHostOnline, lastInstalledAt }) =>
       isSelfService || isHostOnline ? (
         <>
@@ -293,14 +293,6 @@ type IInstallStatusCellProps = {
   isHostOnline?: boolean;
   hostName?: string;
 };
-
-const getLastInstall = (software: IHostSoftware) =>
-  software.software_package?.last_install ||
-  software.app_store_app?.last_install ||
-  null;
-
-const getLastUninstall = (software: IHostSoftware) =>
-  software.software_package?.last_uninstall || null;
 
 const getSoftwareName = (software: IHostSoftware) =>
   software.software_package?.name;

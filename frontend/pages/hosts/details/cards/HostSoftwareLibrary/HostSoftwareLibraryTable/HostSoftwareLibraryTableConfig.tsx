@@ -18,7 +18,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import InstallerActionCell from "../InstallerActionCell";
+import HostInstallerActionCell from "../HostInstallerActionCell";
 import InstallStatusCell from "../../Software/InstallStatusCell";
 import { installStatusSortType } from "../../Software/helpers";
 
@@ -165,7 +165,7 @@ export const generateHostSWLibraryTableHeaders = ({
       disableSortBy: true,
       Cell: (cellProps: IActionCellProps) => {
         return (
-          <InstallerActionCell
+          <HostInstallerActionCell
             software={cellProps.row.original}
             onClickInstallAction={onClickInstallAction}
             onClickUninstallAction={onClickUninstallAction}

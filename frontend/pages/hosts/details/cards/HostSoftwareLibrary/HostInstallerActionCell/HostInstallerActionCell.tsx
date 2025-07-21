@@ -1,3 +1,10 @@
+/**
+ * HostInstallerActionCell is only used on Host details > Software Library card.
+ * Displays install/uninstall buttons for host installers.
+ * HostInstallerActionButton is reused for install/uninstall buttons
+ * in Fleet Desktop > Self-service but with different disabled states and tooltips.
+ */
+
 import React, { useState, useEffect } from "react";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -22,7 +29,7 @@ interface IActionButtonState {
   uninstallTooltip?: React.ReactNode;
 }
 
-export interface IActionButtonProps {
+export interface IGetActionButtonStateProps {
   hostScriptsEnabled: boolean;
   softwareId: number;
   status: SoftwareInstallStatus | null;
@@ -31,7 +38,7 @@ export interface IActionButtonProps {
   hostMDMEnrolled?: boolean;
 }
 
-interface IInstallerActionButtonProps {
+interface IHostInstallerActionButtonProps {
   baseClass: string;
   tooltip?: React.ReactNode;
   disabled: boolean;
@@ -41,7 +48,7 @@ interface IInstallerActionButtonProps {
   testId?: string;
 }
 
-interface IInstallerActionCellProps {
+interface IHostInstallerActionCellProps {
   software: IHostSoftwareWithUiStatus;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (softwareId: number) => void;
@@ -55,7 +62,7 @@ export const getActionButtonState = ({
   status,
   appStoreApp,
   hostMDMEnrolled,
-}: IActionButtonProps): IActionButtonState => {
+}: IGetActionButtonStateProps): IActionButtonState => {
   const pendingStatuses = ["pending_install", "pending_uninstall"];
   let installDisabled = false;
   let uninstallDisabled = false;
@@ -90,7 +97,7 @@ export const getActionButtonState = ({
   };
 };
 
-export const InstallerActionButton = ({
+export const HostInstallerActionButton = ({
   baseClass,
   tooltip,
   disabled,
@@ -98,7 +105,7 @@ export const InstallerActionButton = ({
   icon,
   text,
   testId,
-}: IInstallerActionButtonProps) => (
+}: IHostInstallerActionButtonProps) => (
   <div className={`${baseClass}__item-action`}>
     <TooltipWrapper
       tipContent={tooltip}
@@ -120,14 +127,14 @@ export const InstallerActionButton = ({
   </div>
 );
 
-export const InstallerActionCell = ({
+export const HostInstallerActionCell = ({
   software,
   onClickInstallAction,
   onClickUninstallAction,
   baseClass,
   hostScriptsEnabled,
   hostMDMEnrolled,
-}: IInstallerActionCellProps) => {
+}: IHostInstallerActionCellProps) => {
   const {
     id,
     status,
@@ -178,7 +185,7 @@ export const InstallerActionCell = ({
 
   return (
     <div className={`${baseClass}__item-actions`}>
-      <InstallerActionButton
+      <HostInstallerActionButton
         baseClass={baseClass}
         tooltip={installTooltip}
         disabled={installDisabled}
@@ -188,7 +195,7 @@ export const InstallerActionCell = ({
         testId={`${baseClass}__install-button--test`}
       />
       {canUninstallSoftware && software_package && (
-        <InstallerActionButton
+        <HostInstallerActionButton
           baseClass={baseClass}
           tooltip={uninstallTooltip}
           disabled={uninstallDisabled}
@@ -202,4 +209,4 @@ export const InstallerActionCell = ({
   );
 };
 
-export default InstallerActionCell;
+export default HostInstallerActionCell;

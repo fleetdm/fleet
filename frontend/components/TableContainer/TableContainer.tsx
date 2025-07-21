@@ -44,7 +44,8 @@ interface ITableContainerProps<T = any> {
   defaultSortHeader?: string;
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
-  searchQuery?: string; // This is used for client-side filtering with a search query controlled outside TableContainer
+  /**  Used for client-side filtering with a search query controlled outside TableContainer */
+  searchQuery?: string;
   /**  When page index is externally managed like from the URL, this prop must be set to control currentPageIndex */
   pageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;

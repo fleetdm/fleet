@@ -26,7 +26,7 @@ import {
   IButtonDisplayConfig,
   installStatusSortType,
 } from "../helpers";
-import { InstallerActionButton } from "../../HostSoftwareLibrary/InstallerActionCell/InstallerActionCell";
+import { HostInstallerActionButton } from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 
 type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
 type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
@@ -56,8 +56,9 @@ interface ISSInstallerActionCellProps {
 
 const baseClass = "self-service-table";
 
-// Self-service installer action cell component has different disabled states
-// and tooltips than host details > library installer action cell
+/** Self-service installer action cell component has different disabled states
+ * and tooltips than Host details > Library HostInstallerActionCell.
+ * Future iterations consider combining the two */
 const SSInstallerActionCell = ({
   deviceToken,
   software: {
@@ -125,7 +126,7 @@ const SSInstallerActionCell = ({
 
   return (
     <div className={`${baseClass}__item-actions`}>
-      <InstallerActionButton
+      <HostInstallerActionButton
         baseClass={baseClass}
         disabled={
           status === "pending_install" || status === "pending_uninstall"
@@ -136,7 +137,7 @@ const SSInstallerActionCell = ({
         testId={`${baseClass}__install-button--test`}
       />
       {canUninstallSoftware && (
-        <InstallerActionButton
+        <HostInstallerActionButton
           baseClass={baseClass}
           disabled={
             status === "pending_install" || status === "pending_uninstall"

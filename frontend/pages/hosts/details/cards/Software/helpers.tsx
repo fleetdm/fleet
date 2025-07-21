@@ -151,12 +151,22 @@ export const getUiStatus = (
 
   // If installation is pending
   if (status === "pending_install") {
-    // If there are installed versions, it means an update is in progress
-    if (installed_versions && installed_versions.length > 0) {
-      // Return 'updating' if host is online, otherwise 'pending_update'
-      return isHostOnline ? "updating" : "pending_update";
+    if (
+      installed_versions &&
+      installed_versions.length > 0 &&
+      installerVersion
+    ) {
+      // Are we updating (installerVersion > installed), or reinstalling (installerVersion == installed)?
+      const isUpdate = installed_versions.some(
+        (iv) => compareVersions(iv.version, installerVersion) === -1
+      );
+
+      // Updating to a newer version
+      if (isUpdate) {
+        return isHostOnline ? "updating" : "pending_update";
+      }
     }
-    // If no installed versions, return 'installing' if host is online, else 'pending_install'
+    // Reinstalling equivalent versions or installing with no currently installed versions
     return isHostOnline ? "installing" : "pending_install";
   }
 
@@ -212,6 +222,7 @@ export const getInstallerActionButtonConfig = (
   if (type === "install") {
     switch (status) {
       case "failed_install":
+      case "failed_install_update_available":
         return { text: "Retry", icon: "refresh" };
       case "installed":
       case "pending_uninstall":
@@ -219,6 +230,7 @@ export const getInstallerActionButtonConfig = (
         return { text: "Reinstall", icon: "refresh" };
       case "pending_update":
       case "update_available":
+      case "failed_uninstall_update_available":
         return { text: "Update", icon: "refresh" };
       default:
         return { text: "Install", icon: "install" };
@@ -227,6 +239,7 @@ export const getInstallerActionButtonConfig = (
     // uninstall
     switch (status) {
       case "failed_uninstall":
+      case "failed_uninstall_update_available":
         return { text: "Retry uninstall", icon: "refresh" };
       default:
         return { text: "Uninstall", icon: "trash" };

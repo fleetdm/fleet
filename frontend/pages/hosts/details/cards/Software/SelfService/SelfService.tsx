@@ -12,6 +12,7 @@ import { AxiosError } from "axios";
 
 import { NotificationContext } from "context/notification";
 import { INotification } from "interfaces/notification";
+import { IHostSoftware } from "interfaces/software";
 
 import deviceApi, {
   IDeviceSoftwareQueryKey,
@@ -42,6 +43,10 @@ import UninstallSoftwareModal from "./UninstallSoftwareModal";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import { InstallOrCommandUuid } from "../InstallStatusCell/InstallStatusCell";
+import {
+  getLastInstall,
+  getLastUninstall,
+} from "../../HostSoftwareLibrary/helpers";
 
 import {
   CATEGORIES_NAV_ITEMS,
@@ -398,6 +403,20 @@ const SoftwareSelfService = ({
     );
   };
 
+  const onClickFailedUpdateStatus = (s: IHostSoftware) => {
+    const lastInstall = getLastInstall(s);
+
+    if (onShowInstallDetails && lastInstall) {
+      if ("command_uuid" in lastInstall) {
+        onShowInstallDetails({ command_uuid: lastInstall.command_uuid });
+      } else if ("install_uuid" in lastInstall) {
+        onShowInstallDetails({ install_uuid: lastInstall.install_uuid });
+      } else {
+        onShowInstallDetails(undefined);
+      }
+    }
+  };
+
   const onExitUninstallSoftwareModal = () => {
     selectedSoftware.current = null;
     setShowUninstallSoftwareModal(false);
@@ -492,7 +511,7 @@ const SoftwareSelfService = ({
                 software={s}
                 onClickUpdateAction={onClickUpdateAction}
                 onShowInstallerDetails={() => {
-                  console.log("todo");
+                  onClickFailedUpdateStatus(s);
                 }}
               />
             );
