@@ -1150,10 +1150,10 @@ func registerServiceDiscovery(
 	logger kitlog.Logger,
 	serverURLPrefix string,
 ) error {
-	fmt.Println("Registering service discovery handler for Apple MDM")
+	serviceDiscoveryLogger := kitlog.With(logger, "component", "mdm-apple-service-discovery")
 	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.EnrollPath)
-	fmt.Println("Full MDM Enrollment URL:", fullMDMEnrollmentURL)
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serviceDiscoveryLogger.Log("msg", "serving MDM service discovery response", "url", fullMDMEnrollmentURL)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(fmt.Sprintf(`{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, fullMDMEnrollmentURL)))
