@@ -464,7 +464,7 @@ func (ts *withServer) loginSSOUserWithBody(username, password string, basePath s
 	t := ts.s.T()
 
 	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
-		t.Skip("SSO tests are disabled")
+		// TODO EJM Fixme t.Skip("SSO tests are disabled")
 	}
 
 	cookieSecure = false
