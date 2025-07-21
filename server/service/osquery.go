@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -23,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -58,6 +60,15 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}
 
+	if *host.HasHostIdentityCert {
+		err = httpsig.VerifyHostIdentity(ctx, svc.ds, host)
+		if err != nil {
+			osqueryError := newOsqueryError("authentication error: " + err.Error())
+			osqueryError.StatusCode = http.StatusUnauthorized
+			return nil, false, osqueryError
+		}
+	}
+
 	// Update the "seen" time used to calculate online status. These updates are
 	// batched for MySQL performance reasons. Because this is done
 	// asynchronously, it is possible for the server to shut down before
@@ -76,26 +87,13 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 // Enroll Agent
 ////////////////////////////////////////////////////////////////////////////////
 
-type enrollAgentRequest struct {
-	EnrollSecret   string                         `json:"enroll_secret"`
-	HostIdentifier string                         `json:"host_identifier"`
-	HostDetails    map[string](map[string]string) `json:"host_details"`
-}
-
-type enrollAgentResponse struct {
-	NodeKey string `json:"node_key,omitempty"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r enrollAgentResponse) Error() error { return r.Err }
-
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*enrollAgentRequest)
+	req := request.(*contract.EnrollOsqueryAgentRequest)
 	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
-		return enrollAgentResponse{Err: err}, nil
+		return contract.EnrollOsqueryAgentResponse{Err: err}, nil
 	}
-	return enrollAgentResponse{NodeKey: nodeKey}, nil
+	return contract.EnrollOsqueryAgentResponse{NodeKey: nodeKey}, nil
 }
 
 func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
@@ -107,6 +105,24 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("enroll failed: " + err.Error())
+	}
+
+	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
+	}
+
+	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
+	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
+	if identityCert != nil {
+		if !httpSigPresent {
+			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
+		}
+		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
+		}
+	} else if httpSigPresent { // but we couldn't find cert in DB
+		return "", fleet.NewAuthFailedError("authentication error: certificate matching HTTP message signature not found")
 	}
 
 	nodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
@@ -140,7 +156,16 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
-	host, err := svc.ds.EnrollHost(ctx, appConfig.MDM.EnabledAndConfigured, hostIdentifier, hardwareUUID, hardwareSerial, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
+	host, err := svc.ds.EnrollHost(ctx,
+		fleet.WithEnrollHostMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithEnrollHostOsqueryHostID(hostIdentifier),
+		fleet.WithEnrollHostHardwareUUID(hardwareUUID),
+		fleet.WithEnrollHostHardwareSerial(hardwareSerial),
+		fleet.WithEnrollHostNodeKey(nodeKey),
+		fleet.WithEnrollHostTeamID(secret.TeamID),
+		fleet.WithEnrollHostCooldown(svc.config.Osquery.EnrollCooldown),
+		fleet.WithEnrollHostIdentityCert(identityCert),
+	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
 	}
@@ -983,7 +1008,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(host, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+	preProcessSoftwareResults(host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -1276,9 +1301,9 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
 	host *fleet.Host,
-	results *fleet.OsqueryDistributedQueryResults,
-	statuses *map[string]fleet.OsqueryStatus,
-	messages *map[string]string,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
 	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
@@ -1301,7 +1326,7 @@ func preProcessSoftwareResults(
 
 // pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.
 // python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
-func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
+func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus) {
 	const pythonPrefix = "python3-"
 	const pythonSource = "python_packages"
 	const debSource = "deb_packages"
@@ -1314,11 +1339,11 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	}
 
 	// Check the 'software_linux' result and status
-	sw, ok := (*results)[linuxSoftware]
+	sw, ok := results[linuxSoftware]
 	if !ok {
 		return
 	}
-	if status, ok := (*statuses)[linuxSoftware]; !ok || status != fleet.StatusOK {
+	if status, ok := statuses[linuxSoftware]; !ok || status != fleet.StatusOK {
 		return
 	}
 
@@ -1372,23 +1397,23 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	}
 
 	// Store the updated software result back in the results map
-	(*results)[linuxSoftware] = sw
+	results[linuxSoftware] = sw
 }
 
 func preProcessSoftwareExtraResults(
 	softwareExtraQuery string,
 	hostID uint,
-	results *fleet.OsqueryDistributedQueryResults,
-	statuses *map[string]fleet.OsqueryStatus,
-	messages *map[string]string,
+	results fleet.OsqueryDistributedQueryResults,
+	statuses map[string]fleet.OsqueryStatus,
+	messages map[string]string,
 	override osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
 	// We always remove the extra query and its results
 	// in case the main or extra software query failed to execute.
-	defer delete(*results, softwareExtraQuery)
+	defer delete(results, softwareExtraQuery)
 
-	status, ok := (*statuses)[softwareExtraQuery]
+	status, ok := statuses[softwareExtraQuery]
 	if !ok {
 		return // query did not execute, e.g. the table does not exist.
 	}
@@ -1397,14 +1422,14 @@ func preProcessSoftwareExtraResults(
 		// extra query executed but with errors, so we return without changing anything.
 		level.Error(logger).Log(
 			"query", softwareExtraQuery,
-			"message", (*messages)[softwareExtraQuery],
+			"message", messages[softwareExtraQuery],
 			"hostID", hostID,
 		)
 		return
 	}
 
 	// Extract the results of the extra query.
-	softwareExtraRows := (*results)[softwareExtraQuery]
+	softwareExtraRows := results[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
 		return
 	}
@@ -1416,18 +1441,18 @@ func preProcessSoftwareExtraResults(
 		hostDetailQueryPrefix + "software_windows",
 		hostDetailQueryPrefix + "software_linux",
 	} {
-		if _, ok := (*results)[query]; !ok {
+		if _, ok := results[query]; !ok {
 			continue
 		}
-		if status, ok := (*statuses)[query]; ok && status != fleet.StatusOK {
+		if status, ok := statuses[query]; ok && status != fleet.StatusOK {
 			// Do not append results if the main query failed to run.
 			continue
 		}
 		if override.SoftwareProcessResults != nil {
-			(*results)[query] = override.SoftwareProcessResults((*results)[query], softwareExtraRows)
+			results[query] = override.SoftwareProcessResults(results[query], softwareExtraRows)
 		} else {
-			(*results)[query] = removeOverrides((*results)[query], override)
-			(*results)[query] = append((*results)[query], softwareExtraRows...)
+			results[query] = removeOverrides(results[query], override)
+			results[query] = append(results[query], softwareExtraRows...)
 		}
 		return
 	}

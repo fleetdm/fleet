@@ -809,7 +809,10 @@ const HostDetailsPage = ({
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
-        doesStoreEncryptionKey={host.mdm.encryption_key_available}
+        doesStoreEncryptionKey={
+          host.mdm.encryption_key_available ||
+          !!host.mdm.encryption_key_archived
+        }
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
       />
@@ -878,10 +881,12 @@ const HostDetailsPage = ({
   ];
 
   const getTabIndex = (path: string): number => {
-    return hostDetailsSubNav.findIndex((navItem) => {
+    const selected = hostDetailsSubNav.findIndex((navItem) => {
       // tab stays highlighted for paths that ends with same pathname
       return path.startsWith(navItem.pathname);
     });
+    // If our URL doesn't match anything, return the first (Details) tab by default
+    return selected === -1 ? 0 : selected;
   };
 
   const getSoftwareTabIndex = (path: string): number => {
@@ -930,8 +935,6 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  // host.platform = "windows";
-
   const isDarwinHost = host.platform === "darwin";
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
@@ -970,7 +973,10 @@ const HostDetailsPage = ({
                 softwareUpdatedAt={host.software_updated_at}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
-                queryParams={parseHostSoftwareQueryParams(location.query)}
+                queryParams={{
+                  ...parseHostSoftwareQueryParams(location.query),
+                  include_available_for_install: false,
+                }}
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
@@ -1013,7 +1019,10 @@ const HostDetailsPage = ({
               softwareUpdatedAt={host.software_updated_at}
               isSoftwareEnabled={featuresConfig?.enable_software_inventory}
               router={router}
-              queryParams={parseHostSoftwareQueryParams(location.query)}
+              queryParams={{
+                ...parseHostSoftwareQueryParams(location.query),
+                include_available_for_install: false,
+              }}
               pathname={location.pathname}
               onShowSoftwareDetails={setSelectedSoftwareDetails}
               hostTeamId={host.team_id || 0}

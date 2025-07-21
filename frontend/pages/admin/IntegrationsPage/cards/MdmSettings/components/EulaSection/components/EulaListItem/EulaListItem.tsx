@@ -7,6 +7,7 @@ import { IEulaMetadataResponse } from "services/entities/mdm";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "eula-list-item";
 
@@ -17,7 +18,7 @@ interface IEulaListItemProps {
 
 const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
   const onOpenEula = () => {
-    window.open(`/api/${endpoints.MDM_EULA(eulaData.token)}`, "_blank");
+    window.open(`/api${endpoints.MDM_EULA(eulaData.token)}`, "_blank");
   };
 
   return (
@@ -51,13 +52,18 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
             color="ui-fleet-black-75"
           />
         </Button>
-        <Button
-          className={`${baseClass}__list-item-button`}
-          variant="text-icon"
-          onClick={() => onDelete()}
-        >
-          <Icon name="trash" color="ui-fleet-black-75" />
-        </Button>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <Button
+              className={`${baseClass}__list-item-button`}
+              variant="text-icon"
+              onClick={() => onDelete()}
+              disabled={disableChildren}
+            >
+              <Icon name="trash" color="ui-fleet-black-75" />
+            </Button>
+          )}
+        />
       </div>
     </div>
   );

@@ -1,0 +1,1 @@
+* Fixed a case where host software counts wouldn't be updated if the host_software database table included one or more rows with a zero software_id

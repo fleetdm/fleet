@@ -9,6 +9,7 @@ import (
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/google/uuid"
 )
 
 const (
@@ -169,12 +170,13 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 type MDMEULA struct {
 	Name      string    `json:"name"`
 	Bytes     []byte    `json:"bytes"`
+	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
 func (e MDMEULA) AuthzType() string {
-	return "mdm_apple"
+	return "mdm_apple_eula"
 }
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
@@ -766,6 +768,10 @@ const (
 	MDMAssetAndroidPubSubToken MDMAssetName = "android_pubsub_token" // nolint:gosec // Ignore G101: Potential hardcoded credentials
 	// MDMAssetAndroidFleetServerSecret is the bearer token for Android requests sent to the fleetdm.com Android management proxy.
 	MDMAssetAndroidFleetServerSecret MDMAssetName = "android_fleet_server_secret" // nolint:gosec // Ignore G101: Potential hardcoded credentials
+	// MDMAssetHostIdentityCACert is the name of the root CA certificate used for host identity
+	MDMAssetHostIdentityCACert MDMAssetName = "host_identity_ca_cert"
+	// MDMAssetHostIdentityCAKey is the name of the root CA private key used for host identity
+	MDMAssetHostIdentityCAKey MDMAssetName = "host_identity_ca_key"
 )
 
 type MDMConfigAsset struct {
@@ -845,12 +851,32 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 
 // RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
 const (
-	RefetchBaseCommandUUIDPrefix           = "REFETCH-"
-	RefetchDeviceCommandUUIDPrefix         = RefetchBaseCommandUUIDPrefix + "DEVICE-"
-	RefetchAppsCommandUUIDPrefix           = RefetchBaseCommandUUIDPrefix + "APPS-"
-	RefetchCertsCommandUUIDPrefix          = RefetchBaseCommandUUIDPrefix + "CERTS-"
-	RefetchVPPAppInstallsCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "VPP-INSTALLS-"
+	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
+	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
+	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
+
+func RefetchAppsCommandUUID() string {
+	return RefetchAppsCommandUUIDPrefix + uuid.NewString()
+}
+
+func ListAppleRefetchCommandPrefixes() []string {
+	return []string{
+		RefetchBaseCommandUUIDPrefix,
+		RefetchDeviceCommandUUIDPrefix,
+		RefetchAppsCommandUUIDPrefix,
+		RefetchCertsCommandUUIDPrefix,
+	}
+}
+
+// VerifySoftwareInstallVPPPrefix is the prefix used for MDM commands used to verify VPP app installs.
+const VerifySoftwareInstallVPPPrefix = "VERIFY-VPP-INSTALLS-"
+
+// VerifySoftwareInstallCommandUUID returns a UUID for a MDM command used to verify VPP app installs.
+func VerifySoftwareInstallCommandUUID() string {
+	return VerifySoftwareInstallVPPPrefix + uuid.NewString()
+}
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
@@ -1029,4 +1055,4 @@ type MDMCommandResults interface {
 	HostUUID() string
 }
 
-type CommandHandler func(ctx context.Context, results MDMCommandResults) error
+type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error

@@ -18,6 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -329,6 +331,12 @@ func (svc *mockMailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
 
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
+// HostIdentity combines host identity-related test options
+type HostIdentity struct {
+	SCEPStorage                 scep_depot.Depot
+	RequireHTTPMessageSignature bool
+}
+
 type TestServerOpts struct {
 	Logger                          kitlog.Logger
 	License                         *fleet.LicenseInfo
@@ -363,6 +371,7 @@ type TestServerOpts struct {
 	DigiCertService                 fleet.DigiCertService
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
+	HostIdentity                    *HostIdentity
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -454,7 +463,17 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && len(opts[0].FeatureRoutes) > 0 {
 		featureRoutes = opts[0].FeatureRoutes
 	}
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, featureRoutes, WithLoginRateLimit(throttled.PerMin(1000)))
+	var extra []ExtraHandlerOption
+	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))
+
+	if len(opts) > 0 && opts[0].HostIdentity != nil {
+		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger))
+		var httpSigVerifier func(http.Handler) http.Handler
+		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+		require.NoError(t, err)
+		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
+	}
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)

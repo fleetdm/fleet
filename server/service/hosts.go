@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -863,7 +862,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 
-	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+	if err := svc.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, hostIDs)); err != nil {
 		return err
 	}
 	if !skipBulkPending {
@@ -1000,7 +999,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 	}
 
 	// Apply the team to the selected hosts.
-	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+	if err := svc.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, hostIDs)); err != nil {
 		return err
 	}
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
@@ -1302,6 +1301,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		}
 	}
 	host.MDM.Profiles = &profiles
+
+	isHDEKArchived, err := svc.ds.IsHostDiskEncryptionKeyArchived(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check if host disk encryption key is archived")
+	}
+	host.MDM.EncryptionKeyArchived = &isHDEKArchived
 
 	if host.IsLUKSSupported() {
 		// since Linux hosts don't require MDM to be enabled & configured, explicitly check that disk encryption is
@@ -2337,30 +2342,10 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, err
 	}
 
-	var key *fleet.HostDiskEncryptionKey
-	if host.IsLUKSSupported() {
-		if svc.config.Server.PrivateKey == "" {
-			return nil, ctxerr.Wrap(ctx, errors.New("private key is unavailable"), "getting host encryption key")
-		}
-
-		key, err = svc.ds.GetHostDiskEncryptionKey(ctx, id)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
-		}
-		if key.Base64Encrypted == "" {
-			return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not set")
-		}
-
-		decryptedKey, err := mdm.DecodeAndDecrypt(key.Base64Encrypted, svc.config.Server.PrivateKey)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
-		}
-		key.DecryptedValue = decryptedKey
-	} else {
-		key, err = svc.decryptForMDMPlatform(ctx, host)
-		if err != nil {
-			return nil, err
-		}
+	level.Info(svc.logger).Log("msg", "retrieving host disk encryption key", "host_id", host.ID, "host_name", host.DisplayName())
+	key, err := svc.getHostDiskEncryptionKey(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
 
 	err = svc.NewActivity(
@@ -2378,47 +2363,114 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	return key, nil
 }
 
-func (svc *Service) decryptForMDMPlatform(ctx context.Context, host *fleet.Host) (*fleet.HostDiskEncryptionKey, error) {
-	// Here we must check if the appropriate MDM is enabled for that particular host's platform.
-	var decryptCert *tls.Certificate
-	if host.FleetPlatform() == "windows" {
+func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostDiskEncryptionKey, error) {
+	// First, determine the decryption function based on the host platform and configuration.
+	var decryptFn func(b64 string) (string, error)
+	switch {
+	case host.IsLUKSSupported():
+		if svc.config.Server.PrivateKey == "" {
+			return nil, errors.New("private key is unavailable")
+		}
+		decryptFn = func(b64 string) (string, error) {
+			return mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
+		}
+	case host.FleetPlatform() == "windows":
 		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
 			return nil, err
 		}
-
-		// use Microsoft's WSTEP certificate for decrypting
 		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
 		}
-		decryptCert = cert
-	} else {
+		decryptFn = func(b64 string) (string, error) {
+			b, err := mdm.DecryptBase64CMS(b64, cert.Leaf, cert.PrivateKey)
+			return string(b), err
+		}
+	default:
+		// Fallback to using Apple MDM CA assets for decryption.
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return nil, err
 		}
-
-		// use Apple's SCEP certificate for decrypting
 		cert, err := assets.CAKeyPair(ctx, svc.ds)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 		}
-		decryptCert = cert
+		decryptFn = func(b64 string) (string, error) {
+			b, err := mdm.DecryptBase64CMS(b64, cert.Leaf, cert.PrivateKey)
+			return string(b), err
+		}
 	}
 
+	// Next, get host disk encryption key and archived key, if any
 	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
-	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
+	archivedKey, err := svc.ds.GetHostArchivedDiskEncryptionKey(ctx, host)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "getting host archived disk encryption key")
+	}
+	if key == nil && archivedKey == nil {
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not set")
 	}
 
-	decryptedKey, err := mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
+	var decrypted string
+	var decryptErrs []error
+	if key != nil && key.Base64Encrypted != "" {
+		// Assume the current key is not decryptable.
+		key.Decryptable = ptr.Bool(false)
+		key.DecryptedValue = ""
+
+		// Try to decrypt the current key.
+		decrypted, err = decryptFn(key.Base64Encrypted)
+		switch {
+		case err != nil:
+			decryptErrs = append(decryptErrs, fmt.Errorf("decrypting host disk encryption key: %w", err))
+		case decrypted == "":
+			decryptErrs = append(decryptErrs, fmt.Errorf("decrypted host disk encryption key is empty for host %d", host.ID))
+		default:
+			level.Info(svc.logger).Log("msg", "decrypted current host disk encryption key", "host_id", host.ID)
+			key.Decryptable = ptr.Bool(true)
+			key.DecryptedValue = decrypted
+
+			return key, nil // Return the decrypted key immediately if successful.
+		}
 	}
 
-	key.DecryptedValue = string(decryptedKey)
+	// If we have an archived key, try to decrypt it.
+	if archivedKey != nil && archivedKey.Base64Encrypted != "" {
+		decrypted, err = decryptFn(archivedKey.Base64Encrypted)
+		switch {
+		case err != nil:
+			decryptErrs = append(decryptErrs, fmt.Errorf("decrypting archived disk encryption key: %w", err))
+		case decrypted == "":
+			decryptErrs = append(decryptErrs, fmt.Errorf("decrypted archived disk encryption key is empty for host %d", host.ID))
+		default:
+			level.Info(svc.logger).Log("msg", "decrypted archived host disk encryption key", "host_id", host.ID)
+
+			// We successfully decrypted the archived key so we'll use it in place of the current key.
+			key = &fleet.HostDiskEncryptionKey{
+				HostID:              host.ID,
+				Base64Encrypted:     archivedKey.Base64Encrypted,
+				Base64EncryptedSalt: archivedKey.Base64EncryptedSalt,
+				KeySlot:             archivedKey.KeySlot,
+				Decryptable:         ptr.Bool(true),
+				DecryptedValue:      decrypted,
+				UpdatedAt:           archivedKey.CreatedAt,
+			}
+		}
+	}
+
+	if len(decryptErrs) > 0 {
+		// If we have any decryption errors, log them.
+		level.Error(svc.logger).Log("msg", "decryption errors for host disk encryption key", "host_id", host.ID, "errors", errors.Join(decryptErrs...))
+	}
+
+	if key == nil || key.DecryptedValue == "" {
+		// If we couldn't decrypt any key, return an error.
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key")
+	}
+
 	return key, nil
 }
 
@@ -2747,6 +2799,31 @@ type getHostSoftwareResponse struct {
 
 func (r getHostSoftwareResponse) Error() error { return r.Err }
 
+func (r getHostSoftwareRequest) DecodeRequest(ctx context.Context, req *http.Request) (interface{}, error) {
+	type defaultDecodeRequest struct {
+		ID uint `url:"id"`
+		fleet.HostSoftwareTitleListOptions
+	}
+
+	defaultDecoder := makeDecoder(defaultDecodeRequest{})
+	decoded, err := defaultDecoder(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	result := decoded.(*defaultDecodeRequest)
+	queryParams := req.URL.Query()
+	_, wasIncludeAvailableForInstallSet := queryParams["include_available_for_install"]
+	result.HostSoftwareTitleListOptions.IncludeAvailableForInstallExplicitlySet = wasIncludeAvailableForInstallSet
+
+	finalResult := getHostSoftwareRequest{
+		ID:                           result.ID,
+		HostSoftwareTitleListOptions: result.HostSoftwareTitleListOptions,
+	}
+
+	return &finalResult, nil
+}
+
 func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostSoftwareRequest)
 	res, meta, err := svc.ListHostSoftware(ctx, req.ID, req.HostSoftwareTitleListOptions)
@@ -2760,10 +2837,12 @@ func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	// if the request is token-authenticated ("My device" page), we don't include
-	// software that is not installed but for which there's an installer
-	// available for that host (unless the request filters for self-service
-	// software only).
+	// When accessed via "My device", we default to only showing inventory (excluding software available for install
+	// but not in inventory), unless we're asked to filter to self-service software only.
+	//
+	// Otherwise (e.g. host software UI within Fleet's admin interface), the default is to show both installed and
+	// available-for-install software, to maintain existing API behavior. This behavior can be explicitly overridden
+	// if needed (see opts.IncludeAvailableForInstallExplicitlySet).
 	var includeAvailableForInstall bool
 
 	var host *fleet.Host
@@ -2795,6 +2874,10 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "checking mdm enrollment status")
+	}
+
+	if opts.IncludeAvailableForInstallExplicitlySet {
+		includeAvailableForInstall = opts.IncludeAvailableForInstall
 	}
 
 	// cursor-based pagination is not supported

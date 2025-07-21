@@ -385,6 +385,11 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+
+	// nil -> field isn't loaded
+	// true -> at least one non-revoked cert exists
+	// false -> we know there is no cert
+	HasHostIdentityCert *bool `json:"-" db:"has_host_identity_cert" csv:"-"`
 }
 
 type HostForeignVitalGroup struct {
@@ -411,7 +416,7 @@ type HostVital struct {
 var hostForeignVitalGroups = map[string]HostForeignVitalGroup{
 	"idp": {
 		Name:  "Identity Provider",
-		Query: `RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
+		Query: `RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
 	},
 }
 
@@ -517,6 +522,10 @@ type MDMHostData struct {
 	// EncryptionKeyAvailable indicates if Fleet was able to retrieve and
 	// decode an encryption key for the host.
 	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
+	// EncryptionKeyArchived indicates if an archived encryption key exists for the host.
+	// It is not filled in by all host-returning methods (currently only populated if
+	// svc.getHostDetails is called).
+	EncryptionKeyArchived *bool `json:"encryption_key_archived,omitempty" db:"encryption_key_archived" csv:"-"`
 
 	// this is set to nil if the key exists but decryptable is NULL in the db, 1
 	// if decryptable, 0 if non-decryptable and -1 if no disk encryption key row
@@ -942,6 +951,16 @@ func (h *Host) FleetPlatform() string {
 	return PlatformFromHost(h.Platform)
 }
 
+func (h *Host) PlatformSupportsRpmPackages() bool {
+	_, ok := HostRpmPackageOSs[h.Platform]
+	return ok
+}
+
+func (h *Host) PlatformSupportsDebPackages() bool {
+	_, ok := HostDebPackageOSs[h.Platform]
+	return ok
+}
+
 // SupportsOsquery returns whether the device runs osquery.
 func (h *Host) SupportsOsquery() bool {
 	return PlatformSupportsOsquery(h.Platform)
@@ -955,6 +974,39 @@ func PlatformSupportsOsquery(platform string) bool {
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
 	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo", "neon",
+}
+
+// HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
+var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
+	"arch":        {},
+	"gentoo":      {},
+	"void":        {},
+	"nixos":       {},
+	"endeavouros": {},
+	"manjaro":     {},
+}
+
+// HostDebPackageOSs are the list of known Linux platforms that support DEB packages
+var HostDebPackageOSs = map[string]struct{}{
+	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
+	"ubuntu":    {},
+	"debian":    {},
+	"kali":      {},
+	"pop":       {},
+	"linuxmint": {},
+	"tuxedo":    {},
+	"neon":      {},
+}
+
+// HostRpmPackageOSs are the list of known Linux platforms that support RPM packages
+var HostRpmPackageOSs = map[string]struct{}{
+	"linux":               {}, // let RPMs through if we're looking at a generic Linux host
+	"rhel":                {},
+	"centos":              {},
+	"sles":                {},
+	"amzn":                {},
+	"opensuse-leap":       {},
+	"opensuse-tumbleweed": {},
 }
 
 func IsLinux(hostPlatform string) bool {
@@ -1315,6 +1367,14 @@ type HostDiskEncryptionKey struct {
 	ClientError         string    `json:"-" db:"client_error"`
 }
 
+type HostArchivedDiskEncryptionKey struct {
+	HostID              uint      `json:"-" db:"host_id"`
+	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
+	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
+	KeySlot             *uint     `json:"-" db:"key_slot"`
+	CreatedAt           time.Time `json:"created_at" db:"created_at"`
+}
+
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed
 type HostSoftwareInstalledPath struct {
 	// ID row id
@@ -1416,4 +1476,29 @@ func IsMacOSMajorVersionOK(host *Host) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// AddHostsToTeamParams contains the parameters to use when calling AddHostsToTeam.
+type AddHostsToTeamParams struct {
+	TeamID  *uint
+	HostIDs []uint
+	// A large number of hosts could be changing teams at once,
+	// so we need to batch this operation to prevent excessive locks
+	BatchSize uint
+}
+
+// NewAddHostsToTeamParams creates a new AddHostsToTeamParams instance, setting the BatchSize to a
+// sensible default.
+func NewAddHostsToTeamParams(teamID *uint, hostIDs []uint) *AddHostsToTeamParams {
+	return &AddHostsToTeamParams{
+		TeamID:    teamID,
+		HostIDs:   hostIDs,
+		BatchSize: 10_000,
+	}
+}
+
+// WithBatchSize overrides the default BatchSize with the provided value.
+func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTeamParams {
+	params.BatchSize = batchSize
+	return params
 }

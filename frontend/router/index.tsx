@@ -149,6 +149,10 @@ const routes = (
           <Route path="login/denied" component={NoAccessPage} />
           <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
           <Route path="mdm/sso" component={MDMAppleSSOPage} />
+          <Route
+            path="mdm/apple/account_driven_enroll/sso"
+            component={MDMAppleSSOPage}
+          />
         </Route>
       </Route>
       <Route component={AuthenticatedRoutes as RouteComponent}>
@@ -170,13 +174,18 @@ const routes = (
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="organization" component={OrgSettingsPage} />
+                {/* Forward old routes to new */}
+                <Redirect from="organization/sso" to="integrations/sso" />
+                <Redirect
+                  from="organization/host-status-webhook"
+                  to="integrations/host-status-webhook"
+                />
                 <Route
                   path="organization/:section"
                   component={OrgSettingsPage}
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
-                {/* This redirect is used to handle the old URL for these two
-                pages */}
+                {/* Forward old routes to new */}
                 <Redirect
                   from="integrations/automatic-enrollment"
                   to="integrations/mdm"
@@ -247,6 +256,7 @@ const routes = (
               component={ManageHostsPage}
             />
             <Route path=":host_id" component={HostDetailsPage}>
+              <IndexRedirect to="details" />
               <Redirect from="schedule" to="queries" />
               <Route path="details" component={HostDetailsPage} />
               <Route path="scripts" component={HostDetailsPage} />

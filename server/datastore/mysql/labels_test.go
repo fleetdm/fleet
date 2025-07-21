@@ -115,7 +115,10 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	var host *fleet.Host
 	var err error
 	for i := 0; i < 10; i++ {
-		host, err = db.EnrollHost(context.Background(), false, fmt.Sprint(i), "", "", fmt.Sprint(i), nil, 0)
+		host, err = db.EnrollHost(context.Background(),
+			fleet.WithEnrollHostOsqueryHostID(fmt.Sprint(i)),
+			fleet.WithEnrollHostNodeKey(fmt.Sprint(i)),
+		)
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
@@ -492,7 +495,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	team2, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	require.NoError(t, db.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))
+	require.NoError(t, db.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID})))
 
 	userFilter := fleet.TeamFilter{User: test.UserAdmin}
 	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
@@ -598,7 +601,7 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 
 	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	require.NoError(t, db.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, db.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	l1 := fleet.LabelSpec{
 		ID:    1,
@@ -922,7 +925,10 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 }
 
 func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
-	host, err := db.EnrollHost(context.Background(), false, "0", "", "", "0", nil, 0)
+	host, err := db.EnrollHost(context.Background(),
+		fleet.WithEnrollHostOsqueryHostID("0"),
+		fleet.WithEnrollHostNodeKey("0"),
+	)
 	require.NoError(t, err, "enrollment should succeed")
 
 	host.Platform = "rhel"

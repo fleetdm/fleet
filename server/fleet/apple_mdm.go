@@ -73,7 +73,7 @@ type MDMAppleEnrollmentProfile struct {
 	//
 	// DEPProfile is nil when Type is MDMAppleEnrollmentTypeManual.
 	DEPProfile *json.RawMessage `json:"dep_profile" db:"dep_profile"`
-	// EnrollmentURL is the URL where an enrollement is served.
+	// EnrollmentURL is the URL where an enrollment is served.
 	EnrollmentURL string `json:"enrollment_url" db:"-"`
 
 	UpdateCreateTimestamps
@@ -601,6 +601,9 @@ type SCEPIdentityAssociation struct {
 	// EnrolledFromMigration is used for devices migrated via datababse
 	// dumps (ie: "touchless")
 	EnrolledFromMigration bool `db:"enrolled_from_migration"`
+	// EnrollmentType is nano_enrollment.type and should be examined to determine
+	// the proper enrollment profile.
+	EnrollmentType string `db:"type"`
 }
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
@@ -960,6 +963,20 @@ type MDMAppleMachineInfo struct {
 	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
 	UDID                        string `plist:"UDID"`
 	Version                     string `plist:"VERSION"`
+}
+
+// MDMAppleAccountDrivenUserEnrollDeviceInfo is a more minimal version of DeviceInfo sent on Account
+// Driven User Enrollment requests[1] that only describes the base product attempting enrollment.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/implementing-the-simple-authentication-user-enrollment-flow#Attempt-the-first-enrollment
+type MDMAppleAccountDrivenUserEnrollDeviceInfo struct {
+	Version  string `plist:"VERSION"`
+	Product  string `plist:"PRODUCT"`
+	Language string `plist:"LANGUAGE,omitempty"`
+	// The following keys are not described in the documentation above but have been observed in practice
+	OSVersion                string `plist:"OS_VERSION,omitempty"`
+	SoftwareUpdateDeviceID   string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
+	SupplementalBuildVersion string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
 }
 
 // MDMAppleSoftwareUpdateRequiredCode is the [code][1] specified by Apple to indicate that the device

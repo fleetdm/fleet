@@ -21,12 +21,12 @@ parasails.registerPage('homepage', {
 
     comparisonTableMode: 'it',
     // For MDM comparison table
-    comparisonModeForIt: 'sccm',
+    comparisonModeForIt: 'omnissa',
     comparisonModeForSecurity: 'rapid',
     comparisonModeFriendlyNames: {
       jamf: 'Jamf Pro',
       sccm: 'SCCM',
-      omnissa: 'Omnissa (WS1)',
+      omnissa: 'Workspace ONE',
       intune: 'Intune',
       tanium: 'Tanium',
       ansible: 'Ansible',
@@ -37,6 +37,7 @@ parasails.registerPage('homepage', {
       qualys: 'Qualys',
       tenable: 'Tenable',
       defender: 'Defender',
+      patchmypc: 'PatchMyPC',
     }
   },
 

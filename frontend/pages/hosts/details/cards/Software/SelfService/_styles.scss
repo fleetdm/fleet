@@ -61,8 +61,6 @@
   @media (min-width: $break-md) {
     .categories-menu {
       display: flex;
-      flex-direction: column;
-      width: 300px;
     }
 
     &__categories-dropdown {

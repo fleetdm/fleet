@@ -1,0 +1,1 @@
+* Added flag `--fleet-managed-client-certificate` to generate fleetd packages for linux that use TPMs to sign HTTP requests.

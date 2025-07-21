@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha1" // nolint: gosec
 	"database/sql"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -1100,7 +1101,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	req := deleteHostsRequest{
 		Filters: &map[string]interface{}{"team_id": float64(team1.ID)},
@@ -2372,7 +2373,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	// set disk space information for hosts [0] and [1]
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
@@ -2725,7 +2726,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 		require.NoError(t, err)
 		hosts[i] = h.ID
 	}
-	err = s.ds.AddHostsToTeam(context.Background(), &team1.ID, hosts)
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, hosts))
 	require.NoError(t, err)
 
 	tpName := "TestPolicy3"
@@ -3007,7 +3008,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 		Description: "desc team1",
 	})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID}))
 	require.NoError(t, err)
 
 	gpParams := globalPolicyRequest{
@@ -4245,9 +4246,9 @@ func (s *integrationTestSuite) TestLabels() {
 	t := s.T()
 
 	// create some hosts to use for manual labels
-	hosts := s.createHosts(t, "debian", "linux", "fedora", "darwin", "darwin", "darwin")
+	hosts := s.createHosts(t, "debian", "linux", "fedora", "darwin", "darwin", "darwin", "darwin")
 	manualHosts := hosts[:3]
-	lbl2Hosts := hosts[3:]
+	lbl2Hosts := hosts[3:6]
 
 	t.Run("Manual and Dynamic Labels", func(t *testing.T) {
 		// list labels, has the built-in ones
@@ -4625,15 +4626,22 @@ func (s *integrationTestSuite) TestLabels() {
 			t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(
 					context.Background(),
-					"INSERT INTO scim_users (id, user_name) VALUES (?, ?), (?, ?), (?, ?), (?, ?)",
+					"INSERT INTO scim_users (id, user_name, department) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?)",
 					1,
-					"no_groups",
+					"no_groups_no_department",
+					nil,
 					2,
-					"one_group",
+					"one_group_good_department",
+					"department_good",
 					3,
-					"all_the_groups",
+					"all_the_groups_good_department",
+					"department_good",
 					4,
-					"wrong_groups",
+					"wrong_groups_wrong_department",
+					"department_other",
+					5,
+					"no_groups_with_department",
+					"department_other_2",
 				)
 				return err
 			},
@@ -4674,13 +4682,13 @@ func (s *integrationTestSuite) TestLabels() {
 			t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(
 					context.Background(),
-					"INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)",
-					hosts[0].ID, 1, // host 1 shouldn't be returned because its scim user has no groups
-					hosts[1].ID, 2, // host 2 should be returned because its scim user has the "group_good" group
-					hosts[2].ID, 3, // host 3 should be returned because it has a scim user with the "group_good" group
-					hosts[3].ID, 2, // host 4 should be returned because it has a scim user with the "group_good" group
-					hosts[4].ID, 4, // host 5 shouldn't be returned because its scim user only has the "group_bad" group
-					// host 6 shouldn't be returned because it has no scim user
+					"INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)",
+					hosts[0].ID, 1,
+					hosts[1].ID, 2,
+					hosts[2].ID, 3,
+					hosts[3].ID, 2,
+					hosts[4].ID, 4,
+					hosts[6].ID, 5,
 				)
 				return err
 			},
@@ -4715,7 +4723,7 @@ func (s *integrationTestSuite) TestLabels() {
 			queryValuesJson, err := json.Marshal(queryValues)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
 			assert.Equal(t, `["group_good"]`, string(queryValuesJson))
 
 			// Update label membership.
@@ -4724,6 +4732,14 @@ func (s *integrationTestSuite) TestLabels() {
 
 			// Verify that the label has the correct hosts.
 			// Check that the label has the correct hosts
+			//
+			// host 1 shouldn't be returned because its scim user has no groups
+			// host 2 should be returned because its scim user has the "group_good" group
+			// host 3 should be returned because it has a scim user with the "group_good" group
+			// host 4 should be returned because it has a scim user with the "group_good" group
+			// host 5 shouldn't be returned because its scim user only has the "group_bad" group
+			// host 6 shouldn't be returned because it has no scim user
+			//
 			hostsInLabel, err := s.ds.ListHostsInLabel(context.Background(), filter, label.ID, fleet.HostListOptions{})
 			require.NoError(t, err)
 			require.Len(t, hostsInLabel, 3)
@@ -4733,6 +4749,91 @@ func (s *integrationTestSuite) TestLabels() {
 			label, _, err = s.ds.Label(context.Background(), labelResp.Label.Label.ID, filter)
 			require.NoError(t, err)
 			assert.Equal(t, 3, label.HostCount)
+		})
+
+		t.Run("IdP Department Label", func(t *testing.T) {
+			// Create a label for an IdP department
+			criteria := &fleet.HostVitalCriteria{
+				Vital: ptr.String("end_user_idp_department"),
+				Value: ptr.String("department_good"),
+			}
+
+			labelParams := createLabelRequest{
+				fleet.LabelPayload{
+					Name:     "Test IdP Department Label",
+					Criteria: criteria,
+				},
+			}
+
+			labelResp := createLabelResponse{}
+			s.DoJSON("POST", "/api/latest/fleet/labels", labelParams, http.StatusOK, &labelResp)
+			require.NotNil(t, labelResp.Label)
+
+			filter := fleet.TeamFilter{User: test.UserAdmin}
+			label, _, err := s.ds.Label(context.Background(), labelResp.Label.Label.ID, filter)
+			require.NoError(t, err)
+
+			// Verify that the query and values are correct.
+			// Test parsing the criteria
+			query, queryValues, err := label.CalculateHostVitalsQuery()
+			require.NoError(t, err)
+			queryValuesJson, err := json.Marshal(queryValues)
+			require.NoError(t, err)
+
+			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id", query)
+			assert.Equal(t, `["department_good"]`, string(queryValuesJson))
+
+			// Update label membership.
+			_, err = s.ds.UpdateLabelMembershipByHostCriteria(context.Background(), label)
+			require.NoError(t, err)
+
+			// Verify that the label has the correct hosts.
+			hostsInLabel, err := s.ds.ListHostsInLabel(context.Background(), filter, label.ID, fleet.HostListOptions{})
+			require.NoError(t, err)
+			require.Len(t, hostsInLabel, 3)
+			require.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID, hostsInLabel[2].ID})
+
+			// Check that the label has the correct host count
+			label, _, err = s.ds.Label(context.Background(), labelResp.Label.Label.ID, filter)
+			require.NoError(t, err)
+			assert.Equal(t, 3, label.HostCount)
+
+			t.Run("No Groups", func(t *testing.T) {
+				// Create a label for IdP department to test users with department but no groups
+				criteria := &fleet.HostVitalCriteria{
+					Vital: ptr.String("end_user_idp_department"),
+					Value: ptr.String("department_other_2"),
+				}
+				labelParams := createLabelRequest{
+					fleet.LabelPayload{
+						Name:     "Test IdP Department Label 2",
+						Criteria: criteria,
+					},
+				}
+
+				labelResp := createLabelResponse{}
+				s.DoJSON("POST", "/api/latest/fleet/labels", labelParams, http.StatusOK, &labelResp)
+				require.NotNil(t, labelResp.Label)
+
+				label, _, err = s.ds.Label(context.Background(), labelResp.Label.Label.ID, filter)
+				require.NoError(t, err)
+
+				// Update label membership.
+				_, err = s.ds.UpdateLabelMembershipByHostCriteria(context.Background(), label)
+				require.NoError(t, err)
+
+				// Verify that the label has the correct hosts.
+				hostsInLabel, err := s.ds.ListHostsInLabel(context.Background(), filter, label.ID, fleet.HostListOptions{})
+				require.NoError(t, err)
+				require.Len(t, hostsInLabel, 1)
+				// host 7 is mapped to user 5 which matches the department but has no groups.
+				require.ElementsMatch(t, []uint{hosts[6].ID}, []uint{hostsInLabel[0].ID})
+
+				// Check that the label has the correct host count
+				label, _, err = s.ds.Label(context.Background(), label.ID, filter)
+				require.NoError(t, err)
+				assert.Equal(t, 1, label.HostCount)
+			})
 		})
 	})
 }
@@ -4798,7 +4899,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 		},
 	)
 	require.NoError(t, err)
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
 	// Add pack
 	_, err = s.ds.NewPack(
@@ -7619,7 +7720,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		Name: t.Name(),
 	})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{hosts[19].ID, hosts[18].ID, hosts[17].ID}))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[19].ID, hosts[18].ID, hosts[17].ID})))
 	expectedTeamVersionsCount := 3
 
 	assertSoftwareDetails := func(expectedSoftware []fleet.Software, team string) {
@@ -8097,7 +8198,7 @@ func (s *integrationTestSuite) TestCountTargets() {
 		hostIDs = append(hostIDs, h.ID)
 	}
 
-	err = s.ds.AddHostsToTeam(context.Background(), ptr.Uint(team.ID), []uint{hostIDs[0]})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(ptr.Uint(team.ID), []uint{hostIDs[0]}))
 	require.NoError(t, err)
 
 	var countResp countTargetsResponse
@@ -8179,7 +8280,7 @@ func (s *integrationTestSuite) TestEnrollHost() {
 	}, http.StatusOK, &applyResp)
 
 	// invalid enroll secret fails
-	j, err := json.Marshal(&enrollAgentRequest{
+	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   "nosuchsecret",
 		HostIdentifier: "abcd",
 	})
@@ -8187,13 +8288,13 @@ func (s *integrationTestSuite) TestEnrollHost() {
 	s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusUnauthorized)
 
 	// valid enroll secret succeeds
-	j, err = json.Marshal(&enrollAgentRequest{
+	j, err = json.Marshal(&contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   t.Name(),
 		HostIdentifier: t.Name(),
 	})
 	require.NoError(t, err)
 
-	var resp enrollAgentResponse
+	var resp contract.EnrollOsqueryAgentResponse
 	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
@@ -8228,7 +8329,7 @@ func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 	require.Len(t, *getHostResp.Host.Policies, 1)
 
 	// re-enroll the host, but using a different platform
-	j, err := json.Marshal(&enrollAgentRequest{
+	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   t.Name(),
 		HostIdentifier: *host.OsqueryHostID,
 		HostDetails:    map[string](map[string]string){"os_version": map[string]string{"platform": "windows"}},
@@ -8244,7 +8345,7 @@ func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 		)
 		return err
 	})
-	var resp enrollAgentResponse
+	var resp contract.EnrollOsqueryAgentResponse
 	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
@@ -9082,16 +9183,20 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 func (s *integrationTestSuite) TestSSODisabled() {
 	t := s.T()
 
-	var initiateResp initiateSSOResponse
-	s.DoJSON("POST", "/api/v1/fleet/sso", struct{}{}, http.StatusBadRequest, &initiateResp)
+	s.DoRawNoAuth("POST", "/api/v1/fleet/sso", nil, http.StatusBadRequest)
 
-	var callbackResp callbackSSOResponse
 	// callback without SAML response
-	s.DoJSON("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest, &callbackResp)
+	s.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest)
+
 	// callback with invalid SAML response
-	s.DoJSON("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest, &callbackResp)
-	// callback with valid SAML response (<samlp:AuthnRequest></samlp:AuthnRequest>)
-	res := s.DoRaw("POST", "/api/v1/fleet/sso/callback?SAMLResponse=PHNhbWxwOkF1dGhuUmVxdWVzdD48L3NhbWxwOkF1dGhuUmVxdWVzdD4%3D", nil, http.StatusOK)
+	s.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest)
+
+	// callback with valid SAML response
+	validResponse := `<?xml version="1.0" encoding="UTF-8"?>
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" Destination="https://localhost:8080/api/v1/fleet/sso/callback" ID="_52f2515c5319f2adf3f072d9d9f2b6881493305396746" InResponseTo="4982b430-73e1-4ad2-885a-4a775a91f820" IssueInstant="2017-04-27T15:03:16.747Z" Version="2.0">
+</samlp:Response>`
+	samlResponse := base64.StdEncoding.EncodeToString([]byte(validResponse))
+	res := s.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+url.QueryEscape(samlResponse), nil, http.StatusOK)
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -9635,7 +9740,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	err = s.ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
@@ -10046,7 +10151,7 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 	require.NoError(t, err)
 
 	var resp endpoint_utils.JsonError
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
 		EnrollSecret:   uuid.New().String(),
 		HardwareUUID:   h.UUID,
 		HardwareSerial: h.HardwareSerial,
@@ -10085,7 +10190,7 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	// the provided uuid).
 	var resp EnrollOrbitResponse
 	hostUUID := uuid.New().String()
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
 		EnrollSecret:   secret,
 		HardwareUUID:   hostUUID, // will not match any existing host
 		HardwareSerial: h.HardwareSerial,
@@ -10098,7 +10203,7 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	require.NotEqual(t, h.ID, orbitHost.ID)
 
 	// enroll the host from osquery, it should match the Orbit-enrolled host
-	var osqueryResp enrollAgentResponse
+	var osqueryResp contract.EnrollOsqueryAgentResponse
 
 	// NOTE(mna): using an osquery_host_id that is NOT the host's UUID would not work,
 	// because we haven't enabled lookup by UUID due to not having an index and possible
@@ -10109,7 +10214,7 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 
 	osqueryID := hostUUID
 
-	s.DoJSON("POST", "/api/osquery/enroll", enrollAgentRequest{
+	s.DoJSON("POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   secret,
 		HostIdentifier: osqueryID,
 		HostDetails: map[string]map[string]string{
@@ -10178,10 +10283,14 @@ type validationErrResp struct {
 
 func setOrbitEnrollment(t *testing.T, h *fleet.Host, ds fleet.Datastore) string {
 	orbitKey := uuid.New().String()
-	_, err := ds.EnrollOrbit(context.Background(), false, fleet.OrbitHostInfo{
-		HardwareUUID:   *h.OsqueryHostID,
-		HardwareSerial: h.HardwareSerial,
-	}, orbitKey, h.TeamID)
+	_, err := ds.EnrollOrbit(context.Background(),
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID:   *h.OsqueryHostID,
+			HardwareSerial: h.HardwareSerial,
+		}),
+		fleet.WithEnrollOrbitNodeKey(orbitKey),
+		fleet.WithEnrollOrbitTeamID(h.TeamID),
+	)
 	require.NoError(t, err)
 	err = ds.SetOrUpdateHostOrbitInfo(
 		context.Background(), h.ID, "1.22.0", sql.NullString{String: "42", Valid: true}, sql.NullBool{Bool: true, Valid: true},
@@ -11428,7 +11537,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{host2Team1.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host2Team1.ID}))
 	require.NoError(t, err)
 
 	host1Team2, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -11447,7 +11556,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.AddHostsToTeam(ctx, &team2.ID, []uint{host1Team2.ID})
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host1Team2.ID}))
 	require.NoError(t, err)
 
 	osqueryInfoQuery, err := s.ds.NewQuery(ctx, &fleet.Query{

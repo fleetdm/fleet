@@ -1,0 +1,8 @@
+- name: Conditional access test group
+  description: macOS hosts testing Entra conditional access
+  label_membership_type: manual
+  platform: darwin
+  hosts:
+    - "allens-macbook-pro.local"
+    - "allens-mac-mini.local"
+    - "Mitchs-MBP"
