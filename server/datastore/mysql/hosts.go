@@ -4227,6 +4227,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 			hm.server_url,
 			hm.installed_from_dep,
 			hm.mdm_id,
+			hm.is_personal_enrollment,
 			COALESCE(hm.is_server, false) AS is_server,
 			COALESCE(mdms.name, ?) AS name,
 			hdep.assign_profile_response AS dep_profile_assign_status
