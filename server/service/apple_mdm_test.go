@@ -2135,7 +2135,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.UpdateMDMDiskEncryption(ctx, tt.teamID, nil)
+			err := svc.UpdateMDMDiskEncryption(ctx, tt.teamID, nil, nil)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return

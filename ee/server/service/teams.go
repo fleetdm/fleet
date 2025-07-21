@@ -1638,8 +1638,9 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 	return *defaults, nil
 }
 
-func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool) error {
-	var didUpdate bool
+func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool, requirePIN *bool) error {
+	var didUpdateEncryption bool
+	var didUpdateRequirePIN bool
 	if enable != nil {
 		if tm.Config.MDM.EnableDiskEncryption != *enable {
 			if *enable && svc.config.Server.PrivateKey == "" {
@@ -1647,34 +1648,42 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 			}
 
 			tm.Config.MDM.EnableDiskEncryption = *enable
-			didUpdate = true
+			didUpdateEncryption = true
 		}
 	}
+	if requirePIN != nil {
+		if tm.Config.MDM.RequireBitLockerPIN != *requirePIN {
+			tm.Config.MDM.RequireBitLockerPIN = *requirePIN
+		}
+		didUpdateRequirePIN = true
+	}
 
-	if didUpdate {
+	if didUpdateEncryption || didUpdateRequirePIN {
 		if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
 			return err
 		}
 
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return err
-		}
-		if appCfg.MDM.EnabledAndConfigured {
-			var act fleet.ActivityDetails
-			if tm.Config.MDM.EnableDiskEncryption {
-				act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
-				if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
-					return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
-				}
-			} else {
-				act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
-				if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
-					return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
-				}
+		if didUpdateEncryption {
+			appCfg, err := svc.ds.AppConfig(ctx)
+			if err != nil {
+				return err
 			}
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+			if appCfg.MDM.EnabledAndConfigured {
+				var act fleet.ActivityDetails
+				if tm.Config.MDM.EnableDiskEncryption {
+					act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
+					if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
+						return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
+					}
+				} else {
+					act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
+					if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
+						return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
+					}
+				}
+				if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+					return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+				}
 			}
 		}
 	}
