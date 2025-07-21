@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "137.0.7151.104",
+      "version": "latest",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';"
       },

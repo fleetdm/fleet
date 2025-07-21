@@ -38,30 +38,6 @@ jobs:
           echo $osqueryPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         shell: pwsh
       
-      - name: Remove pre-installed software
-        run: |
-          Write-Host "Listing all installed packages containing 'Chrome':"
-          Get-Package | Where-Object { $_.Name -like "*Chrome*" } | ForEach-Object { 
-            Write-Host "  - $($_.Name) (Version: $($_.Version))"
-          }
-          
-          $uninstallPath = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -like "*Google Chrome*" } | Select-Object -ExpandProperty UninstallString
-          if ($uninstallPath) {
-            Write-Host "Found Chrome uninstall path: $uninstallPath"
-            try {
-              # Handle MSI uninstall
-              $guid = ($uninstallPath -split "/X")[1]
-              Write-Host "Uninstalling Chrome MSI with GUID: $guid"
-              Start-Process -FilePath "msiexec.exe" -ArgumentList "/X$guid", "/quiet", "/norestart" -Wait -NoNewWindow
-              Write-Host "Successfully removed Google Chrome via MSI uninstaller"
-            } catch {
-              Write-Host "Failed to remove Chrome: $($_.Exception.Message)"
-            }
-          } else {
-            Write-Host "Chrome uninstall path not found in registry"
-          }
-        shell: pwsh
-      
       - name: Verify Fleet Maintained Apps windows
         run: |
           cd fleet
