@@ -101,6 +101,7 @@ func TestMDMApple(t *testing.T) {
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
 		{"GetNanoMDMEnrollmentTimes", testGetNanoMDMEnrollmentTimes},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
+		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 	}
 
 	for _, c := range cases {
@@ -5459,6 +5460,45 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 	d1tm1B, err = ds.GetMDMAppleDeclaration(ctx, d1tm1B.DeclarationUUID)
 	require.NoError(t, err)
 	require.Equal(t, d1tm1B.DeclarationUUID, d1tm1.DeclarationUUID)
+}
+
+func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "decl-1",
+		Name:       "decl-1",
+	})
+	require.NoError(t, err)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-uuid-1",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, true)
+
+	_, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
+	require.NoError(t, err)
+
+	// verify the correct state of the declaration for the host
+	profs, err := ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, decl.DeclarationUUID, profs[0].ProfileUUID)
+	require.Equal(t, fleet.MDMDeliveryPending, *profs[0].Status)
+	require.Equal(t, fleet.MDMOperationTypeInstall, profs[0].OperationType)
+
+	err = ds.DeleteMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+
+	profs, err = ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 0)
 }
 
 func TestMDMAppleProfileVerification(t *testing.T) {

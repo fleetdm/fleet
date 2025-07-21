@@ -643,32 +643,16 @@ func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sq
 		host_mdm_apple_declarations
 	WHERE
 		declaration_uuid IN (?) AND
-		status IS NULL AND
+		( status IS NULL OR status IN (?) ) AND
 		operation_type = ?`
 
-	stmt, args, err := sqlx.In(delStmt, declUUIDs, fleet.MDMOperationTypeInstall)
+	stmt, args, err := sqlx.In(delStmt, declUUIDs, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed}, fleet.MDMOperationTypeInstall)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building in statement")
 	}
 
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_declarations that have not been sent to host")
-	}
-
-	const deleteStmt = `
-	DELETE FROM
-		host_mdm_apple_declarations
-	WHERE
-		declaration_uuid IN (?) AND
-		status IN (?) AND
-		operation_type = 'install'`
-	stmt, args, err = sqlx.In(deleteStmt, declUUIDs, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building in delete statement")
-	}
-
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_declarations that were pending or failed installs")
 	}
 
 	const updStmt = `
