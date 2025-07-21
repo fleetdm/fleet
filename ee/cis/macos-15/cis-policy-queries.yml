@@ -1,5 +1,4 @@
 ---
-# The latest version of CIS Benchmarks for macOS as of November 2024 for macOS 15.
 apiVersion: v1
 kind: policy
 spec:
