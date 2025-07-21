@@ -8485,7 +8485,7 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Add host to team
-	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{host4.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
 	require.NoError(t, err)
 	host4.TeamID = &tm.ID
 
