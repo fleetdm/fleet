@@ -34,10 +34,14 @@ describe("InstallStatusCell - component", () => {
       />
     );
 
-    expect(screen.getByText("Installed")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /installed/i })
+    ).toBeInTheDocument();
     expect(screen.getByTestId("success-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Installed"));
+
+    expect(screen.getByText(/Software was installed/i)).toBeInTheDocument();
 
     // There SHOULD be a button with this label
     expect(
@@ -45,8 +49,8 @@ describe("InstallStatusCell - component", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders 'Installed' status with tooltip button even if not installed via Fleet", () => {
-    renderWithSetup(
+  it("renders 'Installed' status with tooltip button even if not installed via Fleet", async () => {
+    const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
           ...createMockHostSoftware({
@@ -62,10 +66,19 @@ describe("InstallStatusCell - component", () => {
       />
     );
 
-    expect(screen.getByText("Installed")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /installed/i })
+    ).toBeInTheDocument();
     expect(screen.getByTestId("success-icon")).toBeInTheDocument();
 
-    // There should NOT be a button with this label
+    await user.hover(screen.getByText("Installed"));
+
+    // TODO: Confirm with design if there is a tooltip
+    // expect(
+    //   screen.getByText(/Software was installed/i)
+    // ).toBeInTheDocument();
+
+    // There SHOULD be a button with this label
     expect(
       screen.queryByRole("button", { name: /installed/i })
     ).toBeInTheDocument();
@@ -94,6 +107,11 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByText(/Fleet is installing software./i)
     ).toBeInTheDocument();
+
+    // Not clickable
+    expect(
+      screen.queryByRole("button", { name: /installing/i })
+    ).not.toBeInTheDocument();
   });
 
   it("renders 'Install (pending)' status with tooltip if host is offline", async () => {
@@ -111,7 +129,9 @@ describe("InstallStatusCell - component", () => {
       />
     );
 
-    expect(screen.getByText("Install (pending)")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Install \(pending\)/i })
+    ).toBeInTheDocument();
     expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Install (pending)"));
@@ -126,7 +146,12 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "pending_uninstall",
-            software_package: testSoftwarePackage,
+            software_package: createMockHostSoftwarePackage({
+              last_uninstall: {
+                script_execution_id: "123-abc",
+                uninstalled_at: "2022-01-01T12:00:00Z",
+              },
+            }),
           }),
           ui_status: "uninstalling",
         }}
@@ -143,6 +168,11 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByText(/Fleet is uninstalling software./i)
     ).toBeInTheDocument();
+
+    // Not clickable
+    expect(
+      screen.queryByRole("button", { name: /uninstalling/i })
+    ).not.toBeInTheDocument();
   });
 
   it("renders 'Uninstall (pending)' status with tooltip if host is offline", async () => {
@@ -151,7 +181,12 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "pending_uninstall",
-            software_package: testSoftwarePackage,
+            software_package: createMockHostSoftwarePackage({
+              last_uninstall: {
+                script_execution_id: "123-abc",
+                uninstalled_at: "2022-01-01T12:00:00Z",
+              },
+            }),
           }),
           ui_status: "pending_uninstall",
         }}
@@ -160,7 +195,9 @@ describe("InstallStatusCell - component", () => {
       />
     );
 
-    expect(screen.getByText("Uninstall (pending)")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Uninstall \(pending\)/i })
+    ).toBeInTheDocument();
     expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Uninstall (pending)"));
@@ -184,7 +221,7 @@ describe("InstallStatusCell - component", () => {
       />
     );
 
-    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Failed/i })).toBeInTheDocument();
     expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Failed"));
@@ -197,7 +234,12 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "failed_uninstall",
-            software_package: testSoftwarePackage,
+            software_package: createMockHostSoftwarePackage({
+              last_uninstall: {
+                script_execution_id: "123-abc",
+                uninstalled_at: "2022-01-01T12:00:00Z",
+              },
+            }),
           }),
           ui_status: "failed_uninstall",
         }}
@@ -206,7 +248,9 @@ describe("InstallStatusCell - component", () => {
       />
     );
 
-    expect(screen.getByText("Failed (uninstall)")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Failed \(uninstall\)/i })
+    ).toBeInTheDocument();
     expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Failed (uninstall)"));
@@ -215,7 +259,7 @@ describe("InstallStatusCell - component", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders 'Update available' for failed_install_update_available", async () => {
+  it("renders 'Failed' for failed_install_update_available", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -229,13 +273,14 @@ describe("InstallStatusCell - component", () => {
         onShowUninstallDetails={noop}
       />
     );
-    expect(screen.getByText("Update available")).toBeInTheDocument();
-    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
-    await user.hover(screen.getByText("Update available"));
-    expect(screen.getByText(/Fleet can update software/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Failed/i })).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Failed"));
+    expect(screen.getByText(/failed to install/i)).toBeInTheDocument();
   });
 
-  it("renders 'Update available' for failed_uninstall_update_available", async () => {
+  it("renders 'Failed (uninstall)' for failed_uninstall_update_available", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -249,10 +294,13 @@ describe("InstallStatusCell - component", () => {
         onShowUninstallDetails={noop}
       />
     );
-    expect(screen.getByText("Update available")).toBeInTheDocument();
-    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
-    await user.hover(screen.getByText("Update available"));
-    expect(screen.getByText(/Fleet can update software/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Failed \(uninstall\)/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Failed (uninstall)"));
+    expect(screen.getByText(/to uninstall again/i)).toBeInTheDocument();
   });
 
   it("renders 'Update available' for status null but update_available", async () => {
@@ -269,8 +317,11 @@ describe("InstallStatusCell - component", () => {
         onShowUninstallDetails={noop}
       />
     );
-    expect(screen.getByText("Update available")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Update available/i })
+    ).toBeInTheDocument();
     expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+
     await user.hover(screen.getByText("Update available"));
     expect(screen.getByText(/Fleet can update software/i)).toBeInTheDocument();
   });
@@ -294,6 +345,9 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("---"));
     expect(screen.getByText(/can be installed/i)).toBeInTheDocument();
+
+    // Not clickable
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("renders '---' for App Store app that's available for install", async () => {
@@ -315,6 +369,9 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("---"));
     expect(screen.getByText(/can be installed/i)).toBeInTheDocument();
+
+    // Not clickable
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("renders '---' even for package with self_service true", async () => {
@@ -340,6 +397,9 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getAllByText("---")[0]);
     expect(screen.getByText(/can be installed/i)).toBeInTheDocument();
+
+    // Not clickable
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("renders '---' even for App Store app with self_service true", async () => {
@@ -363,6 +423,9 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByText(/App store app can be installed/i)
     ).toBeInTheDocument();
+
+    // Not clickable
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("renders placeholder for missing status and packages", () => {
@@ -382,5 +445,8 @@ describe("InstallStatusCell - component", () => {
     );
 
     expect(screen.getByText("---")).toBeInTheDocument();
+
+    // Not clickable
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });

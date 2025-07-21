@@ -111,7 +111,6 @@ const getInstallerVersion = (software: IHostSoftware) => {
   return null;
 };
 
-// TODO: Confirm with Marko the heirarchy of statuses
 // UI_STATUS UTILITIES
 export const getUiStatus = (
   software: IHostSoftware,
@@ -187,6 +186,12 @@ export const getUiStatus = (
     return "update_available";
   }
 
+  // Tgz packages that are installed via Fleet should return 'installed' as they
+  // are not tracked in software inventory (installed_versions)
+  if (software.source === "tgz_packages" && software.status === "installed") {
+    return "installed";
+  }
+
   // If there are installed versions and none need updating, return 'installed'
   if (installed_versions && installed_versions.length > 0) return "installed";
 
@@ -251,7 +256,9 @@ export const getInstallerActionButtonConfig = (
 
 const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "failed_install", // Failed
+  "failed_install_update_available", // Failed install with update available
   "failed_uninstall", // Failed uninstall
+  "failed_uninstall_update_available", // Failed uninstall with update available
   "update_available", // Update available
   "updating", // Updating...
   "pending_update", // Update (pending)

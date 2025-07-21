@@ -118,7 +118,6 @@ const SoftwareSelfService = ({
     }));
   }, [selfServiceData]);
 
-  console.log("enhancedSoftware", enhancedSoftware);
   const updateSoftware = enhancedSoftware.filter(
     (software) =>
       software.ui_status === "updating" ||
@@ -647,37 +646,42 @@ const SoftwareSelfService = ({
 
   return (
     <div className={baseClass}>
-      <Card
-        className={`${baseClass}__updates-card`}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
-        <div className={`${baseClass}__header`}>
-          <CardHeader
-            header="Updates"
-            subheader={
-              <>
-                The following app require updating.{" "}
-                {contactUrl && (
-                  <span>
-                    If you need help,{" "}
-                    <CustomLink
-                      url={contactUrl}
-                      text="reach out to IT"
-                      newTab
-                    />
-                  </span>
-                )}
-              </>
-            }
-          />
-          <Button disabled={disableUpdateAllButton} onClick={onClickUpdateAll}>
-            Update all
-          </Button>
-        </div>
-        {renderUpdatesCard()}
-      </Card>
+      {paginatedUpdates.length > 0 && (
+        <Card
+          className={`${baseClass}__updates-card`}
+          borderRadiusSize="xxlarge"
+          paddingSize="xlarge"
+          includeShadow
+        >
+          <div className={`${baseClass}__header`}>
+            <CardHeader
+              header="Updates"
+              subheader={
+                <>
+                  The following app require updating.{" "}
+                  {contactUrl && (
+                    <span>
+                      If you need help,{" "}
+                      <CustomLink
+                        url={contactUrl}
+                        text="reach out to IT"
+                        newTab
+                      />
+                    </span>
+                  )}
+                </>
+              }
+            />
+            <Button
+              disabled={disableUpdateAllButton}
+              onClick={onClickUpdateAll}
+            >
+              Update all
+            </Button>
+          </div>
+          {renderUpdatesCard()}
+        </Card>
+      )}
       <Card
         className={`${baseClass}__self-service-card`}
         borderRadiusSize="xxlarge"

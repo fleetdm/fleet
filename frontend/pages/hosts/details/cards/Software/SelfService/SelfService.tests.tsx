@@ -58,7 +58,6 @@ describe("SelfService", () => {
     expect(screen.getByText("test1")).toBeInTheDocument();
     expect(screen.getByText("test2")).toBeInTheDocument();
     expect(screen.getByText("test3")).toBeInTheDocument();
-    screen.debug();
   });
 
   it("should render the contact link text for each section if contact url is provided", () => {

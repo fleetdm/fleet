@@ -1,4 +1,8 @@
-import { compareVersions } from "./helpers";
+import {
+  createMockHostSoftware,
+  createMockHostSoftwarePackage,
+} from "__mocks__/hostMock";
+import { compareVersions, getUiStatus } from "./helpers";
 
 describe("compareVersions", () => {
   it("correctly compares patch increments", () => {
@@ -67,5 +71,140 @@ describe("compareVersions", () => {
 
   it("compares build number in parentheses", () => {
     expect(compareVersions("6.1.11 (39163)", "6.1.11 (30000)")).toBe(1);
+  });
+});
+
+describe("getUiStatus", () => {
+  it("returns 'failed_install_update_available' when failed_install and update available", () => {
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+    });
+    expect(getUiStatus(sw, true)).toBe("failed_install_update_available");
+  });
+
+  it("returns 'failed_install' when failed_install and no update available", () => {
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      // version equal to installed version
+    });
+    expect(getUiStatus(sw, true)).toBe("failed_install");
+  });
+
+  it("returns 'failed_uninstall_update_available' when failed_uninstall and update available", () => {
+    const sw = createMockHostSoftware({
+      status: "failed_uninstall",
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+    });
+    expect(getUiStatus(sw, true)).toBe("failed_uninstall_update_available");
+  });
+
+  it("returns 'failed_uninstall' when failed_uninstall and no update available", () => {
+    const sw = createMockHostSoftware({
+      status: "failed_uninstall",
+      // version equal to installed version
+    });
+    expect(getUiStatus(sw, true)).toBe("failed_uninstall");
+  });
+
+  it("returns 'updating' if pending_install and update is available, host online", () => {
+    const sw = createMockHostSoftware({
+      status: "pending_install",
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+    });
+    expect(getUiStatus(sw, true)).toBe("updating");
+  });
+
+  it("returns 'pending_update' if pending_install and update is available, host offline", () => {
+    const sw = createMockHostSoftware({
+      status: "pending_install",
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+    });
+    expect(getUiStatus(sw, false)).toBe("pending_update");
+  });
+
+  it("returns 'installing' if pending_install and reinstalling, host online", () => {
+    const sw = createMockHostSoftware({
+      status: "pending_install",
+    });
+    expect(getUiStatus(sw, true)).toBe("installing");
+  });
+
+  it("returns 'pending_install' if pending_install and reinstalling, host offline", () => {
+    const sw = createMockHostSoftware({
+      status: "pending_install",
+    });
+    expect(getUiStatus(sw, false)).toBe("pending_install");
+  });
+
+  it("returns 'installing' if pending_install and nothing installed, host online", () => {
+    const sw = createMockHostSoftware({
+      status: "pending_install",
+      installed_versions: [],
+    });
+    expect(getUiStatus(sw, true)).toBe("installing");
+  });
+
+  it("returns 'pending_install' if pending_install and nothing installed, host offline", () => {
+    const sw = createMockHostSoftware({
+      status: "pending_install",
+      installed_versions: [],
+    });
+    expect(getUiStatus(sw, false)).toBe("pending_install");
+  });
+
+  it("returns 'uninstalling' if pending_uninstall and host online", () => {
+    const sw = createMockHostSoftware({
+      status: "pending_uninstall",
+    });
+    expect(getUiStatus(sw, true)).toBe("uninstalling");
+  });
+
+  it("returns 'pending_uninstall' if pending_uninstall and host offline", () => {
+    const sw = createMockHostSoftware({
+      status: "pending_uninstall",
+    });
+    expect(getUiStatus(sw, false)).toBe("pending_uninstall");
+  });
+
+  it("returns 'update_available' if status not pending and update available", () => {
+    const sw = createMockHostSoftware({
+      status: "installed",
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+    });
+    expect(getUiStatus(sw, true)).toBe("update_available");
+  });
+
+  // Tarball packages (tgz_packages) are not tracked in software inventory
+  // so they should return 'installed' if their status is installed.
+  it("returns 'installed' for tgz_packages with status installed", () => {
+    const sw = createMockHostSoftware({
+      status: "installed",
+      source: "tgz_packages",
+    });
+    expect(getUiStatus(sw, true)).toBe("installed");
+  });
+
+  it("returns 'installed' for regular package, installed and versions match", () => {
+    const sw = createMockHostSoftware({
+      status: "installed",
+    });
+    expect(getUiStatus(sw, true)).toBe("installed");
+  });
+
+  it("returns 'installed' for regular package, installed version higher than library version", () => {
+    const sw = createMockHostSoftware({
+      status: "installed",
+      software_package: createMockHostSoftwarePackage({ version: "0.1.0" }), // version lower than installed
+    });
+    expect(getUiStatus(sw, true)).toBe("installed");
+  });
+
+  it("returns 'uninstalled' if no conditions match", () => {
+    const sw = createMockHostSoftware({
+      status: null,
+      installed_versions: [],
+    });
+    expect(getUiStatus(sw, true)).toBe("uninstalled");
   });
 });

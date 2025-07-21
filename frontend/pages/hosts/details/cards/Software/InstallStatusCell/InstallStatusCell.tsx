@@ -222,27 +222,21 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: ({ isSelfService, isHostOnline, lastInstalledAt }) =>
       isSelfService || isHostOnline ? (
         <>
-          Fleet can update software.{" "}
-          <>
-            Software failed to install
-            {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
-            {isSelfService ? (
-              <>
-                Select <b>Retry</b> to install again, or contact your IT
-                department.
-              </>
-            ) : (
-              <>
-                Select <b>Details &gt; Activity</b> to view errors.
-              </>
-            )}
-          </>
+          Software failed to install
+          {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
+          {isSelfService ? (
+            <>
+              Select <b>Retry</b> to install again, or contact your IT
+              department.
+            </>
+          ) : (
+            <>
+              Select <b>Details &gt; Activity</b> to view errors.
+            </>
+          )}
         </>
       ) : (
         <>
-          Fleet can update software
-          <br /> when the host comes online.
-          <br />
           Software failed to install
           {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
           {isSelfService ? (
@@ -264,8 +258,6 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: ({ isSelfService, isHostOnline, lastInstalledAt }) =>
       isSelfService || isHostOnline ? (
         <>
-          Fleet can update software.
-          <br />
           Software failed to uninstall
           {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
           <b>Retry</b> to uninstall again
@@ -273,9 +265,6 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
         </>
       ) : (
         <>
-          Fleet can update software
-          <br /> when the host comes online.
-          <br /> Software failed to uninstall
           {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
           <b>Retry</b> to uninstall again
           {isSelfService && ", or contact your IT department"}.
@@ -444,15 +433,15 @@ const InstallStatusCell = ({
   });
 
   return (
-    <TooltipWrapper
-      tipContent={tooltipContent}
-      showArrow
-      underline={false}
-      position="top"
-      className={`${baseClass}__tooltip-wrapper`}
-      disableTooltip={!tooltipContent}
-    >
-      <div className={baseClass}>
+    <div className={baseClass}>
+      <TooltipWrapper
+        tipContent={tooltipContent}
+        showArrow
+        underline={false}
+        position="top"
+        className={`${baseClass}__tooltip-wrapper`}
+        disableTooltip={!tooltipContent}
+      >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (
           <Spinner size="x-small" includeContainer={false} centered={false} />
@@ -467,8 +456,8 @@ const InstallStatusCell = ({
         <span data-testid={`${baseClass}__status--test`}>
           {renderDisplayStatus()}
         </span>
-      </div>
-    </TooltipWrapper>
+      </TooltipWrapper>
+    </div>
   );
 };
 
