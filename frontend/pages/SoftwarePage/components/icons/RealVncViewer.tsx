@@ -2,7 +2,7 @@ import * as React from "react";
 
 import type { SVGProps } from "react";
 
-const VncViewer = (props: SVGProps<SVGSVGElement>) => (
+const RealVncViewer = (props: SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={32} height={32} {...props}>
     <image
       width={32}
@@ -11,4 +11,4 @@ const VncViewer = (props: SVGProps<SVGSVGElement>) => (
     />
   </svg>
 );
-export default VncViewer;
+export default RealVncViewer;

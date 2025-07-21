@@ -41,7 +41,7 @@ import Santa from "./Santa";
 import YubikeyManager from "./YubikeyManager";
 import BeyondCompare from "./BeyondCompare";
 import ITerm from "./ITerm";
-import VncViewer from "./VncViewer";
+import RealVncViewer from "./RealVncViewer";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -90,7 +90,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "yubikey manager": YubikeyManager,
   "beyond compare": BeyondCompare,
   iterm2: ITerm,
-  "vnc viewer": VncViewer,
+  "realvnc viewer": RealVncViewer,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
