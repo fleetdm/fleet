@@ -1138,15 +1138,14 @@ func RegisterAppleMDMProtocolServices(
 	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
-	if err := registerServiceDiscovery(mux, mdmStorage, logger, serverURLPrefix); err != nil {
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
 	}
 	return nil
 }
 
-func registerServiceDiscovery(
+func registerMDMServiceDiscovery(
 	mux *http.ServeMux,
-	mdmStorage fleet.MDMAppleStore,
 	logger kitlog.Logger,
 	serverURLPrefix string,
 ) error {
