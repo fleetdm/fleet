@@ -79,16 +79,18 @@ This has an impact on real devices because they will not be notified of any comm
 > Do not commit your `BRANCH_NAME` if any files exist in `resources/TERRAFORM_WORKSPACE/` without a .encrypted extension.
 > This step assumes that you've already successfully executed terraform apply and have a `kms_key_id` output.
 
-1. Under the loadtesting directory, create directory `resources/TERRAFORM_WORKSPACE/`
-2. Create your keys
+1. Under the loadtesting directory, create directory `resources/TERRAFORM_WORKSPACE/`. Your `TERRAFORM_WORKSPACE` value can be retrieved with `terraform workspace show`.
+
+2. Change directory to `resources/TERRAFORM_WORKSPACE/`
+
+3. Create your keys
 
 ```
 openssl genrsa -out cloudfront.key 2048
 openssl rsa -pubout -in cloudfront.key -out cloudfront.pem
 ```
 
-3. Change directory to `resources/TERRAFORM_WORKSPACE/`
-4. Create `encrypt.sh` (store the script in in the loadtesting directory, two directories up `../..`)
+4. Create `encrypt.sh` (store the script in in the terraform directory, two directories up `../..`)
 
 ```
 #!/bin/bash
@@ -125,7 +127,7 @@ for i in *; do ../../encrypt.sh <KMS_KEY_ID> $i $i.encrypted; done
 for i in *.encrypted; do rm ${i/.encrypted/}; done
 ```
 
-6. Change back to the loadtesting directory (two directories up ../..)
+6. Change back to the terraform directory (two directories up ../..)
 
 7. If the name of your public/private cloudfront key is not `cloudfront.pem|.key`, update `locals.tf`
 
