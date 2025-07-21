@@ -348,6 +348,8 @@ controls:
   ipados_updates:
     deadline: "2023-03-03"
     minimum_version: "18.0"
+  enable_disk_encryption: true
+  windows_require_bitlocker_pin: true
 queries:
 policies:
 labels:
@@ -437,6 +439,9 @@ software:
 	assert.Equal(t, "CustomScepProxy2", sceps[1].Name)
 	assert.Equal(t, "https://custom.scep.proxy.com2", sceps[1].URL)
 	assert.Equal(t, "challenge2", sceps[1].Challenge)
+
+	require.True(t, savedAppConfig.MDM.EnableDiskEncryption.Value)
+	require.True(t, savedAppConfig.MDM.RequireBitLockerPIN.Value)
 }
 
 func TestGitOpsBasicTeam(t *testing.T) {
@@ -1184,6 +1189,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	assert.True(t, savedTeam.Config.Features.EnableHostUsers)
 	assert.Equal(t, 30, savedTeam.Config.HostExpirySettings.HostExpiryWindow)
 	assert.True(t, savedTeam.Config.MDM.EnableDiskEncryption)
+	assert.True(t, savedTeam.Config.MDM.RequireBitLockerPIN)
 	assert.Len(t, enrolledSecrets, 2)
 	assert.True(t, policyDeleted)
 	assert.Len(t, appliedPolicySpecs, 5)

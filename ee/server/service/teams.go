@@ -1164,6 +1164,7 @@ func (svc *Service) createTeamFromSpec(
 			Features:     features,
 			MDM: fleet.TeamMDM{
 				EnableDiskEncryption: enableDiskEncryption,
+				RequireBitLockerPIN:  spec.MDM.RequireBitLockerPIN.Value,
 				MacOSUpdates:         spec.MDM.MacOSUpdates,
 				WindowsUpdates:       spec.MDM.WindowsUpdates,
 				MacOSSettings:        macOSSettings,
