@@ -9,7 +9,6 @@ controls: # Controls added to "No team"
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
   enable_disk_encryption: true
-  windows_require_bitlocker_pin: true
   macos_migration:
     enable: false
     mode: ""
