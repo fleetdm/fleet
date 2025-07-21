@@ -20,30 +20,37 @@ import (
 )
 
 type ParseTypeError struct {
-	Keys  []string // The complete path to the field
-	Field string   // The field we tried to assign to
-	Type  string   // The type that we want to have
-	Value string   // The value that we received
-	err   error    // The original error
+	Filename string   // The name of the file being parsed
+	Keys     []string // The complete path to the field
+	Field    string   // The field we tried to assign to
+	Type     string   // The type that we want to have
+	Value    string   // The value that we received
+	err      error    // The original error
 }
 
 func (e *ParseTypeError) Error() string {
-	return fmt.Sprintf("couldn't edit %s. %q must have type %s, found value %q", strings.Join(e.Keys, "."), e.Field, e.Type, e.Value)
+	var path []string
+	path = append(path, e.Keys...)
+	if e.Field != "" {
+		path = append(path, e.Field)
+	}
+	return fmt.Sprintf("couldn't parse %s:%s, must have type %s, found type %s", e.Filename, strings.Join(path, "."), e.Type, e.Value)
 }
 
 func (e *ParseTypeError) Unwrap() error {
 	return e.err
 }
 
-func MaybeParseTypeError(keysPath []string, err error) error {
+func MaybeParseTypeError(filename string, keysPath []string, err error) error {
 	unmarshallErr := &json.UnmarshalTypeError{}
 	if errors.As(err, &unmarshallErr) {
 		return &ParseTypeError{
-			Keys:  keysPath,
-			Field: unmarshallErr.Field,
-			Type:  unmarshallErr.Type.String(),
-			Value: unmarshallErr.Value,
-			err:   err,
+			Filename: filename,
+			Keys:     keysPath,
+			Field:    unmarshallErr.Field,
+			Type:     unmarshallErr.Type.String(),
+			Value:    unmarshallErr.Value,
+			err:      err,
 		}
 	}
 
@@ -193,10 +200,10 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		if teamOk || teamSettingsOk {
 			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings'"))
 		} else {
-			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
+			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, filePath, multiError)
 		}
 	case teamOk:
-		multiError = parseName(teamRaw, result, multiError)
+		multiError = parseName(teamRaw, result, filePath, multiError)
 		if result.IsNoTeam() {
 			if teamSettingsOk {
 				multiError = multierror.Append(multiError, fmt.Errorf("cannot set 'team_settings' on 'No team' file: %q", filePath))
@@ -208,7 +215,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			if !teamSettingsOk {
 				multiError = multierror.Append(multiError, errors.New("'team_settings' is required when 'name' is provided"))
 			} else {
-				multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
+				multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, filePath, multiError)
 			}
 		}
 	default:
@@ -225,26 +232,26 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 		result.Labels = make([]*fleet.LabelSpec, 0)
 	} else {
-		multiError = parseLabels(top, result, baseDir, multiError)
+		multiError = parseLabels(top, result, baseDir, filePath, multiError)
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, multiError, filePath)
-	multiError = parseAgentOptions(top, result, baseDir, logFn, multiError)
-	multiError = parseQueries(top, result, baseDir, logFn, multiError)
+	multiError = parseAgentOptions(top, result, baseDir, logFn, filePath, multiError)
+	multiError = parseQueries(top, result, baseDir, logFn, filePath, multiError)
 
 	if appConfig != nil && appConfig.License.IsPremium() {
-		multiError = parseSoftware(top, result, baseDir, multiError)
+		multiError = parseSoftware(top, result, baseDir, filePath, multiError)
 	}
 
 	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
-	multiError = parsePolicies(top, result, baseDir, multiError)
+	multiError = parsePolicies(top, result, baseDir, filePath, multiError)
 
 	return result, multiError.ErrorOrNil()
 }
 
-func parseName(raw json.RawMessage, result *GitOps, multiError *multierror.Error) *multierror.Error {
+func parseName(raw json.RawMessage, result *GitOps, filePath string, multiError *multierror.Error) *multierror.Error {
 	if err := json.Unmarshal(raw, &result.TeamName); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal name: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"name"}, err))
 	}
 	if result.TeamName == nil || *result.TeamName == "" {
 		return multierror.Append(multiError, errors.New("team 'name' is required"))
@@ -273,10 +280,10 @@ func isNoTeam(teamName string) bool {
 
 const noTeam = "No team"
 
-func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop BaseItem
 	if err := json.Unmarshal(raw, &orgSettingsTop); err != nil {
-		return multierror.Append(multiError, MaybeParseTypeError([]string{"org_settings"}, err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 	}
 	noError := true
 	if orgSettingsTop.Path != nil {
@@ -297,7 +304,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multi
 				if err := yaml.Unmarshal(fileBytes, &pathOrgSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
-						multiError, fmt.Errorf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, MaybeParseTypeError([]string{"org_settings"}, err)),
+						multiError, MaybeParseTypeError(*orgSettingsTop.Path, []string{"org_settings"}, err),
 					)
 				} else {
 					if pathOrgSettings.Path != nil {
@@ -316,7 +323,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multi
 	if noError {
 		if err := yaml.Unmarshal(raw, &result.OrgSettings); err != nil {
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
-			multiError = multierror.Append(multiError, MaybeParseTypeError([]string{"org_settings"}, err))
+			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 		} else {
 			multiError = parseSecrets(result, multiError)
 		}
@@ -325,10 +332,10 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multi
 	return multiError
 }
 
-func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	var teamSettingsTop BaseItem
 	if err := json.Unmarshal(raw, &teamSettingsTop); err != nil {
-		return multierror.Append(multiError, MaybeParseTypeError([]string{"team_settings"}, err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
 	}
 	noError := true
 	if teamSettingsTop.Path != nil {
@@ -349,7 +356,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, mult
 				if err := yaml.Unmarshal(fileBytes, &pathTeamSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
-						multiError, fmt.Errorf("failed to unmarshal team settings file %s: %v", *teamSettingsTop.Path, err),
+						multiError, MaybeParseTypeError(*teamSettingsTop.Path, []string{"team_settings"}, err),
 					)
 				} else {
 					if pathTeamSettings.Path != nil {
@@ -368,7 +375,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, mult
 	if noError {
 		if err := yaml.Unmarshal(raw, &result.TeamSettings); err != nil {
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
-			multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal team settings: %v", err))
+			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
 		} else {
 			multiError = parseSecrets(result, multiError)
 		}
@@ -426,7 +433,7 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	return multiError
 }
 
-func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, multiError *multierror.Error) *multierror.Error {
+func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {
 	agentOptionsRaw, ok := top["agent_options"]
 	if result.IsNoTeam() {
 		if ok {
@@ -438,7 +445,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	}
 	var agentOptionsTop BaseItem
 	if err := json.Unmarshal(agentOptionsRaw, &agentOptionsTop); err != nil {
-		multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal agent_options: %v", err))
+		multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"agent_options"}, err))
 	} else {
 		if agentOptionsTop.Path == nil {
 			result.AgentOptions = &agentOptionsRaw
@@ -457,7 +464,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 				var pathAgentOptions BaseItem
 				if err := yaml.Unmarshal(fileBytes, &pathAgentOptions); err != nil {
 					return multierror.Append(
-						multiError, fmt.Errorf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+						multiError, MaybeParseTypeError(*agentOptionsTop.Path, []string{"agent_options"}, err),
 					)
 				}
 				if pathAgentOptions.Path != nil {
@@ -470,7 +477,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 				if err := yaml.Unmarshal(fileBytes, &raw); err != nil {
 					// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 					return multierror.Append(
-						multiError, fmt.Errorf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+						multiError, MaybeParseTypeError(*agentOptionsTop.Path, []string{"agent_options"}, err),
 					)
 				}
 				result.AgentOptions = &raw
@@ -489,7 +496,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 
 	var controlsTop GitOpsControls
 	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(yamlFilename, []string{"controls"}, err))
 	}
 	controlsTop.Defined = true
 	controlsFilePath := yamlFilename
@@ -546,7 +553,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		}
 		err = json.Unmarshal(data, &macOSSettings)
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
+			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
 		}
 
 		for i := range macOSSettings.CustomSettings {
@@ -568,7 +575,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		}
 		err = json.Unmarshal(data, &windowsSettings)
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "windows_settings"}, err))
 		}
 		if windowsSettings.CustomSettings.Valid {
 			for i := range windowsSettings.CustomSettings.Value {
@@ -606,7 +613,7 @@ func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, con
 
 	var pathControls GitOpsControls
 	if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
-		return fmt.Errorf("failed to unmarshal controls file %s: %v", *controlsTop.Path, err)
+		return MaybeParseTypeError(*controlsTop.Path, []string{"controls"}, err)
 	}
 	if pathControls.Path != nil {
 		return fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path)
@@ -651,7 +658,7 @@ func resolveScriptPaths(input []BaseItem, baseDir string) ([]BaseItem, error) {
 	return resolved, nil
 }
 
-func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	labelsRaw, ok := top["labels"]
 
 	// This shouldn't happen as we check for the property earlier,
@@ -662,7 +669,7 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 
 	var labels []Label
 	if err := json.Unmarshal(labelsRaw, &labels); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal labels: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"labels"}, err))
 	}
 	for _, item := range labels {
 		item := item
@@ -683,7 +690,7 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			} else {
 				var pathLabels []*Label
 				if err := yaml.Unmarshal(fileBytes, &pathLabels); err != nil {
-					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal labels file %s: %v", *item.Path, err))
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"labels"}, err))
 					continue
 				}
 				for _, pq := range pathLabels {
@@ -740,14 +747,14 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 	return multiError
 }
 
-func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	policiesRaw, ok := top["policies"]
 	if !ok {
 		return multierror.Append(multiError, errors.New("'policies' key is required"))
 	}
 	var policies []Policy
 	if err := json.Unmarshal(policiesRaw, &policies); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal policies: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"policies"}, err))
 	}
 	for _, item := range policies {
 		item := item
@@ -777,7 +784,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			} else {
 				var pathPolicies []*Policy
 				if err := yaml.Unmarshal(fileBytes, &pathPolicies); err != nil {
-					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal policies file %s: %v", *item.Path, err))
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"policies"}, err))
 					continue
 				}
 				for _, pp := range pathPolicies {
@@ -925,7 +932,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	return nil
 }
 
-func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, multiError *multierror.Error) *multierror.Error {
+func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {
 	queriesRaw, ok := top["queries"]
 	if result.IsNoTeam() {
 		if ok {
@@ -937,7 +944,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	}
 	var queries []Query
 	if err := json.Unmarshal(queriesRaw, &queries); err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal queries: %v", err))
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"queries"}, err))
 	}
 	for _, item := range queries {
 		item := item
@@ -958,7 +965,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 			} else {
 				var pathQueries []*Query
 				if err := yaml.Unmarshal(fileBytes, &pathQueries); err != nil {
-					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal queries file %s: %v", *item.Path, err))
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"queries"}, err))
 					continue
 				}
 				for _, pq := range pathQueries {
@@ -1007,7 +1014,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 
 var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
 
-func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if result.global() {
 		if ok && string(softwareRaw) != "null" {
@@ -1019,16 +1026,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	var software Software
 	if len(softwareRaw) > 0 {
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {
-			var typeErr *json.UnmarshalTypeError
-			if errors.As(err, &typeErr) {
-				typeErrField := typeErr.Field
-				if typeErrField == "" {
-					// UnmarshalTypeError.Field is empty when trying to set an invalid type on the root node.
-					typeErrField = "software"
-				}
-				return multierror.Append(multiError, fmt.Errorf("Couldn't edit software. %q must be a %s, found %s", typeErrField, typeErr.Type.String(), typeErr.Value))
-			}
-			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
+			return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"software"}, err))
 		}
 	}
 	for _, item := range software.AppStoreApps {
@@ -1075,7 +1073,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 			if err := yaml.Unmarshal(fileBytes, &softwarePackageSpec); err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal software package file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, nil, err))
 				continue
 			}
 
