@@ -93,7 +93,7 @@ func TestLinuxDiskEncryptionSummary(t *testing.T) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{fedoraHosts[0].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{fedoraHosts[0].ID}))
 	require.NoError(t, err)
 
 	// team summary
@@ -114,17 +114,17 @@ func TestLinuxDiskEncryptionSummary(t *testing.T) {
 
 	// move all hosts to team
 	for _, h := range ubuntuHosts {
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{h.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h.ID}))
 		require.NoError(t, err)
 	}
 
 	for _, h := range fedoraHosts {
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{h.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h.ID}))
 		require.NoError(t, err)
 	}
 
 	for _, h := range macosHosts {
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{h.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h.ID}))
 		require.NoError(t, err)
 	}
 

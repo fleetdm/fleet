@@ -107,6 +107,8 @@ type SoftwareInstaller struct {
 	Platform string `json:"platform" db:"platform"`
 	// PackageIDList is a comma-separated list of packages extracted from the installer
 	PackageIDList string `json:"-" db:"package_ids"`
+	// UpgradeCode is the (optional) upgrade code included in an MSI
+	UpgradeCode string `json:"-" db:"upgrade_code"`
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
@@ -378,6 +380,7 @@ type UploadSoftwareInstallerPayload struct {
 	URL                  string
 	FleetMaintainedAppID *uint
 	PackageIDs           []string
+	UpgradeCode          string
 	UninstallScript      string
 	Extension            string
 	InstallDuringSetup   *bool    // keep saved value if nil, otherwise set as indicated
@@ -432,6 +435,7 @@ type UpdateSoftwareInstallerPayload struct {
 	Filename          string
 	Version           string
 	PackageIDs        []string
+	UpgradeCode       string
 	LabelsIncludeAny  []string // names of "include any" labels
 	LabelsExcludeAny  []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It

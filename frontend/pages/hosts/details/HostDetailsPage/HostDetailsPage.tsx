@@ -809,7 +809,10 @@ const HostDetailsPage = ({
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
-        doesStoreEncryptionKey={host.mdm.encryption_key_available}
+        doesStoreEncryptionKey={
+          host.mdm.encryption_key_available ||
+          !!host.mdm.encryption_key_archived
+        }
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
       />
@@ -931,8 +934,6 @@ const HostDetailsPage = ({
     details: host?.mdm.macos_setup?.details,
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
-
-  // host.platform = "windows";
 
   const isDarwinHost = host.platform === "darwin";
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);

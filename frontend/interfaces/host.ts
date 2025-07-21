@@ -116,6 +116,12 @@ export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
+  /**
+   * encryption_key_archived indicates where there is any archived key for the host. It is only
+   * populated for GET /hosts/:id and GET /hosts/identifiers/:identifier endpoints. It is not
+   * populated for list hosts or other hosts endpoints.
+   */
+  encryption_key_archived?: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
   dep_profile_error?: boolean;
   name?: string;

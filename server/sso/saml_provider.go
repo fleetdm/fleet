@@ -48,9 +48,10 @@ func SAMLProviderFromConfiguredMetadata(
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
 	return &saml.ServiceProvider{
-		EntityID:    entityID,
-		AcsURL:      *parsedACSURL,
-		IDPMetadata: entityDescriptor,
+		EntityID:          entityID,
+		AcsURL:            *parsedACSURL,
+		IDPMetadata:       entityDescriptor,
+		AuthnNameIDFormat: saml.EmailAddressNameIDFormat,
 	}, nil
 }
 
@@ -63,14 +64,14 @@ func SAMLProviderFromSession(
 	acsURL *url.URL,
 	entityID string,
 	expectedAudiences []string,
-) (samlProvider *saml.ServiceProvider, requestID string, err error) {
+) (samlProvider *saml.ServiceProvider, requestID, originalURL string, err error) {
 	session, err := sessionStore.Fullfill(sessionID)
 	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "validate request in session")
+		return nil, "", "", ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 	entityDescriptor, err := ParseMetadata([]byte(session.Metadata))
 	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "failed to parse metadata")
+		return nil, "", "", ctxerr.Wrap(ctx, err, "failed to parse metadata")
 	}
 
 	return &saml.ServiceProvider{
@@ -80,7 +81,7 @@ func SAMLProviderFromSession(
 		ValidateAudienceRestriction: func(assertion *saml.Assertion) error {
 			return validateAudiences(assertion, expectedAudiences)
 		},
-	}, session.RequestID, nil
+	}, session.RequestID, session.OriginalURL, nil
 }
 
 // SAMLProviderFromSessionOrConfiguredMetadata creates a SAML provider that can validate SAML responses.

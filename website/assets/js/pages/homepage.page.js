@@ -37,6 +37,7 @@ parasails.registerPage('homepage', {
       qualys: 'Qualys',
       tenable: 'Tenable',
       defender: 'Defender',
+      patchmypc: 'PatchMyPC',
     }
   },
 

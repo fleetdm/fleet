@@ -675,8 +675,14 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 		if l.Name == "" {
 			multiError = multierror.Append(multiError, errors.New("name is required for each label"))
 		}
-		if l.Query == "" && len(l.Hosts) == 0 && l.HostVitalsCriteria == nil {
-			multiError = multierror.Append(multiError, errors.New("a SQL query, hosts list or host vitals criteria is required for each label"))
+
+		if l.LabelMembershipType != fleet.LabelMembershipTypeManual && l.Query == "" && l.HostVitalsCriteria == nil {
+			multiError = multierror.Append(multiError, errors.New("a SQL query or host vitals criteria is required for each non-manual label"))
+		}
+
+		// Manual labels can have empty hosts lists, just make sure we initialize the empty list
+		if l.LabelMembershipType == fleet.LabelMembershipTypeManual && l.Hosts == nil {
+			l.Hosts = []string{}
 		}
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
@@ -867,15 +873,20 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
-			if pkg.URL == policyInstallSoftwareSpec.URL {
+			if (pkg.URL != "" && pkg.URL == policyInstallSoftwareSpec.URL) || (pkg.SHA256 != "" && pkg.SHA256 == policyInstallSoftwareSpec.SHA256) {
 				installerOnTeamFound = true
 				break
 			}
 		}
 		if !installerOnTeamFound {
-			return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+			if policyInstallSoftwareSpec.URL != "" {
+				return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+			}
+			return fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath)
 		}
+
 		policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
+		policy.InstallSoftware.HashSHA256 = policyInstallSoftwareSpec.SHA256
 	}
 
 	if policy.InstallSoftware.AppStoreID != "" {

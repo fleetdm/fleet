@@ -3150,18 +3150,35 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if host.TeamID != nil {
 		globalOrTeamID = *host.TeamID
 	}
+
+	// By default, installer platform takes care of omitting incompatible packages, but for Linux platforms the installer
+	// type is a bit too broad, so we filter further here. Note that we do *not* enforce this on installations, in case
+	// an admin knows that e.g. alien is installed and wants to push a package anyway. We also don't check software
+	// inventory for deb/rpm to match that way; this differs from the logic we use for auto-install queries for rpm/deb
+	// packages.
+	incompatibleExtensions := []string{"noop"}
+	if fleet.IsLinux(host.Platform) {
+		if !host.PlatformSupportsDebPackages() {
+			incompatibleExtensions = append(incompatibleExtensions, "deb")
+		}
+		if !host.PlatformSupportsRpmPackages() {
+			incompatibleExtensions = append(incompatibleExtensions, "rpm")
+		}
+	}
+
 	namedArgs := map[string]any{
-		"host_id":               host.ID,
-		"host_platform":         host.FleetPlatform(),
-		"global_or_team_id":     globalOrTeamID,
-		"is_mdm_enrolled":       opts.IsMDMEnrolled,
-		"host_label_updated_at": host.LabelUpdatedAt,
-		"avail":                 opts.OnlyAvailableForInstall,
-		"self_service":          opts.SelfServiceOnly,
-		"min_cvss":              opts.MinimumCVSS,
-		"max_cvss":              opts.MaximumCVSS,
-		"vpp_apps_platforms":    fleet.VPPAppsPlatforms,
-		"known_exploit":         1,
+		"host_id":                 host.ID,
+		"host_platform":           host.FleetPlatform(),
+		"incompatible_extensions": incompatibleExtensions,
+		"global_or_team_id":       globalOrTeamID,
+		"is_mdm_enrolled":         opts.IsMDMEnrolled,
+		"host_label_updated_at":   host.LabelUpdatedAt,
+		"avail":                   opts.OnlyAvailableForInstall,
+		"self_service":            opts.SelfServiceOnly,
+		"min_cvss":                opts.MinimumCVSS,
+		"max_cvss":                opts.MaximumCVSS,
+		"vpp_apps_platforms":      fleet.VPPAppsPlatforms,
+		"known_exploit":           1,
 	}
 	var hasCVEMetaFilters bool
 	if opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
@@ -3356,7 +3373,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software_titles st
 			LEFT OUTER JOIN
 				-- filter out software that is not available for install on the host's platform
-				software_installers si ON st.id = si.title_id AND si.platform = :host_compatible_platforms AND si.global_or_team_id = :global_or_team_id
+				software_installers si ON st.id = si.title_id AND si.platform = :host_compatible_platforms AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id
 			LEFT OUTER JOIN
 				-- include VPP apps only if the host is on a supported platform
 				vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)

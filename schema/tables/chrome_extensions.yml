@@ -16,7 +16,7 @@ examples: |-
   This query shows Chrome extensions that have full access to HTTPS browsing;
 
   ```
-  SELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u CROSS JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';
+  SELECT u.username, ce.name, ce.description, ce.version, ce.profile, ce.permissions FROM users u INNER JOIN chrome_extensions ce USING (uid) WHERE ce.permissions LIKE '%%https://*/*%%';
   ```
   
 notes: |-
