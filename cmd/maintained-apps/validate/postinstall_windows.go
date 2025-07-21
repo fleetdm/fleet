@@ -14,9 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 )
 
-var preInstalled = []string{
-	"google-chrome/windows",
-}
+var preInstalled = []string{}
 
 func postApplicationInstall(_ string) error {
 	return nil
