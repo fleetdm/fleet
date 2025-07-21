@@ -24,17 +24,17 @@ type ParseTypeError struct {
 	Keys     []string // The complete path to the field
 	Field    string   // The field we tried to assign to
 	Type     string   // The type that we want to have
-	Value    string   // The value that we received
+	Value    string   // The type of the value that we received
 	err      error    // The original error
 }
 
 func (e *ParseTypeError) Error() string {
-	var path []string
-	path = append(path, e.Keys...)
+	var keyPath []string
+	keyPath = append(keyPath, e.Keys...)
 	if e.Field != "" {
-		path = append(path, e.Field)
+		keyPath = append(keyPath, e.Field)
 	}
-	return fmt.Sprintf("couldn't parse %s:%s, must have type %s, found type %s", e.Filename, strings.Join(path, "."), e.Type, e.Value)
+	return fmt.Sprintf("couldn't parse %s:%s, must have type %s, found type %s", e.Filename, strings.Join(keyPath, "."), e.Type, e.Value)
 }
 
 func (e *ParseTypeError) Unwrap() error {
