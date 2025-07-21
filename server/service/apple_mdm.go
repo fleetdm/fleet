@@ -3408,13 +3408,19 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 		}
+		mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
+			HostDisplayName:  updatedInfo.DisplayName,
+			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
+			MDMPlatform:      fleet.MDMPlatformApple,
+		}
+		if r.Type == mdm.UserEnrollmentDevice {
+			mdmEnrolledActivity.PersonalHost = true
+			mdmEnrolledActivity.EnrollmentID = ptr.String(m.EnrollmentID)
+		} else {
+			mdmEnrolledActivity.HostSerial = ptr.String(updatedInfo.HardwareSerial)
+		}
 		return newActivity(
-			r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
-				HostSerial:       updatedInfo.HardwareSerial,
-				HostDisplayName:  updatedInfo.DisplayName,
-				InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
-				MDMPlatform:      fleet.MDMPlatformApple,
-			}, svc.ds, svc.logger,
+			r.Context, nil, mdmEnrolledActivity, svc.ds, svc.logger,
 		)
 	}
 
