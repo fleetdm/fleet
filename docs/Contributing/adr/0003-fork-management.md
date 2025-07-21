@@ -185,4 +185,4 @@ None.
 [^1]: For purposes of this ADR, "actively maintained" means "having commits within the last three months to a branch Fleet is
 interested in consuming." If an upstream repo has been abandoned, following this workflow (rather than copying the code
 into the monorepo) is optional.
-[^2]: Note `-`, not `_`, for consistency with other direcotries in the `fleet monorepo.
+[^2]: Note `-`, not `_`, for consistency with other directories in the `fleet monorepo.
