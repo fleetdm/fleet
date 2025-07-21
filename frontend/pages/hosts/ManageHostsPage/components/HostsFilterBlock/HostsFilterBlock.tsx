@@ -1,5 +1,4 @@
 import React, { useContext } from "react";
-import { invert } from "lodash";
 
 import { dateAgo } from "utilities/date_format";
 
@@ -13,9 +12,10 @@ import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
   IMdmSolution,
-  MDM_ENROLLMENT_STATUS,
+  MDM_ENROLLMENT_STATUS_UI_MAP,
   MdmProfileStatus,
   IMdmProfile,
+  MdmEnrollmentFilterValue,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
@@ -67,7 +67,7 @@ interface IHostsFilterBlockProps {
     softwareTitleId?: number;
     softwareVersionId?: number;
     mdmId?: number;
-    mdmEnrollmentStatus?: any;
+    mdmEnrollmentStatus?: MdmEnrollmentFilterValue;
     lowDiskSpaceHosts?: number;
     osVersionId?: string;
     osName?: string;
@@ -377,7 +377,9 @@ const HostsFilterBlock = ({
     if (!mdmEnrollmentStatus) return null;
 
     const label = `MDM status: ${
-      invert(MDM_ENROLLMENT_STATUS)[mdmEnrollmentStatus]
+      Object.values(MDM_ENROLLMENT_STATUS_UI_MAP).find(
+        (status) => status.filterValue === mdmEnrollmentStatus
+      )?.displayName
     }`;
 
     // More narrow tooltip than other MDM tooltip
