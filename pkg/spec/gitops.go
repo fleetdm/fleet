@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -56,7 +55,6 @@ func (e *ParseTypeError) Unwrap() error {
 }
 
 func MaybeParseTypeError(filename string, keysPath []string, err error) error {
-	fmt.Printf("reflect.TypeOf(err): %v\n", reflect.TypeOf(err))
 	unmarshallErr := &json.UnmarshalTypeError{}
 	if errors.As(err, &unmarshallErr) {
 		return &ParseTypeError{
