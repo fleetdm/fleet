@@ -397,7 +397,7 @@ const InstallStatusCell = ({
       },
       {
         condition: true,
-        statuses: ["Update available"],
+        statuses: ["Update available", "Update (pending)"],
         onClick: onClickUpdateAvailableStatus,
       },
     ];

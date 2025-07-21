@@ -286,7 +286,12 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "failed_uninstall",
-            software_package: testSoftwarePackage,
+            software_package: createMockHostSoftwarePackage({
+              last_uninstall: {
+                script_execution_id: "123-abc",
+                uninstalled_at: "2022-01-01T12:00:00Z",
+              },
+            }),
           }),
           ui_status: "failed_uninstall_update_available",
         }}
@@ -324,6 +329,57 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("Update available"));
     expect(screen.getByText(/Fleet can update software/i)).toBeInTheDocument();
+  });
+
+  it("renders 'Updating' for status pending_install but update_available", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_install",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "updating",
+        }}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
+        isHostOnline
+      />
+    );
+
+    await user.hover(screen.getByText("Updating..."));
+    expect(
+      screen.getByText(/Fleet is updating software./i)
+    ).toBeInTheDocument();
+
+    // Not clickable
+    expect(
+      screen.queryByRole("button", { name: /updating/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders 'Update (pending)' status with tooltip if host is offline", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "pending_install",
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "pending_update",
+        }}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Update \(pending\)/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Update (pending)"));
+    expect(screen.getByText(/Fleet will update software/i)).toBeInTheDocument();
   });
 
   it("renders '---' for package available for install", async () => {
