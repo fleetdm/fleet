@@ -3264,7 +3264,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if err != nil {
 		return nil, nil, err
 	}
-
 	byVPPAdamID := make(map[string]*hostSoftware)
 	for _, s := range hostVPPInstalls {
 		if s.VPPAppAdamID != nil {
