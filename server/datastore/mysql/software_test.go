@@ -3671,7 +3671,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 			for _, omit := range expectOmitted {
 				if g.Name+g.Source == omit {
-					fmt.Printf("%s\n", gotToString())
 					require.FailNowf(t, "Found unexpected software in results", fmt.Sprintf("Found %s", omit))
 					continue
 				}
@@ -8363,9 +8362,8 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 			FROM software_installers
 			JOIN software_titles ON software_installers.title_id = software_titles.id
 			WHERE software_installers.id = ?`, installerID)
-		if err != nil {
-			return err
-		}
+		require.NoError(t, err)
+
 		res, err := q.ExecContext(ctx,
 			`INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, ?)`,
 			title.Name,
@@ -8375,18 +8373,14 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 			title.ID,
 			"checksum",
 		)
-		if err != nil {
-			return err
-		}
+		require.NoError(t, err)
+
 		softwareID, err := res.LastInsertId()
-		if err != nil {
-			return err
-		}
+		require.NoError(t, err)
+
 		_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`,
 			host.ID, softwareID)
-		if err != nil {
-			return err
-		}
+		require.NoError(t, err)
 
 		return nil
 	})
