@@ -64,7 +64,7 @@ const (
 	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
 	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
-	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
+	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual", "automatic" and "personal"
 	MDMEnrollStatusPersonal   = MDMEnrollStatus("personal")
 )
 
