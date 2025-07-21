@@ -215,7 +215,7 @@ type MDM struct {
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
-	RequireBitLockerPIN optjson.Bool `json:"require_bitlocker_pin"`
+	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 

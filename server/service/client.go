@@ -2008,6 +2008,11 @@ func (c *Client) DoGitOps(
 		} else {
 			mdmAppConfig["enable_disk_encryption"] = false
 		}
+		if config.Controls.RequireBitLockerPIN != nil {
+			mdmAppConfig["windows_require_bitlocker_pin"] = config.Controls.RequireBitLockerPIN
+		} else {
+			mdmAppConfig["windows_require_bitlocker_pin"] = false
+		}
 
 		if config.TeamName != nil {
 			team["gitops_filename"] = filename

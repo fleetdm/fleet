@@ -2276,7 +2276,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 type updateDiskEncryptionRequest struct {
 	TeamID               *uint `json:"team_id"`
 	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
-	RequireBitLockerPIN  bool  `json:"require_bitlocker_pin"`
+	RequireBitLockerPIN  bool  `json:"windows_require_bitlocker_pin"`
 }
 
 type updateMDMDiskEncryptionResponse struct {

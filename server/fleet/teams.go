@@ -193,7 +193,7 @@ type TeamSpecAppStoreApp struct {
 
 type TeamMDM struct {
 	EnableDiskEncryption bool                  `json:"enable_disk_encryption"`
-	RequireBitLockerPIN  bool                  `json:"require_bitlocker_pin"`
+	RequireBitLockerPIN  bool                  `json:"windows_require_bitlocker_pin"`
 	MacOSUpdates         AppleOSUpdateSettings `json:"macos_updates"`
 	IOSUpdates           AppleOSUpdateSettings `json:"ios_updates"`
 	IPadOSUpdates        AppleOSUpdateSettings `json:"ipados_updates"`
