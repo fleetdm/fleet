@@ -7368,7 +7368,9 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 			"mdm_platform": "microsoft",
 			"host_serial": "%s",
 			"installed_from_dep": false,
-			"host_display_name": "%s"
+			"host_display_name": "%s",
+			"enrollment_id": null,
+			"personal_host": false
 		 }`, windowsHost.HardwareSerial, windowsHost.DisplayName()),
 		0)
 
@@ -7417,6 +7419,8 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 		`{
 			"mdm_platform": "microsoft",
 			"host_serial": "",
+			"enrollment_id": null,
+			"personal_host": false,
 			"installed_from_dep": false,
 			"host_display_name": "DESKTOP-0C89RC0"
 		 }`,
