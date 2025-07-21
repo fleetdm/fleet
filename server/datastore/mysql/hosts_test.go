@@ -6086,9 +6086,10 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.NotZero(t, *hmdm.MDMID)
 	urlMDMID := *hmdm.MDMID
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
+	assert.False(t, hmdm.IsPersonalEnrollment)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io", true, fleet.WellKnownMDMKandji, "", false)) // kandji mdm name
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, false, "url3", true, "", "", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, false, "url3", true, "", "", true))
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 432)
 	require.NoError(t, err)
@@ -6099,6 +6100,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.NotZero(t, *hmdm.MDMID)
 	assert.NotEqual(t, urlMDMID, *hmdm.MDMID)
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
+	assert.True(t, hmdm.IsPersonalEnrollment)
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
@@ -6340,16 +6342,18 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, false, "https://kandji.io", false, fleet.WellKnownMDMKandji, "", false))      // unenrolled
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, false, "https://kandji.io", true, fleet.WellKnownMDMKandji, "", false))       // pending enrollment
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 1337, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false))     // pending enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 31337, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true))     // Personal enrollment
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil, "")
 	require.NoError(t, err)
-	assert.Equal(t, 7, status.HostsCount)
+	assert.Equal(t, 8, status.HostsCount)
 	assert.Equal(t, 1, status.UnenrolledHostsCount)
 	assert.Equal(t, 2, status.PendingHostsCount)
 	assert.Equal(t, 3, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
+	assert.Equal(t, 1, status.EnrolledPersonalHostsCount)
 
 	solutions, _, err = ds.AggregatedMDMSolutions(context.Background(), nil, "")
 	require.NoError(t, err)
@@ -6366,7 +6370,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 			assert.Equal(t, 2, sol.HostsCount)
 			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
 		case "https://fleetdm.com":
-			assert.Equal(t, 1, sol.HostsCount)
+			assert.Equal(t, 2, sol.HostsCount)
 			assert.Equal(t, fleet.WellKnownMDMFleet, sol.Name)
 		default:
 			require.Fail(t, fmt.Sprintf("unknown MDM solutions URL: %s", sol.ServerURL))
@@ -6391,18 +6395,21 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	h4 := test.NewHost(t, ds, "h4"+t.Name(), "192.168.1.11", "4", "4", time.Now(), test.WithPlatform("windows"))
 	h5 := test.NewHost(t, ds, "h5"+t.Name(), "192.168.1.12", "5", "5", time.Now(), test.WithPlatform("ios"))
 	h6 := test.NewHost(t, ds, "h6"+t.Name(), "192.168.1.12", "6", "6", time.Now(), test.WithPlatform("ipados"))
+	h7 := test.NewHost(t, ds, "h7"+t.Name(), "192.168.1.17", "7", "7", time.Now(), test.WithPlatform("ios"))
 
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID})))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{h2.ID})))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h3.ID})))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h4.ID})))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h6.ID})))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h7.ID})))
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, false, true, "url", false, "", "", false))
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h5.ID, false, true, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h6.ID, false, true, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h7.ID, false, true, "https://fleet.example.com", false, fleet.WellKnownMDMFleet, "", true))
 
 	// Add a server, this will be ignored in lists and aggregated data.
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h4.ID, true, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
@@ -6455,17 +6462,19 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil, "")
 	require.NoError(t, err)
-	assert.Equal(t, 11, status.HostsCount)
+	assert.Equal(t, 13, status.HostsCount)
 	assert.Equal(t, 1, status.UnenrolledHostsCount)
 	assert.Equal(t, 5, status.EnrolledManualHostsCount)
 	assert.Equal(t, 3, status.EnrolledAutomatedHostsCount)
+	assert.Equal(t, 2, status.EnrolledPersonalHostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "")
 	require.NoError(t, err)
-	assert.Equal(t, 2, status.HostsCount)
+	assert.Equal(t, 3, status.HostsCount)
 	assert.Equal(t, 0, status.UnenrolledHostsCount)
 	assert.Equal(t, 1, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
+	assert.Equal(t, 1, status.EnrolledPersonalHostsCount)
 
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), nil, "")
 	require.True(t, updatedAt.After(firstUpdatedAt))
@@ -6474,7 +6483,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	// Check the new MDM solution used by the iOS/iPadOS
 	assert.Equal(t, "https://fleet.example.com", solutions[4].ServerURL)
 	assert.Equal(t, fleet.WellKnownMDMFleet, solutions[4].Name)
-	assert.Equal(t, 2, solutions[4].HostsCount)
+	assert.Equal(t, 3, solutions[4].HostsCount)
 
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID, "")
 	require.True(t, updatedAt.After(firstUpdatedAt))
@@ -6485,7 +6494,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, solutions[0].HostsCount)
 	assert.Equal(t, "https://fleet.example.com", solutions[1].ServerURL)
 	assert.Equal(t, fleet.WellKnownMDMFleet, solutions[1].Name)
-	assert.Equal(t, 1, solutions[1].HostsCount)
+	assert.Equal(t, 2, solutions[1].HostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "darwin")
 	require.NoError(t, err)
@@ -6493,6 +6502,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, status.UnenrolledHostsCount)
 	assert.Equal(t, 0, status.EnrolledManualHostsCount)
 	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
+	assert.Equal(t, 0, status.EnrolledPersonalHostsCount)
 
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID, "darwin")
 	require.True(t, updatedAt.After(firstUpdatedAt))
@@ -6505,20 +6515,23 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, status.UnenrolledHostsCount)
 	assert.Equal(t, 1, status.EnrolledManualHostsCount)
 	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
+	assert.Equal(t, 0, status.EnrolledPersonalHostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "ios")
-	require.NoError(t, err)
-	assert.Equal(t, 0, status.HostsCount)
-	assert.Equal(t, 0, status.UnenrolledHostsCount)
-	assert.Equal(t, 0, status.EnrolledManualHostsCount)
-	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
-
-	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil, "ios")
 	require.NoError(t, err)
 	assert.Equal(t, 1, status.HostsCount)
 	assert.Equal(t, 0, status.UnenrolledHostsCount)
 	assert.Equal(t, 0, status.EnrolledManualHostsCount)
+	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
+	assert.Equal(t, 1, status.EnrolledPersonalHostsCount)
+
+	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil, "ios")
+	require.NoError(t, err)
+	assert.Equal(t, 2, status.HostsCount)
+	assert.Equal(t, 0, status.UnenrolledHostsCount)
+	assert.Equal(t, 0, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
+	assert.Equal(t, 1, status.EnrolledPersonalHostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "ipados")
 	require.NoError(t, err)
@@ -6526,6 +6539,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, status.UnenrolledHostsCount)
 	assert.Equal(t, 0, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
+	assert.Equal(t, 0, status.EnrolledPersonalHostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil, "ipados")
 	require.NoError(t, err)
@@ -6533,6 +6547,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, status.UnenrolledHostsCount)
 	assert.Equal(t, 0, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
+	assert.Equal(t, 0, status.EnrolledPersonalHostsCount)
 
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID, "windows")
 	require.True(t, updatedAt.After(firstUpdatedAt))
@@ -6548,12 +6563,12 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.Len(t, solutions, 1)
 	assert.Equal(t, "https://fleet.example.com", solutions[0].ServerURL)
 	assert.Equal(t, fleet.WellKnownMDMFleet, solutions[0].Name)
-	assert.Equal(t, 1, solutions[0].HostsCount)
+	assert.Equal(t, 2, solutions[0].HostsCount)
 
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID, "ios")
 	require.True(t, updatedAt.After(firstUpdatedAt))
 	require.NoError(t, err)
-	require.Len(t, solutions, 0)
+	require.Len(t, solutions, 1)
 
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), nil, "ipados")
 	require.True(t, updatedAt.After(firstUpdatedAt))

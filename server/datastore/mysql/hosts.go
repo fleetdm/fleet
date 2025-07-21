@@ -911,6 +911,7 @@ const hostMDMJoin = `
 	  hm.enrolled,
 	  hm.installed_from_dep,
 	  hm.enrollment_status,
+	  hm.is_personal_enrollment,
 	  hm.server_url,
 	  hm.mdm_id,
 	  hm.host_id,
@@ -4638,7 +4639,8 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 				COALESCE(SUM(CASE WHEN NOT enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END), 0) as unenrolled_hosts_count,
 				COALESCE(SUM(CASE WHEN NOT enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as pending_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_automated_hosts_count,
-				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_manual_hosts_count
+				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND NOT is_personal_enrollment THEN 1 ELSE 0 END), 0) as enrolled_manual_hosts_count,
+				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND is_personal_enrollment THEN 1 ELSE 0 END), 0) as enrolled_personal_hosts_count
 			 FROM host_mdm hm
        	`
 	args := []interface{}{}
