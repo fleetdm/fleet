@@ -1,19 +1,22 @@
 name: Test Fleet Maintained Apps
 
-#on:
-#  workflow_dispatch: # Manual trigger
 on: 
   push:
     branches:
       - 30037-test-fmas
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+  #   paths:
+  #     - ee/maintained-apps/outputs/**
+  # workflow_dispatch: # Manual trigger
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   test-fma:
-    # runs-on: macos-latest
-    runs-on: windows-latest
+    runs-on: macos-latest
+    # runs-on: windows-latest
     steps:
       - name: Checkout Fleet
         uses: actions/checkout@v4
@@ -28,56 +31,57 @@ jobs:
         with:
           go-version-file: 'fleet/go.mod'
 
-      - name: Install osquery windows
-        run: |
-          curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1.windows_x86_64.zip"
-          Expand-Archive -Path osquery.zip -DestinationPath osquery
-          Get-ChildItem -Recurse osquery | Where-Object { $_.Name -like "*osquery*" -and $_.Extension -eq ".exe" }
-          $osqueryPath = (Get-ChildItem -Recurse osquery | Where-Object { $_.Name -eq "osqueryi.exe" }).Directory.FullName
-          echo "Adding to PATH: $osqueryPath"
-          echo $osqueryPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        shell: pwsh
-      
-      - name: Remove pre-installed google chrome
-        run: |
-          Write-Host "Listing all installed packages containing 'Chrome':"
-          Get-Package | Where-Object { $_.Name -like "*Chrome*" } | ForEach-Object {
-            Write-Host "  - $($_.Name) (Version: $($_.Version))"
-          }
-
-          $uninstallPath = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -like "*Google Chrome*" } | Select-Object -ExpandProperty UninstallString
-          if ($uninstallPath) {
-            Write-Host "Found Chrome uninstall path: $uninstallPath"
-            try {
-              # Handle MSI uninstall
-              $guid = ($uninstallPath -split "/X")[1]
-              Write-Host "Uninstalling Chrome MSI with GUID: $guid"
-              Start-Process -FilePath "msiexec.exe" -ArgumentList "/X$guid", "/quiet", "/norestart" -Wait -NoNewWindow
-              Write-Host "Successfully removed Google Chrome via MSI uninstaller"
-            } catch {
-              Write-Host "Failed to remove Chrome: $($_.Exception.Message)"
-            }
-          } else {
-            Write-Host "Chrome uninstall path not found in registry"
-          }
-        shell: pwsh
-
-      - name: Verify Fleet Maintained Apps windows
-        run: |
-          cd fleet
-          go run ./cmd/maintained-apps/validate
-        shell: pwsh
-
-      # - name: Install osquery mac
+      # windows
+      # - name: Install osquery windows
       #   run: |
-      #     curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1_1.macos_arm64.tar.gz"
-      #     tar -xzf osquery.tar.gz
-      #     sudo cp -r opt /
-      #     sudo cp -r private /
-      #     sudo ln -sf /opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd /usr/local/bin/osqueryi
-      #     sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
+      #     curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1.windows_x86_64.zip"
+      #     Expand-Archive -Path osquery.zip -DestinationPath osquery
+      #     Get-ChildItem -Recurse osquery | Where-Object { $_.Name -like "*osquery*" -and $_.Extension -eq ".exe" }
+      #     $osqueryPath = (Get-ChildItem -Recurse osquery | Where-Object { $_.Name -eq "osqueryi.exe" }).Directory.FullName
+      #     echo "Adding to PATH: $osqueryPath"
+      #     echo $osqueryPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      #   shell: pwsh
+      
+      # - name: Remove pre-installed google chrome
+      #   run: |
+      #     Write-Host "Listing all installed packages containing 'Chrome':"
+      #     Get-Package | Where-Object { $_.Name -like "*Chrome*" } | ForEach-Object {
+      #       Write-Host "  - $($_.Name) (Version: $($_.Version))"
+      #     }
 
-      # - name: Verify Fleet Maintained Apps mac
+      #     $uninstallPath = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -like "*Google Chrome*" } | Select-Object -ExpandProperty UninstallString
+      #     if ($uninstallPath) {
+      #       Write-Host "Found Chrome uninstall path: $uninstallPath"
+      #       try {
+      #         # Handle MSI uninstall
+      #         $guid = ($uninstallPath -split "/X")[1]
+      #         Write-Host "Uninstalling Chrome MSI with GUID: $guid"
+      #         Start-Process -FilePath "msiexec.exe" -ArgumentList "/X$guid", "/quiet", "/norestart" -Wait -NoNewWindow
+      #         Write-Host "Successfully removed Google Chrome via MSI uninstaller"
+      #       } catch {
+      #         Write-Host "Failed to remove Chrome: $($_.Exception.Message)"
+      #       }
+      #     } else {
+      #       Write-Host "Chrome uninstall path not found in registry"
+      #     }
+      #   shell: pwsh
+
+      # - name: Verify Fleet Maintained Apps windows
       #   run: |
       #     cd fleet
-      #     sudo -E go run ./cmd/maintained-apps/validate
+      #     go run ./cmd/maintained-apps/validate
+      #   shell: pwsh
+
+      - name: Install osquery mac
+        run: |
+          curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1_1.macos_arm64.tar.gz"
+          tar -xzf osquery.tar.gz
+          sudo cp -r opt /
+          sudo cp -r private /
+          sudo ln -sf /opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd /usr/local/bin/osqueryi
+          sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
+
+      - name: Verify Fleet Maintained Apps mac
+        run: |
+          cd fleet
+          sudo -E go run ./cmd/maintained-apps/validate
