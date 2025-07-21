@@ -217,7 +217,7 @@ func uninstallApp(maintainedApp fleet.MaintainedApp, app maintained_apps.FMAList
 		return false
 	}
 	if existance {
-		fmt.Printf("App version '%s' was found after uninstall\n", maintainedApp.Version)
+		fmt.Printf("App version '%s' was found after uninstall\n", appVersion)
 		return false
 	}
 
