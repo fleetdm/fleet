@@ -219,6 +219,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			team.Config.MDM.EnableDiskEncryption = payload.MDM.EnableDiskEncryption.Value
 		}
 
+		if payload.MDM.RequireBitLockerPIN.Valid {
+			team.Config.MDM.RequireBitLockerPIN = payload.MDM.RequireBitLockerPIN.Value
+		}
+
 		if payload.MDM.MacOSSetup != nil {
 			if !appCfg.MDM.EnabledAndConfigured && team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication {
 				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
@@ -1280,6 +1284,11 @@ func (svc *Service) editTeamFromSpec(
 	if didUpdateDiskEncryption && team.Config.MDM.EnableDiskEncryption && svc.config.Server.PrivateKey == "" {
 		return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
+
+	if spec.MDM.RequireBitLockerPIN.Valid {
+		team.Config.MDM.RequireBitLockerPIN = spec.MDM.RequireBitLockerPIN.Value
+	}
+
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
