@@ -1163,6 +1163,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 	testing_utils.StartSoftwareInstallerServer(t)
 
 	t.Setenv("TEST_TEAM_NAME", teamName)
+	t.Setenv("ENABLE_DISK_ENCRYPTION", "true")
+	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
 
 	// Dry run
 	const baseFilename = "team_config_no_paths.yml"
@@ -1208,6 +1210,15 @@ func TestGitOpsFullTeam(t *testing.T) {
 	uninstallScriptProcessed := strings.ReplaceAll(file.GetUninstallScript("deb"), "$PACKAGE_ID", packageID)
 	assert.ElementsMatch(t, []string{fmt.Sprintf("echo 'uninstall' %s\n", packageID), uninstallScriptProcessed},
 		[]string{appliedSoftwareInstallers[0].UninstallScript, appliedSoftwareInstallers[1].UninstallScript})
+
+	// Change disk encryption settings
+	t.Setenv("ENABLE_DISK_ENCRYPTION", "false")
+	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "false")
+	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+	require.NotNil(t, savedTeam)
+	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
+	assert.False(t, savedTeam.Config.MDM.RequireBitLockerPIN)
 
 	// Change team name
 	newTeamName := "New Team Name"
