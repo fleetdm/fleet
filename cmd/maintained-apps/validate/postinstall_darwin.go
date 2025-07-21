@@ -16,6 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 )
 
+var preInstalled = []string{}
+
 func postApplicationInstall(appPath string) error {
 	err := forceLaunchServicesRefresh(appPath)
 	if err != nil {

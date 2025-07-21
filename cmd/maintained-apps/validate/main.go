@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -93,6 +94,18 @@ func main() {
 		}
 		defer installerTFR.Close()
 
+		appVersion, err := extractAppVersion(maintainedApp, installerTFR)
+		if err != nil {
+			fmt.Printf("Error extracting installer version: %v. Using '%s'\n", err, appVersion)
+			appWithError = append(appWithError, app.Name)
+		}
+
+		// If application is already installed, attempt to uninstall it
+		if slices.Contains(preInstalled, app.Slug) {
+			uninstallPreInstalled(app, installationSearchDirectory, maintainedApp, appVersion)
+		}
+
+		// Install
 		appListPre, err := listDirectoryContents(installationSearchDirectory)
 		if err != nil {
 			fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
@@ -126,12 +139,6 @@ func main() {
 			appWithWarning = append(appWithWarning, app.Name)
 		}
 
-		appVersion, err := extractAppVersion(maintainedApp, installerTFR)
-		if err != nil {
-			fmt.Printf("Error extracting installer version: %v. Using '%s'\n", err, appVersion)
-			appWithError = append(appWithError, app.Name)
-		}
-
 		existance, err := doesAppExists(app.Name, app.UniqueIdentifier, appVersion, appPath)
 		if err != nil {
 			fmt.Printf("Error checking if app exists: %v\n", err)
@@ -144,23 +151,9 @@ func main() {
 			continue
 		}
 
-		fmt.Print("Executing uninstall script...\n")
-		output, err = executeScript(maintainedApp.UninstallScript)
-		if err != nil {
-			fmt.Printf("Error uninstalling app: %v\n", err)
-			fmt.Printf("Output: %s\n", output)
-			appWithError = append(appWithError, app.Name)
-			continue
-		}
-
-		existance, err = doesAppExists(app.Name, app.UniqueIdentifier, appVersion, appPath)
-		if err != nil {
-			fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
-			appWithError = append(appWithError, app.Name)
-			continue
-		}
-		if existance {
-			fmt.Printf("App version '%s' was found after uninstall\n", maintainedApp.Version)
+		// Uninstall
+		uninstalled := uninstallApp(maintainedApp, app, appVersion, appPath)
+		if !uninstalled {
 			appWithError = append(appWithError, app.Name)
 			continue
 		}
@@ -183,6 +176,52 @@ func main() {
 		fmt.Printf("Apps with errors: %v\n", appWithError)
 		os.Exit(1)
 	}
+}
+
+func uninstallPreInstalled(app maintained_apps.FMAListFileApp, installationSearchDirectory string, maintainedApp fleet.MaintainedApp, appVersion string) {
+	fmt.Printf("App '%s' is marked as pre-installed, attempting to run uninstall script.\n", app.Name)
+
+	appListPre, err := listDirectoryContents(installationSearchDirectory)
+	if err != nil {
+		fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+	}
+	uninstalled := uninstallApp(maintainedApp, app, appVersion, "")
+	if !uninstalled {
+		fmt.Printf("Failed to uninstall pre-installed app '%s'", app.Name)
+	}
+	appListPost, err := listDirectoryContents(installationSearchDirectory)
+	if err != nil {
+		fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+	}
+
+	appPath := detectRemovedApplication(installationSearchDirectory, appListPre, appListPost)
+	if appPath == "" {
+		fmt.Printf("Warning: no changes found in %s directory after running application uninstall script.\n", installationSearchDirectory)
+	} else {
+		fmt.Printf("Removed application detected at: %s\n", appPath)
+	}
+}
+
+func uninstallApp(maintainedApp fleet.MaintainedApp, app maintained_apps.FMAListFileApp, appVersion, appPath string) bool {
+	fmt.Print("Executing uninstall script...\n")
+	output, err := executeScript(maintainedApp.UninstallScript)
+	if err != nil {
+		fmt.Printf("Error uninstalling app: %v\n", err)
+		fmt.Printf("Output: %s\n", output)
+		return false
+	}
+
+	existance, err := doesAppExists(app.Name, app.UniqueIdentifier, appVersion, appPath)
+	if err != nil {
+		fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
+		return false
+	}
+	if existance {
+		fmt.Printf("App version '%s' was found after uninstall\n", maintainedApp.Version)
+		return false
+	}
+
+	return true
 }
 
 func getListOfApps() ([]maintained_apps.FMAListFileApp, error) {
@@ -295,6 +334,15 @@ func listDirectoryContents(dir string) (map[string]struct{}, error) {
 func detectNewApplication(installationSearchDirectory string, appListPre, appListPost map[string]struct{}) string {
 	for app := range appListPost {
 		if _, exists := appListPre[app]; !exists {
+			return filepath.Join(installationSearchDirectory, app)
+		}
+	}
+	return ""
+}
+
+func detectRemovedApplication(installationSearchDirectory string, appListPre, appListPost map[string]struct{}) string {
+	for app := range appListPre {
+		if _, exists := appListPost[app]; !exists {
 			return filepath.Join(installationSearchDirectory, app)
 		}
 	}

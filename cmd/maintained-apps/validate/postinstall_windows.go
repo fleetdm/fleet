@@ -14,11 +14,15 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 )
 
-func postApplicationInstall(appPath string) error {
+var preInstalled = []string{
+	"google-chrome/windows",
+}
+
+func postApplicationInstall(_ string) error {
 	return nil
 }
 
-func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
+func doesAppExists(appName, _ string, appVersion, appPath string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
