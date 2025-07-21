@@ -919,6 +919,7 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
   "host_serial": "C08VQ2AXHT96",
   "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
+  "personal_host": false,
   "installed_from_dep": true,
   "mdm_platform": "apple"
 }`
