@@ -1,13 +1,13 @@
 {
   "versions": [
     {
-      "version": "138.0.7204.97",
+      "version": "138.0.7204.158",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';"
       },
-      "installer_url": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi",
-      "install_script_ref": "8959087b",
-      "uninstall_script_ref": "4836150f",
+      "installer_url": "https://dl.google.com/release2/chrome/adoxq6yw64jzwswqufh3prv6wcra_138.0.7204.158/138.0.7204.158_chrome_installer_uncompressed.exe",
+      "install_script_ref": "e938c022",
+      "uninstall_script_ref": "421e39ae",
       "sha256": "no_check",
       "default_categories": [
         "Browsers"
@@ -15,7 +15,7 @@
     }
   ],
   "refs": {
-    "4836150f": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\nforeach ($product_code in $inst.RelatedProducts('{C1DFDF69-5945-32F2-A35E-EE94C99C7CF4}')) {\n    msiexec /quiet /x $product_code\n}\n\nExit $LASTEXITCODE\n",
-    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+    "421e39ae": "# Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID\n# variable\n$softwareName = \"Google Chrome\"\n\n# It is recommended to use exact software name here if possible to avoid\n# uninstalling unintended software.\n$softwareNameLike = \"*$softwareName*\"\n\n# Some uninstallers require a flag to run silently.\n# Each uninstaller might use different argument (usually it's \"/S\" or \"/s\")\n$uninstallArgs = \"--uninstall\"\n\n$expctedExitCodes = @(0, 19)\n\n$machineKey = `\n 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = `\n 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    # If needed, add -notlike to the comparison to exclude certain similar\n    # software\n    if ($key.DisplayName -like $softwareNameLike) {\n        $foundUninstaller = $true\n        # Get the uninstall command. Some uninstallers do not include\n        # 'QuietUninstallString' and require a flag to run silently.\n        $uninstallCommand = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # The uninstall command may contain command and args, like:\n        # \"C:\\Program Files\\Software\\uninstall.exe\" --uninstall --silent\n        # Split the command and args\n        $splitArgs = $uninstallCommand.Split('\"')\n        if ($splitArgs.Length -gt 1) {\n            if ($splitArgs.Length -eq 3) {\n                $uninstallArgs = \"$( $splitArgs[2] ) $uninstallArgs\".Trim()\n            } elseif ($splitArgs.Length -gt 3) {\n                Throw `\n                    \"Uninstall command contains multiple quoted strings. \" +\n                        \"Please update the uninstall script.`n\" +\n                        \"Uninstall command: $uninstallCommand\"\n            }\n            $uninstallCommand = $splitArgs[1]\n        }\n        Write-Host \"Uninstall command: $uninstallCommand\"\n        Write-Host \"Uninstall args: $uninstallArgs\"\n\n        $processOptions = @{\n            FilePath = $uninstallCommand\n            PassThru = $true\n            Wait = $true\n        }\n        if ($uninstallArgs -ne '') {\n            $processOptions.ArgumentList = \"$uninstallArgs\"\n        }\n\n        # Start process and track exit code\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n\n        # Prints the exit code\n        Write-Host \"Uninstall exit code: $exitCode\"\n        # Exit the loop once the software is found and uninstalled.\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstaller for '$softwareName' not found.\"\n    # Change exit code to 0 if you don't want to fail if uninstaller is not\n    # found. This could happen if program was already uninstalled.\n    $exitCode = 1\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    $exitCode = 1\n}\n\nif ($expectedExitCodes -contains $exitCode) {\n    $exitCode = 0\n}\n\nExit $exitCode",
+    "e938c022": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Add argument to install silently\n# Argument to make install silent depends on installer,\n# each installer might use different argument (usually it's \"/S\" or \"/s\")\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"--do-not-launch-chrome --system-level\"\n  PassThru = $true\n  Wait = $true\n}\n    \n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}"
   }
 }

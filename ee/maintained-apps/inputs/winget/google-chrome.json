@@ -1,10 +1,12 @@
 {
   "name": "Google Chrome",
   "slug": "google-chrome/windows",
-  "package_identifier": "Google.Chrome",
+  "package_identifier": "Google.Chrome.EXE",
   "unique_identifier": "Google Chrome",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/google_chrome_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/google_chrome_uninstall.ps1",
   "installer_arch": "x64",
-  "installer_type": "msi",
+  "installer_type": "exe",
   "installer_scope": "machine",
   "ignore_hash": true,
   "default_categories": ["Browsers"]
