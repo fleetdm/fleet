@@ -54,7 +54,7 @@ func MaybeParseTypeError(filename string, keysPath []string, err error) error {
 		}
 	}
 
-	return fmt.Errorf("failed to unmarshal %s: %w", strings.Join(keysPath, "."), err)
+	return fmt.Errorf("failed to unmarshal %s:%s: %w", filename, strings.Join(keysPath, "."), err)
 }
 
 type BaseItem struct {
