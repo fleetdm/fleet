@@ -81,7 +81,17 @@ jobs:
           sudo ln -sf /opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd /usr/local/bin/osqueryi
           sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
 
+      - name : Remove pre-installed google chrome mac
+        run: |
+          ls /Applications | grep -i "Chrome"
+          find /Applications -name "*Chrome*.app" -type d | while read app;
+          do
+            echo "Removing $app..."
+            sudo rm -rf "$app"
+          done
+      
       - name: Verify Fleet Maintained Apps mac
         run: |
+          ls /Applications
           cd fleet
           sudo -E go run ./cmd/maintained-apps/validate

@@ -16,7 +16,9 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 )
 
-var preInstalled = []string{}
+var preInstalled = []string{
+	"firefox/darwin",
+}
 
 func postApplicationInstall(appPath string) error {
 	err := forceLaunchServicesRefresh(appPath)
