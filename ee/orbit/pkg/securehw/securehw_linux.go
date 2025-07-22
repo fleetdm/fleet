@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 
+	keyfile "github.com/foxboron/go-tpm-keyfiles"
 	"github.com/google/go-tpm/tpm2"
 	"github.com/google/go-tpm/tpm2/transport"
 	"github.com/google/go-tpm/tpm2/transport/linuxtpm"
@@ -24,9 +25,8 @@ import (
 type tpm2TEE struct {
 	device transport.TPMCloser
 
-	logger          zerolog.Logger
-	publicBlobPath  string
-	privateBlobPath string
+	logger      zerolog.Logger
+	keyFilePath string
 }
 
 const tpm20DevicePath = "/dev/tpmrm0"
@@ -55,9 +55,8 @@ func newTEE(metadataDir string, logger zerolog.Logger) (TEE, error) {
 	return &tpm2TEE{
 		device: device,
 
-		logger:          zerolog.Nop(),
-		publicBlobPath:  filepath.Join(metadataDir, "tpm_cms_pub.blob"),
-		privateBlobPath: filepath.Join(metadataDir, "tpm_cms_priv.blob"),
+		logger:      zerolog.Nop(),
+		keyFilePath: filepath.Join(metadataDir, "host_identity_tpm.pem"),
 	}, nil
 }
 
@@ -143,8 +142,7 @@ func (t *tpm2TEE) CreateKey() (Key, error) {
 		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
 		Msg("key created and context saved successfully")
 
-	// Write TPM blobs to files
-	if err := t.writeBlobsToFiles(createKey.OutPublic, createKey.OutPrivate); err != nil {
+	if err := t.saveTPMKeyFile(createKey.OutPrivate, createKey.OutPublic); err != nil {
 		cleanUpOnError()
 		return nil, fmt.Errorf("write TPM blobs to files: %w", err)
 	}
@@ -262,39 +260,32 @@ func (t *tpm2TEE) selectBestECCCurve() (tpm2.TPMECCCurve, string) {
 	return tpm2.TPMECCNistP384, "P-384"
 }
 
-// writeBlobsToFiles writes the TPM public and private blobs to the specified file paths
-func (t *tpm2TEE) writeBlobsToFiles(publicBlob tpm2.TPM2BPublic, privateBlob tpm2.TPM2BPrivate) error {
-	t.logger.Debug().
-		Str("public_path", t.publicBlobPath).
-		Str("private_path", t.privateBlobPath).
-		Msg("writing TPM blobs to files")
-
-	// Marshal the public blob
-	publicData := tpm2.Marshal(publicBlob)
-	if err := os.WriteFile(t.publicBlobPath, publicData, 0o600); err != nil {
-		return fmt.Errorf("write public blob to %s: %w", t.publicBlobPath, err)
+func (t *tpm2TEE) saveTPMKeyFile(privateKey tpm2.TPM2BPrivate, publicKey tpm2.TPM2BPublic) error {
+	k := keyfile.NewTPMKey(
+		keyfile.OIDOldLoadableKey,
+		publicKey,
+		privateKey,
+		keyfile.WithDescription("fleetd httpsig key"),
+	)
+	if err := os.WriteFile(t.keyFilePath, k.Bytes(), 0o600); err != nil {
+		return fmt.Errorf("failed to save key file: %w", err)
 	}
-	t.logger.Debug().
-		Str("path", t.publicBlobPath).
-		Int("size", len(publicData)).
-		Msg("public blob written successfully")
-
-	// Marshal the private blob
-	privateData := tpm2.Marshal(privateBlob)
-	if err := os.WriteFile(t.privateBlobPath, privateData, 0o600); err != nil {
-		return fmt.Errorf("write private blob to %s: %w", t.privateBlobPath, err)
-	}
-	t.logger.Debug().
-		Str("path", t.privateBlobPath).
-		Int("size", len(privateData)).
-		Msg("private blob written successfully")
-
-	t.logger.Info().
-		Str("public_path", t.publicBlobPath).
-		Str("private_path", t.privateBlobPath).
-		Msg("TPM blobs written to files successfully")
-
 	return nil
+}
+
+func (t *tpm2TEE) loadTPMKeyFile() (privateKey *tpm2.TPM2BPrivate, publicKey *tpm2.TPM2BPublic, err error) {
+	keyfileBytes, err := os.ReadFile(t.keyFilePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil, ErrKeyNotFound{}
+		}
+		return nil, nil, fmt.Errorf("failed to read keyfile path: %w", err)
+	}
+	k, err := keyfile.Decode(keyfileBytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode keyfile: %w", err)
+	}
+	return &k.Privkey, &k.Pubkey, nil
 }
 
 type blobs struct {
@@ -302,53 +293,9 @@ type blobs struct {
 	public  *tpm2.TPM2BPublic
 }
 
-// loadTPMKeyFromBlobs attempts to load existing TPM 2.0 key blobs from expected file paths.
-//
-// If the key files do not exist, then it returns nil, nil.
-func (t *tpm2TEE) loadTPM2KeyFromBlobs() (keys *blobs, err error) {
-	t.logger.Info().
-		Str("public_path", t.publicBlobPath).
-		Str("private_path", t.privateBlobPath).
-		Msg("loading key from TPM blobs")
-
-	t.logger.Debug().Str("path", t.publicBlobPath).Msg("reading public blob")
-	publicData, err := os.ReadFile(t.publicBlobPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, ErrKeyNotFound{}
-		}
-		return nil, fmt.Errorf("read public blob from %s: %w", t.publicBlobPath, err)
-	}
-
-	t.logger.Debug().Str("path", t.privateBlobPath).Msg("Reading private blob")
-	privateData, err := os.ReadFile(t.privateBlobPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, ErrKeyNotFound{}
-		}
-		return nil, fmt.Errorf("read private blob from %s: %w", t.privateBlobPath, err)
-	}
-
-	t.logger.Debug().Msg("unmarshaling TPM blobs")
-	public, err := tpm2.Unmarshal[tpm2.TPM2BPublic](publicData)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal public blob: %w", err)
-	}
-
-	private, err := tpm2.Unmarshal[tpm2.TPM2BPrivate](privateData)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal private blob: %w", err)
-	}
-
-	return &blobs{
-		private: private,
-		public:  public,
-	}, nil
-}
-
 // LoadKey partially implements TEE.
 func (t *tpm2TEE) LoadKey() (Key, error) {
-	blobs, err := t.loadTPM2KeyFromBlobs()
+	private, public, err := t.loadTPMKeyFile()
 	if err != nil {
 		return nil, err
 	}
@@ -366,8 +313,8 @@ func (t *tpm2TEE) LoadKey() (Key, error) {
 	t.logger.Debug().Uint32("parent_handle", uint32(parentKeyHandle.Handle)).Msg("loading parent key")
 	loadedKey, err := tpm2.Load{
 		ParentHandle: parentKeyHandle,
-		InPrivate:    *blobs.private,
-		InPublic:     *blobs.public,
+		InPrivate:    *private,
+		InPublic:     *public,
 	}.Execute(t.device)
 	if err != nil {
 		return nil, fmt.Errorf("load parent key: %w", err)
@@ -401,7 +348,7 @@ func (t *tpm2TEE) LoadKey() (Key, error) {
 			Handle: loadedKey.ObjectHandle,
 			Name:   loadedKey.Name,
 		},
-		public:  *blobs.public,
+		public:  *public,
 		context: keyContext.Context,
 		logger:  t.logger,
 	}, nil
@@ -460,7 +407,6 @@ func (h *httpSigner) ECCAlgorithm() ECCAlgorithm {
 }
 
 func (k *tpm2Key) createSigner(httpsign bool) (s crypto.Signer, algo ECCAlgorithm, err error) {
-	// Parse public key
 	pub, err := k.public.Contents()
 	if err != nil {
 		return nil, 0, fmt.Errorf("get public key contents: %w", err)
@@ -531,7 +477,7 @@ func (k *tpm2Key) Close() error {
 
 // tpm2Signer implements crypto.Signer using TPM 2.0.
 type tpm2Signer struct {
-	tpm       transport.TPMCloser
+	tpm       transport.TPM
 	handle    tpm2.NamedHandle
 	publicKey *ecdsa.PublicKey
 	httpsign  bool // true for RFC 9421-compatible HTTP signatures, false for standard ECDSA
