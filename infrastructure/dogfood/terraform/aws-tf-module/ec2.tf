@@ -1,11 +1,3 @@
-variable "volume_tags" {
-  type = map(string)
-}
-
-variable "fleet_ssh_key" {
-  type = string
-}
-
 resource "aws_instance" "fleetbot" {
   ami                    = "ami-0d1b5a8c13042c939" # us-east-2 - Ubuntu 24.04 LTS
   instance_type          = "t3.small"
@@ -22,7 +14,7 @@ resource "aws_instance" "fleetbot" {
     Name = "${local.customer}-fleetbot"
   }
 
-  volume_tags = merge({ Name = "${local.customer}-fleetbot" }, var.volume_tags)
+  volume_tags = merge({ Name = "${local.customer}-fleetbot" })
 }
 
 resource "aws_security_group" "fleetbot" {
