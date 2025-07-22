@@ -227,7 +227,7 @@ const DiskEncryption = ({
                   newTab
                 />
               </p>
-              {diskEncryptionEnabled && (
+              {diskEncryptionEnabled && featureFlags.showBitLockerPINOption && (
                 <div>
                   <RevealButton
                     className={`${baseClass}__accordion-title`}
