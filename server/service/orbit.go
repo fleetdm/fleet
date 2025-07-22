@@ -931,7 +931,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			}
 
 			// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
-			if activityStatus == "uninstalled" {
+			if activityStatus == "uninstalled" && svc.config.Osquery.RefetchOnSoftwareInstall {
 				if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
 				}
@@ -1378,7 +1378,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 
 		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
-		if status == fleet.SoftwareInstalled {
+		if status == fleet.SoftwareInstalled && svc.config.Osquery.RefetchOnSoftwareInstall {
 			if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
 			}

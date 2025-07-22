@@ -3983,6 +3983,7 @@ func NewInstalledApplicationListResultsHandler(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 	verifyTimeout, verifyRequestDelay time.Duration,
+	refetchOnSoftwareInstall bool,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
 		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
@@ -4083,7 +4084,7 @@ func NewInstalledApplicationListResultsHandler(
 			)
 		}
 
-		if shouldRefetch {
+		if shouldRefetch && refetchOnSoftwareInstall {
 			switch installedAppResult.HostPlatform() {
 			case "darwin":
 				// Request host refetch to get the most up to date software data ASAP.

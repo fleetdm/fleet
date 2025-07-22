@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -664,4 +666,103 @@ func TestGetSoftwareInstallDetails(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, d2)
 	})
+}
+
+func TestSaveHostSoftwareInstallResultRefetchConfig(t *testing.T) {
+	testCases := []struct {
+		name                     string
+		refetchOnSoftwareInstall bool
+		installScriptExitCode    *int
+		shouldCallRefetch        bool
+	}{
+		{
+			name:                     "refetch enabled and successful install",
+			refetchOnSoftwareInstall: true,
+			installScriptExitCode:    ptr.Int(0),
+			shouldCallRefetch:        true,
+		},
+		{
+			name:                     "refetch disabled and successful install",
+			refetchOnSoftwareInstall: false,
+			installScriptExitCode:    ptr.Int(0),
+			shouldCallRefetch:        false,
+		},
+		{
+			name:                     "refetch enabled but failed install",
+			refetchOnSoftwareInstall: true,
+			installScriptExitCode:    ptr.Int(1),
+			shouldCallRefetch:        false,
+		},
+		{
+			name:                     "refetch disabled and failed install",
+			refetchOnSoftwareInstall: false,
+			installScriptExitCode:    ptr.Int(1),
+			shouldCallRefetch:        false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			cfg := config.TestConfig()
+			cfg.Osquery.RefetchOnSoftwareInstall = tc.refetchOnSoftwareInstall
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+
+			host := &fleet.Host{ID: 1, OsqueryHostID: ptr.String("test-host"), UUID: "test-uuid", Platform: "darwin"}
+
+			// Mock functions
+			refetchCalled := false
+			ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, hostID uint, value bool) error {
+				require.Equal(t, host.ID, hostID)
+				require.True(t, value)
+				refetchCalled = true
+				return nil
+			}
+
+			ds.SetHostSoftwareInstallResultFunc = func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (bool, error) {
+				return false, nil
+			}
+
+			ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hostUUID, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+				return false, nil
+			}
+
+			ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+				return &fleet.HostSoftwareInstallerResult{
+					SoftwareTitle:   "Test Software",
+					SoftwarePackage: "test.pkg",
+					SelfService:     false,
+				}, nil
+			}
+
+			ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+				return host, nil
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{}, nil
+			}
+
+			ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+				return nil
+			}
+
+			// Create result payload with appropriate exit code to trigger success/failure
+			result := &fleet.HostSoftwareInstallResultPayload{
+				HostID:                host.ID,
+				InstallUUID:           "test-uuid",
+				InstallScriptExitCode: tc.installScriptExitCode,
+			}
+
+			// Call the service method with host context
+			ctxWithHost := hostctx.NewContext(ctx, host)
+			err := svc.SaveHostSoftwareInstallResult(ctxWithHost, result)
+			require.NoError(t, err)
+
+			// Verify refetch was called (or not called) as expected
+			require.Equal(t, tc.shouldCallRefetch, refetchCalled,
+				"refetch call expectation mismatch for config=%v, exit_code=%v",
+				tc.refetchOnSoftwareInstall, tc.installScriptExitCode)
+		})
+	}
 }

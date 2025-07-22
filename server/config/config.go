@@ -191,6 +191,7 @@ type OsqueryConfig struct {
 	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+	RefetchOnSoftwareInstall         bool          `yaml:"refetch_on_software_install"`
 }
 
 // AsyncTaskName is the type of names that identify tasks supporting
@@ -1179,6 +1180,8 @@ func (man Manager) addConfigs() {
 		"Batch size to scan redis keys in async collection")
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
+	man.addConfigBool("osquery.refetch_on_software_install", true,
+		"Enable automatic host refetch after successful software install/uninstall operations")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
@@ -1574,6 +1577,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
+			RefetchOnSoftwareInstall:         man.getConfigBool("osquery.refetch_on_software_install"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),

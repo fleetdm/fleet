@@ -794,3 +794,84 @@ func TestServerConfigWithH2C(t *testing.T) {
 
 	t.Logf("Response from ServerConfig: %s", string(body))
 }
+
+func TestConfigRefetchOnSoftwareInstall(t *testing.T) {
+	cases := []struct {
+		desc     string
+		yaml     string
+		envVars  []string
+		expected bool
+	}{
+		{
+			desc:     "default value",
+			yaml:     "",
+			expected: true, // default is true
+		},
+		{
+			desc: "explicitly set to true",
+			yaml: `
+osquery:
+  refetch_on_software_install: true
+`,
+			expected: true,
+		},
+		{
+			desc: "explicitly set to false",
+			yaml: `
+osquery:
+  refetch_on_software_install: false
+`,
+			expected: false,
+		},
+		{
+			desc:     "environment variable true",
+			envVars:  []string{"FLEET_OSQUERY_REFETCH_ON_SOFTWARE_INSTALL=true"},
+			expected: true,
+		},
+		{
+			desc:     "environment variable false",
+			envVars:  []string{"FLEET_OSQUERY_REFETCH_ON_SOFTWARE_INSTALL=false"},
+			expected: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			// Clear environment
+			os.Clearenv()
+
+			// Set environment variables if specified
+			for _, envVar := range c.envVars {
+				parts := strings.SplitN(envVar, "=", 2)
+				require.Len(t, parts, 2)
+				os.Setenv(parts[0], parts[1])
+			}
+
+			// Create temp config file if yaml is provided
+			var configFile string
+			if c.yaml != "" {
+				tmpFile, err := os.CreateTemp("", "fleet-config-*.yml")
+				require.NoError(t, err)
+				defer os.Remove(tmpFile.Name())
+
+				_, err = tmpFile.WriteString(c.yaml)
+				require.NoError(t, err)
+				tmpFile.Close()
+
+				configFile = tmpFile.Name()
+			}
+
+			// Setup cobra command and manager
+			cmd := &cobra.Command{}
+			cmd.PersistentFlags().StringP("config", "c", configFile, "Path to a configuration file")
+			if configFile != "" {
+				cmd.ParseFlags([]string{"--config", configFile})
+			}
+
+			man := NewManager(cmd)
+			config := man.LoadConfig()
+
+			assert.Equal(t, c.expected, config.Osquery.RefetchOnSoftwareInstall, "RefetchOnSoftwareInstall should match expected value")
+		})
+	}
+}
