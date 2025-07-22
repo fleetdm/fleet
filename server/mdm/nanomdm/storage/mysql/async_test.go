@@ -76,6 +76,7 @@ func TestAsyncLastSeen(t *testing.T) {
 		waitForFlushChannel(t, flushCh, 500*time.Millisecond)
 
 		stop()
+		close(flushCh)
 
 		mu.Lock()
 		defer mu.Unlock()
