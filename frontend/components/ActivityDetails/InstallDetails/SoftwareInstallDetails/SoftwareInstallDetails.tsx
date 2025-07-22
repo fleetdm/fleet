@@ -1,10 +1,12 @@
 // Used on: Dashboard > activity, Host details > past activity
 // Also used on Self-service failed install details
 
-import React from "react";
+import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 import { AxiosError } from "axios";
+
+import { AppContext } from "context/app";
 
 import { IActivityDetails } from "interfaces/activity";
 import {
@@ -21,6 +23,7 @@ import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
+import CustomLink from "components/CustomLink";
 import {
   INSTALL_DETAILS_STATUS_ICONS,
   SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS,
@@ -46,9 +49,13 @@ const StatusMessage = ({
     updated_at,
     created_at,
   },
+  isDUP,
 }: {
   result: ISoftwareInstallResult;
+  isDUP: boolean;
 }) => {
+  const { config } = useContext(AppContext);
+
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
   ) : (
@@ -66,15 +73,75 @@ const StatusMessage = ({
         addSuffix: true,
       })})`
     : "";
+
+  // QUESTION - how to determine if SW is installed by Fleet?
+  // const isInstalledByFleet = false;
+  const isInstalledByFleet = true;
+
+  const renderContactOption = () =>
+    config?.org_info.contact_url ? (
+      <>
+        {" "}
+        or{" "}
+        <CustomLink
+          url={config.org_info.contact_url}
+          text="contact your IT admin"
+          newTab
+        />
+      </>
+    ) : null;
+
+  const renderStatusCopy = () => {
+    if (isInstalledByFleet) {
+      const prefix = (
+        <>
+          Fleet {getInstallDetailsStatusPredicate(status)}{" "}
+          <b>{software_title}</b>
+        </>
+      );
+      let middle = null;
+      if (isDUP) {
+        if (status === "failed_install") {
+          middle = <>You can retry{renderContactOption()}</>;
+        }
+      } else {
+        // host details page
+        middle = (
+          <>
+            {" "}
+            ({software_package}) on {formattedHost}
+            {status === "pending_install" ? " when it comes online" : ""}
+            {/* TODO - need to add "about" before timestamp? */}
+            {displayTimeStamp}
+          </>
+        );
+      }
+      return (
+        <span>
+          {prefix}
+          {middle}
+          {"."}
+        </span>
+      );
+    }
+    if (status === "installed") {
+      // TODO - is this check necessary, i.e. is it possible to have pending/failed software that
+      // was not installed by Fleet?
+      return (
+        <span>
+          <b>{software_title}</b> is installed.
+        </span>
+      );
+    }
+    return (
+      <DataError description="Software cannot be both not installed (failed/pending) and not installed by Fleet" />
+    );
+  };
+
   return (
     <div className={`${baseClass}__status-message`}>
       <Icon name={INSTALL_DETAILS_STATUS_ICONS[status] ?? "pending-outline"} />
-      <span>
-        Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
-        ({software_package}) on {formattedHost}
-        {status === "pending_install" ? " when it comes online" : ""}
-        {displayTimeStamp}.
-      </span>
+      {renderStatusCopy()}
     </div>
   );
 };
@@ -154,12 +221,23 @@ export const SoftwareInstallDetails = ({
     );
   }
 
+  if (
+    !["installed", "pending_install", "failed_install"].includes(result.status)
+  ) {
+    return (
+      <DataError
+        description={`Unexpected software install status ${result.status}`}
+      />
+    );
+  }
+
   return (
     <>
       <StatusMessage
         result={
           result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
         }
+        isDUP={!!deviceAuthToken}
       />
       {result.status !== "pending_install" && (
         <>
