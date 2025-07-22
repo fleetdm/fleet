@@ -2221,6 +2221,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
 
+	t.Setenv("ENABLE_DISK_ENCRYPTION", "true")
+	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
+
 	// Dry run
 	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})
 	assert.False(t, ds.SaveAppConfigFuncInvoked)
