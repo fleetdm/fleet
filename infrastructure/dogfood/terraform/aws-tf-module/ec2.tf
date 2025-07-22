@@ -1,14 +1,14 @@
 resource "aws_instance" "fleetbot" {
   ami                    = "ami-0d1b5a8c13042c939" # us-east-2 - Ubuntu 24.04 LTS
   instance_type          = "t3.small"
-  subnet_id              = module.main.vpc.private_subnets[0]
+  subnet_id              = module.main.vpc.private_subnets[0] # take the first subnet in the list
   vpc_security_group_ids = [aws_security_group.fleetbot.id]
 
   root_block_device {
     volume_size = 50
   }
 
-  key_name = "fleetbot"
+  key_name = "dogfood-fleetbot"
 
   tags = {
     Name = "${local.customer}-fleetbot"
