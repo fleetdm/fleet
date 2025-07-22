@@ -8,6 +8,5 @@
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",
-  "ignore_hash": true,
   "default_categories": ["Browsers"]
 }

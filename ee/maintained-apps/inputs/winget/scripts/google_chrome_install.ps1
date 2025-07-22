@@ -2,9 +2,6 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
-# Add argument to install silently
-# Argument to make install silent depends on installer,
-# each installer might use different argument (usually it's "/S" or "/s")
 $processOptions = @{
   FilePath = "$exeFilePath"
   ArgumentList = "--do-not-launch-chrome --system-level"
