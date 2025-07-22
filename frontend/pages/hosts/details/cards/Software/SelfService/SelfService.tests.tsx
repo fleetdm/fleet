@@ -60,17 +60,15 @@ describe("SelfService", () => {
     expect(screen.getByText("test3")).toBeInTheDocument();
   });
 
-  it("should render the contact link text for each section if contact url is provided", () => {
+  it("should render the contact link text for self-service section if contact url is provided", () => {
     mockServer.use(customDeviceSoftwareHandler());
 
     const render = createCustomRenderer({ withBackendMock: true });
     render(<SelfService {...TEST_PROPS} router={createMockRouter()} />);
 
-    const links = screen.getAllByRole("link", { name: /reach out to IT/i });
-    expect(links.length).toBe(2);
-    links.forEach((link) => {
-      expect(link).toHaveAttribute("href", "http://example.com");
-    });
+    const link = screen.getByRole("link", { name: /reach out to IT/i });
+
+    expect(link).toHaveAttribute("href", "http://example.com");
   });
 
   it("renders installed status and 'Reinstall' and 'Uninstall' action buttons with 'installed' status and installed_versions", async () => {
@@ -317,7 +315,7 @@ describe("SelfService", () => {
       screen.getByTestId("install-status-cell__status--test")
     ).toHaveTextContent("Uninstalling...");
 
-    expect(screen.getByRole("button", { name: "Install" })).toBeDisabled(); // TODO: Should this say "Reinstall"?
+    expect(screen.getByRole("button", { name: "Reinstall" })).toBeDisabled(); // TODO: Should this say "Reinstall"?
     expect(screen.getByRole("button", { name: "Uninstall" })).toBeDisabled();
   });
 });

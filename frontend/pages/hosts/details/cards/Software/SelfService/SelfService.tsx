@@ -497,16 +497,9 @@ const SoftwareSelfService = ({
       <>
         <div className={`${baseClass}__items`}>
           {paginatedUpdates.map((s) => {
-            let uuid =
-              s.software_package?.last_install?.install_uuid ??
-              s.app_store_app?.last_install?.command_uuid;
-            if (!uuid) {
-              uuid = "";
-            }
-            const key = `${s.id}${uuid}`;
             return (
               <UpdateSoftwareItem
-                key={key}
+                key={s.id}
                 software={s}
                 onClickUpdateAction={onClickUpdateAction}
                 onShowInstallerDetails={() => {
