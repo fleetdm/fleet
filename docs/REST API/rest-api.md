@@ -2999,7 +2999,7 @@ Returns the information of the specified host.
     "policy_updated_at": "2023-06-26T18:33:15Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z", 
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
@@ -3275,7 +3275,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "policy_updated_at": "2022-10-14T17:07:12Z",
     "last_enrolled_at": "2022-02-10T02:29:13Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z", 
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
     "software_updated_at": "2020-11-05T05:09:44Z",
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
@@ -3486,7 +3486,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
     "label_updated_at": "2021-08-19T21:07:53Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z", 
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
@@ -5064,7 +5064,7 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
 | name        | string  | body | The label's name.             |
 | description | string  | body | The label's description.      |
 | hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. The provided list fully replaces the previous list.  Only one of either `hosts` or `host_ids` can be included in the request.  |
-| host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request. 
+| host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request.
 
 
 
@@ -9105,7 +9105,7 @@ The script will be added to each host's list of upcoming activities.
 | query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
-| team_id                           | number  | ID of the team to filter by. | 
+| team_id                           | number  | ID of the team to filter by. |
 
 
 #### Example
@@ -9822,19 +9822,7 @@ Returns a list of all operating systems.
 }
 ```
 
-OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
-
-```json
-{
-  "hosts_count": 1,
-  "name": "CentOS Linux 7.9.2009",
-  "name_only": "CentOS",
-  "version": "7.9.2009",
-  "platform": "rhel",
-  "generated_cpes": [],
-  "vulnerabilities": []
-}
-```
+Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting.
 
 ### Get software
 
@@ -9971,7 +9959,7 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 345,
           "name": "[Install software] Logic Pro",
           "fleet_maintained": false
-        } 
+        }
       ],
       "status": {
         "installed": 3,
@@ -10081,6 +10069,7 @@ Retrieves information about the specified operating system (OS) version.
     "version": "10.0.22621.1234",
     "platform": "windows",
     "generated_cpes": [],
+    "kernels": [], // empty for non-Linux
     "vulnerabilities": [
       {
         "cve": "CVE-2022-30190",
@@ -10098,18 +10087,61 @@ Retrieves information about the specified operating system (OS) version.
 }
 ```
 
-OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting, so host counts across kernels may sum to more than the count of hosts running a given OS version.
+
+Hosts running in a container or paravirtualized environment do not have a kernel of their own.
 
 ```json
 {
   "id": 321,
-  "hosts_count": 1,
-  "name": "CentOS Linux 7.9.2009",
-  "name_only": "CentOS",
-  "version": "7.9.2009",
-  "platform": "rhel",
+  "hosts_count": 2,
+  "name": "Ubuntu 24.04.1 LTS",
+  "name_only": "Ubuntu",
+  "version": "24.04.1 LTS",
+  "platform": "ubuntu",
   "generated_cpes": [],
-  "vulnerabilities": []
+  "kernels": [
+    {
+      "id": 561703, // the software version ID of the kernel
+      "version": "6.11.0-26.26~24.04.1",
+      "vulnerabilities": [
+        "CVE-2023-53034",
+        "CVE-2024-53222",
+        "CVE-2024-58092",
+        "CVE-2024-58093",
+        "CVE-2025-21893",
+        "CVE-2025-21894",
+        "CVE-2025-21902",
+        "CVE-2025-21903",
+        "CVE-2025-21904",
+        "CVE-2025-21905",
+        "CVE-2025-21906",
+        "CVE-2025-21908",
+        "CVE-2025-21909",
+        "CVE-2025-21910",
+      ],
+      "hosts_count": 1
+    },
+    {
+      "id": 568096,
+      "version": "6.11.0-29.29~24.04.1",
+      "vulnerabilities": null,
+      "hosts_count": 2
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2023-53034",
+      "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-53034",
+      "created_at": "2023-07-01T00:15:00Z",
+      "cvss_score": 7.8, // Available in Fleet Premium
+      "epss_probability": 0.9729, // Available in Fleet Premium
+      "cisa_known_exploit": false, // Available in Fleet Premium
+      "cve_published": "2023-06-01T00:15:00Z", // Available in Fleet Premium
+      "cve_description": "A description", // Available in Fleet Premium
+      "resolved_in_version": "" // Available in Fleet Premium
+    }
+  ]
 }
 ```
 
@@ -10472,7 +10504,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
         "id": 345,
         "name": "[Install software] Logic Pro",
         "fleet_maintained": false
-      } 
+      }
     ],
     "status": {
       "installed": 3,
@@ -11653,7 +11685,7 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        | 
+| enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                                      |
 
 <br/>
