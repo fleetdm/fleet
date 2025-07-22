@@ -195,7 +195,7 @@ Whether to send anonymous usage statistics. Overrides the value set by `enable_a
     enable_analytics: false
   ```
 
-### microsoft.compliance_partner_proxy_api_key
+### microsoft_compliance_partner.proxy_api_key
 
 For managed cloud customers only. The Fleet team sets this key.
 
