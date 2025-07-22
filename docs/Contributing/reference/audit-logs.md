@@ -545,10 +545,8 @@ This activity contains the following fields:
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).  Only for company-owned hosts.
-- "enrollment_id": Enrollment identifier of the personal (BYOD) host (iPhone, iPad and Android enrollments only, null for other platforms).
+- "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
 - "host_display_name": Display name of the host.
-- "personal_host": Whether the host is personal or company-owned.
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
 
@@ -557,9 +555,7 @@ This activity contains the following fields:
 ```json
 {
   "host_serial": "C08VQ2AXHT96",
-  "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
-  "personal_host": false,
   "installed_from_dep": true,
   "mdm_platform": "apple"
 }
