@@ -64,7 +64,8 @@ const (
 	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
 	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
-	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
+	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual", "automatic" and "personal"
+	MDMEnrollStatusPersonal   = MDMEnrollStatus("personal")
 )
 
 // OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
@@ -1104,6 +1105,7 @@ type HostMDM struct {
 	ServerURL              string  `db:"server_url" json:"-" csv:"-"`
 	InstalledFromDep       bool    `db:"installed_from_dep" json:"-" csv:"-"`
 	IsServer               bool    `db:"is_server" json:"-" csv:"-"`
+	IsPersonalEnrollment   bool    `db:"is_personal_enrollment" json:"-" csv:"-"`
 	MDMID                  *uint   `db:"mdm_id" json:"-" csv:"-"`
 	Name                   string  `db:"name" json:"-" csv:"-"`
 	DEPProfileAssignStatus *string `db:"dep_profile_assign_status" json:"-" csv:"-"`
@@ -1167,7 +1169,9 @@ func MDMNameFromServerURL(serverURL string) string {
 
 func (h *HostMDM) EnrollmentStatus() string {
 	switch {
-	case h.Enrolled && !h.InstalledFromDep:
+	case h.Enrolled && !h.InstalledFromDep && h.IsPersonalEnrollment:
+		return "On (personal)"
+	case h.Enrolled && !h.InstalledFromDep && !h.IsPersonalEnrollment:
 		return "On (manual)"
 	case h.Enrolled && h.InstalledFromDep:
 		return "On (automatic)"
@@ -1243,6 +1247,7 @@ type AggregatedMunkiIssue struct {
 type AggregatedMDMStatus struct {
 	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
 	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	EnrolledPersonalHostsCount  int `json:"enrolled_personal_hosts_count" db:"enrolled_personal_hosts_count"`
 	PendingHostsCount           int `json:"pending_hosts_count" db:"pending_hosts_count"`
 	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
 	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
