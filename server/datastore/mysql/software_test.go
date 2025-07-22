@@ -84,6 +84,7 @@ func TestSoftware(t *testing.T) {
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 		{"SoftwareCategories", testSoftwareCategories},
 		{"LabelScopingTimestampLogic", testLabelScopingTimestampLogic},
+		{"InventoryPendingSoftware", testInventoryPendingSoftware},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3657,6 +3658,9 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			}
 			builder.WriteString("Expected:\n")
 			for _, e := range expected {
+				if expectOmitted != nil && slices.Contains(expectOmitted, e.Name+e.Source) {
+					continue
+				}
 				builder.WriteString(fmt.Sprintf("%+v\n", e))
 			}
 			return builder.String()
@@ -3667,7 +3671,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 			for _, omit := range expectOmitted {
 				if g.Name+g.Source == omit {
-					t.Errorf("Did not expect %s in results", omit)
+					require.FailNowf(t, "Found unexpected software in results", fmt.Sprintf("Found %s", omit))
 					continue
 				}
 			}
@@ -3874,6 +3878,24 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
+		res, err = q.ExecContext(
+			ctx,
+			`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+			"foo2", "0.5", "bar2", &titleIDs[0], hex.EncodeToString([]byte("testb")),
+		)
+		if err != nil {
+			return err
+		}
+		Swi2InstalledSoftwareID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		// insert into host_software
+		_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`,
+			host.ID, Swi2InstalledSoftwareID)
+		if err != nil {
+			return err
+		}
 
 		// swi3 is failed, also add an install request on the other host
 		hostSwi3InstallUUID, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, swi3Failed, fleet.HostSoftwareInstallOptions{})
@@ -4011,8 +4033,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
 		Name:            "b",
 		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallPending),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", Platform: "darwin", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}},
+		Status:          nil, // pending installs do not get returned, so status is nil
+		SoftwarePackage: nil,
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -4021,17 +4043,12 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "i0",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstalled),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-1.pkg", Version: "v1.0.0", Platform: "darwin", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi2InstallUUID}},
+		SoftwarePackage: nil,
+		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: "0.5", Vulnerabilities: []string{}, InstalledPaths: []string{}},
+		},
 	}
 	expected[i0.Name+i0.Source] = i0
-
-	i1 := fleet.HostSoftwareWithInstaller{
-		Name:            "i1",
-		Source:          "apps",
-		Status:          expectStatus(fleet.SoftwareInstallFailed),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi3InstallUUID}},
-	}
-	expected[i1.Name+i1.Source] = i1
 
 	// request without available software
 	opts.IncludeAvailableForInstall = false
@@ -4042,14 +4059,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	// request with available software
 	i4 := fleet.HostSoftwareWithInstaller{
-		Name:   "i4",
-		Source: "apps",
-		Status: expectStatus(fleet.SoftwareUninstallPending),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{
-			Name: "installer-5.pkg", Version: "v5.0.0", Platform: "darwin", SelfService: ptr.Bool(false),
-			LastInstall:   &fleet.HostSoftwareInstall{InstallUUID: hostSwi6InstallUUID},
-			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi6UninstallUUID},
-		},
+		Name:            "i4",
+		Source:          "apps",
+		Status:          expectStatus(fleet.SoftwareUninstallPending),
+		SoftwarePackage: nil,
 	}
 	expected[i4.Name+i4.Source] = i4
 
@@ -4065,16 +4078,23 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[i5.Name+i5.Source] = i5
 
 	i6 := fleet.HostSoftwareWithInstaller{
-		Name:   "i6",
-		Source: "apps",
-		Status: nil,
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{
-			Name: "installer-7.pkg", Version: "v7.0.0", Platform: "darwin", SelfService: ptr.Bool(false),
-			LastInstall:   &fleet.HostSoftwareInstall{InstallUUID: hostSwi8InstallUUID},
-			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi8UninstallUUID},
-		},
+		Name:            "i6",
+		Source:          "apps",
+		Status:          nil,
+		SoftwarePackage: nil,
 	}
 	expected[i6.Name+i6.Source] = i6
+
+	i1 := fleet.HostSoftwareWithInstaller{
+		Name:   "i1",
+		Source: "apps",
+		Status: expectStatus(fleet.SoftwareInstallFailed),
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{
+			Name: "installer-2.pkg", Version: "v2.0.0", Platform: "darwin", SelfService: ptr.Bool(false),
+			LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi3InstallUUID},
+		},
+	}
+	expected[i1.Name+i1.Source] = i1
 
 	i2 := fleet.HostSoftwareWithInstaller{
 		Name:            "i2",
@@ -4123,8 +4143,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	opts.IncludeAvailableForInstall = false
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 5}, meta)
-	compareResults(expected, sw, false, i2.Name+i2.Source, i3.Name+i3.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 6}, meta)
+	compareResults(expected, sw, false, i1.Name+i1.Source, i2.Name+i2.Source, i3.Name+i3.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source)
 	opts.ListOptions.OrderDirection = fleet.OrderAscending
 	opts.ListOptions.TestSecondaryOrderDirection = fleet.OrderAscending
 
@@ -4149,7 +4169,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "b",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstallFailed),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", Platform: "darwin", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}},
+		SoftwarePackage: nil,
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -4167,8 +4187,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	opts.IncludeAvailableForInstall = false
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 5}, meta)
-	compareResults(expected, sw, true, i2.Name+i2.Source, i3.Name+i3.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 6}, meta)
+	compareResults(expected, sw, true, i1.Name+i1.Source, i2.Name+i2.Source, i3.Name+i3.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source)
 
 	// request with available software
 	opts.IncludeAvailableForInstall = true
@@ -4283,6 +4303,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user)
 	require.NotEmpty(t, vpp1TmCmdUUID)
 
+	opts.IncludeAvailableForInstall = false
+	opts.ListOptions.MatchQuery = ""
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 6}, meta)
+	compareResults(expected, sw, true, i1.Name+i1.Source, i3.Name+i3.Source, i2.Name+i2.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source) // i3 is for team, i2 is available (excluded)
+
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "apps",
@@ -4295,14 +4322,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:      expectStatus(fleet.SoftwareInstallPending),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
-
-	opts.IncludeAvailableForInstall = false
-	opts.ListOptions.MatchQuery = ""
-	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected)) - 5}, meta)
-	compareResults(expected, sw, true, i3.Name+i3.Source, i2.Name+i2.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source) // i3 is for team, i2 is available (excluded)
-
 	expected["vpp3apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp3",
 		Source:      "apps",
@@ -4446,25 +4465,19 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			name:      "No available for install software, page 0",
 			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 5}, IncludeAvailableForInstall: false},
 			wantNames: []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name, byNSV[c1].Name, byNSV[d].Name},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 11},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
 		},
 		{
 			name:      "No available for install software, page 1",
 			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 5}, IncludeAvailableForInstall: false},
-			wantNames: []string{byNSV[e2].Name, i0.Name, i1.Name, i4.Name, "vpp1"},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 11},
+			wantNames: []string{byNSV[e2].Name, i0.Name, i4.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
 			name:      "No available for install software, page 2",
 			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 2, PerPage: 5}, IncludeAvailableForInstall: false},
-			wantNames: []string{"vpp2"},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 11},
-		},
-		{
-			name:      "No available for install software, page 3",
-			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 3, PerPage: 5}, IncludeAvailableForInstall: false},
 			wantNames: []string{},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 11},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
 			name:      "Include Available for install software with MDM on, page 0",
@@ -5050,6 +5063,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	vpp2bCmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user)
 	require.NotEmpty(t, vpp2bCmdUUID)
 
+	opts.IncludeAvailableForInstall = false
+	opts.ListOptions.MatchQuery = ""
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected))}, meta)
+	compareResults(expected, sw, true) // i3 is for team, i2 is available (excluded)
+
 	expected["vpp1ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
 		Source:      "ios_apps",
@@ -5062,14 +5082,6 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		Status:      expectStatus(fleet.SoftwareInstallPending),
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "ios", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
-
-	opts.IncludeAvailableForInstall = false
-	opts.ListOptions.MatchQuery = ""
-	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
-	require.NoError(t, err)
-	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: uint(len(expected))}, meta)
-	compareResults(expected, sw, true) // i3 is for team, i2 is available (excluded)
-
 	expected["vpp3ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp3",
 		Source:      "ios_apps",
@@ -7287,7 +7299,7 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
-	_, err = ds.writer(ctx).ExecContext(ctx, `
+	res, err := ds.writer(ctx).ExecContext(ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
@@ -7295,6 +7307,14 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
+
+	vppSoftwareID, err := res.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_software (host_id, software_id)
+		VALUES (?, ?)
+	`, host.ID, vppSoftwareID)
+	require.NoError(t, err)
 
 	// search for microsoft
 	sw, meta, err = ds.ListHostSoftware(
@@ -8238,6 +8258,288 @@ func testLabelScopingTimestampLogic(t *testing.T, ds *Datastore) {
 
 	// host library
 	software, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+}
+
+func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	user := test.NewUser(t, ds, "user"+t.Name(), fmt.Sprintf("user%s@example.com", t.Name()), false)
+
+	// set up vpp
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	require.NoError(t, err)
+	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
+
+	selfServiceOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{Page: 0, PerPage: 20},
+		SelfServiceOnly:            true,
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    false,
+		IsMDMEnrolled:              true,
+	}
+
+	hostInventoryOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{Page: 0, PerPage: 20},
+		SelfServiceOnly:            false,
+		IncludeAvailableForInstall: false,
+		OnlyAvailableForInstall:    false,
+		IsMDMEnrolled:              true,
+	}
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	softwareInstaller := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr,
+		StorageID:         "storage",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user.ID,
+		BundleIdentifier:  "bi1",
+		Platform:          "darwin",
+		SelfService:       true,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, softwareInstaller)
+	require.NoError(t, err)
+
+	// software installer is pending (all results are NULL)
+	hostSoftwareInstallUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// Pending installer with no results
+	software, _, err := ds.ListHostSoftware(ctx, host, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	software, _, err = ds.ListHostSoftware(ctx, host, hostInventoryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// Set the result as installed
+	ds.testActivateSpecificNextActivities = []string{"-"}
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host.ID,
+		InstallUUID:               hostSoftwareInstallUUID,
+		PreInstallConditionOutput: ptr.String("ok"),
+		InstallScriptExitCode:     ptr.Int(0),
+		PostInstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	// Successfully installed, however not inventoried by osquery
+	software, _, err = ds.ListHostSoftware(ctx, host, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	software, _, err = ds.ListHostSoftware(ctx, host, hostInventoryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// Now we inventory the software, osquery returns it
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var title struct {
+			ID      uint   `db:"id"`
+			Name    string `db:"name"`
+			Source  string `db:"source"`
+			Version string `db:"version"`
+		}
+		err := sqlx.GetContext(ctx, q, &title, `
+			SELECT software_titles.id, software_titles.name, software_titles.source, software_installers.version
+			FROM software_installers
+			JOIN software_titles ON software_installers.title_id = software_titles.id
+			WHERE software_installers.id = ?`, installerID)
+		require.NoError(t, err)
+
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, ?)`,
+			title.Name,
+			title.Source,
+			"title.com.example",
+			title.Version,
+			title.ID,
+			"checksum",
+		)
+		require.NoError(t, err)
+
+		softwareID, err := res.LastInsertId()
+		require.NoError(t, err)
+
+		_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`,
+			host.ID, softwareID)
+		require.NoError(t, err)
+
+		return nil
+	})
+	// Successfully installed and inventoried, so we should see it now
+	software, _, err = ds.ListHostSoftware(ctx, host, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	software, _, err = ds.ListHostSoftware(ctx, host, hostInventoryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// setup host 2
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host2, false)
+
+	host2SoftwareInstallUUID, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// Pending installer with no results
+	software, _, err = ds.ListHostSoftware(ctx, host2, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	software, _, err = ds.ListHostSoftware(ctx, host2, hostInventoryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// fail the install
+	ds.testActivateSpecificNextActivities = []string{host2SoftwareInstallUUID}
+	activated, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host2.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, ds.testActivateSpecificNextActivities, activated)
+	ds.testActivateSpecificNextActivities = []string{"-"}
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host2.ID,
+		InstallUUID:               host2SoftwareInstallUUID,
+		PreInstallConditionOutput: ptr.String("ok"),
+		InstallScriptExitCode:     ptr.Int(1),
+	})
+	require.NoError(t, err)
+
+	// Failed install
+	software, _, err = ds.ListHostSoftware(ctx, host2, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	software, _, err = ds.ListHostSoftware(ctx, host2, hostInventoryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// setup host 3
+	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host3, false)
+
+	// has software installed, but not by Fleet, that matches the software installer available
+	res, err := ds.writer(ctx).ExecContext(
+		ctx,
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo2", "0.5", "bar2", &titleID, hex.EncodeToString([]byte("foo2")),
+	)
+	require.NoError(t, err)
+	installedSoftwareID, err := res.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, host3.ID, installedSoftwareID)
+	require.NoError(t, err)
+
+	// Installed software should show up
+	software, _, err = ds.ListHostSoftware(ctx, host3, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	software, _, err = ds.ListHostSoftware(ctx, host3, hostInventoryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// Create a software install request
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host3.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// Pending request, but software is installed and inventoried by osquery, so we should see it
+	software, _, err = ds.ListHostSoftware(ctx, host3, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	software, _, err = ds.ListHostSoftware(ctx, host3, hostInventoryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	// setup host 4
+	host4 := test.NewHost(t, ds, "host4", "", "host4key", "host4uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host4, false)
+
+	// create a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// Add host to team
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host4.TeamID = &tm.ID
+
+	vPPApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			SelfService: true,
+			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform},
+		},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+	}
+	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	require.NoError(t, err)
+	vpp1 := va1.AdamID
+
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host4, vpp1, user)
+
+	// vpp app is pending, no results
+	software, _, err = ds.ListHostSoftware(ctx, host4, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	software, _, err = ds.ListHostSoftware(ctx, host4, hostInventoryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// vpp app comes back as installed
+	ds.testActivateSpecificNextActivities = []string{vpp1CmdUUID}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host4.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, host4, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	// vpp app is installed, but not inventoried by osquery
+	software, _, err = ds.ListHostSoftware(ctx, host4, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	software, _, err = ds.ListHostSoftware(ctx, host4, hostInventoryOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// inventory by osquery
+	res, err = ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		vPPApp.Name, "0.1.1", "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+	)
+	require.NoError(t, err)
+	vppSoftwareID, err := res.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, host4.ID, vppSoftwareID)
+	require.NoError(t, err)
+
+	// should see it now because it is inventoried by osquery
+	software, _, err = ds.ListHostSoftware(ctx, host4, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+
+	software, _, err = ds.ListHostSoftware(ctx, host4, hostInventoryOpts)
 	require.NoError(t, err)
 	require.Len(t, software, 1)
 }
