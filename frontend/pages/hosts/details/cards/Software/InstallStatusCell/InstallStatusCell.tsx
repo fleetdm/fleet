@@ -5,6 +5,7 @@ import {
   IHostSoftware,
   IHostSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
+  SoftwareInstallStatus,
 } from "interfaces/software";
 import { Colors } from "styles/var/colors";
 
