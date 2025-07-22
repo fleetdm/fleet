@@ -205,8 +205,8 @@ Key that allows the Fleet server to communicate to the Microsoft compliance part
 - Environment variable: `FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY`
 - Config file format:
   ```yaml
-  microsoft:
-    compliance_partner_proxy_api_key: foobar
+  microsoft_compliance_partner:
+    proxy_api_key: foobar
   ```
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
