@@ -75,10 +75,10 @@ func TestUp_20250718091828(t *testing.T) {
 		case 6:
 			assert.Equal(t, "Off", *entry.EnrollmentStatus)
 		case 7:
-			assert.True(t, entry.IsPersonalEnrollment, "is_personal_enrollment should be true for host_id 7")
+			assert.Truef(t, entry.IsPersonalEnrollment, "is_personal_enrollment should be true for host_id %d", entry.HostID)
 			assert.Equal(t, "On (personal)", *entry.EnrollmentStatus)
 		case 8:
-			assert.True(t, entry.IsPersonalEnrollment, "is_personal_enrollment should be true for host_id 6")
+			assert.Truef(t, entry.IsPersonalEnrollment, "is_personal_enrollment should be true for host_id %d", entry.HostID)
 			assert.Equal(t, "Off", *entry.EnrollmentStatus)
 		default:
 			t.Fatalf("unexpected host_id %d", entry.HostID)
