@@ -2518,7 +2518,7 @@ parasails.registerPage('configuration-builder', {
                 name: 'Add WiFi network (device scope)',
                 uniqueSlug: 'windows-wifi-add-network',
                 tooltip: 'This policy lets you add a Wi-Fi network on a windows device.',
-                category: 'BitLocker',
+                category: 'Wi-Fi',
                 supportedAccessTypes: ['add', 'replace'],
                 formInput: {
                   type: 'multifield',
@@ -2599,7 +2599,7 @@ parasails.registerPage('configuration-builder', {
                 name: 'Add WiFi network (user scope)',
                 uniqueSlug: 'windows-wifi-add-network-user-scope',
                 tooltip: 'This policy lets you add a Wi-Fi network on a windows device.',
-                category: 'BitLocker',
+                category: 'Wi-Fi',
                 supportedAccessTypes: ['add', 'replace'],
                 formInput: {
                   type: 'multifield',
