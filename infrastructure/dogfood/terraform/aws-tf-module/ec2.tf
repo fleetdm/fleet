@@ -8,7 +8,7 @@ resource "aws_instance" "fleetbot" {
     volume_size = 50
   }
 
-  key_name = var.fleet_ssh_key
+  key_name = "fleetbot"
 
   tags = {
     Name = "${local.customer}-fleetbot"
