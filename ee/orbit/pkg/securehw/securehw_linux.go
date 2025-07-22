@@ -144,7 +144,7 @@ func (t *tpm2TEE) CreateKey() (Key, error) {
 
 	if err := t.saveTPMKeyFile(createKey.OutPrivate, createKey.OutPublic); err != nil {
 		cleanUpOnError()
-		return nil, fmt.Errorf("write TPM blobs to files: %w", err)
+		return nil, fmt.Errorf("write TPM keyfile to file: %w", err)
 	}
 
 	// Create and return the key
@@ -268,7 +268,7 @@ func (t *tpm2TEE) saveTPMKeyFile(privateKey tpm2.TPM2BPrivate, publicKey tpm2.TP
 		keyfile.WithDescription("fleetd httpsig key"),
 	)
 	if err := os.WriteFile(t.keyFilePath, k.Bytes(), 0o600); err != nil {
-		return fmt.Errorf("failed to save key file: %w", err)
+		return fmt.Errorf("failed to save keyfile: %w", err)
 	}
 	return nil
 }
@@ -286,11 +286,6 @@ func (t *tpm2TEE) loadTPMKeyFile() (privateKey *tpm2.TPM2BPrivate, publicKey *tp
 		return nil, nil, fmt.Errorf("failed to decode keyfile: %w", err)
 	}
 	return &k.Privkey, &k.Pubkey, nil
-}
-
-type blobs struct {
-	private *tpm2.TPM2BPrivate
-	public  *tpm2.TPM2BPublic
 }
 
 // LoadKey partially implements TEE.
@@ -340,7 +335,7 @@ func (t *tpm2TEE) LoadKey() (Key, error) {
 
 	t.logger.Info().
 		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
-		Msg("key loaded from blobs successfully")
+		Msg("key loaded successfully")
 
 	return &tpm2Key{
 		tpm: t.device,
