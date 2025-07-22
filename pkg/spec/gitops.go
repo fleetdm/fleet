@@ -47,7 +47,7 @@ func (e *ParseTypeError) Error() string {
 		}
 		keyPath = append(keyPath, strings.Join(clearFields, "."))
 	}
-	return fmt.Sprintf("couldn't parse %s:%s, must have type %s, found type %s", e.Filename, strings.Join(keyPath, "."), e.Type, e.Value)
+	return fmt.Sprintf("Couldn't edit \"%s\" at \"%s\", expected type %s but got %s", e.Filename, strings.Join(keyPath, "."), e.Type, e.Value)
 }
 
 func (e *ParseTypeError) Unwrap() error {
