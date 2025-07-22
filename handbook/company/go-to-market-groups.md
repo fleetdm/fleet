@@ -5,7 +5,7 @@ This page covers the journey from prospect to customer and details what contribu
 
 ## Why cross-functional GTM groups?
 
-When communicating with future or current customers, hand offs [between departments](https://fleetdm.com/handbook/company#org-chart), contributors, or external organizations can negatively effect the "Return On Investment" (ROI) for Fleet, our customers, and our friends in the community. Cross-functional GTM groups minimize hand offs between internal and external stakeholders and maximize iteration and efficiency in the way we engage with the market.
+When communicating with future or current customers, hand-offs [between departments](https://fleetdm.com/handbook/company#org-chart), contributors, or external organizations can negatively effect the "Return On Investment" (ROI) for Fleet, our customers, and our friends in the community. Cross-functional GTM groups minimize hand-offs between internal and external stakeholders and maximize iteration and efficiency in the way we engage with the market.
 
 
 > Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
