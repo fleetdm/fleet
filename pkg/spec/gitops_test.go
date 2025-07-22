@@ -1078,7 +1078,7 @@ software:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
+	assert.ErrorContains(t, err, "at \"policy.install_software.package_path\", expected type fleet.SoftwarePackageSpec but got string")
 }
 
 func TestGitOpsWithStrayScriptEntryWithNoPath(t *testing.T) {
