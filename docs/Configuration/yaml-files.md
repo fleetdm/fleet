@@ -86,7 +86,7 @@ Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, o
 
 ### Options
 
-For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy). 
+For possible options, see the parameters for the [Edit team policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#edit-team-policy). 
 - To trigger software installs on policy failure, replace `software_title_id` (API parameter) with one of `install_software.package_path` or `install_software.hash_256` in your YAML. If `install_software.package_path` only one package can be specified in the package YAML.
 - To trigger script runs on policy failure, replace `script_id` (API parameter) with `run_script.path`.
 
