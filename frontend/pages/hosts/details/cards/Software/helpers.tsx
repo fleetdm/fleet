@@ -231,9 +231,11 @@ export const getInstallerActionButtonConfig = (
         return { text: "Retry", icon: "refresh" };
       case "installed":
       case "pending_uninstall":
+      case "uninstalling":
       case "failed_uninstall":
         return { text: "Reinstall", icon: "refresh" };
       case "pending_update":
+      case "updating":
       case "update_available":
       case "failed_uninstall_update_available":
         return { text: "Update", icon: "refresh" };
