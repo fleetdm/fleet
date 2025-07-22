@@ -195,6 +195,20 @@ Whether to send anonymous usage statistics. Overrides the value set by `enable_a
     enable_analytics: false
   ```
 
+### microsoft.compliance_partner_proxy_api_key
+
+For managed cloud customers only. The Fleet team sets this key.
+
+Key that allows the Fleet server to communicate to the Microsoft compliance partner proxy on fleetdm.com.
+
+- Default value: ""
+- Environment variable: `FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY`
+- Config file format:
+  ```yaml
+  microsoft:
+    compliance_partner_proxy_api_key: foobar
+  ```
+
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 
 Use this environment variable to allow `fleetd` to report errors to the server using the [endpoint to report an agent error](./API-for-contributors.md#report-an-agent-error). `fleetd` agents will always report vital errors to Fleet.
