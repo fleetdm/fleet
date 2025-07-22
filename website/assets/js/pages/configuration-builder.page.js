@@ -2508,6 +2508,176 @@ parasails.registerPage('configuration-builder', {
               },
             ],
           },
+          {
+            subcategoryName: 'WiFi',
+            subcategorySlug: 'windows-wifi',
+            description: 'Settings related to wireless networks on Windows devices.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/wifi-csp',
+            payloads: [
+              {
+                name: 'Add WiFi network (device scope)',
+                uniqueSlug: 'windows-wifi-add-network',
+                tooltip: 'This policy lets you add a Wi-Fi network on a windows device.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'text',
+                      name: 'Network SSID',
+                      slug: 'ssid',
+                    },
+                    {
+                      type: 'text',
+                      name: 'Network password',
+                      slug: 'password',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Encryption type',
+                      slug: 'networkEncryptionType',
+                      options: [
+                        // { // TODO: these values are hidden because they require a different keyType value. https://learn.microsoft.com/en-us/windows/win32/nativewifi/wlan-profileschema-sharedkey-security-element#keymaterial
+                        //   name: 'Open',
+                        //   value: 'open'
+                        // },
+                        // {
+                        //   name: 'Shared',
+                        //   value: 'shared',
+                        // },
+                        // {
+                        //   name: 'WPA Enterprise',
+                        //   value: 'WPA',
+                        // },
+                        {
+                          name: 'WPA Personal',
+                          value: 'WPAPSK',
+                        },
+                        // {
+                        //   name: 'WPA2 Enterprise',
+                        //   value: 'WPA2',
+                        // },
+                        {
+                          name: 'WPA2 Personal',
+                          value: 'WPA2PSK',
+                        },
+                        {
+                          name: 'WPA3 Personal',
+                          value: `WPA3SAE`,
+                        },
+                        // {
+                        //   name: 'WPA3 Enterprise 192-bit mode authentication.',
+                        //   value: 'WPA3ENT192',
+                        // },
+                        // {
+                        //   name: 'WPA3 Enterprise',
+                        //   value: 'WPA2PSK',
+                        // },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Automatically connect to network',
+                      slug: 'connectionMode',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTargetTemplate: `./Device/Vendor/MSFT/WiFi/Profile/<%= ssid %>/WlanXml`,
+                  outputTemplate: `<![CDATA[<?xml version="1.0"?><WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1"><name><%= ssid %></name><SSIDConfig><SSID><name><%= ssid %></name></SSID></SSIDConfig><connectionType>ESS</connectionType><connectionMode><%= connectionMode %></connectionMode><MSM><security><authEncryption><authentication><%= networkEncryptionType %></authentication><encryption>AES</encryption><useOneX>false</useOneX><transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode></authEncryption><sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial><%= password %></keyMaterial></sharedKey></security></MSM></WLANProfile>]]>`,
+                  valuesToTransform: {
+                    'connectionMode': {
+                      true: 'auto',
+                      false: 'manual',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Add WiFi network (user scope)',
+                uniqueSlug: 'windows-wifi-add-network-user-scope',
+                tooltip: 'This policy lets you add a Wi-Fi network on a windows device.',
+                category: 'BitLocker',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'text',
+                      name: 'Network SSID',
+                      slug: 'ssid',
+                    },
+                    {
+                      type: 'text',
+                      name: 'Network password',
+                      slug: 'password',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Encryption type',
+                      slug: 'networkEncryptionType',
+                      options: [
+                        // { // TODO: these values are hidden because they require a different keyType value. https://learn.microsoft.com/en-us/windows/win32/nativewifi/wlan-profileschema-sharedkey-security-element#keymaterial
+                        //   name: 'Open',
+                        //   value: 'open'
+                        // },
+                        // {
+                        //   name: 'Shared',
+                        //   value: 'shared',
+                        // },
+                        // {
+                        //   name: 'WPA Enterprise',
+                        //   value: 'WPA',
+                        // },
+                        {
+                          name: 'WPA Personal',
+                          value: 'WPAPSK',
+                        },
+                        // {
+                        //   name: 'WPA2 Enterprise',
+                        //   value: 'WPA2',
+                        // },
+                        {
+                          name: 'WPA2 Personal',
+                          value: 'WPA2PSK',
+                        },
+                        {
+                          name: 'WPA3 Personal',
+                          value: `WPA3SAE`,
+                        },
+                        // {
+                        //   name: 'WPA3 Enterprise 192-bit mode authentication.',
+                        //   value: 'WPA3ENT192',
+                        // },
+                        // {
+                        //   name: 'WPA3 Enterprise',
+                        //   value: 'WPA2PSK',
+                        // },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Automatically connect to network',
+                      slug: 'connectionMode',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTargetTemplate: `./User/Vendor/MSFT/WiFi/Profile/<%= ssid %>/WlanXml`,
+                  outputTemplate: `<![CDATA[<?xml version="1.0"?><WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1"><name><%= ssid %></name><SSIDConfig><SSID><name><%= ssid %></name></SSID></SSIDConfig><connectionType>ESS</connectionType><connectionMode><%= connectionMode %></connectionMode><MSM><security><authEncryption><authentication><%= networkEncryptionType %></authentication><encryption>AES</encryption><useOneX>false</useOneX><transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode></authEncryption><sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial><%= password %></keyMaterial></sharedKey></security></MSM></WLANProfile>]]>`,
+                  valuesToTransform: {
+                    'connectionMode': {
+                      true: 'auto',
+                      false: 'manual',
+                    },
+                  }
+                },
+              },
+            ],
+          },
         ],
       }
     ],
@@ -2578,6 +2748,23 @@ parasails.registerPage('configuration-builder', {
         // Get the selected access type for this payload
         let accessType = this.configurationBuilderFormData[payload.uniqueSlug+'-access-type'];
         let value;
+        // If a payload uses a settingTargetTemplate, build the settting target value and add it to the payload.
+        if(payloadToAdd.formOutput.settingTargetTemplate) {
+          let templateToUseForSettingTarget = _.template(payloadToAdd.formOutput.settingTargetTemplate);
+          let formDataForThisPayloadToBuildTheSettingTarget = {};
+          if(payload.formInput.type === 'multifield') {
+            for(let input of payload.formInput.inputs) {
+              if(payload.formOutput.valuesToTransform && payload.formOutput.valuesToTransform[input.slug]){
+                formDataForThisPayloadToBuildTheSettingTarget[input.slug] = encodeURIComponent(payload.formOutput.valuesToTransform[input.slug][this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug]]);
+              } else {
+                formDataForThisPayloadToBuildTheSettingTarget[input.slug] = encodeURIComponent(this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug]);
+              }
+            }
+          } else {
+            formDataForThisPayloadToBuildTheSettingTarget[payloadToAdd.uniqueSlug] = encodeURIComponent(this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
+          }
+          payloadToAdd.formOutput.settingTarget = _.trim(templateToUseForSettingTarget(formDataForThisPayloadToBuildTheSettingTarget));
+        }
         if(payload.formInput.type === 'multifield') {
           // If the payload's formInput type is multifield, we'll need to combine the values for this payload.
           // build a dictionary of formData where each key is the input's slug.
