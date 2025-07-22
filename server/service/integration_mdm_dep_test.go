@@ -1062,7 +1062,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			require.JSONEq(
 				t,
 				fmt.Sprintf(
-					`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "personal_host": false, "installed_from_dep": true, "mdm_platform": "apple"}`,
+					`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple"}`,
 					devices[0].SerialNumber, devices[0].Model, devices[0].SerialNumber,
 				),
 				string(*activity.Details),
@@ -1294,7 +1294,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.lastActivityMatches(
 		"mdm_enrolled",
 		fmt.Sprintf(
-			`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "personal_host": false}`,
+			`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple"}`,
 			mdmDevice.SerialNumber, mdmDevice.Model, mdmDevice.SerialNumber,
 		),
 		0,
