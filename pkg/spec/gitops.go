@@ -67,7 +67,7 @@ func MaybeParseTypeError(filename string, keysPath []string, err error) error {
 		}
 	}
 
-	return fmt.Errorf("failed to unmarshal %s:%s: %w", filename, strings.Join(keysPath, "."), err)
+	return fmt.Errorf("failed to unmarshal file \"%s\" key \"%s\": %w", filename, strings.Join(keysPath, "."), err)
 }
 
 // YamlUnmarshal unmarshals YAML bytes into JSON and then into the output struct. We have to do this
