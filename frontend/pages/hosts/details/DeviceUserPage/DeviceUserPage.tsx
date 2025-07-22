@@ -685,6 +685,8 @@ const DeviceUserPage = ({
           !!host && (
             <AppInstallDetailsModal
               details={{
+                software_title: selectedSelfServiceUuid.software_title,
+                status: selectedSelfServiceUuid.status,
                 host_display_name: host.display_name,
                 command_uuid: selectedSelfServiceUuid.command_uuid,
               }}

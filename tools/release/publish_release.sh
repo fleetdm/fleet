@@ -364,7 +364,7 @@ changelog_and_versions() {
         gh pr create -f -B $source_branch
         gh workflow run goreleaser-snapshot-fleet.yaml --ref $source_branch # Manually trigger workflow run
     else
-        echo "DRYRUN: Would have created Changelog / verison pr from $branch_for_changelog to $source_branch"
+        echo "DRYRUN: Would have created Changelog / version pr from $branch_for_changelog to $source_branch"
     fi
 }
 
