@@ -10,7 +10,7 @@ module.exports = {
   fn: async function () {
 
     // Find all MicrosoftComplianceTenant records with setupComplete: true
-    let allActiveEntraTenants = await MicrosoftComplianceTenant.find({setupComplete: true});
+    let allActiveEntraTenants = await MicrosoftComplianceTenant.find({setupCompleted: true});
 
     sails.log('Syncing hearbeat requests for '+allActiveEntraTenants.length+(allActiveEntraTenants.length > 1 ? ' tenants.' : ' tenant.'));
 
@@ -29,33 +29,34 @@ module.exports = {
       if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, bail early for this Entra tenant.
         return;
       }
-
+      // console.log(tokenAndApiUrls);
       let accessToken = tokenAndApiUrls.manageApiAccessToken;
       let tenantDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
 
-
+      let isoTimestampForThisRequest = new Date().toISOString();
       // Send a heartbeat request.
-      let tenantHeartbeatResponse = await sails.helpers.http.sendHtttpRequest.with({
+      let tenantHeartbeatResponse = await sails.helpers.http.sendHttpRequest.with({
         method: 'PUT',
         url: `${tenantDataSyncUrl}/PartnerTenantHeartbeat(guid'${encodeURIComponent(entraTenant.entraTenantId)}')?api-version=1.6`,
         headers: {
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return-content'
         },
         body: {
-          Timestamp: new Date().toISOString(),
+          Timestamp: isoTimestampForThisRequest,
         }
       }).tolerate((err)=>{
-        errorReportById[connectionIdAsString] = new Error(`Could not send a heartbeat request for a MicrosoftComplianceTenant (id: ${connectionIdAsString}). Full error: ${err}`);
+        errorReportById[connectionIdAsString] = new Error(`Could not send a heartbeat request for a MicrosoftComplianceTenant (id: ${connectionIdAsString}). Full error: ${require('util').inspect(err, {depth: null})}`);
       });
       if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, bail early for this Entra tenant.
         return;
       }
-
       let parsedtenantHeartbeatResponse;
       try {
-        parsedtenantHeartbeatResponse = JSON.parse(tenantHeartbeatResponse);
+        parsedtenantHeartbeatResponse = JSON.parse(tenantHeartbeatResponse.body);
       } catch(err){
-        errorReportById[connectionIdAsString] = new Error(`Could not parse the JSON response of a heartbeat request for a Microsoft compliance tenant (id: ${connectionIdAsString}). Full error: ${err}`);
+        errorReportById[connectionIdAsString] = new Error(`Could not parse the JSON response of a heartbeat request for a Microsoft compliance tenant (id: ${connectionIdAsString}). Full error: ${require('util').inspect(err, {depth: null})}`);
       }
 
       if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, bail early for this Entra tenant.
@@ -66,7 +67,7 @@ module.exports = {
         // TODO: do we want to do anything about the resync timestamp if it is set?
       }
 
-      await MicrosoftComplianceTenant.updateOne({id: entraTenant.id}).with({
+      await MicrosoftComplianceTenant.updateOne({id: entraTenant.id}).set({
         lastHeartbeatAt: Date.now(),
       });
     });
