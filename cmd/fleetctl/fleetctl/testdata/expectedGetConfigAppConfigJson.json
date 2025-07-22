@@ -106,7 +106,6 @@
       "volume_purchasing_program": null,
       "windows_enabled_and_configured": false,
       "enable_disk_encryption": false,
-      "windows_require_bitlocker_pin": null,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null
@@ -124,6 +123,7 @@
         "grace_period_days": 3
       },
       "windows_migration_enabled": false,
+      "windows_require_bitlocker_pin": null,
       "macos_migration": {
         "enable": false,
         "mode": "",
