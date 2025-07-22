@@ -322,7 +322,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 }
 
 func buildUpgradeCodeBasedUninstallScript(upgradeCode string) string {
-	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, upgradeCode)
+	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("\"%s\"${suffix}", upgradeCode))
 }
 
 func preProcessUninstallScript(uninstallScript, productCode string) string {
