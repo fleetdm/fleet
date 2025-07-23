@@ -69,6 +69,7 @@ export interface ISoftwareSelfServiceProps {
   onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   refetchHostDetails: () => void;
+  isRefetchHostPolling: boolean;
 }
 
 const SoftwareSelfService = ({
@@ -81,6 +82,7 @@ const SoftwareSelfService = ({
   onShowInstallDetails,
   onShowUninstallDetails,
   refetchHostDetails,
+  isRefetchHostPolling,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -100,6 +102,7 @@ const SoftwareSelfService = ({
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingRefetchHost = useRef(isRefetchHostPolling);
 
   const queryKey = useMemo<IDeviceSoftwareQueryKey[]>(() => {
     return [
@@ -114,7 +117,12 @@ const SoftwareSelfService = ({
   }, [deviceToken, queryParams.page, queryParams.query]);
 
   // Fetch self-service software (regular API call)
-  const { isLoading, isError, isFetching } = useQuery<
+  const {
+    isLoading,
+    isError,
+    isFetching,
+    refetch: refetchSelfServiceData,
+  } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError,
     IGetDeviceSoftwareResponse,
@@ -127,6 +135,15 @@ const SoftwareSelfService = ({
       setSelfServiceData(response);
     },
   });
+
+  useEffect(() => {
+    // Detect transition the entire host being refetched to the entire host refetch being completed
+    // Once entire host refetch polling ends, refetch software data to get updated installed_versions keyed from host data
+    if (pendingRefetchHost.current && !isRefetchHostPolling) {
+      refetchSelfServiceData();
+    }
+    pendingRefetchHost.current = isRefetchHostPolling;
+  }, [isRefetchHostPolling, refetchSelfServiceData]);
 
   // Poll for pending installs/uninstalls
   const { refetch: refetchForPendingInstallsOrUninstalls } = useQuery<

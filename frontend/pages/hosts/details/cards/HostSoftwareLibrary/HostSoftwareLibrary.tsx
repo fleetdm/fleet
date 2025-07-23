@@ -58,6 +58,7 @@ interface IHostInstallersProps {
   hostMDMEnrolled?: boolean;
   isHostOnline?: boolean;
   refetchHostDetails: () => void;
+  isRefetchHostPolling: boolean;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -109,6 +110,7 @@ const HostSoftwareLibrary = ({
   hostMDMEnrolled,
   isHostOnline = false,
   refetchHostDetails,
+  isRefetchHostPolling,
 }: IHostInstallersProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const {
@@ -129,6 +131,7 @@ const HostSoftwareLibrary = ({
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingRefetchHost = useRef(isRefetchHostPolling);
 
   const queryKey = useMemo<IHostSoftwareQueryKey[]>(() => {
     return [
@@ -145,6 +148,7 @@ const HostSoftwareLibrary = ({
     isLoading: hostSoftwareLibraryLoading,
     isError: hostSoftwareLibraryError,
     isFetching: hostSoftwareLibraryFetching,
+    refetch: refetchHostSoftwareLibrary,
   } = useQuery<
     IGetHostSoftwareResponse,
     AxiosError,
@@ -158,6 +162,15 @@ const HostSoftwareLibrary = ({
       setHostSoftwareLibraryRes(response);
     },
   });
+
+  useEffect(() => {
+    // Detect transition the entire host being refetched to the entire host refetch being completed
+    // Once entire host refetch polling ends, refetch software data to get updated installed_versions keyed from host data
+    if (pendingRefetchHost.current && !isRefetchHostPolling) {
+      refetchHostSoftwareLibrary();
+    }
+    pendingRefetchHost.current = isRefetchHostPolling;
+  }, [isRefetchHostPolling, refetchHostSoftwareLibrary]);
 
   // Poll for pending installs/uninstalls
   const { refetch: refetchForPendingInstallsOrUninstalls } = useQuery<

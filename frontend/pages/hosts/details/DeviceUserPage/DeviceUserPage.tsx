@@ -531,6 +531,7 @@ const DeviceUserPage = ({
                       onShowInstallDetails={onShowInstallDetails}
                       onShowUninstallDetails={onShowUninstallDetails}
                       refetchHostDetails={refetchHostDetails}
+                      isRefetchHostPolling={showRefetchSpinner}
                     />
                   </TabPanel>
                 )}

@@ -1009,6 +1009,7 @@ const HostDetailsPage = ({
                 hostMDMEnrolled={host.mdm.connected_to_fleet}
                 isHostOnline={host.status === "online"}
                 refetchHostDetails={refetchHostDetails}
+                isRefetchHostPolling={showRefetchSpinner}
               />
             </TabPanel>
           </>
