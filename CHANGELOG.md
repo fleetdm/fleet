@@ -12,8 +12,8 @@
 - Added the verification of user-scoped profiles on macOS.
 - Added last opened time for Windows applications.
 - Updated Windows Custom OS Settings including Win32/Desktop Bridge ADMX policies to now be marked verified after the host has acknowledged the MDM install command.
-- Added support for "Host Vitals" label, starting with IdP-based labels which update automatically including after software installs.
-- Displayed VPP apps installed on a host in the UI after command is acknowledged.
+- Added support for "Host Vitals" label, starting with IdP-based labels which update automatically.
+- Added automatic refetches of host vitals and software inventory after a successful software install or uninstall.
 - Updated `GET /hosts/:id/encryption_key` to return most recently archived encryption key if current key is not available.
 - Increased how often Fleet checks for new Fleet-maintained apps, from once per day to once per hour.
 - Improved GitOps speed when managing software with hashes on a large number of teams.
@@ -25,6 +25,7 @@
 - Added ability to add EULA end user sees during setup experience via gitops.
 
 ### Other improvements and bug fixes
+- Switched VPP apps to show as installed only after MDM confirms the app is installed, instead of when the installation command is acknowledged.
 - Added user property `api_only` to backend activity details.
 - Replaced email with user full name for login activity.
 - Added a new avatar for API-only users in the activity feed.
