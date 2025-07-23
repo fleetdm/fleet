@@ -7,6 +7,10 @@ PREV_HEAD=$1
 CURR_HEAD=$2
 BRANCH_CHEKCOUT=$3
 
+DUMP_DIR="${HOME}/.fleet/snapshots/checkouts/"
+BACKUP_TOOL="./tools/backup_db/backup.sh"
+RESTORE_TOOL="./tools/backup_db/restore.sh"
+
 if [ $BRANCH_CHEKCOUT != 1 ]; then
     echo "Not a branch checkout, exiting backup and restore"
     exit 0
@@ -18,10 +22,6 @@ if [ -z "${DIFF_MIGRATION_FILES}" ]; then
     echo "No datastore migrations between branches, leaving db alone"
     exit 0
 fi
-
-DUMP_DIR="${HOME}/.fleet/snapshots/checkouts/"
-BACKUP_TOOL="./tools/backup_db/backup.sh"
-RESTORE_TOOL="./tools/backup_db/restore.sh"
 
 mkdir -p "${DUMP_DIR}"
 
