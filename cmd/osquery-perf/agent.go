@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/uuid"
+	"github.com/micromdm/plist"
 	"github.com/remitly-oss/httpsig-go"
 )
 
@@ -225,6 +226,15 @@ func (a *mdmAgent) CachedString(key string) string {
 	return val
 }
 
+var adamIDsToSoftware = map[int]*fleet.Software{
+	406056744: {
+		Name:             "Evernote",
+		BundleIdentifier: "com.evernote.Evernote",
+		Version:          "10.147.1",
+		Installed:        false,
+	},
+}
+
 type agent struct {
 	agentIndex                    int
 	softwareCount                 softwareEntityCount
@@ -319,6 +329,7 @@ type agent struct {
 
 	entraIDDeviceID          string
 	entraIDUserPrincipalName string
+	installedAdamIDs         []int
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -946,6 +957,54 @@ func (a *agent) runMacosMDMLoop() {
 				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
 				a.doDeclarativeManagement(mdmCommandPayload)
 				mdmCommandPayload = nextMdmCommandPayload
+			case "InstalledApplicationList":
+				var installedVPPSoftware []fleet.Software
+				for _, adamID := range a.installedAdamIDs {
+					if sw, ok := adamIDsToSoftware[adamID]; ok && sw != nil {
+						if sw.Installed {
+							installedVPPSoftware = append(installedVPPSoftware, *sw)
+						}
+
+						sw.Installed = true
+					}
+				}
+				nextMdmCommandPayload, err := a.macMDMClient.AcknowledgeInstalledApplicationList(
+					a.macMDMClient.UUID,
+					mdmCommandPayload.CommandUUID,
+					installedVPPSoftware,
+				)
+				if err != nil {
+					log.Printf("MDM Acknowledge InstalledApplicationList request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+
+				mdmCommandPayload = nextMdmCommandPayload
+			case "InstallApplication":
+				var appRequest struct {
+					Command map[string]any `plist:"Command"`
+				}
+
+				log.Printf("command raw: %s", string(mdmCommandPayload.Raw))
+				plist.Unmarshal(mdmCommandPayload.Raw, &appRequest)
+				if err != nil {
+					log.Printf("parsing InstallApplication request: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+				log.Printf("got install application command for %s", appRequest.Command["iTunesStoreID"])
+
+				if adamID, ok := appRequest.Command["iTunesStoreID"].(uint64); ok {
+					a.installedAdamIDs = append(a.installedAdamIDs, int(adamID))
+				}
+
+				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+
 			default:
 				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
 				if err != nil {
