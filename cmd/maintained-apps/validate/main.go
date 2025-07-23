@@ -22,9 +22,128 @@ import (
 
 // memoized directory path
 var (
-	tmpDir string
-	env    []string
+	tmpDir                      string
+	env                         []string
+	installationSearchDirectory string
 )
+
+type AppCommander struct {
+	Name             string
+	Slug             string
+	UniqueIdentifier string
+	// computed fields
+	Version string
+	AppPath string
+
+	MaintainedApp fleet.MaintainedApp
+}
+
+func (ac *AppCommander) extractAppVersion(installerTFR *fleet.TempFileReader) error {
+	// default to maintained app version
+	ac.Version = ac.MaintainedApp.Version
+
+	if ac.Version == "latest" {
+		meta, err := file.ExtractInstallerMetadata(installerTFR)
+		if err != nil {
+			return err
+		}
+		ac.Version = meta.Version
+		installerTFR.Rewind()
+	}
+
+	return nil
+}
+
+func (ac *AppCommander) uninstallPreInstalled(installationSearchDirectory string) {
+	fmt.Printf("App '%s' is marked as pre-installed, attempting to run uninstall script.\n", ac.Name)
+
+	_, _, listError := ac.expectToChangeFileSystem(
+		func() error {
+			uninstalled := ac.uninstallApp()
+			if !uninstalled {
+				fmt.Printf("Failed to uninstall pre-installed app '%s'", ac.Name)
+			}
+			return nil
+		},
+	)
+
+	if listError != nil {
+		fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, listError)
+	}
+
+	// appListPre, err := listDirectoryContents(installationSearchDirectory)
+	// if err != nil {
+	// 	fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+	// }
+
+	// uninstalled := ac.uninstallApp()
+	// if !uninstalled {
+	// 	fmt.Printf("Failed to uninstall pre-installed app '%s'", ac.Name)
+	// }
+
+	// appListPost, err := listDirectoryContents(installationSearchDirectory)
+	// if err != nil {
+	// 	fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+	// }
+
+	// ac.AppPath = detectRemovedApplication(installationSearchDirectory, appListPre, appListPost)
+	// if ac.AppPath == "" {
+	// 	fmt.Printf("Warning: no changes found in %s directory after running application uninstall script.\n", installationSearchDirectory)
+	// } else {
+	// 	fmt.Printf("Removed application detected at: %s\n", ac.AppPath)
+	// }
+}
+
+func (ac *AppCommander) uninstallApp() bool {
+	fmt.Print("Executing uninstall script...\n")
+	output, err := executeScript(ac.MaintainedApp.UninstallScript)
+	if err != nil {
+		fmt.Printf("Error uninstalling app: %v\n", err)
+		fmt.Printf("Output: %s\n", output)
+		return false
+	}
+
+	existance, err := doesAppExists(ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
+	if err != nil {
+		fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
+		return false
+	}
+	if existance {
+		fmt.Printf("App version '%s' was found after uninstall\n", ac.Version)
+		return false
+	}
+
+	return true
+}
+
+func (ac *AppCommander) expectToChangeFileSystem(changer func() error) (string, error, error) {
+	var listError error
+	appListPre, err := listDirectoryContents(installationSearchDirectory)
+	if err != nil {
+		listError = fmt.Errorf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+	}
+
+	changerError := changer()
+
+	appListPost, err := listDirectoryContents(installationSearchDirectory)
+	if err != nil {
+		listError = fmt.Errorf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+	}
+
+	appPath, changed := detectApplicationChange(installationSearchDirectory, appListPre, appListPost)
+	if appPath == "" {
+		fmt.Printf("Warning: no changes detected in %s directory after running application script.\n", installationSearchDirectory)
+	} else {
+		if changed {
+			fmt.Printf("New application detected at: %s\n", appPath)
+		} else {
+			// If changed is false, it means an application was removed
+			fmt.Printf("Application removal detected at: %s\n", appPath)
+		}
+	}
+
+	return appPath, changerError, listError
+}
 
 func main() {
 	operatingSystem := strings.ToLower(os.Getenv("GOOS"))
@@ -36,7 +155,7 @@ func main() {
 		fmt.Printf("Unsupported operating system: %s\n", operatingSystem)
 		os.Exit(1)
 	}
-	installationSearchDirectory := os.Getenv("INSTALLATION_SEARCH_DIRECTORY")
+	installationSearchDirectory = os.Getenv("INSTALLATION_SEARCH_DIRECTORY")
 	if installationSearchDirectory == "" {
 		switch operatingSystem {
 		case "darwin":
@@ -75,8 +194,17 @@ func main() {
 		if app.Platform != operatingSystem {
 			continue
 		}
+		// Name             string `json:"name"`
+		// Slug             string `json:"slug"`
+		// Platform         string `json:"platform"`
+		// UniqueIdentifier string `json:"unique_identifier"`
+		// Description      string `json:"description"`
+
 		totalApps++
+
 		fmt.Print("\n\nValidating app: ", app.Name, " (", app.Slug, ")\n")
+		ac := &AppCommander{}
+
 		appJson, err := getAppJson(app.Slug)
 		if err != nil {
 			fmt.Printf("Error getting app json manifest: %v\n", err)
@@ -85,6 +213,18 @@ func main() {
 		}
 
 		maintainedApp := appFromJson(appJson)
+		// app.Version = manifest.Versions[0].Version
+		// app.Platform = manifest.Versions[0].Platform()
+		// app.InstallerURL = manifest.Versions[0].InstallerURL
+		// app.SHA256 = manifest.Versions[0].SHA256
+		// app.InstallScript = manifest.Refs[manifest.Versions[0].InstallScriptRef]
+		// app.UninstallScript = manifest.Refs[manifest.Versions[0].UninstallScriptRef]
+		// app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
+		// app.Categories = manifest.Versions[0].DefaultCategories
+		ac.Name = app.Name
+		ac.Slug = app.Slug
+		ac.UniqueIdentifier = app.UniqueIdentifier
+		ac.MaintainedApp = maintainedApp
 
 		installerTFR, err := DownloadMaintainedApp(maintainedApp)
 		if err != nil {
@@ -94,71 +234,95 @@ func main() {
 		}
 		defer installerTFR.Close()
 
-		appVersion, err := extractAppVersion(maintainedApp, installerTFR)
+		err = ac.extractAppVersion(installerTFR)
 		if err != nil {
-			fmt.Printf("Error extracting installer version: %v. Using '%s'\n", err, appVersion)
-			appWithError = append(appWithError, app.Name)
+			fmt.Printf("Error extracting installer version: %v. Using '%s'\n", err, ac.Version)
+			appWithError = append(appWithError, ac.Name)
 		}
 
 		// If application is already installed, attempt to uninstall it
-		if slices.Contains(preInstalled, app.Slug) {
-			uninstallPreInstalled(app, installationSearchDirectory, maintainedApp, appVersion)
+		if slices.Contains(preInstalled, ac.Slug) {
+			ac.uninstallPreInstalled(installationSearchDirectory)
+		}
+
+		appPath, changerError, listError := ac.expectToChangeFileSystem(
+			func() error {
+				fmt.Print("Executing install script...\n")
+				output, err := executeScript(ac.MaintainedApp.InstallScript)
+				if err != nil {
+					fmt.Printf("Error executing install script: %v\n", err)
+					fmt.Printf("Output: %s\n", output)
+					return err
+				}
+				return nil
+			},
+		)
+		if listError != nil {
+			fmt.Printf("error listing directory contents: %v", listError)
+		}
+		if changerError != nil {
+			appWithError = append(appWithError, ac.Name)
+			continue
+		}
+		ac.AppPath = appPath
+		if ac.AppPath == "" {
+			appWithWarning = append(appWithWarning, ac.Name)
 		}
 
 		// Install
-		appListPre, err := listDirectoryContents(installationSearchDirectory)
-		if err != nil {
-			fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
-		}
+		// appListPre, err := listDirectoryContents(installationSearchDirectory)
+		// if err != nil {
+		// 	fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+		// }
 
-		fmt.Print("Executing install script...\n")
-		output, err := executeScript(maintainedApp.InstallScript)
-		if err != nil {
-			fmt.Printf("Error executing install script: %v\n", err)
-			fmt.Printf("Output: %s\n", output)
-			appWithError = append(appWithError, app.Name)
-			continue
-		}
+		// fmt.Print("Executing install script...\n")
+		// output, err := executeScript(ac.MaintainedApp.InstallScript)
+		// if err != nil {
+		// 	fmt.Printf("Error executing install script: %v\n", err)
+		// 	fmt.Printf("Output: %s\n", output)
+		// 	appWithError = append(appWithError, ac.Name)
+		// 	continue
+		// }
 
-		appListPost, err := listDirectoryContents(installationSearchDirectory)
-		if err != nil {
-			fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
-		}
+		// appListPost, err := listDirectoryContents(installationSearchDirectory)
+		// if err != nil {
+		// 	fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+		// }
 
-		appPath := detectNewApplication(installationSearchDirectory, appListPre, appListPost)
-		if appPath == "" {
-			fmt.Printf("Warning: no new application detected in %s directory after installation.\n", installationSearchDirectory)
-			appWithWarning = append(appWithWarning, app.Name)
-		} else {
-			fmt.Printf("New application detected at: %s\n", appPath)
-		}
+		// ac.AppPath = detectNewApplication(installationSearchDirectory, appListPre, appListPost)
+		// if ac.AppPath == "" {
+		// 	fmt.Printf("Warning: no new application detected in %s directory after installation.\n", installationSearchDirectory)
+		// 	appWithWarning = append(appWithWarning, ac.Name)
+		// } else {
+		// 	fmt.Printf("New application detected at: %s\n", ac.AppPath)
+		// }
 
-		err = postApplicationInstall(appPath)
+		err = postApplicationInstall(ac.AppPath)
 		if err != nil {
 			fmt.Printf("Warning: Error detected in post-installation steps: %v\n", err)
-			appWithWarning = append(appWithWarning, app.Name)
+			appWithWarning = append(appWithWarning, ac.Name)
 		}
 
-		existance, err := doesAppExists(app.Name, app.UniqueIdentifier, appVersion, appPath)
+		existance, err := doesAppExists(ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 		if err != nil {
 			fmt.Printf("Error checking if app exists: %v\n", err)
-			appWithError = append(appWithError, app.Name)
+			appWithError = append(appWithError, ac.Name)
 			continue
 		}
 		if !existance {
-			fmt.Printf("App version '%s' was not found by osquery\n", maintainedApp.Version)
-			appWithError = append(appWithError, app.Name)
+			fmt.Printf("App version '%s' was not found by osquery\n", ac.Version)
+			appWithError = append(appWithError, ac.Name)
 			continue
 		}
 
 		// Uninstall
-		uninstalled := uninstallApp(maintainedApp, app, appVersion, appPath)
+		uninstalled := ac.uninstallApp()
 		if !uninstalled {
-			appWithError = append(appWithError, app.Name)
+			appWithError = append(appWithError, ac.Name)
 			continue
 		}
 
-		fmt.Print("All checks passed for app: ", app.Name)
+		fmt.Print("All checks passed for app: ", ac.Name)
 		successfulApps++
 	}
 
@@ -176,52 +340,6 @@ func main() {
 		fmt.Printf("Apps with errors: %v\n", appWithError)
 		os.Exit(1)
 	}
-}
-
-func uninstallPreInstalled(app maintained_apps.FMAListFileApp, installationSearchDirectory string, maintainedApp fleet.MaintainedApp, appVersion string) {
-	fmt.Printf("App '%s' is marked as pre-installed, attempting to run uninstall script.\n", app.Name)
-
-	appListPre, err := listDirectoryContents(installationSearchDirectory)
-	if err != nil {
-		fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
-	}
-	uninstalled := uninstallApp(maintainedApp, app, appVersion, "")
-	if !uninstalled {
-		fmt.Printf("Failed to uninstall pre-installed app '%s'", app.Name)
-	}
-	appListPost, err := listDirectoryContents(installationSearchDirectory)
-	if err != nil {
-		fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, err)
-	}
-
-	appPath := detectRemovedApplication(installationSearchDirectory, appListPre, appListPost)
-	if appPath == "" {
-		fmt.Printf("Warning: no changes found in %s directory after running application uninstall script.\n", installationSearchDirectory)
-	} else {
-		fmt.Printf("Removed application detected at: %s\n", appPath)
-	}
-}
-
-func uninstallApp(maintainedApp fleet.MaintainedApp, app maintained_apps.FMAListFileApp, appVersion, appPath string) bool {
-	fmt.Print("Executing uninstall script...\n")
-	output, err := executeScript(maintainedApp.UninstallScript)
-	if err != nil {
-		fmt.Printf("Error uninstalling app: %v\n", err)
-		fmt.Printf("Output: %s\n", output)
-		return false
-	}
-
-	existance, err := doesAppExists(app.Name, app.UniqueIdentifier, appVersion, appPath)
-	if err != nil {
-		fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
-		return false
-	}
-	if existance {
-		fmt.Printf("App version '%s' was found after uninstall\n", appVersion)
-		return false
-	}
-
-	return true
 }
 
 func getListOfApps() ([]maintained_apps.FMAListFileApp, error) {
@@ -264,20 +382,6 @@ func appFromJson(manifest *maintained_apps.FMAManifestFile) fleet.MaintainedApp 
 	app.Categories = manifest.Versions[0].DefaultCategories
 
 	return app
-}
-
-func extractAppVersion(maintainedApp fleet.MaintainedApp, installerTFR *fleet.TempFileReader) (string, error) {
-	appVersion := maintainedApp.Version
-
-	if appVersion == "latest" {
-		meta, err := file.ExtractInstallerMetadata(installerTFR)
-		if err != nil {
-			return appVersion, err
-		}
-		appVersion = meta.Version
-	}
-
-	return appVersion, nil
 }
 
 func DownloadMaintainedApp(app fleet.MaintainedApp) (*fleet.TempFileReader, error) {
@@ -331,20 +435,20 @@ func listDirectoryContents(dir string) (map[string]struct{}, error) {
 	return contents, nil
 }
 
-func detectNewApplication(installationSearchDirectory string, appListPre, appListPost map[string]struct{}) string {
+func detectApplicationChange(installationSearchDirectory string, appListPre, appListPost map[string]struct{}) (string, bool) {
+	// Check for added applications
 	for app := range appListPost {
 		if _, exists := appListPre[app]; !exists {
-			return filepath.Join(installationSearchDirectory, app)
+			return filepath.Join(installationSearchDirectory, app), true // true = added
 		}
 	}
-	return ""
-}
 
-func detectRemovedApplication(installationSearchDirectory string, appListPre, appListPost map[string]struct{}) string {
+	// Check for removed applications
 	for app := range appListPre {
 		if _, exists := appListPost[app]; !exists {
-			return filepath.Join(installationSearchDirectory, app)
+			return filepath.Join(installationSearchDirectory, app), false // false = removed
 		}
 	}
-	return ""
+
+	return "", false // no change detected
 }
