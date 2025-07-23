@@ -48,7 +48,6 @@ variable "webhook_url" {
   description = "Webhook URL used for Webhook Logging Destination"
 }
 
-data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
