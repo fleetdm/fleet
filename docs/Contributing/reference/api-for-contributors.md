@@ -4419,7 +4419,8 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | software.packages.pre_install_query   | string   | body  | Condition query that determines if the install will proceed.                                                                                                                                                                |
 | software.packages.post_install_script | string   | body  | Script that runs after software install.                                                                                                                                                                                    |
 | software.packages.uninstall_script    | string   | body  | Command that Fleet runs to uninstall software.                                                                                                                                                                              |
-| software.packages.self_service        | boolean  | body  | Specifies whether or not end users can install self-service.                                                                                                                                                                |
+| software.packages.self_service        | boolean  | body  | Specifies whether end users can install self-service.                                                                                                                                                                |
+| software.packages.install_during_setup | boolean  | body  | Specifies whether the package is included in Setup experience.                                                                                                                                                                |
 | software.packages.labels_include_any  | array    | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted.                                                   |
 | software.packages.labels_exclude_any  | array    | body  | Target hosts that don't have any labels in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted.                                            |
 
@@ -4510,7 +4511,8 @@ _Available in Fleet Premium._
 | app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the app. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
-| app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
+| app_store_apps.self_service | boolean   | body  | Whether the VPP app is available for install via the My device UI on macOS hosts. |
+| app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
@@ -4525,6 +4527,7 @@ _Available in Fleet Premium._
       "app_store_id": "597799333",
       "categories": ["Browsers"],
       "self_service": false,
+      "install_during_setup": false,
       "labels_include_any": [
         "Engineering",
         "Customer Support"
