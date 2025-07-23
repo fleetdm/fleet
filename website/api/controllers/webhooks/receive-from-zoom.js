@@ -85,6 +85,11 @@ module.exports = {
       let token = oauthResponse.access_token;
 
       let idOfCallToGenerateTranscriptFor = payload.object.conversation_id;
+      // If the call ID contains a slash, URL encode the ID so it will be double-encoded when it is used in API requests.
+      // more infor in Zoom's documentation here: https://developers.zoom.us/docs/api/using-zoom-apis/#double-encoding
+      if(_.contains(idOfCallToGenerateTranscriptFor, '/')) {
+        idOfCallToGenerateTranscriptFor = encodeURIComponent(idOfCallToGenerateTranscriptFor);
+      }
       let informationAboutThisCall = await sails.helpers.http.get.with({
         url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}`,
         headers: {
