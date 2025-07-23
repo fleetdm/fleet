@@ -12,9 +12,7 @@
 - Added the verification of user-scoped profiles on macOS.
 - Added last opened time for Windows applications.
 - Updated Windows Custom OS Settings including Win32/Desktop Bridge ADMX policies to now be marked verified after the host has acknowledged the MDM install command.
-- Added support for IdP-based labels.
-- Added support for "Host Vitals" label, starting with IdP-based labels.
-- Added automatic host vitals refetch when a software install or uninstall is successful.
+- Added support for "Host Vitals" label, starting with IdP-based labels which update automatically including after software installs.
 - Displayed VPP apps installed on a host in the UI after command is acknowledged.
 - Updated `GET /hosts/:id/encryption_key` to return most recently archived encryption key if current key is not available.
 - Increased how often Fleet checks for new Fleet-maintained apps, from once per day to once per hour.
