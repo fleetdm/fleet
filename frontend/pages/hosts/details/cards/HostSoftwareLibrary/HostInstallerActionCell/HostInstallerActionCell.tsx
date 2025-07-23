@@ -36,6 +36,7 @@ export interface IGetActionButtonStateProps {
   softwarePackage: IHostSoftwarePackage | null;
   appStoreApp: IHostAppStoreApp | null;
   hostMDMEnrolled?: boolean;
+  isMyDevicePage?: boolean;
 }
 
 interface IHostInstallerActionButtonProps {
@@ -51,10 +52,12 @@ interface IHostInstallerActionButtonProps {
 interface IHostInstallerActionCellProps {
   software: IHostSoftwareWithUiStatus;
   onClickInstallAction: (softwareId: number) => void;
-  onClickUninstallAction: (softwareId: number) => void;
+  onClickUninstallAction: () => void;
   baseClass: string;
   hostScriptsEnabled?: boolean;
   hostMDMEnrolled?: boolean;
+  /** Different disabled states and tooltips compared to host details > library and fleet desktop > self-service */
+  isMyDevicePage?: boolean;
 }
 
 export const getActionButtonState = ({
@@ -62,6 +65,7 @@ export const getActionButtonState = ({
   status,
   appStoreApp,
   hostMDMEnrolled,
+  isMyDevicePage,
 }: IGetActionButtonStateProps): IActionButtonState => {
   const pendingStatuses = ["pending_install", "pending_uninstall"];
   let installDisabled = false;
@@ -69,23 +73,35 @@ export const getActionButtonState = ({
   let installTooltip: React.ReactNode | undefined;
   let uninstallTooltip: React.ReactNode | undefined;
 
-  if (!hostScriptsEnabled && !appStoreApp) {
-    installDisabled = true;
-    uninstallDisabled = true;
-    installTooltip = "To install, turn on host scripts.";
-    uninstallTooltip = "To uninstall, turn on host scripts.";
-  }
-
+  // Action buttons are always disabled if status is pending for both
+  // Host details > Software > library page and  My Device > Self-service page
   if (pendingStatuses.includes(status || "")) {
     installDisabled = true;
     uninstallDisabled = true;
   }
 
-  if (appStoreApp) {
-    uninstallDisabled = true;
-    if (!hostMDMEnrolled) {
+  /** Host details > Software > Library page has additional tooltips and disabled states
+   * than My Device > Self-service page for disabled host scripts and mdm unenrolled
+   *
+   * If scripts are not enabled, software actions disabled with tooltip on
+   * Host details > Software > Library but doesn't show to Fleet Desktop > Self-service.
+   *
+   * If MDM is not enrolled, software actions disabled with tooltip on
+   * Host details > Software > Library but doesn't show Fleet Desktop > Self-service */
+  if (!isMyDevicePage) {
+    if (!hostScriptsEnabled && !appStoreApp) {
       installDisabled = true;
-      installTooltip = "To install, turn on MDM for this host.";
+      uninstallDisabled = true;
+      installTooltip = "To install, turn on host scripts.";
+      uninstallTooltip = "To uninstall, turn on host scripts.";
+    }
+
+    if (appStoreApp) {
+      uninstallDisabled = true;
+      if (!hostMDMEnrolled) {
+        installDisabled = true;
+        installTooltip = "To install, turn on MDM for this host.";
+      }
     }
   }
 
@@ -127,6 +143,9 @@ export const HostInstallerActionButton = ({
   </div>
 );
 
+/** HostInstallerActionCell component has different disabled states
+ * and tooltips for Host details > Library HostInstallerActionCell than
+ * Fleet Desktop > Self-service HostInstallerActionCell */
 export const HostInstallerActionCell = ({
   software,
   onClickInstallAction,
@@ -134,6 +153,7 @@ export const HostInstallerActionCell = ({
   baseClass,
   hostScriptsEnabled,
   hostMDMEnrolled,
+  isMyDevicePage = false,
 }: IHostInstallerActionCellProps) => {
   const {
     id,
@@ -155,10 +175,8 @@ export const HostInstallerActionCell = ({
     appStoreApp: app_store_app,
     hostMDMEnrolled,
     softwarePackage: software_package,
+    isMyDevicePage,
   });
-
-  const canUninstallSoftware =
-    !app_store_app && installed_versions && installed_versions.length > 0;
 
   // buttonDisplayConfig is used to track the display text and icons of the install and uninstall button
   const [
@@ -183,6 +201,12 @@ export const HostInstallerActionCell = ({
     }
   }, [status, ui_status]);
 
+  const canUninstallSoftware =
+    !app_store_app &&
+    !!software_package &&
+    installed_versions &&
+    installed_versions.length > 0;
+
   return (
     <div className={`${baseClass}__item-actions`}>
       <HostInstallerActionButton
@@ -194,12 +218,12 @@ export const HostInstallerActionCell = ({
         text={buttonDisplayConfig.install.text}
         testId={`${baseClass}__install-button--test`}
       />
-      {canUninstallSoftware && software_package && (
+      {canUninstallSoftware && (
         <HostInstallerActionButton
           baseClass={baseClass}
           tooltip={uninstallTooltip}
           disabled={uninstallDisabled}
-          onClick={() => onClickUninstallAction(id)}
+          onClick={onClickUninstallAction}
           icon={buttonDisplayConfig.uninstall.icon}
           text={buttonDisplayConfig.uninstall.text}
           testId={`${baseClass}__uninstall-button--test`}

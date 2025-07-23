@@ -168,7 +168,9 @@ export const generateHostSWLibraryTableHeaders = ({
           <HostInstallerActionCell
             software={cellProps.row.original}
             onClickInstallAction={onClickInstallAction}
-            onClickUninstallAction={onClickUninstallAction}
+            onClickUninstallAction={() =>
+              onClickUninstallAction(cellProps.row.original.id)
+            }
             baseClass={baseClass}
             hostScriptsEnabled={hostScriptsEnabled}
             hostMDMEnrolled={hostMDMEnrolled}

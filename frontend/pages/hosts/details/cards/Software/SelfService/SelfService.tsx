@@ -40,7 +40,7 @@ import Pagination from "components/Pagination";
 
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
-import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./SelfServiceTableConfig";
+import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import { InstallOrCommandUuid } from "../InstallStatusCell/InstallStatusCell";
 import {
@@ -313,6 +313,29 @@ const SoftwareSelfService = ({
     refetchForPendingInstallsOrUninstalls();
   }, [refetchForPendingInstallsOrUninstalls]);
 
+  const isMountedRef = useRef(false);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const onClickInstallAction = useCallback(
+    async (softwareId: number) => {
+      try {
+        await deviceApi.installSelfServiceSoftware(deviceToken, softwareId);
+        if (isMountedRef.current) {
+          onInstallOrUninstall();
+        }
+      } catch (error) {
+        // We only show toast message if API returns an error
+        renderFlash("error", "Couldn't install. Please try again.");
+      }
+    },
+    [deviceToken, onInstallOrUninstall, renderFlash]
+  );
+
   const onClickUpdateAction = useCallback(
     async (id: number) => {
       try {
@@ -460,11 +483,12 @@ const SoftwareSelfService = ({
     queryParams.query !== "";
 
   const tableConfig = useMemo(() => {
-    return generateDeviceSoftwareTableConfig({
+    return generateSoftwareTableHeaders({
       deviceToken,
-      onInstall: onInstallOrUninstall,
+      onInstallOrUninstall,
       onShowInstallDetails,
       onShowUninstallDetails,
+      onClickInstallAction,
       onClickUninstallAction: (software) => {
         selectedSoftware.current = {
           softwareId: software.id,
