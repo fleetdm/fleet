@@ -96,6 +96,7 @@ locals {
     ca_thumbprint is the sha1 thumbprint value of the following certificate: aws rds describe-db-instances --filters='Name=db-cluster-id,Values='${cluster_name}'' | jq '.DBInstances.[0].CACertificateIdentifier' | sed 's/\"//g'
     You can retrieve the value with the following command: aws rds describe-certificates --certificate-identifier=${ca_cert_val} | jq '.Certificates.[].Thumbprint' | sed 's/\"//g'
   */
+  ca_cert_thumbprint = "8cf85e3e2bdbcbe2c4a34c1e85828fb29833e87f"
   rds_container_path = "/tmp/rds-tls"
   cert_path          = "${local.rds_container_path}/${data.aws_region.current.id}.pem"
 
@@ -105,10 +106,10 @@ locals {
       name       = "rds-tls-ca-retriever"
       image      = "public.ecr.aws/docker/library/alpine@sha256:8a1f59ffb675680d47db6337b49d22281a139e9d709335b492be023728e11715"
       entrypoint = ["/bin/sh", "-c"]
-      command = [templatefile("../shared/templates/mysql_ca_tls_retrieval.sh.tpl", {
+      command = [templatefile("./templates/", {
         aws_region         = data.aws_region.current.id
         container_path     = local.rds_container_path
-        ca_cert_thumbprint = data.terraform_remote_state.shared.outputs.mysql_tls_ca_region_thumbprints[data.aws_region.current.id]
+        ca_cert_thumbprint = local.ca_cert_thumbprint
       })]
       logConfiguration = {
         logDriver = "awslogs"

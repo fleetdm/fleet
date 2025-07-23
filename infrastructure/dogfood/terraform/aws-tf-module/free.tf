@@ -33,10 +33,10 @@ locals {
       name       = "rds-tls-ca-retriever"
       image      = "public.ecr.aws/docker/library/alpine@sha256:8a1f59ffb675680d47db6337b49d22281a139e9d709335b492be023728e11715"
       entrypoint = ["/bin/sh", "-c"]
-      command = [templatefile("../shared/templates/mysql_ca_tls_retrieval.sh.tpl", {
+      command = [templatefile("./templates/mysql_ca_tls_retrieval.sh.tpl", {
         aws_region         = data.aws_region.current.id
         container_path     = local.rds_container_path
-        ca_cert_thumbprint = data.terraform_remote_state.shared.outputs.mysql_tls_ca_region_thumbprints[data.aws_region.current.id]
+        ca_cert_thumbprint = local.ca_cert_thumbprint
       })]
       logConfiguration = {
         logDriver = "awslogs"
