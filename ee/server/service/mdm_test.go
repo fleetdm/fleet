@@ -91,8 +91,8 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 
 			testPayload := getPayloadWithType(p.Mobileconfig, "com.apple.MCX.FileVault2")
 			require.NotNil(t, testPayload)
-			require.Equal(t, false, testPayload["Defer"]) // Do not allow deferrals
-			require.NotContains(t, testPayload, "DeferForceAtUserLoginMaxBypassAttempts")
+			require.Equal(t, true, testPayload["Defer"])
+			require.EqualValues(t, 0, testPayload["DeferForceAtUserLoginMaxBypassAttempts"])
 
 			return nil, nil
 		}

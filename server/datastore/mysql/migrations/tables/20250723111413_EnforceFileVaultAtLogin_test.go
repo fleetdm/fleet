@@ -161,8 +161,7 @@ VALUES (?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)))`
 		}
 
 		require.NotNil(t, found)
-		require.NotContains(t, found, "DeferForceAtUserLoginMaxBypassAttempts")
-		require.EqualValues(t, false, found["Defer"])
+		require.EqualValues(t, 0, found["DeferForceAtUserLoginMaxBypassAttempts"])
 	}
 
 	// verify global profile modifications

@@ -14,8 +14,8 @@ func init() {
 	MigrationClient.AddMigration(Up_20250723111413, Down_20250723111413)
 }
 
-// enforceFileVaultAtLogin is used to remove the
-// `DeferForceAtUserLoginMaxBypassAttempts` from an existing FileVault profile and set `Defer` to false
+// enforceFileVaultAtLogin is used to set
+// `DeferForceAtUserLoginMaxBypassAttempts` to 0 for an existing FileVault profile
 // at the right place without doing any other modifications to the profile.
 //
 // We intentionally use a map[string]interface{} to make sure we're fully
@@ -38,8 +38,7 @@ func enforceFileVaultAtLogin(original []byte) ([]byte, error) {
 		}
 
 		if payload["PayloadType"] == "com.apple.MCX.FileVault2" {
-			delete(payload, "DeferForceAtUserLoginMaxBypassAttempts")
-			payload["Defer"] = false
+			payload["DeferForceAtUserLoginMaxBypassAttempts"] = 0
 		}
 	}
 

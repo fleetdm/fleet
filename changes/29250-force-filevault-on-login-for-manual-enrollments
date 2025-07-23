@@ -1,1 +1,1 @@
-* Remove `DeferForceAtUserLoginMaxBypassAttempts` from FileVault profile, to use default value of 0, as well as set `Defer` to false to indicate the FileVault enforcement can not be deferred on next login.
+* Remove `DeferForceAtUserLoginMaxBypassAttempts` from FileVault profile, to use default value of 0 to indicate the FileVault enforcement can not be deferred on next login.
