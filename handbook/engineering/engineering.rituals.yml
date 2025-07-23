@@ -18,6 +18,16 @@
   autoIssue: 
     labels: [ "~engineering-initiated" ]
     repo: "fleet"
+-
+  task: "Renew Apple developer account"
+  startedOn: "2025-08-01" 
+  frequency: "Annually"
+  description: https://fleetdm.com/handbook/engineering#accept-new-apple-developer-account-terms
+  moreInfoUrl: https://fleetdm.com/handbook/engineering#accept-new-apple-developer-account-terms
+  dri: "lukeheath"
+  autoIssue: 
+    labels: [ "~engineering-initiated" ]
+    repo: "fleet"
 - 
   task: "Oncall handoff"
   startedOn: "2023-08-09" 
