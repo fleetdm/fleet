@@ -10,7 +10,7 @@ Fleet will automatically renew certificates 30 days before expiration. If an end
 
 ## DigiCert
 
-To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the following steps:
+To connect end users to Wi-Fi or VPN with DigiCert certificates, we'll do the following steps:
 
 - [Create service user in DigiCert](#step-1-create-service-user-in-digicert)
 - [Create certificate profile in DigiCert](#step-2-create-certificate-profile-in-digicert)
@@ -19,10 +19,10 @@ To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the fol
 
 ### Step 1: Create service user in DigiCert
 
-1. Head to [DigiCert One](https://one.digicert.com/)
-2. Follow [DigiCert's instructions for creating a service user](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html) and save the service user's API token.
-> Make sure to assign **User and certificate manager** and **Certificate profile manager** roles
-> when creating service user.
+1. Log in to [DigiCert One](https://one.digicert.com/)
+2. Create a [new service user](https://one.digicert.com/account/access/service-user/role-service-user-create). Under the "DigiCert ONE Manager access" dropdown, select "Trust Lifecycle."
+3. On the next page, assign the **User and certificate manager** and **Certificate profile manager** roles.
+> For further information, see [DigiCert's instructions for creating a service user](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html)
 
 ### Step 2: Create certificate profile in DigiCert
 
@@ -58,7 +58,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 More DigiCert details:
 - Each DigiCert device type seat (license) can have multiple certificates only if they have the same CN and seat ID. If a new certificate has a different CN, a new DigiCert license is required.
-- If the value for any variable used in step 3 above changes, Fleet will resend the profile. This means, if you use a variable like `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` for CN or seat ID, and the variable's value changes, Fleet will get a new certificate and create a new seat in DigiCert. This will add a new DigiCert license. If you want to revoke a license in DigiCert, head to [**Trust Lifcycle Manager > Account > Seats**](https://demo.one.digicert.com/mpki/account/seats) and remove the seat.
+- If the value for any variable used in step 3 above changes, Fleet will resend the profile. This means, if you use a variable like `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` for CN or seat ID, and the variable's value changes, Fleet will get a new certificate and create a new seat in DigiCert. This will add a new DigiCert license. If you want to revoke a license in DigiCert, head to [**Trust Lifcycle Manager > Account > Seats**](https://one.digicert.com/mpki/account/seats) and remove the seat.
 - DigiCert seats aren't automatically revoked when hosts are deleted in Fleet. To revoke a license, ask the team that owns DigiCert to follow the instructions above.
 
 
