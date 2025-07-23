@@ -133,8 +133,8 @@ type Options struct {
 	NativePlatform string
 	// CustomOutfile is the custom output file name for the package.
 	CustomOutfile string
-	// FleetManagedClientCertificate configures fleetd to use TPM-backed key to sign HTTP requests.
-	FleetManagedClientCertificate bool
+	// FleetManagedHostIdentityCertificate configures fleetd to use TPM-backed key to sign HTTP requests.
+	FleetManagedHostIdentityCertificate bool
 }
 
 const (
