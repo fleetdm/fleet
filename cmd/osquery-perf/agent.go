@@ -226,7 +226,7 @@ func (a *mdmAgent) CachedString(key string) string {
 	return val
 }
 
-// adamIDsToSoftware is
+// adamIDsToSoftware is the set of VPP apps that we support in our mock VPP install flow.
 var adamIDsToSoftware = map[int]*fleet.Software{
 	406056744: {
 		Name:             "Evernote",
