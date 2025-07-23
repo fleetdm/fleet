@@ -9822,7 +9822,7 @@ Returns a list of all operating systems.
 }
 ```
 
-Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting.
+Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting. Other operating systems do not report vulnerabilities.
 
 ### Get software
 
@@ -10087,9 +10087,9 @@ Retrieves information about the specified operating system (OS) version.
 }
 ```
 
-Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting, so host counts across kernels may sum to more than the count of hosts running a given OS version.
+Windows and macOS listed vulnerabilities are based on OS version-specific data.
 
-Hosts running in a container or paravirtualized environment do not have a kernel of their own.
+Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting, so host counts across kernels may sum to more than the count of hosts running a given OS version. Hosts running in a container or paravirtualized environment do not have a kernel of their own.
 
 ```json
 {
@@ -10144,6 +10144,8 @@ Hosts running in a container or paravirtualized environment do not have a kernel
   ]
 }
 ```
+
+Operating systems other than Windows, macOS, and Linux do not report vulnerabilities.
 
 ### Add package
 
