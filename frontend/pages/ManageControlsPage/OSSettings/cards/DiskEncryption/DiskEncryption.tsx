@@ -254,7 +254,7 @@ const DiskEncryption = ({
                             <br />
                             <p>
                               When the PIN is set, it&rsquo;s required to unlock
-                              Windows host during startup.
+                              Windows hosts during startup.
                             </p>
                           </div>
                         }
