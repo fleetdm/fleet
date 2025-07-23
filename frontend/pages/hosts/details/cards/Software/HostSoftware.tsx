@@ -351,4 +351,6 @@ const HostSoftware = ({
   );
 };
 
+// TODO - name this consistently, it is confusing. This same component is called `SoftwareInventoryCard` one place,
+// `SoftwareCard` another, and `HostSoftware` here.
 export default React.memo(HostSoftware);
