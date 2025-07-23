@@ -226,11 +226,30 @@ func (a *mdmAgent) CachedString(key string) string {
 	return val
 }
 
+// adamIDsToSoftware is
 var adamIDsToSoftware = map[int]*fleet.Software{
 	406056744: {
 		Name:             "Evernote",
 		BundleIdentifier: "com.evernote.Evernote",
 		Version:          "10.147.1",
+		Installed:        false,
+	},
+	1091189122: {
+		Name:             "Bear: Markdown Notes",
+		BundleIdentifier: "net.shinyfrog.bear",
+		Version:          "2.4.5",
+		Installed:        false,
+	},
+	1487937127: {
+		Name:             "Craft: Write docs, AI editing",
+		BundleIdentifier: "com.lukilabs.lukiapp",
+		Version:          "3.1.7",
+		Installed:        false,
+	},
+	1444383602: {
+		Name:             "Goodnotes 6: AI Notes & Docs",
+		BundleIdentifier: "com.goodnotesapp.x",
+		Version:          "6.7.2",
 		Installed:        false,
 	},
 }
@@ -959,6 +978,10 @@ func (a *agent) runMacosMDMLoop() {
 				mdmCommandPayload = nextMdmCommandPayload
 			case "InstalledApplicationList":
 				var installedVPPSoftware []fleet.Software
+				// Our mock VPP apps start off as "not installed".
+				// The first time we get a verification command, we flip the flag to "installed",
+				// but don't include the software in the response.
+				// This ensures that 2 verification commands will be sent per VPP install.
 				for _, adamID := range a.installedAdamIDs {
 					if sw, ok := adamIDsToSoftware[adamID]; ok && sw != nil {
 						if sw.Installed {
@@ -985,7 +1008,6 @@ func (a *agent) runMacosMDMLoop() {
 					Command map[string]any `plist:"Command"`
 				}
 
-				log.Printf("command raw: %s", string(mdmCommandPayload.Raw))
 				plist.Unmarshal(mdmCommandPayload.Raw, &appRequest)
 				if err != nil {
 					log.Printf("parsing InstallApplication request: %s", err)
