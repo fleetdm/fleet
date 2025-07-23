@@ -3,6 +3,7 @@
   run_script:
     path: ../scripts/create-conditional-access-allow-file.sh
   critical: true
+  conditional_access_enabled: true
   description: This policy demonstrates Entra conditional access by checking for the existence of a file.
   resolution: This policy should self-remediate by executing a script. Otherwise, create the file /var/fleet/entra-conditional-access-allow and refetch. 
   platform: darwin
