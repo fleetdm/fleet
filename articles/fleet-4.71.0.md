@@ -1,7 +1,7 @@
 # Fleet 4.71.0 | IdP labels, user certificates, and more...
 
 <div purpose="embedded-content">
-   <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/29tyuFGgGMI?si=4c4K_hDDBVuOC_1r" frameborder="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.71.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.71.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
