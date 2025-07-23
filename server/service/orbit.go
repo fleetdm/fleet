@@ -774,6 +774,7 @@ func getOrbitScriptEndpoint(ctx context.Context, request interface{}, svc fleet.
 	if err != nil {
 		return orbitGetScriptResponse{Err: err}, nil
 	}
+
 	return orbitGetScriptResponse{HostScriptResult: script}, nil
 }
 
@@ -801,6 +802,13 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	if err != nil {
 		// This error should never occur because we validate secret variables on script upload.
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand embedded secrets for host %d and script %s", host.ID, execID))
+	}
+
+	// Populate embedded Fleet variables for certificate provisioning.
+	script.ScriptContents, err = svc.processFleetVariables(ctx, execID, script.ScriptContents)
+	if err != nil {
+		// This error should never occur because we validate secret variables on script upload.
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and script %s", host.ID, execID))
 	}
 
 	return script, nil

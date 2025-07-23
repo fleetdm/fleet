@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -113,6 +114,45 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	return res, nil
 }
 
+func findFleetVariables(contents string) map[string]struct{} {
+	resultSlice := findFleetVariablesKeepDuplicates(contents)
+	if len(resultSlice) == 0 {
+		return nil
+	}
+	return dedupeFleetVariables(resultSlice)
+}
+
+func dedupeFleetVariables(varsWithDupes []string) map[string]struct{} {
+	result := make(map[string]struct{}, len(varsWithDupes))
+	for _, v := range varsWithDupes {
+		result[v] = struct{}{}
+	}
+	return result
+}
+
+func findFleetVariablesKeepDuplicates(contents string) []string {
+	var result []string
+	matches := mdm_types.ProfileVariableRegex.FindAllStringSubmatch(contents, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	nameToIndex := make(map[string]int, 2)
+	for i, name := range mdm_types.ProfileVariableRegex.SubexpNames() {
+		if name == "" {
+			continue
+		}
+		nameToIndex[name] = i
+	}
+	for _, match := range matches {
+		for _, i := range nameToIndex {
+			if match[i] != "" {
+				result = append(result, match[i])
+			}
+		}
+	}
+	return result
+}
+
 func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier string, checkChallenge bool) (string,
 	error,
 ) {
@@ -141,28 +181,68 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	if len(parsedIDs) > 3 {
 		fleetChallenge = parsedIDs[3]
 	}
-	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
-		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles are supported): %s",
+	var profile *fleet.HostMDMCertificateProfile
+
+	// fleet always starts apple profiles with the letter "a" (see fleet.MDMAppleProfileUUIDPrefix)
+	// but script execution UUIDs are completely random, so check for a script execution first.
+	script, err := svc.ds.GetHostScriptExecutionResult(ctx, profileUUID)
+	if err == nil {
+		host, err := svc.ds.Host(ctx, script.HostID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "looking up host")
+		}
+		if host.UUID != hostUUID {
+			return "", ctxerr.New(ctx, "execution ID not assigned to this host")
+		}
+		if script.ExitCode != nil {
+			return "", ctxerr.New(ctx, "script execution has already completed")
+		}
+
+		fleetVars := findFleetVariables(script.ScriptContents)
+		for fleetVar := range fleetVars {
+			switch {
+			case strings.HasPrefix(fleetVar, fleet.FleetVarCustomSCEPChallengePrefix) || strings.HasPrefix(fleetVar, fleet.FleetVarCustomSCEPProxyURLPrefix):
+				caName := strings.TrimPrefix(fleetVar, fleet.FleetVarCustomSCEPChallengePrefix)
+
+				profile = &fleet.HostMDMCertificateProfile{
+					Type:   fleet.CAConfigCustomSCEPProxy,
+					CAName: caName,
+				}
+			default:
+				// ignore variables not relevant to custom SCEP/NDES
+				continue
+			}
+		}
+
+		if profile == nil {
+			return "", ctxerr.Wrap(ctx, err, "script does not refer to a SCEP or NDES service")
+		}
+	} else if strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
+		profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
+		}
+		if profile == nil {
+			// Return error that implements kithttp.StatusCoder interface
+			return "", &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
+		}
+		if profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending {
+			// This could happen if Fleet DB was updated before the profile was updated on the host.
+			// We expect another certificate request from the host once the profile is updated.
+			status := "null"
+			if profile.Status != nil {
+				status = string(*profile.Status)
+			}
+			return "", &scepserver.BadRequestError{Message: fmt.Sprintf("profile status (%s) is not 'pending' for host:%s profile:%s", status,
+				hostUUID, profileUUID)}
+		}
+	}
+
+	if profile == nil {
+		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles and script executions are supported): %s",
 			profileUUID)}
 	}
-	profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
-	}
-	if profile == nil {
-		// Return error that implements kithttp.StatusCoder interface
-		return "", &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
-	}
-	if profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending {
-		// This could happen if Fleet DB was updated before the profile was updated on the host.
-		// We expect another certificate request from the host once the profile is updated.
-		status := "null"
-		if profile.Status != nil {
-			status = string(*profile.Status)
-		}
-		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("profile status (%s) is not 'pending' for host:%s profile:%s", status,
-			hostUUID, profileUUID)}
-	}
+
 	var scepURL string
 	switch profile.Type {
 	case fleet.CAConfigNDES:
