@@ -20,7 +20,7 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 	<array>
 		<dict>
 			<key>Defer</key>
-			<true/>
+			<false/>
 			<key>Enable</key>
 			<string>On</string>
 			<key>PayloadDisplayName</key>
@@ -35,8 +35,6 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<integer>1</integer>
 			<key>ShowRecoveryKey</key>
 			<false/>
-			<key>DeferForceAtUserLoginMaxBypassAttempts</key>
-			<integer>1</integer>
 			<key>ForceEnableInSetupAssistant</key>
 			<true/>
 		</dict>
