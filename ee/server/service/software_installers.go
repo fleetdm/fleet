@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -202,9 +201,6 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, labelsInclud
 	}, nil
 }
 
-var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
-var upgradeCodeRegex = regexp.MustCompile(`((("\$UPGRADE_CODE")|(\$UPGRADE_CODE))(?P<suffix>\W|$))|(("\${UPGRADE_CODE}")|(\${UPGRADE_CODE}))`)
-
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) error {
 	// We assume that we already validated that payload.PackageIDs is not empty.
 	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
@@ -228,15 +224,15 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 		packageID = fmt.Sprintf("\"%s\"", payload.PackageIDs[0])
 	}
 
-	payload.UninstallScript = packageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
+	payload.UninstallScript = file.PackageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
 
 	// If $UPGRADE_CODE is in the script and we have one, replace it; if the var is included but we don't have one, error
-	if upgradeCodeRegex.MatchString(payload.UninstallScript) {
+	if file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
 		if payload.UpgradeCode == "" {
 			return errors.New("blank upgrade code when required in script")
 		}
 
-		payload.UninstallScript = upgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("\"%s\"${suffix}", payload.UpgradeCode))
+		payload.UninstallScript = file.UpgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("\"%s\"${suffix}", payload.UpgradeCode))
 	}
 
 	return nil

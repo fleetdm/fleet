@@ -602,13 +602,14 @@ func TestDirectIngestMDMMac(t *testing.T) {
 					},
 				}, nil
 			}
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.Equal(t, isServer, c.wantParams[0])
 				require.Equal(t, enrolled, c.wantParams[1])
 				require.Equal(t, serverURL, c.wantParams[2])
 				require.Equal(t, installedFromDep, c.wantParams[3])
 				require.Equal(t, name, c.wantParams[4])
 				require.Equal(t, fleetEnrollmentRef, c.enrollRef)
+				require.False(t, isPersonalEnrollment)
 				return nil
 			}
 
@@ -680,10 +681,11 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.False(t, isServer)
 				require.True(t, enrolled)
 				require.True(t, installedFromDep)
+				require.False(t, isPersonalEnrollment)
 
 				require.Equal(t, tc.wantServerURL, serverURL)
 				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
@@ -726,13 +728,14 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 				},
 			}, nil
 		}
-		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 			require.False(t, isServer)
 			require.True(t, enrolled)
 			require.True(t, installedFromDep)
 			require.Equal(t, "https://test.example.com", serverURL)
 			require.Equal(t, "test-reference", fleetEnrollmentRef)
 			require.Equal(t, fleet.WellKnownMDMFleet, name)
+			require.False(t, isPersonalEnrollment)
 
 			return nil
 		}
@@ -964,13 +967,14 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.Equal(t, c.wantEnrolled, enrolled)
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
 				require.Equal(t, c.wantMDMSolName, name)
 				require.Empty(t, fleetEnrollmentRef)
+				require.False(t, isPersonalEnrollment)
 				return nil
 			}
 		})

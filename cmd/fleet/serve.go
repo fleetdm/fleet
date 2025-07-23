@@ -1206,6 +1206,7 @@ the way that the Fleet server works.
 					mdmCheckinAndCommandService,
 					ddmService,
 					commander,
+					appCfg.ServerSettings.ServerURL,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}

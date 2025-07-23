@@ -77,9 +77,9 @@ This has an impact on real devices because they will not be notified of any comm
 ### Enabling Cloudfront
 
 > Do not commit your `BRANCH_NAME` if any files exist in `resources/TERRAFORM_WORKSPACE/` without a .encrypted extension.
-> This step assumes that you've already successfully executed terraform apply and have a `kms_key_id` output.
+> This step assumes that you've already successfully executed terraform apply and have a `kms_key_id` from the output of the terraform apply command.
 
-1. Under the loadtesting directory, create directory `resources/TERRAFORM_WORKSPACE/`. Your `TERRAFORM_WORKSPACE` value can be retrieved with `terraform workspace show`.
+1. Under the terraform directory, create directory `resources/TERRAFORM_WORKSPACE/`. Your `TERRAFORM_WORKSPACE` value can be retrieved with `terraform workspace show`.
 
 2. Change directory to `resources/TERRAFORM_WORKSPACE/`
 
@@ -120,7 +120,8 @@ fi
 aws kms encrypt --key-id "${1:?}" --plaintext fileb://<(cat "${2:?}") --output text --query CiphertextBlob > "${3:?}"
 ```
 
-5. Encrypt the objects using `encrypt.sh`
+5. Make the script executable by running `chmod +x ../../encrypt.sh`
+6. Encrypt the objects using `encrypt.sh`
 
 ```
 for i in *; do ../../encrypt.sh <KMS_KEY_ID> $i $i.encrypted; done

@@ -261,3 +261,14 @@ export interface IMdmCommandResult {
   /** Result is a base64-enconded string containing the MDM command response */
   result: string;
 }
+
+export const isEnrolledInMdm = (
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null
+): hostMdmEnrollmentStatus is MdmEnrollmentStatus => {
+  if (!hostMdmEnrollmentStatus) {
+    return false;
+  }
+  return ["On (automatic)", "On (manual)", "On (personal)"].includes(
+    hostMdmEnrollmentStatus
+  );
+};

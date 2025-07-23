@@ -7328,6 +7328,7 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 				false,
 				fleet.WellKnownMDMFleet,
 				"",
+				false,
 			),
 		)
 	}
@@ -7528,7 +7529,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, connectedMac, false)
-	err = ds.SetOrUpdateMDMData(ctx, connectedMac.ID, false, true, "http://foo.com", false, "foo", "")
+	err = ds.SetOrUpdateMDMData(ctx, connectedMac.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
 	disconnectedWithoutCheckoutMac, err := ds.NewHost(ctx, &fleet.Host{
@@ -7540,7 +7541,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, disconnectedWithoutCheckoutMac, false)
-	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutMac.ID, false, false, "", false, "", "")
+	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutMac.ID, false, false, "", false, "", "", false)
 	require.NoError(t, err)
 
 	notConnectedWin, err := ds.NewHost(ctx, &fleet.Host{
@@ -7576,7 +7577,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, connectedWin.ID, false, true, "http://foo.com", false, "foo", "")
+	err = ds.SetOrUpdateMDMData(ctx, connectedWin.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
 	disconnectedWithoutCheckoutWin, err := ds.NewHost(ctx, &fleet.Host{
@@ -7602,7 +7603,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollmentDisconnectedWithoutCheckout)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutWin.ID, false, false, "", false, "", "")
+	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutWin.ID, false, false, "", false, "", "", false)
 	require.NoError(t, err)
 
 	connectedMap, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
@@ -7668,7 +7669,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.False(t, connected)
 
 	nanoEnroll(t, ds, macH, false)
-	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, true, "http://foo.com", false, "foo", "")
+	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, macH)
@@ -7685,7 +7686,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	nanoEnrollUserDevice(t, ds, byodIpadH)
-	err = ds.SetOrUpdateMDMData(ctx, byodIpadH.ID, false, true, "http://foo.com", false, "foo", "")
+	err = ds.SetOrUpdateMDMData(ctx, byodIpadH.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, byodIpadH)
@@ -7719,7 +7720,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, true, "http://foo.com", false, "foo", "")
+	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
@@ -7727,9 +7728,9 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.True(t, connected)
 
 	// now simulate an un-enrollment without checkout, in this case, osquery reports the host as not-enrolled
-	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, false, "", false, "", "")
+	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, false, "", false, "", "", false)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, false, "", false, "", "")
+	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, false, "", false, "", "", false)
 	require.NoError(t, err)
 
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, macH)
@@ -8312,7 +8313,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, host8)
 
 	for _, h := range []*fleet.Host{host1, host2, host3, host4, host5, host6, host7, host8} {
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "")
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
 		require.NoError(t, err)
 	}
 
@@ -8480,7 +8481,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, host4)
 
 	for _, h := range []*fleet.Host{host1, host2, host3, host4} {
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "")
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
 		require.NoError(t, err)
 	}
 

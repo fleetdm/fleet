@@ -231,6 +231,7 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/foxboron/go-tpm-keyfiles v0.0.0-20250520203025-c3c3a4ec1653 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/garyburd/go-oauth v0.0.0-20180319155456-bca2e7f09a17 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect

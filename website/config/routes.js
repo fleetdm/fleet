@@ -947,6 +947,7 @@ module.exports.routes = {
   'GET /learn-more-about/microsoft-entra-setup': 'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/TenantProperties.ReactView',
   'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
+  'GET /learn-more-about/byod-hosts-vpp-install': 'https://github.com/fleetdm/fleet/issues/31138',
 
   // Sitemap
   // =============================================================================================================

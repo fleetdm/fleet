@@ -36,6 +36,8 @@ const (
 	SCEPPath = "/mdm/apple/scep"
 	// MDMPath is Fleet's HTTP path for the core MDM service.
 	MDMPath = "/mdm/apple/mdm"
+	// MDMServiceDiscoveryPath is Fleet's HTTP path for the MDM service discovery service.
+	ServiceDiscoveryPath = "/mdm/apple/service_discovery"
 
 	// EnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
 	EnrollPath = "/api/mdm/apple/enroll"

@@ -3408,13 +3408,15 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 		}
+		// TODO BMAA Update for activity changes
+		mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
+			HostDisplayName:  updatedInfo.DisplayName,
+			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
+			MDMPlatform:      fleet.MDMPlatformApple,
+			HostSerial:       updatedInfo.HardwareSerial,
+		}
 		return newActivity(
-			r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
-				HostSerial:       updatedInfo.HardwareSerial,
-				HostDisplayName:  updatedInfo.DisplayName,
-				InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
-				MDMPlatform:      fleet.MDMPlatformApple,
-			}, svc.ds, svc.logger,
+			r.Context, nil, mdmEnrolledActivity, svc.ds, svc.logger,
 		)
 	}
 
