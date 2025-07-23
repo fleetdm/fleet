@@ -1008,13 +1008,13 @@ func (a *agent) runMacosMDMLoop() {
 					Command map[string]any `plist:"Command"`
 				}
 
-				plist.Unmarshal(mdmCommandPayload.Raw, &appRequest)
+				err = plist.Unmarshal(mdmCommandPayload.Raw, &appRequest)
 				if err != nil {
 					log.Printf("parsing InstallApplication request: %s", err)
 					a.stats.IncrementMDMErrors()
 					break INNER_FOR_LOOP
 				}
-				log.Printf("got install application command for %s", appRequest.Command["iTunesStoreID"])
+				log.Printf("got install application command for %d", appRequest.Command["iTunesStoreID"])
 
 				if adamID, ok := appRequest.Command["iTunesStoreID"].(uint64); ok {
 					a.installedAdamIDs = append(a.installedAdamIDs, int(adamID))
