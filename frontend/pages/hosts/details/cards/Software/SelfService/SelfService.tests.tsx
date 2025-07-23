@@ -32,7 +32,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   onShowInstallDetails: noop,
   onShowUninstallDetails: noop,
   refetchHostDetails: noop,
-  isRefetchHostPolling: false,
+  isHostDetailsPolling: false,
 };
 
 describe("SelfService", () => {

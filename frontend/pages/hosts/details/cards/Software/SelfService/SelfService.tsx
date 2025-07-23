@@ -69,7 +69,7 @@ export interface ISoftwareSelfServiceProps {
   onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   refetchHostDetails: () => void;
-  isRefetchHostPolling: boolean;
+  isHostDetailsPolling: boolean;
 }
 
 const SoftwareSelfService = ({
@@ -82,7 +82,7 @@ const SoftwareSelfService = ({
   onShowInstallDetails,
   onShowUninstallDetails,
   refetchHostDetails,
-  isRefetchHostPolling,
+  isHostDetailsPolling,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -102,7 +102,7 @@ const SoftwareSelfService = ({
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingRefetchHost = useRef(isRefetchHostPolling);
+  const pendingRefetchHost = useRef(isHostDetailsPolling);
 
   const queryKey = useMemo<IDeviceSoftwareQueryKey[]>(() => {
     return [
@@ -136,14 +136,16 @@ const SoftwareSelfService = ({
     },
   });
 
+  // After host details polling (in parent) finishes, refetch software data.
+  // Ensures self service data reflects updates to installed_versions from the latest host details.
   useEffect(() => {
     // Detect transition the entire host being refetched to the entire host refetch being completed
     // Once entire host refetch polling ends, refetch software data to get updated installed_versions keyed from host data
-    if (pendingRefetchHost.current && !isRefetchHostPolling) {
+    if (pendingRefetchHost.current && !isHostDetailsPolling) {
       refetchSelfServiceData();
     }
-    pendingRefetchHost.current = isRefetchHostPolling;
-  }, [isRefetchHostPolling, refetchSelfServiceData]);
+    pendingRefetchHost.current = isHostDetailsPolling;
+  }, [isHostDetailsPolling, refetchSelfServiceData]);
 
   // Poll for pending installs/uninstalls
   const { refetch: refetchForPendingInstallsOrUninstalls } = useQuery<
