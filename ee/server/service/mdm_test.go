@@ -46,7 +46,8 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 		var payload struct {
 			PayloadContent []map[string]interface{}
 		}
-		plist.Unmarshal(mc, &payload)
+		_, err := plist.Unmarshal(mc, &payload)
+		require.NoError(t, err)
 
 		for _, p := range payload.PayloadContent {
 			if p["PayloadType"] == payloadType {
