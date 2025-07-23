@@ -25,6 +25,7 @@ var (
 	tmpDir                      string
 	env                         []string
 	installationSearchDirectory string
+	operatingSystem             string
 )
 
 type AppCommander struct {
@@ -36,6 +37,35 @@ type AppCommander struct {
 	AppPath string
 
 	MaintainedApp fleet.MaintainedApp
+}
+
+func (ac *AppCommander) isFrozen() (bool, error) {
+	var inputPath string
+	switch operatingSystem {
+	case "darwin":
+		inputPath = "ee/maintained-apps/inputs/homebrew"
+	case "windows":
+		inputPath = "ee\\maintained-apps\\inputs\\winget"
+	}
+	parts := strings.Split(ac.Slug, "/")
+	if len(parts) != 2 {
+		return false, fmt.Errorf("invalid slug format: %s, expected <name>/<platform>", ac.Slug)
+	}
+	inputPath = path.Join(inputPath, parts[0]+".json")
+
+	fileBytes, err := os.ReadFile(inputPath)
+	if err != nil {
+		return false, fmt.Errorf("reading app input file: %w", err)
+	}
+
+	var input struct {
+		Frozen bool `json:"frozen"`
+	}
+	if err := json.Unmarshal(fileBytes, &input); err != nil {
+		return false, fmt.Errorf("unmarshal app input file: %w", err)
+	}
+
+	return input.Frozen, nil
 }
 
 func (ac *AppCommander) extractAppVersion(installerTFR *fleet.TempFileReader) error {
@@ -146,7 +176,7 @@ func (ac *AppCommander) expectToChangeFileSystem(changer func() error) (string, 
 }
 
 func main() {
-	operatingSystem := strings.ToLower(os.Getenv("GOOS"))
+	operatingSystem = strings.ToLower(os.Getenv("GOOS"))
 	if operatingSystem == "" {
 		operatingSystem = runtime.GOOS
 		fmt.Printf("GOOS environment variable is not set. Using system detected: '%s'\n", operatingSystem)
@@ -190,6 +220,7 @@ func main() {
 	successfulApps := 0
 	appWithError := []string{}
 	appWithWarning := []string{}
+	frozenApps := []string{}
 	for _, app := range apps {
 		if app.Platform != operatingSystem {
 			continue
@@ -226,10 +257,22 @@ func main() {
 		ac.UniqueIdentifier = app.UniqueIdentifier
 		ac.MaintainedApp = maintainedApp
 
+		isFrozen, err := ac.isFrozen()
+		if err != nil {
+			fmt.Printf("Error checking if app is frozen: %v\n", err)
+			appWithError = append(appWithError, ac.Name)
+			continue
+		}
+		if isFrozen {
+			fmt.Printf("App is frozen, skipping validation...\n")
+			frozenApps = append(frozenApps, ac.Name)
+			continue
+		}
+
 		installerTFR, err := DownloadMaintainedApp(maintainedApp)
 		if err != nil {
 			fmt.Printf("Error downloading maintained app: %v\n", err)
-			appWithError = append(appWithError, app.Name)
+			appWithError = append(appWithError, ac.Name)
 			continue
 		}
 		defer installerTFR.Close()
@@ -326,16 +369,22 @@ func main() {
 		successfulApps++
 	}
 
-	if successfulApps == totalApps {
+	if successfulApps == totalApps-len(frozenApps) {
 		fmt.Printf("\nAll %d apps were successfully validated.\n", totalApps)
 		if len(appWithWarning) > 0 {
 			fmt.Printf("Some apps were validated with warnings: %v\n", appWithWarning)
+		}
+		if len(frozenApps) > 0 {
+			fmt.Printf("Some apps were frozen and skipped validation: %v\n", frozenApps)
 		}
 		os.Exit(0)
 	} else {
 		fmt.Printf("\nValidated %d out of %d apps successfully.\n", successfulApps, totalApps)
 		if len(appWithWarning) > 0 {
 			fmt.Printf("Some apps were validated with warnings: %v\n", appWithWarning)
+		}
+		if len(frozenApps) > 0 {
+			fmt.Printf("Some apps were frozen and skipped validation: %v\n", frozenApps)
 		}
 		fmt.Printf("Apps with errors: %v\n", appWithError)
 		os.Exit(1)
