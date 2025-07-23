@@ -422,6 +422,14 @@ export type IHostSoftwareUiStatus =
   | "failed_uninstall_update_available"
   | "update_available";
 
+/**
+ * Extends IHostSoftware with a computed `ui_status` field.
+ *
+ * The `ui_status` categorizes software installation state for the UI by
+ * combining the `status`, `installed_versions` info, and other factors
+ * like host online state (via getUiStatus helper function), enabling
+ * more detailed and status labels needed for the status and actions columns.
+ */
 export interface IHostSoftwareWithUiStatus extends IHostSoftware {
   ui_status: IHostSoftwareUiStatus;
 }

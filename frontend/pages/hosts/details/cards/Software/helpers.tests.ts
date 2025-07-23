@@ -23,6 +23,10 @@ describe("compareVersions", () => {
     expect(compareVersions("1.0.0-alpha", "1.0.0-rc")).toBe(-1);
   });
 
+  it("orders pre-release tags correctly against patch increments", () => {
+    expect(compareVersions("1.0", "1.2-beta")).toBe(-1);
+  });
+
   it("compares numeric suffixes after pre-release tags", () => {
     expect(compareVersions("1.0.0-alpha.1", "1.0.0-alpha.2")).toBe(-1);
     expect(compareVersions("1.0.0-rc.1", "1.0.0-rc.2")).toBe(-1);

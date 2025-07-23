@@ -35,7 +35,21 @@ const splitVersion = (version: string): Array<string | number> =>
   flatMap(
     stripBuildMetadata(version).replace(/[-_]/g, ".").split("."),
     (part: string) => part.match(/\d+|[a-zA-Z]+/g) || []
-  ).map((seg: string) => (/^\d+$/.test(seg) ? Number(seg) : seg.toLowerCase()));
+  ).map((seg: string) => {
+    if (/^\d+$/.test(seg)) {
+      // numeric segment, convert to number
+      return Number(seg);
+    } else if (/^[a-zA-Z]+$/.test(seg)) {
+      // expected alphabetic segment, normalize to lowercase
+      return seg.toLowerCase();
+    }
+    // unexpected segment - log a warning with context
+    console.warn(
+      `Warning: Unexpected version segment "${seg}" found in version string "${version}"`
+    );
+    // fallback: return as lowercase string anyway
+    return seg.toLowerCase();
+  });
 
 /**
  * Compares two pre-release identifiers according to PRE_RELEASE_ORDER.
@@ -67,6 +81,8 @@ export const compareVersions = (v1: string, v2: string): number => {
   const maxLen = Math.max(s1.length, s2.length);
   let result = 0;
 
+  // Compare each version segment one by one, left-to-right, until a difference is found
+  // Stop on the first difference between two versions
   Array.from({ length: maxLen }).some((_, i) => {
     const a = s1[i] ?? 0;
     const b = s2[i] ?? 0;
@@ -89,7 +105,7 @@ export const compareVersions = (v1: string, v2: string): number => {
         return true;
       }
     } else {
-      // Numbers are always greater than strings (e.g., 1.0 > 1.0-beta)
+      // When comparing segments at the same position, numbers > strings (e.g., 1.0 > 1.0-beta, 1.2.3 > 1.2-rc)
       result = typeof a === "number" ? 1 : -1;
       return true;
     }
