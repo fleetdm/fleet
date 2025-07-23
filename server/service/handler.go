@@ -1130,6 +1130,7 @@ func RegisterAppleMDMProtocolServices(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	serverURLPrefix string,
 ) error {
 	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
@@ -1137,6 +1138,30 @@ func RegisterAppleMDMProtocolServices(
 	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix); err != nil {
+		return fmt.Errorf("service discovery: %w", err)
+	}
+	return nil
+}
+
+func registerMDMServiceDiscovery(
+	mux *http.ServeMux,
+	logger kitlog.Logger,
+	serverURLPrefix string,
+) error {
+	serviceDiscoveryLogger := kitlog.With(logger, "component", "mdm-apple-service-discovery")
+	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
+	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serviceDiscoveryLogger.Log("msg", "serving MDM service discovery response", "url", fullMDMEnrollmentURL)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, err := fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, fullMDMEnrollmentURL)
+		if err != nil {
+			serviceDiscoveryLogger.Log("err", "error writing service discovery response", "err", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+	})
+	mux.Handle(apple_mdm.ServiceDiscoveryPath, serviceDiscoveryHandler)
 	return nil
 }
 
