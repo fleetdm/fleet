@@ -120,8 +120,8 @@ const InstallerStatus = ({
         ) : (
           <Icon name={displayConfig.iconName || "install"} />
         )}
-        <span data-testid={`${baseClass}__status--test`}>
-          {last_install && displayConfig.displayText === "Failed" ? (
+        {last_install && displayConfig.displayText === "Failed" && (
+          <span data-testid={`${baseClass}__status--test`}>
             <Button
               className={`${baseClass}__item-status-button`}
               variant="text-icon"
@@ -131,8 +131,8 @@ const InstallerStatus = ({
             >
               {displayConfig.displayText}
             </Button>
-          ) : null}
-        </span>
+          </span>
+        )}
       </div>
       <ReactTooltip
         className={`${baseClass}__status-tooltip`}

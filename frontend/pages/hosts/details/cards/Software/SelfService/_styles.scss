@@ -29,16 +29,18 @@
 
   &__items {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); // 4 cards
+    grid-template-columns: repeat(
+      2,
+      1fr
+    ); // default: 2 cards (smallest screens)
     gap: $pad-large;
 
-    @media (max-width: ($break-lg - 1)) {
-      grid-template-columns: repeat(3, 1fr); // 3 cards
+    @media (min-width: $break-xs) {
+      grid-template-columns: repeat(3, 1fr); // 3 cards (medium screens)
     }
 
-    @media (max-width: ($break-sm - 1)) {
-      // TODO: Change back to 768 break-xs after testing
-      grid-template-columns: repeat(2, 1fr); // 2 cards
+    @media (min-width: $break-lg) {
+      grid-template-columns: repeat(4, 1fr); // 4 cards (large screens)
     }
   }
 

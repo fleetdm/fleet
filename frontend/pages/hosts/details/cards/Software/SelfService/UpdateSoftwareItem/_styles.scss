@@ -7,7 +7,7 @@
   &__item-content {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: $pad-small;
   }
 
   &__item-topline {
@@ -15,7 +15,7 @@
     flex-direction: row;
     height: 66px;
     align-items: center;
-    gap: 16px;
+    gap: $pad-medium;
     overflow: hidden;
   }
 
@@ -55,21 +55,21 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    padding-top: 16px;
+    gap: $pad-small;
+    padding-top: $pad-medium;
     border-top: 1px solid $ui-fleet-black-10;
   }
 
   &__item-status {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: $pad-small;
   }
 
   &__item-action {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: $pad-small;
     font-size: $x-small;
   }
 

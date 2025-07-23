@@ -83,7 +83,7 @@ export interface ISoftwareSelfServiceProps {
 
 const getUpdatesPageSize = (width: number): number => {
   if (width >= 1400) return 4;
-  if (width >= 880) return 3; // TODO: Change back to 768 after testing
+  if (width >= 768) return 3;
   return 2;
 };
 
