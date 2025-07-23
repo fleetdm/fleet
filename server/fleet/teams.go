@@ -48,6 +48,9 @@ type TeamPayload struct {
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
+	// in order for Fleet to consider them compliant.
+	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
 	// MacOSUpdates defines the OS update settings for macOS devices.
 	MacOSUpdates *AppleOSUpdateSettings `json:"macos_updates"`
@@ -193,6 +196,7 @@ type TeamSpecAppStoreApp struct {
 
 type TeamMDM struct {
 	EnableDiskEncryption bool                  `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  bool                  `json:"windows_require_bitlocker_pin"`
 	MacOSUpdates         AppleOSUpdateSettings `json:"macos_updates"`
 	IOSUpdates           AppleOSUpdateSettings `json:"ios_updates"`
 	IPadOSUpdates        AppleOSUpdateSettings `json:"ipados_updates"`
@@ -255,6 +259,9 @@ func (t *TeamMDM) Copy() *TeamMDM {
 
 type TeamSpecMDM struct {
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
+	// in order for Fleet to consider them compliant.
+	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
 	// MacOSUpdates defines the OS update settings for macOS devices.
 	MacOSUpdates AppleOSUpdateSettings `json:"macos_updates"`

@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/rs/zerolog/log"
 )
 
@@ -60,6 +61,12 @@ type OrbitClient struct {
 	receiverUpdateContext context.Context
 	// receiverUpdateCancelFunc is used to cancel receiverUpdateContext.
 	receiverUpdateCancelFunc context.CancelFunc
+
+	// hostIdentityCertPath is the file path to the host identity certificate issued using SCEP.
+	//
+	// If set then it will be deleted on HTTP 401 errors from Fleet and it will cause ExecuteConfigReceivers
+	// to terminate to trigger a restart.
+	hostIdentityCertPath string
 }
 
 // time-to-live for config cache
@@ -167,9 +174,11 @@ func NewOrbitClient(
 	fleetClientCert *tls.Certificate,
 	orbitHostInfo fleet.OrbitHostInfo,
 	onGetConfigErrFns *OnGetConfigErrFuncs,
+	httpSignerWrapper func(*http.Client) *http.Client,
+	hostIdentityCertPath string,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.GetOrbitClientCapabilities()
-	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
+	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)
 	if err != nil {
 		return nil, err
 	}
@@ -188,6 +197,7 @@ func NewOrbitClient(
 		ReceiverUpdateInterval:     defaultOrbitConfigReceiverInterval,
 		receiverUpdateContext:      ctx,
 		receiverUpdateCancelFunc:   cancelFunc,
+		hostIdentityCertPath:       hostIdentityCertPath,
 	}, nil
 }
 
@@ -485,7 +495,7 @@ func (oc *OrbitClient) Ping() error {
 
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
-	params := EnrollOrbitRequest{
+	params := contract.EnrollOrbitRequest{
 		EnrollSecret:      oc.enrollSecret,
 		HardwareUUID:      oc.hostInfo.HardwareUUID,
 		HardwareSerial:    oc.hostInfo.HardwareSerial,
@@ -616,6 +626,14 @@ func (oc *OrbitClient) authenticatedRequest(verb string, path string, params int
 			log.Info().Err(err).Msg("remove orbit node key")
 		}
 		oc.setEnrolled(false)
+
+		if oc.hostIdentityCertPath != "" {
+			if err := os.Remove(oc.hostIdentityCertPath); err != nil {
+				log.Info().Err(err).Msg("remove orbit host identity cert")
+			}
+			log.Info().Msg("removed orbit host identity cert, triggering a restart")
+			oc.receiverUpdateCancelFunc()
+		}
 		return err
 	default:
 		return err

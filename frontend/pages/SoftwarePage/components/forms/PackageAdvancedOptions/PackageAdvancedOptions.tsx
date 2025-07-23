@@ -122,6 +122,21 @@ const getUninstallHelpText = (pkgType: PackageType) => {
     );
   }
 
+  if (pkgType === "msi") {
+    return (
+      <>
+        $UPGRADE_CODE will be populated with the .msi&apos;s upgrade code if
+        available, and $PACKAGE_ID will be populated with its product code,
+        after the software is added. {getSupportedScriptTypeText(pkgType)}{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-scripts`}
+          text="Learn more about uninstall scripts"
+          newTab
+        />
+      </>
+    );
+  }
+
   return (
     <>
       $PACKAGE_ID will be populated with the {PKG_TYPE_TO_ID_TEXT[pkgType]} from

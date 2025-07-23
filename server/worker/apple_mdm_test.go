@@ -94,7 +94,7 @@ func TestAppleMDM(t *testing.T) {
 			err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmTokenID)
 			require.NoError(t, err)
 		}
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet, "")
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet, "", false)
 		require.NoError(t, err)
 		return h
 	}
@@ -816,5 +816,4 @@ func TestGetSignedURL(t *testing.T) {
 	assert.Contains(t, buf.String(), "test error")
 	assert.True(t, mockStore.SignFuncInvoked)
 	assert.False(t, mockStore.ExistsFuncInvoked)
-
 }

@@ -63,8 +63,10 @@ func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u 
 		err = xml.Unmarshal(reqBytes, &req.Data)
 		if err != nil {
 			// We log the request body for debug by using an error implementing ErrWithInternal interface.
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "unmarshalling soap mdm request: " + err.Error(),
-				InternalErr: fmt.Errorf("request: %s", truncateString(string(reqBytes), maxRequestLogSize))})
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message:     "unmarshalling soap mdm request: " + err.Error(),
+				InternalErr: fmt.Errorf("request: %s", truncateString(string(reqBytes), maxRequestLogSize)),
+			})
 		}
 	}
 

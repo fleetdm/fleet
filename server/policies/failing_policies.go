@@ -43,6 +43,7 @@ func TriggerFailingPoliciesAutomation(
 	logger kitlog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
 	sendFunc func(*fleet.Policy, FailingPolicyAutomationConfig) error,
+	enablePrimo bool,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -50,7 +51,7 @@ func TriggerFailingPoliciesAutomation(
 	}
 
 	// build the global automation configuration
-	var globalCfg FailingPolicyAutomationConfig
+	var globalAutomationCfg FailingPolicyAutomationConfig
 
 	globalAutomation := getActiveAutomation(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations)
 	if globalAutomation != "" {
@@ -62,22 +63,22 @@ func TriggerFailingPoliciesAutomation(
 	if globalAutomation != "" {
 		// if global failing policies automation is enabled, keep a set of
 		// policies for which the automation must run.
-		globalCfg.AutomationType = globalAutomation
+		globalAutomationCfg.AutomationType = globalAutomation
 		globalSettings := appConfig.WebhookSettings.FailingPoliciesWebhook
 
 		polIDs := make(map[uint]bool, len(globalSettings.PolicyIDs))
 		for _, pID := range globalSettings.PolicyIDs {
 			polIDs[pID] = true
 		}
-		globalCfg.PolicyIDs = polIDs
+		globalAutomationCfg.PolicyIDs = polIDs
 
 		if globalAutomation == FailingPolicyWebhook {
 			wurl, err := url.Parse(globalSettings.DestinationURL)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "parse global webhook url: %s", globalSettings.DestinationURL)
 			}
-			globalCfg.WebhookURL = wurl
-			globalCfg.HostBatchSize = globalSettings.HostBatchSize
+			globalAutomationCfg.WebhookURL = wurl
+			globalAutomationCfg.HostBatchSize = globalSettings.HostBatchSize
 		}
 	}
 
@@ -102,8 +103,24 @@ func TriggerFailingPoliciesAutomation(
 			return ctxerr.Wrapf(ctx, err, "get policy: %d", policyID)
 		}
 
-		if policy.TeamID != nil {
-			// handle team policy
+		// there is no team-level configuration for no team policies - however, these conditions ensure
+		// that when enablePrimo is not set, the logic is exactly as it would be otherwise
+		if policy.TeamID == nil || (*policy.TeamID == 0 && enablePrimo) {
+			// use the global config
+			if !globalAutomationCfg.PolicyIDs[policy.ID] {
+				level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID)
+				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
+					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+				}
+				continue
+			}
+
+			if err := sendFunc(policy, globalAutomationCfg); err != nil {
+				level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
+			}
+		} else {
+			// use team config
+			// see above comment re enablePrimo and no team / teamConfig
 			teamCfg, err := getTeam(ctx, *policy.TeamID)
 			switch {
 			case errors.Is(err, sql.ErrNoRows):
@@ -133,20 +150,6 @@ func TriggerFailingPoliciesAutomation(
 			if err := sendFunc(policy, teamCfg); err != nil {
 				level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
 			}
-			continue
-		}
-
-		// handle global policy
-		if !globalCfg.PolicyIDs[policy.ID] {
-			level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID)
-			if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
-			}
-			continue
-		}
-
-		if err := sendFunc(policy, globalCfg); err != nil {
-			level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
 		}
 	}
 

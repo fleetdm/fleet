@@ -1,4 +1,5 @@
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	EnableDiskEncryption	bool
+github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	RequireBitLockerPIN	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSUpdates	fleet.AppleOSUpdateSettings
 github.com/fleetdm/fleet/v4/server/fleet/AppleOSUpdateSettings	MinimumVersion	optjson.String
 github.com/fleetdm/fleet/v4/pkg/optjson/String	Set	bool

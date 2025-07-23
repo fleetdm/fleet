@@ -601,6 +601,9 @@ type SCEPIdentityAssociation struct {
 	// EnrolledFromMigration is used for devices migrated via datababse
 	// dumps (ie: "touchless")
 	EnrolledFromMigration bool `db:"enrolled_from_migration"`
+	// EnrollmentType is nano_enrollment.type and should be examined to determine
+	// the proper enrollment profile.
+	EnrollmentType string `db:"type"`
 }
 
 // MDMAppleDeclaration represents a DDM JSON declaration.

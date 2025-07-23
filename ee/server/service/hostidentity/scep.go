@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -22,6 +23,19 @@ const (
 	scepPath         = "/api/fleet/orbit/host_identity/scep"
 	scepValidityDays = 365
 )
+
+// RateLimitError is an error type that generates a 429 status code.
+type RateLimitError struct {
+	Message string
+}
+
+// Error returns the error message.
+func (e *RateLimitError) Error() string {
+	return e.Message
+}
+
+// StatusCode implements the kithttp StatusCoder interface
+func (e *RateLimitError) StatusCode() int { return http.StatusTooManyRequests }
 
 // RegisterSCEP registers the HTTP handler for SCEP service needed for fleetd enrollment.
 func RegisterSCEP(
@@ -158,6 +172,14 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 	if err != nil {
 		svc.logger.Log("msg", "failed to sign CSR", "err", err)
+
+		// Check if this is a rate limit error (permanent error from backoff)
+		var permanentErr *backoff.PermanentError
+		if errors.As(err, &permanentErr) {
+			// Return HTTP 429 for rate limit errors
+			return nil, &RateLimitError{Message: err.Error()}
+		}
+
 		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
 		if certRep == nil {
 			return nil, err

@@ -1,7 +1,11 @@
 import React, { ReactNode } from "react";
 
 import { dateAgo } from "utilities/date_format";
-import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
+import {
+  IHostSoftware,
+  ISoftwareAppStoreAppStatus,
+  SoftwareInstallStatus,
+} from "interfaces/software";
 
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -14,6 +18,8 @@ const baseClass = "install-status-cell";
 
 interface CommandUuid {
   command_uuid: string;
+  software_title?: string;
+  status?: SoftwareInstallStatus;
 }
 
 interface InstallUuid {
@@ -204,7 +210,11 @@ const InstallStatusCell = ({
   const onClickInstallStatus = () => {
     if (onShowInstallDetails && lastInstall) {
       if ("command_uuid" in lastInstall) {
-        onShowInstallDetails({ command_uuid: lastInstall.command_uuid });
+        onShowInstallDetails({
+          command_uuid: lastInstall.command_uuid,
+          software_title: software.name,
+          status: software.status || undefined,
+        });
       } else if ("install_uuid" in lastInstall) {
         onShowInstallDetails({ install_uuid: lastInstall.install_uuid });
       } else {

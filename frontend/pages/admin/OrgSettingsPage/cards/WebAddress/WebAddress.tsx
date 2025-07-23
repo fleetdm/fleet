@@ -99,7 +99,7 @@ const WebAddress = ({
         <SectionHeader title="Fleet web address" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
-            label="Fleet app URL"
+            label="URL"
             helpText={
               <>
                 Include base path only (eg. no <code>/latest</code>)
