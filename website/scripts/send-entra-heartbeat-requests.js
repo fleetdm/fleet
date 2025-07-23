@@ -29,7 +29,7 @@ module.exports = {
       if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, bail early for this Entra tenant.
         return;
       }
-      // console.log(tokenAndApiUrls);
+
       let accessToken = tokenAndApiUrls.manageApiAccessToken;
       let tenantDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
 
