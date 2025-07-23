@@ -131,7 +131,7 @@ const HostSoftwareLibrary = ({
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingRefetchHost = useRef(isHostDetailsPolling);
+  const isAwaitingHostDetailsPolling = useRef(isHostDetailsPolling);
 
   const queryKey = useMemo<IHostSoftwareQueryKey[]>(() => {
     return [
@@ -166,12 +166,12 @@ const HostSoftwareLibrary = ({
   // After host details polling (in parent) finishes, refetch software data.
   // Ensures self service data reflects updates to installed_versions from the latest host details.
   useEffect(() => {
-    // Detect transition the entire host being refetched to the entire host refetch being completed
-    // Once entire host refetch polling ends, refetch software data to get updated installed_versions keyed from host data
-    if (pendingRefetchHost.current && !isHostDetailsPolling) {
+    // Detect completion of the host details polling (in parent)
+    // Once host details polling completes, refetch software data to retreive updated installed_versions keyed from host details data
+    if (isAwaitingHostDetailsPolling.current && !isHostDetailsPolling) {
       refetchHostSoftwareLibrary();
     }
-    pendingRefetchHost.current = isHostDetailsPolling;
+    isAwaitingHostDetailsPolling.current = isHostDetailsPolling;
   }, [isHostDetailsPolling, refetchHostSoftwareLibrary]);
 
   // Poll for pending installs/uninstalls
