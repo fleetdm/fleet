@@ -1284,6 +1284,27 @@ func newWindowsMDMProfileManagerSchedule(
 	return s, nil
 }
 
+// // TODO(BMAA): Uncomment this when ready to test Apple account-driven enrollment flow
+// func newMDMAppleServiceDiscoverySchedule(
+// 	ctx context.Context,
+// 	instanceID string,
+// 	ds fleet.Datastore,
+// 	depStorage *mysql.NanoDEPStorage,
+// 	logger kitlog.Logger,
+// ) (*schedule.Schedule, error) {
+// 	const name = "mdm_service_discovery"
+// 	interval := 1 * time.Hour
+// 	logger = kitlog.With(logger, "cron", name)
+// 	s := schedule.New(
+// 		ctx, name, instanceID, interval, ds, ds,
+// 		schedule.WithLogger(logger),
+// 		schedule.WithJob("mdm_apple_account_driven_enrollment_profile", func(ctx context.Context) error {
+// 			return service.EnsureMDMAppleServiceDiscovery(ctx, ds, depStorage, logger)
+// 		}),
+// 	)
+// 	return s, nil
+// }
+
 func newMDMAPNsPusher(
 	ctx context.Context,
 	instanceID string,

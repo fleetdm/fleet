@@ -244,6 +244,8 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	err = signer.Sign(req)
 	require.NoError(t, err)
 
+	clonedRequest := req.Clone(ctx)
+
 	// Send the signed request
 	client := fleethttp.NewClient()
 	httpResp, err := client.Do(req)
@@ -261,10 +263,11 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	require.NoError(t, signedEnrollResp.Err)
 
 	// Send the same request again. We don't have replay protection, so it should succeed.
-	httpResp, err = client.Do(req)
+	httpResp, err = client.Do(clonedRequest)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Same request with HTTP signature should succeed")
+
 	// Parse the response
 	signedEnrollResp = enrollOrbitResponse{}
 	err = json.NewDecoder(httpResp.Body).Decode(&signedEnrollResp)

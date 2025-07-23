@@ -182,7 +182,7 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, macHost, false)
-	err = ds.MDMAppleUpsertHost(testCtx(), macHost)
+	err = ds.MDMAppleUpsertHost(testCtx(), macHost, false)
 	require.NoError(t, err)
 
 	// create a non-mdm host

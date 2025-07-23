@@ -10,6 +10,7 @@ import {
   isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import {
   HostMdmDeviceStatusUIState,
@@ -84,6 +85,7 @@ interface IHostActionConfigOptions {
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
   isPrimoMode: boolean;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -106,12 +108,14 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
     isEnrolledInMdm,
     isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
+    hostMdmEnrollmentStatus,
   } = config;
   return (
     !isAndroid(hostPlatform) && // TODO(android): confirm can't turn off MDM for windows, iOS, iPadOS?
     isAppleDevice(hostPlatform) &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
+    hostMdmEnrollmentStatus !== "On (personal)" && // can't turn off MDM for personally enrolled hosts
     isConnectedToFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
@@ -164,19 +168,26 @@ const canWipeHost = ({
   isWindowsMdmEnabledAndConfigured,
   hostPlatform,
   hostMdmDeviceStatus,
+  hostMdmEnrollmentStatus,
 }: IHostActionConfigOptions) => {
   const hostMdmEnabled =
     (isAppleDevice(hostPlatform) && isMacMdmEnabledAndConfigured) ||
     (hostPlatform === "windows" && isWindowsMdmEnabledAndConfigured);
 
-  // Windows and Apple devices (i.e. macOS, iOS, iPadOS) have the same conditions and can be wiped if they
-  // are enrolled in MDM and the MDM is enabled.
+  // Windows and Apple devices (i.e. macOS, iOS, iPadOS, windows) have the same
+  // conditions and can be wiped if they are enrolled in MDM and the MDM is enabled.
   const canWipeWindowsOrAppleOS =
     hostMdmEnabled && isConnectedToFleetMdm && isEnrolledInMdm;
+
+  // there is a special case for iOS and iPadOS devices that are personally enrolled
+  // in MDM. These hosts cannot be wiped.
+  const isPersonallyEnrolledIosOrIpadDevice =
+    isIPadOrIPhone(hostPlatform) && hostMdmEnrollmentStatus === "On (personal)";
 
   return (
     isPremiumTier &&
     !isAndroid(hostPlatform) &&
+    !isPersonallyEnrolledIosOrIpadDevice &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
@@ -195,6 +206,8 @@ const canUnlock = ({
   hostPlatform,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
+  // macOS hosts can be unlocked if they are enrolled in the Fleet MDM and the
+  // MDM is enabled and configured.
   const canUnlockDarwin =
     hostPlatform === "darwin" &&
     isConnectedToFleetMdm &&
@@ -229,10 +242,9 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   const { isPremiumTier, doesStoreEncryptionKey, hostPlatform } = config;
-  if (isMobilePlatform(hostPlatform)) {
-    return false;
-  }
-  return isPremiumTier && doesStoreEncryptionKey;
+  return (
+    !isMobilePlatform(hostPlatform) && isPremiumTier && doesStoreEncryptionKey
+  );
 };
 
 const canRunScript = ({

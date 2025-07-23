@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
 import permissions from "utilities/permissions";
 import { AppContext } from "context/app";
 
@@ -65,9 +65,7 @@ const HostActionsDropdown = ({
     isTeamMaintainer,
     isTeamObserver,
     isHostOnline: hostStatus === "online",
-    isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
-      hostMdmEnrollmentStatus ?? ""
-    ),
+    isEnrolledInMdm: isEnrolledInMdm(hostMdmEnrollmentStatus),
     isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
@@ -75,6 +73,7 @@ const HostActionsDropdown = ({
     hostMdmDeviceStatus,
     hostScriptsEnabled,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
+    hostMdmEnrollmentStatus,
   });
 
   // No options to render. Exit early

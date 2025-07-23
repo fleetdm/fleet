@@ -1809,11 +1809,13 @@ func TestDetailQueries(t *testing.T) {
 		return map[string]string{}, nil
 	}
 	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string,
-		fleetEnrollmentRef string) error {
+		fleetEnrollmentRef string, isPersonalEnrollment bool,
+	) error {
 		require.True(t, enrolled)
 		require.False(t, installedFromDep)
 		require.Equal(t, "hi.com", serverURL)
 		require.Empty(t, fleetEnrollmentRef)
+		require.False(t, isPersonalEnrollment)
 		return nil
 	}
 	ds.SetOrUpdateMunkiInfoFunc = func(ctx context.Context, hostID uint, version string, errs, warns []string) error {
@@ -2036,7 +2038,8 @@ func TestDetailQueries(t *testing.T) {
 	}
 
 	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]struct{},
-		result *fleet.UpdateHostSoftwareDBResult) error {
+		result *fleet.UpdateHostSoftwareDBResult,
+	) error {
 		return nil
 	}
 
@@ -2238,13 +2241,15 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	}
 	var gotTargets []*fleet.DistributedQueryCampaignTarget
 	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context,
-		target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+		target *fleet.DistributedQueryCampaignTarget,
+	) (*fleet.DistributedQueryCampaignTarget, error) {
 		gotTargets = append(gotTargets, target)
 		return target, nil
 	}
 
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics,
-		error) {
+		error,
+	) {
 		return fleet.TargetMetrics{}, nil
 	}
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
@@ -3077,11 +3082,13 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 		return camp, nil
 	}
 	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context,
-		target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+		target *fleet.DistributedQueryCampaignTarget,
+	) (*fleet.DistributedQueryCampaignTarget, error) {
 		return target, nil
 	}
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics,
-		error) {
+		error,
+	) {
 		return fleet.TargetMetrics{}, nil
 	}
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
@@ -3141,11 +3148,13 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 		return query, nil
 	}
 	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context,
-		target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+		target *fleet.DistributedQueryCampaignTarget,
+	) (*fleet.DistributedQueryCampaignTarget, error) {
 		return target, nil
 	}
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics,
-		error) {
+		error,
+	) {
 		return fleet.TargetMetrics{}, nil
 	}
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
@@ -3198,13 +3207,15 @@ func TestPolicyQueries(t *testing.T) {
 	}
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
-		deferred bool) error {
+		deferred bool,
+	) error {
 		recordedResults = results
 		host = gotHost
 		return nil
 	}
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
-		err error) {
+		err error,
+	) {
 		return nil, nil, nil
 	}
 
@@ -3486,7 +3497,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	}
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
-		deferred bool) error {
+		deferred bool,
+	) error {
 		recordedResults = results
 		host = gotHost
 		return nil
@@ -3521,7 +3533,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	checkPolicyResults(queries)
 
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
-		err error) {
+		err error,
+	) {
 		return []uint{3}, nil, nil
 	}
 
@@ -3626,7 +3639,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	checkPolicyResults(queries)
 
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
-		err error) {
+		err error,
+	) {
 		return []uint{1}, []uint{3}, nil
 	}
 
@@ -3674,7 +3688,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	require.NoError(t, err)
 
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
-		err error) {
+		err error,
+	) {
 		return []uint{}, []uint{2}, nil
 	}
 

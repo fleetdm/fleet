@@ -25,7 +25,7 @@ type Credentials struct {
 	// CertificatePath is the file path to the public certificate issued via SCEP.
 	CertificatePath string
 
-	secureHW securehw.TEE
+	secureHW securehw.SecureHW
 }
 
 // Close releases key resources.
@@ -33,7 +33,7 @@ func (c *Credentials) Close() {
 	c.secureHW.Close()
 }
 
-// Setup creates a private key using a TEE and generates a new client
+// Setup creates a private key using a SecureHW and generates a new client
 // certificate using SCEP.
 // If there's already a key and certificate in the metadata directory it will return them.
 // The returned Credentials needs to be closed after its use.
@@ -49,7 +49,7 @@ func Setup(
 ) (*Credentials, error) {
 	teeDevice, err := securehw.New(metadataDir, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize TEE device: %w", err)
+		return nil, fmt.Errorf("failed to initialize secure hardware device: %w", err)
 	}
 	secureHWKey, err := teeDevice.LoadKey()
 	switch {
@@ -59,10 +59,10 @@ func Setup(
 		// Key doesn't exist yet, let's create it.
 		secureHWKey, err = teeDevice.CreateKey()
 		if err != nil {
-			return nil, fmt.Errorf("failed to create TEE key: %w", err)
+			return nil, fmt.Errorf("failed to create secure hardware key: %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("failed to load TEE key: %w", err)
+		return nil, fmt.Errorf("failed to load secure hardware key: %w", err)
 	}
 
 	clientCert, err := loadSCEPClientCert(metadataDir)

@@ -1490,6 +1490,10 @@ WHERE
 		<true/>
         <key>ManagementFlags</key>
         <integer>0</integer>
+        <key>ChangeManagementState</key>
+        <string>Managed</string>
+        <key>InstallAsManaged</key>
+        <true />
         <key>Options</key>
         <dict>
             <key>PurchaseMethod</key>

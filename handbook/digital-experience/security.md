@@ -1876,7 +1876,7 @@ The process is simple:
 2. Fleet determines if we must fix this vulnerability, and if not, documents why.
 3. As long as it respects our remediation timelines and enough time remains for implementation and testing, Fleet fixes vulnerabilities in the next scheduled release. Else, Fleet creates a special release to address the vulnerabilities.
 
-
+> Host-based vulnerability scans are performed (at least) quarterly on all external-facing systems.
 
 ### Timeline
 
@@ -1901,17 +1901,11 @@ are fixed on a case-by-case scenario depending on the risk.
 
 ### Exceptions and extended timelines
 
-We may not be able to fix all vulnerabilities or fix them as rapidly as we would like. For example,
-a complex vulnerability reported to us that would require redesigning core parts of the Fleet
-architecture would not be fixable in 3 business days.
+We may not be able to fix all vulnerabilities or fix them as rapidly as we would like. For example, a complex vulnerability reported to us that would require redesigning core parts of the Fleet architecture would not be fixable in 3 business days. 
 
-We ask for vulnerabilities reported by researchers and prefer to perform coordinated disclosure
-with the researcher. In some cases, we may take up to 90 days to fix complex issues, in which case
-we ask that the vulnerability remains private.
+We ask for vulnerabilities reported by researchers and prefer to perform coordinated disclosure with the researcher. In some cases, we may take up to 90 days to fix complex issues, in which case, we ask that the vulnerability remains private.
 
-For other vulnerabilities affecting Fleet or code used in Fleet, the Head of Security, CTO and CEO
-can accept the risk of patching them according to custom timelines, depending on the risk and
-possible temporary mitigations.
+For other vulnerabilities affecting Fleet or code used in Fleet, the Head of Security, CTO and CEO can accept the risk of patching them according to custom timelines, depending on the risk and possible temporary mitigations.
 
 
 ### Mapping of CVSSv3 scores to Fleet severity

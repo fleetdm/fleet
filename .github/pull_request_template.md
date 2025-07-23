@@ -7,7 +7,6 @@ If some of the following don't apply, delete the relevant line.
 - [ ] Changes file added for user-visible changes in `changes/`, `orbit/changes/` or `ee/fleetd-chrome/changes`.
   See [Changes files](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/committing-changes.md#changes-files) for more information.
 - [ ] Input data is properly validated, `SELECT *` is avoided, SQL injection is prevented (using placeholders for values in statements)
-- [ ] Added support on fleet's osquery simulator `cmd/osquery-perf` for new osquery data ingestion features.
 - [ ] If paths of existing endpoints are modified without backwards compatibility, checked the frontend/CLI for any necessary changes
 - [ ] If database migrations are included, checked table schema to confirm autoupdate
 - For new Fleet configuration settings

@@ -62,6 +62,9 @@ type Request struct {
 	Certificate *x509.Certificate
 	Context     context.Context
 	Params      map[string]string
+	// Authorization header value, if any. Note that this is an optional value used only for
+	// certain enrollment types like User (Device) enrollment.
+	Authorization string
 }
 
 // Clone returns a shallow copy of r
