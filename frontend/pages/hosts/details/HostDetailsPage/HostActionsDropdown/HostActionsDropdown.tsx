@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
 import permissions from "utilities/permissions";
 import { AppContext } from "context/app";
 
@@ -65,11 +65,7 @@ const HostActionsDropdown = ({
     isTeamMaintainer,
     isTeamObserver,
     isHostOnline: hostStatus === "online",
-    isEnrolledInMdm: [
-      "On (automatic)",
-      "On (manual)",
-      "On (personal)",
-    ].includes(hostMdmEnrollmentStatus ?? ""),
+    isEnrolledInMdm: isEnrolledInMdm(hostMdmEnrollmentStatus),
     isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
