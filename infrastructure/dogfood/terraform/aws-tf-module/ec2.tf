@@ -1,6 +1,6 @@
 resource "aws_instance" "fleetbot" {
   ami                    = "ami-0d1b5a8c13042c939" # us-east-2 - Ubuntu 24.04 LTS
-  instance_type          = "t3.small"
+  instance_type          = "t3.medium"
   subnet_id              = module.main.vpc.private_subnets[0] # take the first subnet in the list
   vpc_security_group_ids = [aws_security_group.fleetbot.id]
 
