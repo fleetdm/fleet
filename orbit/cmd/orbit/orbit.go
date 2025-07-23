@@ -237,9 +237,9 @@ func main() {
 			EnvVars: []string{"ORBIT_OSQUERY_DB"},
 		},
 		&cli.BoolFlag{
-			Name:    "fleet-managed-client-certificate",
+			Name:    "fleet-managed-host-identity-certificate",
 			Usage:   "Configures fleetd to use TPM-backed key to sign HTTP requests. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
-			EnvVars: []string{"ORBIT_FLEET_MANAGED_CLIENT_CERTIFICATE"},
+			EnvVars: []string{"ORBIT_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE"},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -832,10 +832,10 @@ func main() {
 
 		var certPath string
 
-		// Both options --fleet-managed-client-certificate and --insecure make use of a local HTTPS proxy.
-		// If the user sets both --fleet-managed-client-certificate and --insecure then only the proxy
+		// Both options --fleet-managed-host-identity-certificate and --insecure make use of a local HTTPS proxy.
+		// If the user sets both --fleet-managed-host-identity-certificate and --insecure then only the proxy
 		// for the fleet managed client certificate will be executed.
-		if fleetURL != "https://" && c.Bool("insecure") && !c.Bool("fleet-managed-client-certificate") {
+		if fleetURL != "https://" && c.Bool("insecure") && !c.Bool("fleet-managed-host-identity-certificate") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
 			if err != nil {
 				return fmt.Errorf("create TLS proxy: %w", err)
@@ -939,12 +939,12 @@ func main() {
 			return fmt.Errorf("error loading fleet client certificate: %w", err)
 		}
 
-		if c.Bool("fleet-managed-client-certificate") {
+		if c.Bool("fleet-managed-host-identity-certificate") {
 			if runtime.GOOS != "linux" {
-				return errors.New("fleet-managed-client-certificate is only supported on Linux")
+				return errors.New("fleet-managed-host-identity-certificate is only supported on Linux")
 			}
 			if fleetClientCrt != nil {
-				return errors.New("fleet-managed-client-certificate for HTTP signing, and TLS client certificates may not be specified together")
+				return errors.New("fleet-managed-host-identity-certificate for HTTP signing, and TLS client certificates may not be specified together")
 			}
 		}
 
@@ -962,7 +962,7 @@ func main() {
 			signerWrapper               func(*http.Client) *http.Client
 			hostIdentityCertificatePath string
 		)
-		if c.Bool("fleet-managed-client-certificate") {
+		if c.Bool("fleet-managed-host-identity-certificate") {
 			commonName := osqueryHostInfo.HardwareUUID
 			if c.String("host-identifier") == "instance" {
 				commonName = osqueryHostInfo.InstanceID

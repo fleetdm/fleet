@@ -21,8 +21,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// tpm2TEE implements the TEE interface using TPM 2.0.
-type tpm2TEE struct {
+// tpm2SecureHW implements the SecureHW interface using TPM 2.0.
+type tpm2SecureHW struct {
 	device transport.TPMCloser
 
 	logger      zerolog.Logger
@@ -31,9 +31,9 @@ type tpm2TEE struct {
 
 const tpm20DevicePath = "/dev/tpmrm0"
 
-// Creates a new TEE instance using TPM 2.0.
+// Creates a new SecureHW instance using TPM 2.0.
 // It attempts to open the TPM device using the provided configuration.
-func newTEE(metadataDir string, logger zerolog.Logger) (TEE, error) {
+func newSecureHW(metadataDir string, logger zerolog.Logger) (SecureHW, error) {
 	if metadataDir == "" {
 		return nil, errors.New("required metadata directory not set")
 	}
@@ -45,14 +45,14 @@ func newTEE(metadataDir string, logger zerolog.Logger) (TEE, error) {
 	// - Used by the TPM2 Access Broker and Resource Manager (tpm2-abrmd or the kernel resource manager).
 	device, err := linuxtpm.Open(tpm20DevicePath)
 	if err != nil {
-		return nil, ErrTEEUnavailable{
+		return nil, ErrSecureHWUnavailable{
 			Message: fmt.Sprintf("failed to open TPM 2.0 device %q: %s", tpm20DevicePath, err.Error()),
 		}
 	}
 
 	logger.Info().Str("device_path", tpm20DevicePath).Msg("successfully opened TPM 2.0 device")
 
-	return &tpm2TEE{
+	return &tpm2SecureHW{
 		device: device,
 
 		logger:      zerolog.Nop(),
@@ -60,8 +60,8 @@ func newTEE(metadataDir string, logger zerolog.Logger) (TEE, error) {
 	}, nil
 }
 
-// CreateKey partially implements TEE.
-func (t *tpm2TEE) CreateKey() (Key, error) {
+// CreateKey partially implements SecureHW.
+func (t *tpm2SecureHW) CreateKey() (Key, error) {
 	t.logger.Info().Msg("creating new ECC key in TPM")
 
 	parentKeyHandle, err := t.createParentKey()
@@ -160,7 +160,7 @@ func (t *tpm2TEE) CreateKey() (Key, error) {
 // createParentKey creates a transient Storage Root Key for use as a parent key
 //
 // NOTE: It creates the parent key deterministically so this can be called when loading a child key.
-func (t *tpm2TEE) createParentKey() (tpm2.NamedHandle, error) {
+func (t *tpm2SecureHW) createParentKey() (tpm2.NamedHandle, error) {
 	t.logger.Debug().Msg("creating transient RSA 2048-bit parent key")
 
 	// Create a parent key template with required attributes
@@ -216,7 +216,7 @@ func (t *tpm2TEE) createParentKey() (tpm2.NamedHandle, error) {
 }
 
 // selectBestECCCurve checks if the TPM supports ECC P-384, otherwise returns P-256
-func (t *tpm2TEE) selectBestECCCurve() (tpm2.TPMECCCurve, string) {
+func (t *tpm2SecureHW) selectBestECCCurve() (tpm2.TPMECCCurve, string) {
 	t.logger.Debug().Msg("checking TPM ECC curve support")
 
 	// Try to create a test key with P-384 to check support
@@ -260,7 +260,7 @@ func (t *tpm2TEE) selectBestECCCurve() (tpm2.TPMECCCurve, string) {
 	return tpm2.TPMECCNistP384, "P-384"
 }
 
-func (t *tpm2TEE) saveTPMKeyFile(privateKey tpm2.TPM2BPrivate, publicKey tpm2.TPM2BPublic) error {
+func (t *tpm2SecureHW) saveTPMKeyFile(privateKey tpm2.TPM2BPrivate, publicKey tpm2.TPM2BPublic) error {
 	k := keyfile.NewTPMKey(
 		keyfile.OIDOldLoadableKey,
 		publicKey,
@@ -273,7 +273,7 @@ func (t *tpm2TEE) saveTPMKeyFile(privateKey tpm2.TPM2BPrivate, publicKey tpm2.TP
 	return nil
 }
 
-func (t *tpm2TEE) loadTPMKeyFile() (privateKey *tpm2.TPM2BPrivate, publicKey *tpm2.TPM2BPublic, err error) {
+func (t *tpm2SecureHW) loadTPMKeyFile() (privateKey *tpm2.TPM2BPrivate, publicKey *tpm2.TPM2BPublic, err error) {
 	keyfileBytes, err := os.ReadFile(t.keyFilePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -288,8 +288,8 @@ func (t *tpm2TEE) loadTPMKeyFile() (privateKey *tpm2.TPM2BPrivate, publicKey *tp
 	return &k.Privkey, &k.Pubkey, nil
 }
 
-// LoadKey partially implements TEE.
-func (t *tpm2TEE) LoadKey() (Key, error) {
+// LoadKey partially implements SecureHW.
+func (t *tpm2SecureHW) LoadKey() (Key, error) {
 	private, public, err := t.loadTPMKeyFile()
 	if err != nil {
 		return nil, err
@@ -349,8 +349,8 @@ func (t *tpm2TEE) LoadKey() (Key, error) {
 	}, nil
 }
 
-// Close partially implements TEE.
-func (t *tpm2TEE) Close() error {
+// Close partially implements SecureHW.
+func (t *tpm2SecureHW) Close() error {
 	t.logger.Info().Msg("closing TPM device")
 	if t.device != nil {
 		err := t.device.Close()

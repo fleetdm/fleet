@@ -82,7 +82,7 @@ if [ -n "$GENERATE_DEB" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
-        ${FLEET_MANAGED_CLIENT_CERTIFICATE:+--fleet-managed-client-certificate} \
+        ${FLEET_MANAGED_CLIENT_CERTIFICATE:+--fleet-managed-host-identity-certificate} \
         --update-url=$DEB_TUF_URL
 fi
 
@@ -107,7 +107,7 @@ if [ -n "$GENERATE_DEB_ARM64" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
-        ${FLEET_MANAGED_CLIENT_CERTIFICATE:+--fleet-managed-client-certificate} \
+        ${FLEET_MANAGED_CLIENT_CERTIFICATE:+--fleet-managed-host-identity-certificate} \
         --update-url=$DEB_TUF_URL
 fi
 
@@ -132,7 +132,7 @@ if [ -n "$GENERATE_RPM" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
-        ${FLEET_MANAGED_CLIENT_CERTIFICATE:+--fleet-managed-client-certificate} \
+        ${FLEET_MANAGED_CLIENT_CERTIFICATE:+--fleet-managed-host-identity-certificate} \
         --update-url=$RPM_TUF_URL
 fi
 
@@ -157,7 +157,7 @@ if [ -n "$GENERATE_RPM_ARM64" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         ${ENABLE_SCRIPTS:+--enable-scripts} \
-        ${FLEET_MANAGED_CLIENT_CERTIFICATE:+--fleet-managed-client-certificate} \
+        ${FLEET_MANAGED_CLIENT_CERTIFICATE:+--fleet-managed-host-identity-certificate} \
         --update-url=$RPM_TUF_URL
 fi
 

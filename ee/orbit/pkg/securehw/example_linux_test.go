@@ -29,11 +29,11 @@ func TestExampleTPM20Linux(t *testing.T) {
 	t.Run("CreateKey", func(t *testing.T) {
 		teeDevice, err := securehw.New(tmpDir, logger)
 		if err != nil {
-			log.Fatalf("Failed to initialize TEE: %v", err)
+			log.Fatalf("Failed to initialize SecureHW: %v", err)
 		}
 		defer teeDevice.Close()
 
-		// Create an ECC key in the TEE (automatically selects best curve)
+		// Create an ECC key in the SecureHW (automatically selects best curve)
 		key, err := teeDevice.CreateKey()
 		if err != nil {
 			log.Fatalf("Failed to create key: %v", err)
@@ -47,7 +47,7 @@ func TestExampleTPM20Linux(t *testing.T) {
 		}
 
 		// Sign some data
-		message := []byte("Hello, TEE!")
+		message := []byte("Hello, SecureHW!")
 		hash := sha256.Sum256(message)
 		signature, err := signer.Sign(rand.Reader, hash[:], crypto.SHA256)
 		if err != nil {
@@ -60,7 +60,7 @@ func TestExampleTPM20Linux(t *testing.T) {
 	t.Run("LoadKey", func(t *testing.T) {
 		teeDevice, err := securehw.New(tmpDir, logger)
 		if err != nil {
-			log.Fatalf("Failed to initialize TEE: %v", err)
+			log.Fatalf("Failed to initialize SecureHW: %v", err)
 		}
 		defer teeDevice.Close()
 
@@ -80,7 +80,7 @@ func TestExampleTPM20Linux(t *testing.T) {
 		}
 
 		// Sign some data
-		message := []byte("Hello, TEE!")
+		message := []byte("Hello, SecureHW!")
 		hash := sha256.Sum256(message)
 		signature, err := signer.Sign(rand.Reader, hash[:], crypto.SHA256)
 		if err != nil {
