@@ -2417,7 +2417,6 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Set.yml"))
 		require.NoError(t, err)
-		fmt.Println(string(b))
 		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup)
 
 		// get without setup assistant set

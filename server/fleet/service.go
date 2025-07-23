@@ -20,7 +20,7 @@ type EnterpriseOverrides struct {
 	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
 	// UpdateTeamMDMDiskEncryption is the team-specific service method for when
 	// a team ID is provided to the UpdateMDMDiskEncryption method.
-	UpdateTeamMDMDiskEncryption func(ctx context.Context, tm *Team, enable *bool, requirePIN *bool) error
+	UpdateTeamMDMDiskEncryption func(ctx context.Context, tm *Team, enable *bool, requireBitLockerPIN *bool) error
 
 	// The next two functions are implemented by the ee/service, and called
 	// properly when called from an ee/service method (e.g. Modify Team), but

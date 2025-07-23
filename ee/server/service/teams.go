@@ -1648,7 +1648,7 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 	return *defaults, nil
 }
 
-func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool, requirePIN *bool) error {
+func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool, requireBitLockerPIN *bool) error {
 	var didUpdateEncryption bool
 	var didUpdateRequirePIN bool
 	if enable != nil {
@@ -1661,11 +1661,11 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 			didUpdateEncryption = true
 		}
 	}
-	if requirePIN != nil {
-		if tm.Config.MDM.RequireBitLockerPIN != *requirePIN {
-			tm.Config.MDM.RequireBitLockerPIN = *requirePIN
+	if requireBitLockerPIN != nil {
+		if tm.Config.MDM.RequireBitLockerPIN != *requireBitLockerPIN {
+			tm.Config.MDM.RequireBitLockerPIN = *requireBitLockerPIN
+			didUpdateRequirePIN = true
 		}
-		didUpdateRequirePIN = true
 	}
 
 	if didUpdateEncryption || didUpdateRequirePIN {
