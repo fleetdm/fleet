@@ -8830,6 +8830,9 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Get script result](#get-script-result)
 - [Batch-run script](#batch-run-script)
 - [Get batch script summary](#get-batch-script-summary)
+- [Get batch script details](#get-batch-script-details)
+- [List batch script runs](#list-batch-script-runs)
+- [Cancel batch script](#cancel-batch-script)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
@@ -9023,6 +9026,18 @@ Get statuses and host counts for a batch-run script.
   "team_id": 123
 }
 ```
+
+### Get batch script details
+
+> TODO
+
+### List batch script runs
+
+> TODO
+
+### Cancel batch script
+
+> TODO
 
 ### Add script
 
