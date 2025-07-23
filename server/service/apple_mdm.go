@@ -2753,7 +2753,7 @@ func (r updateMDMAppleSettingsResponse) Status() int { return http.StatusNoConte
 // team endpoints only allow write access to admins.
 func updateMDMAppleSettingsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateMDMAppleSettingsRequest)
-	if err := svc.UpdateMDMDiskEncryption(ctx, req.MDMAppleSettingsPayload.TeamID, req.MDMAppleSettingsPayload.EnableDiskEncryption); err != nil {
+	if err := svc.UpdateMDMDiskEncryption(ctx, req.MDMAppleSettingsPayload.TeamID, req.MDMAppleSettingsPayload.EnableDiskEncryption, nil); err != nil {
 		return updateMDMAppleSettingsResponse{Err: err}, nil
 	}
 	return updateMDMAppleSettingsResponse{}, nil

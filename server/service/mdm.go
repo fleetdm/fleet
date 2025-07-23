@@ -2276,6 +2276,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 type updateDiskEncryptionRequest struct {
 	TeamID               *uint `json:"team_id"`
 	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  bool  `json:"windows_require_bitlocker_pin"`
 }
 
 type updateMDMDiskEncryptionResponse struct {
@@ -2288,13 +2289,13 @@ func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoCont
 
 func updateDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateDiskEncryptionRequest)
-	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption); err != nil {
+	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption, &req.RequireBitLockerPIN); err != nil {
 		return updateMDMDiskEncryptionResponse{Err: err}, nil
 	}
 	return updateMDMDiskEncryptionResponse{}, nil
 }
 
-func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool) error {
+func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error {
 	// TODO(mna): this should all move to the ee package when we remove the
 	// `PATCH /api/v1/fleet/mdm/apple/settings` endpoint, but for now it's better
 	// leave here so both endpoints can reuse the same logic.
@@ -2317,7 +2318,7 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, e
 		if err != nil {
 			return err
 		}
-		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, enableDiskEncryption)
+		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, enableDiskEncryption, requireBitLockerPIN)
 	}
 	return svc.updateAppConfigMDMDiskEncryption(ctx, enableDiskEncryption)
 }

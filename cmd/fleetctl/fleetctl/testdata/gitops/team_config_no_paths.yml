@@ -43,7 +43,8 @@ controls:
       - path: ./lib/windows-screenlock.xml
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
-  enable_disk_encryption: true
+  enable_disk_encryption: ${ENABLE_DISK_ENCRYPTION}
+  windows_require_bitlocker_pin: ${WINDOWS_REQUIRE_BITLOCKER_PIN}
   macos_migration:
     enable: false
     mode: ""

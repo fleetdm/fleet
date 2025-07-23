@@ -38,6 +38,7 @@ type GitOpsControls struct {
 	WindowsMigrationEnabled     interface{} `json:"windows_migration_enabled"`
 
 	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  interface{} `json:"windows_require_bitlocker_pin,omitempty"`
 
 	Scripts []BaseItem `json:"scripts"`
 
