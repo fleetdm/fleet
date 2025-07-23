@@ -16,13 +16,15 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"howett.net/plist"
 )
 
 func setup(t *testing.T) (*mock.Store, *Service) {
 	ds := new(mock.Store)
 
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetCACert:   {Value: []byte(testCert)},
 			fleet.MDMAssetCAKey:    {Value: []byte(testKey)},
@@ -40,11 +42,26 @@ func setup(t *testing.T) (*mock.Store, *Service) {
 func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 	ctx := context.Background()
 
+	getPayloadWithType := func(mc mobileconfig.Mobileconfig, payloadType string) map[string]interface{} {
+		var payload struct {
+			PayloadContent []map[string]interface{}
+		}
+		plist.Unmarshal(mc, &payload)
+
+		for _, p := range payload.PayloadContent {
+			if p["PayloadType"] == payloadType {
+				return p
+			}
+		}
+		return nil
+	}
+
 	t.Run("fails if SCEP is not configured", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := &Service{ds: ds}
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-			_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return nil, nil
 		}
 		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, nil)
@@ -70,6 +87,12 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 			require.Equal(t, p.Identifier, mobileconfig.FleetFileVaultPayloadIdentifier)
 			require.Equal(t, p.Name, mdm.FleetFileVaultProfileName)
 			require.Contains(t, string(p.Mobileconfig), `MIID6DCCAdACFGX99Sw4aF2qKGLucoIWQRAXHrs1MA0GCSqGSIb3DQEBCwUAMDUxEzARBgNVBAoMClJlZGlzIFRlc3QxHjAcBgNVBAMMFUNlcnRpZmljYXRlIEF1dGhvcml0eTAeFw0yMTEwMTkxNzM0MzlaFw0yMjEwMTkxNzM0MzlaMCwxEzARBgNVBAoMClJlZGlzIFRlc3QxFTATBgNVBAMMDEdlbmVyaWMtY2VydDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKSHcH8EjSvp3Nm4IHAFxG9DZm8+0h1BwU0OX0VHcJ+Cf+f6h0XYMcMo9LFEpnUJRRMjKrM4mkI75NIIufNBN+GrtqqTPTid8wfOGu/Ufa5EEU1hb2j7AiMlpM6i0+ZysXSNo+Vc/cNZT0PXfyOtJnYm6p9WZM84ID1t2ea0bLwC12cTKv5oybVGtJHh76TRxAR3FeQ9+SY30vUAxYm6oWyYho8rRdKtUSe11pXj6OhxxfTZnsSWn4lo0uBpXai63XtieTVpz74htSNC1bunIGv7//m5F60sH5MrF5JSkPxfCfgqski84ICDSRNlvpT+eMPiygAAJ8zY8wYUXRYFYTUCAwEAATANBgkqhkiG9w0BAQsFAAOCAgEAAAw+6Uz2bAcXgQ7fQfdOm+T6FLRBcr8PD4ajOvSu/T+HhVVjE26Qt2IBwFEYve2FvDxrBCF8aQYZcyQqnP8bdKebnWAaqL8BbTwLWW+fDuZLO2b4QHjAEdEKKdZC5/FRpQrkerf5CCPTHE+5M17OZg41wdVYnCEwJOkP5pUAVsmwtrSwVeIquy20TZO0qbscDQETf7NIJgW0IXg82wBe53Rv4/wL3Ybq13XVRGYiJrwpaNTfUNgsDWqgwlQ5L2GOLDgg8S2NoF9mWVgCGSp3a2eHW+EmBRQ1OP6EYQtIhKdGLrSndAOMJ2ER1pgHWUFKkWQaZ9i37Dx2j7P5c4/XNeVozcRQcLwKwN+n8k+bwIYcTX0HMOVFYm+WiFi/gjI860Tx853Sc0nkpOXmBCeHSXigGUscgjBYbmJz4iExXuwgawLXKLDKs0yyhLDnKEjmx/Vhz03JpsVFJ84kSWkTZkYsXiG306TxuJCX9zAt1z+6ClieTTGiFY+D8DfkC4H82rlPEtImpZ6rInsMUlAykImpd58e4PMSa+w/wSHXDvwFP7py1Gvz3XvcbGLmpBXblxTUpToqC7zSQJhHOMBBt6XnhcRwd6G9Vj/mQM3FvJIrxtKk8O7FwMJloGivS85OEzCIur5A+bObXbM2pcI8y4ueHE4NtElRBwn859AdB2k=`)
+
+			testPayload := getPayloadWithType(p.Mobileconfig, "com.apple.MCX.FileVault2")
+			require.NotNil(t, testPayload)
+			require.Equal(t, false, testPayload["Defer"]) // Do not allow deferrals
+			require.NotContains(t, testPayload, "DeferForceAtUserLoginMaxBypassAttempts")
+
 			return nil, nil
 		}
 
