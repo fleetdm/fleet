@@ -1278,14 +1278,12 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	err := mdmDeviceA.Enroll()
 	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
-
+		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
 	mdmDeviceB := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")
 	err = mdmDeviceB.Enroll()
 	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
-
+		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
 	// Find the ID of Fleet's MDM solution
 	var mdmID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -7368,7 +7366,8 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 			"mdm_platform": "microsoft",
 			"host_serial": "%s",
 			"installed_from_dep": false,
-			"host_display_name": "%s"
+			"host_display_name": "%s",
+			"enrollment_id": null
 		 }`, windowsHost.HardwareSerial, windowsHost.DisplayName()),
 		0)
 
@@ -7418,7 +7417,8 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 			"mdm_platform": "microsoft",
 			"host_serial": "",
 			"installed_from_dep": false,
-			"host_display_name": "DESKTOP-0C89RC0"
+			"host_display_name": "DESKTOP-0C89RC0",
+			"enrollment_id": null
 		 }`,
 		0)
 
@@ -13873,10 +13873,8 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	require.NoError(t, iPhoneMdmDevice.Enroll())
 	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user@example.com")
 
-	// TODO BMAA Update for activity changes
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.Model, iPhoneMdmDevice.EnrollmentID()), 0)
-
+		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.Model, iPhoneMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPhoneMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
@@ -13898,10 +13896,8 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	require.NoError(t, iPadMdmDevice.Enroll())
 	assert.Equal(t, iPadMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user2@example.com")
 
-	// TODO BMAA Update for activity changes
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, iPadMdmDevice.EnrollmentID(), iPadMdmDevice.Model, iPadMdmDevice.EnrollmentID()), 0)
-
+		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, iPadMdmDevice.EnrollmentID(), iPadMdmDevice.Model, iPadMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPadMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
