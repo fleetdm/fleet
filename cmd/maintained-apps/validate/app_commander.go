@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -32,7 +32,7 @@ func (ac *AppCommander) isFrozen() (bool, error) {
 	if len(parts) != 2 {
 		return false, fmt.Errorf("invalid slug format: %s, expected <name>/<platform>", ac.Slug)
 	}
-	inputPath = path.Join(inputPath, parts[0]+".json")
+	inputPath = filepath.Join(inputPath, parts[0]+".json")
 
 	fileBytes, err := os.ReadFile(inputPath)
 	if err != nil {
@@ -109,17 +109,17 @@ func (ac *AppCommander) uninstallApp() bool {
 }
 
 func (ac *AppCommander) expectToChangeFileSystem(changer func() error) (string, error, error) {
-	var listError error
+	var preListError, postListError, listError error
 	appListPre, err := listDirectoryContents(installationSearchDirectory)
 	if err != nil {
-		listError = fmt.Errorf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+		preListError = fmt.Errorf("Error listing %s directory: %v\n", installationSearchDirectory, err)
 	}
 
 	changerError := changer()
 
 	appListPost, err := listDirectoryContents(installationSearchDirectory)
 	if err != nil {
-		listError = fmt.Errorf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+		postListError = fmt.Errorf("Error listing %s directory: %v\n", installationSearchDirectory, err)
 	}
 
 	appPath, changed := detectApplicationChange(installationSearchDirectory, appListPre, appListPost)
@@ -131,6 +131,15 @@ func (ac *AppCommander) expectToChangeFileSystem(changer func() error) (string, 
 		} else {
 			fmt.Printf("Application removal detected at: %s\n", appPath)
 		}
+	}
+
+	switch {
+	case preListError != nil && postListError != nil:
+		listError = fmt.Errorf("app pre list: %v, app post list: %v", preListError, postListError)
+	case preListError != nil:
+		listError = fmt.Errorf("app pre list: %v", preListError)
+	case postListError != nil:
+		listError = fmt.Errorf("app post list: %v", postListError)
 	}
 
 	return appPath, changerError, listError

@@ -4,6 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
+      - ee/maintained-apps/inputs/**
       - ee/maintained-apps/outputs/**
   workflow_dispatch: # Manual trigger
   
@@ -30,6 +31,7 @@ jobs:
 
       - name: Install osquery windows
         run: |
+          Write-Host "Runner architecture: $env:PROCESSOR_ARCHITECTURE"
           curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1.windows_x86_64.zip"
           Expand-Archive -Path osquery.zip -DestinationPath osquery
           Get-ChildItem -Recurse osquery | Where-Object { $_.Name -like "*osquery*" -and $_.Extension -eq ".exe" }

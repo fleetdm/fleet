@@ -80,6 +80,16 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bo
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	if err := validateSqlInput(appName); err != nil {
+		return false, fmt.Errorf("Invalid character found in appName: '%w'. Not executing query...", err)
+	}
+	if err := validateSqlInput(uniqueAppIdentifier); err != nil {
+		return false, fmt.Errorf("Invalid character found in uniqueAppIdentifier: '%w'. Not executing query...", err)
+	}
+	if err := validateSqlInput(appPath); err != nil {
+		return false, fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
+	}
+
 	fmt.Printf("Looking for app: %s, version: %s\n", appName, appVersion)
 	query := `
 		SELECT name, path, bundle_short_version, bundle_version 

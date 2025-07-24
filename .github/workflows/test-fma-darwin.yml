@@ -4,6 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
+      - ee/maintained-apps/inputs/**
       - ee/maintained-apps/outputs/**
   workflow_dispatch: # Manual trigger
   
@@ -30,6 +31,7 @@ jobs:
 
       - name: Install osquery mac
         run: |
+          echo "Runner architecture: $(uname -m)"
           curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1_1.macos_arm64.tar.gz"
           tar -xzf osquery.tar.gz
           sudo cp -r opt /

@@ -24,6 +24,13 @@ func doesAppExists(appName, _ string, appVersion, appPath string) (bool, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	if err := validateSqlInput(appName); err != nil {
+		return false, fmt.Errorf("Invalid character found in appName: '%w'. Not executing query...", err)
+	}
+	if err := validateSqlInput(appPath); err != nil {
+		return false, fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
+	}
+
 	fmt.Printf("Looking for app: %s, version: %s\n", appName, appVersion)
 	query := `
 		SELECT name, install_location, version 

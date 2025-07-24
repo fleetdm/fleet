@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -111,9 +112,9 @@ func run() int {
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
-		defer installerTFR.Close()
 
 		err = ac.extractAppVersion(installerTFR)
+		installerTFR.Close()
 		if err != nil {
 			fmt.Printf("Error extracting installer version: %v. Using '%s'\n", err, ac.Version)
 			appWithError = append(appWithError, ac.Name)
@@ -253,7 +254,11 @@ func DownloadMaintainedApp(app fleet.MaintainedApp) (*fleet.TempFileReader, erro
 	}
 
 	// Create a file in tmpDir for the installer
-	filePath := filepath.Join(tmpDir, filename)
+	cleanFilename := filepath.Base(filename)
+	if cleanFilename == "." || cleanFilename == ".." {
+		cleanFilename = fmt.Sprintf("installer_%d", time.Now().UnixNano())
+	}
+	filePath := filepath.Join(tmpDir, cleanFilename)
 	out, err := os.Create(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("creating file: %w", err)
@@ -309,4 +314,13 @@ func detectApplicationChange(installationSearchDirectory string, appListPre, app
 	}
 
 	return "", false // no change detected
+}
+
+func validateSqlInput(input string) error {
+	// Allow alphanumeric, spaces, dots, hyphens, underscores, forward/back slashes, colons, parentheses
+	if matched, _ := regexp.MatchString(`^[a-zA-Z0-9\s.\-_/\\:()]*$`, input); !matched {
+		return fmt.Errorf("invalid characters in input: %s", input)
+	}
+
+	return nil
 }
