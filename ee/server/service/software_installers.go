@@ -1977,6 +1977,12 @@ func (svc *Service) softwareBatchUpload(
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "extracting installer metadata")
 					}
+
+					// reset the reader (it was consumed to extract metadata)
+					if err := installer.InstallerFile.Rewind(); err != nil {
+						return ctxerr.Wrap(ctx, err, "resetting installer file reader")
+					}
+
 					installer.Version = meta.Version
 				}
 

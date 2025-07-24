@@ -129,6 +129,12 @@ func (svc *Service) AddFleetMaintainedApp(
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "extracting installer metadata")
 		}
+
+		// reset the reader (it was consumed to extract metadata)
+		if err := installerTFR.Rewind(); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "resetting installer file reader")
+		}
+
 		version = meta.Version
 	}
 
