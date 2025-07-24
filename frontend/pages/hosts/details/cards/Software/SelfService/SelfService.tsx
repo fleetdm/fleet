@@ -127,6 +127,9 @@ const SoftwareSelfService = ({
       software.ui_status === "failed_uninstall_update_available"
   );
 
+  // The page size only changes at 2 breakpoints and state update is very lightweight.
+  // Page size controls the number of shown cards and current page; no API calls or
+  // expensive UI updates occur so debouncing the resize handler isn’t necessary.
   useEffect(() => {
     const handleResize = () => {
       const newPageSize = getUpdatesPageSize(window.innerWidth);

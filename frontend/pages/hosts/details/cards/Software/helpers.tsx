@@ -31,8 +31,16 @@ const stripBuildMetadata = (version: string): string => version.split("+")[0];
  * Splits a version string into an array of numeric and string segments.
  * Handles delimiters, pre-release tags, and normalizes case.
  */
-const splitVersion = (version: string): Array<string | number> =>
-  flatMap(
+const splitVersion = (version: string): Array<string | number> => {
+  if (typeof version !== "string" || !version.trim()) {
+    // Defensive: handle null, undefined, or empty version strings
+    console.warn(
+      `Warning: Invalid version used for version comparison: "${version}"`
+    );
+    return [0]; // fallback to [0] as a safe default
+  }
+  // Normalize delimiters and strip build metadata
+  return flatMap(
     stripBuildMetadata(version).replace(/[-_]/g, ".").split("."),
     (part: string) => part.match(/\d+|[a-zA-Z]+/g) || []
   ).map((seg: string) => {
@@ -43,13 +51,14 @@ const splitVersion = (version: string): Array<string | number> =>
       // expected alphabetic segment, normalize to lowercase
       return seg.toLowerCase();
     }
-    // unexpected segment - log a warning with context
+    // unexpected, possibly malformed
     console.warn(
       `Warning: Unexpected version segment "${seg}" found in version string "${version}"`
     );
     // fallback: return as lowercase string anyway
     return seg.toLowerCase();
   });
+};
 
 /**
  * Compares two pre-release identifiers according to PRE_RELEASE_ORDER.
@@ -74,8 +83,27 @@ const comparePreRelease = (a: string, b: string): number => {
  *    1 if v1 > v2
  * Handles semantic versioning, pre-release tags, and build metadata.
  * See helpers.tests.ts for examples and edge cases.
+ *
+ * Note: This is more robust than /utilities/helpers.tsx compareVersions function
+ * which only splits on . and is not suitable for prerelese, metadata, and non-trad schemes
+ *
+ * Pitfalls & Known Limitations:
+ * - Designed primarily for Semantic Versioning (SemVer, e.g., "1.2.3-alpha").
+ * - May produce unexpected results with **non-SemVer** versions:
+ *   - Versions using formats with build metadata or unconventional separators (e.g., "1.2.3+build.1" or "2023-07-15").
+ *   - Pre-release and metadata handling depends on correct and complete `PRE_RELEASE_ORDER` and `comparePreRelease` helper.
+ * - Versions with **mixed types per segment** (e.g., "1.0.0-beta" vs "1.0.0-5") may not follow SemVer rules precisely.
  */
 export const compareVersions = (v1: string, v2: string): number => {
+  if (typeof v1 !== "string" || typeof v2 !== "string") {
+    console.warn(
+      "Warning: Version comparison received non-string input.",
+      v1,
+      v2
+    );
+    return 0;
+  }
+
   const s1 = splitVersion(v1);
   const s2 = splitVersion(v2);
   const maxLen = Math.max(s1.length, s2.length);

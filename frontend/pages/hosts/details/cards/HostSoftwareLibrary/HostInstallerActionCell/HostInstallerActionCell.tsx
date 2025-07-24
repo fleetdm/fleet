@@ -5,7 +5,7 @@
  * in Fleet Desktop > Self-service but with different disabled states and tooltips.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, ReactNode } from "react";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -70,8 +70,8 @@ export const getActionButtonState = ({
   const pendingStatuses = ["pending_install", "pending_uninstall"];
   let installDisabled = false;
   let uninstallDisabled = false;
-  let installTooltip: React.ReactNode | undefined;
-  let uninstallTooltip: React.ReactNode | undefined;
+  let installTooltip: ReactNode;
+  let uninstallTooltip: ReactNode;
 
   // Action buttons are always disabled if status is pending for both
   // Host details > Software > library page and  My Device > Self-service page
