@@ -43,7 +43,7 @@ const validate = (formData: IChangeManagementFormData) => {
     if (!repoURL) {
       errs.repository_url =
         "Git repository URL is required when GitOps mode is enabled";
-    } else if (!validUrl({ url: repoURL })) {
+    } else if (!validUrl({ url: repoURL, protocols: ["http", "https"] })) {
       errs.repository_url = "Git repository URL must be a valid URL";
     }
   }
