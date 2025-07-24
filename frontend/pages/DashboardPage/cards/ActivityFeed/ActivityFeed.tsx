@@ -23,7 +23,7 @@ import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
-import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
+import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
 import VppDetailsModal from "./components/VPPDetailsModal";
 import ScriptBatchSummaryModal from "./components/ScriptBatchSummaryModal";
 
