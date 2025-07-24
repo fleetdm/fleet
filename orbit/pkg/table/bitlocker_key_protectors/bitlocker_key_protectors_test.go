@@ -4,6 +4,7 @@
 package bitlocker_key_protectors
 
 import (
+	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 
@@ -13,58 +14,17 @@ import (
 func TestTable_parseOutput(t *testing.T) {
 	// Sample JSON output from Get-BitLockerVolume | ConvertTo-Json
 	jsonOutput := `
-[{
-    "ComputerName":  "WIN-VM",
-    "MountPoint":  "C:",
-    "EncryptionMethod":  6,
-    "EncryptionMethodFlags":  0,
-    "AutoUnlockEnabled":  null,
-    "AutoUnlockKeyStored":  false,
-    "MetadataVersion":  2,
-    "VolumeStatus":  1,
-    "ProtectionStatus":  1,
-    "LockStatus":  0,
-    "EncryptionPercentage":  100,
-    "WipePercentage":  0,
-    "VolumeType":  0,
-    "CapacityGB":  475.77832,
-    "KeyProtector":  [
-	 {
-		 "KeyProtectorId":  "{8A696888-99A7-4FAC-92C7-6CC497EA7BDF}",
-		 "AutoUnlockProtector":  null,
-		 "KeyProtectorType":  3,
-		 "KeyFileName":  "",
-		 "RecoveryPassword":  "254793-568007-425557-712855-251119-474815-445082-696212",
-		 "KeyCertificateType":  null,
-		 "Thumbprint":  ""
-	 },
-	 {
-		 "KeyProtectorId":  "{3B3E091C-ECB9-4B46-9FDD-A9E699EC3C8C}",
-		 "AutoUnlockProtector":  null,
-		 "KeyProtectorType":  1,
-		 "KeyFileName":  "",
-		 "RecoveryPassword":  "",
-		 "KeyCertificateType":  null,
-		 "Thumbprint":  ""
-	 }
- ]
-}, {
-	"ComputerName":  "WIN-VM",
-	"MountPoint":  "E:",
-	"EncryptionMethod":  0,
-	"EncryptionMethodFlags":  0,
-	"AutoUnlockEnabled":  null,
-	"AutoUnlockKeyStored":  null,
-	"MetadataVersion":  0,
-	"VolumeStatus":  0,
-	"ProtectionStatus":  0,
-	"LockStatus":  0,
-	"EncryptionPercentage":  0,
-	"WipePercentage":  0,
-	"VolumeType":  1,
-	"CapacityGB":  57.7006836,
-	"KeyProtector":  []
-}]`
+[
+    {
+        "MountPoint":  "C:",
+        "KeyProtectorType":  3
+    },
+    {
+        "MountPoint":  "C:",
+        "KeyProtectorType":  1
+    }
+]
+`
 	table := &Table{
 		logger: zerolog.New(zerolog.NewTestWriter(t)),
 	}
@@ -81,10 +41,8 @@ func TestTable_parseOutput(t *testing.T) {
 	}
 
 	results, err := table.parseOutput([]byte(jsonOutput))
-	if err != nil {
-		t.Fatalf("parseOutput() error = %v", err)
-	}
 
+	require.NoError(t, err)
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("parseOutput() = %v, want %v", results, expected)
 	}
@@ -96,9 +54,7 @@ func TestTable_parseOutput_InvalidJSON(t *testing.T) {
 	}
 
 	_, err := table.parseOutput([]byte(`invalid json`))
-	if err == nil {
-		t.Error("parseOutput() with invalid JSON should return error")
-	}
+	require.Error(t, err)
 }
 
 func TestTable_parseOutput_EmptyInput(t *testing.T) {
@@ -106,12 +62,14 @@ func TestTable_parseOutput_EmptyInput(t *testing.T) {
 		logger: zerolog.New(zerolog.NewTestWriter(t)),
 	}
 
-	results, err := table.parseOutput([]byte(`[]`))
-	if err != nil {
-		t.Fatalf("parseOutput() error = %v", err)
+	testCases := [][]byte{
+		[]byte(""),
+		[]byte(`[]`),
 	}
 
-	if len(results) != 0 {
-		t.Errorf("parseOutput() with empty input should return empty results, got %v", results)
+	for _, testCase := range testCases {
+		results, err := table.parseOutput(testCase)
+		require.NoError(t, err)
+		require.Empty(t, results)
 	}
 }

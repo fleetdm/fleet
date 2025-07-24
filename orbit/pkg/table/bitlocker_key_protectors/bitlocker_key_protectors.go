@@ -14,13 +14,9 @@ import (
 
 const name = "bitlocker_key_protectors"
 
-type KeyProtector struct {
-	KeyProtector int `json:"KeyProtectorType"`
-}
-
 type BitLockerVolume struct {
-	MountPoint    string         `json:"MountPoint"`
-	KeyProtectors []KeyProtector `json:"KeyProtector"`
+	MountPoint       string `json:"MountPoint"`
+	KeyProtectorType int    `json:"KeyProtectorType"`
 }
 
 type Table struct {
@@ -45,16 +41,24 @@ func (t *Table) generate(
 	queryContext table.QueryContext,
 ) ([]map[string]string, error) {
 
+	cmd := `@(Get-BitlockerVolume | ForEach-Object {
+		$vol = $_
+		$vol.KeyProtector | ForEach-Object {
+			[PSCustomObject]@{
+				MountPoint = $vol.MountPoint
+				KeyProtectorType = $_.KeyProtectorType
+			}
+		}
+	}) | ConvertTo-Json`
+
 	output, err := tablehelpers.Exec(
 		ctx,
 		t.logger,
 		30,
 		[]string{"powershell.exe"},
-		[]string{
-			"-NoProfile",
-			"-Command",
-			"Get-BitLockerVolume | ConvertTo-Json -Depth 5",
-		}, true)
+		[]string{"-NoProfile", "-Command", cmd},
+		true,
+	)
 
 	if err != nil {
 		t.logger.Info().Err(err).Msg("failed to get BitLocker volume data")
@@ -66,8 +70,11 @@ func (t *Table) generate(
 }
 
 func (t *Table) parseOutput(output []byte) ([]map[string]string, error) {
-	var results []map[string]string
+	if len(output) == 0 {
+		return nil, nil
+	}
 
+	var results []map[string]string
 	var volumes []BitLockerVolume
 	if err := json.Unmarshal(output, &volumes); err != nil {
 		t.logger.Info().Err(err).Msg("failed to parse BitLocker volume data")
@@ -75,12 +82,10 @@ func (t *Table) parseOutput(output []byte) ([]map[string]string, error) {
 	}
 
 	for _, volume := range volumes {
-		for _, protector := range volume.KeyProtectors {
-			results = append(results, map[string]string{
-				"drive_letter":       volume.MountPoint,
-				"key_protector_type": fmt.Sprintf("%d", protector.KeyProtector),
-			})
-		}
+		results = append(results, map[string]string{
+			"drive_letter":       volume.MountPoint,
+			"key_protector_type": fmt.Sprintf("%d", volume.KeyProtectorType),
+		})
 	}
 
 	return results, nil
