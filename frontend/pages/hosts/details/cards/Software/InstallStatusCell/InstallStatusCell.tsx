@@ -277,6 +277,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
 type IInstallStatusCellProps = {
   software: IHostSoftwareWithUiStatus;
   onShowSoftwareDetails?: (software: IHostSoftware) => void;
+  onShowUpdateDetails: (software: IHostSoftware) => void;
   onShowInstallDetails?: (uuid?: InstallOrCommandUuid) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   isSelfService?: boolean;
@@ -313,6 +314,7 @@ const getEmptyCellTooltip = (hasAppStoreApp: boolean, softwareName?: string) =>
 const InstallStatusCell = ({
   software,
   onShowSoftwareDetails,
+  onShowUpdateDetails,
   onShowInstallDetails,
   onShowUninstallDetails,
   isSelfService = false,
@@ -373,8 +375,7 @@ const InstallStatusCell = ({
   };
 
   const onClickUpdateAvailableStatus = () => {
-    // onShowUpdateDetails(software);
-    // TODO: Finish implementation to show new update details modal
+    onShowUpdateDetails(software);
   };
 
   const renderDisplayStatus = () => {

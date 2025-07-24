@@ -26,7 +26,7 @@ export const createMockHostMdmProfile = (
   return { ...DEFAULT_HOST_PROFILE_MOCK, ...overrides };
 };
 
-const DEFAULT_HOST_MOCK: IHost = {
+export const DEFAULT_HOST_MOCK: IHost = {
   id: 1,
   created_at: "2022-01-01T12:00:00Z",
   updated_at: "2022-01-02T12:00:00Z",

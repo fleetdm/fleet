@@ -1,0 +1,40 @@
+.software-update-modal {
+  // Part of inventory versions component
+  // &__version-details {
+  //   display: flex;
+  //   flex-direction: column;
+  //   gap: $pad-large;
+  // }
+
+  // &__details-info {
+  //   display: flex;
+  //   flex-direction: column;
+  //   gap: $pad-large;
+  //   padding: $pad-large 0;
+  //   border-bottom: 1px solid $ui-fleet-black-10;
+
+  //   &:first-of-type {
+  //     padding-top: 0;
+  //   }
+
+  //   &:last-of-type {
+  //     border-bottom: none;
+  //     padding-bottom: 0;
+  //   }
+  // }
+
+  // &__row {
+  //   display: flex;
+  //   gap: $pad-xxlarge;
+  // }
+
+  &__status-message {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    margin: 0;
+    .icon {
+      align-self: flex-start;
+    }
+  }
+}
