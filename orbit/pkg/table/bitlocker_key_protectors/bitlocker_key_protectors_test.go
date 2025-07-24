@@ -12,8 +12,14 @@ import (
 )
 
 func TestTable_parseOutput(t *testing.T) {
-	// Sample JSON output from Get-BitLockerVolume | ConvertTo-Json
-	jsonOutput := `
+	testCases := []struct {
+		name     string
+		input    []byte
+		expected []map[string]string
+	}{
+		{
+			name: "as array",
+			input: []byte(`
 [
     {
         "MountPoint":  "C:",
@@ -23,28 +29,47 @@ func TestTable_parseOutput(t *testing.T) {
         "MountPoint":  "C:",
         "KeyProtectorType":  1
     }
-]
-`
+]`),
+			expected: []map[string]string{
+				{
+					"drive_letter":       "C:",
+					"key_protector_type": "3",
+				},
+				{
+					"drive_letter":       "C:",
+					"key_protector_type": "1",
+				},
+			},
+		},
+		{
+			name: "as a single object",
+			input: []byte(`
+    {
+        "MountPoint":  "C:",
+        "KeyProtectorType":  3
+    }
+`),
+			expected: []map[string]string{
+				{
+					"drive_letter":       "C:",
+					"key_protector_type": "3",
+				},
+			},
+		},
+	}
 	table := &Table{
 		logger: zerolog.New(zerolog.NewTestWriter(t)),
 	}
 
-	expected := []map[string]string{
-		{
-			"drive_letter":       "C:",
-			"key_protector_type": "3",
-		},
-		{
-			"drive_letter":       "C:",
-			"key_protector_type": "1",
-		},
-	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			results, err := table.parseOutput(testCase.input)
+			require.NoError(t, err)
+			if !reflect.DeepEqual(results, testCase.expected) {
+				t.Errorf("parseOutput() = %v, want %v", results, testCase.expected)
+			}
+		})
 
-	results, err := table.parseOutput([]byte(jsonOutput))
-
-	require.NoError(t, err)
-	if !reflect.DeepEqual(results, expected) {
-		t.Errorf("parseOutput() = %v, want %v", results, expected)
 	}
 }
 

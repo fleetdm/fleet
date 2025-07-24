@@ -41,7 +41,7 @@ func (t *Table) generate(
 	queryContext table.QueryContext,
 ) ([]map[string]string, error) {
 
-	cmd := `@(Get-BitlockerVolume | ForEach-Object {
+	cmd := `Get-BitlockerVolume | ForEach-Object {
 		$vol = $_
 		$vol.KeyProtector | ForEach-Object {
 			[PSCustomObject]@{
@@ -49,7 +49,7 @@ func (t *Table) generate(
 				KeyProtectorType = $_.KeyProtectorType
 			}
 		}
-	}) | ConvertTo-Json`
+	} | ConvertTo-Json`
 
 	output, err := tablehelpers.Exec(
 		ctx,
@@ -75,10 +75,18 @@ func (t *Table) parseOutput(output []byte) ([]map[string]string, error) {
 	}
 
 	var results []map[string]string
+
+	// The PS cmdlet might return a list if the system has more than one volume,
+	// so first we try to parse it as an array ...
 	var volumes []BitLockerVolume
 	if err := json.Unmarshal(output, &volumes); err != nil {
-		t.logger.Info().Err(err).Msg("failed to parse BitLocker volume data")
-		return nil, fmt.Errorf("failed to parse BitLocker volume data: %w", err)
+		// If array parsing fails, try parsing as single object ...
+		var volume BitLockerVolume
+		if err := json.Unmarshal(output, &volume); err != nil {
+			t.logger.Info().Err(err).Msg("failed to parse BitLocker volume data")
+			return nil, fmt.Errorf("failed to parse BitLocker volume data: %w", err)
+		}
+		volumes = []BitLockerVolume{volume}
 	}
 
 	for _, volume := range volumes {
