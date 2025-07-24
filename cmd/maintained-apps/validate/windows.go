@@ -90,7 +90,9 @@ func executeScript(scriptContents string) (string, error) {
 
 	// Only set exitCode if process completed and context wasn't cancelled
 	if cmd.ProcessState != nil {
-		exitCode = int(int32(cmd.ProcessState.ExitCode()))
+		// see orbit/pkg/scripts/exec_windows.go
+		// https://en.wikipedia.org/wiki/Exit_status#Windows
+		exitCode = int(int32(cmd.ProcessState.ExitCode())) // nolint:gosec
 	}
 
 	result := fmt.Sprintf(`
