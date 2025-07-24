@@ -8830,8 +8830,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Get script result](#get-script-result)
 - [Batch-run script](#batch-run-script)
 - [Get batch script summary](#get-batch-script-summary)
-- [Get batch script results](#get-batch-script-results)
-- [List batch script runs](#list-batch-script-runs)
+- [List batch scripts](#list-batch-scripts)
+- [List batch script results](#list-batch-script-results)
 - [Cancel batch script](#cancel-batch-script)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
@@ -9019,25 +9019,31 @@ Get statuses and host counts for a batch-run script.
   "ran": 12345,
   "pending": 234,
   "errored": 18,
+  "incompatible": 3,
   "canceled": 2,
   "targeted": 12599,
   "script_id": 555,
   "script_name": "my-script.sh",
-  "team_id": 123
+  "team_id": 123,
+  "starts_at": "2025-07-01T15:00:00Z",
+  "completed_at": "2025-07-06T15:00:00Z",
+  "status": "completed",
+  "cancelled": false
 }
 ```
 
-### Get batch script results
 
-> TODO
+### List batch scripts
 
-### List batch script runs
+> TODO: API to list batch script executions. Paginated, with status filter (started, scheduled, completed).
 
-> TODO
+### List batch script results
+
+> TODO: API to list hosts & their results. Paginated, with status filter (ran, pending, errored, incompatible, canceled).
 
 ### Cancel batch script
 
-> TODO
+> TODO: API to cancel all pending script executions from a batch run script.
 
 ### Add script
 
