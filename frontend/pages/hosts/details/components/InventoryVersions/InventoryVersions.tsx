@@ -1,13 +1,16 @@
-import Card from "components/Card";
-import DataSet from "components/DataSet";
+import React from "react";
+
+import { dateAgo } from "utilities/date_format";
+
 import {
   formatSoftwareType,
   IHostSoftware,
   ISoftwareInstallVersion,
   SoftwareSource,
 } from "interfaces/software";
-import React from "react";
-import { dateAgo } from "utilities/date_format";
+
+import Card from "components/Card";
+import DataSet from "components/DataSet";
 
 const generateVulnerabilitiesValue = (vulnerabilities: string[]) => {
   const first3 = vulnerabilities.slice(0, 3);
