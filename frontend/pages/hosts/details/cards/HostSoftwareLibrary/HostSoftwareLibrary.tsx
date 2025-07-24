@@ -489,7 +489,7 @@ const HostSoftwareLibrary = ({
         <SoftwareUpdateModal
           hostDisplayName={hostDisplayName}
           software={selectedSoftwareUpdates}
-          onUpdate={() => onClickInstallAction}
+          onUpdate={onClickInstallAction}
           onExit={() => setSelectedSoftwareUpdates(null)}
         />
       )}

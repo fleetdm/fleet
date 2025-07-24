@@ -30,8 +30,9 @@ const StatusMessage = ({
     if (softwareStatus === "pending_install") {
       return (
         <>
-          Fleet is updating or will update {softwareName} ({installerName}) on{" "}
-          {hostDisplayName} when it comes online.
+          Fleet is updating or will update <b>{softwareName}</b>{" "}
+          {installerName && `(${installerName})`} on <b>{hostDisplayName}</b>{" "}
+          when it comes online.
         </>
       );
     }
@@ -44,9 +45,9 @@ const StatusMessage = ({
     }
     return (
       <>
-        New version of {softwareName}{" "}
-        {installerVersion && `(${installerVersion})`} is available. Update or
-        uninstall the current version on {hostDisplayName}.
+        New version of <b>{softwareName}</b>{" "}
+        {installerVersion && `(${installerVersion})`} is available. Update the
+        current version on <b>{hostDisplayName}</b>.
       </>
     );
   };
@@ -82,6 +83,11 @@ const SoftwareUpdateModal = ({
   onExit,
   onUpdate,
 }: ISoftwareUpdateModalProps) => {
+  const onClickUpdate = () => {
+    onUpdate(software.id);
+    onExit();
+  };
+
   const renderStatus = () => {
     return (
       <StatusMessage
@@ -116,7 +122,7 @@ const SoftwareUpdateModal = ({
           <Button variant="inverse" onClick={onExit}>
             Cancel
           </Button>{" "}
-          <Button type="submit" onClick={onUpdate}>
+          <Button type="submit" onClick={onClickUpdate}>
             Update
           </Button>
         </>
