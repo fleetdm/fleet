@@ -706,6 +706,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Fleet configuration
 
+- [Get certificate](#get-certificate)
 - [Get configuration](#get-configuration)
 - [Modify configuration](#modify-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
