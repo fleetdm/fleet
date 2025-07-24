@@ -374,7 +374,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 		cvesByYear              = make(map[int][]nvdapi.CVEItem)
 		retryAttempts           = 0
 		lastModEndDate          *string
-		now                     = time.Now().UTC().Format("2006-01-02T15:04:05.000")
+		now                     = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
 		vulnerabilitiesReceived = 0
 	)
 	if lastModStartDate != nil {
