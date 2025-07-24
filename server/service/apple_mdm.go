@@ -7006,7 +7006,7 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking account driven enrollment service discovery")
 	}
-	sdURL := ac.MDMUrl() + urlPrefix + "/mdm/apple/service_discovery"
+	sdURL := ac.MDMUrl() + urlPrefix + apple_mdm.ServiceDiscoveryPath
 
 	tokens, err := ds.ListABMTokens(ctx)
 	switch {
