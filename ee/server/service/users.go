@@ -22,7 +22,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 	// email, we do it here to avoid hitting the database early if
 	// the email happens to be invalid.
 	if err := fleet.ValidateEmail(auth.UserID()); err != nil {
-		return nil, ctxerr.New(ctx, "validating SSO response")
+		return nil, ctxerr.Wrap(ctx, err, "validating SSO response email")
 	}
 
 	user, err := svc.Service.GetSSOUser(ctx, auth)

@@ -68,9 +68,9 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 
 	// hosts[0, 1] are no-team, hosts[2, 3] are team1, hosts[4, 5] are team2
-	err = ds.AddHostsToTeam(ctx, &tm1.ID, []uint{hosts[2].ID, hosts[3].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm1.ID, []uint{hosts[2].ID, hosts[3].ID}))
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[4].ID, hosts[5].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm2.ID, []uint{hosts[4].ID, hosts[5].ID}))
 	require.NoError(t, err)
 
 	logger := kitlog.NewNopLogger()
@@ -314,7 +314,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	}, serialsToProfile)
 
 	// move hosts[2,4] to team 3, delete team 2
-	err = ds.AddHostsToTeam(ctx, &tm3.ID, []uint{hosts[2].ID, hosts[4].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm3.ID, []uint{hosts[2].ID, hosts[4].ID}))
 	require.NoError(t, err)
 	err = ds.DeleteTeam(ctx, tm2.ID)
 	require.NoError(t, err)

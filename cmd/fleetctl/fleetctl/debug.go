@@ -514,7 +514,7 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			// Attempt a raw TCP connection to host:port.
 			dialURL := baseURL.Host
 			if baseURL.Port() == "" {
-				fmt.Fprintf(c.App.Writer, "Assumming port 443.\n")
+				fmt.Fprintf(c.App.Writer, "Assuming port 443.\n")
 				dialURL += ":443"
 			}
 			if err := dialHostPort(c.Context, timeoutPerCheck, dialURL); err != nil {

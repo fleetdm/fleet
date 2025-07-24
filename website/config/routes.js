@@ -947,6 +947,7 @@ module.exports.routes = {
   'GET /learn-more-about/microsoft-entra-setup': 'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/TenantProperties.ReactView',
   'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
+  'GET /learn-more-about/byod-hosts-vpp-install': 'https://github.com/fleetdm/fleet/issues/31138',
 
   // Sitemap
   // =============================================================================================================
@@ -1056,6 +1057,10 @@ module.exports.routes = {
 
   // Well known resources https://datatracker.ietf.org/doc/html/rfc8615
   // =============================================================================================================
-  // Temporary enroll endpoint for https://github.com/fleetdm/fleet/issues/27390
-  'GET /.well-known/com.apple.remotemanagement': (req, res)=>{ return res.json({'Servers':[{'Version':'mdm-byod', 'BaseURL':'https://jordan-fleetdm.ngrok.app/api/mdm/apple/account_driven_enroll'}]});},
+  //
+  // Service discovery for Apple account-driven enrollment, see
+  // https://developer.apple.com/documentation/devicemanagement/implementing-the-simple-authentication-user-enrollment-flow#Send-the-well-known-request
+  //
+  // TODO(BMAA): Uncomment this when we are ready to dogfood the Apple account-driven enrollment flow.
+  // 'GET /.well-known/com.apple.remotemanagement': (req, res)=>{ return res.json({'Servers':[{'Version':'mdm-byod', 'BaseURL':'https://dogfood.fleetdm.com/api/mdm/apple/account_driven_enroll'}]});},
 };

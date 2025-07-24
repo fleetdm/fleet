@@ -44,7 +44,7 @@ type ClientOption func(*Client) error
 func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
 	// TODO #265 refactor all optional parameters to functional options
 	// API breaking change, needs a major version release
-	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, nil, fleet.CapabilityMap{})
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, nil, fleet.CapabilityMap{}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -2007,6 +2007,11 @@ func (c *Client) DoGitOps(
 			mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
 		} else {
 			mdmAppConfig["enable_disk_encryption"] = false
+		}
+		if config.Controls.RequireBitLockerPIN != nil {
+			mdmAppConfig["windows_require_bitlocker_pin"] = config.Controls.RequireBitLockerPIN
+		} else {
+			mdmAppConfig["windows_require_bitlocker_pin"] = false
 		}
 
 		if config.TeamName != nil {
