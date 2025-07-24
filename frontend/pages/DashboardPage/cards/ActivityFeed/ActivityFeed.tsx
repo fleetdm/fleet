@@ -16,7 +16,7 @@ import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 
 import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
-import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 

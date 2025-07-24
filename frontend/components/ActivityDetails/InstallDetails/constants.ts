@@ -37,9 +37,3 @@ export const getInstallDetailsStatusPredicate = (
     ] || INSTALL_DETAILS_STATUS_PREDICATES.pending_install
   );
 };
-
-export const SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS = {
-  pre_install_query_output: "Pre-install condition",
-  output: "Software install output",
-  post_install_script_output: "Post-install script output",
-} as const;

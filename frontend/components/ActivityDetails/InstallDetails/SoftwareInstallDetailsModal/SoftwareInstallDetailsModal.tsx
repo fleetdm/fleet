@@ -1,7 +1,7 @@
 // Used on: Dashboard > activity, Host details > past activity
 // Also used on Self-service failed install details
 
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 import { AxiosError } from "axios";
@@ -12,6 +12,8 @@ import { IActivityDetails } from "interfaces/activity";
 import {
   ISoftwareInstallResult,
   ISoftwareInstallResults,
+  ISoftwareInstallVersion,
+  SoftwareSource,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 import deviceUserAPI from "services/entities/device_user";
@@ -23,14 +25,15 @@ import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
+import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
+
 import {
   INSTALL_DETAILS_STATUS_ICONS,
-  SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS,
   getInstallDetailsStatusPredicate,
 } from "../constants";
 
-const baseClass = "software-install-details";
+const baseClass = "software-install-details-modal";
 
 // TODO: Expand to include more details as needed
 export type IPackageInstallDetails = Pick<
@@ -50,9 +53,11 @@ const StatusMessage = ({
     created_at,
   },
   isDUP,
+  isInstalledByFleet,
 }: {
   result: ISoftwareInstallResult;
   isDUP: boolean;
+  isInstalledByFleet: boolean;
 }) => {
   const { config } = useContext(AppContext);
 
@@ -73,10 +78,6 @@ const StatusMessage = ({
         addSuffix: true,
       })})`
     : "";
-
-  // QUESTION - how to determine if SW is installed by Fleet?
-  // const isInstalledByFleet = false;
-  const isInstalledByFleet = true;
 
   const renderContactOption = () =>
     config?.org_info.contact_url ? (
@@ -146,6 +147,12 @@ const StatusMessage = ({
   );
 };
 
+const SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS = {
+  pre_install_query_output: "Pre-install condition",
+  output: "Software install output",
+  post_install_script_output: "Post-install script output",
+} as const;
+
 const Output = ({
   displayKey,
   result,
@@ -163,11 +170,84 @@ const Output = ({
   );
 };
 
+// TODO - TURN THIS INTO INVENTORY VERSIONS
+interface IInventoryVersionsProps {
+  installedVersion: ISoftwareInstallVersion;
+  source: SoftwareSource;
+  bundleIdentifier?: string;
+}
+const InventoryVersions = ({
+  installedVersion,
+  source,
+  bundleIdentifier,
+}: IInventoryVersionsProps) => {
+  const {
+    vulnerabilities,
+    installed_paths: installedPaths,
+    signature_information: signatureInformation,
+  } = installedVersion;
+
+  // return (
+  //   <Card
+  //     className={`${baseClass}__version-details`}
+  //     color="grey"
+  //     borderRadiusSize="medium"
+  //   >
+  //     <div className={`${baseClass}__row`}>
+  //       <DataSet title="Version" value={installedVersion.version} />
+  //       <DataSet title="Type" value={formatSoftwareType({ source })} />
+  //       {bundleIdentifier && (
+  //         <DataSet title="Bundle identifier" value={bundleIdentifier} />
+  //       )}
+  //       {installedVersion.last_opened_at && (
+  //         <DataSet
+  //           title="Last used"
+  //           value={dateAgo(installedVersion.last_opened_at)}
+  //         />
+  //       )}
+  //     </div>
+  //     {vulnerabilities && vulnerabilities.length !== 0 && (
+  //       <div className={`${baseClass}__row`}>
+  //         <DataSet
+  //           title="Vulnerabilities"
+  //           value={generateVulnerabilitiesValue(vulnerabilities)}
+  //         />
+  //       </div>
+  //     )}
+  //     {!!installedPaths?.length &&
+  //       installedPaths.map((path) => {
+  //         // Find the signature info for this path
+  //         const sigInfo = signatureInformation?.find(
+  //           (info) => info.installed_path === path
+  //         );
+
+  //         return (
+  //           <div className={`${baseClass}__sig-info`}>
+  //             <DataSet orientation="horizontal" title="Path" value={path} />
+  //             {sigInfo?.hash_sha256 && (
+  //               <DataSet
+  //                 orientation="horizontal"
+  //                 title="Hash"
+  //                 value={sigInfo.hash_sha256}
+  //               />
+  //             )}
+  //           </div>
+  //         );
+  //       })}
+  //   </Card>
+  // );
+};
+
+// TODO - remove this layer of abstraction, no longer necessary
 export const SoftwareInstallDetails = ({
   host_display_name = "",
   install_uuid = "",
   deviceAuthToken,
 }: IPackageInstallDetails) => {
+  const [showInstallDetails, setShowInstallDetails] = useState(false);
+  const toggleInstallDetails = () => {
+    setShowInstallDetails((prev) => !prev);
+  };
   const { data: result, isLoading, isError, error } = useQuery<
     ISoftwareInstallResults,
     AxiosError,
@@ -231,6 +311,53 @@ export const SoftwareInstallDetails = ({
     );
   }
 
+  const renderInstallDetails = () => (
+    <>
+      {/* {result.pre_install_query_output && (
+        <Output displayKey="pre_install_query_output" result={result} />
+      )}
+      {result.output && <Output displayKey="output" result={result} />}
+      {result.post_install_script_output && (
+        <Output displayKey="post_install_script_output" result={result} />
+      )} */}
+      {result.output && (
+        <Textarea label="Install script output:" variant="code">
+          {result.output}
+        </Textarea>
+      )}
+      <Textarea label="Install script:" variant="code">
+        {/* TODO get the install script! */}
+        {"TODO - get the install script!"}
+      </Textarea>
+    </>
+  );
+
+  const renderInstallDetailsSection = () => {
+    if (!deviceAuthToken && result.status === "failed_install") {
+      return renderInstallDetails();
+    }
+    return (
+      <>
+        <RevealButton
+          isShowing={showInstallDetails}
+          showText="Details"
+          hideText="Details"
+          caretPosition="after"
+          onClick={toggleInstallDetails}
+        />
+        {showInstallDetails && renderInstallDetails()}
+      </>
+    );
+  };
+
+  // QUESTION - how to determine if SW is installed by Fleet?
+  // const isInstalledByFleet = false;
+  const isInstalledByFleet = true;
+
+  const excludeVersions =
+    !deviceAuthToken &&
+    ["pending_install", "failed_install"].includes(result.status);
+
   return (
     <>
       <StatusMessage
@@ -238,18 +365,15 @@ export const SoftwareInstallDetails = ({
           result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
         }
         isDUP={!!deviceAuthToken}
+        isInstalledByFleet={isInstalledByFleet}
       />
-      {result.status !== "pending_install" && (
-        <>
-          {result.pre_install_query_output && (
-            <Output displayKey="pre_install_query_output" result={result} />
-          )}
-          {result.output && <Output displayKey="output" result={result} />}
-          {result.post_install_script_output && (
-            <Output displayKey="post_install_script_output" result={result} />
-          )}
-        </>
-      )}
+
+      {/* TODO - flesh out */}
+      {/* {!excludeVersions && <InventoryVersions />} */}
+
+      {result.status !== "pending_install" &&
+        isInstalledByFleet &&
+        renderInstallDetailsSection()}
     </>
   );
 };

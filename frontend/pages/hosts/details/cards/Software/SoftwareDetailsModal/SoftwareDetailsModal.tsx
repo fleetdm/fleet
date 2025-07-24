@@ -20,7 +20,7 @@ import DataSet from "components/DataSet";
 import { dateAgo } from "utilities/date_format";
 
 import { AppInstallDetails } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
-import { SoftwareInstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
+import { SoftwareInstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 
 const baseClass = "software-details-modal";
 

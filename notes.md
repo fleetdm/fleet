@@ -51,7 +51,7 @@
 
 ### AppInstallDetails.tsx
 <!-- TODO  - handles VPP app installs, some overlap with above components, so can't just be ignored -->
-- approach unless hear otherwise: wrap with new install details modal when appropriate, bypassing
+****- approach unless hear otherwise: wrap with new install details modal when appropriate, bypassing
   new designs (see below)
 
 

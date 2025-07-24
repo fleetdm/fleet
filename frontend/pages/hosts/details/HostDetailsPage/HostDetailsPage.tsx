@@ -65,7 +65,7 @@ import {
 import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
-} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISoftwareUninstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
