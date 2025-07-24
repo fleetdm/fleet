@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "1.79.126.0",
+      "version": "137.1.79.126",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.brave.Browser';"
       },
