@@ -43,7 +43,7 @@ SELECT path,
 	timestamp,
 	triggering_extension
 FROM problematic_extensions
-WHERE triggering_extension IS NOT NULL AND username NOT LIKE '\_%' ESCAPE '\';
+WHERE triggering_extension IS NOT NULL AND username NOT LIKE '\\_%' ESCAPE '\\';
 `;
   it("should return only real tables by default", () => {
     const { tables, error } = checkTable(SQL);
