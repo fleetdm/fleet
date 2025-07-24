@@ -68,6 +68,8 @@ export interface ISoftwareSelfServiceProps {
   router: InjectedRouter;
   onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
+  refetchHostDetails: () => void;
+  isHostDetailsPolling: boolean;
 }
 
 const SoftwareSelfService = ({
@@ -79,6 +81,8 @@ const SoftwareSelfService = ({
   router,
   onShowInstallDetails,
   onShowUninstallDetails,
+  refetchHostDetails,
+  isHostDetailsPolling,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -98,6 +102,7 @@ const SoftwareSelfService = ({
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const isAwaitingHostDetailsPolling = useRef(isHostDetailsPolling);
 
   const queryKey = useMemo<IDeviceSoftwareQueryKey[]>(() => {
     return [
@@ -112,7 +117,12 @@ const SoftwareSelfService = ({
   }, [deviceToken, queryParams.page, queryParams.query]);
 
   // Fetch self-service software (regular API call)
-  const { isLoading, isError, isFetching } = useQuery<
+  const {
+    isLoading,
+    isError,
+    isFetching,
+    refetch: refetchSelfServiceData,
+  } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError,
     IGetDeviceSoftwareResponse,
@@ -125,6 +135,17 @@ const SoftwareSelfService = ({
       setSelfServiceData(response);
     },
   });
+
+  // After host details polling (in parent) finishes, refetch software data.
+  // Ensures self service data reflects updates to installed_versions from the latest host details.
+  useEffect(() => {
+    // Detect completion of the host details polling (in parent)
+    // Once host details polling completes, refetch software data to retreive updated installed_versions keyed from host details data
+    if (isAwaitingHostDetailsPolling.current && !isHostDetailsPolling) {
+      refetchSelfServiceData();
+    }
+    isAwaitingHostDetailsPolling.current = isHostDetailsPolling;
+  }, [isHostDetailsPolling, refetchSelfServiceData]);
 
   // Poll for pending installs/uninstalls
   const { refetch: refetchForPendingInstallsOrUninstalls } = useQuery<
@@ -146,6 +167,12 @@ const SoftwareSelfService = ({
             )
             .map((software) => String(software.id))
         );
+
+        // Refresh host details if the number of pending installs or uninstalls has decreased
+        // To update the software library information
+        if (newPendingSet.size < pendingSoftwareSetRef.current.size) {
+          refetchHostDetails();
+        }
 
         // Compare new set with the previous set
         const setsAreEqual =

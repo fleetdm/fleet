@@ -31,6 +31,8 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   router: createMockRouter(),
   onShowInstallDetails: noop,
   onShowUninstallDetails: noop,
+  refetchHostDetails: noop,
+  isHostDetailsPolling: false,
 };
 
 describe("SelfService", () => {
@@ -86,33 +88,7 @@ describe("SelfService", () => {
 
     const render = createCustomRenderer({ withBackendMock: true });
 
-    const expectedUrl = "http://example.com";
-
-    render(
-      <SelfService
-        contactUrl={expectedUrl}
-        deviceToken="123-456"
-        isSoftwareEnabled
-        pathname="/test"
-        queryParams={{
-          page: 1,
-          query: "test",
-          order_key: "name",
-          order_direction: "asc",
-          per_page: 10,
-          vulnerable: true,
-          available_for_install: false,
-          min_cvss_score: undefined,
-          max_cvss_score: undefined,
-          exploit: false,
-          category_id: undefined,
-          self_service: false,
-        }}
-        router={createMockRouter()}
-        onShowInstallDetails={noop}
-        onShowUninstallDetails={noop}
-      />
-    );
+    render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
     await screen.findByText("test-software");

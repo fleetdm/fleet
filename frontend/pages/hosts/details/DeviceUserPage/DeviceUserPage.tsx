@@ -530,6 +530,8 @@ const DeviceUserPage = ({
                       router={router}
                       onShowInstallDetails={onShowInstallDetails}
                       onShowUninstallDetails={onShowUninstallDetails}
+                      refetchHostDetails={refetchHostDetails}
+                      isHostDetailsPolling={showRefetchSpinner}
                     />
                   </TabPanel>
                 )}

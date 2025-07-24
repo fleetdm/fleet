@@ -57,6 +57,8 @@ interface IHostInstallersProps {
   hostScriptsEnabled?: boolean;
   hostMDMEnrolled?: boolean;
   isHostOnline?: boolean;
+  refetchHostDetails: () => void;
+  isHostDetailsPolling: boolean;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -107,6 +109,8 @@ const HostSoftwareLibrary = ({
   isSoftwareEnabled = false,
   hostMDMEnrolled,
   isHostOnline = false,
+  refetchHostDetails,
+  isHostDetailsPolling,
 }: IHostInstallersProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const {
@@ -127,6 +131,7 @@ const HostSoftwareLibrary = ({
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const isAwaitingHostDetailsPolling = useRef(isHostDetailsPolling);
 
   const queryKey = useMemo<IHostSoftwareQueryKey[]>(() => {
     return [
@@ -143,6 +148,7 @@ const HostSoftwareLibrary = ({
     isLoading: hostSoftwareLibraryLoading,
     isError: hostSoftwareLibraryError,
     isFetching: hostSoftwareLibraryFetching,
+    refetch: refetchHostSoftwareLibrary,
   } = useQuery<
     IGetHostSoftwareResponse,
     AxiosError,
@@ -156,6 +162,17 @@ const HostSoftwareLibrary = ({
       setHostSoftwareLibraryRes(response);
     },
   });
+
+  // After host details polling (in parent) finishes, refetch software data.
+  // Ensures self service data reflects updates to installed_versions from the latest host details.
+  useEffect(() => {
+    // Detect completion of the host details polling (in parent)
+    // Once host details polling completes, refetch software data to retreive updated installed_versions keyed from host details data
+    if (isAwaitingHostDetailsPolling.current && !isHostDetailsPolling) {
+      refetchHostSoftwareLibrary();
+    }
+    isAwaitingHostDetailsPolling.current = isHostDetailsPolling;
+  }, [isHostDetailsPolling, refetchHostSoftwareLibrary]);
 
   // Poll for pending installs/uninstalls
   const { refetch: refetchForPendingInstallsOrUninstalls } = useQuery<
@@ -177,6 +194,12 @@ const HostSoftwareLibrary = ({
             )
             .map((software) => String(software.id))
         );
+
+        // Refresh host details if the number of pending installs or uninstalls has decreased
+        // To update the software library information of the newly installed/uninstalled software
+        if (newPendingSet.size < pendingSoftwareSetRef.current.size) {
+          refetchHostDetails();
+        }
 
         // Compare new set with the previous set
         const setsAreEqual =
