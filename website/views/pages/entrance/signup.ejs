@@ -60,7 +60,7 @@
             <blockquote purpose="tip" v-if="cloudError === 'invalidEmailDomain'">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
-                <p>Don’t want have a work email? Try a local demo of <a href="/try-fleet">Fleet Free</a> instead.</p>
+                <p>Don’t have a work email? Try a local demo of <a href="/try-fleet">Fleet Free</a> instead.</p>
               </div>
             </blockquote>
             <cloud-error purpose="cloud-error" v-if="cloudError && !['emailAlreadyInUse', 'invalidEmailDomain'].includes(cloudError)"></cloud-error>
