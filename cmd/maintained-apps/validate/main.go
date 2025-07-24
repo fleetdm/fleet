@@ -298,18 +298,24 @@ func listDirectoryContents(dir string) (map[string]struct{}, error) {
 	return contents, nil
 }
 
+var pathJoin = filepath.Join
+
+func filepathJoin(parts ...string) string {
+	return pathJoin(parts...)
+}
+
 func detectApplicationChange(installationSearchDirectory string, appListPre, appListPost map[string]struct{}) (string, bool) {
 	// Check for added applications
 	for app := range appListPost {
 		if _, exists := appListPre[app]; !exists {
-			return filepath.Join(installationSearchDirectory, app), true // true = added
+			return filepathJoin(installationSearchDirectory, app), true // true = added
 		}
 	}
 
 	// Check for removed applications
 	for app := range appListPre {
 		if _, exists := appListPost[app]; !exists {
-			return filepath.Join(installationSearchDirectory, app), false // false = removed
+			return filepathJoin(installationSearchDirectory, app), false // false = removed
 		}
 	}
 
