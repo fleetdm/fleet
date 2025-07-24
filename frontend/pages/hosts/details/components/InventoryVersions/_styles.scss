@@ -1,0 +1,28 @@
+.inventory-versions {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+
+  .data-set dd {
+    white-space: initial;
+  }
+
+  &__version {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+  &__row {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+
+  &__sig-info {
+    display: flex;
+    flex-direction: column;
+
+    dt {
+      min-width: 40px;
+    }
+  }
+}
