@@ -127,6 +127,8 @@ const defaultCardClass = `${baseClass}__card`;
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 const doubleHeightCardClass = `${baseClass}__card--double-height`;
 
+export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
+
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
   location: {
@@ -335,6 +337,15 @@ const HostDetailsPage = ({
     hostCertificates && refetchHostCertificates();
   };
 
+  /**
+   * Hides refetch spinner and resets refetch timer,
+   * ensuring no stale timeout triggers on new requests.
+   */
+  const resetHostRefetchStates = () => {
+    setShowRefetchSpinner(false);
+    setRefetchStartTime(null);
+  };
+
   const {
     isLoading: isLoadingHost,
     data: host,
@@ -350,6 +361,12 @@ const HostDetailsPage = ({
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
+        // If backend triggered a refetch of host vitals (e.g. from software actions completing),
+        // we want to set a new 60 second refetch timeout
+        if (!showRefetchSpinner && returnedHost.refetch_requested) {
+          setRefetchStartTime(Date.now());
+        }
+
         setShowRefetchSpinner(returnedHost.refetch_requested);
         setHostMdmDeviceState(
           getHostDeviceStatusUIState(
@@ -378,9 +395,9 @@ const HostDetailsPage = ({
               setTimeout(() => {
                 refetchHostDetails();
                 refetchExtensions();
-              }, 1000);
+              }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
-              setShowRefetchSpinner(false);
+              resetHostRefetchStates();
             }
           } else {
             // !!refetchStartTime
@@ -393,13 +410,13 @@ const HostDetailsPage = ({
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
-                }, 1000);
+                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 renderFlash(
                   "error",
                   `This host is offline. Please try refetching host vitals later.`
                 );
-                setShowRefetchSpinner(false);
+                resetHostRefetchStates();
               }
             } else {
               // totalElapsedTime > 60000
@@ -407,7 +424,7 @@ const HostDetailsPage = ({
                 "error",
                 `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
-              setShowRefetchSpinner(false);
+              resetHostRefetchStates();
             }
           }
           return; // exit early because refectch is pending so we can avoid unecessary steps below
@@ -627,11 +644,11 @@ const HostDetailsPage = ({
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
-          }, 1000);
+          }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
         });
       } catch (error) {
         renderFlash("error", getErrorMessage(error, host.display_name));
-        setShowRefetchSpinner(false);
+        resetHostRefetchStates();
       }
     }
   };

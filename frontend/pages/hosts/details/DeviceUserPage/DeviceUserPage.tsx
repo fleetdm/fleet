@@ -79,6 +79,7 @@ import {
 import HostHeader from "../cards/HostHeader/HostHeader";
 import { InstallOrCommandUuid } from "../cards/Software/InstallStatusCell/InstallStatusCell";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
+import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
 
 const baseClass = "device-user";
 
@@ -267,7 +268,7 @@ const DeviceUserPage = ({
               setTimeout(() => {
                 refetchHostDetails();
                 refetchExtensions();
-              }, 1000);
+              }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               setShowRefetchSpinner(false);
             }
@@ -278,7 +279,7 @@ const DeviceUserPage = ({
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
-                }, 1000);
+                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 renderFlash(
                   "error",
@@ -369,7 +370,7 @@ const DeviceUserPage = ({
         setTimeout(() => {
           refetchHostDetails();
           refetchExtensions();
-        }, 1000);
+        }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
       } catch (error) {
         renderFlash("error", getErrorMessage(error, host.display_name));
         setShowRefetchSpinner(false);
