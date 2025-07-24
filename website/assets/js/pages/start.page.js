@@ -89,8 +89,7 @@ parasails.registerPage('start', {
     }
     // If this user has not completed the 'what are you using fleet for' step, and has a primaryBuyingSituation set by an ad. prefill the formData for this step.
     if(this.primaryBuyingSituation && _.isEmpty(this.formData['what-are-you-using-fleet-for'])){
-      // TODO: remove this once the form is updated to support the new primaryBuyingSituation values.
-      if(!['vm', 'security-misc', 'security-vm', 'it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(this.primaryBuyingSituation)) {
+      if(!['vm', 'mdm', 'eo-security', 'eo-it'].includes(this.primaryBuyingSituation)) {
         this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
       }
     }

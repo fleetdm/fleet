@@ -64,7 +64,7 @@ parasails.registerPage('contact', {
       this.formDataToPrefillForLoggedInUsers.lastName = this.me.lastName;
       this.formDataToPrefillForLoggedInUsers.organization = this.me.organization;
       // Only prefil this information if the user has this value set to a value that is not VM.
-      if(this.me.primaryBuyingSituation && this.me.primaryBuyingSituation !== 'vm') {
+      if(this.me.primaryBuyingSituation &&  !['vm', 'security-misc', 'security-vm', 'it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(this.primaryBuyingSituation)) {
         this.formDataToPrefillForLoggedInUsers.primaryBuyingSituation = this.me.primaryBuyingSituation;
       }
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
