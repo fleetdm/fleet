@@ -91,7 +91,8 @@ const generateTableHeaders = (
     hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
   },
-  isPremiumTier?: boolean
+  isPremiumTier?: boolean,
+  isPrimoMode?: boolean
 ): IDataColumn[] => {
   const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
   const viewingTeamPolicies = selectedTeamId !== -1;
@@ -252,7 +253,9 @@ const generateTableHeaders = (
         // When viewing team policies, the select all checkbox will ignore inherited policies
         const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({
           headerProps,
-          checkIfRowIsSelectable: (row) => row.original.team_id !== null,
+          checkIfRowIsSelectable: (row) =>
+            // allow selecting inherited policies in primo mode
+            isPrimoMode || row.original.team_id !== null,
         });
 
         // Regular table selection logic
@@ -297,7 +300,7 @@ const generateTableHeaders = (
         };
 
         // When viewing team policies and a row is an inherited policy, do not render checkbox
-        if (viewingTeamPolicies && inheritedPolicy) {
+        if (viewingTeamPolicies && inheritedPolicy && !isPrimoMode) {
           return <></>;
         }
 

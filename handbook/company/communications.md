@@ -225,7 +225,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
 - **"¶":** _(E-group - Direct reports the the CEO)_
-- **"¶¶":** _(Classified - CEO, Head of Digital Experience, and Apprentice)_
+- **"¶¶":** _(Classified - CEO, CFO, Head of Digital Experience)_
 
 
 ## Company database
@@ -945,7 +945,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 #### Capitalization and proper nouns
 
 - **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management".
-- **Fleet the product:** We always say “Fleet” or “Fleet for osquery".  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
+- **Fleet the product:** We always say “Fleet”.  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
 - **Team members:** [Core team members](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant) are “Fleeties".
 - **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.

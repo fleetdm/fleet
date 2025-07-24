@@ -521,6 +521,7 @@ func newAutomationsSchedule(
 	logger kitlog.Logger,
 	intervalReload time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
+	enablePrimo bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronAutomations)
@@ -559,7 +560,7 @@ func newAutomationsSchedule(
 		schedule.WithJob(
 			"failing_policies_automation",
 			func(ctx context.Context) error {
-				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet)
+				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet, enablePrimo)
 			},
 		),
 	)
@@ -596,6 +597,7 @@ func triggerFailingPoliciesAutomation(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
+	enablePrimo bool,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -637,7 +639,7 @@ func triggerFailingPoliciesAutomation(
 			}
 		}
 		return nil
-	})
+	}, enablePrimo)
 	if err != nil {
 		return fmt.Errorf("triggering failing policies automation: %w", err)
 	}
@@ -1281,6 +1283,27 @@ func newWindowsMDMProfileManagerSchedule(
 
 	return s, nil
 }
+
+// // TODO(BMAA): Uncomment this when ready to test Apple account-driven enrollment flow
+// func newMDMAppleServiceDiscoverySchedule(
+// 	ctx context.Context,
+// 	instanceID string,
+// 	ds fleet.Datastore,
+// 	depStorage *mysql.NanoDEPStorage,
+// 	logger kitlog.Logger,
+// ) (*schedule.Schedule, error) {
+// 	const name = "mdm_service_discovery"
+// 	interval := 1 * time.Hour
+// 	logger = kitlog.With(logger, "cron", name)
+// 	s := schedule.New(
+// 		ctx, name, instanceID, interval, ds, ds,
+// 		schedule.WithLogger(logger),
+// 		schedule.WithJob("mdm_apple_account_driven_enrollment_profile", func(ctx context.Context) error {
+// 			return service.EnsureMDMAppleServiceDiscovery(ctx, ds, depStorage, logger)
+// 		}),
+// 	)
+// 	return s, nil
+// }
 
 func newMDMAPNsPusher(
 	ctx context.Context,

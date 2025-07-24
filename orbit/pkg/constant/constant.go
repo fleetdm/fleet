@@ -75,4 +75,6 @@ const (
 	DesktopTUFTargetName = "desktop"
 	// FleetURLFileName is the file where Fleet URL is stored after being read from Apple config profile.
 	FleetURLFileName = "fleet_url.txt"
+
+	FleetHTTPSignatureCertificateFileName = "host_identity.crt"
 )

@@ -34,6 +34,7 @@ controls:
   scripts:
   - path: ../lib/team-a/scripts/Script B.ps1
   windows_enabled_and_configured: true
+  windows_require_bitlocker_pin: false
   windows_updates:
     deadline_days: 95
     grace_period_days: 92

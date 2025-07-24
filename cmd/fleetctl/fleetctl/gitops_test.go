@@ -348,6 +348,8 @@ controls:
   ipados_updates:
     deadline: "2023-03-03"
     minimum_version: "18.0"
+  enable_disk_encryption: true
+  windows_require_bitlocker_pin: true
 queries:
 policies:
 labels:
@@ -437,6 +439,9 @@ software:
 	assert.Equal(t, "CustomScepProxy2", sceps[1].Name)
 	assert.Equal(t, "https://custom.scep.proxy.com2", sceps[1].URL)
 	assert.Equal(t, "challenge2", sceps[1].Challenge)
+
+	require.True(t, savedAppConfig.MDM.EnableDiskEncryption.Value)
+	require.True(t, savedAppConfig.MDM.RequireBitLockerPIN.Value)
 }
 
 func TestGitOpsBasicTeam(t *testing.T) {
@@ -1158,6 +1163,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 	testing_utils.StartSoftwareInstallerServer(t)
 
 	t.Setenv("TEST_TEAM_NAME", teamName)
+	t.Setenv("ENABLE_DISK_ENCRYPTION", "true")
+	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
 
 	// Dry run
 	const baseFilename = "team_config_no_paths.yml"
@@ -1184,6 +1191,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	assert.True(t, savedTeam.Config.Features.EnableHostUsers)
 	assert.Equal(t, 30, savedTeam.Config.HostExpirySettings.HostExpiryWindow)
 	assert.True(t, savedTeam.Config.MDM.EnableDiskEncryption)
+	assert.True(t, savedTeam.Config.MDM.RequireBitLockerPIN)
 	assert.Len(t, enrolledSecrets, 2)
 	assert.True(t, policyDeleted)
 	assert.Len(t, appliedPolicySpecs, 5)
@@ -1202,6 +1210,15 @@ func TestGitOpsFullTeam(t *testing.T) {
 	uninstallScriptProcessed := strings.ReplaceAll(file.GetUninstallScript("deb"), "$PACKAGE_ID", packageID)
 	assert.ElementsMatch(t, []string{fmt.Sprintf("echo 'uninstall' %s\n", packageID), uninstallScriptProcessed},
 		[]string{appliedSoftwareInstallers[0].UninstallScript, appliedSoftwareInstallers[1].UninstallScript})
+
+	// Change disk encryption settings
+	t.Setenv("ENABLE_DISK_ENCRYPTION", "false")
+	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "false")
+	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+	_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+	require.NotNil(t, savedTeam)
+	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
+	assert.False(t, savedTeam.Config.MDM.RequireBitLockerPIN)
 
 	// Change team name
 	newTeamName := "New Team Name"
@@ -2203,6 +2220,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
+
+	t.Setenv("ENABLE_DISK_ENCRYPTION", "true")
+	t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
 
 	// Dry run
 	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", "--delete-other-teams"})

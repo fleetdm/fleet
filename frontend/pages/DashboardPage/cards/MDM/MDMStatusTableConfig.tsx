@@ -1,86 +1,62 @@
 import React from "react";
 
-import { IMdmStatusCardData, MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
+import {
+  IMdmStatusCardData,
+  MDM_ENROLLMENT_STATUS_UI_MAP,
+} from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { MDM_STATUS_TOOLTIP } from "utilities/constants";
+import { CellProps, Column } from "react-table";
+import { INumberCellProps } from "interfaces/datatable_config";
 
-interface IMdmStatusData extends IMdmStatusCardData {
-  selectedPlatformLabelId?: number;
-}
+type IMdmStatusTableConfig = Column<IMdmStatusCardData>;
+type IMdmStatusCellProps = CellProps<
+  IMdmStatusCardData,
+  IMdmStatusCardData["status"]
+>;
+type IHostCountCellProps = INumberCellProps<IMdmStatusCardData>;
+type IViewAllHostsLinkProps = CellProps<IMdmStatusCardData>;
 
-// NOTE: cellProps come from react-table
-// more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-interface ICellProps {
-  cell: {
-    value: string;
-  };
-  row: {
-    original: IMdmStatusData;
-  };
-}
-
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
-}
-
-interface IStringCellProps extends ICellProps {
-  cell: {
-    value: string;
-  };
-}
-
-interface IDataColumn {
-  title: string;
-  Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
-  disableGlobalFilter?: boolean;
-  disableHidden?: boolean;
-  disableSortBy?: boolean;
-  sortType?: string;
-}
-
-export const generateStatusTableHeaders = (teamId?: number): IDataColumn[] => [
+export const generateStatusTableHeaders = (
+  teamId?: number
+): IMdmStatusTableConfig[] => [
   {
-    title: "Status",
     Header: "Status",
     disableSortBy: true,
     accessor: "status",
-    Cell: ({ cell: { value: status } }: IStringCellProps) =>
+    Cell: ({ cell: { value: status } }: IMdmStatusCellProps) =>
       !MDM_STATUS_TOOLTIP[status] ? (
         <TextCell value={status} />
       ) : (
         <TooltipWrapper tipContent={MDM_STATUS_TOOLTIP[status]}>
-          {status}
+          {MDM_ENROLLMENT_STATUS_UI_MAP[status].displayName}
         </TooltipWrapper>
       ),
     sortType: "hasLength",
   },
   {
-    title: "Hosts",
     Header: "Hosts",
     disableSortBy: true,
     accessor: "hosts",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: IHostCountCellProps) => (
+      <TextCell value={cellProps.cell.value} />
+    ),
   },
   {
-    title: "",
     Header: "",
+    id: "view-all-hosts",
     disableSortBy: true,
     disableGlobalFilter: true,
-    accessor: "linkToFilteredHosts",
-    Cell: (cellProps: IStringCellProps) => {
+    Cell: (cellProps: IViewAllHostsLinkProps) => {
       return (
         <ViewAllHostsLink
           queryParams={{
             mdm_enrollment_status:
-              MDM_ENROLLMENT_STATUS[cellProps.row.original.status],
+              MDM_ENROLLMENT_STATUS_UI_MAP[cellProps.row.original.status]
+                .filterValue,
             team_id: teamId,
           }}
           className="mdm-solution-link"
@@ -89,14 +65,13 @@ export const generateStatusTableHeaders = (teamId?: number): IDataColumn[] => [
         />
       );
     },
-    disableHidden: true,
   },
 ];
 
 const enhanceStatusData = (
   statusData: IMdmStatusCardData[],
   selectedPlatformLabelId?: number
-): IMdmStatusData[] => {
+): IMdmStatusCardData[] => {
   return Object.values(statusData).map((data) => {
     return {
       ...data,
@@ -108,7 +83,7 @@ const enhanceStatusData = (
 export const generateStatusDataSet = (
   statusData: IMdmStatusCardData[] | null,
   selectedPlatformLabelId?: number
-): IMdmStatusData[] => {
+): IMdmStatusCardData[] => {
   if (!statusData) {
     return [];
   }

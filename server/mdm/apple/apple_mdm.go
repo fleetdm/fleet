@@ -36,6 +36,8 @@ const (
 	SCEPPath = "/mdm/apple/scep"
 	// MDMPath is Fleet's HTTP path for the core MDM service.
 	MDMPath = "/mdm/apple/mdm"
+	// MDMServiceDiscoveryPath is Fleet's HTTP path for the MDM service discovery service.
+	ServiceDiscoveryPath = "/mdm/apple/service_discovery"
 
 	// EnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
 	EnrollPath = "/api/mdm/apple/enroll"
@@ -531,6 +533,28 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 	}
 
 	return result
+}
+
+func (d *DEPService) GetMDMAppleServiceDiscoveryDetails(ctx context.Context, tokenOrgName string) (*godep.AccountDrivenEnrollmentProfileResponse, error) {
+	// TODO: In some of the other DEPService methods (e.g., RegisterProfileWithAppleDEPServiceE)
+	// we always create a new depClient specifically for that method. Why? Should we do the same
+	// here or should we update those other methods to use the d.depClient instance like we are here?
+	if d.depClient == nil {
+		d.depClient = NewDEPClient(d.depStorage, d.ds, d.logger)
+	}
+
+	return d.depClient.FetchAccountDrivenEnrollmentServiceDiscovery(ctx, tokenOrgName)
+}
+
+func (d *DEPService) AssignMDMAppleServiceDiscoveryURL(ctx context.Context, tokenOrgName string, url string) error {
+	// TODO: In some of the other DEPService methods (e.g., RegisterProfileWithAppleDEPServiceE)
+	// we always create a new depClient specifically for that method. Why? Should we do the same
+	// here or should we update those other methods to use the d.depClient instance like we are here?
+	if d.depClient == nil {
+		d.depClient = NewDEPClient(d.depStorage, d.ds, d.logger)
+	}
+
+	return d.depClient.AssignAccountDrivenEnrollmentServiceDiscovery(ctx, tokenOrgName, url)
 }
 
 func NewDEPService(

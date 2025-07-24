@@ -75,6 +75,10 @@
       "description": "A filepath to an uninstall script. If provided, this script will override the generated uninstall script.",
       "minLength": 1,
       "pattern": "\\.sh$"
+    },
+    "frozen": {
+      "type": "boolean",
+      "description": "If true, the app will not be processed during ingestion and no new output will be created."
     }
   },
   "not": {

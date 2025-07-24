@@ -323,6 +323,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// We'll override this for teams other than no-team.
 		mdmConfig := fleet.TeamMDM{
 			EnableDiskEncryption: cmd.AppConfig.MDM.EnableDiskEncryption.Value,
+			RequireBitLockerPIN:  cmd.AppConfig.MDM.RequireBitLockerPIN.Value,
 			MacOSUpdates:         cmd.AppConfig.MDM.MacOSUpdates,
 			IOSUpdates:           cmd.AppConfig.MDM.IOSUpdates,
 			IPadOSUpdates:        cmd.AppConfig.MDM.IPadOSUpdates,
@@ -913,6 +914,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 		if teamMdm != nil {
 			result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
+			result[jsonFieldName(mdmT, "RequireBitLockerPIN")] = teamMdm.RequireBitLockerPIN
 			result[jsonFieldName(mdmT, "MacOSUpdates")] = teamMdm.MacOSUpdates
 			result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
 			result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates

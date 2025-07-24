@@ -274,7 +274,7 @@ const TAGGED_TEMPLATES = {
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
     // compatibility
     let enrollmentTypeText = "";
-    if (activity.details?.personal_host) {
+    if (activity.details?.enrollment_id) {
       enrollmentTypeText = "personal";
     } else if (activity.details?.installed_from_dep) {
       enrollmentTypeText = "automatic";

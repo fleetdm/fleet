@@ -928,7 +928,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
+				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, config.Partnerships.EnablePrimo)
 			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
@@ -945,6 +945,13 @@ the way that the Fleet server works.
 			}); err != nil {
 				initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 			}
+
+			// // TODO(BMAA): uncomment this to enable MDM Apple Service Discovery
+			// if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+			// 	return newMDMAppleServiceDiscoverySchedule(ctx, instanceID, ds, depStorage, logger)
+			// }); err != nil {
+			// 	initFatal(err, "failed to register mdm_apple_service_discovery schedule")
+			// }
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newAppleMDMProfileManagerSchedule(
@@ -1199,6 +1206,7 @@ the way that the Fleet server works.
 					mdmCheckinAndCommandService,
 					ddmService,
 					commander,
+					appCfg.ServerSettings.ServerURL,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}
@@ -1214,7 +1222,7 @@ the way that the Fleet server works.
 				}
 				// Host identify SCEP feature only works if a private key has been set up
 				if len(config.Server.PrivateKey) > 0 {
-					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"))
+					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup host identity SCEP depot")
 					}

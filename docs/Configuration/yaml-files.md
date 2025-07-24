@@ -329,7 +329,7 @@ controls:
     enable_release_device_manually: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
-    software:
+  software:
       - app_store_id: "1091189122"
       - package_path: ../lib/software/adobe-acrobat.software.yml
   macos_migration: # Available in Fleet Premium
@@ -376,6 +376,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (c
 - `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username. When this changes, Fleet will automatically resend the profile.
 - `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile.
 - `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile.
+- `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`: host's IdP department. When this changes, Fleet will automatically resend the profile.
 - `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy).)
 - `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`
 - `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
@@ -470,7 +471,7 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 - `categories` is an array of categories. See [supported categories](#labels-and-categories).
-
+  
 > Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
 #### Example
@@ -516,7 +517,7 @@ Currently, one app for each of an App Store app's supported platforms are added.
 
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a team. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
-Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs, [with the exception of Chrome](https://github.com/fleetdm/fleet/issues/30325).
+Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
 
 Fleet-maintained apps have default categories. You can see the default categories in the [Fleet-maintained app metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If you do not specify `categories` when adding a self-service Fleet-maintained app, the default categories will be used.
 
@@ -691,7 +692,7 @@ org_settings:
         email: user1@example.com
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
-    digicert:
+    digicert: # Available in Fleet Premium
       - name: DIGICERT_WIFI
         url: https://one.digicert.com
         api_token: $DIGICERT_API_TOKEN
@@ -700,12 +701,12 @@ org_settings:
         certificate_user_principal_names:
           - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
         certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-    ndes_scep_proxy:
+    ndes_scep_proxy: # Available in Fleet Premium
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
       username: Administrator@example.com
       password: myPassword
-    custom_scep_proxy:
+    custom_scep_proxy: # Available in Fleet Premium
       - name: SCEP_VPN
         url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
