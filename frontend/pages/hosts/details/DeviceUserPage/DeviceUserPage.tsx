@@ -67,7 +67,6 @@ import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
-import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
@@ -79,6 +78,7 @@ import {
 import HostHeader from "../cards/HostHeader/HostHeader";
 import { InstallOrCommandUuid } from "../cards/Software/InstallStatusCell/InstallStatusCell";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
+import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 
 const baseClass = "device-user";
 
@@ -697,11 +697,9 @@ const DeviceUserPage = ({
             />
           )}
         {selectedSoftwareDetails && !!host && (
-          <SoftwareDetailsModal
-            hostDisplayName={host.display_name}
-            software={selectedSoftwareDetails}
+          <InventoryVersionsModal
+            hostSoftware={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
-            isDeviceUser
           />
         )}
         {selectedCertificate && (

@@ -105,7 +105,6 @@ import {
   getHostDeviceStatusUIState,
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
-import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
@@ -117,6 +116,7 @@ import {
   generateUsernameValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader";
+import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 
 const baseClass = "host-details";
 
@@ -1377,9 +1377,8 @@ const HostDetailsPage = ({
             />
           )}
           {selectedSoftwareDetails && (
-            <SoftwareDetailsModal
-              hostDisplayName={host.display_name}
-              software={selectedSoftwareDetails}
+            <InventoryVersionsModal
+              hostSoftware={selectedSoftwareDetails}
               onExit={() => setSelectedSoftwareDetails(null)}
             />
           )}
