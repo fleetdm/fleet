@@ -153,7 +153,7 @@ export const createMockHostSummary = (overrides?: Partial<IHost>) => {
 
 const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
   name: "mock software.app",
-  version: "1.0.0",
+  version: "1.0.0", // Used in version comparison tests
   self_service: false,
   icon_url: "https://example.com/icon.png",
   last_install: {
@@ -184,7 +184,7 @@ export const createMockHostAppStoreApp = (
 };
 
 export const DEFAULT_INSTALLED_VERSION = {
-  version: "1.0.0",
+  version: "1.0.0", // Used in version comparison tests
   last_opened_at: "2022-01-01T12:00:00Z",
   vulnerabilities: ["CVE-2020-0001"],
   installed_paths: ["/Applications/mock.app"],

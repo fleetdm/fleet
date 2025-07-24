@@ -2,7 +2,11 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
-import { IHostAppStoreApp, IHostSoftware } from "interfaces/software";
+import {
+  IHostSoftwareWithUiStatus,
+  IHostAppStoreApp,
+  IHostSoftware,
+} from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
@@ -14,21 +18,25 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import InstallerActionCell from "../InstallerActionCell";
+import HostInstallerActionCell from "../HostInstallerActionCell";
 import InstallStatusCell from "../../Software/InstallStatusCell";
+import { installStatusSortType } from "../../Software/helpers";
 
-type ISoftwareTableConfig = Column<IHostSoftware>;
-type ITableHeaderProps = IHeaderProps<IHostSoftware>;
-type ITableStringCellProps = IStringCellProps<IHostSoftware>;
+type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
+type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
+type ITableStringCellProps = IStringCellProps<IHostSoftwareWithUiStatus>;
 type IInstalledStatusCellProps = CellProps<
-  IHostSoftware,
-  IHostSoftware["status"]
+  IHostSoftwareWithUiStatus,
+  IHostSoftwareWithUiStatus["ui_status"]
 >;
 type IVersionsCellProps = CellProps<
-  IHostSoftware,
-  IHostSoftware["installed_versions"]
+  IHostSoftwareWithUiStatus,
+  IHostSoftwareWithUiStatus["installed_versions"]
 >;
-type IActionCellProps = CellProps<IHostSoftware, IHostSoftware["status"]>;
+type IActionCellProps = CellProps<
+  IHostSoftwareWithUiStatus,
+  IHostSoftwareWithUiStatus["status"]
+>;
 
 interface IHostSWLibraryTableHeaders {
   userHasSWWritePermission: boolean;
@@ -107,7 +115,8 @@ export const generateHostSWLibraryTableHeaders = ({
     {
       Header: () => <HeaderCell disableSortBy value="Status" />,
       disableSortBy: true,
-      accessor: "status",
+      accessor: "ui_status",
+      sortType: installStatusSortType,
       Cell: ({ row: { original } }: IInstalledStatusCellProps) => {
         return (
           <InstallStatusCell
@@ -152,14 +161,16 @@ export const generateHostSWLibraryTableHeaders = ({
     },
     {
       Header: "Actions",
-      accessor: (originalRow) => originalRow.status,
+      accessor: (originalRow) => originalRow.ui_status,
       disableSortBy: true,
       Cell: (cellProps: IActionCellProps) => {
         return (
-          <InstallerActionCell
+          <HostInstallerActionCell
             software={cellProps.row.original}
             onClickInstallAction={onClickInstallAction}
-            onClickUninstallAction={onClickUninstallAction}
+            onClickUninstallAction={() =>
+              onClickUninstallAction(cellProps.row.original.id)
+            }
             baseClass={baseClass}
             hostScriptsEnabled={hostScriptsEnabled}
             hostMDMEnrolled={hostMDMEnrolled}
