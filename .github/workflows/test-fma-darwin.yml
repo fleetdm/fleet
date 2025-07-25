@@ -1,23 +1,27 @@
 name: Test Fleet Maintained Apps - Darwin
 
 on: 
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - ee/maintained-apps/inputs/**
-      - ee/maintained-apps/outputs/**
-  workflow_dispatch: # Manual trigger
-    inputs:
-      log_level:
-        description: 'Log level (debug, info, warn, error)'
-        required: false
-        default: 'info'
-        type: choice
-        options:
-          - debug
-          - info
-          - warn
-          - error
+  push:
+    branches:
+      - 29183-fma-test-automation
+# on: 
+#   pull_request:
+#     types: [opened, synchronize, reopened]
+#     paths:
+#       - ee/maintained-apps/inputs/**
+#       - ee/maintained-apps/outputs/**
+#   workflow_dispatch: # Manual trigger
+#     inputs:
+#       log_level:
+#         description: 'Log level (debug, info, warn, error)'
+#         required: false
+#         default: 'info'
+#         type: choice
+#         options:
+#           - debug
+#           - info
+#           - warn
+#           - error
   
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
