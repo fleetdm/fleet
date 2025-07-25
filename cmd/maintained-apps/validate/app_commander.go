@@ -20,7 +20,8 @@ type AppCommander struct {
 	UniqueIdentifier string
 	Version          string
 	AppPath          string
-	MaintainedApp    fleet.MaintainedApp
+	UninstallScript  string
+	InstallScript    string
 }
 
 func (ac *AppCommander) isFrozen() (bool, error) {
@@ -53,9 +54,6 @@ func (ac *AppCommander) isFrozen() (bool, error) {
 }
 
 func (ac *AppCommander) extractAppVersion(installerTFR *fleet.TempFileReader) error {
-	// default to maintained app version
-	ac.Version = ac.MaintainedApp.Version
-
 	if ac.Version == "latest" {
 		meta, err := file.ExtractInstallerMetadata(installerTFR)
 		if err != nil {
@@ -91,7 +89,7 @@ func (ac *AppCommander) uninstallPreInstalled(installationSearchDirectory string
 
 func (ac *AppCommander) uninstallApp() bool {
 	level.Info(logger).Log("msg", fmt.Sprintf("Executing uninstall script for app '%s'...\n", ac.Name))
-	output, err := executeScript(ac.MaintainedApp.UninstallScript)
+	output, err := executeScript(ac.UninstallScript)
 	if err != nil {
 		level.Error(logger).Log("msg", fmt.Sprintf("Error uninstalling app: %v\n", err))
 		level.Error(logger).Log("msg", fmt.Sprintf("Output: %s\n", output))

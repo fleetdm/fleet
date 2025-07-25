@@ -79,7 +79,10 @@ func run() error {
 		ac.Name = app.Name
 		ac.Slug = app.Slug
 		ac.UniqueIdentifier = app.UniqueIdentifier
-		ac.MaintainedApp = maintainedApp
+		// default version to maintained app version
+		ac.Version = maintainedApp.Version
+		ac.InstallScript = maintainedApp.InstallScript
+		ac.UninstallScript = maintainedApp.UninstallScript
 
 		isFrozen, err := ac.isFrozen()
 		if err != nil {
@@ -115,7 +118,7 @@ func run() error {
 		appPath, changerError, listError := ac.expectToChangeFileSystem(
 			func() error {
 				level.Info(logger).Log("msg", "Executing install script...\n")
-				output, err := executeScript(ac.MaintainedApp.InstallScript)
+				output, err := executeScript(ac.InstallScript)
 				if err != nil {
 					level.Error(logger).Log("msg", fmt.Sprintf("Error executing install script: %v\n", err))
 					level.Error(logger).Log("msg", fmt.Sprintf("Output: %s\n", output))
