@@ -1,4 +1,1 @@
-export {
-  SoftwareInstallDetailsModal,
-  SoftwareInstallDetails,
-} from "./SoftwareInstallDetailsModal";
+export { default } from "./SoftwareInstallDetailsModal";

@@ -1,22 +1,28 @@
-// Used on: Dashboard > activity, Host details > past activity
-// Also used on Self-service failed install details
-
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 import { AxiosError } from "axios";
 
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
 import { AppContext } from "context/app";
 
 import { IActivityDetails } from "interfaces/activity";
 import {
+  IHostSoftware,
   ISoftwareInstallResult,
   ISoftwareInstallResults,
   ISoftwareInstallVersion,
+  ISoftwareTitleDetails,
   SoftwareSource,
 } from "interfaces/software";
-import softwareAPI from "services/entities/software";
+import softwareAPI, {
+  IGetSoftwareTitleQueryKey,
+  ISoftwareTitleResponse,
+} from "services/entities/software";
 import deviceUserAPI from "services/entities/device_user";
+
+import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -35,11 +41,9 @@ import {
 
 const baseClass = "software-install-details-modal";
 
-// TODO: Expand to include more details as needed
-export type IPackageInstallDetails = Pick<
-  IActivityDetails,
-  "install_uuid" | "host_display_name"
-> & {
+export type IPackageInstallDetails = {
+  host_display_name?: string;
+  install_uuid?: string; // not actually optional
   deviceAuthToken?: string;
 };
 
@@ -79,18 +83,23 @@ const StatusMessage = ({
       })})`
     : "";
 
-  const renderContactOption = () =>
-    config?.org_info.contact_url ? (
-      <>
-        {" "}
-        or{" "}
+  const renderContactOption = () => (
+    // TODO - config is undefined in the DUP context, will need to get this contact_url from
+    // somewhere else or omit the link
+    <>
+      {" "}
+      or{" "}
+      {config?.org_info.contact_url ? (
         <CustomLink
           url={config.org_info.contact_url}
           text="contact your IT admin"
           newTab
         />
-      </>
-    ) : null;
+      ) : (
+        "contact your IT admin"
+      )}
+    </>
+  );
 
   const renderStatusCopy = () => {
     if (isInstalledByFleet) {
@@ -103,7 +112,7 @@ const StatusMessage = ({
       let middle = null;
       if (isDUP) {
         if (status === "failed_install") {
-          middle = <>You can retry{renderContactOption()}</>;
+          middle = <>. You can retry{renderContactOption()}</>;
         }
       } else {
         // host details page
@@ -112,7 +121,6 @@ const StatusMessage = ({
             {" "}
             ({software_package}) on {formattedHost}
             {status === "pending_install" ? " when it comes online" : ""}
-            {/* TODO - need to add "about" before timestamp? */}
             {displayTimeStamp}
           </>
         );
@@ -126,8 +134,6 @@ const StatusMessage = ({
       );
     }
     if (status === "installed") {
-      // TODO - is this check necessary, i.e. is it possible to have pending/failed software that
-      // was not installed by Fleet?
       return (
         <span>
           <b>{software_title}</b> is installed.
@@ -135,7 +141,7 @@ const StatusMessage = ({
       );
     }
     return (
-      <DataError description="Software cannot be both not installed (failed/pending) and not installed by Fleet" />
+      <DataError description="Bad data from server - software cannot be both not installed (failed/pending) and not installed by Fleet" />
     );
   };
 
@@ -147,123 +153,75 @@ const StatusMessage = ({
   );
 };
 
-const SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS = {
-  pre_install_query_output: "Pre-install condition",
-  output: "Software install output",
-  post_install_script_output: "Post-install script output",
-} as const;
-
-const Output = ({
-  displayKey,
-  result,
-}: {
-  displayKey: keyof typeof SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS;
-  result: ISoftwareInstallResult;
-}) => {
-  return (
-    <Textarea
-      label={`${SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS[displayKey]}:`}
-      variant="code"
-    >
-      {result[displayKey]}
-    </Textarea>
-  );
-};
-
-// TODO - TURN THIS INTO INVENTORY VERSIONS
-interface IInventoryVersionsProps {
-  installedVersion: ISoftwareInstallVersion;
-  source: SoftwareSource;
-  bundleIdentifier?: string;
+interface ISoftwareInstallDetailsProps {
+  // note that details.install_uuid is present in hostSoftware, but since it is always needed for
+  // this modal while hostSoftware is not, as in the case of the activity feeds, it is specifically
+  // necessary in the details prop
+  details: IPackageInstallDetails;
+  onCancel: () => void;
+  hostSoftware?: IHostSoftware; // for inventory versions, not present on activity feeds
+  deviceAuthToken?: string;
+  onClickRetry?: () => void; // DUP only
 }
-const InventoryVersions = ({
-  installedVersion,
-  source,
-  bundleIdentifier,
-}: IInventoryVersionsProps) => {
-  const {
-    vulnerabilities,
-    installed_paths: installedPaths,
-    signature_information: signatureInformation,
-  } = installedVersion;
 
-  // return (
-  //   <Card
-  //     className={`${baseClass}__version-details`}
-  //     color="grey"
-  //     borderRadiusSize="medium"
-  //   >
-  //     <div className={`${baseClass}__row`}>
-  //       <DataSet title="Version" value={installedVersion.version} />
-  //       <DataSet title="Type" value={formatSoftwareType({ source })} />
-  //       {bundleIdentifier && (
-  //         <DataSet title="Bundle identifier" value={bundleIdentifier} />
-  //       )}
-  //       {installedVersion.last_opened_at && (
-  //         <DataSet
-  //           title="Last used"
-  //           value={dateAgo(installedVersion.last_opened_at)}
-  //         />
-  //       )}
-  //     </div>
-  //     {vulnerabilities && vulnerabilities.length !== 0 && (
-  //       <div className={`${baseClass}__row`}>
-  //         <DataSet
-  //           title="Vulnerabilities"
-  //           value={generateVulnerabilitiesValue(vulnerabilities)}
-  //         />
-  //       </div>
-  //     )}
-  //     {!!installedPaths?.length &&
-  //       installedPaths.map((path) => {
-  //         // Find the signature info for this path
-  //         const sigInfo = signatureInformation?.find(
-  //           (info) => info.installed_path === path
-  //         );
-
-  //         return (
-  //           <div className={`${baseClass}__sig-info`}>
-  //             <DataSet orientation="horizontal" title="Path" value={path} />
-  //             {sigInfo?.hash_sha256 && (
-  //               <DataSet
-  //                 orientation="horizontal"
-  //                 title="Hash"
-  //                 value={sigInfo.hash_sha256}
-  //               />
-  //             )}
-  //           </div>
-  //         );
-  //       })}
-  //   </Card>
-  // );
-};
-
-// TODO - remove this layer of abstraction, no longer necessary
-export const SoftwareInstallDetails = ({
-  host_display_name = "",
-  install_uuid = "",
+export const SoftwareInstallDetailsModal = ({
+  details: detailsFromProps,
+  onCancel,
+  hostSoftware,
   deviceAuthToken,
-}: IPackageInstallDetails) => {
+  onClickRetry,
+}: ISoftwareInstallDetailsProps) => {
+  // will always be present
+  const installUUID = detailsFromProps.install_uuid ?? "";
+
   const [showInstallDetails, setShowInstallDetails] = useState(false);
   const toggleInstallDetails = () => {
     setShowInstallDetails((prev) => !prev);
   };
-  const { data: result, isLoading, isError, error } = useQuery<
+
+  // TODO - VPP case (see AppInstallDetails)
+
+  const { data: swInstallResult, isLoading, isError, error } = useQuery<
     ISoftwareInstallResults,
     AxiosError,
     ISoftwareInstallResult
   >(
-    ["softwareInstallResults", install_uuid],
+    ["softwareInstallResults", installUUID],
     () => {
       return deviceAuthToken
-        ? deviceUserAPI.getSoftwareInstallResult(deviceAuthToken, install_uuid)
-        : softwareAPI.getSoftwareInstallResult(install_uuid);
+        ? deviceUserAPI.getSoftwareInstallResult(deviceAuthToken, installUUID)
+        : softwareAPI.getSoftwareInstallResult(installUUID);
     },
     {
       refetchOnWindowFocus: false,
       staleTime: 3000,
       select: (data) => data.results,
       retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+    }
+  );
+
+  // need to fetch the install script
+  // TODO - include in above response if possible to avoid this secondary API call
+  const {
+    data: softwareTitle,
+    isLoading: isSoftwareTitleLoading,
+    isError: isSoftwareTitleError,
+  } = useQuery<
+    ISoftwareTitleResponse,
+    AxiosError,
+    ISoftwareTitleDetails,
+    IGetSoftwareTitleQueryKey[]
+  >(
+    [
+      {
+        scope: "softwareById",
+        softwareId: swInstallResult?.software_title_id || 0,
+      },
+    ],
+    ({ queryKey }) => softwareAPI.getSoftwareTitle(queryKey[0]),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      select: (data) => data.software_title,
     }
   );
 
@@ -292,7 +250,7 @@ export const SoftwareInstallDetails = ({
     }
   }
 
-  if (!result) {
+  if (!swInstallResult) {
     // FIXME: Find a better solution for this.
     return deviceAuthToken ? (
       <DeviceUserError />
@@ -302,40 +260,49 @@ export const SoftwareInstallDetails = ({
   }
 
   if (
-    !["installed", "pending_install", "failed_install"].includes(result.status)
+    !["installed", "pending_install", "failed_install"].includes(
+      swInstallResult.status
+    )
   ) {
     return (
       <DataError
-        description={`Unexpected software install status ${result.status}`}
+        description={`Unexpected software install status ${swInstallResult.status}`}
       />
     );
   }
 
-  const renderInstallDetails = () => (
-    <>
-      {/* {result.pre_install_query_output && (
-        <Output displayKey="pre_install_query_output" result={result} />
-      )}
-      {result.output && <Output displayKey="output" result={result} />}
-      {result.post_install_script_output && (
-        <Output displayKey="post_install_script_output" result={result} />
-      )} */}
-      {result.output && (
-        <Textarea label="Install script output:" variant="code">
-          {result.output}
+  const renderInstallDetails = () => {
+    const renderScript = () => {
+      if (isSoftwareTitleLoading) {
+        return <Spinner />;
+      }
+      if (isSoftwareTitleError) {
+        return (
+          <DataError
+            description="Unable to fetch install script for this software."
+            excludeIssueLink
+          />
+        );
+      }
+      return (
+        <Textarea label="Install script:" variant="code">
+          {softwareTitle?.software_package?.install_script}
         </Textarea>
-      )}
-      <Textarea label="Install script:" variant="code">
-        {/* TODO get the install script! */}
-        {"TODO - get the install script!"}
-      </Textarea>
-    </>
-  );
+      );
+    };
+    return (
+      <>
+        {swInstallResult.output && (
+          <Textarea label="Install script output:" variant="code">
+            {swInstallResult.output}
+          </Textarea>
+        )}
+        {renderScript()}
+      </>
+    );
+  };
 
   const renderInstallDetailsSection = () => {
-    if (!deviceAuthToken && result.status === "failed_install") {
-      return renderInstallDetails();
-    }
     return (
       <>
         <RevealButton
@@ -350,43 +317,37 @@ export const SoftwareInstallDetails = ({
     );
   };
 
-  // QUESTION - how to determine if SW is installed by Fleet?
-  // const isInstalledByFleet = false;
-  const isInstalledByFleet = true;
+  const isInstalledByFleet = hostSoftware
+    ? !!hostSoftware.software_package?.last_install
+    : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
 
   const excludeVersions =
     !deviceAuthToken &&
-    ["pending_install", "failed_install"].includes(result.status);
+    ["pending_install", "failed_install"].includes(swInstallResult.status);
 
-  return (
-    <>
-      <StatusMessage
-        result={
-          result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
-        }
-        isDUP={!!deviceAuthToken}
-        isInstalledByFleet={isInstalledByFleet}
-      />
+  const host_display_name =
+    swInstallResult.host_display_name || detailsFromProps.host_display_name;
 
-      {/* TODO - flesh out */}
-      {/* {!excludeVersions && <InventoryVersions />} */}
+  const renderCta = () => {
+    if (deviceAuthToken && swInstallResult.status === "failed_install") {
+      return (
+        <div className="modal-cta-wrap">
+          <Button type="submit" onClick={onClickRetry}>
+            Retry
+          </Button>
+          <Button variant="inverse" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel}>Done</Button>
+      </div>
+    );
+  };
 
-      {result.status !== "pending_install" &&
-        isInstalledByFleet &&
-        renderInstallDetailsSection()}
-    </>
-  );
-};
-
-export const SoftwareInstallDetailsModal = ({
-  details,
-  onCancel,
-  deviceAuthToken,
-}: {
-  details: IPackageInstallDetails;
-  onCancel: () => void;
-  deviceAuthToken?: string;
-}) => {
   return (
     <Modal
       title="Install details"
@@ -396,15 +357,24 @@ export const SoftwareInstallDetailsModal = ({
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <SoftwareInstallDetails
-            {...details}
-            deviceAuthToken={deviceAuthToken}
+          <StatusMessage
+            result={{ ...swInstallResult, host_display_name }}
+            isDUP={!!deviceAuthToken}
+            isInstalledByFleet={isInstalledByFleet}
           />
+
+          {hostSoftware && !excludeVersions && (
+            <InventoryVersions hostSoftware={hostSoftware} />
+          )}
+
+          {swInstallResult.status !== "pending_install" &&
+            isInstalledByFleet &&
+            renderInstallDetailsSection()}
         </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
-        </div>
+        {renderCta()}
       </>
     </Modal>
   );
 };
+
+export default SoftwareInstallDetailsModal;
