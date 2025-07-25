@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	"github.com/go-kit/log/level"
 )
 
 var preInstalled = []string{
@@ -36,19 +37,19 @@ func removeAppQuarentine(appPath string) error {
 	if appPath == "" {
 		return nil
 	}
-	fmt.Printf("Attempting to remove quarantine for: '%s'\n", appPath)
+	level.Info(logger).Log("msg", fmt.Sprintf("Attempting to remove quarantine for: '%s'\n", appPath))
 	cmd := exec.Command("xattr", "-p", "com.apple.quarantine", appPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("checking quarantine status: %v\n", err)
+		level.Error(logger).Log("msg", fmt.Sprintf("checking quarantine status: %v\n", err))
 	}
-	fmt.Printf("Quarantine status: '%s'\n", strings.TrimSpace(string(output)))
+	level.Info(logger).Log("msg", fmt.Sprintf("Quarantine status: '%s'\n", strings.TrimSpace(string(output))))
 	cmd = exec.Command("spctl", "-a", "-v", appPath)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("checking spctl status: %v\n", err)
+		level.Error(logger).Log("msg", fmt.Sprintf("checking spctl status: %v\n", err))
 	}
-	fmt.Printf("spctl status: '%s'\n", strings.TrimSpace(string(output)))
+	level.Info(logger).Log("msg", fmt.Sprintf("spctl status: '%s'\n", strings.TrimSpace(string(output))))
 
 	cmd = exec.Command("sudo", "spctl", "--add", appPath)
 	if err := cmd.Run(); err != nil {
@@ -67,7 +68,7 @@ func forceLaunchServicesRefresh(appPath string) error {
 	if appPath == "" {
 		return nil
 	}
-	fmt.Printf("Forcing LaunchServices refresh for: '%s'\n", appPath)
+	level.Info(logger).Log("msg", fmt.Sprintf("Forcing LaunchServices refresh for: '%s'\n", appPath))
 	cmd := exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appPath)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("forcing LaunchServices refresh: %w", err)
@@ -90,7 +91,7 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bo
 		return false, fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
 	}
 
-	fmt.Printf("Looking for app: %s, version: %s\n", appName, appVersion)
+	level.Info(logger).Log("msg", fmt.Sprintf("Looking for app: %s, version: %s\n", appName, appVersion))
 	query := `
 		SELECT name, path, bundle_short_version, bundle_version 
 		FROM apps
@@ -120,7 +121,7 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bo
 
 	if len(results) > 0 {
 		for _, result := range results {
-			fmt.Printf("Found app: '%s' at %s, Version: %s, Bundled Version: %s\n", result.Name, result.Path, result.Version, result.BundledVersion)
+			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s\n", result.Name, result.Path, result.Version, result.BundledVersion))
 			if result.Version == appVersion || result.BundledVersion == appVersion {
 				return true, nil
 			}

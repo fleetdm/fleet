@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/go-kit/log/level"
 )
 
 var preInstalled = []string{}
@@ -31,7 +32,7 @@ func doesAppExists(appName, _ string, appVersion, appPath string) (bool, error) 
 		return false, fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
 	}
 
-	fmt.Printf("Looking for app: %s, version: %s\n", appName, appVersion)
+	level.Info(logger).Log("msg", fmt.Sprintf("Looking for app: %s, version: %s\n", appName, appVersion))
 	query := `
 		SELECT name, install_location, version 
 		FROM programs
@@ -44,7 +45,7 @@ func doesAppExists(appName, _ string, appVersion, appPath string) (bool, error) 
 	cmd := exec.CommandContext(ctx, "osqueryi", "--json", query)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("osquery output: %s\n", string(output))
+		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s\n", string(output)))
 		return false, fmt.Errorf("executing osquery command: %w", err)
 	}
 
@@ -55,13 +56,13 @@ func doesAppExists(appName, _ string, appVersion, appPath string) (bool, error) 
 	}
 	var results []AppResult
 	if err := json.Unmarshal(output, &results); err != nil {
-		fmt.Printf("osquery output: %s\n", string(output))
+		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s\n", string(output)))
 		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
 	if len(results) > 0 {
 		for _, result := range results {
-			fmt.Printf("Found app: '%s' at %s, Version: %s\n", result.Name, result.InstallLocation, result.Version)
+			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s\n", result.Name, result.InstallLocation, result.Version))
 			if result.Version == appVersion {
 				return true, nil
 			}

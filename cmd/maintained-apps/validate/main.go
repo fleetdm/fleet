@@ -20,6 +20,8 @@ import (
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 var (
@@ -27,44 +29,26 @@ var (
 	env                         []string
 	installationSearchDirectory string
 	operatingSystem             string
+	logger                      kitlog.Logger
+	logLevel                    string
 )
 
 func run() int {
-	operatingSystem = strings.ToLower(os.Getenv("GOOS"))
-	if operatingSystem == "" {
-		operatingSystem = runtime.GOOS
-		fmt.Printf("GOOS environment variable is not set. Using system detected: '%s'\n", operatingSystem)
-	}
-	if operatingSystem != "darwin" && operatingSystem != "windows" {
-		fmt.Printf("Unsupported operating system: %s\n", operatingSystem)
-		os.Exit(1)
-	}
-	installationSearchDirectory = os.Getenv("INSTALLATION_SEARCH_DIRECTORY")
-	if installationSearchDirectory == "" {
-		switch operatingSystem {
-		case "darwin":
-			installationSearchDirectory = "/Applications"
-		case "windows":
-			installationSearchDirectory = "C:\\Program Files"
-		}
-		fmt.Printf("INSTALLATION_SEARCH_DIRECTORY environment variable is not set. Using default: '%s'\n", installationSearchDirectory)
-	}
-
 	apps, err := getListOfApps()
 	if err != nil {
-		fmt.Printf("Error getting list of apps: %v\n", err)
+		level.Error(logger).Log("msg", fmt.Sprintf("Error getting list of apps: %v\n", err))
 		os.Exit(1)
 	}
 
 	tmpDir, err = os.MkdirTemp("", "fma-validate-")
 	if err != nil {
-		fmt.Printf("Error creating temporary directory: %v\n", err)
+		level.Error(logger).Log("msg", fmt.Sprintf("Error creating temporary directory: %v\n", err))
 		os.Exit(1)
 	}
 	defer func() {
 		err := os.RemoveAll(tmpDir)
 		if err != nil {
-			fmt.Printf("warning: failed to remove temporary directory: %v", err)
+			level.Error(logger).Log("msg", fmt.Sprintf("warning failed to remove temporary directory: %v", err))
 		}
 	}()
 
@@ -80,12 +64,12 @@ func run() int {
 
 		totalApps++
 
-		fmt.Print("\n\nValidating app: ", app.Name, " (", app.Slug, ")\n")
+		level.Info(logger).Log("msg", fmt.Sprintf("\n\nValidating app: %s (%s)\n", app.Name, app.Slug))
 		ac := &AppCommander{}
 
 		appJson, err := getAppJson(app.Slug)
 		if err != nil {
-			fmt.Printf("Error getting app json manifest: %v\n", err)
+			level.Error(logger).Log("msg", fmt.Sprintf("Error getting app json manifest: %v\n", err))
 			appWithError = append(appWithError, app.Name)
 			continue
 		}
@@ -98,19 +82,19 @@ func run() int {
 
 		isFrozen, err := ac.isFrozen()
 		if err != nil {
-			fmt.Printf("Error checking if app is frozen: %v\n", err)
+			level.Error(logger).Log("msg", fmt.Sprintf("Error checking if app is frozen: %v\n", err))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
 		if isFrozen {
-			fmt.Printf("App is frozen, skipping validation...\n")
+			level.Info(logger).Log("msg", "App is frozen, skipping validation...\n")
 			frozenApps = append(frozenApps, ac.Name)
 			continue
 		}
 
 		installerTFR, err := DownloadMaintainedApp(maintainedApp)
 		if err != nil {
-			fmt.Printf("Error downloading maintained app: %v\n", err)
+			level.Error(logger).Log("msg", fmt.Sprintf("Error downloading maintained app: %v\n", err))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
@@ -118,7 +102,7 @@ func run() int {
 		err = ac.extractAppVersion(installerTFR)
 		installerTFR.Close()
 		if err != nil {
-			fmt.Printf("Error extracting installer version: %v. Using '%s'\n", err, ac.Version)
+			level.Error(logger).Log("msg", fmt.Sprintf("Error extracting installer version: %v. Using '%s'\n", err, ac.Version))
 			appWithError = append(appWithError, ac.Name)
 		}
 
@@ -129,18 +113,19 @@ func run() int {
 
 		appPath, changerError, listError := ac.expectToChangeFileSystem(
 			func() error {
-				fmt.Print("Executing install script...\n")
+				level.Info(logger).Log("msg", "Executing install script...\n")
 				output, err := executeScript(ac.MaintainedApp.InstallScript)
 				if err != nil {
-					fmt.Printf("Error executing install script: %v\n", err)
-					fmt.Printf("Output: %s\n", output)
+					level.Error(logger).Log("msg", fmt.Sprintf("Error executing install script: %v\n", err))
+					level.Error(logger).Log("msg", fmt.Sprintf("Output: %s\n", output))
 					return err
 				}
+				level.Debug(logger).Log("msg", fmt.Sprintf("Output: %s\n", output))
 				return nil
 			},
 		)
 		if listError != nil {
-			fmt.Printf("error listing directory contents: %v", listError)
+			level.Error(logger).Log("msg", fmt.Sprintf("Error listing directory contents: %v", listError))
 		}
 		if changerError != nil {
 			appWithError = append(appWithError, ac.Name)
@@ -153,18 +138,18 @@ func run() int {
 
 		err = postApplicationInstall(ac.AppPath)
 		if err != nil {
-			fmt.Printf("Warning: Error detected in post-installation steps: %v\n", err)
+			level.Warn(logger).Log("msg", fmt.Sprintf("Error detected in post-installation steps: %v\n", err))
 			appWithWarning = append(appWithWarning, ac.Name)
 		}
 
 		existance, err := doesAppExists(ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 		if err != nil {
-			fmt.Printf("Error checking if app exists: %v\n", err)
+			level.Error(logger).Log("msg", fmt.Sprintf("Error checking if app exists: %v\n", err))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
 		if !existance {
-			fmt.Printf("App version '%s' was not found by osquery\n", ac.Version)
+			level.Error(logger).Log("msg", fmt.Sprintf("App version '%s' was not found by osquery\n", ac.Version))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
@@ -176,29 +161,72 @@ func run() int {
 			continue
 		}
 
-		fmt.Print("All checks passed for app: ", ac.Name, " (", ac.Slug, ")\n")
+		level.Info(logger).Log("msg", fmt.Sprintf("All checks passed for app: %s (%s)\n", ac.Name, ac.Slug))
 		successfulApps++
 	}
 
 	if len(frozenApps) > 0 {
-		fmt.Printf("Some apps were skipped: %v\n", frozenApps)
+		level.Info(logger).Log("msg", fmt.Sprintf("Some apps were skipped: %v\n", frozenApps))
 	}
 	if len(appWithWarning) > 0 {
-		fmt.Printf("Some apps were validated with warnings: %v\n", appWithWarning)
+		level.Warn(logger).Log("msg", fmt.Sprintf("Some apps were validated with warnings: %v\n", appWithWarning))
 	}
 
 	if successfulApps == totalApps-len(frozenApps) {
 		// All apps were successfully validated!
-		fmt.Printf("\nAll %d apps were successfully validated.\n", totalApps)
+		level.Info(logger).Log("msg", fmt.Sprintf("All %d apps were successfully validated.\n", totalApps))
 		return 0
 	}
 
-	fmt.Printf("\nValidated %d out of %d apps successfully.\n", successfulApps, totalApps)
-	fmt.Printf("Apps with errors: %v\n", appWithError)
+	level.Info(logger).Log("msg", fmt.Sprintf("Validated %d out of %d apps successfully.\n", successfulApps, totalApps))
+	level.Info(logger).Log("msg", fmt.Sprintf("Apps with errors: %v\n", appWithError))
 	return 1
 }
 
 func main() {
+	// logger
+	logger = kitlog.NewJSONLogger(os.Stderr)
+	logLevel = os.Getenv("LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = "info"
+	}
+
+	var lvl level.Option
+	switch strings.ToLower(logLevel) {
+	case "debug":
+		lvl = level.AllowDebug()
+	case "error":
+		lvl = level.AllowError()
+	default:
+		lvl = level.AllowInfo()
+	}
+
+	logger = level.NewFilter(logger, lvl)
+	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
+
+	// os detection
+	operatingSystem = strings.ToLower(os.Getenv("GOOS"))
+	if operatingSystem == "" {
+		operatingSystem = runtime.GOOS
+		level.Info(logger).Log("msg", fmt.Sprintf("GOOS environment variable is not set. Using system detected: '%s'\n", operatingSystem))
+	}
+	if operatingSystem != "darwin" && operatingSystem != "windows" {
+		level.Error(logger).Log("msg", fmt.Sprintf("Unsupported operating system: %s\n", operatingSystem))
+		os.Exit(1)
+	}
+
+	// installation directory detection
+	installationSearchDirectory = os.Getenv("INSTALLATION_SEARCH_DIRECTORY")
+	if installationSearchDirectory == "" {
+		switch operatingSystem {
+		case "darwin":
+			installationSearchDirectory = "/Applications"
+		case "windows":
+			installationSearchDirectory = "C:\\Program Files"
+		}
+		level.Info(logger).Log("msg", fmt.Sprintf("INSTALLATION_SEARCH_DIRECTORY environment variable is not set. Using default: '%s'\n", installationSearchDirectory))
+	}
+
 	exitCode := run()
 	os.Exit(exitCode)
 }
@@ -249,7 +277,7 @@ func DownloadMaintainedApp(app fleet.MaintainedApp) (*fleet.TempFileReader, erro
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	fmt.Print("Downloading...\n")
+	level.Info(logger).Log("msg", "Downloading...\n")
 	installerTFR, filename, err := mdm_maintained_apps.DownloadInstaller(ctx, app.InstallerURL, http.DefaultClient)
 	if err != nil {
 		return nil, fmt.Errorf("downloading installer: %w", err)

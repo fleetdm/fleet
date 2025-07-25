@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 )
 
 type AppCommander struct {
@@ -71,39 +72,40 @@ func (ac *AppCommander) extractAppVersion(installerTFR *fleet.TempFileReader) er
 }
 
 func (ac *AppCommander) uninstallPreInstalled(installationSearchDirectory string) {
-	fmt.Printf("App '%s' is marked as pre-installed, attempting to run uninstall script.\n", ac.Name)
+	level.Info(logger).Log("msg", fmt.Sprintf("App '%s' is marked as pre-installed, attempting to run uninstall script.\n", ac.Name))
 
 	_, _, listError := ac.expectToChangeFileSystem(
 		func() error {
 			uninstalled := ac.uninstallApp()
 			if !uninstalled {
-				fmt.Printf("Failed to uninstall pre-installed app '%s'", ac.Name)
+				level.Error(logger).Log("msg", fmt.Sprintf("Failed to uninstall pre-installed app '%s'", ac.Name))
 			}
 			return nil
 		},
 	)
 
 	if listError != nil {
-		fmt.Printf("Error listing %s directory: %v\n", installationSearchDirectory, listError)
+		level.Error(logger).Log("msg", fmt.Sprintf("Error listing %s directory: %v\n", installationSearchDirectory, listError))
 	}
 }
 
 func (ac *AppCommander) uninstallApp() bool {
-	fmt.Print("Executing uninstall script...\n")
+	level.Info(logger).Log("msg", fmt.Sprintf("Executing uninstall script for app '%s'...\n", ac.Name))
 	output, err := executeScript(ac.MaintainedApp.UninstallScript)
 	if err != nil {
-		fmt.Printf("Error uninstalling app: %v\n", err)
-		fmt.Printf("Output: %s\n", output)
+		level.Error(logger).Log("msg", fmt.Sprintf("Error uninstalling app: %v\n", err))
+		level.Error(logger).Log("msg", fmt.Sprintf("Output: %s\n", output))
 		return false
 	}
+	level.Debug(logger).Log("msg", fmt.Sprintf("Output: %s\n", output))
 
 	existance, err := doesAppExists(ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 	if err != nil {
-		fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
+		level.Error(logger).Log("msg", fmt.Sprintf("Error checking if app exists after uninstall: %v\n", err))
 		return false
 	}
 	if existance {
-		fmt.Printf("App version '%s' was found after uninstall\n", ac.Version)
+		level.Error(logger).Log("msg", fmt.Sprintf("App version '%s' was found after uninstall\n", ac.Version))
 		return false
 	}
 
@@ -126,12 +128,12 @@ func (ac *AppCommander) expectToChangeFileSystem(changer func() error) (string, 
 
 	appPath, changed := detectApplicationChange(installationSearchDirectory, appListPre, appListPost)
 	if appPath == "" {
-		fmt.Printf("Warning: no changes detected in %s directory after running application script.\n", installationSearchDirectory)
+		level.Warn(logger).Log("msg", fmt.Sprintf("no changes detected in %s directory after running application script.\n", installationSearchDirectory))
 	} else {
 		if changed {
-			fmt.Printf("New application detected at: %s\n", appPath)
+			level.Info(logger).Log("msg", fmt.Sprintf("New application detected at: %s\n", appPath))
 		} else {
-			fmt.Printf("Application removal detected at: %s\n", appPath)
+			level.Info(logger).Log("msg", fmt.Sprintf("Application removal detected at: %s\n", appPath))
 		}
 	}
 

@@ -7,12 +7,25 @@ on:
       - ee/maintained-apps/inputs/**
       - ee/maintained-apps/outputs/**
   workflow_dispatch: # Manual trigger
+    inputs:
+      log_level:
+        description: 'Log level (debug, info, warn, error)'
+        required: false
+        default: 'info'
+        type: choice
+        options:
+          - debug
+          - info
+          - warn
+          - error
   
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   test-fma:
+    env:
+      LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
     runs-on: macos-latest
 
     steps:
