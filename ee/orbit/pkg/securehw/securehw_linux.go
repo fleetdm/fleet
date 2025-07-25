@@ -255,7 +255,7 @@ func (t *tpm2SecureHW) selectBestECCCurve() (tpm2.TPMECCCurve, string) {
 
 func (t *tpm2SecureHW) saveTPMKeyFile(privateKey tpm2.TPM2BPrivate, publicKey tpm2.TPM2BPublic) error {
 	k := keyfile.NewTPMKey(
-		keyfile.OIDOldLoadableKey,
+		keyfile.OIDLoadableKey,
 		publicKey,
 		privateKey,
 		keyfile.WithDescription("fleetd httpsig key"),
