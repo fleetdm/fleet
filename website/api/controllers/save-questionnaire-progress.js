@@ -59,7 +59,16 @@ module.exports = {
     }
     // Tease out what liur buying situation will now be (or is and was, if it's not changing)
     let primaryBuyingSituation = formData.primaryBuyingSituation === undefined ? this.req.me.primaryBuyingSituation : formData.primaryBuyingSituation;
-
+    // Note: we're converting the old values here into the new buying situations, this ensures that the correct primaryBuyingSituation will be reported to segement analytics when it is returned to the page.
+    let newPrimaryBuyingSituationsByOldValues = {
+      'eo-it': 'it-misc',
+      'eo-security': 'security-misc',
+      'vm': 'security-vm',
+      'mdm': 'it-major-mdm'
+    };
+    if(['vm', 'eo-it', 'eo-security', 'mdm'].includes(primaryBuyingSituation)) {
+      primaryBuyingSituation = newPrimaryBuyingSituationsByOldValues[primaryBuyingSituation];
+    }
     // When the 'what-are-you-using-fleet-for' is completed, update this user's DB record and session to include their answer.
     if(currentStep === 'what-are-you-using-fleet-for') {
       await User.updateOne({id: this.req.me.id})
@@ -176,7 +185,7 @@ module.exports = {
           });
         }
       } else if(currentStep === 'is-it-any-good') {
-        if(currentSelectedBuyingSituation === 'mdm') {
+        if(['it-major-mdm', 'mdm'].includes(currentSelectedBuyingSituation)) {
           // Since the mdm use case question is the only buying situation-specific question where a use case can't
           // be selected,  we'll check the user's previous answers before changing their psyStage
           if(typeof questionnaireProgress['what-do-you-manage-mdm'] !== 'undefined' && questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
@@ -243,7 +252,7 @@ module.exports = {
       emailAddress: this.req.me.emailAddress,
       firstName: this.req.me.firstName,
       lastName: this.req.me.lastName,
-      primaryBuyingSituation: ['eo-security', 'security-misc'].includes(primaryBuyingSituation) ? 'Endpoint operations - Security' : ['eo-it', 'it-misc'].includes(primaryBuyingSituation) ? 'Endpoint operations - IT' : ['mdm', 'it-major-mdm'].includes(primaryBuyingSituation) ? 'Device management (MDM)' : ['vm', 'security-vm'].includes(primaryBuyingSituation)  ? 'Vulnerability management' : primaryBuyingSituation === 'it-gap-filler-mdm' ? 'IT - Gap-filler MDM' : undefined,
+      primaryBuyingSituation: primaryBuyingSituation === 'security-misc' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'it-misc' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'it-major-mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'it-gap-filler-mdm' ? 'IT - Gap-filler MDM' : primaryBuyingSituation === 'security-vm' ? 'Vulnerability management' : undefined,
       organization: this.req.me.organization,
       psychologicalStage,
       getStartedResponses: questionnaireProgressAsAFormattedString,
