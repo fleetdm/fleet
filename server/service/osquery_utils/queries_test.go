@@ -33,6 +33,35 @@ import (
 	"golang.org/x/exp/maps"
 )
 
+func TestSoftwareIngestionMutations(t *testing.T) {
+	dcvViewer := &fleet.Software{
+		BundleIdentifier: "com.nicesoftware.dcvviewer",
+		Source:           "apps",
+		Version:          "2024.0 (r8004)",
+	}
+
+	MutateSoftwareOnIngestion(dcvViewer, log.NewNopLogger())
+	assert.Equal(t, "2024.0.8004", dcvViewer.Version)
+
+	noOp := &fleet.Software{
+		BundleIdentifier: "com.nicesoftware.dcvviewer",
+		Source:           "apps",
+		Version:          "2024",
+	}
+
+	MutateSoftwareOnIngestion(dcvViewer, log.NewNopLogger())
+	assert.Equal(t, "2024", noOp.Version)
+
+	noMatch := &fleet.Software{
+		BundleIdentifier: "com.google.chrome",
+		Source:           "apps",
+		Version:          "2024.0 (r8004)",
+	}
+
+	MutateSoftwareOnIngestion(noMatch, log.NewNopLogger())
+	assert.Equal(t, "2024.0 (r8004)", noMatch.Version)
+}
+
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
