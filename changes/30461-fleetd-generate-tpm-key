@@ -1,1 +1,0 @@
-- Added flag `--fleet-managed-host-identity-certificate` to generate fleetd packages for linux that use TPMs to sign HTTP requests.

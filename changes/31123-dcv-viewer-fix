@@ -1,1 +1,0 @@
-* Added back software mutation on ingestion to fix non-semver-compliant software versions, starting with DCV Viewer.

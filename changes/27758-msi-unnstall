@@ -1,1 +1,0 @@
-* Switched to more comprehensive UpgradeCode based uninstall scripts when an UpgradeCode can be extracted from an MSI custom package.
