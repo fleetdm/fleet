@@ -159,6 +159,22 @@ func (s *CVE) removeLegacyFeeds() error {
 	return nil
 }
 
+func parseAndFormatForNVD(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+
+	// Try parsing with timezone
+	if t, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+		return t.UTC().Format("2006-01-02T15:04:05.000Z"), nil
+	}
+
+	// Try parsing without timezone
+	if t, err := time.Parse("2006-01-02T15:04:05.000", raw); err == nil {
+		return t.UTC().Format("2006-01-02T15:04:05.000Z"), nil
+	}
+
+	return "", fmt.Errorf("unrecognized timestamp format: %q", raw)
+}
+
 // update downloads all the new CVE updates since the last synchronization.
 func (s *CVE) update(ctx context.Context) error {
 	// Load the lastModStartDate from the previous synchronization.
@@ -166,16 +182,20 @@ func (s *CVE) update(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	lastModStartDate := string(lastModStartDate_)
+
+	lastModStartDate, err := parseAndFormatForNVD(string(lastModStartDate_))
+	if err != nil {
+		return fmt.Errorf("invalid last_mod_start_date.txt format: %w", err)
+	}
 
 	// Get the new CVE updates since the previous synchronization.
-	lastModStartDate, err = s.sync(ctx, &lastModStartDate)
+	newLastModStartDate, err := s.sync(ctx, &lastModStartDate)
 	if err != nil {
 		return err
 	}
 
 	// Update the lastModStartDate for the next synchronization.
-	if err := s.writeLastModStartDateFile(lastModStartDate); err != nil {
+	if err := s.writeLastModStartDateFile(newLastModStartDate); err != nil {
 		return err
 	}
 
@@ -312,6 +332,7 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 
 // writeLastModStartDateFile writes the lastModStartDate to a file in the local DB directory.
 func (s *CVE) writeLastModStartDateFile(lastModStartDate string) error {
+	fmt.Println("Writing lastModStartDate:", lastModStartDate)
 	if err := os.WriteFile(
 		s.lastModStartDateFilePath(),
 		[]byte(lastModStartDate),
@@ -416,6 +437,8 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 		totalResults = cveResponse.TotalResults
 		startIndex += cveResponse.ResultsPerPage
 		newLastModStartDate = cveResponse.Timestamp
+
+		s.logger.Log("newLastModStartDate", newLastModStartDate)
 
 		// Environment variable NETWORK_TEST_NVD_CVE_END_IDX is set only in tests
 		// (to reduce test duration time).
