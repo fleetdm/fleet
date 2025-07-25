@@ -439,8 +439,6 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 		startIndex += cveResponse.ResultsPerPage
 		newLastModStartDate = cveResponse.Timestamp
 
-		s.logger.Log("newLastModStartDate", newLastModStartDate)
-
 		// Environment variable NETWORK_TEST_NVD_CVE_END_IDX is set only in tests
 		// (to reduce test duration time).
 		if v := os.Getenv("NETWORK_TEST_NVD_CVE_END_IDX"); v != "" {
