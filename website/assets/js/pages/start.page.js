@@ -159,7 +159,6 @@ parasails.registerPage('start', {
       }
     },
     clickGoToPreviousStep: async function() {
-      let primaryBuyingSituation;
       switch(this.currentStep) {
         case 'what-are-you-using-fleet-for':
           this.currentStep = 'start';
@@ -191,7 +190,7 @@ parasails.registerPage('start', {
           this.currentStep = 'have-you-ever-used-fleet';
           break;
         case 'is-it-any-good':
-          primaryBuyingSituation = this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation;
+          let primaryBuyingSituation = this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation;
           if(['eo-security', 'security-misc'].includes(primaryBuyingSituation)){
             this.currentStep = 'what-are-you-working-on-eo-security';
           } else if(['eo-it', 'it-misc'].includes(primaryBuyingSituation)) {
@@ -200,17 +199,10 @@ parasails.registerPage('start', {
             this.currentStep = 'what-does-your-team-manage-vm';
           } else if(['it-major-mdm', 'mdm'].includes(primaryBuyingSituation)) {
             this.currentStep = 'message-about-cross-platform-mdm';
-          } else if (primaryBuyingSituation === 'it-gap-filler-mdm') {
-            this.currentStep = 'message-about-cross-platform-mdm';
           }
           break;
         case 'message-about-cross-platform-mdm':
-          primaryBuyingSituation = this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation;
-          if(['it-major-mdm', 'mdm'].includes(primaryBuyingSituation)) {
-            this.currentStep = 'what-do-you-manage-mdm';
-          } else {
-            this.currentStep = 'have-you-ever-used-fleet';
-          }
+          this.currentStep = 'what-do-you-manage-mdm';
           break;
         case 'lets-talk-to-your-team':
           this.currentStep = 'how-many-hosts';
@@ -269,10 +261,8 @@ parasails.registerPage('start', {
               nextStepInForm = 'what-does-your-team-manage-eo-it';
             } else if(['vm', 'security-vm'].includes(primaryBuyingSituation)) {
               nextStepInForm = 'what-does-your-team-manage-vm';
-            } else if(['it-major-mdm', 'mdm'].includes(primaryBuyingSituation)) {
+            } else if(['it-major-mdm','it-gap-filler-mdm', 'mdm'].includes(primaryBuyingSituation)) {
               nextStepInForm = 'what-do-you-manage-mdm';
-            } else if (primaryBuyingSituation === 'it-gap-filler-mdm') {
-              nextStepInForm = 'message-about-cross-platform-mdm';
             }
           }
           break;

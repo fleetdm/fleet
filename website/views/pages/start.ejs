@@ -41,12 +41,7 @@
             <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'it-major-mdm' ? 'selected' : '']">
               <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="it-major-mdm" @input="clickClearOneFormError('primaryBuyingSituation')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              Device management (MDM)
-            </label>
-            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'it-gap-filler-mdm' ? 'selected' : '']">
-              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="it-gap-filler-mdm" @input="clickClearOneFormError('primaryBuyingSituation')">
-              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              Linux management
+              Device management
             </label>
             <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'security-misc' ? 'selected' : '']">
               <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="security-misc" @input="clickClearOneFormError('primaryBuyingSituation')">
@@ -61,7 +56,7 @@
             <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'security-vm' ? 'selected' : '']">
               <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="security-vm" @input="clickClearOneFormError('primaryBuyingSituation')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              Vulnerability management
+              Vulnerability reporting
             </label>
             <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
           </div>
@@ -382,15 +377,15 @@
                 <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
                 About half and half
               </label>
+              <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'linux' ? 'selected' : '']">
+                <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="linux" @input="clickClearOneFormError('mdmUseCase')">
+                <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+                I'm here for Linux
+              </label>
               <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet' ? 'selected' : '']">
                 <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="no-use-case-yet" @input="clickClearOneFormError('mdmUseCase')">
                 <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
                 I'm just curious
-              </label>
-              <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'linux' ? 'selected' : '']">
-                <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="linux" @input="clickClearOneFormError('mdmUseCase')">
-                <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-                Actually, I'm here for Linux
               </label>
               <div class="invalid-feedback" v-if="formErrors.mdmUseCase">Please select an option</div>
             </div>
