@@ -338,11 +338,12 @@ fleetctl package \
 
 #### Important considerations
 
-- Hosts without TPM 2.0 will fail to enroll when this option is enabled
-- This feature cannot be combined with other client certificate options (`--fleet-tls-client-certificate`)
+- Currently only supported for Linux.
+- Hosts without TPM 2.0 will fail to enroll when this option is enabled.
+- This feature cannot be combined with other client certificate options (`--fleet-tls-client-certificate`).
 - SCEP certificate requests can be throttled by the [osquery_enroll_cooldown](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-enroll-cooldown) server option, similar to how fleetd enrollments are throttled
 - When a host requests a host identity certificate, the server will expect all future traffic from that host to be signed with HTTP message signatures. This allows mixed environments where some hosts use managed client certificates and others do not
-- Fleet administrators can enforce HTTP message signature requirements server-wide using the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option
+- Fleet administrators can enforce HTTP message signature requirements server-wide using the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option. If set, all fleetd API requests that do not have a valid HTTP signature will be rejected.
 
 ### Specifying update channels
 
