@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,11 +23,12 @@ type AppCommander struct {
 	AppPath          string
 	UninstallScript  string
 	InstallScript    string
+	cfg              *Config
 }
 
 func (ac *AppCommander) isFrozen() (bool, error) {
 	var inputPath string
-	switch operatingSystem {
+	switch ac.cfg.operatingSystem {
 	case "darwin":
 		inputPath = "ee/maintained-apps/inputs/homebrew"
 	case "windows":
@@ -69,41 +71,41 @@ func (ac *AppCommander) extractAppVersion(installerTFR *fleet.TempFileReader) er
 	return nil
 }
 
-func (ac *AppCommander) uninstallPreInstalled(installationSearchDirectory string) {
-	level.Info(logger).Log("msg", fmt.Sprintf("App '%s' is marked as pre-installed, attempting to run uninstall script.\n", ac.Name))
+func (ac *AppCommander) uninstallPreInstalled(ctx context.Context) {
+	level.Info(ac.cfg.logger).Log("msg", fmt.Sprintf("App '%s' is marked as pre-installed, attempting to run uninstall script.\n", ac.Name))
 
 	_, _, listError := ac.expectToChangeFileSystem(
 		func() error {
-			uninstalled := ac.uninstallApp()
+			uninstalled := ac.uninstallApp(ctx)
 			if !uninstalled {
-				level.Error(logger).Log("msg", fmt.Sprintf("Failed to uninstall pre-installed app '%s'", ac.Name))
+				level.Error(ac.cfg.logger).Log("msg", fmt.Sprintf("Failed to uninstall pre-installed app '%s'", ac.Name))
 			}
 			return nil
 		},
 	)
 
 	if listError != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("Error listing %s directory: %v\n", installationSearchDirectory, listError))
+		level.Error(ac.cfg.logger).Log("msg", fmt.Sprintf("Error listing %s directory: %v\n", ac.cfg.installationSearchDirectory, listError))
 	}
 }
 
-func (ac *AppCommander) uninstallApp() bool {
-	level.Info(logger).Log("msg", fmt.Sprintf("Executing uninstall script for app '%s'...\n", ac.Name))
-	output, err := executeScript(ac.UninstallScript)
+func (ac *AppCommander) uninstallApp(ctx context.Context) bool {
+	level.Info(ac.cfg.logger).Log("msg", fmt.Sprintf("Executing uninstall script for app '%s'...\n", ac.Name))
+	output, err := executeScript(ac.cfg, ac.UninstallScript)
 	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("Error uninstalling app: %v\n", err))
-		level.Error(logger).Log("msg", fmt.Sprintf("Output: %s\n", output))
+		level.Error(ac.cfg.logger).Log("msg", fmt.Sprintf("Error uninstalling app: %v\n", err))
+		level.Error(ac.cfg.logger).Log("msg", fmt.Sprintf("Output: %s\n", output))
 		return false
 	}
-	level.Debug(logger).Log("msg", fmt.Sprintf("Output: %s\n", output))
+	level.Debug(ac.cfg.logger).Log("msg", fmt.Sprintf("Output: %s\n", output))
 
-	existance, err := doesAppExists(ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
+	existance, err := doesAppExists(ctx, ac.cfg.logger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("Error checking if app exists after uninstall: %v\n", err))
+		level.Error(ac.cfg.logger).Log("msg", fmt.Sprintf("Error checking if app exists after uninstall: %v\n", err))
 		return false
 	}
 	if existance {
-		level.Error(logger).Log("msg", fmt.Sprintf("App version '%s' was found after uninstall\n", ac.Version))
+		level.Error(ac.cfg.logger).Log("msg", fmt.Sprintf("App version '%s' was found after uninstall\n", ac.Version))
 		return false
 	}
 
@@ -112,26 +114,26 @@ func (ac *AppCommander) uninstallApp() bool {
 
 func (ac *AppCommander) expectToChangeFileSystem(changer func() error) (string, error, error) {
 	var preListError, postListError, listError error
-	appListPre, err := listDirectoryContents(installationSearchDirectory)
+	appListPre, err := listDirectoryContents(ac.cfg.installationSearchDirectory)
 	if err != nil {
-		preListError = fmt.Errorf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+		preListError = fmt.Errorf("Error listing %s directory: %v\n", ac.cfg.installationSearchDirectory, err)
 	}
 
 	changerError := changer()
 
-	appListPost, err := listDirectoryContents(installationSearchDirectory)
+	appListPost, err := listDirectoryContents(ac.cfg.installationSearchDirectory)
 	if err != nil {
-		postListError = fmt.Errorf("Error listing %s directory: %v\n", installationSearchDirectory, err)
+		postListError = fmt.Errorf("Error listing %s directory: %v\n", ac.cfg.installationSearchDirectory, err)
 	}
 
-	appPath, changed := detectApplicationChange(installationSearchDirectory, appListPre, appListPost)
+	appPath, changed := detectApplicationChange(ac.cfg.installationSearchDirectory, appListPre, appListPost)
 	if appPath == "" {
-		level.Warn(logger).Log("msg", fmt.Sprintf("no changes detected in %s directory after running application script.\n", installationSearchDirectory))
+		level.Warn(ac.cfg.logger).Log("msg", fmt.Sprintf("no changes detected in %s directory after running application script.\n", ac.cfg.installationSearchDirectory))
 	} else {
 		if changed {
-			level.Info(logger).Log("msg", fmt.Sprintf("New application detected at: %s\n", appPath))
+			level.Info(ac.cfg.logger).Log("msg", fmt.Sprintf("New application detected at: %s\n", appPath))
 		} else {
-			level.Info(logger).Log("msg", fmt.Sprintf("Application removal detected at: %s\n", appPath))
+			level.Info(ac.cfg.logger).Log("msg", fmt.Sprintf("Application removal detected at: %s\n", appPath))
 		}
 	}
 

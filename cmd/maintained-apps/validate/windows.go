@@ -12,17 +12,18 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
 var preInstalled = []string{}
 
-func postApplicationInstall(_ string) error {
+func postApplicationInstall(cfg *Config, appPath string) error {
 	return nil
 }
 
-func doesAppExists(appName, _ string, appVersion, appPath string) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+func doesAppExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
+	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	if err := validateSqlInput(appName); err != nil {
@@ -42,7 +43,7 @@ func doesAppExists(appName, _ string, appVersion, appPath string) (bool, error) 
 	if appPath != "" {
 		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
 	}
-	cmd := exec.CommandContext(ctx, "osqueryi", "--json", query)
+	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s\n", string(output)))
@@ -72,9 +73,9 @@ func doesAppExists(appName, _ string, appVersion, appPath string) (bool, error) 
 	return false, nil
 }
 
-func executeScript(scriptContents string) (string, error) {
+func executeScript(cfg *Config, scriptContents string) (string, error) {
 	scriptExtension := ".ps1"
-	scriptPath := filepath.Join(tmpDir, "script"+scriptExtension)
+	scriptPath := filepath.Join(cfg.tmpDir, "script"+scriptExtension)
 	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("writing script: %w", err)
 	}
@@ -82,7 +83,7 @@ func executeScript(scriptContents string) (string, error) {
 	// Use custom execution with non-interactive flags for Windows
 	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
 	cmd.WaitDelay = 1 * time.Minute
-	cmd.Env = env
+	cmd.Env = cfg.env
 	cmd.Dir = filepath.Dir(scriptPath)
 
 	output, err := cmd.CombinedOutput()

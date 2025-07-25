@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
@@ -21,54 +22,67 @@ var preInstalled = []string{
 	"firefox/darwin",
 }
 
-func postApplicationInstall(appPath string) error {
+func postApplicationInstall(cfg *Config, appPath string) error {
+	if appPath == "" {
+		return nil
+	}
+
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Forcing LaunchServices refresh for: '%s'\n", appPath))
 	err := forceLaunchServicesRefresh(appPath)
 	if err != nil {
 		return fmt.Errorf("Error forcing LaunchServices refresh: %v. Attempting to continue", err)
 	}
-	err = removeAppQuarentine(appPath)
+
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Attempting to remove quarantine for: '%s'\n", appPath))
+	quarantineResult, err := removeAppQuarentine(appPath)
+
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Quarantine output error: %v\n", quarantineResult.QuarantineOutputError))
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Quarantine status: %s\n", quarantineResult.QuarantineStatus))
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Spctl output error: %v\n", quarantineResult.SpctlOutputError))
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("spctl status: %s\n", quarantineResult.SpctlStatus))
 	if err != nil {
 		return fmt.Errorf("Error removing app quarantine: %v. Attempting to continue", err)
 	}
 	return nil
 }
 
-func removeAppQuarentine(appPath string) error {
-	if appPath == "" {
-		return nil
-	}
-	level.Info(logger).Log("msg", fmt.Sprintf("Attempting to remove quarantine for: '%s'\n", appPath))
+type QuarantineResult struct {
+	QuarantineOutputError error
+	QuarantineStatus      string
+	SpctlOutputError      error
+	SpctlStatus           string
+}
+
+func removeAppQuarentine(appPath string) (QuarantineResult, error) {
+	var result QuarantineResult
+
 	cmd := exec.Command("xattr", "-p", "com.apple.quarantine", appPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("checking quarantine status: %v\n", err))
+		result.QuarantineOutputError = fmt.Errorf("checking quarantine status: %v\n", err)
 	}
-	level.Info(logger).Log("msg", fmt.Sprintf("Quarantine status: '%s'\n", strings.TrimSpace(string(output))))
+	result.QuarantineStatus = fmt.Sprintf("Quarantine status: '%s'\n", strings.TrimSpace(string(output)))
 	cmd = exec.Command("spctl", "-a", "-v", appPath)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("checking spctl status: %v\n", err))
+		result.SpctlOutputError = fmt.Errorf("checking spctl status: %v\n", err)
 	}
-	level.Info(logger).Log("msg", fmt.Sprintf("spctl status: '%s'\n", strings.TrimSpace(string(output))))
+	result.SpctlStatus = fmt.Sprintf("spctl status: '%s'\n", strings.TrimSpace(string(output)))
 
 	cmd = exec.Command("sudo", "spctl", "--add", appPath)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("adding app to quarantine exceptions: %w", err)
+		return result, fmt.Errorf("adding app to quarantine exceptions: %w", err)
 	}
 
 	cmd = exec.Command("sudo", "xattr", "-r", "-d", "com.apple.quarantine", appPath)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("removing quarantine attribute: %w", err)
+		return result, fmt.Errorf("removing quarantine attribute: %w", err)
 	}
 
-	return nil
+	return result, nil
 }
 
 func forceLaunchServicesRefresh(appPath string) error {
-	if appPath == "" {
-		return nil
-	}
-	level.Info(logger).Log("msg", fmt.Sprintf("Forcing LaunchServices refresh for: '%s'\n", appPath))
 	cmd := exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appPath)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("forcing LaunchServices refresh: %w", err)
@@ -77,8 +91,8 @@ func forceLaunchServicesRefresh(appPath string) error {
 	return nil
 }
 
-func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+func doesAppExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
+	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	if err := validateSqlInput(appName); err != nil {
@@ -102,7 +116,7 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bo
 	if appPath != "" {
 		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", appPath)
 	}
-	cmd := exec.CommandContext(ctx, "osqueryi", "--json", query)
+	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.Output()
 	if err != nil {
 		return false, fmt.Errorf("executing osquery command: %w", err)
@@ -131,9 +145,9 @@ func doesAppExists(appName, uniqueAppIdentifier, appVersion, appPath string) (bo
 	return false, nil
 }
 
-func executeScript(scriptContents string) (string, error) {
+func executeScript(cfg *Config, scriptContents string) (string, error) {
 	scriptExtension := ".sh"
-	scriptPath := filepath.Join(tmpDir, "script"+scriptExtension)
+	scriptPath := filepath.Join(cfg.tmpDir, "script"+scriptExtension)
 	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("writing script: %w", err)
 	}
@@ -141,7 +155,7 @@ func executeScript(scriptContents string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, env)
+	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, cfg.env)
 	result := fmt.Sprintf(`
 --------------------
 %s
