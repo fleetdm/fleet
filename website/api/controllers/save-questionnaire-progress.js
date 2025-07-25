@@ -243,7 +243,7 @@ module.exports = {
       emailAddress: this.req.me.emailAddress,
       firstName: this.req.me.firstName,
       lastName: this.req.me.lastName,
-      primaryBuyingSituation: ['eo-security', 'security-misc'].includes(primaryBuyingSituation) ? 'Endpoint operations - Security' : ['eo-it', 'it-misc'].includes(primaryBuyingSituation) ? 'Endpoint operations - IT' : ['mdm', 'it-major-mdm'].includes(primaryBuyingSituation) ? 'Device management (MDM)' : ['vm', 'security-vm'].includes(primaryBuyingSituation)  ? 'Vulnerability management' : primaryBuyingSituation === 'it-gap-filler-mdm' ? '  IT - Gap-filler MDM' : undefined,
+      primaryBuyingSituation: ['eo-security', 'security-misc'].includes(primaryBuyingSituation) ? 'Endpoint operations - Security' : ['eo-it', 'it-misc'].includes(primaryBuyingSituation) ? 'Endpoint operations - IT' : ['mdm', 'it-major-mdm'].includes(primaryBuyingSituation) ? 'Device management (MDM)' : ['vm', 'security-vm'].includes(primaryBuyingSituation)  ? 'Vulnerability management' : primaryBuyingSituation === 'it-gap-filler-mdm' ? 'IT - Gap-filler MDM' : undefined,
       organization: this.req.me.organization,
       psychologicalStage,
       getStartedResponses: questionnaireProgressAsAFormattedString,
