@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -33,17 +34,17 @@ var (
 	logLevel                    string
 )
 
-func run() int {
+func run() error {
 	apps, err := getListOfApps()
 	if err != nil {
 		level.Error(logger).Log("msg", fmt.Sprintf("Error getting list of apps: %v\n", err))
-		os.Exit(1)
+		return err
 	}
 
 	tmpDir, err = os.MkdirTemp("", "fma-validate-")
 	if err != nil {
 		level.Error(logger).Log("msg", fmt.Sprintf("Error creating temporary directory: %v\n", err))
-		os.Exit(1)
+		return err
 	}
 	defer func() {
 		err := os.RemoveAll(tmpDir)
@@ -175,12 +176,12 @@ func run() int {
 	if successfulApps == totalApps-len(frozenApps) {
 		// All apps were successfully validated!
 		level.Info(logger).Log("msg", fmt.Sprintf("All %d apps were successfully validated.\n", totalApps))
-		return 0
+		return nil
 	}
 
 	level.Info(logger).Log("msg", fmt.Sprintf("Validated %d out of %d apps successfully.\n", successfulApps, totalApps))
 	level.Info(logger).Log("msg", fmt.Sprintf("Apps with errors: %v\n", appWithError))
-	return 1
+	return errors.New("Some maintained apps failed validation")
 }
 
 func main() {
@@ -227,8 +228,10 @@ func main() {
 		level.Info(logger).Log("msg", fmt.Sprintf("INSTALLATION_SEARCH_DIRECTORY environment variable is not set. Using default: '%s'\n", installationSearchDirectory))
 	}
 
-	exitCode := run()
-	os.Exit(exitCode)
+	err := run()
+	if err != nil {
+		os.Exit(1)
+	}
 }
 
 func getListOfApps() ([]maintained_apps.FMAListFileApp, error) {
