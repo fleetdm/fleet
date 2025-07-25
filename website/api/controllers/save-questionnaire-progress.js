@@ -136,10 +136,29 @@ module.exports = {
       // Get the user's answer to the "Have you ever used Fleet?" question.
       let hasUsedFleetAnswer = questionnaireProgress['have-you-ever-used-fleet'].fleetUseStatus;
       if(['what-are-you-working-on-eo-security','what-does-your-team-manage-eo-it','what-does-your-team-manage-vm','what-do-you-manage-mdm'].includes(currentStep)){
-        if(valueFromFormData === 'no-use-case-yet') {
-          psychologicalStage = '3 - Intrigued';
-        } else {// Otherwise, they have a use case and will be set to stage 4.
-          psychologicalStage = '4 - Has use case';
+        if(currentStep === 'what-do-you-manage-mdm') {
+          // If a user is here for Linux device management, update their primaryBuyingSituation to be 'it-gap-filler-mdm'.
+          if(valueFromFormData === 'linux') {
+            primaryBuyingSituation = 'it-gap-filler-mdm';
+            await User.updateOne({id: this.req.me.id}).set({
+              primaryBuyingSituation,
+            });
+            this.req.session.primaryBuyingSituation = primaryBuyingSituation;
+            psychologicalStage = '4 - Has use case';
+          } else {
+            // If they select any other answer, set their primaryBuyingSituation to 'it-major-mdm'.
+            psychologicalStage = '4 - Has use case';
+            primaryBuyingSituation = 'it-major-mdm';
+            await User.updateOne({id: this.req.me.id}).set({
+              primaryBuyingSituation,
+            });
+          }
+        } else {
+          if(valueFromFormData === 'no-use-case-yet') {
+            psychologicalStage = '3 - Intrigued';
+          } else {// Otherwise, they have a use case and will be set to stage 4.
+            psychologicalStage = '4 - Has use case';
+          }
         }
         // When the user submits the step before the "Is it any good?" step, we will generate them a 30 day Trial key for Fleet Premium that they can use with fleetctl preview
         if(!userRecord.fleetPremiumTrialLicenseKey) {
@@ -224,7 +243,7 @@ module.exports = {
       emailAddress: this.req.me.emailAddress,
       firstName: this.req.me.firstName,
       lastName: this.req.me.lastName,
-      primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+      primaryBuyingSituation: ['eo-security', 'security-misc'].includes(primaryBuyingSituation) ? 'Endpoint operations - Security' : ['eo-it', 'it-misc'].includes(primaryBuyingSituation) ? 'Endpoint operations - IT' : ['mdm', 'it-major-mdm'].includes(primaryBuyingSituation) ? 'Device management (MDM)' : ['vm', 'security-vm'].includes(primaryBuyingSituation)  ? 'Vulnerability management' : primaryBuyingSituation === 'it-gap-filler-mdm' ? '  IT - Gap-filler MDM' : undefined,
       organization: this.req.me.organization,
       psychologicalStage,
       getStartedResponses: questionnaireProgressAsAFormattedString,
