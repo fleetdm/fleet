@@ -419,7 +419,7 @@ At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs 
 
 If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Feature prioritization DRI, and they can add their request back to the feature fest board (`~feature fest` label) to bring it back to a future meeting.
 
-> If a feature request has an urgent Fleet need and can't wait until the next feature fest, @ mention the Head of Product Design in the #g-mdm, #g-software, or #g-orchestration channel with a link to the request's GitHub issue. It's up to the HPD to decide whether it is immediately prioritized to go through drafting or put to the side. If prioritized, one or more feature requests will be de-prioritized (users stories are pulled out of the current design sprint) to make room.
+> If a feature request has an urgent Fleet need and can't wait until the next feature fest, @ mention the Head of Product Design in the #g-mdm, #g-software, or #g-orchestration channel with a link to the request's GitHub issue. It's up to the HPD to decide whether it is immediately prioritized to go through drafting or put to the side. If prioritized, the HPD will decide to de-prioritize one or more feature requests to make room in the current design sprint and notify requesters.
 
 
 ### After the feature is accepted
