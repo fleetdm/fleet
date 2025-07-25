@@ -332,15 +332,16 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 
 // writeLastModStartDateFile writes the lastModStartDate to a file in the local DB directory.
 func (s *CVE) writeLastModStartDateFile(lastModStartDate string) error {
-	fmt.Println("Writing lastModStartDate:", lastModStartDate)
-	if err := os.WriteFile(
-		s.lastModStartDateFilePath(),
-		[]byte(lastModStartDate),
-		constant.DefaultWorldReadableFileMode,
-	); err != nil {
+	normalized, err := parseAndFormatForNVD(lastModStartDate)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	return os.WriteFile(
+		s.lastModStartDateFilePath(),
+		[]byte(normalized),
+		constant.DefaultWorldReadableFileMode,
+	)
 }
 
 // httpClient wraps an http.Client to allow for debug and setting a request context.
