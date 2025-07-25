@@ -142,9 +142,8 @@ The implementation determines TPM's P-384 support by attempting to create a test
 ### Key storage
 
 Keys are saved as to the filesystem using [TPM 2.0 Key Files](https://www.hansenpartnership.com/draft-bottomley-tpm2-keys.html) format, which includes:
-- Private key blob
-- Public key blob
-- Parent key template
+- Encrypted private key blob.
+- Public key blob.
 
 Filename used is `host_identity_tpm.pem`
 
