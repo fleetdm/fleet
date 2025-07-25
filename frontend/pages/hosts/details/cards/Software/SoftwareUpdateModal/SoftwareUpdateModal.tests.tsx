@@ -1,17 +1,18 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
 import { createMockHostSoftware } from "__mocks__/hostMock";
 import SoftwareUpdateModal from "./SoftwareUpdateModal";
 
 describe("SoftwareUpdateModal", () => {
-  it("shows modal title and both buttons in update scenario", () => {
+  it("shows modal title and both buttons in update scenario", async () => {
     const mockSoftware = createMockHostSoftware();
 
     const onExit = jest.fn();
     const onUpdate = jest.fn();
 
-    render(
+    const { user } = renderWithSetup(
       <SoftwareUpdateModal
         hostDisplayName="Test Host"
         software={mockSoftware}
@@ -27,20 +28,19 @@ describe("SoftwareUpdateModal", () => {
     ).not.toBeInTheDocument();
 
     // Click Update: both handlers called
-    fireEvent.click(screen.getByRole("button", { name: "Update" }));
+    await user.click(screen.getByRole("button", { name: "Update" }));
     expect(onUpdate).toHaveBeenCalledWith(mockSoftware.id);
     expect(onExit).toHaveBeenCalledTimes(1);
 
     // Click Cancel: only exit handler called
     onExit.mockClear();
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onExit).toHaveBeenCalledTimes(1);
     expect(onUpdate).toHaveBeenCalledTimes(1); // shouldn't increment from previous
   });
 
   it("shows 'Done' button and not update/cancel when status is pending_install", () => {
     const mockSoftware = createMockHostSoftware({ status: "pending_install" });
-    const onExit = jest.fn();
 
     render(
       <SoftwareUpdateModal

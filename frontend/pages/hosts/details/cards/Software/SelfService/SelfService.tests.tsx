@@ -8,7 +8,7 @@ import { customDeviceSoftwareHandler } from "test/handlers/device-handler";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import {
   DEFAULT_INSTALLED_VERSION,
-  DEFAULT_HOST_MOCK,
+  DEFAULT_HOST_HOSTNAME,
 } from "__mocks__/hostMock";
 
 import SelfService, { ISoftwareSelfServiceProps } from "./SelfService";
@@ -37,7 +37,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   onShowUninstallDetails: noop,
   refetchHostDetails: noop,
   isHostDetailsPolling: false,
-  hostDisplayName: DEFAULT_HOST_MOCK.hostname,
+  hostDisplayName: DEFAULT_HOST_HOSTNAME,
 };
 
 describe("SelfService", () => {

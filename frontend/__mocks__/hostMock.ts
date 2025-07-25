@@ -26,7 +26,9 @@ export const createMockHostMdmProfile = (
   return { ...DEFAULT_HOST_PROFILE_MOCK, ...overrides };
 };
 
-export const DEFAULT_HOST_MOCK: IHost = {
+export const DEFAULT_HOST_HOSTNAME = "9b20fc72a247";
+
+const DEFAULT_HOST_MOCK: IHost = {
   id: 1,
   created_at: "2022-01-01T12:00:00Z",
   updated_at: "2022-01-02T12:00:00Z",
@@ -38,7 +40,7 @@ export const DEFAULT_HOST_MOCK: IHost = {
   seen_time: "2022-04-06T02:11:41Z",
   refetch_requested: false,
   refetch_critical_queries_until: null,
-  hostname: "9b20fc72a247",
+  hostname: DEFAULT_HOST_HOSTNAME,
   display_name: "9b20fc72a247",
   display_text: "mock host 1",
   uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
