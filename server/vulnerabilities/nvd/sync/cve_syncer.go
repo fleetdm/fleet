@@ -166,11 +166,7 @@ func (s *CVE) update(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	parsed, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(string(lastModStartDate_)))
-	if err != nil {
-		return fmt.Errorf("invalid last_mod_start_date.txt format: %w", err)
-	}
-	lastModStartDate := parsed.UTC().Format("2006-01-02T15:04:05.000Z")
+	lastModStartDate := string(lastModStartDate_)
 
 	// Get the new CVE updates since the previous synchronization.
 	lastModStartDate, err = s.sync(ctx, &lastModStartDate)
