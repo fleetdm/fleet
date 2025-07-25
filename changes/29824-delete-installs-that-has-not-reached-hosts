@@ -1,1 +1,0 @@
-* Fix stale pending remove apple declarations, if the host was offline while adding and removing the same declaration.

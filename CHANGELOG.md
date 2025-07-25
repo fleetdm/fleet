@@ -1,3 +1,52 @@
+## Fleet 4.72.0 (Jul 25, 2025)
+
+### Bug fixes
+
+* Fixed issue with package ids ordering causing software installers' scripts to be inconsistently generated
+- Fleet UI: On the host details > software > library page and Fleet Desktop > Self-service page, show user's when a software can be updated, allowing users to easily trigger a software update and see fresh data after an update completes
+* Added support for fleetd TUF extensions on Linux arm64 and Windows arm64 devices.
+* Label created_at no longer factored in when scoping software packages by "exclude any" manual labels
+* Added support for Apple Account Driven User enrollment when end user authentication is configured
+* Fixed incorrectly displayed status in controls OS Settings page, if a host was only pending or failing on declaration for removal
+* Fixed bug with `mdm_bridge` Orbit table that caused panics due to invalid COM initialization.
+- Added flag `--fleet-managed-host-identity-certificate` to generate fleetd packages for linux that use TPMs to sign HTTP requests.
+- Improved accuracy of auto-install queries for custom MSI packages by using a better identifier.
+* Fixed bug where a certificate Distinguished Name (DN) parser did not allow forward slashes in the value which resulted in parsing error.
+- Fixed an issue where the detected date for software vulnerabilities was not being pulled correctly from the database.
+* Added special handling for version extraction of Fleet-maintained app manifests that reference a download URL that isn't version-pinned
+* Added a fallback to package install path for extracting app names from uploaded PKG packages
+- Fixed missing empty host lists on manual labels in gitops
+* Refactored `AddHostsToTeam` method to fix race condition introduced by global var.
+- Changed enable_software_inventory to default to true if missing from gitops config
+- Fixed an issue where two banners would sometimes be displayed on the host details page
+- Fixed missing webhook url in automations tooltip
+- Modified backend for GET /api/v1/fleet/commands when filtering by `host_identifier` to address performance
+  concerns and exhausting database connections when API is called concurrently for many hosts.
+* Allow users of Fleet in Primo mode to access Software automations and Failing policy ticket &
+webhook automations.
+- Fleet UI: On the host details > software > library page and Fleet Desktop > Self-service page, show installer status and installer actions based on what software is detected in software inventory
+- Improved fleetctl gitops type error mesages
+* Removed DEB and RPM installers from installable software lists on hosts with incompatible Linux distributions (e.g. Ubuntu for an RPM)
+- Fixed an issue where using ESCAPE in a LIKE clause caused SQL validation to fail
+Fleet server now supports issuing host identity certificates through SCEP (Simple Certificate Enrollment Protocol) that fleetd can use with TPM 2.0 hardware to cryptographically sign all HTTP requests. This hardware-backed authentication provides enterprise-grade security similar to mTLS by ensuring private keys never leave the TPM's secure boundary, establishing cryptographic proof that requests originate from the same physical device that initially enrolled.
+* Fixed error when trying to escrow a linux disk key multiple times.
+* Revised MSI uninstall scripts to wait for an uninstall to complete before returning and avoid restarting after an uninstall.
+* Fixed silent failure when passing flags after arguments in fleetctl
+- update UI to support personally enrolled MDM devices
+* Fix wrongly formatted URL for EULA when accessing from Fleet UI and when shown in the iFrame for SSO callback.
+* Fix stale pending remove apple declarations, if the host was offline while adding and removing the same declaration.
+* Fixed a case where a vulnerability would show up twice for a given operating system
+* Fixed specification of policy software automations via GitOps when referring to software by hash from a software YAML file
+* Switched to more comprehensive UpgradeCode based uninstall scripts when an UpgradeCode can be extracted from an MSI custom package.
+* Fixed cases where the vulnerabilities list endpoint would count the same CVE multiple times for the `count` field returned with a result set
+* Updated go to 1.24.5
+* Added back software mutation on ingestion to fix non-semver-compliant software versions, starting with DCV Viewer.
+- added the following Fleet-maintained apps for macOS:
+  - iTerm2
+  - Yubikey Manager
+  - VNC Viewer
+  - Beyond Compare
+
 ## Fleet 4.71.0 (Jul 23, 2025)
 
 ### Security Engineers
