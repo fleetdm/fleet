@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -69,6 +70,48 @@ func GetLoginUser() (*User, error) {
 		Name: username,
 		ID:   uid,
 	}, nil
+}
+
+// GetSELinuxUserContext returns the SELinux context for the given user.
+// Example: `unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023`
+//
+// If SELinux is not enabled, the `runcon` command is not available,
+// or context cannot be determined, it returns nil.
+func GetSELinuxUserContext(user *User) *string {
+	// If SELinux is not enabled, return nil right away.
+	if _, err := os.Stat("/sys/fs/selinux/enforce"); err != nil {
+		return nil
+	}
+	// If runcon is not available, we won't be able to switch contexts,
+	// so return nil.
+	if _, err := exec.LookPath("runcon"); err != nil {
+		log.Warn().Msg("runcon not available, returning nil for user context since we can't switch contexts")
+		return nil
+	}
+	// Find the first systemd process for the user and read its SELinux context.
+	pidBytes, err := exec.Command("pgrep", "-u", strconv.FormatInt(user.ID, 10), "-nx", "systemd").Output() // #nosec G204
+	if err != nil {
+		log.Debug().Msgf("Error finding systemd process for user %s: %v", user.Name, err)
+		return nil
+	}
+	pid := strings.TrimSpace(string(pidBytes))
+	if pid == "" {
+		log.Debug().Msgf("No systemd process found for user %s", user.Name)
+		return nil
+	}
+	ctx, err := os.ReadFile("/proc/" + pid + "/attr/current")
+	if err != nil {
+		log.Debug().Msgf("Error reading SELinux context for user %s: %v", user.Name, err)
+		return nil
+	}
+	context := strings.TrimSpace(string(ctx))
+	// Remove any null byte at the end
+	context = strings.TrimSuffix(context, "\x00")
+	if context == "" {
+		log.Debug().Msg("Empty SELinux context for user " + user.Name)
+		return nil
+	}
+	return &context
 }
 
 // parseUsersOutput parses the output of the `users' command.
