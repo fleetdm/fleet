@@ -1,1 +1,0 @@
-* Fixed bug where a certificate Distinguished Name (DN) parser did not allow forward slashes in the value which resulted in parsing error.
