@@ -11885,8 +11885,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
 	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
 
-	// maintained app with no_check for sha
-	// https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg
+	// maintained app with no_check for sha, latest for version
 	maintained2, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Google Chrome",
 		Slug:             "google-chrome/darwin",
@@ -11895,7 +11894,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	})
 	require.NoError(t, err)
 
-	chromeBytes := []byte("chrome installer content")
+	chromeBytes, err := os.ReadFile(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
+	require.NoError(t, err)
 	h := sha256.New()
 	_, err = h.Write(chromeBytes)
 	require.NoError(t, err)
@@ -11915,6 +11915,38 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	}
 	http.DefaultTransport = mockTransport
 
+	// Mock server to serve manifest with no_check/latest
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "latest",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:       "https://dl.google.com/chrome.pkg",
+			InstallScriptRef:   "foobaz",
+			UninstallScriptRef: "foobaz",
+			SHA256:             "no_check",
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"foobaz": "Hello World!",
+			},
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	defer manifestServer.Close()
+	mockTransport = &mockRoundTripper{
+		mockServer:  manifestServer.URL,
+		origBaseURL: "https://raw.githubusercontent.com",
+		next:        http.DefaultTransport,
+	}
+	http.DefaultTransport = mockTransport
+
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{Slug: &maintained2.Slug},
 	}
@@ -11923,9 +11955,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
 	require.NotNil(t, packages[0].URL)
-	// Given that the manifest returns no_check for chrome, the SHA should be taken of the downloaded file.
+	// Given that the manifest returns "no_check" for Chrome hash, the SHA should be calculated from the downloaded file.
 	require.Equal(t, chromeSHA, packages[0].HashSHA256)
 	require.Nil(t, packages[0].TeamID)
+
+	// Given that the manifest returns "latest", the version should be parsed from the downloaded file.
+	titleResponse := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	require.Equal(t, "1.0.0", titleResponse.SoftwareTitle.SoftwarePackage.Version)
 
 	http.DefaultTransport = oldTransport
 }

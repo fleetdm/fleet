@@ -1998,6 +1998,23 @@ func (svc *Service) softwareBatchUpload(
 				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
 				installer.Title = appName
 				installer.Version = p.MaintainedApp.Version
+
+				// Some FMAs (e.g. Chrome for macOS) aren't version-pinned by URL, so we have to extract the
+				// version from the package once we download it.
+				if installer.Version == "latest" && installer.InstallerFile != nil {
+					meta, err := file.ExtractInstallerMetadata(installer.InstallerFile)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "extracting installer metadata")
+					}
+
+					// reset the reader (it was consumed to extract metadata)
+					if err := installer.InstallerFile.Rewind(); err != nil {
+						return ctxerr.Wrap(ctx, err, "resetting installer file reader")
+					}
+
+					installer.Version = meta.Version
+				}
+
 				installer.Platform = p.MaintainedApp.Platform
 				installer.Source = p.MaintainedApp.Source()
 				installer.Extension = extension

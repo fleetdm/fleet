@@ -53,7 +53,7 @@ parasails.registerPage('contact', {
       // Otherwise, default to the formToShow value from the page's controller.
       this.formToDisplay = this.formToShow;
     }
-    if(this.primaryBuyingSituation){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
+    if(this.primaryBuyingSituation && !['vm', 'security-misc', 'security-vm', 'it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(this.primaryBuyingSituation)){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
       // Note: this will be overriden if the user is logged in and has a primaryBuyingSituation set in the database.
       this.$set(this.formData, 'primaryBuyingSituation', this.primaryBuyingSituation);
     }

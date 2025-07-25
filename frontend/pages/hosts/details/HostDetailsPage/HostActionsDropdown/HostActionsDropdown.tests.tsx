@@ -1299,8 +1299,6 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      screen.debug();
-
       expect(screen.getByText("Transfer")).toBeInTheDocument();
       expect(screen.getByText("Delete")).toBeInTheDocument();
       expect(screen.queryByText("Query")).not.toBeInTheDocument();
@@ -1339,8 +1337,6 @@ describe("Host Actions Dropdown", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-
-      screen.debug();
 
       expect(screen.getByText("Transfer")).toBeInTheDocument();
       expect(screen.getByText("Delete")).toBeInTheDocument();

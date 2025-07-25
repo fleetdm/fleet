@@ -1,7 +1,21 @@
 .software-self-service {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+
   // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
   .empty-table__container {
     margin: 64px 0;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .button {
+      margin-bottom: $pad-large;
+    }
   }
 
   &__header-filters {
@@ -11,6 +25,23 @@
     gap: $pad-medium;
     align-items: center;
     margin: 0 0 24px 0;
+  }
+
+  &__items {
+    display: grid;
+    grid-template-columns: repeat(
+      2,
+      1fr
+    ); // default: 2 cards (smallest screens)
+    gap: $pad-large;
+
+    @media (min-width: $break-xs) {
+      grid-template-columns: repeat(3, 1fr); // 3 cards (medium screens)
+    }
+
+    @media (min-width: $break-lg) {
+      grid-template-columns: repeat(4, 1fr); // 4 cards (large screens)
+    }
   }
 
   &__table {
@@ -48,9 +79,15 @@
       flex-direction: row;
       gap: $pad-large;
     }
+  }
 
+  .data-table-block .data-table tbody {
     .self-service-table__item-action {
       min-width: 82px; // Second action buttons align between rows
+
+      .component__tooltip-wrapper {
+        margin: 0; // Override 10px vertical margin
+      }
     }
   }
 

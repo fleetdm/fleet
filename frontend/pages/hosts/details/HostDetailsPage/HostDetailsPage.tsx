@@ -57,6 +57,9 @@ import TabText from "components/TabText";
 import MainContent, { IMainContentConfig } from "components/MainContent";
 import BackLink from "components/BackLink";
 import Card from "components/Card";
+import CustomLink from "components/CustomLink/CustomLink";
+import EmptyTable from "components/EmptyTable";
+
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
   AppInstallDetailsModal,
@@ -990,25 +993,47 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              <SoftwareLibraryCard
-                id={host.id}
-                platform={host.platform}
-                softwareUpdatedAt={host.software_updated_at}
-                hostScriptsEnabled={host.scripts_enabled || false}
-                isSoftwareEnabled={featuresConfig?.enable_software_inventory}
-                router={router}
-                queryParams={{
-                  ...parseHostSoftwareQueryParams(location.query),
-                  available_for_install: true,
-                }}
-                pathname={location.pathname}
-                onShowSoftwareDetails={onShowSoftwareDetails}
-                onShowUninstallDetails={onShowUninstallDetails}
-                hostTeamId={host.team_id || 0}
-                hostName={host.display_name}
-                hostMDMEnrolled={host.mdm.connected_to_fleet}
-                isHostOnline={host.status === "online"}
-              />
+              {/* There is a special case for personally enrolled mdm hosts where we are not
+               currently supporting software installs. This check should be removed
+               when we add that feature. */}
+              {host.mdm.enrollment_status === "On (personal)" ? (
+                <EmptyTable
+                  header="Software library is currently not supported on this host."
+                  info={
+                    <>
+                      Software install is coming soon.{" "}
+                      <CustomLink
+                        newTab
+                        text="Learn more"
+                        url="https://fleetdm.com/learn-more-about/byod-hosts-vpp-install"
+                      />
+                    </>
+                  }
+                />
+              ) : (
+                <SoftwareLibraryCard
+                  id={host.id}
+                  platform={host.platform}
+                  hostDisplayName={host?.display_name || ""}
+                  softwareUpdatedAt={host.software_updated_at}
+                  hostScriptsEnabled={host.scripts_enabled || false}
+                  isSoftwareEnabled={featuresConfig?.enable_software_inventory}
+                  router={router}
+                  queryParams={{
+                    ...parseHostSoftwareQueryParams(location.query),
+                    available_for_install: true,
+                  }}
+                  pathname={location.pathname}
+                  onShowSoftwareDetails={onShowSoftwareDetails}
+                  onShowUninstallDetails={onShowUninstallDetails}
+                  hostTeamId={host.team_id || 0}
+                  hostName={host.display_name}
+                  hostMDMEnrolled={host.mdm.connected_to_fleet}
+                  isHostOnline={host.status === "online"}
+                  refetchHostDetails={refetchHostDetails}
+                  isHostDetailsPolling={showRefetchSpinner}
+                />
+              )}
             </TabPanel>
           </>
         ) : (

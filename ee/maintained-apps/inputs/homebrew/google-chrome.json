@@ -3,6 +3,7 @@
   "slug": "google-chrome/darwin",
   "unique_identifier": "com.google.Chrome",
   "token": "google-chrome",
-  "installer_format": "dmg",
-  "default_categories": ["Browsers"]
+  "installer_format": "pkg",
+  "default_categories": ["Browsers"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/google_chrome_install.sh"
 }

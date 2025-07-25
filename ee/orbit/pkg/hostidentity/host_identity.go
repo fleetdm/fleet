@@ -57,6 +57,15 @@ func Setup(
 		// OK
 	case errors.As(err, &securehw.ErrKeyNotFound{}):
 		// Key doesn't exist yet, let's create it.
+
+		// First let's clear any existing certificate in
+		// case a user or process deleted the keyfile but not
+		// the issued-via-SCEP certificate.
+		certPath := filepath.Join(metadataDir, constant.FleetHTTPSignatureCertificateFileName)
+		if err := os.RemoveAll(certPath); err != nil {
+			return nil, fmt.Errorf("failed to clear the host identity certificate: %w", err)
+		}
+
 		secureHWKey, err = teeDevice.CreateKey()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create secure hardware key: %w", err)

@@ -44,6 +44,8 @@ interface ITableContainerProps<T = any> {
   defaultSortHeader?: string;
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
+  /**  Used for client-side filtering with a search query controlled outside TableContainer */
+  searchQuery?: string;
   /**  When page index is externally managed like from the URL, this prop must be set to control currentPageIndex */
   pageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
@@ -133,6 +135,7 @@ const TableContainer = <T,>({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
+  searchQuery: controlledSearchQuery,
   pageIndex = DEFAULT_PAGE_INDEX,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
@@ -179,6 +182,7 @@ const TableContainer = <T,>({
   persistSelectedRows,
   onClearSelection = noop,
 }: ITableContainerProps<T>) => {
+  const isControlledSearchQuery = controlledSearchQuery !== undefined;
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
@@ -186,6 +190,14 @@ const TableContainer = <T,>({
   );
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(pageIndex);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
+
+  // If using a clientside search query outside of TableContainer,
+  // we need to set the searchQuery state to the controlledSearchQuery prop anytime it changes
+  useEffect(() => {
+    if (isControlledSearchQuery) {
+      setSearchQuery(controlledSearchQuery);
+    }
+  }, [controlledSearchQuery, isControlledSearchQuery]);
 
   // Client side pagination is being overridden to previous page without this
   useEffect(() => {

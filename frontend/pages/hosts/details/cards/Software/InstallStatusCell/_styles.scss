@@ -1,10 +1,13 @@
 .install-status-cell {
-  display: flex;
-  align-items: center;
-  gap: $pad-small;
-  width: 140px; // Prevent status change from installer action from changing cell width
+  width: 140px; // Prevent status change from installer action from changing cell width while maintaining tooltip centering
 
   &__tooltip-wrapper {
+    .component__tooltip-wrapper__element {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+    }
+
     .component__tooltip-wrapper__tip-text {
       max-width: 250px;
     }
