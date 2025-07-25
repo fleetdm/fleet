@@ -16,6 +16,9 @@
       align-self: flex-start;
     }
   }
+  .data-set__horizontal {
+    flex-direction: row;
+  }
   .reveal-button {
     width: min-content;
   }
