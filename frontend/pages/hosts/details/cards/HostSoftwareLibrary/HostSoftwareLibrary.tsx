@@ -35,6 +35,7 @@ import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/Ho
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
 import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 import { getUiStatus } from "../Software/helpers";
+import SoftwareUpdateModal from "../Software/SoftwareUpdateModal";
 
 const baseClass = "host-software-library-card";
 
@@ -42,10 +43,11 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
 }
 
-interface IHostInstallersProps {
+interface IHostSoftwareLibraryProps {
   /** This is the host id or the device token */
   id: number | string;
   platform: HostPlatform;
+  hostDisplayName: string;
   softwareUpdatedAt?: string;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareLibraryQueryParams>;
@@ -98,6 +100,7 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
 const HostSoftwareLibrary = ({
   id,
   platform,
+  hostDisplayName,
   softwareUpdatedAt,
   hostScriptsEnabled,
   router,
@@ -112,7 +115,7 @@ const HostSoftwareLibrary = ({
   isHostOnline = false,
   refetchHostDetails,
   isHostDetailsPolling,
-}: IHostInstallersProps) => {
+}: IHostSoftwareLibraryProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const {
     isGlobalAdmin,
@@ -129,6 +132,10 @@ const HostSoftwareLibrary = ({
   const [hostSoftwareLibraryRes, setHostSoftwareLibraryRes] = useState<
     IGetHostSoftwareResponse | undefined
   >(undefined);
+  const [
+    selectedSoftwareUpdates,
+    setSelectedSoftwareUpdates,
+  ] = useState<IHostSoftware | null>(null);
 
   const enhancedSoftware = useMemo(() => {
     if (!hostSoftwareLibraryRes) return [];
@@ -330,9 +337,26 @@ const HostSoftwareLibrary = ({
     );
   }, [hostTeamId, isIPadOrIPhoneHost, isMacOSHost, isWindowsHost, router]);
 
+  const onShowUpdateDetails = useCallback(
+    (software?: IHostSoftware) => {
+      if (software) {
+        setSelectedSoftwareUpdates(software);
+      }
+    },
+    [setSelectedSoftwareUpdates]
+  );
+
   const onInstallOrUninstall = useCallback(() => {
-    refetchForPendingInstallsOrUninstalls();
-  }, [refetchForPendingInstallsOrUninstalls]);
+    // For online hosts, poll for change in pending statuses
+    // For offline hosts, refresh the data without polling
+    isHostOnline
+      ? refetchForPendingInstallsOrUninstalls()
+      : refetchHostSoftwareLibrary();
+  }, [
+    refetchForPendingInstallsOrUninstalls,
+    refetchHostSoftwareLibrary,
+    isHostOnline,
+  ]);
 
   const userHasSWWritePermission = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
@@ -404,6 +428,7 @@ const HostSoftwareLibrary = ({
       hostName,
       baseClass,
       onShowSoftwareDetails,
+      onShowUpdateDetails,
       onShowUninstallDetails,
       onClickInstallAction,
       onClickUninstallAction,
@@ -417,6 +442,7 @@ const HostSoftwareLibrary = ({
     hostName,
     hostMDMEnrolled,
     onShowSoftwareDetails,
+    onShowUpdateDetails,
     onShowUninstallDetails,
     onClickInstallAction,
     onClickUninstallAction,
@@ -467,6 +493,14 @@ const HostSoftwareLibrary = ({
         )}
       </div>
       {renderHostSoftware()}
+      {selectedSoftwareUpdates && (
+        <SoftwareUpdateModal
+          hostDisplayName={hostDisplayName}
+          software={selectedSoftwareUpdates}
+          onUpdate={onClickInstallAction}
+          onExit={() => setSelectedSoftwareUpdates(null)}
+        />
+      )}
     </div>
   );
 };

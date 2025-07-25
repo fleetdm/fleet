@@ -1014,6 +1014,7 @@ const HostDetailsPage = ({
                 <SoftwareLibraryCard
                   id={host.id}
                   platform={host.platform}
+                  hostDisplayName={host?.display_name || ""}
                   softwareUpdatedAt={host.software_updated_at}
                   hostScriptsEnabled={host.scripts_enabled || false}
                   isSoftwareEnabled={featuresConfig?.enable_software_inventory}

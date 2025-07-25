@@ -20,7 +20,7 @@ import {
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
-import { IHostSoftware } from "interfaces/software";
+import { IDeviceSoftware, IHostSoftware } from "interfaces/software";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
@@ -532,6 +532,7 @@ const DeviceUserPage = ({
                       onShowUninstallDetails={onShowUninstallDetails}
                       refetchHostDetails={refetchHostDetails}
                       isHostDetailsPolling={showRefetchSpinner}
+                      hostDisplayName={host?.hostname || ""}
                     />
                   </TabPanel>
                 )}

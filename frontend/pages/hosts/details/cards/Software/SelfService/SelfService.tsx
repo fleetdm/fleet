@@ -12,7 +12,7 @@ import { AxiosError } from "axios";
 
 import { NotificationContext } from "context/notification";
 import { INotification } from "interfaces/notification";
-import { IHostSoftware } from "interfaces/software";
+import { IDeviceSoftware, IHostSoftware } from "interfaces/software";
 
 import deviceApi, {
   IDeviceSoftwareQueryKey,
@@ -39,14 +39,12 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import { InstallOrCommandUuid } from "../InstallStatusCell/InstallStatusCell";
-import {
-  getLastInstall,
-  getLastUninstall,
-} from "../../HostSoftwareLibrary/helpers";
+import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
 
 import {
   CATEGORIES_NAV_ITEMS,
@@ -81,6 +79,7 @@ export interface ISoftwareSelfServiceProps {
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   refetchHostDetails: () => void;
   isHostDetailsPolling: boolean;
+  hostDisplayName: string;
 }
 
 const getUpdatesPageSize = (width: number): number => {
@@ -100,11 +99,15 @@ const SoftwareSelfService = ({
   onShowUninstallDetails,
   refetchHostDetails,
   isHostDetailsPolling,
+  hostDisplayName,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
   const [selfServiceData, setSelfServiceData] = useState<
     IGetDeviceSoftwareResponse | undefined
+  >(undefined);
+  const [selectedUpdateDetails, setSelectedUpdateDetails] = useState<
+    IDeviceSoftware | undefined
   >(undefined);
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
@@ -433,6 +436,13 @@ const SoftwareSelfService = ({
     onInstallOrUninstall,
   ]);
 
+  const onShowUpdateDetails = useCallback(
+    (software?: IDeviceSoftware) => {
+      setSelectedUpdateDetails(software);
+    },
+    [setSelectedUpdateDetails]
+  );
+
   const onSearchQueryChange = (value: string) => {
     router.push(
       getPathWithQueryParams(pathname, {
@@ -516,6 +526,7 @@ const SoftwareSelfService = ({
     return generateSoftwareTableHeaders({
       deviceToken,
       onInstallOrUninstall,
+      onShowUpdateDetails,
       onShowInstallDetails,
       onShowUninstallDetails,
       onClickInstallAction,
@@ -534,6 +545,8 @@ const SoftwareSelfService = ({
   }, [
     deviceToken,
     onInstallOrUninstall,
+    onClickInstallAction,
+    onShowUpdateDetails,
     onShowInstallDetails,
     onShowUninstallDetails,
   ]);
@@ -760,6 +773,15 @@ const SoftwareSelfService = ({
           token={deviceToken}
           onExit={onExitUninstallSoftwareModal}
           onSuccess={onSuccessUninstallSoftwareModal}
+        />
+      )}
+      {selectedUpdateDetails && (
+        <SoftwareUpdateModal
+          hostDisplayName={hostDisplayName}
+          software={selectedUpdateDetails}
+          onUpdate={onClickInstallAction}
+          onExit={() => setSelectedUpdateDetails(undefined)}
+          isDeviceUser
         />
       )}
     </div>
