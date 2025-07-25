@@ -68,11 +68,14 @@ func run(cfg *Config) error {
 		totalApps++
 
 		level.Info(cfg.logger).Log("msg", fmt.Sprintf("Validating app: %s (%s)", app.Name, app.Slug))
-		ac := &AppCommander{cfg: cfg}
+		appLogger := kitlog.With(cfg.logger,
+			"app", app.Name,
+		)
+		ac := &AppCommander{cfg: cfg, appLogger: appLogger}
 
 		appJson, err := getAppJson(app.Slug)
 		if err != nil {
-			level.Error(cfg.logger).Log("msg", fmt.Sprintf("Error getting app json manifest: %v", err))
+			level.Error(appLogger).Log("msg", fmt.Sprintf("Error getting app json manifest: %v", err))
 			appWithError = append(appWithError, app.Name)
 			continue
 		}
@@ -88,19 +91,19 @@ func run(cfg *Config) error {
 
 		isFrozen, err := ac.isFrozen()
 		if err != nil {
-			level.Error(cfg.logger).Log("msg", fmt.Sprintf("Error checking if app is frozen: %v", err))
+			level.Error(appLogger).Log("msg", fmt.Sprintf("Error checking if app is frozen: %v", err))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
 		if isFrozen {
-			level.Info(cfg.logger).Log("msg", "App is frozen, skipping validation...")
+			level.Info(appLogger).Log("msg", "App is frozen, skipping validation...")
 			frozenApps = append(frozenApps, ac.Name)
 			continue
 		}
 
 		installerTFR, err := DownloadMaintainedApp(cfg, maintainedApp)
 		if err != nil {
-			level.Error(cfg.logger).Log("msg", fmt.Sprintf("Error downloading maintained app: %v", err))
+			level.Error(appLogger).Log("msg", fmt.Sprintf("Error downloading maintained app: %v", err))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
@@ -108,7 +111,7 @@ func run(cfg *Config) error {
 		err = ac.extractAppVersion(installerTFR)
 		installerTFR.Close()
 		if err != nil {
-			level.Error(cfg.logger).Log("msg", fmt.Sprintf("Error extracting installer version: %v. Using '%s'", err, ac.Version))
+			level.Error(appLogger).Log("msg", fmt.Sprintf("Error extracting installer version: %v. Using '%s'", err, ac.Version))
 			appWithError = append(appWithError, ac.Name)
 		}
 
@@ -119,19 +122,19 @@ func run(cfg *Config) error {
 
 		appPath, changerError, listError := ac.expectToChangeFileSystem(
 			func() error {
-				level.Info(cfg.logger).Log("msg", "Executing install script...")
+				level.Info(appLogger).Log("msg", "Executing install script...")
 				output, err := executeScript(cfg, ac.InstallScript)
 				if err != nil {
-					level.Error(cfg.logger).Log("msg", fmt.Sprintf("Error executing install script: %v", err))
-					level.Error(cfg.logger).Log("msg", fmt.Sprintf("Output: %s", output))
+					level.Error(appLogger).Log("msg", fmt.Sprintf("Error executing install script: %v", err))
+					level.Error(appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
 					return err
 				}
-				level.Debug(cfg.logger).Log("msg", fmt.Sprintf("Output: %s", output))
+				level.Debug(appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
 				return nil
 			},
 		)
 		if listError != nil {
-			level.Error(cfg.logger).Log("msg", fmt.Sprintf("Error listing directory contents: %v", listError))
+			level.Error(appLogger).Log("msg", fmt.Sprintf("Error listing directory contents: %v", listError))
 		}
 		if changerError != nil {
 			appWithError = append(appWithError, ac.Name)
@@ -142,20 +145,20 @@ func run(cfg *Config) error {
 			appWithWarning = append(appWithWarning, ac.Name)
 		}
 
-		err = postApplicationInstall(cfg, ac.AppPath)
+		err = postApplicationInstall(appLogger, ac.AppPath)
 		if err != nil {
-			level.Warn(cfg.logger).Log("msg", fmt.Sprintf("Error detected in post-installation steps: %v", err))
+			level.Warn(appLogger).Log("msg", fmt.Sprintf("Error detected in post-installation steps: %v", err))
 			appWithWarning = append(appWithWarning, ac.Name)
 		}
 
-		existance, err := appExists(ctx, cfg.logger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
+		existance, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 		if err != nil {
-			level.Error(cfg.logger).Log("msg", fmt.Sprintf("Error checking if app exists: %v", err))
+			level.Error(appLogger).Log("msg", fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
 		if !existance {
-			level.Error(cfg.logger).Log("msg", fmt.Sprintf("App version '%s' was not found by osquery", ac.Version))
+			level.Error(appLogger).Log("msg", fmt.Sprintf("App version '%s' was not found by osquery", ac.Version))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}

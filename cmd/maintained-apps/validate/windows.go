@@ -18,7 +18,7 @@ import (
 
 var preInstalled = []string{}
 
-func postApplicationInstall(_ *Config, _ string) error {
+func postApplicationInstall(_ kitlog.Logger, _ string) error {
 	return nil
 }
 

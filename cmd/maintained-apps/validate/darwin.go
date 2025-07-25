@@ -22,24 +22,24 @@ var preInstalled = []string{
 	"firefox/darwin",
 }
 
-func postApplicationInstall(cfg *Config, appPath string) error {
+func postApplicationInstall(appLogger kitlog.Logger, appPath string) error {
 	if appPath == "" {
 		return nil
 	}
 
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Forcing LaunchServices refresh for: '%s'", appPath))
+	level.Info(appLogger).Log("msg", fmt.Sprintf("Forcing LaunchServices refresh for: '%s'", appPath))
 	err := forceLaunchServicesRefresh(appPath)
 	if err != nil {
 		return fmt.Errorf("Error forcing LaunchServices refresh: %v. Attempting to continue", err)
 	}
 
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Attempting to remove quarantine for: '%s'", appPath))
+	level.Info(appLogger).Log("msg", fmt.Sprintf("Attempting to remove quarantine for: '%s'", appPath))
 	quarantineResult, err := removeAppQuarantine(appPath)
 
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Quarantine output error: %v", quarantineResult.QuarantineOutputError))
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Quarantine status: %s", quarantineResult.QuarantineStatus))
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Spctl output error: %v", quarantineResult.SpctlOutputError))
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("spctl status: %s", quarantineResult.SpctlStatus))
+	level.Info(appLogger).Log("msg", fmt.Sprintf("Quarantine output error: %v", quarantineResult.QuarantineOutputError))
+	level.Info(appLogger).Log("msg", fmt.Sprintf("Quarantine status: %s", quarantineResult.QuarantineStatus))
+	level.Info(appLogger).Log("msg", fmt.Sprintf("Spctl output error: %v", quarantineResult.SpctlOutputError))
+	level.Info(appLogger).Log("msg", fmt.Sprintf("spctl status: %s", quarantineResult.SpctlStatus))
 	if err != nil {
 		return fmt.Errorf("Error removing app quarantine: %v. Attempting to continue", err)
 	}

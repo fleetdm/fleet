@@ -109,7 +109,7 @@ func TestExpectToChangeFileSystem(t *testing.T) {
 				installationSearchDirectory: installationSearchDirectory,
 			}
 
-			ac = AppCommander{cfg: cfg}
+			ac = AppCommander{cfg: cfg, appLogger: kitlog.NewNopLogger()}
 			tc.before()
 			tc.testFunc(t)
 		})
