@@ -27,19 +27,19 @@ func postApplicationInstall(cfg *Config, appPath string) error {
 		return nil
 	}
 
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Forcing LaunchServices refresh for: '%s'\n", appPath))
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Forcing LaunchServices refresh for: '%s'", appPath))
 	err := forceLaunchServicesRefresh(appPath)
 	if err != nil {
 		return fmt.Errorf("Error forcing LaunchServices refresh: %v. Attempting to continue", err)
 	}
 
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Attempting to remove quarantine for: '%s'\n", appPath))
-	quarantineResult, err := removeAppQuarentine(appPath)
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Attempting to remove quarantine for: '%s'", appPath))
+	quarantineResult, err := removeAppQuarantine(appPath)
 
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Quarantine output error: %v\n", quarantineResult.QuarantineOutputError))
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Quarantine status: %s\n", quarantineResult.QuarantineStatus))
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Spctl output error: %v\n", quarantineResult.SpctlOutputError))
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("spctl status: %s\n", quarantineResult.SpctlStatus))
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Quarantine output error: %v", quarantineResult.QuarantineOutputError))
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Quarantine status: %s", quarantineResult.QuarantineStatus))
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Spctl output error: %v", quarantineResult.SpctlOutputError))
+	level.Info(cfg.logger).Log("msg", fmt.Sprintf("spctl status: %s", quarantineResult.SpctlStatus))
 	if err != nil {
 		return fmt.Errorf("Error removing app quarantine: %v. Attempting to continue", err)
 	}
@@ -53,21 +53,21 @@ type QuarantineResult struct {
 	SpctlStatus           string
 }
 
-func removeAppQuarentine(appPath string) (QuarantineResult, error) {
+func removeAppQuarantine(appPath string) (QuarantineResult, error) {
 	var result QuarantineResult
 
 	cmd := exec.Command("xattr", "-p", "com.apple.quarantine", appPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		result.QuarantineOutputError = fmt.Errorf("checking quarantine status: %v\n", err)
+		result.QuarantineOutputError = fmt.Errorf("checking quarantine status: %v", err)
 	}
-	result.QuarantineStatus = fmt.Sprintf("Quarantine status: '%s'\n", strings.TrimSpace(string(output)))
+	result.QuarantineStatus = fmt.Sprintf("Quarantine status: '%s'", strings.TrimSpace(string(output)))
 	cmd = exec.Command("spctl", "-a", "-v", appPath)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		result.SpctlOutputError = fmt.Errorf("checking spctl status: %v\n", err)
+		result.SpctlOutputError = fmt.Errorf("checking spctl status: %v", err)
 	}
-	result.SpctlStatus = fmt.Sprintf("spctl status: '%s'\n", strings.TrimSpace(string(output)))
+	result.SpctlStatus = fmt.Sprintf("spctl status: '%s'", strings.TrimSpace(string(output)))
 
 	cmd = exec.Command("sudo", "spctl", "--add", appPath)
 	if err := cmd.Run(); err != nil {
@@ -91,7 +91,7 @@ func forceLaunchServicesRefresh(appPath string) error {
 	return nil
 }
 
-func doesAppExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
+func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -135,7 +135,7 @@ func doesAppExists(ctx context.Context, logger kitlog.Logger, appName, uniqueApp
 
 	if len(results) > 0 {
 		for _, result := range results {
-			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s\n", result.Name, result.Path, result.Version, result.BundledVersion))
+			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s", result.Name, result.Path, result.Version, result.BundledVersion))
 			if result.Version == appVersion || result.BundledVersion == appVersion {
 				return true, nil
 			}

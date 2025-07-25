@@ -18,11 +18,11 @@ import (
 
 var preInstalled = []string{}
 
-func postApplicationInstall(cfg *Config, appPath string) error {
+func postApplicationInstall(_ *Config, _ string) error {
 	return nil
 }
 
-func doesAppExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
+func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -33,7 +33,7 @@ func doesAppExists(ctx context.Context, logger kitlog.Logger, appName, uniqueApp
 		return false, fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
 	}
 
-	level.Info(logger).Log("msg", fmt.Sprintf("Looking for app: %s, version: %s\n", appName, appVersion))
+	level.Info(logger).Log("msg", fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
 	query := `
 		SELECT name, install_location, version 
 		FROM programs
@@ -46,7 +46,7 @@ func doesAppExists(ctx context.Context, logger kitlog.Logger, appName, uniqueApp
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s\n", string(output)))
+		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
 		return false, fmt.Errorf("executing osquery command: %w", err)
 	}
 
@@ -57,13 +57,13 @@ func doesAppExists(ctx context.Context, logger kitlog.Logger, appName, uniqueApp
 	}
 	var results []AppResult
 	if err := json.Unmarshal(output, &results); err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s\n", string(output)))
+		level.Error(logger).Log("msg", fmt.Sprintf("osquery output: %s", string(output)))
 		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
 	if len(results) > 0 {
 		for _, result := range results {
-			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s\n", result.Name, result.InstallLocation, result.Version))
+			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
 			if result.Version == appVersion {
 				return true, nil
 			}
