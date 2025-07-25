@@ -120,8 +120,6 @@ describe("SelfService", () => {
 
     const render = createCustomRenderer({ withBackendMock: true });
 
-    const expectedUrl = "http://example.com";
-
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render

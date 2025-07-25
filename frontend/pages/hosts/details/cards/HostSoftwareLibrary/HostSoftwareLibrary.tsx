@@ -347,8 +347,16 @@ const HostSoftwareLibrary = ({
   );
 
   const onInstallOrUninstall = useCallback(() => {
-    refetchForPendingInstallsOrUninstalls();
-  }, [refetchForPendingInstallsOrUninstalls]);
+    // For online hosts, poll for change in pending statuses
+    // For offline hosts, refresh the data without polling
+    isHostOnline
+      ? refetchForPendingInstallsOrUninstalls()
+      : refetchHostSoftwareLibrary();
+  }, [
+    refetchForPendingInstallsOrUninstalls,
+    refetchHostSoftwareLibrary,
+    isHostOnline,
+  ]);
 
   const userHasSWWritePermission = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
