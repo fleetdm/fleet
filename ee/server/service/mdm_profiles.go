@@ -36,7 +36,7 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>ShowRecoveryKey</key>
 			<false/>
 			<key>DeferForceAtUserLoginMaxBypassAttempts</key>
-			<integer>1</integer>
+			<integer>0</integer>
 			<key>ForceEnableInSetupAssistant</key>
 			<true/>
 		</dict>
