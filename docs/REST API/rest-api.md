@@ -2921,6 +2921,7 @@ Returns the information of the specified host.
         "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
         "idp_username": "anna@acme.com",
         "idp_full_name": "Anna Chao",
+        "idp_department": "Product",
         "idp_groups": [
           "Product",
           "Designers"
