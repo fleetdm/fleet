@@ -8830,6 +8830,9 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Get script result](#get-script-result)
 - [Batch-run script](#batch-run-script)
 - [Get batch script summary](#get-batch-script-summary)
+- [List batch scripts](#list-batch-scripts)
+- [List batch script results](#list-batch-script-results)
+- [Cancel batch script](#cancel-batch-script)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
@@ -8930,6 +8933,7 @@ The script will be added to each host's list of upcoming activities.
 | script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
 | host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
 | filters | object  | body | See [filters](#filters3). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
+| starts_at       | string  | body | UTC time when the script run is scheduled for. |
 
 
 ##### Filters
@@ -8953,7 +8957,8 @@ Request (using `host_ids`):
 ```json
 {
   "script_id": 123,
-  "host_ids": [1, 2, 3]
+  "host_ids": [1, 2, 3],
+  "starts_at": "2025-07-01T15:00:00Z"
 }
 ```
 
@@ -9014,13 +9019,31 @@ Get statuses and host counts for a batch-run script.
   "ran": 12345,
   "pending": 234,
   "errored": 18,
+  "incompatible": 3,
   "canceled": 2,
   "targeted": 12599,
   "script_id": 555,
   "script_name": "my-script.sh",
-  "team_id": 123
+  "team_id": 123,
+  "starts_at": "2025-07-01T15:00:00Z",
+  "completed_at": "2025-07-06T15:00:00Z",
+  "status": "completed",
+  "cancelled": false
 }
 ```
+
+
+### List batch scripts
+
+> TODO: API to list batch script executions. Paginated, with status filter (started, scheduled, completed).
+
+### List batch script results
+
+> TODO: API to list hosts & their results. Paginated, with status filter (ran, pending, errored, incompatible, canceled).
+
+### Cancel batch script
+
+> TODO: API to cancel all pending script executions from a batch run script.
 
 ### Add script
 
