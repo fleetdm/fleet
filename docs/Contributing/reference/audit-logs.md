@@ -69,13 +69,17 @@ Generated when creating policies.
 This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.
+- "team_id": the ID of the team the policy belongs to.
+- "team_name": the name of the team the policy belongs to.
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -86,13 +90,17 @@ Generated when editing policies.
 This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.
+- "team_id": the ID of the team the policy belongs to.
+- "team_name": the name of the team the policy belongs to.
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -103,13 +111,17 @@ Generated when deleting policies.
 This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
 - "policy_name": the name of the deleted policy.
+- "team_id": the ID of the team the policy belonged to.
+- "team_name": the name of the team the policy belonged to.
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -159,13 +171,17 @@ Generated when creating a new query.
 This activity contains the following fields:
 - "query_id": the ID of the created query.
 - "query_name": the name of the created query.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.
 
 #### Example
 
 ```json
 {
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -176,13 +192,17 @@ Generated when editing a saved query.
 This activity contains the following fields:
 - "query_id": the ID of the query being edited.
 - "query_name": the name of the query being edited.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.
 
 #### Example
 
 ```json
 {
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -192,12 +212,16 @@ Generated when deleting a saved query.
 
 This activity contains the following fields:
 - "query_name": the name of the query being deleted.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.
 
 #### Example
 
 ```json
 {
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 
@@ -207,12 +231,16 @@ Generated when deleting multiple saved queries.
 
 This activity contains the following fields:
 - "query_ids": list of IDs of the deleted saved queries.
+- "team_id": the ID of the team the queries belonged to. -1 for global queries, null for no team.
+- "team_name": the name of the team the queries belonged to. null for global or no team queries.
 
 #### Example
 
 ```json
 {
-	"query_ids": [1, 42, 100]
+	"query_ids": [1, 42, 100],
+	"team_id": 123,
+	"team_name": "Workstations"
 }
 ```
 
