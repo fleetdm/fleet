@@ -1,10 +1,16 @@
 .inventory-versions {
   display: flex;
   flex-direction: column;
-  gap: $pad-medium;
+  gap: $pad-small;
 
   .data-set dd {
     white-space: initial;
+  }
+
+  &__versions {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
   }
 
   &__version {

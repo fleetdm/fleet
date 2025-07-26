@@ -5,12 +5,6 @@
     gap: $pad-large;
   }
 
-  &__current-versions {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-small;
-  }
-
   &__status-message {
     display: flex;
     align-items: center;

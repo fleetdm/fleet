@@ -116,16 +116,7 @@ const SoftwareUpdateModal = ({
             installerName={installerName}
             installerVersion={installerVersion}
           />
-          {showCurrentVersions && (
-            <div className={`${baseClass}__current-versions`}>
-              <div className={`${baseClass}__current-versions--header`}>
-                {installed_versions.length === 1
-                  ? "Current version:"
-                  : "Current Versions:"}
-              </div>
-              <InventoryVersions hostSoftware={software} />
-            </div>
-          )}
+          {showCurrentVersions && <InventoryVersions hostSoftware={software} />}
         </div>
         <ModalFooter
           primaryButtons={
