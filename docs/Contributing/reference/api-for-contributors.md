@@ -1046,7 +1046,7 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 
 `204`
 
-### Initiate SSO during DEP enrollment
+### Initiate SSO during DEP or Account Driven MDM enrollment
 
 This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
 
@@ -1054,7 +1054,9 @@ This endpoint initiates the SSO flow, the response contains an URL that the clie
 
 #### Parameters
 
-None.
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter |
 
 #### Example
 
@@ -1068,7 +1070,7 @@ None.
 }
 ```
 
-### Complete SSO during DEP enrollment
+### Complete SSO during DEP or Account Driven enrollment
 
 This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
 
@@ -1096,11 +1098,22 @@ This is the callback endpoint that the identity provider will use to send securi
 
 `Status: 302`
 
-If the credentials are valid, the server redirects the client to the Fleet UI. The URL contains the following query parameters that can be used to complete the DEP enrollment flow:
+If the credentials are valid and no value was passed for the `initiator` parameter during initiation
+of SSO, the server redirects the client to the Fleet UI. The URL contains the
+following query parameters that can be used to complete the DEP enrollment flow:
 
 - `enrollment_reference` a reference that must be passed along with `profile_token` to the endpoint to download an enrollment profile.
 - `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
 - `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
+
+If the credentials are valid and `account_driven_enroll` was passed for the `initiator` parameter
+during initiation of SSO, the server redirects the client to
+apple-remotemanagement-user-login://authentication-results . The URL contains the following query
+parameter which is used by the Apple MDM client on the device to complete the account driven
+enrollment flow:
+
+ - `access-token` a token that is passed by the device in the Authorization header on the second call to the Account Driven
+   Enrollment endpoint to download an enrollment profile.
 
 ### Over the air enrollment
 
@@ -1416,6 +1429,50 @@ This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 
 `POST /api/v1/fleet/android_enterprise/pubsub`
 
+### Get Apple Account Driven User Enrollment Profile
+
+This endpoint initiates Account Driven User Enrollment on iOS and iPadOS devices and is used by the
+Apple. Devices are directed to this endpoint via Apple Account Driven Enrollment service discovery.
+The first request made to this endpoint is unauthenticated and will return a 401 Unauthorized
+including a Www-Authenticate header with a URL redirecting them to /mdm/sso. After authentication,
+the client will return to this endpoint and make a second request including the returned token in
+the Authorization header and an enrollment profile will be returned. Devices that fail to identify
+via plist or that identify as other than iPhone or iPad will return a 400 Bad Request.
+
+`POST /api/mdm/apple/account_driven_enroll`
+
+#### Parameters
+
+A plist including LANGUAGE, VERSION, PRODUCT, SOFTWARE_UPDATE_DEVICE_ID, SUPPLEMENTAL_BUILD_VERSION
+and VERSION
+
+### Get Apple Account Driven User Enrollment service discovery payload
+
+This endpoint will be used by devices to get the data needed to initiate an account driven user
+enrollment into MDM. The devices will get the URL for the mdm server and will call that endpoint
+while passing the `mdm-byod` enrollment type.
+
+`GET /api/mdm/apple/service_discovery`
+
+#### Example
+
+`GET /api/mdm/apple/service_discovery`
+
+##### Response
+
+`Status 200`
+
+```json
+{
+  "Servers": [
+    {
+      "Version": "mdm-byod",
+      "BaseURL": "<fleet_server_url>/api/mdm/apple/account_driven_enroll"
+    }
+  ]
+}
+
+```
 
 ## Get or apply configuration files
 
