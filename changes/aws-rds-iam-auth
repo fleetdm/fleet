@@ -1,0 +1,1 @@
+* Added support for AWS RDS (MySQL) IAM authentication, role to assume can be specified with `sts_assume_role_arn`.

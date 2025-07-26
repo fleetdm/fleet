@@ -1,0 +1,1 @@
+* Added support for AWS ElastiCache (Redis) IAM authentication, role to assume can be specified with `sts_assume_role_arn`.
