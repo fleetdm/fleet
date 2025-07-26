@@ -2552,14 +2552,20 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "Repository URL is required when GitOps mode is enabled")
 
-	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"gitops": { "gitops_mode_enabled": true, "repository_url": "a.b.cc" }
+	  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "Repository URL must begin with either http:// or https://")
+
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"gitops": { "gitops_mode_enabled": true, "repository_url": "https://a.b.cc" }
 	  }`), http.StatusOK)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledGitOpsMode{}.ActivityName(), "", 0)
 
 	// turn off, persists repo url
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"gitops": { "gitops_mode_enabled": false, "repository_url": "a.b.cc" }
+			"gitops": { "gitops_mode_enabled": false, "repository_url": "https://a.b.cc" }
 	  }`), http.StatusOK)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledGitOpsMode{}.ActivityName(), "", 0)
 
@@ -2569,7 +2575,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 	  }`), http.StatusOK)
 	config, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, "a.b.cc", config.UIGitOpsMode.RepositoryURL)
+	assert.Equal(t, "https://a.b.cc", config.UIGitOpsMode.RepositoryURL)
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {

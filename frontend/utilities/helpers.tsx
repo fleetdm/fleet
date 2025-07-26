@@ -896,16 +896,25 @@ export function getCustomDropdownOptions(
       ];
 }
 
-export const getGitOpsModeTipContent = (repoURL: string) => (
-  <>
-    <span>
-      Manage in{" "}
-      <CustomLink newTab text="YAML" variant="tooltip-link" url={repoURL} />
-      <br />
-    </span>
-    <span>(GitOps mode enabled)</span>
-  </>
-);
+export const getGitOpsModeTipContent = (repoURL: string) => {
+  let url = "";
+  try {
+    url = new URL(repoURL).toString();
+  } catch {
+    // Invalid URL submitted before validation was required, missing protocol
+    url = `https://${repoURL}`;
+  }
+  return (
+    <>
+      <span>
+        Manage in{" "}
+        <CustomLink newTab text="YAML" variant="tooltip-link" url={url} />
+        <br />
+      </span>
+      <span>(GitOps mode enabled)</span>
+    </>
+  );
+};
 
 export default {
   addGravatarUrlToResource,
