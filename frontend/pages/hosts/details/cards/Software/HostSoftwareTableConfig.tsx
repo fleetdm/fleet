@@ -21,7 +21,6 @@ import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCe
 import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
 import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-import TooltipWrapper from "components/TooltipWrapper";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
@@ -123,14 +122,9 @@ export const generateSoftwareTableHeaders = ({
     },
     {
       Header: (): JSX.Element => {
-        const titleWithToolTip = (
-          <TooltipWrapper tipContent={<>Date and time of last open.</>}>
-            Last used
-          </TooltipWrapper>
-        );
-        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+        return <HeaderCell value="Last opened" disableSortBy />;
       },
-      id: "Last used",
+      id: "Last opened",
       disableSortBy: true,
       accessor: (originalRow) => {
         // Extract all last_opened_at values, filter out null/undefined, and ensure valid dates
@@ -150,18 +144,22 @@ export const generateSoftwareTableHeaders = ({
         return mostRecent; // cellProps.cell.value = mostRecent;
       },
       Cell: (cellProps: ITableStringCellProps) => {
-        return (
-          <TextCell
-            value={
-              cellProps.cell.value ? (
-                <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
-              ) : (
-                DEFAULT_EMPTY_CELL_VALUE
-              )
-            }
-            grey={!cellProps.cell.value}
-          />
-        );
+        const { source } = cellProps.row.original;
+        const shouldShowNever =
+          !cellProps.cell.value && (source === "programs" || source === "apps");
+
+        let displayValue;
+        if (cellProps.cell.value) {
+          displayValue = (
+            <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
+          );
+        } else if (shouldShowNever) {
+          displayValue = "Never";
+        } else {
+          displayValue = DEFAULT_EMPTY_CELL_VALUE;
+        }
+
+        return <TextCell value={displayValue} grey={!cellProps.cell.value} />;
       },
     },
     {

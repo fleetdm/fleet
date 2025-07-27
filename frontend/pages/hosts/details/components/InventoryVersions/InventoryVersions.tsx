@@ -57,9 +57,16 @@ const InventoryVersion = ({
         {bundleIdentifier && (
           <DataSet title="Bundle identifier" value={bundleIdentifier} />
         )}
-        {version.last_opened_at && (
-          <DataSet title="Last used" value={dateAgo(version.last_opened_at)} />
-        )}
+        {version.last_opened_at ||
+        source === "programs" ||
+        source === "apps" ? (
+          <DataSet
+            title="Last opened"
+            value={
+              version.last_opened_at ? dateAgo(version.last_opened_at) : "Never"
+            }
+          />
+        ) : null}
       </div>
       {vulnerabilities && vulnerabilities.length !== 0 && (
         <div className={`${baseClass}__row`}>

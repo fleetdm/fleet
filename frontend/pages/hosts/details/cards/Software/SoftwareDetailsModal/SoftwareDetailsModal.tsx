@@ -67,12 +67,18 @@ const SoftwareDetailsInfo = ({
         {bundleIdentifier && (
           <DataSet title="Bundle identifier" value={bundleIdentifier} />
         )}
-        {installedVersion.last_opened_at && (
+        {installedVersion.last_opened_at ||
+        source === "programs" ||
+        source === "apps" ? (
           <DataSet
-            title="Last used"
-            value={dateAgo(installedVersion.last_opened_at)}
+            title="Last opened"
+            value={
+              installedVersion.last_opened_at
+                ? dateAgo(installedVersion.last_opened_at)
+                : "Never"
+            }
           />
-        )}
+        ) : null}
       </div>
       {vulnerabilities && vulnerabilities.length !== 0 && (
         <div className={`${baseClass}__row`}>
