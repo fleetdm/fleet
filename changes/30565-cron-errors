@@ -1,0 +1,1 @@
+* Fixed cases where the uninstall script population job introduced in Fleet 4.57.0 would attempt to extract package IDs on software that we don't generate uninstall scripts for, causing errors in logs and retries of the job.
