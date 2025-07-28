@@ -1,6 +1,5 @@
 //go:build linux
 
-package secureh
 package securehw
 
 import (
@@ -35,8 +34,8 @@ func newSecureHW(metadataDir string, logger zerolog.Logger) (SecureHW, error) {
 
 	logger.Info().Str("device_path", tpm20DevicePath).Msg("successfully opened TPM 2.0 device")
 
+	return &tpm2SecureHW{
 		device:      device,
-		device: device,
 		logger:      zerolog.Nop(),
 		keyFilePath: filepath.Join(metadataDir, "host_identity_tpm.pem"),
 	}, nil
