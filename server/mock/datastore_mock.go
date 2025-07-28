@@ -7700,7 +7700,7 @@ func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Con
 	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
 }
 
-func (s *DataStore) GetSoftwareInstallersWithoutPackageIDs(ctx context.Context) (map[uint]string, error) {
+func (s *DataStore) GetSoftwareInstallersPendingUninstallScriptPopulation(ctx context.Context) (map[uint]string, error) {
 	s.mu.Lock()
 	s.GetSoftwareInstallersWithoutPackageIDsFuncInvoked = true
 	s.mu.Unlock()

@@ -2365,10 +2365,10 @@ func UninstallSoftwareMigration(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	logger kitlog.Logger,
 ) error {
-	// Find software installers without package_id
-	idMap, err := ds.GetSoftwareInstallersWithoutPackageIDs(ctx)
+	// Find software installers that should have their uninstall script populated
+	idMap, err := ds.GetSoftwareInstallersPendingUninstallScriptPopulation(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting software installers without package_id")
+		return ctxerr.Wrap(ctx, err, "getting software installers to modufy")
 	}
 	if len(idMap) == 0 {
 		return nil
