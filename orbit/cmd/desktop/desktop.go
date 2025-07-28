@@ -399,6 +399,9 @@ func main() {
 				myDeviceItem.Enable()
 				myDeviceItem.Show()
 
+				transparencyItem.Enable()
+				transparencyItem.Show()
+
 				// Check our file to see if we should migrate
 				var migrationType string
 				if runtime.GOOS == "darwin" {

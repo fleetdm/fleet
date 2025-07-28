@@ -1756,6 +1756,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
+		MutateSoftwareOnIngestion(s, logger)
+
 		if shouldRemoveSoftware(host, s) {
 			continue
 		}
@@ -1797,6 +1799,42 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	}
 
 	return nil
+}
+
+var (
+	dcvVersionFormat   = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
+	softwareSanitizers = []struct {
+		matches func(*fleet.Software) bool
+		mutate  func(*fleet.Software, log.Logger)
+	}{
+		{
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "apps" && s.BundleIdentifier == "com.nicesoftware.dcvviewer"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if versionMatches := dcvVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 3 {
+					s.Version = fmt.Sprintf("%s.%s", versionMatches[1], versionMatches[2])
+				}
+			},
+		},
+	}
+)
+
+// MutateSoftwareOnIngestion performs any tweaks required to the ingested software fields.
+//
+// Some fields are reported with known incorrect values and we need to fix them before using them.
+func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
+	for _, softwareSanitizer := range softwareSanitizers {
+		if softwareSanitizer.matches(s) {
+			defer func() {
+				if r := recover(); r != nil {
+					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+				}
+			}()
+			softwareSanitizer.mutate(s, logger)
+			break
+		}
+	}
 }
 
 // shouldRemoveSoftware returns whether or not we should remove the given Software item from this

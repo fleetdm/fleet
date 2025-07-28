@@ -120,12 +120,6 @@ func (t *tpm2SecureHW) CreateKey() (Key, error) {
 		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
 		Msg("key loaded successfully")
 
-	// Save the key context
-	t.logger.Debug().Msg("Saving key context")
-	keyContext, err := tpm2.ContextSave{
-		SaveHandle: loadedKey.ObjectHandle,
-	}.Execute(t.device)
-
 	cleanUpOnError := func() {
 		flush := tpm2.FlushContext{
 			FlushHandle: loadedKey.ObjectHandle,
@@ -149,11 +143,10 @@ func (t *tpm2SecureHW) CreateKey() (Key, error) {
 
 	// Create and return the key
 	return &tpm2Key{
-		tpm:     t.device,
-		handle:  tpm2.NamedHandle{Handle: loadedKey.ObjectHandle, Name: loadedKey.Name},
-		public:  createKey.OutPublic,
-		context: keyContext.Context,
-		logger:  t.logger,
+		tpm:    t.device,
+		handle: tpm2.NamedHandle{Handle: loadedKey.ObjectHandle, Name: loadedKey.Name},
+		public: createKey.OutPublic,
+		logger: t.logger,
 	}, nil
 }
 
@@ -262,7 +255,7 @@ func (t *tpm2SecureHW) selectBestECCCurve() (tpm2.TPMECCCurve, string) {
 
 func (t *tpm2SecureHW) saveTPMKeyFile(privateKey tpm2.TPM2BPrivate, publicKey tpm2.TPM2BPublic) error {
 	k := keyfile.NewTPMKey(
-		keyfile.OIDOldLoadableKey,
+		keyfile.OIDLoadableKey,
 		publicKey,
 		privateKey,
 		keyfile.WithDescription("fleetd httpsig key"),
@@ -319,20 +312,6 @@ func (t *tpm2SecureHW) LoadKey() (Key, error) {
 		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
 		Msg("key loaded successfully")
 
-	// Save the key context for potential future use
-	t.logger.Debug().Msg("saving key context")
-	keyContext, err := tpm2.ContextSave{
-		SaveHandle: loadedKey.ObjectHandle,
-	}.Execute(t.device)
-	if err != nil {
-		t.logger.Error().Err(err).Msg("failed to save key context")
-		flush := tpm2.FlushContext{
-			FlushHandle: loadedKey.ObjectHandle,
-		}
-		_, _ = flush.Execute(t.device)
-		return nil, fmt.Errorf("save key context: %w", err)
-	}
-
 	t.logger.Info().
 		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
 		Msg("key loaded successfully")
@@ -343,9 +322,8 @@ func (t *tpm2SecureHW) LoadKey() (Key, error) {
 			Handle: loadedKey.ObjectHandle,
 			Name:   loadedKey.Name,
 		},
-		public:  *public,
-		context: keyContext.Context,
-		logger:  t.logger,
+		public: *public,
+		logger: t.logger,
 	}, nil
 }
 
@@ -366,11 +344,10 @@ func (t *tpm2SecureHW) Close() error {
 
 // tpm2Key implements the Key interface using TPM 2.0.
 type tpm2Key struct {
-	tpm     transport.TPMCloser
-	handle  tpm2.NamedHandle
-	public  tpm2.TPM2BPublic
-	context tpm2.TPMSContext
-	logger  zerolog.Logger
+	tpm    transport.TPMCloser
+	handle tpm2.NamedHandle
+	public tpm2.TPM2BPublic
+	logger zerolog.Logger
 }
 
 func (k *tpm2Key) Signer() (crypto.Signer, error) {

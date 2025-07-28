@@ -29,6 +29,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "installed",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -61,6 +62,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "installed",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -94,6 +96,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "installing",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
         isHostOnline
@@ -124,6 +127,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "pending_install",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -155,6 +159,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "uninstalling",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
         isHostOnline
@@ -190,6 +195,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "pending_uninstall",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -216,6 +222,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "failed_install",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -243,6 +250,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "failed_uninstall",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -269,6 +277,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "failed_install_update_available",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -295,6 +304,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "failed_uninstall_update_available",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -318,6 +328,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "update_available",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -341,6 +352,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "updating",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
         isHostOnline
@@ -368,6 +380,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "pending_update",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -392,6 +405,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "uninstalled",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -416,6 +430,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "uninstalled",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -444,6 +459,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "uninstalled",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -468,6 +484,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "uninstalled",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
@@ -495,6 +512,7 @@ describe("InstallStatusCell - component", () => {
           }),
           ui_status: "uninstalled",
         }}
+        onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
