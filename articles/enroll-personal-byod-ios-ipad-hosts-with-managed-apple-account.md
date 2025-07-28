@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium._
 
-To enroll personal IPhones and iPads with [Account-driven User Enrollment](https://support.apple.com/en-gb/guide/deployment/dep23db2037d/web), and provide seamless experience for your end users, follow steps below.
+To enroll personal iPhones and iPads with [Account-driven User Enrollment](https://support.apple.com/en-gb/guide/deployment/dep23db2037d/web), and provide seamless experience for your end users, follow steps below.
 This approach allows both a Managed Apple Account and a personal Apple Account to be signed in on the same device, with complete separation of work and personal data. Users maintain privacy over their personal information, and IT manages work-related OS settings and apps.
 
 - Step 1: Add Apple Business Manager (ABM) to Fleet
