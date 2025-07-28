@@ -236,13 +236,13 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			return true, nil
 		}
 
-		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThen time.Time) error {
 			require.Equal(t, fleet.CustomSource, source)
 			return nil
 		}
 
 		ctx := context.Background()
-		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), 1*time.Hour)
+		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 		require.Equal(t, 31, insertCount)
 		require.Len(t, vulns, 31)
@@ -436,13 +436,13 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			return false, nil
 		}
 
-		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 			require.Equal(t, fleet.CustomSource, source)
 			return nil
 		}
 
 		ctx := context.Background()
-		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), 1*time.Hour)
+		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 		require.Equal(t, 31, insertCount)
