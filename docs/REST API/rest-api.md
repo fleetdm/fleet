@@ -9422,6 +9422,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
+      "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
@@ -9463,6 +9464,7 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
+      "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 5,
@@ -9784,6 +9786,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
+    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
     "bundle_identifier": "com.apple.logic10",
     "available_software": {
       "fleet_maintained_app": null,
@@ -9799,7 +9802,6 @@ Returns information about the specified software. By default, `versions` are sor
       "platform": "darwin",
       "latest_version": "2.04",
       "created_at": "2024-04-01T14:22:58Z",
-      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
       "automatic_install_policies": [
         {
