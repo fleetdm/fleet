@@ -78,8 +78,8 @@ func (d *HostIdentitySCEPDepot) Serial() (*big.Int, error) {
 }
 
 // HasCN returns whether the given certificate exists in the depot.
-func (d *HostIdentitySCEPDepot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool) (bool, error) {
-	// Not used right now. May be used for renewal in the future.
+func (d *HostIdentitySCEPDepot) HasCN(_ string, _ int, _ *x509.Certificate, _ bool) (bool, error) {
+	// We do not use this method. Certificate existence check and revocation are done in the Put method in a single transaction.
 	return false, nil
 }
 

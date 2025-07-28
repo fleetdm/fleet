@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
-	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -58,7 +61,6 @@ func RegisterSCEP(
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scepdepot.NewSigner(
 		scepStorage,
 		scepdepot.WithValidityDays(scepValidityDays),
-		scepdepot.WithAllowRenewalDays(scepValidityDays/2),
 	))
 
 	signer = challengeMiddleware(ds, signer)
@@ -94,18 +96,8 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 		// Check if we have renewal info in context (set by PKIOperation)
 		if renewalCert, ok := ctx.Value(renewalCertKey).(*x509.Certificate); ok && renewalCert != nil {
 			// This is a renewal request
-			// The SCEP library has already validated the signature using the signer certificate
-			// We just need to verify that:
-			// 1. The certificate is not expired
-			// 2. The CSR has the same public key as the existing certificate
-
-			// Check if the certificate is still valid
-			now := time.Now()
-			if now.Before(renewalCert.NotBefore) || time.Now().After(renewalCert.NotAfter) {
-				return nil, errors.New("signer certificate is not valid")
-			}
-
-			// Verify that the CSR uses the same public key as the existing certificate
+			// The SCEP library has already validated the signature using the signer certificate and made sure cert is not expired.
+			// We just need to verify that: the CSR has the same public key as the existing certificate
 			keysEqual, err := PublicKeysEqual(m.CSR.PublicKey, renewalCert.PublicKey)
 			if err != nil {
 				return nil, fmt.Errorf("error comparing public keys: %w", err)
@@ -143,7 +135,7 @@ type service struct {
 
 	logger log.Logger
 
-	ds fleet.MDMAssetRetriever
+	ds fleet.Datastore
 }
 
 func (svc *service) GetCACaps(_ context.Context) ([]byte, error) {
@@ -167,6 +159,10 @@ func (svc *service) GetCACaps(_ context.Context) ([]byte, error) {
 	// [x] PKCS7              // Responses are in PKCS#7 format
 	// [x] X509               // Supports X.509 certificates
 	//
+	// NOTE: ECC certificate renewal is supported via MessageType detection.
+	// For ECC certificates, the server detects RenewalReq message type and finds the
+	// existing certificate by matching the CSR's public key, since we cannot pass
+	// ECC certificates in msg.SignerCert due to SCEP envelope encryption requirements.
 	defaultCaps := []byte("SHA-256\nAES\nPOSTPKIOperation\nRenewal")
 	return defaultCaps, nil
 }
@@ -206,10 +202,33 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		return nil, err
 	}
 
-	// Check if this is a renewal request by looking at the SignerCert
-	if msg.SignerCert != nil {
-		// Pass the signer certificate through context for the challengeMiddleware
-		ctx = context.WithValue(ctx, renewalCertKey, msg.SignerCert)
+	// Check if this is a renewal request
+	// For ECC certificates, we cannot rely on msg.SignerCert due to SCEP limitations
+	// Instead, we check the MessageType and find the existing certificate by public key
+	if msg.MessageType == scep.RenewalReq {
+		svc.logger.Log("msg", "renewal request detected", "message_type", msg.MessageType)
+
+		// For ECC renewal: Extract public key from CSR and find the matching certificate
+		if msg.CSRReqMessage == nil || msg.CSRReqMessage.CSR == nil {
+			return nil, errors.New("missing CSR in renewal request")
+		}
+
+		// Try to find an existing valid certificate with this public key
+		existingCert, err := svc.findCertificateByPublicKey(ctx, msg.CSRReqMessage.CSR.PublicKey)
+		switch {
+		case fleet.IsNotFound(err):
+			return nil, errors.New("no existing certificate found for renewal public key")
+		case err != nil:
+			return nil, fmt.Errorf("finding existing certificate by public key: %w", err)
+		}
+		svc.logger.Log("msg", "found existing certificate for renewal",
+			"serial", existingCert.SerialNumber,
+			"cn", existingCert.Subject.CommonName)
+		// Pass the existing certificate through context for the challengeMiddleware
+		ctx = context.WithValue(ctx, renewalCertKey, existingCert)
+
+	} else {
+		svc.logger.Log("msg", "initial enrollment request", "message_type", msg.MessageType)
 	}
 
 	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)
@@ -263,4 +282,37 @@ func PublicKeysEqual(a, b crypto.PublicKey) (bool, error) {
 		return false, fmt.Errorf("marshal b: %w", err)
 	}
 	return bytes.Equal(derA, derB), nil
+}
+
+// findCertificateByPublicKey finds an existing certificate by matching the public key
+// This is used for ECC certificate renewal
+func (svc *service) findCertificateByPublicKey(ctx context.Context, pubKey crypto.PublicKey) (*x509.Certificate, error) {
+	// For renewal, we expect ECC keys
+	eccKey, ok := pubKey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New("renewal requires ECC public key")
+	}
+
+	// Convert to the raw format stored in the database
+	rawPubKey, err := types.CreateECDSAPublicKeyRaw(eccKey)
+	if err != nil {
+		return nil, fmt.Errorf("converting ECC public key to raw format: %w", err)
+	}
+
+	// Look up the certificate by public key
+	hostCert, err := svc.ds.GetHostIdentityCertByPublicKey(ctx, rawPubKey)
+	if err != nil {
+		return nil, fmt.Errorf("getting host identity certificate by public key: %w", err)
+	}
+
+	// Convert to x509.Certificate
+	// We need to reconstruct a minimal certificate with the information we have
+	cert := &x509.Certificate{
+		SerialNumber: new(big.Int).SetUint64(hostCert.SerialNumber),
+		Subject:      pkix.Name{CommonName: hostCert.CommonName},
+		NotAfter:     hostCert.NotValidAfter,
+		PublicKey:    pubKey,
+	}
+
+	return cert, nil
 }

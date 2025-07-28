@@ -200,6 +200,14 @@ func testGetHostIdentityCert(t *testing.T, ds *Datastore) {
 			// Test GetHostIdentityCertByName
 			certByName, err := ds.GetHostIdentityCertByName(ctx, tc.certName)
 			assertCertificate(t, certByName, err, tc)
+
+			// Test GetHostIdentityCertByPublicKey
+			if certBySerial != nil {
+				// We need to get the public key that was inserted
+				publicKeyRaw := certBySerial.PublicKeyRaw
+				certByPubKey, err := ds.GetHostIdentityCertByPublicKey(ctx, publicKeyRaw)
+				assertCertificate(t, certByPubKey, err, tc)
+			}
 		})
 	}
 
@@ -225,6 +233,35 @@ func testGetHostIdentityCert(t *testing.T, ds *Datastore) {
 
 	t.Run("empty name parameter", func(t *testing.T) {
 		cert, err := ds.GetHostIdentityCertByName(ctx, "")
+		require.Error(t, err)
+		assert.Nil(t, cert)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	// Test cases specific to public key lookup
+	t.Run("certificate not found by public key", func(t *testing.T) {
+		// Generate a random public key that doesn't exist
+		privateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+		require.NoError(t, err)
+
+		publicKeyRaw, err := types.CreateECDSAPublicKeyRaw(&privateKey.PublicKey)
+		require.NoError(t, err)
+
+		cert, err := ds.GetHostIdentityCertByPublicKey(ctx, publicKeyRaw)
+		require.Error(t, err)
+		assert.Nil(t, cert)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("empty public key parameter", func(t *testing.T) {
+		cert, err := ds.GetHostIdentityCertByPublicKey(ctx, []byte{})
+		require.Error(t, err)
+		assert.Nil(t, cert)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("nil public key parameter", func(t *testing.T) {
+		cert, err := ds.GetHostIdentityCertByPublicKey(ctx, nil)
 		require.Error(t, err)
 		assert.Nil(t, cert)
 		assert.True(t, fleet.IsNotFound(err))
@@ -334,11 +371,23 @@ func testHostIdentityCertificateIntegration(t *testing.T, ds *Datastore) {
 		require.NotNil(t, cert)
 		assert.Nil(t, cert.HostID)
 
-		// 4. Update the host_id
+		// 4. Verify we can get it by public key
+		// First, get the public key from the certificate we just retrieved
+		publicKeyRaw := cert.PublicKeyRaw
+		require.NotEmpty(t, publicKeyRaw)
+
+		certByPubKey, err := ds.GetHostIdentityCertByPublicKey(ctx, publicKeyRaw)
+		require.NoError(t, err)
+		require.NotNil(t, certByPubKey)
+		assert.Equal(t, serial, certByPubKey.SerialNumber)
+		assert.Equal(t, name, certByPubKey.CommonName)
+		assert.Nil(t, certByPubKey.HostID)
+
+		// 5. Update the host_id
 		err = ds.UpdateHostIdentityCertHostIDBySerial(ctx, serial, host.ID)
 		require.NoError(t, err)
 
-		// 5. Verify the update worked for both methods
+		// 6. Verify the update worked for all three methods
 		cert, err = ds.GetHostIdentityCertBySerialNumber(ctx, serial)
 		require.NoError(t, err)
 		require.NotNil(t, cert)
@@ -346,6 +395,12 @@ func testHostIdentityCertificateIntegration(t *testing.T, ds *Datastore) {
 		assert.Equal(t, host.ID, *cert.HostID)
 
 		cert, err = ds.GetHostIdentityCertByName(ctx, name)
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		require.NotNil(t, cert.HostID)
+		assert.Equal(t, host.ID, *cert.HostID)
+
+		cert, err = ds.GetHostIdentityCertByPublicKey(ctx, publicKeyRaw)
 		require.NoError(t, err)
 		require.NotNil(t, cert)
 		require.NotNil(t, cert.HostID)

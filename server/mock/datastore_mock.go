@@ -1427,6 +1427,8 @@ type GetHostIdentityCertBySerialNumberFunc func(ctx context.Context, serialNumbe
 
 type GetHostIdentityCertByNameFunc func(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
 
+type GetHostIdentityCertByPublicKeyFunc func(ctx context.Context, publicKeyDER []byte) (*types.HostIdentityCertificate, error)
+
 type UpdateHostIdentityCertHostIDBySerialFunc func(ctx context.Context, serialNumber uint64, hostID uint) error
 
 type DataStore struct {
@@ -3535,6 +3537,9 @@ type DataStore struct {
 
 	GetHostIdentityCertByNameFunc        GetHostIdentityCertByNameFunc
 	GetHostIdentityCertByNameFuncInvoked bool
+
+	GetHostIdentityCertByPublicKeyFunc        GetHostIdentityCertByPublicKeyFunc
+	GetHostIdentityCertByPublicKeyFuncInvoked bool
 
 	UpdateHostIdentityCertHostIDBySerialFunc        UpdateHostIdentityCertHostIDBySerialFunc
 	UpdateHostIdentityCertHostIDBySerialFuncInvoked bool
@@ -8454,6 +8459,13 @@ func (s *DataStore) GetHostIdentityCertByName(ctx context.Context, name string) 
 	s.GetHostIdentityCertByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostIdentityCertByNameFunc(ctx, name)
+}
+
+func (s *DataStore) GetHostIdentityCertByPublicKey(ctx context.Context, publicKeyDER []byte) (*types.HostIdentityCertificate, error) {
+	s.mu.Lock()
+	s.GetHostIdentityCertByPublicKeyFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostIdentityCertByPublicKeyFunc(ctx, publicKeyDER)
 }
 
 func (s *DataStore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error {

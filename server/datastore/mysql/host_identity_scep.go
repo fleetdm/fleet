@@ -60,3 +60,20 @@ func (ds *Datastore) GetHostIdentityCertByName(ctx context.Context, name string)
 	}
 	return &hostIdentityCert, nil
 }
+
+func (ds *Datastore) GetHostIdentityCertByPublicKey(ctx context.Context, publicKeyDER []byte) (*types.HostIdentityCertificate, error) {
+	var hostIdentityCert types.HostIdentityCertificate
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostIdentityCert, `
+		SELECT serial, host_id, name, not_valid_after, public_key_raw, created_at
+		FROM host_identity_scep_certificates
+		WHERE public_key_raw = ?
+			AND not_valid_after > NOW()
+			AND revoked = 0`, publicKeyDER)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, notFound("host identity certificate")
+	case err != nil:
+		return nil, err
+	}
+	return &hostIdentityCert, nil
+}

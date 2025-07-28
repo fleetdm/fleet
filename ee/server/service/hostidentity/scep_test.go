@@ -150,47 +150,6 @@ func TestChallengeMiddleware_Renewal(t *testing.T) {
 		require.NotNil(t, cert)
 	})
 
-	t.Run("renewal with expired certificate", func(t *testing.T) {
-		// Create a test key pair
-		priv, err := rsa.GenerateKey(rand.Reader, 2048)
-		require.NoError(t, err)
-
-		// Create an expired certificate
-		existingCert := &x509.Certificate{
-			SerialNumber: big.NewInt(1),
-			Subject: pkix.Name{
-				CommonName: "test-host",
-			},
-			NotBefore: time.Now().Add(-48 * time.Hour),
-			NotAfter:  time.Now().Add(-24 * time.Hour), // Expired
-			PublicKey: priv.Public(),
-		}
-
-		// Create a CSR with the same public key
-		template := x509.CertificateRequest{
-			Subject: pkix.Name{
-				CommonName: "test-host",
-			},
-		}
-		csrDER, err := x509.CreateCertificateRequest(rand.Reader, &template, priv)
-		require.NoError(t, err)
-
-		csr, err := x509.ParseCertificateRequest(csrDER)
-		require.NoError(t, err)
-
-		m := &scep.CSRReqMessage{
-			CSR: csr,
-		}
-
-		// Put the renewal cert in context
-		ctx := context.WithValue(context.Background(), renewalCertKey, existingCert)
-
-		cert, err := middleware(ctx, m)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "signer certificate is not valid")
-		require.Nil(t, cert)
-	})
-
 	t.Run("renewal with different public key", func(t *testing.T) {
 		// Create two different key pairs
 		priv1, err := rsa.GenerateKey(rand.Reader, 2048)

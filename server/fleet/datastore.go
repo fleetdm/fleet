@@ -2225,6 +2225,8 @@ type Datastore interface {
 	GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
 	// GetHostIdentityCertByName gets the unrevoked valid cert corresponding to the provided name (CN).
 	GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
+	// GetHostIdentityCertByPublicKey gets the unrevoked valid cert corresponding to the provided public key.
+	GetHostIdentityCertByPublicKey(ctx context.Context, publicKeyDER []byte) (*types.HostIdentityCertificate, error)
 	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
 	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
 }
