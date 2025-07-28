@@ -36,7 +36,7 @@ func newSecureHW(metadataDir string, logger zerolog.Logger) (SecureHW, error) {
 
 	return &tpm2SecureHW{
 		device:      device,
-		logger:      zerolog.Nop(),
+		logger:      logger.With().Str("component", "securehw-tpm").Logger(),
 		keyFilePath: filepath.Join(metadataDir, "host_identity_tpm.pem"),
 	}, nil
 }
