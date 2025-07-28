@@ -1,15 +1,5 @@
 # Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
 
-function Test-Administrator
-{
-    [OutputType([bool])]
-    param()
-    process {
-        [Security.Principal.WindowsPrincipal]$user = [Security.Principal.WindowsIdentity]::GetCurrent();
-        return $user.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator);
-    }
-}
-
 # borrowed from Jeffrey Snover http://blogs.msdn.com/powershell/archive/2006/12/07/resolve-error.aspx
 function Resolve-Error-Detailed($ErrorRecord = $Error[0]) {
   $error_message = "========== ErrorRecord:{0}ErrorRecord.InvocationInfo:{1}Exception:{2}"
@@ -28,43 +18,64 @@ function Resolve-Error-Detailed($ErrorRecord = $Error[0]) {
 
 #Stops Orbit service and related processes
 function Stop-Orbit {
-  # Stop Service
-  Stop-Service -Name "Fleet osquery" -ErrorAction "Continue"
-  Start-Sleep -Milliseconds 1000
+  try {
+    # Stop Service
+    Stop-Service -Name "Fleet osquery" -ErrorAction "Continue"
+    Start-Sleep -Milliseconds 1000
 
-  # Ensure that no process left running
-  Get-Process -Name "orbit" -ErrorAction "SilentlyContinue" | Stop-Process -Force
-  Get-Process -Name "osqueryd" -ErrorAction "SilentlyContinue" | Stop-Process -Force
-  Get-Process -Name "fleet-desktop" -ErrorAction "SilentlyContinue" | Stop-Process -Force
-  Start-Sleep -Milliseconds 1000
+    # Ensure that no process left running
+    Get-Process -Name "orbit" -ErrorAction "SilentlyContinue" | Stop-Process -Force
+    Get-Process -Name "osqueryd" -ErrorAction "SilentlyContinue" | Stop-Process -Force
+    Get-Process -Name "fleet-desktop" -ErrorAction "SilentlyContinue" | Stop-Process -Force
+    Start-Sleep -Milliseconds 1000
+    
+    "Orbit processes stopped successfully at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+  }
+  catch {
+    "Error stopping Orbit processes at $(Get-Date): $($Error[0])" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+    Write-Host "Warning: Some processes may still be running"
+  }
 }
 
 #Remove Orbit footprint from registry and disk
 function Force-Remove-Orbit {
   try {
-    #Stoping Orbit
+    #Stopping Orbit
     Stop-Orbit
 
-    #Remove Service
-    $service = Get-WmiObject -Class Win32_Service -Filter "Name='Fleet osquery'"
-    if ($service) {
-      $service.delete() | Out-Null
+    #Remove Service - Updated to use Get-CimInstance instead of deprecated Get-WmiObject
+    try {
+      $service = Get-CimInstance -ClassName Win32_Service -Filter "Name='Fleet osquery'" -ErrorAction SilentlyContinue
+      if ($service) {
+        Remove-CimInstance -InputObject $service -ErrorAction SilentlyContinue
+        "Service removed successfully at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+      }
+    }
+    catch {
+      "Error removing service at $(Get-Date): $($Error[0])" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
     }
 
     #Removing Program files entries
     $targetPath = $Env:Programfiles + "\\Orbit"
-    Remove-Item -LiteralPath $targetPath -Force -Recurse -ErrorAction "Continue"
+    if (Test-Path -LiteralPath $targetPath) {
+      Remove-Item -LiteralPath $targetPath -Force -Recurse -ErrorAction "Continue"
+      "Program files directory removed at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+    }
 
-    #Remove HKLM registry entries
-    Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse  -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
-      # Filter for osquery entries
-      $properties = Get-ItemProperty $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet osquery")}
-      if ($properties) {
-        #Remove Registry Entries
-        $regKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $_.PSChildName
-        Get-Item $regKey -ErrorAction "SilentlyContinue" | Remove-Item -Force -ErrorAction "SilentlyContinue"
-        return
+    #Remove HKLM registry entries - Improved logic
+    try {
+      $uninstallKeys = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -ErrorAction "SilentlyContinue"
+      foreach ($key in $uninstallKeys) {
+        $properties = Get-ItemProperty $key.PSPath -ErrorAction "SilentlyContinue"
+        if ($properties.DisplayName -eq "Fleet osquery") {
+          Remove-Item $key.PSPath -Force -ErrorAction "SilentlyContinue"
+          "Registry entry removed at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+          break
+        }
       }
+    }
+    catch {
+      "Error removing registry entries at $(Get-Date): $($Error[0])" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
     }
     
     # Write success log
@@ -83,12 +94,6 @@ function Force-Remove-Orbit {
 
 function Main {
   try {
-    # Is Administrator check
-    if (-not (Test-Administrator)) {
-      Write-Host "Please run this script with admin privileges."
-      Exit -1
-    }
-
     Write-Host "About to uninstall fleetd..."
 
     if ($args[0] -eq "remove") {
@@ -119,11 +124,23 @@ function Main {
       $execName = $MyInvocation.ScriptName
       $proc = Start-Process -PassThru -FilePath "powershell" -WindowStyle Hidden -ArgumentList "-MTA", "-ExecutionPolicy", "Bypass", "-File", "$execName remove"
       
-      # Log the process ID
-      "Started removal process with ID: $($proc.Id) at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
-      
-      Start-Sleep -Seconds 5 # give time to process to start running
-      Write-Host "Removal process started: $($proc.Id)."
+      # Verify process started successfully
+      Start-Sleep -Seconds 2
+      try {
+        $verifyProc = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
+        if ($verifyProc) {
+          # Log the process ID
+          "Started removal process with ID: $($proc.Id) at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+          Write-Host "Removal process started: $($proc.Id)."
+        } else {
+          throw "Process verification failed"
+        }
+      }
+      catch {
+        Write-Host "Error: Failed to start removal process"
+        "Failed to start removal process at $(Get-Date): $($Error[0])" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+        Exit -1
+      }
     }
   } catch {
     Write-Host "Error: Entry point"
