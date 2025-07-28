@@ -24,7 +24,7 @@ Fleet UI:
 
 Fleet API: Use the [Add custom OS setting (configuration profile) endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) in the Fleet API.
 
-#### User channel for configuration profiles on macOS
+### User channel for configuration profiles on macOS
 
 Before version 4.71.0, Fleet didn't support sending configuration profiles (`.mobileconfig`) to the macOS user channel (aka "Payload Scope" in iMazing Profile Creator). Profiles with `PayloadScope` set to `User` were delivered to the device channel by default. From Fleet 4.71.0 onward, both device and user channels are supported. 
 
@@ -32,18 +32,16 @@ User-scoped profile is delivered to the user that turned on MDM on the host (ins
 1. Turn off MDM on manually enrolled Mac and ask end user to [turn on MDM](https://fleetdm.com/guides/mdm-migration#migrate-hosts:~:text=If%20the%20host%20is%20not%20assigned%20to%20Fleet%20in%20ABM%20(manual%20enrollment)%2C%20the%20end%20user%20will%20be%20given%20the%20option%20to%20download%20the%20MDM%20enrollment%20profile%20on%20their%20My%20device%20page.) through the **My device** page.
 2. Run `sudo profiles renew -type enrollment` on automatically enrolled Mac.
 
-> Fleet will soon improve this and automatically enable the user channel for all macOS hosts. Check out the [issue](https://github.com/fleetdm/fleet/issues/30043).
-
 Support for declaration (DDM) profiles is coming soon.
 
 Existing profiles with `PayloadScope` set to`User` won’t update automatically. These are delivered to the device channel and will remain there until you take action.
 
 To avoid confusion, please follow these steps:
--  Check for profiles with `PayloadScope` set to `User`.
--  To keep delivering them to the device channel, change `PayloadScope` to `System` to reflect the actual scope in your `.mobileconfig`. Also, you can remove `PayloadScope` as the default scope in Fleet is `System`. 
--  To deliver to the user channel, update the identifier(`PayloadIdentifier`) and re-upload the profile.
+- Check for profiles with `PayloadScope` set to `User`.
+- To keep delivering them to the device channel, change `PayloadScope` to `System` to reflect the actual scope in your `.mobileconfig`. Also, you can remove `PayloadScope` as the default scope in Fleet is `System`. 
+- To deliver to the user channel, update the identifier(`PayloadIdentifier`) and re-upload the profile.
 
-### See status
+## See status
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
 
@@ -61,18 +59,6 @@ In the list of hosts, click on an individual host and click the **OS settings** 
 
 Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the
 profile's status to update to "Pending."
-
-## How user scoped configuration profiles are assigned
-
-Currently, Fleet supports hosts with one local user. If the host has multiple local users
-(eg. User1 and User2), the profile is delivered to the user that turns on MDM on the host. For example, if User1 enrolls
-to Fleet during ADE or installs the enrollment profile during BYOD enrollment, User1's local user will get
-certificates.
-
-For configuration profiles the default **PayloadScope** is **System**. You must assign **PayloadScope** to be
-**User** in your configuration profile to apply it to the user channel.
-
-Finally, only **.mobileconfig** configuration profiles are supported for the user channel. Support for declaration (DDM) profiles is coming soon.
 
 On Windows, due to limitations of the MDM protocol, verification of [Win32 and Desktop Bridge app ADMX
 policy](https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration)
