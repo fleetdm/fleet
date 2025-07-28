@@ -9698,6 +9698,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Falcon.app",
+    "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "available_software": {
       "fleet_maintained_app": {
