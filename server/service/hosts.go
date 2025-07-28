@@ -2287,6 +2287,8 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 		}
 	}
 
+	fmt.Printf("getting vulns for osVersion: %v\n", osVersion)
+
 	// Populate Vulnerabilities
 	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS)
 	if err != nil {
