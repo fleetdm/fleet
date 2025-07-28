@@ -1,13 +1,16 @@
 package hostidentity
 
 import (
+	"bytes"
 	"context"
+	"crypto"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -19,9 +22,13 @@ import (
 	"github.com/smallstep/scep"
 )
 
+// contextKey is a type for context keys to avoid collisions
+type contextKey string
+
 const (
-	scepPath         = "/api/fleet/orbit/host_identity/scep"
-	scepValidityDays = 365
+	scepPath                    = "/api/fleet/orbit/host_identity/scep"
+	scepValidityDays            = 365
+	renewalCertKey   contextKey = "renewal_cert"
 )
 
 // RateLimitError is an error type that generates a 429 status code.
@@ -76,9 +83,42 @@ func RegisterSCEP(
 	return nil
 }
 
-// challengeMiddleware checks that ChallengePassword matches an enrollment secret
+// challengeMiddleware checks authentication for SCEP requests.
+// For initial enrollment: validates ChallengePassword against enrollment secrets
+// For renewal: validates that the request is signed by an existing valid certificate
 func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
+	// We need to wrap the middleware to have access to the full PKIMessage
+	// The CSRSignerContext only receives the CSRReqMessage, not the full PKIMessage
+	// So we'll check renewal at the PKIOperation level instead
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
+		// Check if we have renewal info in context (set by PKIOperation)
+		if renewalCert, ok := ctx.Value(renewalCertKey).(*x509.Certificate); ok && renewalCert != nil {
+			// This is a renewal request
+			// The SCEP library has already validated the signature using the signer certificate
+			// We just need to verify that:
+			// 1. The certificate is not expired
+			// 2. The CSR has the same public key as the existing certificate
+
+			// Check if the certificate is still valid
+			now := time.Now()
+			if now.Before(renewalCert.NotBefore) || time.Now().After(renewalCert.NotAfter) {
+				return nil, errors.New("signer certificate is not valid")
+			}
+
+			// Verify that the CSR uses the same public key as the existing certificate
+			keysEqual, err := PublicKeysEqual(m.CSR.PublicKey, renewalCert.PublicKey)
+			if err != nil {
+				return nil, fmt.Errorf("error comparing public keys: %w", err)
+			}
+			if !keysEqual {
+				return nil, errors.New("CSR public key does not match signer certificate")
+			}
+
+			// For renewal, we don't need a challenge password
+			return next.SignCSRContext(ctx, m)
+		}
+
+		// This is an initial enrollment request - require challenge password
 		if m.ChallengePassword == "" {
 			return nil, errors.New("missing challenge")
 		}
@@ -119,7 +159,7 @@ func (svc *service) GetCACaps(_ context.Context) ([]byte, error) {
 	//
 	// Operational Capabilities:
 	// [ ] GetNextCACert      // Supports fetching next CA certificate (rollover)
-	// [ ] Renewal            // Supports certificate renewal (same key, new cert)
+	// [x] Renewal            // Supports certificate renewal (same key, new cert)
 	// [ ] Update             // Supports certificate update (new key)
 	//
 	// These capabilities are implied by the protocol and don't need to be explicitly declared:
@@ -127,7 +167,7 @@ func (svc *service) GetCACaps(_ context.Context) ([]byte, error) {
 	// [x] PKCS7              // Responses are in PKCS#7 format
 	// [x] X509               // Supports X.509 certificates
 	//
-	defaultCaps := []byte("SHA-256\nAES\nPOSTPKIOperation")
+	defaultCaps := []byte("SHA-256\nAES\nPOSTPKIOperation\nRenewal")
 	return defaultCaps, nil
 }
 
@@ -164,6 +204,12 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 
 	if err := msg.DecryptPKIEnvelope(cert.Leaf, pk); err != nil {
 		return nil, err
+	}
+
+	// Check if this is a renewal request by looking at the SignerCert
+	if msg.SignerCert != nil {
+		// Pass the signer certificate through context for the challengeMiddleware
+		ctx = context.WithValue(ctx, renewalCertKey, msg.SignerCert)
 	}
 
 	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)
@@ -205,4 +251,16 @@ func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logg
 		signer: signer,
 		logger: logger,
 	}
+}
+
+func PublicKeysEqual(a, b crypto.PublicKey) (bool, error) {
+	derA, err := x509.MarshalPKIXPublicKey(a)
+	if err != nil {
+		return false, fmt.Errorf("marshal a: %w", err)
+	}
+	derB, err := x509.MarshalPKIXPublicKey(b)
+	if err != nil {
+		return false, fmt.Errorf("marshal b: %w", err)
+	}
+	return bytes.Equal(derA, derB), nil
 }
