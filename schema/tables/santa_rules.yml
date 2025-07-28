@@ -1,0 +1,28 @@
+name: santa_rules
+description: The [Santa](https://github.com/google/santa) rules that are currently installed on a macOS host.
+platforms: 
+  - darwin
+evented: false
+examples: |-
+  TODO
+
+  ```
+  TODO
+  ```
+columns:
+  - name: identifier
+    description: Rule identifier (SHA256, Team ID, etc.
+    required: false
+    type: text
+  - name: type
+    description: Type of rule (Binary, Certificate, TeamID)
+    required: false
+    type: text
+  - name: state
+    description: Rule state (Whitelist, Blacklist)
+    required: false
+    type: text
+  - name: custom_message
+    description: Custom message associated with the rule
+    required: false
+    type: text

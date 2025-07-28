@@ -1,0 +1,28 @@
+name: santa_allowed
+description: List of applications Santa has allowed to run on the host.
+platforms: 
+  - darwin
+evented: false
+examples: |-
+  TODO
+
+  ```
+  TODO
+  ```
+columns:
+  - name: timestamp
+    description: Timestamp of the decision
+    required: false
+    type: text
+  - name: application
+    description: Path to the application
+    required: false
+    type: text
+  - name: reason
+    description: Reason for the decision
+    required: false
+    type: text
+  - name: sha256
+    description: SHA256 hash of the binary
+    required: false
+    type: text
