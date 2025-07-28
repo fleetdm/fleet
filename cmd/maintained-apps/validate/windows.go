@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -63,6 +65,15 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 
 	if len(results) > 0 {
 		for _, result := range results {
+			software := &fleet.Software{
+				Name:    result.Name,
+				Version: result.Version,
+				Source:  "programs",
+			}
+			queries.MutateSoftwareOnIngestion(software, logger)
+			result.Version = software.Version
+			result.Name = software.Name
+
 			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s", result.Name, result.InstallLocation, result.Version))
 			if result.Version == appVersion {
 				return true, nil
