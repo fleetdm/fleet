@@ -19,9 +19,9 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 | I want to _________________________________________
 | so that I can _________________________________________.
 
-## Key result
+## Roadmap item
 
-<!-- What quarterly key result (KR) does this story contribute to, if any? If it doesn't contribute to a KR, explain why it's being prioritized. -->
+<!-- Paste the roadmap item, from the current quarter's roadmap preview article, this story contributes to. Put "None" if it doesn't contribute to a roadmap item. -->
 
 ## Original requests
 
