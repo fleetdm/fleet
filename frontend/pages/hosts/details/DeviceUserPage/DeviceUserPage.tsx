@@ -225,9 +225,6 @@ const DeviceUserPage = ({
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
     setRefetchStartTime(null);
-    console.log(
-      "Host Details Page > resetHostRefetchState called which sets setRefetchStartTime(null)"
-    );
   };
 
   const isRefetching = ({
@@ -306,9 +303,8 @@ const DeviceUserPage = ({
               );
             }
           }
-          // Don't update refetch state below here; exit early if we're polling
         } else {
-          // Not refetching—reset spinner and timer
+          // Not refetching: reset spinner and timer
           resetHostRefetchStates();
         }
       },

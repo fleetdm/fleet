@@ -238,7 +238,6 @@ const HostDetailsPage = ({
     setSelectedCancelActivity,
   ] = useState<IHostUpcomingActivity | null>(null);
 
-  console.log("HostDetailsPage.tsx > refetchStartTime", refetchStartTime);
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
     "past" | "upcoming"
@@ -345,9 +344,6 @@ const HostDetailsPage = ({
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
     setRefetchStartTime(null);
-    console.log(
-      "Host Details Page > resetHostRefetchState called which sets setRefetchStartTime(null)"
-    );
   };
 
   const {
@@ -417,12 +413,10 @@ const HostDetailsPage = ({
               );
               resetHostRefetchStates();
             }
-            return; // exit early so rest doesn't run
           }
         } else {
-          // No refetch requested—reset spinner and timer
-          setShowRefetchSpinner(false);
-          setRefetchStartTime(null);
+          // Not refetching: reset spinner and timer
+          resetHostRefetchStates();
         }
 
         setHostMdmDeviceState(
