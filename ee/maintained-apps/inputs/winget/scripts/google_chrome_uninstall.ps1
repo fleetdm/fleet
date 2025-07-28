@@ -1,6 +1,6 @@
 $softwareName = "Google Chrome"
 
-$uninstallArgs = "--uninstall"
+$defaultUninstallArgs = "--uninstall --force-uninstall"
 
 $expectedExitCodes = @(19, 20)
 
@@ -23,24 +23,35 @@ try {
         if ($key.DisplayName -eq $softwareName) {
             $foundUninstaller = $true
             # Get the uninstall command.
-            $uninstallCommand = if ($key.QuietUninstallString) {
+            $rawUninstallCommand = if ($key.QuietUninstallString) {
                 $key.QuietUninstallString
             } else {
                 $key.UninstallString
             }
 
+            Write-Host "Raw uninstall command: $rawUninstallCommand"
+
             # Split the command and args
-            $splitArgs = $uninstallCommand.Split('"')
+            $splitArgs = $rawUninstallCommand.Split('"')
             if ($splitArgs.Length -gt 1) {
                 if ($splitArgs.Length -eq 3) {
-                    $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
+                    $uninstallCommand = $splitArgs[1]
+                    $existingArgs = $splitArgs[2].Trim()
+                    # Always add --force-uninstall for silent operation
+                    if ($existingArgs -match "--uninstall") {
+                        $uninstallArgs = "$existingArgs --force-uninstall"
+                    } else {
+                        $uninstallArgs = "$existingArgs $defaultUninstallArgs".Trim()
+                    }
                 } elseif ($splitArgs.Length -gt 3) {
                     Throw `
                         "Uninstall command contains multiple quoted strings. " +
                             "Please update the uninstall script.`n" +
-                            "Uninstall command: $uninstallCommand"
+                            "Uninstall command: $rawUninstallCommand"
                 }
-                $uninstallCommand = $splitArgs[1]
+            } else {
+                $uninstallCommand = $rawUninstallCommand
+                $uninstallArgs = $defaultUninstallArgs
             }
             Write-Host "Uninstall command: $uninstallCommand"
             Write-Host "Uninstall args: $uninstallArgs"
@@ -49,9 +60,12 @@ try {
                 FilePath = $uninstallCommand
                 PassThru = $true
                 Wait = $true
-                ArgumentList = "$uninstallArgs"
+                ArgumentList = $uninstallArgs.Split(' ')
+                NoNewWindow = $true
             }
 
+            Write-Host "Starting process with arguments: $($uninstallArgs.Split(' ') -join ', ')"
+            
             # Start process and track exit code
             $process = Start-Process @processOptions
             $exitCode = $process.ExitCode
