@@ -17316,3 +17316,20 @@ func createTestServerWithStatusCode(statusCode int) (*httptest.Server, func()) {
 
 	return server, cleanup
 }
+
+func (s *integrationMDMTestSuite) TestServiceDiscovery() {
+	t := s.T()
+
+	type serviceDiscoveryServer struct {
+		Version string `json:Version"`
+		BaseURL string `json:"BaseURL`
+	}
+	type serviceDiscoveryResponse struct {
+		Servers []serviceDiscoveryServer `json:"Servers"`
+	}
+
+	res := serviceDiscoveryResponse{}
+	s.DoJSON("GET", "/mdm/apple/service_discovery", nil, http.StatusOK, &res)
+	require.Contains(t, res.Servers[0].BaseURL, apple_mdm.AccountDrivenEnrollPath)
+	require.Equal(t, "mdm-byod", res.Servers[0].Version)
+}
