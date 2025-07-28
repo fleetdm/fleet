@@ -228,8 +228,12 @@ const HostDetailsPage = ({
     setHostMdmDeviceState,
   ] = useState<HostMdmDeviceStatusUIState>("unlocked");
   const [
-    selectedSoftwareDetails,
-    setSelectedSoftwareDetails,
+    selectedHostSWForInventoryVersions,
+    setSelectedHostSWForInventoryVersions,
+  ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedHostSWInstallDetails,
+    setSelectedHostSWInstallDetails,
   ] = useState<IHostSoftware | null>(null);
   const [
     selectedCancelActivity,
@@ -690,13 +694,22 @@ const HostDetailsPage = ({
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
-  const onShowSoftwareDetails = useCallback(
-    (software?: IHostSoftware) => {
-      if (software) {
-        setSelectedSoftwareDetails(software);
+  const onSetSelectedHostSWForInventoryVersions = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWForInventoryVersions(hostSW);
       }
     },
-    [setSelectedSoftwareDetails]
+    [setSelectedHostSWForInventoryVersions]
+  );
+
+  const onSetSelectedHostSWInstallDetails = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWInstallDetails(hostSW);
+      }
+    },
+    [setSelectedHostSWInstallDetails]
   );
 
   const onShowUninstallDetails = useCallback(
@@ -981,7 +994,9 @@ const HostDetailsPage = ({
                   include_available_for_install: false,
                 }}
                 pathname={location.pathname}
-                onShowSoftwareDetails={setSelectedSoftwareDetails}
+                onShowInventoryVersions={
+                  onSetSelectedHostSWForInventoryVersions
+                }
                 hostTeamId={host.team_id || 0}
               />
               {isDarwinHost && macadmins?.munki?.version && (
@@ -1024,7 +1039,10 @@ const HostDetailsPage = ({
                     available_for_install: true,
                   }}
                   pathname={location.pathname}
-                  onShowSoftwareDetails={onShowSoftwareDetails}
+                  onShowInventoryVersions={
+                    onSetSelectedHostSWForInventoryVersions
+                  }
+                  onShowInstallDetails={onSetSelectedHostSWInstallDetails}
                   onShowUninstallDetails={onShowUninstallDetails}
                   hostTeamId={host.team_id || 0}
                   hostName={host.display_name}
@@ -1049,7 +1067,7 @@ const HostDetailsPage = ({
                 include_available_for_install: false,
               }}
               pathname={location.pathname}
-              onShowSoftwareDetails={setSelectedSoftwareDetails}
+              onShowInventoryVersions={onSetSelectedHostSWForInventoryVersions}
               hostTeamId={host.team_id || 0}
             />
             {isDarwinHost && macadmins?.munki?.version && (
@@ -1399,10 +1417,22 @@ const HostDetailsPage = ({
               onClose={() => setShowWipeModal(false)}
             />
           )}
-          {selectedSoftwareDetails && (
+          {selectedHostSWInstallDetails && (
+            <SoftwareInstallDetailsModal
+              details={{
+                host_display_name: host.display_name,
+                install_uuid:
+                  selectedHostSWInstallDetails.software_package?.last_install
+                    ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+              }}
+              hostSoftware={selectedHostSWInstallDetails}
+              onCancel={() => setSelectedHostSWInstallDetails(null)}
+            />
+          )}
+          {selectedHostSWForInventoryVersions && (
             <InventoryVersionsModal
-              hostSoftware={selectedSoftwareDetails}
-              onExit={() => setSelectedSoftwareDetails(null)}
+              hostSoftware={selectedHostSWForInventoryVersions}
+              onExit={() => setSelectedHostSWForInventoryVersions(null)}
             />
           )}
           {selectedCancelActivity && (

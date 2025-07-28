@@ -135,8 +135,8 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
-  const [selectedSelfServiceUuid, setSelectedSelfServiceUuid] = useState<
-    InstallOrCommandUuid | undefined
+  const [selectedHostSoftware, setSelectedHostSoftware] = useState<
+    IHostSoftware | undefined
   >(undefined);
   const [
     selectedSelfServiceScriptDetails,
@@ -342,10 +342,11 @@ const DeviceUserPage = ({
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
   const onShowInstallDetails = useCallback(
-    (uuid?: InstallOrCommandUuid) => {
-      setSelectedSelfServiceUuid(uuid);
+    // why optional?
+    (hostSoftware?: IHostSoftware) => {
+      setSelectedHostSoftware(hostSoftware);
     },
-    [setSelectedSelfServiceUuid]
+    [setSelectedHostSoftware]
   );
 
   const onShowUninstallDetails = useCallback(
@@ -595,7 +596,7 @@ const DeviceUserPage = ({
                       platform={host.platform}
                       hostTeamId={host.team_id || 0}
                       isSoftwareEnabled={isSoftwareEnabled}
-                      onShowSoftwareDetails={setSelectedSoftwareDetails}
+                      onShowInventoryVersions={setSelectedSoftwareDetails}
                     />
                   </TabPanel>
                 )}
@@ -661,15 +662,20 @@ const DeviceUserPage = ({
             }}
           />
         )}
-        {selectedSelfServiceUuid &&
-          "install_uuid" in selectedSelfServiceUuid &&
+        {selectedHostSoftware &&
+          // necessary condition?
+          // "install_uuid" in selectedHostSoftware &&
           !!host && (
             <SoftwareInstallDetailsModal
+              hostSoftware={selectedHostSoftware}
+              // TODO: onClickRetry
               details={{
                 host_display_name: host.display_name,
-                install_uuid: selectedSelfServiceUuid.install_uuid,
+                install_uuid:
+                  selectedHostSoftware.software_package?.last_install
+                    ?.install_uuid,
               }}
-              onCancel={() => setSelectedSelfServiceUuid(undefined)}
+              onCancel={() => setSelectedHostSoftware(undefined)}
               deviceAuthToken={deviceAuthToken}
             />
           )}
@@ -683,20 +689,20 @@ const DeviceUserPage = ({
             deviceAuthToken={deviceAuthToken}
           />
         )}
-        {selectedSelfServiceUuid &&
-          "command_uuid" in selectedSelfServiceUuid &&
+        {/* {selectedHostSoftware &&
+          "command_uuid" in selectedHostSoftware &&
           !!host && (
             <AppInstallDetailsModal
               details={{
-                software_title: selectedSelfServiceUuid.software_title,
-                status: selectedSelfServiceUuid.status,
+                software_title: selectedHostSoftware.name,
+                status: selectedHostSoftware.status as string,
                 host_display_name: host.display_name,
-                command_uuid: selectedSelfServiceUuid.command_uuid,
+                // command_uuid: selectedHostSoftware.command_uuid as InstallOrCommandUuid,
               }}
-              onCancel={() => setSelectedSelfServiceUuid(undefined)}
+              onCancel={() => setSelectedHostSoftware(undefined)}
               deviceAuthToken={deviceAuthToken}
             />
-          )}
+          )} */}
         {selectedSoftwareDetails && !!host && (
           <InventoryVersionsModal
             hostSoftware={selectedSoftwareDetails}

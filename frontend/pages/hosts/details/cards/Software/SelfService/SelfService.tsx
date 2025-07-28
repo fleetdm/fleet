@@ -75,7 +75,7 @@ export interface ISoftwareSelfServiceProps {
   pathname: string;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
-  onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
+  onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   refetchHostDetails: () => void;
   isHostDetailsPolling: boolean;
@@ -466,17 +466,7 @@ const SoftwareSelfService = ({
   };
 
   const onClickFailedUpdateStatus = (s: IHostSoftware) => {
-    const lastInstall = getLastInstall(s);
-
-    if (onShowInstallDetails && lastInstall) {
-      if ("command_uuid" in lastInstall) {
-        onShowInstallDetails({ command_uuid: lastInstall.command_uuid });
-      } else if ("install_uuid" in lastInstall) {
-        onShowInstallDetails({ install_uuid: lastInstall.install_uuid });
-      } else {
-        onShowInstallDetails(undefined);
-      }
-    }
+    onShowInstallDetails(s);
   };
 
   const onExitUninstallSoftwareModal = () => {

@@ -3,6 +3,7 @@ import { CellProps, Column } from "react-table";
 
 import {
   IDeviceSoftware,
+  IHostSoftware,
   IHostSoftwareWithUiStatus,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
@@ -48,7 +49,7 @@ interface ISelfServiceTableHeaders {
   deviceToken: string;
   onInstallOrUninstall: () => void;
   onShowUpdateDetails: (software: IDeviceSoftware) => void;
-  onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
+  onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (software: IHostSoftwareWithUiStatus) => void;

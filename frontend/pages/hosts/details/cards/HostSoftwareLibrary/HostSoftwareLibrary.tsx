@@ -54,7 +54,8 @@ interface IHostSoftwareLibraryProps {
   pathname: string;
   hostTeamId: number;
   hostName: string;
-  onShowSoftwareDetails: (software?: IHostSoftware) => void;
+  onShowInventoryVersions: (software?: IHostSoftware) => void;
+  onShowInstallDetails: (software?: IHostSoftware) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
@@ -108,7 +109,8 @@ const HostSoftwareLibrary = ({
   pathname,
   hostTeamId = 0,
   hostName,
-  onShowSoftwareDetails,
+  onShowInventoryVersions,
+  onShowInstallDetails,
   onShowUninstallDetails,
   isSoftwareEnabled = false,
   hostMDMEnrolled,
@@ -427,22 +429,24 @@ const HostSoftwareLibrary = ({
       teamId: hostTeamId,
       hostName,
       baseClass,
-      onShowSoftwareDetails,
+      onShowInventoryVersions,
       onShowUpdateDetails,
+      onShowInstallDetails,
       onShowUninstallDetails,
       onClickInstallAction,
       onClickUninstallAction,
       isHostOnline,
     });
   }, [
-    router,
     userHasSWWritePermission,
     hostScriptsEnabled,
+    hostMDMEnrolled,
+    router,
     hostTeamId,
     hostName,
-    hostMDMEnrolled,
-    onShowSoftwareDetails,
+    onShowInventoryVersions,
     onShowUpdateDetails,
+    onShowInstallDetails,
     onShowUninstallDetails,
     onClickInstallAction,
     onClickUninstallAction,

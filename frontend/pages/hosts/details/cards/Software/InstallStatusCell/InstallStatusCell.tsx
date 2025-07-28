@@ -276,10 +276,10 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
 
 type IInstallStatusCellProps = {
   software: IHostSoftwareWithUiStatus;
-  onShowSoftwareDetails?: (software: IHostSoftware) => void;
+  onShowInventoryVersions?: (software: IHostSoftware) => void;
   onShowUpdateDetails: (software: IHostSoftware) => void;
-  onShowInstallDetails?: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
+  onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
+  onShowUninstallDetails: (hostSoftware: ISoftwareUninstallDetails) => void;
   isSelfService?: boolean;
   isHostOnline?: boolean;
   hostName?: string;
@@ -313,7 +313,7 @@ const getEmptyCellTooltip = (hasAppStoreApp: boolean, softwareName?: string) =>
 
 const InstallStatusCell = ({
   software,
-  onShowSoftwareDetails,
+  onShowInventoryVersions: onShowSoftwareDetails,
   onShowUpdateDetails,
   onShowInstallDetails,
   onShowUninstallDetails,
@@ -340,37 +340,41 @@ const InstallStatusCell = ({
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
   const onClickInstallStatus = () => {
-    if (onShowInstallDetails && lastInstall) {
-      if ("command_uuid" in lastInstall) {
-        onShowInstallDetails({
-          command_uuid: lastInstall.command_uuid,
-          software_title: software.name,
-          status: software.status || undefined,
-        });
-      } else if ("install_uuid" in lastInstall) {
-        onShowInstallDetails({ install_uuid: lastInstall.install_uuid });
-      } else {
-        onShowInstallDetails(undefined);
-      }
-    } else if (onShowSoftwareDetails) {
-      onShowSoftwareDetails(software);
-    }
+    onShowInstallDetails(software);
+
+    // TODO - handle VPP case
+    // if (onShowInstallDetails && lastInstall) {
+    //   if ("command_uuid" in lastInstall) {
+    //     onShowInstallDetails({
+    //       command_uuid: lastInstall.command_uuid,
+    //       software_title: software.name,
+    //       status: software.status || undefined,
+    //     });
+    //   } else if ("install_uuid" in lastInstall) {
+    //     onShowInstallDetails({ install_uuid: lastInstall.install_uuid });
+    //   } else {
+    //     onShowInstallDetails(undefined);
+    //   }
+    // }
   };
 
   const onClickUninstallStatus = () => {
+    // TODO
+
     if (onShowUninstallDetails && lastUninstall) {
       if ("script_execution_id" in lastUninstall) {
         onShowUninstallDetails({
           ...lastUninstall,
           status: software.status || undefined,
-          software_title: software.name,
+          // software_title: software.name,
           host_display_name: hostName,
         });
-      } else {
-        onShowUninstallDetails(undefined);
       }
-    } else if (onShowSoftwareDetails) {
-      onShowSoftwareDetails(software);
+      // else {
+      //     onShowUninstallDetails(undefined);
+      //   }
+      // } else if (onShowSoftwareDetails) {
+      //   onShowSoftwareDetails(software);
     }
   };
 

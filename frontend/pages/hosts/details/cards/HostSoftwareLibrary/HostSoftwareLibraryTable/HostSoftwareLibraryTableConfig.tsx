@@ -45,8 +45,9 @@ interface IHostSWLibraryTableHeaders {
   teamId: number;
   hostMDMEnrolled?: boolean;
   baseClass: string;
-  onShowSoftwareDetails?: (software?: IHostSoftware) => void;
+  onShowInventoryVersions?: (software?: IHostSoftware) => void;
   onShowUpdateDetails: (software?: IHostSoftware) => void;
+  onShowInstallDetails: (details?: IHostSoftware) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (softwareId: number) => void;
@@ -63,13 +64,13 @@ export const generateHostSWLibraryTableHeaders = ({
   teamId,
   hostMDMEnrolled,
   baseClass,
-  onShowSoftwareDetails,
+  onShowInventoryVersions,
   onShowUpdateDetails,
+  onShowInstallDetails,
   onShowUninstallDetails,
   onClickInstallAction,
   onClickUninstallAction,
   isHostOnline,
-  hostName,
 }: IHostSWLibraryTableHeaders): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -123,8 +124,9 @@ export const generateHostSWLibraryTableHeaders = ({
         return (
           <InstallStatusCell
             software={original}
-            onShowSoftwareDetails={onShowSoftwareDetails}
+            onShowInventoryVersions={onShowInventoryVersions}
             onShowUpdateDetails={onShowUpdateDetails}
+            onShowInstallDetails={onShowInstallDetails}
             onShowUninstallDetails={onShowUninstallDetails}
             isHostOnline={isHostOnline}
           />

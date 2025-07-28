@@ -56,7 +56,7 @@ interface IHostSoftwareProps {
   queryParams: HostSoftwareQueryParams;
   pathname: string;
   hostTeamId: number;
-  onShowSoftwareDetails: (software: IHostSoftware) => void;
+  onShowInventoryVersions: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   isMyDevicePage?: boolean;
 }
@@ -118,7 +118,7 @@ const HostSoftware = ({
   queryParams,
   pathname,
   hostTeamId = 0,
-  onShowSoftwareDetails,
+  onShowInventoryVersions: onShowSoftwareDetails,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
 }: IHostSoftwareProps) => {
