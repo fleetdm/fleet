@@ -4,10 +4,10 @@ platforms:
   - darwin
 evented: false
 examples: |-
-  TODO
+  Collects all Santa denied logs from macOS hosts.
 
   ```
-  TODO
+  SELECT * FROM santa_denied;
   ```
 columns:
   - name: timestamp
