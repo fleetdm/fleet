@@ -69,13 +69,34 @@ Generated when creating policies.
 This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.
+- "record": the updated policy record.
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"record": {
+    "id": 123,
+    "name": "foo",
+    "query": "SELECT 1 FROM osquery_info WHERE start_time \u003e 1;",
+    "critical": false,
+    "description": "",
+    "author_id": 155,
+    "author_name": "Anna Chao",
+    "author_email": "anna.chao@example.com",
+    "team_id": 321,
+    "resolution": "",
+    "platform": "darwin,windows,linux,chrome",
+    "calendar_events_enabled": false,
+    "conditional_access_enabled": false,
+    "created_at": "2025-07-28T20:13:56Z",
+    "updated_at": "2025-07-28T20:13:56Z",
+    "passing_host_count": 53,
+    "failing_host_count": 0,
+    "host_count_updated_at": "2025-07-28T22:19:29Z"
+  }
 }
 ```
 
@@ -86,13 +107,34 @@ Generated when editing policies.
 This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.
+- "record": the updated policy record.
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"record": {
+    "id": 123,
+    "name": "foo",
+    "query": "SELECT 1 FROM osquery_info WHERE start_time \u003e 1;",
+    "critical": false,
+    "description": "",
+    "author_id": 155,
+    "author_name": "Anna Chao",
+    "author_email": "anna.chao@example.com",
+    "team_id": 321,
+    "resolution": "",
+    "platform": "darwin,windows,linux,chrome",
+    "calendar_events_enabled": false,
+    "conditional_access_enabled": false,
+    "created_at": "2025-07-28T20:13:56Z",
+    "updated_at": "2025-07-28T20:13:56Z",
+    "passing_host_count": 53,
+    "failing_host_count": 0,
+    "host_count_updated_at": "2025-07-28T22:19:29Z"
+  }
 }
 ```
 
