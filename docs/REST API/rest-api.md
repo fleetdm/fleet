@@ -9361,6 +9361,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List software versions](#list-software-versions)
 - [List operating systems](#list-operating-systems)
 - [Get software](#get-software)
+- [Edit software](#edit-software)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
@@ -9830,6 +9831,42 @@ Returns information about the specified software. By default, `versions` are sor
   }
 }
 ```
+
+### Edit software
+
+Edit software icon. Uploaded icon will be applied across all teams.
+
+`PATCH /api/v1/fleet/software/titles/:id`
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The software title's ID. |
+| icon | file | form | PNG icon in square format with dimensions between 120x120 px and 1024x1024px.  |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/1`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+Content-Disposition: form-data; name="icon"; filename="zoom-icon-512x512.png"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
 
 ### Get software version
 
