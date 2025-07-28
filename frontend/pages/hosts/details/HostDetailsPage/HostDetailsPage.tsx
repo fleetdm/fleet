@@ -238,6 +238,7 @@ const HostDetailsPage = ({
     setSelectedCancelActivity,
   ] = useState<IHostUpcomingActivity | null>(null);
 
+  console.log("HostDetailsPage.tsx > refetchStartTime", refetchStartTime);
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
     "past" | "upcoming"
@@ -344,6 +345,9 @@ const HostDetailsPage = ({
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
     setRefetchStartTime(null);
+    console.log(
+      "Host Details Page > resetHostRefetchState called which sets setRefetchStartTime(null)"
+    );
   };
 
   const {
@@ -361,48 +365,35 @@ const HostDetailsPage = ({
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
-        // If backend triggered a refetch of host vitals (e.g. from software actions completing),
-        // we want to set a new 60 second refetch timeout
-        if (!showRefetchSpinner && returnedHost.refetch_requested) {
-          setRefetchStartTime(Date.now());
-        }
-
-        setShowRefetchSpinner(returnedHost.refetch_requested);
-        setHostMdmDeviceState(
-          getHostDeviceStatusUIState(
-            returnedHost.mdm.device_status,
-            returnedHost.mdm.pending_action
-          )
-        );
-        if (
-          returnedHost.refetch_requested &&
-          !isAndroid(returnedHost.platform)
-        ) {
-          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
-          // host details. Here we set a one second timeout and poll the API again using
-          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
-          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
-          // or that the host has gone offline.
+        // If API returns refetch_requested: true,
+        // only set timer if *not* already set!
+        if (returnedHost.refetch_requested) {
           if (!refetchStartTime) {
-            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
-            // the first page loads), we start it now if the host is online. If the host is offline,
-            // we skip the refetch on page load.
-            if (
-              returnedHost.status === "online" ||
-              isIPadOrIPhone(returnedHost.platform)
-            ) {
-              setRefetchStartTime(Date.now());
-              setTimeout(() => {
-                refetchHostDetails();
-                refetchExtensions();
-              }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
-            } else {
-              resetHostRefetchStates();
-            }
-          } else {
-            // !!refetchStartTime
-            const totalElapsedTime = Date.now() - refetchStartTime;
-            if (totalElapsedTime < 60000) {
+            setRefetchStartTime(Date.now());
+          }
+          setShowRefetchSpinner(true);
+
+          // If Android, don't run timers/polling logic
+          if (!isAndroid(returnedHost.platform)) {
+            // Compute how long since timer started (if set)
+            const totalElapsedTime = refetchStartTime
+              ? Date.now() - refetchStartTime
+              : 0;
+            if (!refetchStartTime) {
+              // Timer just started - poll again after interval!
+              if (
+                returnedHost.status === "online" ||
+                isIPadOrIPhone(returnedHost.platform)
+              ) {
+                setTimeout(() => {
+                  refetchHostDetails();
+                  refetchExtensions();
+                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+              } else {
+                resetHostRefetchStates();
+              }
+            } else if (totalElapsedTime < 60000) {
+              // Timer running, still inside poll window
               if (
                 returnedHost.status === "online" ||
                 isIPadOrIPhone(returnedHost.platform)
@@ -419,16 +410,27 @@ const HostDetailsPage = ({
                 resetHostRefetchStates();
               }
             } else {
-              // totalElapsedTime > 60000
+              // Total elapsed poll window exceeded (60s), stop and alert
               renderFlash(
                 "error",
                 `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
               resetHostRefetchStates();
             }
+            return; // exit early so rest doesn't run
           }
-          return; // exit early because refectch is pending so we can avoid unecessary steps below
+        } else {
+          // No refetch requested—reset spinner and timer
+          setShowRefetchSpinner(false);
+          setRefetchStartTime(null);
         }
+
+        setHostMdmDeviceState(
+          getHostDeviceStatusUIState(
+            returnedHost.mdm.device_status,
+            returnedHost.mdm.pending_action
+          )
+        );
         setUsersState(returnedHost.users || []);
         setSchedule(schedule);
         if (returnedHost.pack_stats) {
