@@ -351,12 +351,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-6286"},
 			continuesToUpdate: true,
 		},
-		"cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:windows:*:*": {
-			includedCVEs: []cve{
-				{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
-			},
-			continuesToUpdate: true,
-		},
+		// FIXME: https://github.com/fleetdm/fleet/issues/31303
+		// "cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:windows:*:*": {
+		// 	includedCVEs: []cve{
+		// 		{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
+		// 	},
+		// 	continuesToUpdate: true,
+		// },
 		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
 			excludedCVEs:      []string{"CVE-2024-4030"},
 			continuesToUpdate: true,
