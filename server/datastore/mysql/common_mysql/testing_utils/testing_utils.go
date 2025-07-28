@@ -19,7 +19,7 @@ import (
 const (
 	TestUsername              = "root"
 	TestPassword              = "toor"
-	TestAddress               = "localhost:3317"
+	TestAddress               = "localhost:3307"
 	TestReplicaDatabaseSuffix = "_replica"
 	TestReplicaAddress        = "localhost:3310"
 )
