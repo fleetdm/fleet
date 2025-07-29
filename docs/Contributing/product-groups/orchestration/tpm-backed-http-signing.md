@@ -331,6 +331,8 @@ FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS=30
 
 This environment variable overrides the default 365-day validity period for host identity certificates. This is intended only for development and testing scenarios where shorter certificate lifetimes are needed.
 
+After getting a new certificate, Orbit will attempt to renew the certificate within 1 hour or within 180 days of certificate expiration, whichever is longer.
+
 ### Load testing configuration
 
 For load testing TPM-backed HTTP message signing without actual TPM hardware, use the `osquery-perf` tool with the following flag (other flags not shown):
@@ -349,6 +351,8 @@ go run agent.go --http_message_signature_prob 1.0
 The `--http_message_signature_prob` flag controls the probability (0.0 to 1.0) that each simulated host will use HTTP message signatures. This allows testing Fleet's HTTP message signing feature at scale without requiring actual TPM hardware on load testing machines.
 
 ## Certificate renewal
+
+The certificate is issued with a validity period of 365 days. Orbit attempts to renew it within 180 days of expiration.
 
 ### Problem
 
