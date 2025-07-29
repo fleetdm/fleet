@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
 	"gopkg.in/yaml.v2"
@@ -140,9 +141,16 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 	var bodyBytes []byte
 	var err error
 	if params != nil {
-		bodyBytes, err = json.Marshal(params)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "marshaling json")
+		switch p := params.(type) {
+		case *bytes.Buffer:
+			bodyBytes = p.Bytes()
+		case []byte:
+			bodyBytes = p
+		default:
+			bodyBytes, err = json.Marshal(params)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "marshaling json")
+			}
 		}
 	}
 	return c.doContextWithBodyAndHeaders(ctx, verb, path, rawQuery, bodyBytes, headers)
@@ -215,8 +223,15 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		fmt.Fprintf(os.Stderr, "GetBody error: %v\n", err)
 	} else {
 		defer reqBody.Close()
-		if _, err := io.Copy(os.Stderr, reqBody); err != nil {
-			fmt.Fprintf(os.Stderr, "Copy body error: %v\n", err)
+		buf := &bytes.Buffer{}
+		_, _ = io.Copy(buf, reqBody)
+		if utf8.Valid(buf.Bytes()) {
+			fmt.Fprintf(os.Stderr, "[body length: %d bytes]\n", buf.Len())
+			if _, err := io.Copy(os.Stderr, buf); err != nil {
+				fmt.Fprintf(os.Stderr, "Copy body error: %v\n", err)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "[binary output suppressed: %d bytes]\n", buf.Len())
 		}
 	}
 	fmt.Fprintf(os.Stderr, "\n")
