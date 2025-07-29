@@ -2220,6 +2220,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		host                     *fleet.Host
 		appConfig                *fleet.AppConfig
 		diskEncryptionConfigured bool
+		requireBitLockerPIN      bool
 		isConnectedToFleetMDM    bool
 		mdmInfo                  *fleet.HostMDM
 		getHostDiskEncryptionKey func(context.Context, uint) (*fleet.HostDiskEncryptionKey, error)
@@ -2416,6 +2417,63 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			},
 			expectedError: false,
 		},
+		{
+			name: "windows disk encryption enabled, PIN required enabled",
+			host: &fleet.Host{ID: 1, Platform: "windows", OsqueryHostID: ptr.String("foo")},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			requireBitLockerPIN:      true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: false},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return nil, newNotFoundError()
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				EnforceBitLockerEncryption:        true,
+				EnableBitLockerPINProtectorConfig: true,
+			},
+			expectedError: false,
+		},
+		{
+			name: "windows disk encryption enabled, PIN required disabled",
+			host: &fleet.Host{ID: 1, Platform: "windows", OsqueryHostID: ptr.String("foo")},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			requireBitLockerPIN:      false,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: false},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return nil, newNotFoundError()
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				EnforceBitLockerEncryption:        true,
+				EnableBitLockerPINProtectorConfig: false,
+			},
+			expectedError: false,
+		},
+		{
+			name: "windows disk encryption disabled, PIN required enabled",
+			host: &fleet.Host{ID: 1, Platform: "windows", OsqueryHostID: ptr.String("foo")},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: false,
+			requireBitLockerPIN:      true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: false},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return nil, newNotFoundError()
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				EnforceBitLockerEncryption:        false,
+				EnableBitLockerPINProtectorConfig: false,
+			},
+			expectedError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2438,7 +2496,17 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			}
 
 			notifs := &fleet.OrbitConfigNotifications{}
-			err := svc.setDiskEncryptionNotifications(ctx, notifs, tt.host, tt.appConfig, tt.diskEncryptionConfigured, tt.isConnectedToFleetMDM, tt.mdmInfo)
+			err := svc.setDiskEncryptionNotifications(
+				ctx,
+				notifs,
+				tt.host,
+				tt.appConfig,
+				tt.diskEncryptionConfigured,
+				tt.requireBitLockerPIN,
+				tt.isConnectedToFleetMDM,
+				tt.mdmInfo,
+			)
+
 			if tt.expectedError {
 				require.Error(t, err)
 			} else {
