@@ -2,14 +2,21 @@ package hostidentity
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -55,6 +62,7 @@ func RegisterSCEP(
 	))
 
 	signer = challengeMiddleware(ds, signer)
+	signer = renewalMiddleware(ds, logger, signer)
 	scepService := NewSCEPService(
 		ds,
 		signer,
@@ -79,6 +87,13 @@ func RegisterSCEP(
 // challengeMiddleware checks that ChallengePassword matches an enrollment secret
 func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
+		// Check if this is a renewal request by looking for the custom Fleet extension
+		if hasRenewalExtension(m.CSR) {
+			// Skip challenge verification for renewal requests
+			// The renewal middleware will handle authentication
+			return next.SignCSRContext(ctx, m)
+		}
+
 		if m.ChallengePassword == "" {
 			return nil, errors.New("missing challenge")
 		}
@@ -93,6 +108,87 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 	}
 }
 
+// hasRenewalExtension checks if the CSR contains the renewal extension
+func hasRenewalExtension(csr *x509.CertificateRequest) bool {
+	for _, ext := range csr.Extensions {
+		if ext.Id.Equal(types.RenewalExtensionOID) {
+			return true
+		}
+	}
+	return false
+}
+
+// renewalMiddleware handles certificate renewal with proof-of-possession
+func renewalMiddleware(ds fleet.Datastore, logger kitlog.Logger, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
+	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
+		// Check if this is a renewal request
+		var renewalData types.RenewalData
+		found := false
+		for _, ext := range m.CSR.Extensions {
+			if ext.Id.Equal(types.RenewalExtensionOID) {
+				if err := json.Unmarshal(ext.Value, &renewalData); err != nil {
+					return nil, fmt.Errorf("invalid renewal extension: %w", err)
+				}
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			// Not a renewal request, pass through
+			return next.SignCSRContext(ctx, m)
+		}
+
+		logger.Log("msg", "processing renewal request", "serial", renewalData.SerialNumber)
+
+		// Parse the serial number from hex
+		serialBytes, err := hex.DecodeString(strings.TrimPrefix(renewalData.SerialNumber, "0x"))
+		if err != nil {
+			return nil, fmt.Errorf("invalid serial number format: %w", err)
+		}
+
+		// Convert to uint64 (assuming serial fits in uint64)
+		var serial uint64
+		for _, b := range serialBytes {
+			serial = (serial << 8) | uint64(b)
+		}
+
+		// Retrieve the old certificate data
+		oldCertData, err := ds.GetHostIdentityCertBySerialNumber(ctx, serial)
+		if err != nil {
+			return nil, fmt.Errorf("retrieving old certificate: %w", err)
+		}
+
+		// Get the public key from the stored data
+		pubKey, err := oldCertData.UnmarshalPublicKey()
+		if err != nil {
+			return nil, fmt.Errorf("unmarshaling public key: %w", err)
+		}
+
+		// Verify the signature
+		sigBytes, err := base64.StdEncoding.DecodeString(renewalData.Signature)
+		if err != nil {
+			return nil, fmt.Errorf("decoding signature: %w", err)
+		}
+
+		// Verify the signature
+		hash := sha256.Sum256([]byte(renewalData.SerialNumber))
+		if !ecdsa.VerifyASN1(pubKey, hash[:], sigBytes) {
+			return nil, errors.New("invalid renewal signature")
+		}
+
+		logger.Log("msg", "renewal signature verified", "serial", serial, "cn", oldCertData.CommonName)
+
+		// Issue the new certificate
+		newCert, err := next.SignCSRContext(ctx, m)
+		if err != nil {
+			return nil, fmt.Errorf("signing renewal CSR: %w", err)
+		}
+
+		return newCert, nil
+	}
+}
+
 var _ scepserver.Service = (*service)(nil)
 
 type service struct {
@@ -103,7 +199,7 @@ type service struct {
 
 	logger log.Logger
 
-	ds fleet.MDMAssetRetriever
+	ds fleet.Datastore
 }
 
 func (svc *service) GetCACaps(_ context.Context) ([]byte, error) {
@@ -119,7 +215,7 @@ func (svc *service) GetCACaps(_ context.Context) ([]byte, error) {
 	//
 	// Operational Capabilities:
 	// [ ] GetNextCACert      // Supports fetching next CA certificate (rollover)
-	// [ ] Renewal            // Supports certificate renewal (same key, new cert)
+	// [ ] Renewal            // Supports certificate renewal (same or new key, new cert)
 	// [ ] Update             // Supports certificate update (new key)
 	//
 	// These capabilities are implied by the protocol and don't need to be explicitly declared:

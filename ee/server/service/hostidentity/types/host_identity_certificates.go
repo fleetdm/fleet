@@ -3,11 +3,23 @@ package types
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"math/big"
 	"time"
 )
+
+// RenewalExtensionOID is the custom OID for the renewal extension
+// 1.3.6.1.4.1.99999.1.1
+// TODO: Replace 99999 with Fleet's IANA private enterprise number once it is issued
+var RenewalExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 1, 1}
+
+// RenewalData represents the JSON data in the renewal extension
+type RenewalData struct {
+	SerialNumber string `json:"sn"`  // Hex-encoded serial number of the old certificate
+	Signature    string `json:"sig"` // Base64-encoded ECDSA signature
+}
 
 type HostIdentityCertificate struct {
 	SerialNumber  uint64    `db:"serial"`
