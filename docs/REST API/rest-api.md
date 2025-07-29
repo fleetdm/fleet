@@ -9841,7 +9841,7 @@ Edit software icon. Uploaded icon will be applied across all teams.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software title's ID. |
-| icon | file | form | PNG icon in square format with dimensions between 120x120 px and 1024x1024px.  |
+| icon | file | form | PNG icon in square format with dimensions between 120x120 px and 1024x1024 px.  |
 
 #### Example
 
