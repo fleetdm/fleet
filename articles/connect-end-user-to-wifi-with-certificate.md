@@ -19,10 +19,10 @@ To connect end users to Wi-Fi or VPN with DigiCert certificates, we'll do the fo
 
 ### Step 1: Create service user in DigiCert
 
-1. Log in to [DigiCert One](https://one.digicert.com/)
-2. Create a [new service user](https://one.digicert.com/account/access/service-user/role-service-user-create). Under the "DigiCert ONE Manager access" dropdown, select "Trust Lifecycle."
+1. Log in to [DigiCert One](https://one.digicert.com/).
+2. Create a [new service user](https://one.digicert.com/account/access/service-user/role-service-user-create), under the "DigiCert ONE Manager access" dropdown, select "Trust Lifecycle."
 3. On the next page, assign the **User and certificate manager** and **Certificate profile manager** roles.
-> For further information, see [DigiCert's instructions for creating a service user](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html)
+> For further information, see [DigiCert's instructions for creating a service user](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html).
 
 ### Step 2: Create certificate profile in DigiCert
 
