@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 import {
   IDeviceSoftware,
@@ -15,37 +15,94 @@ import Pagination from "components/Pagination";
 
 import UpdateSoftwareItem from "./UpdateSoftwareItem";
 
+const baseClass = "updates-card";
+
+const getUpdatesPageSize = (width: number): number => {
+  if (width >= 1400) return 4;
+  if (width >= 768) return 3;
+  return 2;
+};
 interface IUpdatesCardProps {
   contactUrl: string;
-  disableUpdateAllButton: boolean;
+  enhancedSoftware: IDeviceSoftwareWithUiStatus[];
+  onClickUpdateAction: (id: number) => void;
   onClickUpdateAll: () => void;
-  paginatedUpdates: IDeviceSoftwareWithUiStatus[];
+  onClickFailedUpdateStatus: (s: IDeviceSoftware) => void;
   isLoading: boolean;
   isError: boolean;
-  onClickUpdateAction: (id: number) => void;
-  onClickFailedUpdateStatus: (s: IDeviceSoftware) => void;
-  updatesPage: number;
-  totalUpdatesPages: number;
-  onNextUpdatesPage: () => void;
-  onPreviousUpdatesPage: () => void;
 }
-
-const baseClass = "updates-card";
 
 const UpdatesCard = ({
   contactUrl,
-  disableUpdateAllButton,
+  enhancedSoftware,
+  onClickUpdateAction,
   onClickUpdateAll,
-  paginatedUpdates,
+  onClickFailedUpdateStatus,
   isLoading,
   isError,
-  onClickUpdateAction,
-  onClickFailedUpdateStatus,
-  updatesPage,
-  totalUpdatesPages,
-  onNextUpdatesPage,
-  onPreviousUpdatesPage,
 }: IUpdatesCardProps) => {
+  const [updatesPage, setUpdatesPage] = useState(0);
+  const [updatesPageSize, setUpdatesPageSize] = useState(() =>
+    getUpdatesPageSize(window.innerWidth)
+  );
+
+  // Only software needing updates
+  const updateSoftware = useMemo(
+    () =>
+      enhancedSoftware.filter(
+        (software) =>
+          software.ui_status === "updating" ||
+          software.ui_status === "pending_update" ||
+          software.ui_status === "update_available" ||
+          software.ui_status === "failed_install_update_available" ||
+          software.ui_status === "failed_uninstall_update_available"
+      ),
+    [enhancedSoftware]
+  );
+
+  // The page size only changes at 2 breakpoints and state update is very lightweight.
+  // Page size controls the number of shown cards and current page; no API calls or
+  // expensive UI updates occur so debouncing the resize handler isn’t necessary.
+  useEffect(() => {
+    const handleResize = () => {
+      const newPageSize = getUpdatesPageSize(window.innerWidth);
+      setUpdatesPageSize(() => {
+        const newTotalPages = Math.ceil(updateSoftware.length / newPageSize);
+        setUpdatesPage((prevPage) => {
+          // If the current page is now out of range, go to the last valid page
+          return Math.min(prevPage, Math.max(0, newTotalPages - 1));
+        });
+        return newPageSize;
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [updateSoftware.length]);
+
+  const paginatedUpdates = useMemo(() => {
+    const start = updatesPage * updatesPageSize;
+    return updateSoftware.slice(start, start + updatesPageSize);
+  }, [updateSoftware, updatesPage, updatesPageSize]);
+
+  const totalUpdatesPages = Math.ceil(updateSoftware.length / updatesPageSize);
+
+  const disableUpdateAllButton = useMemo(() => {
+    // Disable if all statuses are "updating"
+    return (
+      updateSoftware.length > 0 &&
+      updateSoftware.every((software) => software.ui_status === "updating")
+    );
+  }, [updateSoftware]);
+
+  const onNextUpdatesPage = () => {
+    setUpdatesPage((prev) => Math.min(prev + 1, totalUpdatesPages - 1));
+  };
+
+  const onPreviousUpdatesPage = () => {
+    setUpdatesPage((prev) => Math.max(prev - 1, 0));
+  };
+
   if (paginatedUpdates.length === 0) return null;
 
   const renderCardContent = () => {

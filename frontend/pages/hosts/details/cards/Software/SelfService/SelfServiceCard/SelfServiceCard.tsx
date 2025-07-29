@@ -1,8 +1,12 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { SingleValue } from "react-select-5";
+
+import { InjectedRouter } from "react-router";
 
 import { IDeviceSoftware } from "interfaces/software";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+
+import { getPathWithQueryParams } from "utilities/url";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
@@ -21,42 +25,89 @@ import {
   filterSoftwareByCategory,
   CATEGORIES_NAV_ITEMS,
 } from "../helpers";
+import { parseHostSoftwareQueryParams } from "../../HostSoftware";
 
 interface ISelfServiceCardProps {
-  isLoading: boolean;
-  isError: boolean;
-  isFetching: boolean;
+  contactUrl: string;
   selfServiceData?: IGetDeviceSoftwareResponse;
   enhancedSoftware: IDeviceSoftware[];
   tableConfig: any;
-  queryParams: any;
-  contactUrl: string;
-  onSearchQueryChange: (value: string) => void;
-  onCategoriesDropdownChange: (option: SingleValue<any>) => void;
-  onNextPage: () => void;
-  onPrevPage: () => void;
-  isEmpty: boolean;
-  isEmptySearch: boolean;
+  isLoading: boolean;
+  isError: boolean;
+  isFetching: boolean;
+  queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
+  router: InjectedRouter;
+  pathname: string;
 }
 
 const baseClass = "self-service-card";
 
 const SelfServiceCard = ({
-  isLoading,
-  isError,
-  isFetching,
+  contactUrl,
   selfServiceData,
   enhancedSoftware,
   tableConfig,
+  isLoading,
+  isError,
+  isFetching,
   queryParams,
-  contactUrl,
-  onSearchQueryChange,
-  onCategoriesDropdownChange,
-  onNextPage,
-  onPrevPage,
-  isEmpty,
-  isEmptySearch,
+  router,
+  pathname,
 }: ISelfServiceCardProps) => {
+  // TODO: handle empty state better, this is just a placeholder for now
+  // TODO: what should happen if query params are invalid (e.g., page is negative or exceeds the
+  // available results)?
+  const isEmpty =
+    !selfServiceData?.software.length &&
+    !selfServiceData?.meta.has_previous_results &&
+    queryParams.query === "";
+  const isEmptySearch =
+    !selfServiceData?.software.length &&
+    !selfServiceData?.meta.has_previous_results &&
+    queryParams.query !== "";
+
+  const onSearchQueryChange = (value: string) => {
+    router.push(
+      getPathWithQueryParams(pathname, {
+        query: value,
+        category_id: queryParams.category_id,
+        page: 0, // Always reset to page 0 when searching
+      })
+    );
+  };
+
+  const onCategoriesDropdownChange = (
+    option: SingleValue<{ value: string }>
+  ) => {
+    router.push(
+      getPathWithQueryParams(pathname, {
+        category_id: option?.value !== "undefined" ? option?.value : undefined,
+        query: queryParams.query,
+        page: 0, // Always reset to page 0 when searching
+      })
+    );
+  };
+
+  const onNextPage = useCallback(() => {
+    router.push(
+      getPathWithQueryParams(pathname, {
+        query: queryParams.query,
+        category_id: queryParams.category_id,
+        page: queryParams.page + 1,
+      })
+    );
+  }, [pathname, queryParams, router]);
+
+  const onPrevPage = useCallback(() => {
+    router.push(
+      getPathWithQueryParams(pathname, {
+        query: queryParams.query,
+        category_id: queryParams.category_id,
+        page: queryParams.page && queryParams.page - 1,
+      })
+    );
+  }, [pathname, queryParams, router]);
+
   const renderCardBody = () => {
     if (isLoading) {
       return <Spinner />;

@@ -7,7 +7,6 @@ import React, {
   useEffect,
 } from "react";
 import { useQuery } from "react-query";
-import { SingleValue } from "react-select-5";
 
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
@@ -22,7 +21,6 @@ import deviceApi, {
 } from "services/entities/device_user";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -62,12 +60,6 @@ export interface ISoftwareSelfServiceProps {
   hostDisplayName: string;
 }
 
-const getUpdatesPageSize = (width: number): number => {
-  if (width >= 1400) return 4;
-  if (width >= 768) return 3;
-  return 2;
-};
-
 const SoftwareSelfService = ({
   contactUrl,
   deviceToken,
@@ -92,10 +84,6 @@ const SoftwareSelfService = ({
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
-  const [updatesPage, setUpdatesPage] = useState(0);
-  const [updatesPageSize, setUpdatesPageSize] = useState(() =>
-    getUpdatesPageSize(window.innerWidth)
-  );
 
   // Enhance with `ui_status`. See helpers.
   const enhancedSoftware = useMemo(() => {
@@ -105,58 +93,6 @@ const SoftwareSelfService = ({
       ui_status: getUiStatus(software, true),
     }));
   }, [selfServiceData]);
-
-  const updateSoftware = enhancedSoftware.filter(
-    (software) =>
-      software.ui_status === "updating" ||
-      software.ui_status === "pending_update" || // Should never show as self-service = host online
-      software.ui_status === "update_available" ||
-      software.ui_status === "failed_install_update_available" ||
-      software.ui_status === "failed_uninstall_update_available"
-  );
-
-  // The page size only changes at 2 breakpoints and state update is very lightweight.
-  // Page size controls the number of shown cards and current page; no API calls or
-  // expensive UI updates occur so debouncing the resize handler isn’t necessary.
-  useEffect(() => {
-    const handleResize = () => {
-      const newPageSize = getUpdatesPageSize(window.innerWidth);
-      setUpdatesPageSize(() => {
-        const newTotalPages = Math.ceil(updateSoftware.length / newPageSize);
-        setUpdatesPage((prevPage) => {
-          // If the current page is now out of range, go to the last valid page
-          return Math.min(prevPage, Math.max(0, newTotalPages - 1));
-        });
-        return newPageSize;
-      });
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [updateSoftware.length]);
-
-  const paginatedUpdates = useMemo(() => {
-    const start = updatesPage * updatesPageSize;
-    return updateSoftware.slice(start, start + updatesPageSize);
-  }, [updateSoftware, updatesPage, updatesPageSize]);
-
-  const totalUpdatesPages = Math.ceil(updateSoftware.length / updatesPageSize);
-
-  const onNextUpdatesPage = () => {
-    setUpdatesPage((prev) => Math.min(prev + 1, totalUpdatesPages - 1));
-  };
-
-  const onPreviousUpdatesPage = () => {
-    setUpdatesPage((prev) => Math.max(prev - 1, 0));
-  };
-
-  const disableUpdateAllButton = useMemo(() => {
-    // Disable if all statuses are "updating"
-    return (
-      updateSoftware.length > 0 &&
-      updateSoftware.every((software) => software.ui_status === "updating")
-    );
-  }, [updateSoftware]);
 
   const selectedSoftware = useRef<{
     softwareId: number;
@@ -424,28 +360,6 @@ const SoftwareSelfService = ({
     [setSelectedUpdateDetails]
   );
 
-  const onSearchQueryChange = (value: string) => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        query: value,
-        category_id: queryParams.category_id,
-        page: 0, // Always reset to page 0 when searching
-      })
-    );
-  };
-
-  const onCategoriesDropdownChange = (
-    option: SingleValue<{ value: string }>
-  ) => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        category_id: option?.value !== "undefined" ? option?.value : undefined,
-        query: queryParams.query,
-        page: 0, // Always reset to page 0 when searching
-      })
-    );
-  };
-
   const onClickFailedUpdateStatus = (s: IHostSoftware) => {
     const lastInstall = getLastInstall(s);
 
@@ -470,38 +384,6 @@ const SoftwareSelfService = ({
     setShowUninstallSoftwareModal(false);
     onInstallOrUninstall();
   };
-
-  const onNextPage = useCallback(() => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        query: queryParams.query,
-        category_id: queryParams.category_id,
-        page: queryParams.page + 1,
-      })
-    );
-  }, [pathname, queryParams, router]);
-
-  const onPrevPage = useCallback(() => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        query: queryParams.query,
-        category_id: queryParams.category_id,
-        page: queryParams.page - 1,
-      })
-    );
-  }, [pathname, queryParams, router]);
-
-  // TODO: handle empty state better, this is just a placeholder for now
-  // TODO: what should happen if query params are invalid (e.g., page is negative or exceeds the
-  // available results)?
-  const isEmpty =
-    !selfServiceData?.software.length &&
-    !selfServiceData?.meta.has_previous_results &&
-    queryParams.query === "";
-  const isEmptySearch =
-    !selfServiceData?.software.length &&
-    !selfServiceData?.meta.has_previous_results &&
-    queryParams.query !== "";
 
   const tableConfig = useMemo(() => {
     return generateSoftwareTableHeaders({
@@ -536,33 +418,24 @@ const SoftwareSelfService = ({
     <div className={baseClass}>
       <UpdatesCard
         contactUrl={contactUrl}
-        disableUpdateAllButton={disableUpdateAllButton}
+        enhancedSoftware={enhancedSoftware}
+        onClickUpdateAction={onClickUpdateAction}
         onClickUpdateAll={onClickUpdateAll}
-        paginatedUpdates={paginatedUpdates}
+        onClickFailedUpdateStatus={onClickFailedUpdateStatus}
         isLoading={isLoading}
         isError={isError}
-        onClickUpdateAction={onClickUpdateAction}
-        onClickFailedUpdateStatus={onClickFailedUpdateStatus}
-        updatesPage={updatesPage}
-        totalUpdatesPages={totalUpdatesPages}
-        onNextUpdatesPage={onNextUpdatesPage}
-        onPreviousUpdatesPage={onPreviousUpdatesPage}
       />
       <SelfServiceCard
+        contactUrl={contactUrl}
+        enhancedSoftware={enhancedSoftware}
+        tableConfig={tableConfig}
+        selfServiceData={selfServiceData}
         isLoading={isLoading}
         isError={isError}
         isFetching={isFetching}
-        selfServiceData={selfServiceData}
-        enhancedSoftware={enhancedSoftware}
-        tableConfig={tableConfig}
         queryParams={queryParams}
-        contactUrl={contactUrl}
-        onSearchQueryChange={onSearchQueryChange}
-        onCategoriesDropdownChange={onCategoriesDropdownChange}
-        onNextPage={onNextPage}
-        onPrevPage={onPrevPage}
-        isEmpty={isEmpty}
-        isEmptySearch={isEmptySearch}
+        router={router}
+        pathname={pathname}
       />
       {showUninstallSoftwareModal && selectedSoftware.current && (
         <UninstallSoftwareModal
