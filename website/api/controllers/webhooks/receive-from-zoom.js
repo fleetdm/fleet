@@ -85,13 +85,10 @@ module.exports = {
       let token = oauthResponse.access_token;
 
       let idOfCallToGenerateTranscriptFor = payload.object.conversation_id;
-      // If the call ID contains a slash, URL encode the ID so it will be double-encoded when it is used in API requests.
-      // more infor in Zoom's documentation here: https://developers.zoom.us/docs/api/using-zoom-apis/#double-encoding
-      if(_.contains(idOfCallToGenerateTranscriptFor, '/')) {
-        idOfCallToGenerateTranscriptFor = encodeURIComponent(idOfCallToGenerateTranscriptFor);
-      }
+      // Double URL-encode the meeting ID. https://developers.zoom.us/docs/api/using-zoom-apis/#double-encoding
+      let encodedMeetingId = encodeURIComponent(encodeURIComponent(idOfCallToGenerateTranscriptFor));
       let informationAboutThisCall = await sails.helpers.http.get.with({
-        url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}`,
+        url: `https://api.zoom.us/v2/zra/conversations/${encodedMeetingId}`,
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -106,7 +103,7 @@ module.exports = {
 
       // Get a transcript of the call.
       let callTranscript = await sails.helpers.http.get.with({
-        url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}/interactions?page_size=300`,
+        url: `https://api.zoom.us/v2/zra/conversations/${encodedMeetingId}/interactions?page_size=300`,
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -131,7 +128,7 @@ module.exports = {
       if(tokenForNextPageOfResults) {
         await sails.helpers.flow.until(async()=>{
           let thisPageOfCallInformation = await sails.helpers.http.get.with({
-            url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}/interactions?next_page_token=${encodeURIComponent(tokenForNextPageOfResults)}`,
+            url: `https://api.zoom.us/v2/zra/conversations/${encodedMeetingId}/interactions?next_page_token=${encodeURIComponent(tokenForNextPageOfResults)}`,
             headers: {
               'Authorization': `Bearer ${token}`
             }

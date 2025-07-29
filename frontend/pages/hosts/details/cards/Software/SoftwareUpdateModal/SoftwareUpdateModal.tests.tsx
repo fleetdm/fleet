@@ -129,7 +129,7 @@ describe("SoftwareUpdateModal", () => {
     expect(screen.getByText("Current version:")).toBeInTheDocument();
   });
 
-  it("renders 'Current Versions' if more than one installed", () => {
+  it("renders 'Current versions' if more than one installed", () => {
     const mockSoftware = createMockHostSoftware({
       installed_versions: [
         {
@@ -156,7 +156,7 @@ describe("SoftwareUpdateModal", () => {
         onUpdate={noop}
       />
     );
-    expect(screen.getByText("Current Versions:")).toBeInTheDocument();
+    expect(screen.getByText("Current versions:")).toBeInTheDocument();
   });
 
   // Shouldn't happen, unless tarballs or weird edge case
