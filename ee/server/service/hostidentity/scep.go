@@ -13,6 +13,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/cenkalti/backoff/v4"
@@ -44,6 +46,18 @@ func (e *RateLimitError) Error() string {
 // StatusCode implements the kithttp StatusCoder interface
 func (e *RateLimitError) StatusCode() int { return http.StatusTooManyRequests }
 
+// getCertValidityDays returns the certificate validity period in days.
+// It checks for FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS environment variable
+// and falls back to scepValidityDays if not set or invalid.
+func getCertValidityDays() int {
+	if envValue := os.Getenv("FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS"); envValue != "" {
+		if days, err := strconv.Atoi(envValue); err == nil && days > 0 {
+			return days
+		}
+	}
+	return scepValidityDays
+}
+
 // RegisterSCEP registers the HTTP handler for SCEP service needed for fleetd enrollment.
 func RegisterSCEP(
 	mux *http.ServeMux,
@@ -57,8 +71,7 @@ func RegisterSCEP(
 	}
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scepdepot.NewSigner(
 		scepStorage,
-		scepdepot.WithValidityDays(scepValidityDays),
-		scepdepot.WithAllowRenewalDays(scepValidityDays/2),
+		scepdepot.WithValidityDays(getCertValidityDays()),
 	))
 
 	signer = challengeMiddleware(ds, signer)
