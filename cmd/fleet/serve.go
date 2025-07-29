@@ -266,6 +266,8 @@ the way that the Fleet server works.
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
 				UseTLS:                    config.Redis.UseTLS,
+				StsAssumeRoleArn:          config.Redis.StsAssumeRoleArn,
+				StsExternalID:             config.Redis.StsExternalID,
 				ConnTimeout:               config.Redis.ConnectTimeout,
 				KeepAlive:                 config.Redis.KeepAlive,
 				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
