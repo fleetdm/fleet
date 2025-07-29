@@ -39,7 +39,7 @@ Follow the steps below to get set up.
 
 ## 3. Escrow your key with Fleet
 
-> Note: LUKS allows multiple passphrases for decrypting the volume. The original passphrase remains active along with the escrowed passphrase created by Fleet.
+> LUKS allows multiple passphrases for decrypting the volume. The original passphrase remains active along with the escrowed passphrase created by Fleet.
 
   - Open Fleet Desktop. If your device is encrypted, you'll see a banner prompting you to escrow the key.
   - Click **Create key**. Enter your existing encryption passphrase when prompted. 
