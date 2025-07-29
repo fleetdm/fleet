@@ -20,14 +20,7 @@ permissions:
 jobs:
   test-preview:
     timeout-minutes: 60
-    strategy:
-      matrix:
-        # Only run on Linux because:
-        #   - Linux Docker containers are not supported in Windows.
-        #   - Unattended installation of Docker on macOS fails. (see
-        #   https://github.com/docker/for-mac/issues/6450)
-        os: ubuntu-24.04
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
 
     - name: Harden Runner
