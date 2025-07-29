@@ -24078,6 +24078,310 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fsandboxes.yml&value=name%3A%20sandboxes%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
+    "name": "santa_allowed",
+    "description": "List of applications Santa has allowed to run on the host.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "TODO\n\n```\nTODO\n```",
+    "columns": [
+      {
+        "name": "timestamp",
+        "description": "Timestamp of the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "application",
+        "description": "Path to the application",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "reason",
+        "description": "Reason for the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sha256",
+        "description": "SHA256 hash of the binary",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/santa_allowed",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_allowed.yml"
+  },
+  {
+    "name": "santa_denied",
+    "description": "List of applications Santa has denied from running on the host.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Collects all Santa denied logs from macOS hosts.\n\n```\nSELECT * FROM santa_denied;\n```",
+    "columns": [
+      {
+        "name": "timestamp",
+        "description": "Timestamp of the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "application",
+        "description": "Path to the application",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "reason",
+        "description": "Reason for the decision",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "sha256",
+        "description": "SHA256 hash of the binary",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/santa_denied",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_denied.yml"
+  },
+  {
+    "name": "santa_rules",
+    "description": "The [Santa](https://github.com/google/santa) rules that are currently installed on a macOS host.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "TODO\n\n```\nTODO\n```",
+    "columns": [
+      {
+        "name": "identifier",
+        "description": "Rule identifier (SHA256, Team ID, etc.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "type",
+        "description": "Type of rule (Binary, Certificate, TeamID)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "state",
+        "description": "Rule state (Whitelist, Blacklist)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "custom_message",
+        "description": "Custom message associated with the rule",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/santa_rules",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_rules.yml"
+  },
+  {
+    "name": "santa_status",
+    "description": "The output of `santactl status --json` showing current Santa statistics and configuration.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "TODO\n\n```\nTODO\n```",
+    "columns": [
+      {
+        "name": "last_successful_rule",
+        "description": "Last successful rule sync",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "push_notifications",
+        "description": "Push notifications status",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "bundle_scanning",
+        "description": "Whether bundle scanning is enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "clean_required",
+        "description": "Whether a clean is required (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "server",
+        "description": "Sync server address",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "last_successful_full",
+        "description": "Last successful full sync",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file_logging",
+        "description": "File logging enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "watchdog_ram_events",
+        "description": "Number of watchdog RAM events",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "driver_connected",
+        "description": "Whether the driver is connected (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "log_type",
+        "description": "Log type (e.g., file)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "watchdog_cpu_events",
+        "description": "Number of watchdog CPU events",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "mode",
+        "description": "Santa mode (e.g., Monitor)",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "watchdog_cpu_peak",
+        "description": "Peak CPU usage",
+        "required": false,
+        "type": "double"
+      },
+      {
+        "name": "watchdog_ram_peak",
+        "description": "Peak RAM usage",
+        "required": false,
+        "type": "double"
+      },
+      {
+        "name": "transitive_rules_enabled",
+        "description": "Transitive rules enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "remount_usb_mode",
+        "description": "Remount USB mode",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "block_usb",
+        "description": "Block USB enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "on_start_usb_options",
+        "description": "USB options on start",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "root_cache_count",
+        "description": "Root cache count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "non_root_cache_count",
+        "description": "Non-root cache count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "static_rule_count",
+        "description": "Static rule count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "certificate_rules",
+        "description": "Certificate rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "cdhash_rules",
+        "description": "CDHash rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "transitive_rules_count",
+        "description": "Transitive rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "teamid_rules",
+        "description": "Team ID rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "signingid_rules",
+        "description": "Signing ID rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "compiler_rules",
+        "description": "Compiler rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "binary_rules",
+        "description": "Binary rules count",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "events_pending_upload",
+        "description": "Events pending upload",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "watch_items_enabled",
+        "description": "Watch items enabled (1=true, 0=false)",
+        "required": false,
+        "type": "integer"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/santa_status",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/santa_status.yml"
+  },
+  {
     "name": "scheduled_tasks",
     "description": "The Windows Task Scheduler tracks and performs automated tasks on a Windows device. The `scheduled_tasks` table collects the data from the Windows Task Scheduler.",
     "url": "https://fleetdm.com/tables/scheduled_tasks",
