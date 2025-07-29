@@ -103,7 +103,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
 | Turn off MDM                                                                                                                               |          |            | ✅         | ✅    |         |
-| Configure Microsoft Entra conditional access integration                                                                                   |          |            | ✅         | ✅    |       |
+| Configure Microsoft Entra conditional access integration                                                                                   |          |            |           | ✅    |       |
 
 \* Applies only to Fleet Premium
 
