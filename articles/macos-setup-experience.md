@@ -28,7 +28,7 @@ Using Fleet, you can require end users to authenticate with your identity provid
 
 2. In your new SAML app, set **Name ID** to email (required). Fleet will trim this email and use it
    to populate and lock the macOS local account **Account Name**. For example, a
-   "johndoe@example.com" email turn into a "johndoe" account name.
+   "johndoe@example.com" email will turn into a "johndoe" account name.
 
 > **NOTE** There may be issue with populating the macOS local account creation screen if the host is
 > restarted during the mdm enrollment process. The fields are not guarenteed to be populated with the
