@@ -301,10 +301,6 @@ func (t *tpm2SecureHW) LoadKey() (Key, error) {
 	// Flush the parent key as it's no longer needed
 	t.flushHandle(parentKeyHandle.Handle, "parent")
 
-	t.logger.Debug().
-		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
-		Msg("key loaded successfully")
-
 	t.logger.Info().
 		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
 		Msg("key loaded successfully")

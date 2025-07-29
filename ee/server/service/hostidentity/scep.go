@@ -19,12 +19,14 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/smallstep/scep"
 )
 
@@ -191,6 +193,17 @@ func renewalMiddleware(ds fleet.Datastore, logger kitlog.Logger, next scepserver
 		newCert, err := next.SignCSRContext(ctx, m)
 		if err != nil {
 			return nil, fmt.Errorf("signing renewal CSR: %w", err)
+		}
+
+		// Update the new certificate's host_id to match the old certificate
+		if oldCertData.HostID != nil {
+			err = ds.UpdateHostIdentityCertHostIDBySerial(ctx, newCert.SerialNumber.Uint64(), *oldCertData.HostID)
+			if err != nil {
+				// Log the error but don't fail the renewal
+				ctxerr.Handle(ctx, err)
+				level.Error(logger).Log("msg", "failed to update host_id for renewed certificate", "err", err, "new_serial",
+					newCert.SerialNumber.Uint64(), "host_id", *oldCertData.HostID)
+			}
 		}
 
 		return newCert, nil

@@ -541,6 +541,13 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey, nodeKey string, isOsquery bool) {
 	ctx := t.Context()
 
+	// Get the original certificate's host_id before renewal (it will get revoked)
+	originalStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, existingCert.SerialNumber.Uint64())
+	require.NoError(t, err)
+	require.NotNil(t, originalStoredCert)
+	require.NotNil(t, originalStoredCert.HostID, "Original certificate should have host_id")
+	originalHostID := *originalStoredCert.HostID
+
 	// Generate a new ECC key pair for the renewed certificate
 	newEccPrivateKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
 	require.NoError(t, err)
@@ -642,6 +649,13 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 
 	// Verify the renewed certificate has a different serial number
 	assert.NotEqual(t, existingCert.SerialNumber, renewedCert.SerialNumber, "Renewed certificate should have a new serial number")
+
+	// Verify the renewed certificate maintains the host_id association
+	renewedStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, renewedCert.SerialNumber.Uint64())
+	require.NoError(t, err)
+	require.NotNil(t, renewedStoredCert)
+	require.NotNil(t, renewedStoredCert.HostID, "Renewed certificate should maintain host_id association")
+	require.Equal(t, originalHostID, *renewedStoredCert.HostID, "Renewed certificate should have the same host_id as the original")
 
 	// Test that we can use the renewed certificate to access the config endpoint
 	t.Run("test config endpoint with renewed certificate", func(t *testing.T) {
@@ -1441,6 +1455,12 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Config request with loaded TPM key should succeed")
 
 	t.Run("renew certificate with real SecureHW and SCEP client", func(t *testing.T) {
+		// Get the original certificate's host_id before renewal (it will get revoked)
+		originalStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, cert.SerialNumber.Uint64())
+		require.NoError(t, err)
+		require.NotNil(t, originalStoredCert)
+		require.NotNil(t, originalStoredCert.HostID, "Original certificate should have host_id")
+		originalHostID := *originalStoredCert.HostID
 		// Save the current certificate to the expected location
 		certPath := filepath.Join(tempDir, constant.FleetHTTPSignatureCertificateFileName)
 		certFile, err := os.OpenFile(certPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
@@ -1494,6 +1514,13 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 		newECCPubKey, ok := newPubKey.(*ecdsa.PublicKey)
 		require.True(t, ok, "New key should be ECC")
 		assert.True(t, renewedPubKey.Equal(newECCPubKey), "Renewed certificate public key should match new TPM key")
+
+		// Verify the renewed certificate maintains the host_id association
+		renewedStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, renewedCert.SerialNumber.Uint64())
+		require.NoError(t, err)
+		require.NotNil(t, renewedStoredCert)
+		require.NotNil(t, renewedStoredCert.HostID, "Renewed certificate should maintain host_id association")
+		require.Equal(t, originalHostID, *renewedStoredCert.HostID, "Renewed certificate should have the same host_id as the original")
 
 		// Test that we can use the renewed certificate and new key
 		renewedConfigRequest := orbitConfigRequest{
