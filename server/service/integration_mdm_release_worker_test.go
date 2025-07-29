@@ -101,7 +101,8 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		// Run worker to start device release (NOTE: Should not release yet)
 		s.runWorker()
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			q.ExecContext(ctx, "UPDATE jobs SET not_before = ? WHERE name = 'apple_mdm' AND state = 'queued'", time.Now())
+			_, err := q.ExecContext(ctx, "UPDATE jobs SET not_before = ? WHERE name = 'apple_mdm' AND state = 'queued'", time.Now())
+			require.NoError(t, err)
 			return nil
 		})
 		time.Sleep(1 * time.Second)
@@ -120,7 +121,8 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		// Verify device was not released yet
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var count int
-			sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM nano_commands WHERE request_type = 'DeviceConfigured'")
+			err := sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM nano_commands WHERE request_type = 'DeviceConfigured'")
+			require.NoError(t, err)
 			require.EqualValues(t, 0, count)
 			return nil
 		})
@@ -128,7 +130,8 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		// Trigger profiles scheduler to set which profiles should be installed on the host.
 		s.awaitTriggerProfileSchedule(t)
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			q.ExecContext(ctx, "UPDATE jobs SET not_before = ? WHERE name = 'apple_mdm' AND state = 'queued'", time.Now())
+			_, err := q.ExecContext(ctx, "UPDATE jobs SET not_before = ? WHERE name = 'apple_mdm' AND state = 'queued'", time.Now())
+			require.NoError(t, err)
 			return nil
 		})
 
@@ -160,7 +163,8 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		// See DeviceConfigured is in Database and next command for mdm device
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var count int
-			sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM nano_commands WHERE request_type = 'DeviceConfigured'")
+			err := sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM nano_commands WHERE request_type = 'DeviceConfigured'")
+			require.NoError(t, err)
 			require.EqualValues(t, 1, count)
 			return nil
 		})
