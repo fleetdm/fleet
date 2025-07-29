@@ -402,6 +402,22 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		)
 	}
 
+	profilesMissingInstallation, err := a.Datastore.ListMDMAppleProfilesToInstall(ctx, args.HostUUID) // Get profiles that are missing to be installed on this host
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to list profiles missing installation")
+	}
+	if args.Platform != "darwin" {
+		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
+	}
+	if len(profilesMissingInstallation) > 0 {
+		a.Log.Log("info", "re-enqueuing due to profiles missing installation")
+		// requeue the task if some profiles are still missing.
+		if err := reenqueueTask(); err != nil {
+			return fmt.Errorf("failed to re-enqueue task: %w", err)
+		}
+		return nil
+	}
+
 	// release the device
 	a.Log.Log("info", "releasing device, all DEP enrollment commands and profiles have completed", "host_uuid", args.HostUUID)
 	if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {

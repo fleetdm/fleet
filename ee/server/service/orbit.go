@@ -72,6 +72,23 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		})
 	}
 
+	profilesMissingInstallation, err := svc.ds.ListMDMAppleProfilesToInstall(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing apple config profiles to install")
+	}
+	if host.Platform != "darwin" {
+		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
+	}
+	if len(profilesMissingInstallation) > 0 {
+		for _, prof := range profilesMissingInstallation {
+			cfgProfResults = append(cfgProfResults, &fleet.SetupExperienceConfigurationProfileResult{
+				ProfileUUID: prof.ProfileUUID,
+				Name:        prof.ProfileName,
+				Status:      fleet.MDMDeliveryPending, // Default to pending as it's not installed yet.
+			})
+		}
+	}
+
 	// AccountConfiguration covers the (optional) command to setup SSO.
 	adminTeamFilter := fleet.TeamFilter{
 		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
