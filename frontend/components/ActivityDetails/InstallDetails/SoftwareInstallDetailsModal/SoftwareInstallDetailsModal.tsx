@@ -253,6 +253,13 @@ export const SoftwareInstallDetailsModal = ({
     );
   }
 
+  const renderInventoryVersionsSection = () => {
+    if (hostSoftware?.installed_versions?.length) {
+      return <InventoryVersions hostSoftware={hostSoftware} />;
+    }
+    return "If you uninstalled it outside of Fleet it will still show as installed.";
+  };
+
   const renderInstallDetailsSection = () => {
     return (
       <>
@@ -318,9 +325,7 @@ export const SoftwareInstallDetailsModal = ({
             isInstalledByFleet={isInstalledByFleet}
           />
 
-          {hostSoftware && !excludeVersions && (
-            <InventoryVersions hostSoftware={hostSoftware} />
-          )}
+          {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
 
           {swInstallResult.status !== "pending_install" &&
             isInstalledByFleet &&
