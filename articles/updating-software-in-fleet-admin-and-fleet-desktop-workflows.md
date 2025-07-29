@@ -5,8 +5,8 @@ _Fleet Premium_
 Fleet streamlines software updates with two parallel workflows: admins can update installed apps directly from the Fleet web UI, and end users can update select apps themselves from the Fleet Desktop Self-service section.
 
 It’s important to note:
-- **Admins can update any software on a host that displays an “Update available” status in the app, even if that software is not set as self-service.**
-- **End users can update apps themselves from Fleet Desktop only if those apps are assigned as self-service.**
+- Admins can update any software on a host that displays an “Update available” status in the app, even if that software is not set as self-service.
+- End users can update apps themselves from Fleet Desktop **only if those apps are assigned as self-service**.
 
 This guide covers the new software update experiences for both admins and end users.
 
@@ -99,8 +99,6 @@ With Fleet, admins have full control to update any app when needed, while end us
 <meta name="authorFullName" value="Rachel Perkins">
 <meta name="authorGitHubUsername" value="rachelelysia">
 <meta name="category" value="guides">
-<!-- TODO: Confirm publish date -->
-<meta name="publishedOn" value="2025-08-01">
-<!-- TODO: Add image -->
-<meta name="articleImageUrl" value="../website/assets/images/articles/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly@2x.jpg">
+<!-- TODO: Confirm publish date --> <meta name="publishedOn" value="2025-08-01">
+<meta name="articleImageUrl" value="../website/assets/images/articles/updating-software-in-fleet-admin-and-fleet-desktop-workflows-2670x1514.png">
 <meta name="description" value="Learn how to update software as an admin via the Fleet UI or as an end user through Fleet Desktop.">
