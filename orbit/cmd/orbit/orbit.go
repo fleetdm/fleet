@@ -961,6 +961,7 @@ func main() {
 		var (
 			signerWrapper               func(*http.Client) *http.Client
 			hostIdentityCertificatePath string
+			orbitClient                 *service.OrbitClient
 		)
 		if c.Bool("fleet-managed-host-identity-certificate") {
 			commonName := osqueryHostInfo.HardwareUUID
@@ -976,6 +977,11 @@ func main() {
 				c.String("fleet-certificate"),
 				c.Bool("insecure"),
 				log.Logger,
+				func(reason string) {
+					if orbitClient != nil {
+						orbitClient.TriggerOrbitRestart(reason)
+					}
+				},
 			)
 			if err != nil {
 				if c.Bool("fleet-desktop") {
@@ -1055,7 +1061,7 @@ func main() {
 			)
 		}
 
-		orbitClient, err := service.NewOrbitClient(
+		orbitClient, err = service.NewOrbitClient(
 			c.String("root-dir"),
 			fleetURL,
 			c.String("fleet-certificate"),

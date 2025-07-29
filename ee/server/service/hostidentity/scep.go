@@ -8,10 +8,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"os"
 	"strconv"
@@ -155,19 +155,14 @@ func renewalMiddleware(ds fleet.Datastore, logger kitlog.Logger, next scepserver
 		logger.Log("msg", "processing renewal request", "serial", renewalData.SerialNumber)
 
 		// Parse the serial number from hex
-		serialBytes, err := hex.DecodeString(strings.TrimPrefix(renewalData.SerialNumber, "0x"))
-		if err != nil {
-			return nil, fmt.Errorf("invalid serial number format: %w", err)
-		}
-
-		// Convert to uint64 (assuming serial fits in uint64)
-		var serial uint64
-		for _, b := range serialBytes {
-			serial = (serial << 8) | uint64(b)
+		serialBigInt := new(big.Int)
+		_, success := serialBigInt.SetString(strings.TrimPrefix(renewalData.SerialNumber, "0x"), 16)
+		if !success {
+			return nil, fmt.Errorf("invalid serial number format")
 		}
 
 		// Retrieve the old certificate data
-		oldCertData, err := ds.GetHostIdentityCertBySerialNumber(ctx, serial)
+		oldCertData, err := ds.GetHostIdentityCertBySerialNumber(ctx, serialBigInt.Uint64())
 		if err != nil {
 			return nil, fmt.Errorf("retrieving old certificate: %w", err)
 		}
@@ -190,7 +185,7 @@ func renewalMiddleware(ds fleet.Datastore, logger kitlog.Logger, next scepserver
 			return nil, errors.New("invalid renewal signature")
 		}
 
-		logger.Log("msg", "renewal signature verified", "serial", serial, "cn", oldCertData.CommonName)
+		logger.Log("msg", "renewal signature verified", "serial", renewalData.SerialNumber, "cn", oldCertData.CommonName)
 
 		// Issue the new certificate
 		newCert, err := next.SignCSRContext(ctx, m)

@@ -51,6 +51,8 @@ func (c *Credentials) Close() {
 // certificate using SCEP.
 // If there's already a key and certificate in the metadata directory it will return them.
 // The returned Credentials needs to be closed after its use.
+// The restartFunc will be called to trigger an Orbit restart for certificate renewal
+// if the certificate is close to expiration.
 func Setup(
 	ctx context.Context,
 	metadataDir string,
@@ -60,12 +62,17 @@ func Setup(
 	rootCA string,
 	insecure bool,
 	logger zerolog.Logger,
+	restartFunc func(reason string),
 ) (*Credentials, error) {
-	teeDevice, err := securehw.New(metadataDir, logger)
+	secureHWDevice, err := securehw.New(metadataDir, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize secure hardware device: %w", err)
 	}
-	secureHWKey, err := teeDevice.LoadKey()
+	credentials := &Credentials{
+		CertificatePath: filepath.Join(metadataDir, constant.FleetHTTPSignatureCertificateFileName),
+		SecureHW:        secureHWDevice,
+	}
+	credentials.SecureHWKey, err = secureHWDevice.LoadKey()
 	switch {
 	case err == nil:
 		// OK
@@ -80,21 +87,13 @@ func Setup(
 			return nil, fmt.Errorf("failed to clear the host identity certificate: %w", err)
 		}
 
-		secureHWKey, err = teeDevice.CreateKey()
+		credentials.SecureHWKey, err = secureHWDevice.CreateKey()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create secure hardware key: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("failed to load secure hardware key: %w", err)
 	}
-
-	credentials := &Credentials{
-		SecureHWKey:     secureHWKey,
-		CertificatePath: filepath.Join(metadataDir, constant.FleetHTTPSignatureCertificateFileName),
-		SecureHW:        teeDevice,
-	}
-	// Clear the secureHWKey variable since we should be using it like: credentials.SecureHWKey
-	secureHWKey = nil
 
 	clientCert, err := loadSCEPClientCert(metadataDir)
 	switch {
@@ -114,7 +113,7 @@ func Setup(
 		// We don't have a certificate, let's issue one using SCEP.
 		opts := []scep.Option{
 			scep.WithRootCA(rootCA),
-			scep.WithSigningKey(secureHWKey),
+			scep.WithSigningKey(credentials.SecureHWKey),
 			scep.WithLogger(logger),
 			scep.WithURL(scepURL),
 			scep.WithChallenge(scepChallenge),
@@ -162,6 +161,32 @@ func Setup(
 		return nil, fmt.Errorf("secure HW key does not match certificate public key, deleted %q to re-issue a new certificate in the next restart", certPath)
 	}
 	logger.Debug().Msg("secure HW key matches certificate public key")
+
+	// Start a goroutine with a timer to trigger restart for certificate renewal
+	if restartFunc != nil {
+		go func() {
+			// Calculate time until certificate expires
+			timeUntilExpiry := time.Until(clientCert.NotAfter)
+
+			// Set timer for 180 days before expiry (plus 1 minute buffer)
+			// or 1 hour, whichever is longer
+			renewalTime := timeUntilExpiry - certificateRenewalThreshold + 1*time.Minute
+			if renewalTime < 1*time.Hour {
+				renewalTime = 1 * time.Hour
+			}
+
+			logger.Info().
+				Dur("renewal_in", renewalTime).
+				Time("cert_expires", clientCert.NotAfter).
+				Msg("Scheduling host identity certificate renewal timer")
+
+			timer := time.NewTimer(renewalTime)
+			<-timer.C
+
+			logger.Info().Msg("Certificate renewal timer triggered")
+			restartFunc("host identity certificate renewal")
+		}()
+	}
 
 	return credentials, nil
 }
