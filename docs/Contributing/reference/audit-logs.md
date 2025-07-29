@@ -569,6 +569,7 @@ Generated when a host is unenrolled from Fleet's MDM.
 
 This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "enrollment_id": Unique identifier for personal (BYOD) hosts.
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.
 
@@ -577,6 +578,7 @@ This activity contains the following fields:
 ```json
 {
   "host_serial": "C08VQ2AXHT96",
+  "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true
 }
