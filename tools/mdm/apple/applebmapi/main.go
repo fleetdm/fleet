@@ -29,6 +29,7 @@ import (
 
 func main() {
 	mysqlAddr := flag.String("mysql", "", "mysql address")
+	mysqlUser := flag.String("mysql-user", "", "mysql user")
 	mysqlPass := flag.String("mysql-pw", "", "mysql password")
 	serverPrivateKey := flag.String("server-private-key", "", "fleet server's private key (to decrypt MDM assets)")
 	profileUUID := flag.String("profile-uuid", "", "the Apple profile UUID to retrieve")
@@ -44,6 +45,11 @@ func main() {
 	}
 	if *profileUUID != "" && *serialNum != "" {
 		log.Fatal("only one of -profile-uuid or -serial-number must be provided")
+	}
+
+	if *mysqlUser == "" {
+		fmt.Println("mysql-user was empty, using the default of \"fleet\"")
+		mysqlUser = ptr.String("fleet")
 	}
 
 	if *mysqlPass == "" {
@@ -77,7 +83,7 @@ func main() {
 		Protocol:        "tcp",
 		Address:         *mysqlAddr,
 		Database:        "fleet",
-		Username:        "fleet",
+		Username:        *mysqlUser,
 		Password:        *mysqlPass,
 		MaxOpenConns:    50,
 		MaxIdleConns:    50,
@@ -128,7 +134,7 @@ func main() {
 				log.Fatal("read file", err)
 			}
 		} else {
-			parts := strings.Split(*serials, ",")
+			parts = strings.Split(*serials, ",")
 			fmt.Println("Serials: ", parts)
 		}
 
