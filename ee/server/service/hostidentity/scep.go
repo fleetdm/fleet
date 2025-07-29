@@ -160,7 +160,7 @@ func renewalMiddleware(ds fleet.Datastore, logger kitlog.Logger, next scepserver
 		serialBigInt := new(big.Int)
 		_, success := serialBigInt.SetString(strings.TrimPrefix(renewalData.SerialNumber, "0x"), 16)
 		if !success {
-			return nil, fmt.Errorf("invalid serial number format")
+			return nil, fmt.Errorf("invalid serial number format: %s", renewalData.SerialNumber)
 		}
 
 		// Retrieve the old certificate data
