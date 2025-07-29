@@ -15,17 +15,21 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	mathrand "math/rand/v2"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
 	orbitscep "github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1283,9 +1287,12 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 	tpmKey, err := tpmHW.CreateKey()
 	require.NoError(t, err)
 
-	// Set up cleanup in reverse order - keys first, then hardware, then simulator
+	// Set up cleanup - the TPM hardware will be closed once at the end
 	t.Cleanup(func() {
-		require.NoError(t, tpmHW.Close())
+		if err := tpmHW.Close(); err != nil {
+			// Don't fail if already closed
+			t.Logf("TPM close error (may be expected): %v", err)
+		}
 	})
 
 	// Verify we can get the public key
@@ -1393,10 +1400,6 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 
 	loadedKey, err := tpmHW.LoadKey()
 	require.NoError(t, err)
-	// Close the loaded key at the end of this section
-	t.Cleanup(func() {
-		require.NoError(t, loadedKey.Close())
-	})
 
 	// Verify loaded key has same public key
 	loadedPubKey, err := loadedKey.Public()
@@ -1436,4 +1439,136 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 	defer httpResp.Body.Close()
 
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Config request with loaded TPM key should succeed")
+
+	t.Run("renew certificate with real SecureHW and SCEP client", func(t *testing.T) {
+		// Save the current certificate to the expected location
+		certPath := filepath.Join(tempDir, constant.FleetHTTPSignatureCertificateFileName)
+		certFile, err := os.OpenFile(certPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
+		require.NoError(t, err)
+		err = pem.Encode(certFile, &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		})
+		require.NoError(t, err)
+		require.NoError(t, certFile.Close())
+
+		// Now we can use hostidentity.RenewCertificate directly since SecureHW is exported
+		// Create a Credentials struct with our test TPM
+		credentials := &hostidentity.Credentials{
+			Certificate:     cert,
+			SecureHWKey:     loadedKey,
+			CertificatePath: certPath,
+			SecureHW:        tpmHW,
+		}
+
+		// Use the hostidentity.RenewCertificate method directly
+		renewedCert, err := hostidentity.RenewCertificate(
+			ctx,
+			tempDir,
+			credentials,
+			fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL),
+			"",   // rootCA - empty for insecure
+			true, // insecure
+			zerologLogger,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, renewedCert)
+
+		// The RenewCertificate method should have updated credentials.SecureHWKey
+		// and saved the renewed certificate
+
+		// Verify renewed certificate properties
+		assert.Equal(t, cert.Subject.CommonName, renewedCert.Subject.CommonName, "Common name should be preserved")
+		assert.NotEqual(t, cert.SerialNumber, renewedCert.SerialNumber, "Serial number should be different")
+		assert.Equal(t, x509.ECDSA, renewedCert.PublicKeyAlgorithm)
+
+		// Verify the renewed certificate has a new public key (from the new TPM key)
+		renewedPubKey, ok := renewedCert.PublicKey.(*ecdsa.PublicKey)
+		require.True(t, ok, "Renewed certificate should contain ECC public key")
+		assert.False(t, certPubKey.Equal(renewedPubKey), "Renewed certificate should have a different public key")
+
+		// Verify the new key's public key matches the renewed certificate
+		// The new key is now in credentials.SecureHWKey
+		newPubKey, err := credentials.SecureHWKey.Public()
+		require.NoError(t, err)
+		newECCPubKey, ok := newPubKey.(*ecdsa.PublicKey)
+		require.True(t, ok, "New key should be ECC")
+		assert.True(t, renewedPubKey.Equal(newECCPubKey), "Renewed certificate public key should match new TPM key")
+
+		// Test that we can use the renewed certificate and new key
+		renewedConfigRequest := orbitConfigRequest{
+			OrbitNodeKey: enrollResp.OrbitNodeKey,
+		}
+
+		renewedConfigReqBody, err := json.Marshal(renewedConfigRequest)
+		require.NoError(t, err)
+
+		renewedConfigReq, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(renewedConfigReqBody))
+		require.NoError(t, err)
+		renewedConfigReq.Header.Set("Content-Type", "application/json")
+
+		// Sign with renewed certificate and new key
+		renewedHTTPSigner, err := credentials.SecureHWKey.HTTPSigner()
+		require.NoError(t, err)
+
+		// Determine algorithm for renewed key
+		var renewedAlgo httpsig.Algorithm
+		switch renewedHTTPSigner.ECCAlgorithm() {
+		case securehw.ECCAlgorithmP256:
+			renewedAlgo = httpsig.Algo_ECDSA_P256_SHA256
+		case securehw.ECCAlgorithmP384:
+			renewedAlgo = httpsig.Algo_ECDSA_P384_SHA384
+		default:
+			t.Fatalf("Unsupported ECC algorithm from renewed TPM key")
+		}
+
+		renewedSigner, err := fleethttpsig.Signer(
+			fmt.Sprintf("%d", renewedCert.SerialNumber.Uint64()),
+			renewedHTTPSigner,
+			renewedAlgo,
+		)
+		require.NoError(t, err)
+
+		err = renewedSigner.Sign(renewedConfigReq)
+		require.NoError(t, err)
+
+		httpResp, err = client.Do(renewedConfigReq)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		require.Equal(t, http.StatusOK, httpResp.StatusCode, "Config request with renewed certificate should succeed")
+
+		// Test that old certificate no longer works
+		// Since the old key was closed and replaced, we need to recreate the signer with the old serial
+		oldConfigReq, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(renewedConfigReqBody))
+		require.NoError(t, err)
+		oldConfigReq.Header.Set("Content-Type", "application/json")
+
+		// Create a signer with the old certificate serial but it should fail since the cert was replaced
+		oldSerialSigner, err := fleethttpsig.Signer(
+			fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+			renewedHTTPSigner, // Using new key with old serial
+			renewedAlgo,
+		)
+		require.NoError(t, err)
+
+		err = oldSerialSigner.Sign(oldConfigReq)
+		require.NoError(t, err)
+
+		httpResp, err = client.Do(oldConfigReq)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Config request with old certificate serial should fail after renewal")
+
+		// Verify the old key backup was cleaned up by RenewCertificate
+		oldKeyPath := filepath.Join(tempDir, constant.FleetHTTPSignatureTPMKeyBackupFileName)
+		_, err = os.Stat(oldKeyPath)
+		require.True(t, os.IsNotExist(err), "Old key backup should have been removed by RenewCertificate")
+
+		// Clean up the new key
+		t.Cleanup(func() {
+			_ = credentials.SecureHWKey.Close()
+		})
+	})
 }
