@@ -24,22 +24,43 @@ Fleet UI:
 
 Fleet API: Use the [Add custom OS setting (configuration profile) endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) in the Fleet API.
 
-### User channel for configuration profiles on macOS
+### Device and user scope
 
-Before version 4.71.0, Fleet didn't support sending configuration profiles (`.mobileconfig`) to the macOS user channel (aka "Payload Scope" in iMazing Profile Creator). Profiles with `PayloadScope` set to `User` were delivered to the device channel by default. From Fleet 4.71.0 onward, both device and user channels are supported. 
+Currently, on Apple (macOS, iOS, iPadOS) hosts, Fleet supports enforcing OS settings at the device (device-scoped) and user (user-scoped) level. User-scoped declaration (DDM) profiles and Windows configuration profiles are coming soon.
 
-User-scoped profile is delivered to the user that turned on MDM on the host (installed fleetd or enrolled host via automatic enrollment (ADE)). Hosts enrolled before version 4.71.0, won't have user channel enabled. Currently, you can:
-1. Turn off MDM on manually enrolled Mac and ask end user to [turn on MDM](https://fleetdm.com/guides/mdm-migration#migrate-hosts:~:text=If%20the%20host%20is%20not%20assigned%20to%20Fleet%20in%20ABM%20(manual%20enrollment)%2C%20the%20end%20user%20will%20be%20given%20the%20option%20to%20download%20the%20MDM%20enrollment%20profile%20on%20their%20My%20device%20page.) through the **My device** page.
-2. Run `sudo profiles renew -type enrollment` on automatically enrolled Mac.
+If a host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For hosts that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that installed Fleet's agent (fleetd).
 
-Support for declaration (DDM) profiles is coming soon.
+How to deliver user-scoped configuration profiles:
+1. If you use iMazing Profile Creator, open your configuration profile in iMazing, select the **General** tab and update the **Payoad Scope** to **User**.
+2. If you edit your configuration profiles in a text editor, open the configuraiton profile in your text editor, find or add the `PayloadScope` key, and set the value to `User`. Here's an example `.mobileconfig` snippet:
 
-Existing profiles with `PayloadScope` set to`User` won’t update automatically. These are delivered to the device channel and will remain there until you take action.
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	...
+	<key>PayloadScope</key>
+	<string>User</string>
+</dict>
+</plist>
+```
 
-To avoid confusion, please follow these steps:
-- Check for profiles with `PayloadScope` set to `User`.
-- To keep delivering them to the device channel, change `PayloadScope` to `System` to reflect the actual scope in your `.mobileconfig`. Also, you can remove `PayloadScope` as the default scope in Fleet is `System`. 
-- To deliver to the user channel, update the identifier(`PayloadIdentifier`) and re-upload the profile.
+#### Upgrading to 4.71.0
+
+When upgrading to 4.71.0, here's how to prepare your already enrolled hosts for user-scoped configuration profiles:
+1. If the host automatically enrolled to Fleet (via ADE), you don't need to take action. Fleet added support for the user-scoped configuration profiles on these hosts.
+2. To deliver user-scoped profiles to hosts that manually enrolled and turned on MDM, first turn off MDM and ask end user to [turn on MDM](https://fleetdm.com/guides/mdm-migration#migrate-hosts:~:text=If%20the%20host%20is%20not%20assigned%20to%20Fleet%20in%20ABM%20(manual%20enrollment)%2C%20the%20end%20user%20will%20be%20given%20the%20option%20to%20download%20the%20MDM%20enrollment%20profile%20on%20their%20My%20device%20page.) through the **My device** page.
+
+When upgrading to Fleet 4.71.0, here's how to update configuration profiles that are already installed on hosts so that they're delivered to the user scope:
+
+1. Check for profiles with `PayloadScope` set to `User`. Already deployed profiles with `PayloadScope` set to `User` won’t be re-installed on hosts automatically.
+2. To change them to the user-scope and re-install them, update the `PayloadIdentifier` and re-add the profile to Fleet. This will uninstall the device-scope profile and install the profile in the user scope.
+
+In versions older than 4.71.0, Fleet always delivered configuration profiles to the device scope (even when the profile's `PayloadScope` was set to `User`)
+
+If you want to make sure the profile stays device-scoped, update `PayloadScope` to `System` or remove `PayloadScope` entirely. The default scope in Fleet is `System`. 
 
 ## See status
 
