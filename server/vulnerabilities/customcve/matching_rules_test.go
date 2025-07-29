@@ -236,7 +236,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			return true, nil
 		}
 
-		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThen time.Time) error {
+		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 			require.Equal(t, fleet.CustomSource, source)
 			return nil
 		}
