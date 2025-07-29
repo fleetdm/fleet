@@ -321,6 +321,16 @@ When rate limiting is enabled:
 - Different hosts are not affected by each other's rate limits
 - Rate limiting uses the same configuration as host enrollment cooldown
 
+#### Certificate validity period (development only)
+
+For development and testing purposes only, you can override the default certificate validity period:
+
+```bash
+FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS=30
+```
+
+This environment variable overrides the default 365-day validity period for host identity certificates. This is intended only for development and testing scenarios where shorter certificate lifetimes are needed.
+
 ### Load testing configuration
 
 For load testing TPM-backed HTTP message signing without actual TPM hardware, use the `osquery-perf` tool with the following flag (other flags not shown):
