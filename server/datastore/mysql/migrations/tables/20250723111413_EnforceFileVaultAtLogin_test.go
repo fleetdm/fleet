@@ -167,6 +167,6 @@ VALUES (?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)))`
 	// verify global profile modifications
 	verifyNewPayload(globalProfileID)
 
-	// verify tea profile modifications
+	// verify team profile modifications
 	verifyNewPayload(teamProfileID)
 }

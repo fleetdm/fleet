@@ -76,7 +76,7 @@ func Up_20250723111413(tx *sql.Tx) error {
 
 		if _, err = txx.Exec(`
 			UPDATE mdm_apple_configuration_profiles
-			SET mobileconfig = ?, checksum = UNHEX(MD5(mobileconfig))
+			SET mobileconfig = ?
 			WHERE profile_id = ?
 		`, newProf, prof.ID); err != nil {
 			return fmt.Errorf("updating FileVault profile with ID %d: %w", prof.ID, err)
