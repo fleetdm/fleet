@@ -17022,8 +17022,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// check that we created an activity for the policy creation
 	wantAct := fleet.ActivityTypeCreatedPolicy{
-		ID:   gotPolicy.ID,
-		Name: gotPolicy.Name,
+		ID:       gotPolicy.ID,
+		Name:     gotPolicy.Name,
+		TeamID:   0,
+		TeamName: ptr.String("No Team"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
