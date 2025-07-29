@@ -158,9 +158,9 @@ interface ISoftwareInstallDetailsProps {
   // this modal while hostSoftware is not, as in the case of the activity feeds, it is specifically
   // necessary in the details prop
   details: IPackageInstallDetails;
-  onCancel: () => void;
   hostSoftware?: IHostSoftware; // for inventory versions, not present on activity feeds
-  deviceAuthToken?: string;
+  deviceAuthToken?: string; // DUP only
+  onCancel: () => void;
   onRetry?: (id: number) => void; // DUP only
 }
 
@@ -186,7 +186,6 @@ export const SoftwareInstallDetailsModal = ({
     }
     onCancel();
   };
-  // TODO - VPP case (see AppInstallDetails)
 
   const { data: swInstallResult, isLoading, isError, error } = useQuery<
     ISoftwareInstallResults,

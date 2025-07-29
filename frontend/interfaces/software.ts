@@ -434,6 +434,13 @@ export interface IHostSoftwareWithUiStatus extends IHostSoftware {
   ui_status: IHostSoftwareUiStatus;
 }
 
+/**
+ * Allows unified data model for rendering of host VPP software installs and uninstalls
+ */
+export type IVPPHostSoftware = IHostSoftware & {
+  commandUuid: string;
+};
+
 export type IDeviceSoftware = IHostSoftware;
 export type IDeviceSoftwareWithUiStatus = IHostSoftwareWithUiStatus;
 

@@ -77,7 +77,7 @@ import {
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
 import { InstallOrCommandUuid } from "../cards/Software/InstallStatusCell/InstallStatusCell";
-import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
+// import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 
 const baseClass = "device-user";
@@ -148,8 +148,8 @@ const DeviceUserPage = ({
     false
   );
   const [
-    selectedSoftwareDetails,
-    setSelectedSoftwareDetails,
+    hostSWForInventoryVersions,
+    setHostSWForInventoryVersions,
   ] = useState<IHostSoftware | null>(null);
 
   // certificates states
@@ -584,7 +584,7 @@ const DeviceUserPage = ({
                       platform={host.platform}
                       hostTeamId={host.team_id || 0}
                       isSoftwareEnabled={isSoftwareEnabled}
-                      onShowInventoryVersions={setSelectedSoftwareDetails}
+                      onShowInventoryVersions={setHostSWForInventoryVersions}
                     />
                   </TabPanel>
                 )}
@@ -674,10 +674,10 @@ const DeviceUserPage = ({
               deviceAuthToken={deviceAuthToken}
             />
           )} */}
-        {selectedSoftwareDetails && !!host && (
+        {hostSWForInventoryVersions && !!host && (
           <InventoryVersionsModal
-            hostSoftware={selectedSoftwareDetails}
-            onExit={() => setSelectedSoftwareDetails(null)}
+            hostSoftware={hostSWForInventoryVersions}
+            onExit={() => setHostSWForInventoryVersions(null)}
           />
         )}
         {selectedCertificate && (

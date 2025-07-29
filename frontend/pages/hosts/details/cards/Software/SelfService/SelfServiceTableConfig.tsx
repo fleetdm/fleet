@@ -5,6 +5,7 @@ import {
   IDeviceSoftware,
   IHostSoftware,
   IHostSoftwareWithUiStatus,
+  IVPPHostSoftware,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -50,6 +51,7 @@ interface ISelfServiceTableHeaders {
   onInstallOrUninstall: () => void;
   onShowUpdateDetails: (software: IDeviceSoftware) => void;
   onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
+  onShowVPPInstallDetails: (hostSoftware: IVPPHostSoftware) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (software: IHostSoftwareWithUiStatus) => void;
@@ -62,6 +64,7 @@ export const generateSoftwareTableHeaders = ({
   onInstallOrUninstall,
   onShowUpdateDetails,
   onShowInstallDetails,
+  onShowVPPInstallDetails,
   onShowUninstallDetails,
   onClickInstallAction,
   onClickUninstallAction,
@@ -104,6 +107,7 @@ export const generateSoftwareTableHeaders = ({
           software={cellProps.row.original}
           onShowUpdateDetails={onShowUpdateDetails}
           onShowInstallDetails={onShowInstallDetails}
+          onShowVPPInstallDetails={onShowVPPInstallDetails}
           onShowUninstallDetails={onShowUninstallDetails}
           isSelfService
         />

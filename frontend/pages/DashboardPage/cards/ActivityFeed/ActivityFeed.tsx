@@ -15,7 +15,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 
-import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
+import AppInstallDetailsModal from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
@@ -251,12 +251,13 @@ const ActivityFeed = ({
           onCancel={() => setPackageUninstallDetails(null)}
         />
       )}
-      {appInstallDetails && (
+      {/* TODO */}
+      {/* {appInstallDetails && (
         <AppInstallDetailsModal
           details={appInstallDetails}
           onCancel={() => setAppInstallDetails(null)}
         />
-      )}
+      )} */}
       {activityAutomationDetails && (
         <ActivityAutomationDetailsModal
           details={activityAutomationDetails}

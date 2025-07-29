@@ -15,7 +15,12 @@ import hostAPI, {
   IHostSoftwareQueryKey,
 } from "services/entities/hosts";
 import PATHS from "router/paths";
-import { IHostSoftware, ISoftware } from "interfaces/software";
+import {
+  IHostSoftware,
+  IVPPHostSoftware,
+  ISoftware,
+  IHostSoftwareWithUiStatus,
+} from "interfaces/software";
 import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -31,6 +36,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import AppInstallDetailsModal from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
@@ -137,13 +143,18 @@ const HostSoftwareLibrary = ({
     selectedSoftwareUpdates,
     setSelectedSoftwareUpdates,
   ] = useState<IHostSoftware | null>(null);
-  // this state and modal logic exists at this level intead of the page level to match the similaron
+  // these states and modal logic exist at this level intead of the page level to match the similar
+  // pattern on
   // the device user page, which needs to be at this level to manipulate relevant UI states e.g.
   // "updating..." when the user clicks "Retry" in the SoftwareInstallDetailsModal
   const [
     selectedHostSWInstallDetails,
     setSelectedHostSWInstallDetails,
   ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedVPPInstallDetails,
+    setSelectedVPPInstallDetails,
+  ] = useState<IVPPHostSoftware | null>(null);
 
   const enhancedSoftware = useMemo(() => {
     if (!hostSoftwareLibraryRes) return [];
@@ -362,6 +373,16 @@ const HostSoftwareLibrary = ({
     },
     [setSelectedHostSWInstallDetails]
   );
+
+  const onSetSelectedVPPInstallDetails = useCallback(
+    (s?: IVPPHostSoftware) => {
+      if (s) {
+        setSelectedVPPInstallDetails(s);
+      }
+    },
+    [setSelectedVPPInstallDetails]
+  );
+
   const onInstallOrUninstall = useCallback(() => {
     // For online hosts, poll for change in pending statuses
     // For offline hosts, refresh the data without polling
@@ -446,6 +467,7 @@ const HostSoftwareLibrary = ({
       onShowInventoryVersions,
       onShowUpdateDetails,
       onSetSelectedHostSWInstallDetails,
+      onSetSelectedVPPInstallDetails,
       onShowUninstallDetails,
       onClickInstallAction,
       onClickUninstallAction,
@@ -461,6 +483,7 @@ const HostSoftwareLibrary = ({
     onShowInventoryVersions,
     onShowUpdateDetails,
     onSetSelectedHostSWInstallDetails,
+    onSetSelectedVPPInstallDetails,
     onShowUninstallDetails,
     onClickInstallAction,
     onClickUninstallAction,
@@ -529,6 +552,19 @@ const HostSoftwareLibrary = ({
           }}
           hostSoftware={selectedHostSWInstallDetails}
           onCancel={() => setSelectedHostSWInstallDetails(null)}
+        />
+      )}
+      {selectedVPPInstallDetails && (
+        <AppInstallDetailsModal
+          details={{
+            fleetInstallStatus:
+              selectedVPPInstallDetails.status || "pending_install", // TODO - okay default?
+            hostDisplayName,
+            appName: selectedVPPInstallDetails.name,
+            commandUuid: selectedVPPInstallDetails.commandUuid,
+          }}
+          hostSoftware={selectedVPPInstallDetails}
+          onCancel={() => setSelectedVPPInstallDetails(null)}
         />
       )}
     </div>

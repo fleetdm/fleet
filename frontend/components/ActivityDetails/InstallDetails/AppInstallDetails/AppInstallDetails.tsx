@@ -1,15 +1,19 @@
 // Used on: Dashboard > activity, Host details > past activity
 // Also used on Self-service failed install details
 
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
-import { SoftwareInstallStatus } from "interfaces/software";
 import mdmApi, { IGetMdmCommandResultsResponse } from "services/entities/mdm";
 import deviceUserAPI, {
   IGetVppInstallCommandResultsResponse,
 } from "services/entities/device_user";
+
+import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
+import { IMdmCommandResult } from "interfaces/mdm";
+
+import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -18,8 +22,7 @@ import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
-import { IMdmCommandResult } from "interfaces/mdm";
-import { IActivityDetails } from "interfaces/activity";
+import RevealButton from "components/buttons/RevealButton";
 
 import {
   getInstallDetailsStatusPredicate,
@@ -28,30 +31,26 @@ import {
 
 interface IGetStatusMessageProps {
   displayStatus: SoftwareInstallStatus | "pending";
-  isStatusNotNow: boolean;
-  isStatusAcknowledged: boolean;
-  software_title: string;
-  host_display_name: string;
+  isMDMStatusNotNow: boolean;
+  isMDMStatusAcknowledged: boolean;
+  appName: string;
+  hostDisplayName: string;
 }
 
 export const getStatusMessage = ({
   displayStatus,
-  isStatusNotNow,
-  isStatusAcknowledged,
-  software_title,
-  host_display_name,
+  isMDMStatusNotNow,
+  isMDMStatusAcknowledged,
+  appName,
+  hostDisplayName,
 }: IGetStatusMessageProps) => {
-  const formattedHost = host_display_name ? (
-    <b>{host_display_name}</b>
-  ) : (
-    "the host"
-  );
+  const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
 
   // Handle NotNow case separately
-  if (isStatusNotNow) {
+  if (isMDMStatusNotNow) {
     return (
       <>
-        Fleet tried to install <b>{software_title}</b> on {formattedHost} but
+        Fleet tried to install <b>{appName}</b> on {formattedHost} but
         couldn&apos;t because the host was locked or was running on battery
         power while in Power Nap. Fleet will try again.
       </>
@@ -59,23 +58,23 @@ export const getStatusMessage = ({
   }
 
   // VPP Verify command pending state
-  if (displayStatus === "pending_install" && isStatusAcknowledged) {
+  if (displayStatus === "pending_install" && isMDMStatusAcknowledged) {
     return (
       <>
-        The MDM command (request) to install <b>{software_title}</b> on{" "}
-        {formattedHost} was acknowledged but the installation has not been
-        verified. To re-check, select <b>Refetch</b> for this host.
+        The MDM command (request) to install <b>{appName}</b> on {formattedHost}{" "}
+        was acknowledged but the installation has not been verified. To
+        re-check, select <b>Refetch</b> for this host.
       </>
     );
   }
 
   // Verification failed (timeout)
-  if (displayStatus === "failed_install" && isStatusAcknowledged) {
+  if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
     return (
       <>
-        The MDM command (request) to install <b>{software_title}</b> on{" "}
-        {formattedHost} was acknowledged but the installation has not been
-        verified. Please re-attempt this installation.
+        The MDM command (request) to install <b>{appName}</b> on {formattedHost}{" "}
+        was acknowledged but the installation has not been verified. Please
+        re-attempt this installation.
       </>
     );
   }
@@ -84,8 +83,8 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install") {
     return (
       <>
-        The MDM command (request) to install <b>{software_title}</b> on{" "}
-        {formattedHost} failed. Please re-attempt this installation.
+        The MDM command (request) to install <b>{appName}</b> on {formattedHost}{" "}
+        failed. Please re-attempt this installation.
       </>
     );
   }
@@ -93,8 +92,8 @@ export const getStatusMessage = ({
   // Create predicate and subordinate for other statuses
   return (
     <>
-      Fleet {getInstallDetailsStatusPredicate(displayStatus)}{" "}
-      <b>{software_title}</b> on {formattedHost}
+      Fleet {getInstallDetailsStatusPredicate(displayStatus)} <b>{appName}</b>{" "}
+      on {formattedHost}
       {displayStatus === "pending" ? " when it comes online" : ""}.
     </>
   );
@@ -102,25 +101,39 @@ export const getStatusMessage = ({
 
 const baseClass = "app-install-details";
 
-export type IAppInstallDetails = Pick<
-  IActivityDetails,
-  | "host_id"
-  | "command_uuid"
-  | "host_display_name"
-  | "software_title"
-  | "app_store_id"
-  | "status"
-> & {
-  deviceAuthToken?: string;
+export type IAppInstallDetails = {
+  fleetInstallStatus: SoftwareInstallStatus;
+  hostDisplayName: string;
+  appName: string;
+  commandUuid: string; // not actually optional
 };
 
-export const AppInstallDetails = ({
-  status,
-  command_uuid = "",
-  host_display_name = "",
-  software_title = "",
+interface IVPPInstallDetailsModalProps {
+  details: IAppInstallDetails;
+  hostSoftware?: IHostSoftware; // for inventory versions, not present on activity feeds
+  deviceAuthToken?: string; // DUP only
+  onCancel: () => void;
+  onRetry?: (id: number) => void; // DUP only
+}
+export const AppInstallDetailsModal = ({
+  details,
+  onCancel,
   deviceAuthToken,
-}: IAppInstallDetails) => {
+  hostSoftware,
+  onRetry,
+}: IVPPInstallDetailsModalProps) => {
+  const {
+    fleetInstallStatus,
+    commandUuid = "",
+    hostDisplayName = "",
+    appName = "",
+  } = details;
+
+  const [showInstallDetails, setShowInstallDetails] = useState(false);
+  const toggleInstallDetails = () => {
+    setShowInstallDetails((prev) => !prev);
+  };
+
   const responseHandler = (
     response:
       | IGetVppInstallCommandResultsResponse
@@ -139,17 +152,27 @@ export const AppInstallDetails = ({
       result: atob(results.result),
     };
   };
-  const { data: result, isLoading, isError, error } = useQuery<
-    IMdmCommandResult,
-    AxiosError
-  >(
-    ["mdm_command_results", command_uuid],
+
+  const onClickRetry = () => {
+    // on DUP, where this is relevant, both will be defined
+    if (onRetry && hostSoftware?.id) {
+      onRetry(hostSoftware.id);
+    }
+    onCancel();
+  };
+  const {
+    data: vppCommandResult,
+    isLoading: isLoadingVPPCommandResult,
+    isError: isErrorVPPCommandResult,
+    error: errorVPPCommandResult,
+  } = useQuery<IMdmCommandResult, AxiosError>(
+    ["mdm_command_results", commandUuid],
     async () => {
       return deviceAuthToken
         ? deviceUserAPI
-            .getVppCommandResult(deviceAuthToken, command_uuid)
+            .getVppCommandResult(deviceAuthToken, commandUuid)
             .then(responseHandler)
-        : mdmApi.getCommandResults(command_uuid).then(responseHandler);
+        : mdmApi.getCommandResults(commandUuid).then(responseHandler);
     },
     {
       refetchOnWindowFocus: false,
@@ -157,12 +180,12 @@ export const AppInstallDetails = ({
     }
   );
 
-  if (isLoading) {
+  if (isLoadingVPPCommandResult) {
     return <Spinner />;
   }
 
-  if (isError) {
-    if (error?.status === 404) {
+  if (isErrorVPPCommandResult) {
+    if (errorVPPCommandResult?.status === 404) {
       return deviceAuthToken ? (
         <DeviceUserError />
       ) : (
@@ -173,73 +196,102 @@ export const AppInstallDetails = ({
       );
     }
 
-    if (error?.status === 401) {
+    if (errorVPPCommandResult?.status === 401) {
       return deviceAuthToken ? (
         <DeviceUserError />
       ) : (
         <DataError description="Close this modal and try again." />
       );
     }
-  } else if (!result) {
+  } else if (!vppCommandResult) {
     // FIXME: It's currently possible that the command results API response is empty for pending
     // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
     // display some minimal pending UI. This should be updated once the API response is fixed.
   }
 
-  const displayStatus = (status as SoftwareInstallStatus) || "pending";
+  const displayStatus =
+    (fleetInstallStatus as SoftwareInstallStatus) || "pending";
   const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
 
   // Note: We need to reconcile status values from two different sources. From props, we
-  // get the status from the activity item details (which can be "failed", "pending", or
+  // get the status of the Fleet install operation (which can be "failed", "pending", or
   // "installed"). From the command results API response, we also receive the raw status
   // from the MDM protocol, e.g., "NotNow" or "Acknowledged". We need to display some special
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
-  const isStatusNotNow = result?.status === "NotNow";
-  const isStatusAcknowledged = result?.status === "Acknowledged";
+  const isMDMStatusNotNow = vppCommandResult?.status === "NotNow";
+  const isMDMStatusAcknowledged = vppCommandResult?.status === "Acknowledged";
+
+  const excludeVersions =
+    !deviceAuthToken &&
+    ["pending_install", "failed_install"].includes(fleetInstallStatus);
+
+  const isInstalledByFleet = hostSoftware
+    ? !!hostSoftware.software_package?.last_install
+    : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
 
   const statusMessage = getStatusMessage({
     displayStatus,
-    isStatusNotNow,
-    isStatusAcknowledged,
-    software_title,
-    host_display_name,
+    isMDMStatusNotNow,
+    isMDMStatusAcknowledged,
+    appName,
+    hostDisplayName,
   });
 
-  const showCommandPayload = !!result?.payload;
-  const showCommandResponse =
-    !!result?.result && (isStatusNotNow || status !== "pending");
+  const renderInventoryVersionsSection = () => {
+    if (hostSoftware?.installed_versions?.length) {
+      return <InventoryVersions hostSoftware={hostSoftware} />;
+    }
+    return "If you uninstalled it outside of Fleet it will still show as installed.";
+  };
 
-  return (
-    <>
-      <div className={`${baseClass}__software-install-details`}>
-        <div className={`${baseClass}__status-message`}>
-          {!!iconName && <Icon name={iconName} />}
-          <span>{statusMessage}</span>
+  const renderInstallDetailsSection = () => {
+    return (
+      <>
+        <RevealButton
+          isShowing={showInstallDetails}
+          showText="Details"
+          hideText="Details"
+          caretPosition="after"
+          onClick={toggleInstallDetails}
+        />
+        {showInstallDetails && (
+          <>
+            {vppCommandResult?.result && (
+              <Textarea label="MDM command output:" variant="code">
+                {vppCommandResult.result}
+              </Textarea>
+            )}
+            {vppCommandResult?.payload && (
+              <Textarea label="MDM command:" variant="code">
+                {vppCommandResult.payload}
+              </Textarea>
+            )}
+          </>
+        )}
+      </>
+    );
+  };
+
+  const renderCta = () => {
+    if (deviceAuthToken && fleetInstallStatus === "failed_install") {
+      return (
+        <div className="modal-cta-wrap">
+          <Button type="submit" onClick={onClickRetry}>
+            Retry
+          </Button>
+          <Button variant="inverse" onClick={onCancel}>
+            Cancel
+          </Button>
         </div>
-        {showCommandResponse && (
-          <Textarea label="MDM command output:" variant="code">
-            {result.result}
-          </Textarea>
-        )}
-        {showCommandPayload && (
-          <Textarea label="MDM command:" variant="code">
-            {result.payload}
-          </Textarea>
-        )}
+      );
+    }
+    return (
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel}>Done</Button>
       </div>
-    </>
-  );
-};
+    );
+  };
 
-export const AppInstallDetailsModal = ({
-  details,
-  onCancel,
-  deviceAuthToken,
-}: {
-  details: IAppInstallDetails;
-  onCancel: () => void;
-  deviceAuthToken?: string;
-}) => {
   return (
     <Modal
       title="Install details"
@@ -249,12 +301,23 @@ export const AppInstallDetailsModal = ({
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <AppInstallDetails deviceAuthToken={deviceAuthToken} {...details} />
+          <div className={`${baseClass}__software-install-details`}>
+            <div className={`${baseClass}__status-message`}>
+              {!!iconName && <Icon name={iconName} />}
+              <span>{statusMessage}</span>
+            </div>
+            {hostSoftware &&
+              !excludeVersions &&
+              renderInventoryVersionsSection()}
+            {fleetInstallStatus !== "pending_install" &&
+              isInstalledByFleet &&
+              renderInstallDetailsSection()}
+          </div>
         </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
-        </div>
+        {renderCta()}
       </>
     </Modal>
   );
 };
+
+export default AppInstallDetailsModal;

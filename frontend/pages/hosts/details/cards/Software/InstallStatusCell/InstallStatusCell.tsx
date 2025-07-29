@@ -6,6 +6,7 @@ import {
   IHostSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
   SoftwareInstallStatus,
+  IVPPHostSoftware,
 } from "interfaces/software";
 import { Colors } from "styles/var/colors";
 
@@ -279,6 +280,7 @@ type IInstallStatusCellProps = {
   onShowInventoryVersions?: (software: IHostSoftware) => void;
   onShowUpdateDetails: (software: IHostSoftware) => void;
   onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
+  onShowVPPInstallDetails: (s: IVPPHostSoftware) => void;
   onShowUninstallDetails: (hostSoftware: ISoftwareUninstallDetails) => void;
   isSelfService?: boolean;
   isHostOnline?: boolean;
@@ -313,16 +315,17 @@ const getEmptyCellTooltip = (hasAppStoreApp: boolean, softwareName?: string) =>
 
 const InstallStatusCell = ({
   software,
-  onShowInventoryVersions: onShowSoftwareDetails,
+  onShowInventoryVersions,
   onShowUpdateDetails,
   onShowInstallDetails,
+  onShowVPPInstallDetails,
   onShowUninstallDetails,
   isSelfService = false,
   isHostOnline = false,
   hostName,
 }: IInstallStatusCellProps) => {
   const hasAppStoreApp = !!software.app_store_app;
-  const lastInstall = getLastInstall(software);
+  const lastInstall = getLastInstall(software); // TODO - lastInstall coming back `null` for VPP apps, so not displaying relevant modal right now
   const lastUninstall = getLastUninstall(software);
   const softwareName = getSoftwareName(software);
   const displayStatus = software.ui_status;
@@ -340,22 +343,19 @@ const InstallStatusCell = ({
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
   const onClickInstallStatus = () => {
-    onShowInstallDetails(software);
-
-    // TODO - handle VPP case
-    // if (onShowInstallDetails && lastInstall) {
-    //   if ("command_uuid" in lastInstall) {
-    //     onShowInstallDetails({
-    //       command_uuid: lastInstall.command_uuid,
-    //       software_title: software.name,
-    //       status: software.status || undefined,
-    //     });
-    //   } else if ("install_uuid" in lastInstall) {
-    //     onShowInstallDetails({ install_uuid: lastInstall.install_uuid });
-    //   } else {
-    //     onShowInstallDetails(undefined);
-    //   }
-    // }
+    if (lastInstall) {
+      if ("command_uuid" in lastInstall) {
+        onShowVPPInstallDetails({
+          ...software,
+          commandUuid: lastInstall.command_uuid,
+        });
+      } else if ("install_uuid" in lastInstall) {
+        onShowInstallDetails(software);
+      }
+    } else if (onShowInventoryVersions) {
+      onShowInventoryVersions(software);
+    }
+    // if none of the 3 possible handlers are provided, do nothing
   };
 
   const onClickUninstallStatus = () => {
@@ -373,8 +373,8 @@ const InstallStatusCell = ({
       // else {
       //     onShowUninstallDetails(undefined);
       //   }
-      // } else if (onShowSoftwareDetails) {
-      //   onShowSoftwareDetails(software);
+      // } else if (onShowInventoryVersions) {
+      //   onShowInventoryVersions(software);
     }
   };
 

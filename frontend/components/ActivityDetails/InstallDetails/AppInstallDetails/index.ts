@@ -1,1 +1,1 @@
-export { AppInstallDetails, AppInstallDetailsModal } from "./AppInstallDetails";
+export { default } from "./AppInstallDetails";

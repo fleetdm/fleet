@@ -12,7 +12,11 @@ import { AxiosError } from "axios";
 
 import { NotificationContext } from "context/notification";
 import { INotification } from "interfaces/notification";
-import { IDeviceSoftware, IHostSoftware } from "interfaces/software";
+import {
+  IDeviceSoftware,
+  IHostSoftware,
+  IVPPHostSoftware,
+} from "interfaces/software";
 
 import deviceApi, {
   IDeviceSoftwareQueryKey,
@@ -40,6 +44,8 @@ import Pagination from "components/Pagination";
 
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
+
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
 
@@ -113,6 +119,10 @@ const SoftwareSelfService = ({
     selectedHostSWInstallDetails,
     setSelectedHostSWInstallDetails,
   ] = useState<IHostSoftware | undefined>(undefined);
+  const [
+    selectedVPPInstallDetails,
+    setSelectedVPPInstallDetails,
+  ] = useState<IVPPHostSoftware | null>(null);
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
@@ -453,6 +463,13 @@ const SoftwareSelfService = ({
     [setSelectedHostSWInstallDetails]
   );
 
+  const onShowVPPInstallDetails = useCallback(
+    (s: IVPPHostSoftware) => {
+      setSelectedVPPInstallDetails(s);
+    },
+    [setSelectedVPPInstallDetails]
+  );
+
   const onSearchQueryChange = (value: string) => {
     router.push(
       getPathWithQueryParams(pathname, {
@@ -528,6 +545,7 @@ const SoftwareSelfService = ({
       onInstallOrUninstall,
       onShowUpdateDetails,
       onShowInstallDetails,
+      onShowVPPInstallDetails,
       onShowUninstallDetails,
       onClickInstallAction,
       onClickUninstallAction: (software) => {
@@ -548,6 +566,7 @@ const SoftwareSelfService = ({
     onClickInstallAction,
     onShowUpdateDetails,
     onShowInstallDetails,
+    onShowVPPInstallDetails,
     onShowUninstallDetails,
   ]);
 
@@ -789,6 +808,9 @@ const SoftwareSelfService = ({
           deviceAuthToken={deviceToken}
         />
       )}
+      {/* TODO: */}
+      {/* {selectedVPPInstallDetails && (
+        <AppInstallDetailsModal />} */}
       {selectedUpdateDetails && (
         <SoftwareUpdateModal
           hostDisplayName={hostDisplayName}

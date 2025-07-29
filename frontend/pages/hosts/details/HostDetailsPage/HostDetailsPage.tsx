@@ -665,14 +665,15 @@ const HostDetailsPage = ({
           });
           break;
         case "installed_app_store_app":
-          setAppInstallDetails({
-            ...details,
-            // FIXME: It seems like the backend is not using the correct display name when it returns
-            // upcoming install activities. As a workaround, we'll prefer the display name from
-            // the host object if it's available.
-            host_display_name:
-              host?.display_name || details?.host_display_name || "",
-          });
+          // TODO
+          // setAppInstallDetails({
+          //   ...details,
+          //   // FIXME: It seems like the backend is not using the correct display name when it returns
+          //   // upcoming install activities. As a workaround, we'll prefer the display name from
+          //   // the host object if it's available.
+          //   hostDisplayName:
+          //     host?.display_name || details?.host_display_name || "",
+          // });
           break;
         default: // do nothing
       }
@@ -1368,12 +1369,13 @@ const HostDetailsPage = ({
               onCancel={() => setPackageUninstallDetails(null)}
             />
           )}
-          {!!appInstallDetails && (
-            <AppInstallDetailsModal
+          {/* TODO - activity feed */}
+          {/* {!!appInstallDetails && (
+            <VPPInstallDetailsModal
               details={appInstallDetails}
               onCancel={onCancelAppInstallDetailsModal}
             />
-          )}
+          )} */}
           {showLockHostModal && (
             <LockModal
               id={host.id}

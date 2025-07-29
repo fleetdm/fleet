@@ -6,6 +6,7 @@ import {
   IHostSoftwareWithUiStatus,
   IHostAppStoreApp,
   IHostSoftware,
+  IVPPHostSoftware,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -48,6 +49,7 @@ interface IHostSWLibraryTableHeaders {
   onShowInventoryVersions?: (software?: IHostSoftware) => void;
   onShowUpdateDetails: (software?: IHostSoftware) => void;
   onSetSelectedHostSWInstallDetails: (details?: IHostSoftware) => void;
+  onSetSelectedVPPInstallDetails: (s: IVPPHostSoftware) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (softwareId: number) => void;
@@ -67,6 +69,7 @@ export const generateHostSWLibraryTableHeaders = ({
   onShowInventoryVersions,
   onShowUpdateDetails,
   onSetSelectedHostSWInstallDetails,
+  onSetSelectedVPPInstallDetails,
   onShowUninstallDetails,
   onClickInstallAction,
   onClickUninstallAction,
@@ -127,6 +130,7 @@ export const generateHostSWLibraryTableHeaders = ({
             onShowInventoryVersions={onShowInventoryVersions}
             onShowUpdateDetails={onShowUpdateDetails}
             onShowInstallDetails={onSetSelectedHostSWInstallDetails}
+            onShowVPPInstallDetails={onSetSelectedVPPInstallDetails}
             onShowUninstallDetails={onShowUninstallDetails}
             isHostOnline={isHostOnline}
           />
