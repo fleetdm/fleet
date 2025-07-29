@@ -19,7 +19,7 @@ SELECT
     q.active,
     q.priority,
     c.command_uuid COLLATE utf8mb4_unicode_ci AS command_uuid,
-    c.request_type COLLATE utf8mb4_unicode_ci AS request_type,
+    c.request_type COLLATE utf8mb4_0900_ai_ci AS request_type,
     c.command COLLATE utf8mb4_unicode_ci AS command,
     r.updated_at AS result_updated_at,
     r.status COLLATE utf8mb4_unicode_ci AS status,
