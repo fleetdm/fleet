@@ -17321,8 +17321,8 @@ func (s *integrationMDMTestSuite) TestServiceDiscovery() {
 	t := s.T()
 
 	type serviceDiscoveryServer struct {
-		Version string `json:Version"`
-		BaseURL string `json:"BaseURL`
+		Version string `json:"Version"`
+		BaseURL string `json:"BaseURL"`
 	}
 	type serviceDiscoveryResponse struct {
 		Servers []serviceDiscoveryServer `json:"Servers"`
