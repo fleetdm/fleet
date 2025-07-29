@@ -31,7 +31,6 @@ func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 	    AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
 	    AND hm.enrolled = 1 LIMIT 1
 	`, h.ID))
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -532,7 +531,7 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 // - host_disk_encryption_keys: hdek
 // - host_mdm: hmdm
 // - host_disks: hd
-func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) string {
+func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus, bitLockerPINRequired bool) string {
 	const (
 		whereNotServer        = `(hmdm.is_server IS NOT NULL AND hmdm.is_server = 0)`
 		whereKeyAvailable     = `(hdek.base64_encrypted IS NOT NULL AND hdek.base64_encrypted != '' AND hdek.decryptable IS NOT NULL AND hdek.decryptable = 1)`
@@ -541,6 +540,11 @@ func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) str
 		whereClientError      = `(hdek.client_error IS NOT NULL AND hdek.client_error != '')`
 		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(6), INTERVAL 1 HOUR))`
 	)
+
+	whereBitLockerPINSet := `TRUE`
+	if bitLockerPINRequired {
+		whereBitLockerPINSet = `(hd.tpm_pin_set = true)`
+	}
 
 	// TODO: what if windows sends us a key for an already encrypted volumne? could it get stuck
 	// in pending or verifying? should we modify SetOrUpdateHostDiskEncryption to ensure that we
@@ -553,7 +557,8 @@ func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) str
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND ` + whereEncrypted + `
-AND ` + whereHostDisksUpdated
+AND ` + whereHostDisksUpdated + `
+AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionVerifying:
 		// Possible verifying scenarios:
@@ -565,7 +570,20 @@ AND ` + whereKeyAvailable + `
 AND (
     (` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + `)
     OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
-)`
+) 
+AND ` + whereBitLockerPINSet
+
+	case fleet.DiskEncryptionActionRequired:
+		// Action required means we _would_ be in verified / verifying,
+		// but we require a PIN to be set and it's not.
+		return whereNotServer + `
+AND NOT ` + whereClientError + `
+AND ` + whereKeyAvailable + `
+AND (
+	` + whereEncrypted + ` 
+	OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
+)
+AND NOT ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionEnforcing:
 		// Possible enforcing scenarios:
@@ -592,11 +610,11 @@ AND (
 }
 
 func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
-	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
-	if !enabled {
+	if !diskEncryptionConfig.Enabled {
 		return &fleet.MDMWindowsBitLockerSummary{}, nil
 	}
 
@@ -605,7 +623,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *
 SELECT
     COUNT(if((%s), 1, NULL)) AS verified,
     COUNT(if((%s), 1, NULL)) AS verifying,
-    0 AS action_required,
+    COUNT(if((%s), 1, NULL)) AS action_required,
     COUNT(if((%s), 1, NULL)) AS enforcing,
     COUNT(if((%s), 1, NULL)) AS failed,
     0 AS removing_enforcement
@@ -632,10 +650,11 @@ WHERE
 	var res fleet.MDMWindowsBitLockerSummary
 	stmt := fmt.Sprintf(
 		sqlFmt,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
 		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
@@ -668,11 +687,11 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, nil
 	}
 
-	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
 	if err != nil {
 		return nil, err
 	}
-	if !enabled {
+	if !diskEncryptionConfig.Enabled {
 		return nil, nil
 	}
 
@@ -680,6 +699,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 	stmt := fmt.Sprintf(`
 SELECT
 	CASE
+		WHEN (%s) THEN '%s'
 		WHEN (%s) THEN '%s'
 		WHEN (%s) THEN '%s'
 		WHEN (%s) THEN '%s'
@@ -693,13 +713,15 @@ FROM
 	LEFT JOIN host_disks hd ON hmdm.host_id = hd.host_id
 WHERE
 	hmdm.host_id = ?`,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionVerified,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionVerifying,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
+		fleet.DiskEncryptionActionRequired,
+		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionEnforcing,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionFailed,
 	)
 
@@ -940,16 +962,16 @@ func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}, e
 }
 
 func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	includeBitLocker, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
 	var counts []statusCounts
-	if !includeBitLocker {
+	if !diskEncryptionConfig.Enabled {
 		counts, err = getMDMWindowsStatusCountsProfilesOnlyDB(ctx, ds, teamID)
 	} else {
-		counts, err = getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx, ds, teamID)
+		counts, err = getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx, ds, teamID, diskEncryptionConfig.BitLockerPINRequired)
 	}
 	if err != nil {
 		return nil, err
@@ -1053,7 +1075,7 @@ GROUP BY
 	return counts, nil
 }
 
-func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Datastore, teamID *uint) ([]statusCounts, error) {
+func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Datastore, teamID *uint, bitLockerPINRequired bool) ([]statusCounts, error) {
 	var args []interface{}
 	subqueryFailed, subqueryFailedArgs, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
 	if err != nil {
@@ -1109,16 +1131,19 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
             WHEN (%s) THEN
                 'bitlocker_verifying'
             WHEN (%s) THEN
+                'bitlocker_action_required'
+            WHEN (%s) THEN
                 'bitlocker_pending'
             WHEN (%s) THEN
                 'bitlocker_failed'
             ELSE
                 ''
             END`,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, bitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, bitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, bitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, bitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, bitLockerPINRequired),
 	)
 
 	stmt := fmt.Sprintf(`

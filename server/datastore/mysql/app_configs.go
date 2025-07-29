@@ -340,19 +340,25 @@ func (ds *Datastore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet
 	return secrets, nil
 }
 
-func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 	if teamID != nil && *teamID > 0 {
 		tc, err := ds.TeamMDMConfig(ctx, *teamID)
 		if err != nil {
-			return false, err
+			return fleet.DiskEncryptionConfig{}, err
 		}
-		return tc.EnableDiskEncryption, nil
+		return fleet.DiskEncryptionConfig{
+			Enabled:              tc.EnableDiskEncryption,
+			BitLockerPINRequired: tc.RequireBitLockerPIN,
+		}, nil
 	}
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
-		return false, err
+		return fleet.DiskEncryptionConfig{}, err
 	}
-	return ac.MDM.EnableDiskEncryption.Value, nil
+	return fleet.DiskEncryptionConfig{
+		Enabled:              ac.MDM.EnableDiskEncryption.Value,
+		BitLockerPINRequired: ac.MDM.RequireBitLockerPIN.Value,
+	}, nil
 }
 
 func (ds *Datastore) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule) error {
