@@ -104,6 +104,7 @@ func Setup(
 		credentials.Certificate = clientCert
 		renewedCert, err := RenewCertificate(ctx, metadataDir, credentials, scepURL, rootCA, insecure, logger)
 		if err != nil {
+			// This error can occur when Fleet server is offline. We will continue and schedule another renewal attempt in the future.
 			logger.Error().Err(err).Msg("Certificate renewal failed, continuing with existing certificate")
 		} else {
 			clientCert = renewedCert
@@ -249,13 +250,10 @@ func RenewCertificate(
 		return nil, fmt.Errorf("failed to backup existing key: %w", err)
 	}
 
-	// Ensure we restore the backup if something goes wrong
+	// Ensure we restore the backup if something goes wrong, like we cannot connect to Fleet server to get a cert
 	defer func() {
 		if _, err := os.Stat(oldKeyPath); err == nil {
-			// If we still have the old key and no new key exists, restore it
-			if _, err := os.Stat(keyPath); err != nil {
-				_ = os.Rename(oldKeyPath, keyPath)
-			}
+			_ = os.Rename(oldKeyPath, keyPath)
 		}
 	}()
 
