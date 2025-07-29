@@ -1,4 +1,4 @@
-## Orbit 1.45.0 (Jul 09, 2025)
+## Orbit 1.45.1 (Jul 14th, 2025)
 
 * Added feature for showing an informational message on Fleet Desktop if the host cannot connect to Fleet.
 

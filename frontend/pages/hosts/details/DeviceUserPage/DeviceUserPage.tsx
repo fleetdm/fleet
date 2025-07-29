@@ -20,7 +20,7 @@ import {
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
-import { IHostSoftware } from "interfaces/software";
+import { IDeviceSoftware, IHostSoftware } from "interfaces/software";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
@@ -79,6 +79,7 @@ import {
 import HostHeader from "../cards/HostHeader/HostHeader";
 import { InstallOrCommandUuid } from "../cards/Software/InstallStatusCell/InstallStatusCell";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
+import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
 
 const baseClass = "device-user";
 
@@ -217,6 +218,15 @@ const DeviceUserPage = ({
     deviceCertificates && refetchDeviceCertificates();
   };
 
+  /**
+   * Hides refetch spinner and resets refetch timer,
+   * ensuring no stale timeout triggers on new requests.
+   */
+  const resetHostRefetchStates = () => {
+    setShowRefetchSpinner(false);
+    setRefetchStartTime(null);
+  };
+
   const isRefetching = ({
     refetch_requested,
     refetch_critical_queries_until,
@@ -251,25 +261,24 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       onSuccess: ({ host: responseHost }) => {
-        setShowRefetchSpinner(isRefetching(responseHost));
+        // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
-          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
-          // host details. Here we set a one second timeout and poll the API again using
-          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
-          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
-          // or that the host has gone offline.
+          setShowRefetchSpinner(true);
+
+          // Only set timer if not already running
           if (!refetchStartTime) {
-            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
-            // the first page loads), we start it now if the host is online. If the host is offline,
-            // we skip the refetch on page load.
             if (responseHost.status === "online") {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchHostDetails();
                 refetchExtensions();
-              }, 1000);
+              }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
-              setShowRefetchSpinner(false);
+              resetHostRefetchStates();
+              renderFlash(
+                "error",
+                `This host is offline. Please try refetching host vitals later.`
+              );
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
@@ -278,23 +287,25 @@ const DeviceUserPage = ({
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
-                }, 1000);
+                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
+                resetHostRefetchStates();
                 renderFlash(
                   "error",
                   `This host is offline. Please try refetching host vitals later.`
                 );
-                setShowRefetchSpinner(false);
               }
             } else {
+              resetHostRefetchStates();
               renderFlash(
                 "error",
                 "We're having trouble fetching fresh vitals for this host. Please try again later."
               );
-              setShowRefetchSpinner(false);
             }
           }
-          // exit early because refectch is pending so we can avoid unecessary steps below
+        } else {
+          // Not refetching: reset spinner and timer
+          resetHostRefetchStates();
         }
       },
     }
@@ -360,19 +371,20 @@ const DeviceUserPage = ({
     setSelectedPolicy(null);
   }, [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]);
 
+  // User-initiated refetch always starts a new timer!
   const onRefetchHost = async () => {
     if (host) {
       setShowRefetchSpinner(true);
       try {
         await deviceUserAPI.refetch(deviceAuthToken);
-        setRefetchStartTime(Date.now());
+        setRefetchStartTime(Date.now()); // Always reset on user action
         setTimeout(() => {
           refetchHostDetails();
           refetchExtensions();
-        }, 1000);
+        }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
       } catch (error) {
         renderFlash("error", getErrorMessage(error, host.display_name));
-        setShowRefetchSpinner(false);
+        resetHostRefetchStates();
       }
     }
   };
@@ -530,6 +542,9 @@ const DeviceUserPage = ({
                       router={router}
                       onShowInstallDetails={onShowInstallDetails}
                       onShowUninstallDetails={onShowUninstallDetails}
+                      refetchHostDetails={refetchHostDetails}
+                      isHostDetailsPolling={showRefetchSpinner}
+                      hostDisplayName={host?.hostname || ""}
                     />
                   </TabPanel>
                 )}
@@ -685,6 +700,8 @@ const DeviceUserPage = ({
           !!host && (
             <AppInstallDetailsModal
               details={{
+                software_title: selectedSelfServiceUuid.software_title,
+                status: selectedSelfServiceUuid.status,
                 host_display_name: host.display_name,
                 command_uuid: selectedSelfServiceUuid.command_uuid,
               }}

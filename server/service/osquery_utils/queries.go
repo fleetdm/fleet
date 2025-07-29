@@ -1756,6 +1756,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
+		MutateSoftwareOnIngestion(s, logger)
+
 		if shouldRemoveSoftware(host, s) {
 			continue
 		}
@@ -1797,6 +1799,42 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	}
 
 	return nil
+}
+
+var (
+	dcvVersionFormat   = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
+	softwareSanitizers = []struct {
+		matches func(*fleet.Software) bool
+		mutate  func(*fleet.Software, log.Logger)
+	}{
+		{
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "apps" && s.BundleIdentifier == "com.nicesoftware.dcvviewer"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if versionMatches := dcvVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 3 {
+					s.Version = fmt.Sprintf("%s.%s", versionMatches[1], versionMatches[2])
+				}
+			},
+		},
+	}
+)
+
+// MutateSoftwareOnIngestion performs any tweaks required to the ingested software fields.
+//
+// Some fields are reported with known incorrect values and we need to fix them before using them.
+func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
+	for _, softwareSanitizer := range softwareSanitizers {
+		if softwareSanitizer.matches(s) {
+			defer func() {
+				if r := recover(); r != nil {
+					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+				}
+			}()
+			softwareSanitizer.mutate(s, logger)
+			break
+		}
+	}
 }
 
 // shouldRemoveSoftware returns whether or not we should remove the given Software item from this
@@ -1907,6 +1945,11 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
+	// isPersonalEnrollment is always false for macOS hosts as our current account driven user
+	// enrollment flow does not support macOS however we will need to detect it here if that ever
+	// changes.
+	isPersonalEnrollment := false
+
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
 
@@ -1918,6 +1961,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		installedFromDep,
 		mdmSolutionName,
 		fleetEnrollRef,
+		isPersonalEnrollment,
 	)
 }
 
@@ -1946,7 +1990,7 @@ func deduceMDMNameWindows(data map[string]string) string {
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
 		// no mdm information in the registry
-		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "")
+		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false)
 	}
 	if len(rows) > 1 {
 		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
@@ -1990,6 +2034,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		automatic,
 		mdmSolutionName,
 		"",
+		false, // isPersonalEnrollment is always false for Windows hosts
 	)
 }
 

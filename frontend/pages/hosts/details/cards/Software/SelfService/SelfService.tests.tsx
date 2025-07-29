@@ -6,6 +6,10 @@ import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
 import { customDeviceSoftwareHandler } from "test/handlers/device-handler";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
+import {
+  DEFAULT_INSTALLED_VERSION,
+  DEFAULT_HOST_HOSTNAME,
+} from "__mocks__/hostMock";
 
 import SelfService, { ISoftwareSelfServiceProps } from "./SelfService";
 
@@ -31,6 +35,9 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   router: createMockRouter(),
   onShowInstallDetails: noop,
   onShowUninstallDetails: noop,
+  refetchHostDetails: noop,
+  isHostDetailsPolling: false,
+  hostDisplayName: DEFAULT_HOST_HOSTNAME,
 };
 
 describe("SelfService", () => {
@@ -57,28 +64,27 @@ describe("SelfService", () => {
     expect(screen.getByText("test1")).toBeInTheDocument();
     expect(screen.getByText("test2")).toBeInTheDocument();
     expect(screen.getByText("test3")).toBeInTheDocument();
-    screen.debug();
   });
 
-  it("should render the contact link text if contact url is provided", () => {
+  it("should render the contact link text for self-service section if contact url is provided", () => {
     mockServer.use(customDeviceSoftwareHandler());
 
     const render = createCustomRenderer({ withBackendMock: true });
     render(<SelfService {...TEST_PROPS} router={createMockRouter()} />);
 
-    expect(screen.getByText("reach out to IT")).toBeInTheDocument();
-    expect(screen.getByText("reach out to IT").getAttribute("href")).toBe(
-      "http://example.com"
-    );
+    const link = screen.getByRole("link", { name: /reach out to IT/i });
+
+    expect(link).toHaveAttribute("href", "http://example.com");
   });
 
-  it("renders installed status and 'Reinstall' and 'Uninstall' action buttons with 'installed'", async () => {
+  it("renders installed status and 'Reinstall' and 'Uninstall' action buttons with 'installed' status and installed_versions", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
           createMockDeviceSoftware({
             name: "test-software",
             status: "installed",
+            installed_versions: [DEFAULT_INSTALLED_VERSION],
           }),
         ],
       })
@@ -86,33 +92,7 @@ describe("SelfService", () => {
 
     const render = createCustomRenderer({ withBackendMock: true });
 
-    const expectedUrl = "http://example.com";
-
-    render(
-      <SelfService
-        contactUrl={expectedUrl}
-        deviceToken="123-456"
-        isSoftwareEnabled
-        pathname="/test"
-        queryParams={{
-          page: 1,
-          query: "test",
-          order_key: "name",
-          order_direction: "asc",
-          per_page: 10,
-          vulnerable: true,
-          available_for_install: false,
-          min_cvss_score: undefined,
-          max_cvss_score: undefined,
-          exploit: false,
-          category_id: undefined,
-          self_service: false,
-        }}
-        router={createMockRouter()}
-        onShowInstallDetails={noop}
-        onShowUninstallDetails={noop}
-      />
-    );
+    render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
     await screen.findByText("test-software");
@@ -125,7 +105,35 @@ describe("SelfService", () => {
     expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
   });
 
-  it("renders failed status and 'Retry' and 'Uninstall' action buttons with 'failed_install'", async () => {
+  it("renders installed status and 'Reinstall' and 'Uninstall' action buttons with null status and installed_versions", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            name: "test-software",
+            status: null,
+            installed_versions: [DEFAULT_INSTALLED_VERSION],
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(<SelfService {...TEST_PROPS} />);
+
+    // waiting for the device software data to render
+    await screen.findByText("test-software");
+
+    expect(
+      screen.getByTestId("install-status-cell__status--test")
+    ).toHaveTextContent("Installed");
+
+    expect(screen.getByRole("button", { name: "Reinstall" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
+  });
+
+  it("renders failed status, 'Retry' button and hides 'Uninstall' button with 'failed_install' and no installed versions detected", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -148,16 +156,19 @@ describe("SelfService", () => {
     ).toHaveTextContent("Failed");
 
     expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: "Uninstall" })
+    ).not.toBeInTheDocument();
   });
 
-  it("renders failed status and 'Install' and 'Retry uninstall' action buttons with 'failed_uninstall' status", async () => {
+  it("renders failed status and 'Install' and 'Retry uninstall' action buttons with 'failed_uninstall' status and installed_versions detected", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
           createMockDeviceSoftware({
             name: "test-software",
             status: "failed_uninstall",
+            installed_versions: [DEFAULT_INSTALLED_VERSION],
           }),
         ],
       })
@@ -173,13 +184,13 @@ describe("SelfService", () => {
       screen.getByTestId("install-status-cell__status--test")
     ).toHaveTextContent("Failed");
 
-    expect(screen.getByRole("button", { name: "Install" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Reinstall" })).toBeEnabled();
     expect(
       screen.getByRole("button", { name: "Retry uninstall" })
     ).toBeEnabled();
   });
 
-  it("renders no status and 'Install' and 'Uninstall' action buttons with no API status", async () => {
+  it("renders no status, 'Install' action, and no 'Uninstall' action with no API status and no installed_versions", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -202,10 +213,12 @@ describe("SelfService", () => {
     ).not.toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: "Install" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: "Uninstall" })
+    ).not.toBeInTheDocument();
   });
 
-  it("renders installing status and disables action buttons with 'pending_install'", async () => {
+  it("renders installing status, disables Install action, and hides Uninstall action with 'pending_install' and no installed_version", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -228,7 +241,9 @@ describe("SelfService", () => {
     ).toHaveTextContent("Installing...");
 
     expect(screen.getByRole("button", { name: "Install" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Uninstall" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Uninstall" })
+    ).not.toBeInTheDocument();
   });
 
   it("renders uninstalling status and disables 'Reinstall' and 'Uninstall' action buttons with 'pending_uninstall'", async () => {
@@ -238,6 +253,7 @@ describe("SelfService", () => {
           createMockDeviceSoftware({
             name: "test-software",
             status: "pending_uninstall",
+            installed_versions: [DEFAULT_INSTALLED_VERSION], // Uninstall requires installed versions
           }),
         ],
       })
@@ -253,7 +269,7 @@ describe("SelfService", () => {
       screen.getByTestId("install-status-cell__status--test")
     ).toHaveTextContent("Uninstalling...");
 
-    expect(screen.getByRole("button", { name: "Reinstall" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reinstall" })).toBeDisabled(); // TODO: Should this say "Reinstall"?
     expect(screen.getByRole("button", { name: "Uninstall" })).toBeDisabled();
   });
 });

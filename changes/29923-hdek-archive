@@ -1,2 +1,0 @@
-- Updated `GET /hosts/:id/encryption_key` to return most recently archived encryption key if current key is
-  not available.

@@ -57,9 +57,6 @@
   description: "Complete steps 1 - 3 of https://fleetdm.com/handbook/sales#communicate-gross-new-arr-added"
   moreInfoUrl: "https://fleetdm.com/handbook/sales#communicate-gross-new-arr-added"
   dri: "SFriendLee"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ]
-    repo: "confidential"
 -
   task: "Process and backup E-group agenda"
   startedOn: "2023-09-20"
@@ -67,9 +64,6 @@
   description: "Process and backup E-group agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-and-backup-sid-agenda"
   dri: "SFriendLee"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ]
-    repo: "confidential"
 - 
   task: "Complete Digital Experience KPIs"
   startedOn: "2024-08-30" 

@@ -6,6 +6,8 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
+import { IMdmCommandResult } from "interfaces/mdm";
+
 import { IHostSoftwareQueryParams } from "./hosts";
 
 export type ILoadHostDetailsExtension = "macadmins";
@@ -40,6 +42,10 @@ export interface IGetDeviceCertificatesResponse {
 
 export interface IGetDeviceCertsRequestParams extends IListOptions {
   token: string;
+}
+
+export interface IGetVppInstallCommandResultsResponse {
+  results: IMdmCommandResult[];
 }
 
 export default {
@@ -124,7 +130,10 @@ export default {
   },
 
   /** Gets more info on VPP install for device user */
-  getVppCommandResult: (deviceToken: string, uuid: string) => {
+  getVppCommandResult: (
+    deviceToken: string,
+    uuid: string
+  ): Promise<IGetVppInstallCommandResultsResponse> => {
     const { DEVICE_VPP_COMMAND_RESULTS } = endpoints;
     const path = DEVICE_VPP_COMMAND_RESULTS(deviceToken, uuid);
 

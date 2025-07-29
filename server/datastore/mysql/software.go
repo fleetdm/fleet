@@ -1637,14 +1637,12 @@ func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerab
 	return nil
 }
 
-func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
-	sql := `DELETE FROM software_cve WHERE source = ? AND updated_at < ?`
-
-	var args []interface{}
-	cutPoint := time.Now().UTC().Add(-1 * duration)
-	args = append(args, source, cutPoint)
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
+func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+	if _, err := ds.writer(ctx).ExecContext(
+		ctx,
+		`DELETE FROM software_cve WHERE source = ? AND updated_at < ?`,
+		source, olderThan,
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting out of date vulnerabilities")
 	}
 	return nil
@@ -3188,16 +3186,20 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	bySoftwareTitleID := make(map[uint]*hostSoftware)
 	bySoftwareID := make(map[uint]*hostSoftware)
 
-	hostSoftwareInstalls, err := hostSoftwareInstalls(ds, ctx, host.ID)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, s := range hostSoftwareInstalls {
-		if _, ok := bySoftwareTitleID[s.ID]; !ok {
-			bySoftwareTitleID[s.ID] = s
-		} else {
-			bySoftwareTitleID[s.ID].LastInstallInstalledAt = s.LastInstallInstalledAt
-			bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
+	var err error
+	var hostSoftwareInstallsList []*hostSoftware
+	if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
+		hostSoftwareInstallsList, err = hostSoftwareInstalls(ds, ctx, host.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, s := range hostSoftwareInstallsList {
+			if _, ok := bySoftwareTitleID[s.ID]; !ok {
+				bySoftwareTitleID[s.ID] = s
+			} else {
+				bySoftwareTitleID[s.ID].LastInstallInstalledAt = s.LastInstallInstalledAt
+				bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
+			}
 		}
 	}
 
@@ -3281,11 +3283,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						// we want to treat the installed vpp app as a regular software title
 						delete(bySoftwareTitleID, s.ID)
 					}
+					byVPPAdamID[*s.VPPAppAdamID] = s
 				} else {
 					continue
 				}
+			} else if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
+				byVPPAdamID[*s.VPPAppAdamID] = s
 			}
-			byVPPAdamID[*s.VPPAppAdamID] = s
 		}
 	}
 
@@ -3562,7 +3566,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				tempBySoftwareTitleID[s.ID] = s
 			}
 			if !opts.VulnerableOnly {
-				for _, s := range hostSoftwareInstalls {
+				for _, s := range hostSoftwareInstallsList {
 					tempBySoftwareTitleID[s.ID] = s
 				}
 				for _, s := range hostVPPInstalls {

@@ -2,6 +2,7 @@ package file
 
 import (
 	_ "embed"
+	"regexp"
 )
 
 //go:embed scripts/install_pkg.sh
@@ -71,6 +72,12 @@ var uninstallPkgScript string
 
 //go:embed scripts/uninstall_msi.ps1
 var uninstallMsiScript string
+
+//go:embed scripts/uninstall_msi_with_upgrade_code.ps1
+var UninstallMsiWithUpgradeCodeScript string
+
+var PackageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
+var UpgradeCodeRegex = regexp.MustCompile(`((("\$UPGRADE_CODE")|(\$UPGRADE_CODE))(?P<suffix>\W|$))|(("\${UPGRADE_CODE}")|(\${UPGRADE_CODE}))`)
 
 //go:embed scripts/uninstall_deb.sh
 var uninstallDebScript string

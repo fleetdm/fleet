@@ -89,7 +89,7 @@ parasails.registerPage('start', {
     }
     // If this user has not completed the 'what are you using fleet for' step, and has a primaryBuyingSituation set by an ad. prefill the formData for this step.
     if(this.primaryBuyingSituation && _.isEmpty(this.formData['what-are-you-using-fleet-for'])){
-      if(this.primaryBuyingSituation !== 'vm') {
+      if(!['vm', 'mdm', 'eo-security', 'eo-it'].includes(this.primaryBuyingSituation)) {
         this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
       }
     }
@@ -191,13 +191,13 @@ parasails.registerPage('start', {
           break;
         case 'is-it-any-good':
           let primaryBuyingSituation = this.formData['what-are-you-using-fleet-for'].primaryBuyingSituation;
-          if(primaryBuyingSituation === 'eo-security'){
+          if(['eo-security', 'security-misc'].includes(primaryBuyingSituation)){
             this.currentStep = 'what-are-you-working-on-eo-security';
-          } else if(primaryBuyingSituation === 'eo-it') {
+          } else if(['eo-it', 'it-misc'].includes(primaryBuyingSituation)) {
             this.currentStep = 'what-does-your-team-manage-eo-it';
-          } else if(primaryBuyingSituation === 'vm') {
+          } else if(['vm', 'security-vm'].includes(primaryBuyingSituation)) {
             this.currentStep = 'what-does-your-team-manage-vm';
-          } else if(primaryBuyingSituation === 'mdm') {
+          } else if(['it-major-mdm', 'mdm'].includes(primaryBuyingSituation)) {
             this.currentStep = 'message-about-cross-platform-mdm';
           }
           break;
@@ -255,13 +255,13 @@ parasails.registerPage('start', {
           if(fleetUseStatus === 'yes-recently-deployed' || fleetUseStatus === 'yes-deployed') {
             nextStepInForm = 'how-many-hosts';
           } else {
-            if(primaryBuyingSituation === 'eo-security'){
+            if(['eo-security', 'security-misc'].includes(primaryBuyingSituation)){
               nextStepInForm = 'what-are-you-working-on-eo-security';
-            } else if(primaryBuyingSituation === 'eo-it') {
+            } else if(['eo-it', 'it-misc'].includes(primaryBuyingSituation)) {
               nextStepInForm = 'what-does-your-team-manage-eo-it';
-            } else if(primaryBuyingSituation === 'vm') {
+            } else if(['vm', 'security-vm'].includes(primaryBuyingSituation)) {
               nextStepInForm = 'what-does-your-team-manage-vm';
-            } else if(primaryBuyingSituation === 'mdm') {
+            } else if(['it-major-mdm','it-gap-filler-mdm', 'mdm'].includes(primaryBuyingSituation)) {
               nextStepInForm = 'what-do-you-manage-mdm';
             }
           }

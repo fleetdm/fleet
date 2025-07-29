@@ -6,8 +6,10 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
 import { SoftwareInstallStatus } from "interfaces/software";
-import mdmApi from "services/entities/mdm";
-import deviceUserAPI from "services/entities/device_user";
+import mdmApi, { IGetMdmCommandResultsResponse } from "services/entities/mdm";
+import deviceUserAPI, {
+  IGetVppInstallCommandResultsResponse,
+} from "services/entities/device_user";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -67,7 +69,18 @@ export const getStatusMessage = ({
     );
   }
 
-  // VPP failed state
+  // Verification failed (timeout)
+  if (displayStatus === "failed_install" && isStatusAcknowledged) {
+    return (
+      <>
+        The MDM command (request) to install <b>{software_title}</b> on{" "}
+        {formattedHost} was acknowledged but the installation has not been
+        verified. Please re-attempt this installation.
+      </>
+    );
+  }
+
+  // Install command failed
   if (displayStatus === "failed_install") {
     return (
       <>
@@ -108,6 +121,24 @@ export const AppInstallDetails = ({
   software_title = "",
   deviceAuthToken,
 }: IAppInstallDetails) => {
+  const responseHandler = (
+    response:
+      | IGetVppInstallCommandResultsResponse
+      | IGetMdmCommandResultsResponse
+  ) => {
+    const results = response.results?.[0];
+    if (!results) {
+      // FIXME: It's currently possible that the command results API response is empty for pending
+      // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
+      // display some minimal pending UI. This should be removed once the API response is fixed.
+      return {} as IMdmCommandResult;
+    }
+    return {
+      ...results,
+      payload: atob(results.payload),
+      result: atob(results.result),
+    };
+  };
   const { data: result, isLoading, isError, error } = useQuery<
     IMdmCommandResult,
     AxiosError
@@ -115,21 +146,10 @@ export const AppInstallDetails = ({
     ["mdm_command_results", command_uuid],
     async () => {
       return deviceAuthToken
-        ? deviceUserAPI.getVppCommandResult(deviceAuthToken, command_uuid)
-        : mdmApi.getCommandResults(command_uuid).then((response) => {
-            const results = response.results?.[0];
-            if (!results) {
-              // FIXME: It's currently possible that the command results API response is empty for pending
-              // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
-              // display some minimal pending UI. This should be removed once the API response is fixed.
-              return {} as IMdmCommandResult;
-            }
-            return {
-              ...results,
-              payload: atob(results.payload),
-              result: atob(results.result),
-            };
-          });
+        ? deviceUserAPI
+            .getVppCommandResult(deviceAuthToken, command_uuid)
+            .then(responseHandler)
+        : mdmApi.getCommandResults(command_uuid).then(responseHandler);
     },
     {
       refetchOnWindowFocus: false,

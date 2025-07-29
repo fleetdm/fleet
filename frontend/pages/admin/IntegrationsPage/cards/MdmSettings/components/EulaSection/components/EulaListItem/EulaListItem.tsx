@@ -18,7 +18,7 @@ interface IEulaListItemProps {
 
 const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
   const onOpenEula = () => {
-    window.open(`/api/${endpoints.MDM_EULA(eulaData.token)}`, "_blank");
+    window.open(`/api${endpoints.MDM_EULA(eulaData.token)}`, "_blank");
   };
 
   return (

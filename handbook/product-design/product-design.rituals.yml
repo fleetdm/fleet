@@ -2,7 +2,7 @@
   task: "🦢📊 Product design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "1. For all stories that are not estimated, update their target engineering sprint and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board, remove them from the roadmap board, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. 2. Retro: What went well? What could go better? What to remember for next time?" 
+  description: "1. For all stories that are not estimated, update their target engineering sprint on the roadmap board and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board, remove them from the roadmap board, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. 2. Retro: What went well? What could go better? What to remember for next time?" 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
@@ -16,7 +16,7 @@
   task: "Product design sprint kickoff" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Review stories (and, as needed, create engineering research stories) for feature requests prioritized during Feature fest; assign Engineering DRIs to stories; align on priorities; and create an upcoming reference docs release branch."
+  description: "Review stories (and, as needed, create engineering research stories) for feature requests prioritized during Feature fest; refresh descriptions from the latest story template; assign Engineering DRIs to stories; align on priorities; and create an upcoming reference docs release branch."
   moreInfoUrl: 
   dri: "noahtalerman"
 -
@@ -84,8 +84,17 @@
   description: "Review user stories in the 'In review' column on the drafting board with each product group's Product Designer, Engineering Mananger, and Quality Assurance Engineer."
   dri: "noahtalerman"
 - 
-  task: "🦢🚀🔄 Design sync"
+  task: "🦢🚀🤝 Product Design + Frontend Engineering"
   startedOn: "2025-04-23"
   frequency: "Triweekly"
   description: "Product Designers and Frontend Engineers meet to discuss proposed changes to design conventions, UI components, and potential overlap/collisions between in progress wireframes."
   dri: "rachaelshaw"
+- 
+  task: "Revise quarterly roadmap blog post"
+  startedOn: "2025-07-18"
+  frequency: "Triweekly"
+  description: "Go back and edit, for the current quarter's roadmap blog post, anything that isn't going to be true."
+  dri: "noahtalerman"
+  autoIssue:   
+    labels: [ ":product" ]
+    repo: "fleet"

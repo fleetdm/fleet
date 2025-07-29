@@ -1,3 +1,7 @@
+//go:build !windows
+
+// Windows is disabled because the TPM simulator requires CGO, which causes lint failures on Windows.
+
 package hostidentity
 
 import (
@@ -12,17 +16,23 @@ import (
 	"fmt"
 	mathrand "math/rand/v2"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	orbitscep "github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/google/go-tpm/tpm2/transport/simulator"
 	"github.com/remitly-oss/httpsig-go"
+	"github.com/rs/zerolog"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,7 +41,7 @@ import (
 const testEnrollmentSecret = "test_secret"
 
 func TestHostIdentity(t *testing.T) {
-	s := SetUpSuite(t, "integrationtest.HostIdentity")
+	s := SetUpSuite(t, "integrationtest.HostIdentity", false)
 
 	cases := []struct {
 		name string
@@ -40,6 +50,7 @@ func TestHostIdentity(t *testing.T) {
 		{"GetCertAndSignReq", testGetCertAndSignReq},
 		{"GetCertFailures", testGetCertFailures},
 		{"WrongCertAuthentication", testWrongCertAuthentication},
+		{"RealSecureHWAndSCEP", testRealSecureHWAndSCEP},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -69,7 +80,6 @@ func testGetCertAndSignReq(t *testing.T, s *Suite) {
 		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
 		testOsqueryEnrollment(t, s, cert, eccPrivateKey)
 	})
-
 }
 
 func generateRandomString(length int) string {
@@ -97,7 +107,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger, nil)
+	scepClient, err := scepclient.New(scepURL, s.Logger)
 	require.NoError(t, err)
 
 	// Get CA certificate
@@ -202,26 +212,18 @@ func createHTTPSigner(t *testing.T, eccPrivateKey *ecdsa.PrivateKey, cert *x509.
 	}
 
 	// Create signer
-	signer, err := httpsig.NewSigner(httpsig.SigningProfile{
-		Algorithm: algo,
-		// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
-		Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
-		Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
-	}, httpsig.SigningKey{
-		Key:       eccPrivateKey,
-		MetaKeyID: fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
-	})
+	signer, err := fleethttpsig.Signer(
+		fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+		eccPrivateKey,
+		algo,
+	)
 	require.NoError(t, err)
 	return signer
 }
 
 func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
+	ctx := t.Context()
 	// Test orbit enrollment with the certificate
-	type EnrollOrbitResponse struct {
-		OrbitNodeKey string `json:"orbit_node_key,omitempty"`
-		Err          error  `json:"error,omitempty"`
-	}
-
 	enrollRequest := contract.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
@@ -231,7 +233,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	}
 
 	// This request is sent without an HTTP signature, so it should fail.
-	var enrollResp EnrollOrbitResponse
+	var enrollResp enrollOrbitResponse
 	s.DoJSON(t, "POST", "/api/fleet/orbit/enroll", enrollRequest, http.StatusUnauthorized, &enrollResp)
 
 	// Now send the same request with an HTTP signature
@@ -249,6 +251,8 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	err = signer.Sign(req)
 	require.NoError(t, err)
 
+	clonedRequest := req.Clone(ctx)
+
 	// Send the signed request
 	client := fleethttp.NewClient()
 	httpResp, err := client.Do(req)
@@ -259,19 +263,20 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Request with HTTP signature should succeed")
 
 	// Parse the response
-	var signedEnrollResp EnrollOrbitResponse
+	var signedEnrollResp enrollOrbitResponse
 	err = json.NewDecoder(httpResp.Body).Decode(&signedEnrollResp)
 	require.NoError(t, err)
 	require.NotEmpty(t, signedEnrollResp.OrbitNodeKey, "Should receive orbit node key")
 	require.NoError(t, signedEnrollResp.Err)
 
 	// Send the same request again. We don't have replay protection, so it should succeed.
-	httpResp, err = client.Do(req)
+	httpResp, err = client.Do(clonedRequest)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Same request with HTTP signature should succeed")
+
 	// Parse the response
-	signedEnrollResp = EnrollOrbitResponse{}
+	signedEnrollResp = enrollOrbitResponse{}
 	err = json.NewDecoder(httpResp.Body).Decode(&signedEnrollResp)
 	require.NoError(t, err)
 	require.NotEmpty(t, signedEnrollResp.OrbitNodeKey, "Should receive orbit node key")
@@ -279,10 +284,6 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 
 	// Test /api/fleet/orbit/config endpoint with different signature scenarios
 	t.Run("config endpoint signature tests", func(t *testing.T) {
-		type configRequest struct {
-			OrbitNodeKey string `json:"orbit_node_key"`
-		}
-
 		testCases := []struct {
 			name           string
 			setupRequest   func() (*http.Request, error)
@@ -291,7 +292,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 			{
 				name: "without signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
+					configReq := orbitConfigRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -308,7 +309,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 			{
 				name: "with valid signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
+					configReq := orbitConfigRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -330,7 +331,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 			{
 				name: "with corrupted signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
+					configReq := orbitConfigRequest{OrbitNodeKey: signedEnrollResp.OrbitNodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -373,9 +374,39 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 			})
 		}
 	})
+
+	// Important: since this subtest deletes the host, it should run last.
+	// Test deleting host and trying to enroll with same certificate
+	t.Run("delete host and enroll with same certificate", func(t *testing.T) {
+		// Get the host using the orbit node key (standard pattern used in Fleet tests)
+		hostToDelete, err := s.DS.LoadHostByOrbitNodeKey(ctx, signedEnrollResp.OrbitNodeKey)
+		require.NoError(t, err)
+		require.NotNil(t, hostToDelete, "Should find the enrolled host")
+
+		// Delete the host using the API endpoint
+		s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
+
+		// Try to enroll the same host with the same certificate - this should fail
+		// because deleting the host should have invalidated its certificate
+		req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		err = signer.Sign(req)
+		require.NoError(t, err)
+
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		// This should fail because the host certificate should be deleted when the host is deleted.
+		// The host needs to request a new cert to re-enroll.
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with deleted host certificate should fail")
+	})
 }
 
 func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
+	ctx := t.Context()
 	// Test osquery enrollment with the certificate
 	enrollRequest := contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   testEnrollmentSecret,
@@ -424,10 +455,6 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 
 	// Test /api/osquery/config endpoint with different signature scenarios
 	t.Run("osquery config endpoint signature tests", func(t *testing.T) {
-		type configRequest struct {
-			NodeKey string `json:"node_key"`
-		}
-
 		testCases := []struct {
 			name           string
 			setupRequest   func() (*http.Request, error)
@@ -436,7 +463,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 			{
 				name: "without signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{NodeKey: enrollResp.NodeKey}
+					configReq := osqueryConfigRequest{NodeKey: enrollResp.NodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -453,7 +480,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 			{
 				name: "with valid signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{NodeKey: enrollResp.NodeKey}
+					configReq := osqueryConfigRequest{NodeKey: enrollResp.NodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -475,7 +502,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 			{
 				name: "with corrupted signature",
 				setupRequest: func() (*http.Request, error) {
-					configReq := configRequest{NodeKey: enrollResp.NodeKey}
+					configReq := osqueryConfigRequest{NodeKey: enrollResp.NodeKey}
 					reqBody, err := json.Marshal(configReq)
 					if err != nil {
 						return nil, err
@@ -517,6 +544,35 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 				require.Equal(t, tc.expectedStatus, httpResp.StatusCode)
 			})
 		}
+	})
+
+	// Important: since this subtest deletes the host, it should run last.
+	// Test deleting host and trying to enroll with same certificate
+	t.Run("delete host and enroll with same certificate", func(t *testing.T) {
+		// Get the host using the osquery node key (standard pattern used in Fleet tests)
+		hostToDelete, err := s.DS.LoadHostByNodeKey(ctx, enrollResp.NodeKey)
+		require.NoError(t, err)
+		require.NotNil(t, hostToDelete, "Should find the enrolled host")
+
+		// Delete the host using the API endpoint
+		s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
+
+		// Try to enroll the same host with the same certificate - this should fail
+		// because deleting the host should have invalidated its certificate
+		req, err := http.NewRequest("POST", s.Server.URL+"/api/osquery/enroll", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		err = signer.Sign(req)
+		require.NoError(t, err)
+
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		// This should fail because the host certificate should be deleted when the host is deleted.
+		// The host needs to request a new cert to re-enroll.
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with deleted host certificate should fail")
 	})
 }
 
@@ -616,7 +672,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 
 	// Create SCEP client
 	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
-	scepClient, err := scepclient.New(scepURL, s.Logger, nil)
+	scepClient, err := scepclient.New(scepURL, s.Logger)
 	require.NoError(t, err)
 
 	// Get CA certificate
@@ -700,14 +756,11 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 
 	// Create a signer using the local private key with a fake certificate serial
-	localSigner, err := httpsig.NewSigner(httpsig.SigningProfile{
-		Algorithm: httpsig.Algo_ECDSA_P384_SHA384,
-		Fields:    httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
-		Metadata:  []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
-	}, httpsig.SigningKey{
-		Key:       localPrivateKey,
-		MetaKeyID: "999999", // Fake certificate serial number
-	})
+	localSigner, err := fleethttpsig.Signer(
+		"999999", // Fake certificate serial number
+		localPrivateKey,
+		httpsig.Algo_ECDSA_P384_SHA384,
+	)
 	require.NoError(t, err)
 
 	enrollRequest := contract.EnrollOrbitRequest{
@@ -783,10 +836,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Enrollment with correct certificate should succeed")
 
-	type EnrollOrbitResponse struct {
-		OrbitNodeKey string `json:"orbit_node_key"`
-	}
-	var enrollResp EnrollOrbitResponse
+	var enrollResp enrollOrbitResponse
 	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
 	require.NoError(t, err)
 	require.NotEmpty(t, enrollResp.OrbitNodeKey)
@@ -850,7 +900,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Enrollment with correct certificate should succeed")
 
-	enrollResp = EnrollOrbitResponse{}
+	enrollResp = enrollOrbitResponse{}
 	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
 	require.NoError(t, err)
 	require.NotEmpty(t, enrollResp.OrbitNodeKey)
@@ -938,5 +988,182 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 		// Should fail because the certificate doesn't match the host identifier
 		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with wrong certificate should fail even after other hosts are enrolled")
 	})
+}
 
+// testRealSecureHWAndSCEP uses the SecureHW and SCEP packages that are used by Orbit. Only the TPM device is fake/simulated.
+func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
+	t.Parallel()
+	ctx := t.Context()
+
+	// Create TPM simulator
+	sim, err := simulator.OpenSimulator()
+	require.NoError(t, err)
+
+	// Create a temporary directory for metadata
+	tempDir := t.TempDir()
+
+	// Create a zerolog logger for the test
+	zerologLogger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+
+	// Create SecureHW instance with TPM simulator
+	tpmHW, err := securehw.NewTestSecureHW(sim, tempDir, zerologLogger)
+	require.NoError(t, err)
+
+	// Create a new key in the TPM
+	tpmKey, err := tpmHW.CreateKey()
+	require.NoError(t, err)
+
+	// Set up cleanup in reverse order - keys first, then hardware, then simulator
+	t.Cleanup(func() {
+		require.NoError(t, tpmHW.Close())
+	})
+
+	// Verify we can get the public key
+	pubKey, err := tpmKey.Public()
+	require.NoError(t, err)
+	eccPubKey, ok := pubKey.(*ecdsa.PublicKey)
+	require.True(t, ok, "Expected ECC public key")
+
+	// Create enrollment secret
+	err = s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{
+		{
+			Secret: testEnrollmentSecret,
+		},
+	})
+	require.NoError(t, err)
+
+	// Generate a unique common name
+	commonName := generateRandomString(16)
+
+	// Create SCEP client with the TPM key
+	scepClient, err := orbitscep.NewClient(
+		orbitscep.WithSigningKey(tpmKey),
+		orbitscep.WithURL(fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)),
+		orbitscep.WithCommonName(commonName),
+		orbitscep.WithChallenge(testEnrollmentSecret),
+		orbitscep.WithLogger(zerologLogger),
+	)
+	require.NoError(t, err)
+
+	// Fetch certificate using SCEP
+	cert, err := scepClient.FetchCert(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+
+	// Verify certificate properties
+	assert.Equal(t, commonName, cert.Subject.CommonName)
+	assert.Equal(t, x509.ECDSA, cert.PublicKeyAlgorithm)
+
+	// Verify the certificate's public key matches our TPM key
+	certPubKey, ok := cert.PublicKey.(*ecdsa.PublicKey)
+	require.True(t, ok, "Certificate should contain ECC public key")
+	assert.True(t, eccPubKey.Equal(certPubKey), "Certificate public key should match TPM key")
+
+	// Test enrollment with HTTP signature using TPM key
+	enrollRequest := contract.EnrollOrbitRequest{
+		EnrollSecret:      testEnrollmentSecret,
+		HardwareUUID:      "test-uuid-" + commonName,
+		HardwareSerial:    "test-serial-" + commonName,
+		Hostname:          "test-hostname-" + commonName,
+		OsqueryIdentifier: commonName,
+	}
+
+	reqBody, err := json.Marshal(enrollRequest)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Get HTTP signer from TPM key
+	httpSigner, err := tpmKey.HTTPSigner()
+	require.NoError(t, err)
+
+	// Determine algorithm based on the curve
+	var algo httpsig.Algorithm
+	switch httpSigner.ECCAlgorithm() {
+	case securehw.ECCAlgorithmP256:
+		algo = httpsig.Algo_ECDSA_P256_SHA256
+	case securehw.ECCAlgorithmP384:
+		algo = httpsig.Algo_ECDSA_P384_SHA384
+	default:
+		t.Fatalf("Unsupported ECC algorithm from TPM")
+	}
+
+	// Create HTTP signature signer
+	signer, err := fleethttpsig.Signer(
+		fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+		httpSigner,
+		algo,
+	)
+	require.NoError(t, err)
+
+	// Sign the request
+	err = signer.Sign(req)
+	require.NoError(t, err)
+
+	// Send the signed request
+	client := fleethttp.NewClient()
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	// The request with a valid HTTP signature should succeed
+	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Request with TPM-based HTTP signature should succeed")
+
+	// Parse the response
+	var enrollResp enrollOrbitResponse
+	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
+	require.NoError(t, err)
+	require.NotEmpty(t, enrollResp.OrbitNodeKey, "Should receive orbit node key")
+	require.NoError(t, enrollResp.Err)
+
+	// Test that we can load the key from storage
+	require.NoError(t, tpmKey.Close()) // Close the original key
+
+	loadedKey, err := tpmHW.LoadKey()
+	require.NoError(t, err)
+	// Close the loaded key at the end of this section
+	t.Cleanup(func() {
+		require.NoError(t, loadedKey.Close())
+	})
+
+	// Verify loaded key has same public key
+	loadedPubKey, err := loadedKey.Public()
+	require.NoError(t, err)
+	loadedECCPubKey, ok := loadedPubKey.(*ecdsa.PublicKey)
+	require.True(t, ok, "Loaded key should be ECC")
+	assert.True(t, eccPubKey.Equal(loadedECCPubKey), "Loaded key should match original")
+
+	// Test config endpoint with loaded key
+	configRequest := orbitConfigRequest{
+		OrbitNodeKey: enrollResp.OrbitNodeKey,
+	}
+
+	configReqBody, err := json.Marshal(configRequest)
+	require.NoError(t, err)
+
+	configReq, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(configReqBody))
+	require.NoError(t, err)
+	configReq.Header.Set("Content-Type", "application/json")
+
+	// Sign with loaded key
+	loadedHTTPSigner, err := loadedKey.HTTPSigner()
+	require.NoError(t, err)
+
+	loadedSigner, err := fleethttpsig.Signer(
+		fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+		loadedHTTPSigner,
+		algo,
+	)
+	require.NoError(t, err)
+
+	err = loadedSigner.Sign(configReq)
+	require.NoError(t, err)
+
+	httpResp, err = client.Do(configReq)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Config request with loaded TPM key should succeed")
 }
