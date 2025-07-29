@@ -1,0 +1,51 @@
+name: cursor_extensions
+description: Installed extensions for [Cursor](https://cursor.com). 
+examples: |-
+  ```
+  SELECT * FROM users CROSS JOIN cursor_extensions USING (uid);
+  ```
+
+
+  List the name, publisher, and version of the Cursor extensions installed on hosts.
+  
+  ```
+  SELECT extension.name, extension.publisher, extension.version FROM users JOIN cursor_extensions extension USING (uid);
+  ```
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
+columns:
+- name: name
+  description: Extension Name
+  type: text
+  required: false
+- name: uuid
+  description: Extension UUID
+  type: text
+  required: false
+- name: version
+  description: Extension version
+  type: text
+  required: false
+- name: path
+  description: Extension path
+  type: text
+  required: false
+- name: publisher
+  description: Publisher Name
+  type: text
+  required: false
+- name: publisher_id
+  description: Publisher ID
+  type: text
+  required: false
+- name: installed_at
+  description: Installed Timestamp
+  type: bigint
+  required: false
+- name: prerelease
+  description: Pre release version
+  type: integer
+  required: false
+- name: uid
+  description: The local user that owns the plugin
+  type: bigint
+  required: false

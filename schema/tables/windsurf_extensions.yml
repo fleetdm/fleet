@@ -1,0 +1,51 @@
+name: windsurf_extensions
+description: Installed extensions for [Windsurf](https://windsurf.com/). 
+examples: |-
+  ```
+  SELECT * FROM users CROSS JOIN windsurf_extensions USING (uid);
+  ```
+
+
+  List the name, publisher, and version of the Windsurf extensions installed on hosts.
+  
+  ```
+  SELECT extension.name, extension.publisher, extension.version FROM users JOIN windsurf_extensions extension USING (uid);
+  ```
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
+columns:
+- name: name
+  description: Extension Name
+  type: text
+  required: false
+- name: uuid
+  description: Extension UUID
+  type: text
+  required: false
+- name: version
+  description: Extension version
+  type: text
+  required: false
+- name: path
+  description: Extension path
+  type: text
+  required: false
+- name: publisher
+  description: Publisher Name
+  type: text
+  required: false
+- name: publisher_id
+  description: Publisher ID
+  type: text
+  required: false
+- name: installed_at
+  description: Installed Timestamp
+  type: bigint
+  required: false
+- name: prerelease
+  description: Pre release version
+  type: integer
+  required: false
+- name: uid
+  description: The local user that owns the plugin
+  type: bigint
+  required: false
