@@ -4,8 +4,8 @@ import classNames from "classnames";
 import LinkWithContext from "components/LinkWithContext";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 
-import { parseHostSoftwareQueryParams } from "../../HostSoftware";
-import { ICategory } from "../helpers";
+import { parseHostSoftwareQueryParams } from "../../../HostSoftware";
+import { ICategory } from "../../helpers";
 
 const baseClass = "categories-menu";
 

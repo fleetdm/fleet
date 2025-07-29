@@ -1,0 +1,28 @@
+.updates-card {
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .button {
+      margin-bottom: $pad-large;
+    }
+  }
+
+  &__items {
+    display: grid;
+    grid-template-columns: repeat(
+      2,
+      1fr
+    ); // default: 2 cards (smallest screens)
+    gap: $pad-large;
+
+    @media (min-width: $break-xs) {
+      grid-template-columns: repeat(3, 1fr); // 3 cards (medium screens)
+    }
+
+    @media (min-width: $break-lg) {
+      grid-template-columns: repeat(4, 1fr); // 4 cards (large screens)
+    }
+  }
+}

@@ -7,6 +7,8 @@ import React, {
   useEffect,
 } from "react";
 import { useQuery } from "react-query";
+import { SingleValue } from "react-select-5";
+
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
 
@@ -23,37 +25,17 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
-import { SingleValue } from "react-select-5";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import TableContainer from "components/TableContainer";
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-import Button from "components/buttons/Button";
-import Card from "components/Card";
-import CardHeader from "components/CardHeader";
-import CustomLink from "components/CustomLink";
-import DeviceUserError from "components/DeviceUserError";
-import EmptyTable from "components/EmptyTable";
-import Spinner from "components/Spinner";
-import SearchField from "components/forms/fields/SearchField";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import Pagination from "components/Pagination";
-
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+
+import UpdatesCard from "./UpdatesCard";
+import SelfServiceCard from "./SelfServiceCard";
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import { InstallOrCommandUuid } from "../InstallStatusCell/InstallStatusCell";
 import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
-
-import {
-  CATEGORIES_NAV_ITEMS,
-  filterSoftwareByCategory,
-  ICategory,
-} from "./helpers";
-import CategoriesMenu from "./CategoriesMenu";
 import { getUiStatus } from "../helpers";
-import UpdateSoftwareItem from "./UpdateSoftwareItem";
 
 const baseClass = "software-self-service";
 
@@ -65,8 +47,6 @@ const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   self_service: true,
   category_id: undefined,
 } as const;
-
-const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
 
 export interface ISoftwareSelfServiceProps {
   contactUrl: string;
@@ -117,6 +97,7 @@ const SoftwareSelfService = ({
     getUpdatesPageSize(window.innerWidth)
   );
 
+  // Enhance with `ui_status`. See helpers.
   const enhancedSoftware = useMemo(() => {
     if (!selfServiceData) return [];
     return selfServiceData.software.map((software) => ({
@@ -454,7 +435,7 @@ const SoftwareSelfService = ({
   };
 
   const onCategoriesDropdownChange = (
-    option: SingleValue<CustomOptionType>
+    option: SingleValue<{ value: string }>
   ) => {
     router.push(
       getPathWithQueryParams(pathname, {
@@ -551,219 +532,38 @@ const SoftwareSelfService = ({
     onShowUninstallDetails,
   ]);
 
-  const renderUpdatesCard = () => {
-    if (isLoading) {
-      return <Spinner />;
-    }
-
-    if (isError) {
-      return <DeviceUserError />;
-    }
-
-    return (
-      <>
-        <div className={`${baseClass}__items`}>
-          {paginatedUpdates.map((s) => {
-            return (
-              <UpdateSoftwareItem
-                key={s.id}
-                software={s}
-                onClickUpdateAction={onClickUpdateAction}
-                onShowInstallerDetails={() => {
-                  onClickFailedUpdateStatus(s);
-                }}
-              />
-            );
-          })}
-        </div>
-        <Pagination
-          disableNext={updatesPage >= totalUpdatesPages - 1}
-          disablePrev={updatesPage === 0}
-          hidePagination={
-            updatesPage >= totalUpdatesPages - 1 && updatesPage === 0
-          }
-          onNextPage={onNextUpdatesPage}
-          onPrevPage={onPreviousUpdatesPage}
-          className={`${baseClass}__pagination`}
-        />
-      </>
-    );
-  };
-
-  const renderSelfServiceCard = () => {
-    const renderHeaderFilters = () => (
-      <div className={`${baseClass}__header-filters`}>
-        <SearchField
-          placeholder="Search by name"
-          onChange={onSearchQueryChange}
-          defaultValue={queryParams.query}
-        />
-        <DropdownWrapper
-          options={CATEGORIES_NAV_ITEMS.map((category: ICategory) => ({
-            ...category,
-            value: String(category.id), // DropdownWrapper only accepts string
-          }))}
-          value={String(queryParams.category_id || 0)}
-          onChange={onCategoriesDropdownChange}
-          name="categories-dropdown"
-          className={`${baseClass}__categories-dropdown`}
-        />
-      </div>
-    );
-
-    const renderCategoriesMenu = () => (
-      <CategoriesMenu
-        queryParams={queryParams}
-        categories={CATEGORIES_NAV_ITEMS}
-      />
-    );
-
-    if (isLoading) {
-      return <Spinner />;
-    }
-
-    if (isError) {
-      return <DeviceUserError />; // Only shown on DeviceUserPage not HostDetailsPage
-    }
-
-    // No self-service software available hides categories menu and header filters
-    if ((isEmpty || !selfServiceData) && !isFetching) {
-      return (
-        <>
-          <EmptyTable
-            graphicName="empty-software"
-            header="No self-service software available yet"
-            info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
-          />
-        </>
-      );
-    }
-
-    return (
-      <>
-        {renderHeaderFilters()}
-        <div className={`${baseClass}__table`}>
-          {renderCategoriesMenu()}
-          <TableContainer
-            columnConfigs={tableConfig}
-            data={filterSoftwareByCategory(
-              enhancedSoftware || [],
-              queryParams.category_id
-            )}
-            isLoading={isFetching}
-            defaultSortHeader={DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_key}
-            defaultSortDirection={
-              DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_direction
-            }
-            pageIndex={0}
-            disableNextPage={selfServiceData?.meta.has_next_results === false}
-            pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
-            searchQuery={queryParams.query} // Search is now client-side to reduce API calls
-            searchQueryColumn="name"
-            isClientSideFilter
-            isClientSidePagination
-            emptyComponent={() => {
-              return isEmptySearch ? (
-                <EmptyTable
-                  graphicName="empty-search-question"
-                  header="No items match the current search criteria"
-                  info={
-                    <>
-                      Not finding what you&apos;re looking for?{" "}
-                      <CustomLink
-                        url={contactUrl}
-                        text="Reach out to IT"
-                        newTab
-                      />
-                    </>
-                  }
-                />
-              ) : (
-                <EmptySoftwareTable />
-              );
-            }}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disableTableHeader
-            disableCount
-          />
-        </div>
-
-        <Pagination
-          disableNext={selfServiceData?.meta.has_next_results === false}
-          disablePrev={selfServiceData?.meta.has_previous_results === false}
-          hidePagination={
-            selfServiceData?.meta.has_next_results === false &&
-            selfServiceData?.meta.has_previous_results === false
-          }
-          onNextPage={onNextPage}
-          onPrevPage={onPrevPage}
-          className={`${baseClass}__pagination`}
-        />
-      </>
-    );
-  };
-
   return (
     <div className={baseClass}>
-      {paginatedUpdates.length > 0 && (
-        <Card
-          className={`${baseClass}__updates-card`}
-          borderRadiusSize="xxlarge"
-          paddingSize="xlarge"
-          includeShadow
-        >
-          <div className={`${baseClass}__header`}>
-            <CardHeader
-              header="Updates"
-              subheader={
-                <>
-                  The following app require updating.{" "}
-                  {contactUrl && (
-                    <span>
-                      If you need help,{" "}
-                      <CustomLink
-                        url={contactUrl}
-                        text="reach out to IT"
-                        newTab
-                      />
-                    </span>
-                  )}
-                </>
-              }
-            />
-            <Button
-              disabled={disableUpdateAllButton}
-              onClick={onClickUpdateAll}
-            >
-              Update all
-            </Button>
-          </div>
-          {renderUpdatesCard()}
-        </Card>
-      )}
-      <Card
-        className={`${baseClass}__self-service-card`}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
-        <CardHeader
-          header="Self-service"
-          subheader={
-            <>
-              Install organization-approved apps provided by your IT department.{" "}
-              {contactUrl && (
-                <span>
-                  If you need help,{" "}
-                  <CustomLink url={contactUrl} text="reach out to IT" newTab />
-                </span>
-              )}
-            </>
-          }
-        />
-        {renderSelfServiceCard()}
-      </Card>
+      <UpdatesCard
+        contactUrl={contactUrl}
+        disableUpdateAllButton={disableUpdateAllButton}
+        onClickUpdateAll={onClickUpdateAll}
+        paginatedUpdates={paginatedUpdates}
+        isLoading={isLoading}
+        isError={isError}
+        onClickUpdateAction={onClickUpdateAction}
+        onClickFailedUpdateStatus={onClickFailedUpdateStatus}
+        updatesPage={updatesPage}
+        totalUpdatesPages={totalUpdatesPages}
+        onNextUpdatesPage={onNextUpdatesPage}
+        onPreviousUpdatesPage={onPreviousUpdatesPage}
+      />
+      <SelfServiceCard
+        isLoading={isLoading}
+        isError={isError}
+        isFetching={isFetching}
+        selfServiceData={selfServiceData}
+        enhancedSoftware={enhancedSoftware}
+        tableConfig={tableConfig}
+        queryParams={queryParams}
+        contactUrl={contactUrl}
+        onSearchQueryChange={onSearchQueryChange}
+        onCategoriesDropdownChange={onCategoriesDropdownChange}
+        onNextPage={onNextPage}
+        onPrevPage={onPrevPage}
+        isEmpty={isEmpty}
+        isEmptySearch={isEmptySearch}
+      />
       {showUninstallSoftwareModal && selectedSoftware.current && (
         <UninstallSoftwareModal
           softwareId={selectedSoftware.current.softwareId}
