@@ -1354,7 +1354,7 @@ Modifies the Fleet's configuration with the supplied information.
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
 | query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`) |
 
-> Note: If `server_url` changes hosts already are already enrolled will no longer communicate with Fleet. They need to be re-enrolled. If you're using Android MDM, before you re-enroll Android hosts, you have to turn Android MDM off and back on to point Google to the new `server_url`.
+> Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
 
 <br/>
 
