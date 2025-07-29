@@ -207,31 +207,6 @@ export const SoftwareInstallDetailsModal = ({
     }
   );
 
-  // need to fetch the install script
-  // TODO - include in above response if possible to avoid this secondary API call
-  const {
-    data: softwareTitle,
-    isLoading: isSoftwareTitleLoading,
-    isError: isSoftwareTitleError,
-  } = useQuery<
-    ISoftwareTitleResponse,
-    AxiosError,
-    ISoftwareTitleDetails,
-    IGetSoftwareTitleQueryKey[]
-  >(
-    [
-      {
-        scope: "softwareById",
-        softwareId: swInstallResult?.software_title_id || 0,
-      },
-    ],
-    ({ queryKey }) => softwareAPI.getSoftwareTitle(queryKey[0]),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      select: (data) => data.software_title,
-    }
-  );
-
   if (isLoading) {
     return <Spinner />;
   }
@@ -278,37 +253,6 @@ export const SoftwareInstallDetailsModal = ({
     );
   }
 
-  const renderInstallDetails = () => {
-    const renderScript = () => {
-      if (isSoftwareTitleLoading) {
-        return <Spinner />;
-      }
-      if (isSoftwareTitleError) {
-        return (
-          <DataError
-            description="Unable to fetch install script for this software."
-            excludeIssueLink
-          />
-        );
-      }
-      return (
-        <Textarea label="Install script:" variant="code">
-          {softwareTitle?.software_package?.install_script}
-        </Textarea>
-      );
-    };
-    return (
-      <>
-        {swInstallResult.output && (
-          <Textarea label="Install script output:" variant="code">
-            {swInstallResult.output}
-          </Textarea>
-        )}
-        {renderScript()}
-      </>
-    );
-  };
-
   const renderInstallDetailsSection = () => {
     return (
       <>
@@ -319,7 +263,11 @@ export const SoftwareInstallDetailsModal = ({
           caretPosition="after"
           onClick={toggleInstallDetails}
         />
-        {showInstallDetails && renderInstallDetails()}
+        {showInstallDetails && swInstallResult.output && (
+          <Textarea label="Install script output:" variant="code">
+            {swInstallResult.output}
+          </Textarea>
+        )}
       </>
     );
   };
