@@ -161,7 +161,7 @@ interface ISoftwareInstallDetailsProps {
   onCancel: () => void;
   hostSoftware?: IHostSoftware; // for inventory versions, not present on activity feeds
   deviceAuthToken?: string;
-  onClickRetry?: () => void; // DUP only
+  onRetry?: (id: number) => void; // DUP only
 }
 
 export const SoftwareInstallDetailsModal = ({
@@ -169,7 +169,7 @@ export const SoftwareInstallDetailsModal = ({
   onCancel,
   hostSoftware,
   deviceAuthToken,
-  onClickRetry,
+  onRetry,
 }: ISoftwareInstallDetailsProps) => {
   // will always be present
   const installUUID = detailsFromProps.install_uuid ?? "";
@@ -179,6 +179,13 @@ export const SoftwareInstallDetailsModal = ({
     setShowInstallDetails((prev) => !prev);
   };
 
+  const onClickRetry = () => {
+    // on DUP, where this is relevant, both will be defined
+    if (onRetry && hostSoftware?.id) {
+      onRetry(hostSoftware.id);
+    }
+    onCancel();
+  };
   // TODO - VPP case (see AppInstallDetails)
 
   const { data: swInstallResult, isLoading, isError, error } = useQuery<

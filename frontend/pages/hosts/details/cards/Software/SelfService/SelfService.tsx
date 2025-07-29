@@ -39,8 +39,10 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
+
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import { InstallOrCommandUuid } from "../InstallStatusCell/InstallStatusCell";
@@ -75,7 +77,6 @@ export interface ISoftwareSelfServiceProps {
   pathname: string;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
-  onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   refetchHostDetails: () => void;
   isHostDetailsPolling: boolean;
@@ -95,7 +96,6 @@ const SoftwareSelfService = ({
   pathname,
   queryParams,
   router,
-  onShowInstallDetails,
   onShowUninstallDetails,
   refetchHostDetails,
   isHostDetailsPolling,
@@ -109,6 +109,10 @@ const SoftwareSelfService = ({
   const [selectedUpdateDetails, setSelectedUpdateDetails] = useState<
     IDeviceSoftware | undefined
   >(undefined);
+  const [
+    selectedHostSWInstallDetails,
+    setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | undefined>(undefined);
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
@@ -442,6 +446,12 @@ const SoftwareSelfService = ({
     },
     [setSelectedUpdateDetails]
   );
+  const onShowInstallDetails = useCallback(
+    (hostSoftware?: IHostSoftware) => {
+      setSelectedHostSWInstallDetails(hostSoftware);
+    },
+    [setSelectedHostSWInstallDetails]
+  );
 
   const onSearchQueryChange = (value: string) => {
     router.push(
@@ -465,8 +475,8 @@ const SoftwareSelfService = ({
     );
   };
 
-  const onClickFailedUpdateStatus = (s: IHostSoftware) => {
-    onShowInstallDetails(s);
+  const onClickFailedUpdateStatus = (hostSoftware: IHostSoftware) => {
+    onShowInstallDetails(hostSoftware);
   };
 
   const onExitUninstallSoftwareModal = () => {
@@ -763,6 +773,20 @@ const SoftwareSelfService = ({
           token={deviceToken}
           onExit={onExitUninstallSoftwareModal}
           onSuccess={onSuccessUninstallSoftwareModal}
+        />
+      )}
+      {selectedHostSWInstallDetails && (
+        <SoftwareInstallDetailsModal
+          hostSoftware={selectedHostSWInstallDetails}
+          details={{
+            host_display_name: hostDisplayName,
+            install_uuid:
+              selectedHostSWInstallDetails.software_package?.last_install
+                ?.install_uuid,
+          }}
+          onRetry={onClickInstallAction}
+          onCancel={() => setSelectedHostSWInstallDetails(undefined)}
+          deviceAuthToken={deviceToken}
         />
       )}
       {selectedUpdateDetails && (

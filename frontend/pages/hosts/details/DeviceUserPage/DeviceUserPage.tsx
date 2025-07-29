@@ -135,9 +135,6 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
-  const [selectedHostSoftware, setSelectedHostSoftware] = useState<
-    IHostSoftware | undefined
-  >(undefined);
   const [
     selectedSelfServiceScriptDetails,
     setSelectedSelfServiceScriptDetails,
@@ -341,14 +338,6 @@ const DeviceUserPage = ({
     setShowOSSettingsModal(!showOSSettingsModal);
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
-  const onShowInstallDetails = useCallback(
-    // why optional?
-    (hostSoftware?: IHostSoftware) => {
-      setSelectedHostSoftware(hostSoftware);
-    },
-    [setSelectedHostSoftware]
-  );
-
   const onShowUninstallDetails = useCallback(
     (details?: ISoftwareUninstallDetails) => {
       setSelectedSelfServiceScriptDetails(details);
@@ -529,7 +518,6 @@ const DeviceUserPage = ({
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
                       router={router}
-                      onShowInstallDetails={onShowInstallDetails}
                       onShowUninstallDetails={onShowUninstallDetails}
                       refetchHostDetails={refetchHostDetails}
                       isHostDetailsPolling={showRefetchSpinner}
@@ -662,23 +650,6 @@ const DeviceUserPage = ({
             }}
           />
         )}
-        {selectedHostSoftware &&
-          // necessary condition?
-          // "install_uuid" in selectedHostSoftware &&
-          !!host && (
-            <SoftwareInstallDetailsModal
-              hostSoftware={selectedHostSoftware}
-              // TODO: onClickRetry
-              details={{
-                host_display_name: host.display_name,
-                install_uuid:
-                  selectedHostSoftware.software_package?.last_install
-                    ?.install_uuid,
-              }}
-              onCancel={() => setSelectedHostSoftware(undefined)}
-              deviceAuthToken={deviceAuthToken}
-            />
-          )}
         {selectedSelfServiceScriptDetails && !!host && (
           <SoftwareUninstallDetailsModal
             details={{

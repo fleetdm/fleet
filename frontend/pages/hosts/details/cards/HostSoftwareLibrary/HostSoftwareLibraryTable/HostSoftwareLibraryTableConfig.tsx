@@ -47,7 +47,7 @@ interface IHostSWLibraryTableHeaders {
   baseClass: string;
   onShowInventoryVersions?: (software?: IHostSoftware) => void;
   onShowUpdateDetails: (software?: IHostSoftware) => void;
-  onShowInstallDetails: (details?: IHostSoftware) => void;
+  onSetSelectedHostSWInstallDetails: (details?: IHostSoftware) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (softwareId: number) => void;
@@ -66,7 +66,7 @@ export const generateHostSWLibraryTableHeaders = ({
   baseClass,
   onShowInventoryVersions,
   onShowUpdateDetails,
-  onShowInstallDetails,
+  onSetSelectedHostSWInstallDetails,
   onShowUninstallDetails,
   onClickInstallAction,
   onClickUninstallAction,
@@ -126,7 +126,7 @@ export const generateHostSWLibraryTableHeaders = ({
             software={original}
             onShowInventoryVersions={onShowInventoryVersions}
             onShowUpdateDetails={onShowUpdateDetails}
-            onShowInstallDetails={onShowInstallDetails}
+            onShowInstallDetails={onSetSelectedHostSWInstallDetails}
             onShowUninstallDetails={onShowUninstallDetails}
             isHostOnline={isHostOnline}
           />

@@ -232,10 +232,6 @@ const HostDetailsPage = ({
     setSelectedHostSWForInventoryVersions,
   ] = useState<IHostSoftware | null>(null);
   const [
-    selectedHostSWInstallDetails,
-    setSelectedHostSWInstallDetails,
-  ] = useState<IHostSoftware | null>(null);
-  const [
     selectedCancelActivity,
     setSelectedCancelActivity,
   ] = useState<IHostUpcomingActivity | null>(null);
@@ -703,15 +699,6 @@ const HostDetailsPage = ({
     [setSelectedHostSWForInventoryVersions]
   );
 
-  const onSetSelectedHostSWInstallDetails = useCallback(
-    (hostSW?: IHostSoftware) => {
-      if (hostSW) {
-        setSelectedHostSWInstallDetails(hostSW);
-      }
-    },
-    [setSelectedHostSWInstallDetails]
-  );
-
   const onShowUninstallDetails = useCallback(
     (details?: ISoftwareUninstallDetails) => {
       setPackageUninstallDetails({
@@ -1042,7 +1029,6 @@ const HostDetailsPage = ({
                   onShowInventoryVersions={
                     onSetSelectedHostSWForInventoryVersions
                   }
-                  onShowInstallDetails={onSetSelectedHostSWInstallDetails}
                   onShowUninstallDetails={onShowUninstallDetails}
                   hostTeamId={host.team_id || 0}
                   hostName={host.display_name}
@@ -1415,18 +1401,6 @@ const HostDetailsPage = ({
               hostName={host.display_name}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
-            />
-          )}
-          {selectedHostSWInstallDetails && (
-            <SoftwareInstallDetailsModal
-              details={{
-                host_display_name: host.display_name,
-                install_uuid:
-                  selectedHostSWInstallDetails.software_package?.last_install
-                    ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
-              }}
-              hostSoftware={selectedHostSWInstallDetails}
-              onCancel={() => setSelectedHostSWInstallDetails(null)}
             />
           )}
           {selectedHostSWForInventoryVersions && (

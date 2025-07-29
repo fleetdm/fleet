@@ -30,6 +30,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
@@ -55,7 +56,6 @@ interface IHostSoftwareLibraryProps {
   hostTeamId: number;
   hostName: string;
   onShowInventoryVersions: (software?: IHostSoftware) => void;
-  onShowInstallDetails: (software?: IHostSoftware) => void;
   onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
@@ -110,7 +110,6 @@ const HostSoftwareLibrary = ({
   hostTeamId = 0,
   hostName,
   onShowInventoryVersions,
-  onShowInstallDetails,
   onShowUninstallDetails,
   isSoftwareEnabled = false,
   hostMDMEnrolled,
@@ -137,6 +136,13 @@ const HostSoftwareLibrary = ({
   const [
     selectedSoftwareUpdates,
     setSelectedSoftwareUpdates,
+  ] = useState<IHostSoftware | null>(null);
+  // this state and modal logic exists at this level intead of the page level to match the similaron
+  // the device user page, which needs to be at this level to manipulate relevant UI states e.g.
+  // "updating..." when the user clicks "Retry" in the SoftwareInstallDetailsModal
+  const [
+    selectedHostSWInstallDetails,
+    setSelectedHostSWInstallDetails,
   ] = useState<IHostSoftware | null>(null);
 
   const enhancedSoftware = useMemo(() => {
@@ -348,6 +354,14 @@ const HostSoftwareLibrary = ({
     [setSelectedSoftwareUpdates]
   );
 
+  const onSetSelectedHostSWInstallDetails = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWInstallDetails(hostSW);
+      }
+    },
+    [setSelectedHostSWInstallDetails]
+  );
   const onInstallOrUninstall = useCallback(() => {
     // For online hosts, poll for change in pending statuses
     // For offline hosts, refresh the data without polling
@@ -431,7 +445,7 @@ const HostSoftwareLibrary = ({
       baseClass,
       onShowInventoryVersions,
       onShowUpdateDetails,
-      onShowInstallDetails,
+      onSetSelectedHostSWInstallDetails,
       onShowUninstallDetails,
       onClickInstallAction,
       onClickUninstallAction,
@@ -446,7 +460,7 @@ const HostSoftwareLibrary = ({
     hostName,
     onShowInventoryVersions,
     onShowUpdateDetails,
-    onShowInstallDetails,
+    onSetSelectedHostSWInstallDetails,
     onShowUninstallDetails,
     onClickInstallAction,
     onClickUninstallAction,
@@ -503,6 +517,18 @@ const HostSoftwareLibrary = ({
           software={selectedSoftwareUpdates}
           onUpdate={onClickInstallAction}
           onExit={() => setSelectedSoftwareUpdates(null)}
+        />
+      )}
+      {selectedHostSWInstallDetails && (
+        <SoftwareInstallDetailsModal
+          details={{
+            host_display_name: hostDisplayName,
+            install_uuid:
+              selectedHostSWInstallDetails.software_package?.last_install
+                ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+          }}
+          hostSoftware={selectedHostSWInstallDetails}
+          onCancel={() => setSelectedHostSWInstallDetails(null)}
         />
       )}
     </div>
