@@ -42,6 +42,27 @@ const baseClass = "host-software-table";
 interface IHostSoftwareRowProps extends Row {
   original: IHostSoftware;
 }
+
+interface IEmptyComponentProps {
+  hasVulnFilters: boolean;
+  platform: HostPlatform;
+  searchQuery: string;
+}
+
+const EmptyComponent = React.memo(
+  ({ hasVulnFilters, platform, searchQuery }: IEmptyComponentProps) => {
+    const vulnFilterAndNotSupported =
+      hasVulnFilters && isIPadOrIPhone(platform);
+    return vulnFilterAndNotSupported ? (
+      <VulnsNotSupported
+        platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
+      />
+    ) : (
+      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
+    );
+  }
+);
+
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
@@ -149,17 +170,6 @@ const HostSoftwareTable = ({
     return <TableCount name="items" count={count} />;
   }, [count, isSoftwareNotDetected]);
 
-  const memoizedEmptyComponent = useCallback(() => {
-    const vulnFilterAndNotSupported = isIPadOrIPhone(platform);
-    return vulnFilterAndNotSupported ? (
-      <VulnsNotSupported
-        platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
-      />
-    ) : (
-      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
-    );
-  }, [platform, searchQuery]);
-
   // Determines if a user should be able to filter or search in the table
   const hasData = data && data.software.length > 0;
   const hasQuery = searchQuery !== "";
@@ -223,7 +233,13 @@ const HostSoftwareTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
-        emptyComponent={memoizedEmptyComponent}
+        emptyComponent={() => (
+          <EmptyComponent
+            hasVulnFilters={hasVulnFilters}
+            platform={platform}
+            searchQuery={searchQuery}
+          />
+        )}
         customFiltersButton={
           showFilterHeaders ? renderCustomFiltersButton : undefined
         }
