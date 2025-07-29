@@ -424,7 +424,7 @@ func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 	updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.bundle_identifier = ?`
 
 	hostSoftwareStmt := `
-		INSERT IGNORE INTO host_software 
+		INSERT IGNORE INTO host_software
 			(host_id, software_id, last_opened_at)
 		VALUES
 			(?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1), ?)`
@@ -2063,8 +2063,8 @@ DELETE st FROM software_titles st
 				id DESC
 			LIMIT 1
 		)
-		WHERE 
-			st.bundle_identifier IS NOT NULL AND 
+		WHERE
+			st.bundle_identifier IS NOT NULL AND
 			st.bundle_identifier != '' AND
 			s.name_source = 'bundle_4.67'
 		`
@@ -2426,7 +2426,7 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			software.source AS software_source,
 			software.version AS version,
 			software.bundle_identifier AS bundle_identifier
-		FROM 
+		FROM
 			host_software
 		INNER JOIN
 			software ON host_software.software_id = software.id
@@ -3900,7 +3900,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			FROM
 				software_titles
 			LEFT JOIN
-				software_installers ON software_titles.id = software_installers.title_id 
+				software_installers ON software_titles.id = software_installers.title_id
 				AND software_installers.global_or_team_id = :global_or_team_id
 			LEFT JOIN
 				software ON software_titles.id = software.title_id ` + installedSoftwareJoinsCondition + `
