@@ -179,13 +179,12 @@ WHERE
 	return nil
 }
 
-// Note this is the same migration that is in 20250728122229_RecreateNanoViewQueue.go
+// Note this is the same migration that is in 20250728122229_RecreateNanoViewQueue.go. We have added
+// it here because it can be called multiple times without issues and can avoid some issues
+// customers have seen when completing this migration (see
+// https://github.com/fleetdm/fleet/issues/28573 and https://github.com/fleetdm/fleet/issues/31141)
 func recreateNanoViewQueue(tx *sql.Tx) error {
-	_, err := tx.Exec(`DROP VIEW IF EXISTS nano_view_queue;`)
-	if err != nil {
-		return fmt.Errorf("failed to drop nano_view_queue: %w", err)
-	}
-	_, err = tx.Exec(`
+	_, err := tx.Exec(`
 		CREATE OR REPLACE SQL SECURITY INVOKER VIEW nano_view_queue AS
 SELECT
     q.id COLLATE utf8mb4_unicode_ci AS id,

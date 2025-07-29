@@ -10,7 +10,6 @@ func init() {
 }
 
 func Up_20250728122229(tx *sql.Tx) error {
-	// c.command_uuid COLLATE utf8mb4_0900_ai_ci AS command_uuid,
 	_, err := tx.Exec(`
 		CREATE OR REPLACE SQL SECURITY INVOKER VIEW nano_view_queue AS
 SELECT
