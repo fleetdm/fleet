@@ -693,19 +693,22 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
 
-	// For SCEP renewal, we need:
-	// 1. An RSA key for envelope encryption (SCEP protocol requirement)
-	// 2. The existing certificate must be passed as the signer cert so the server can validate it
+	// For SCEP renewal, we need to work around PKCS#7 limitations
+	// TODO: To create a hybrid PKCS#7 message with RSA envelope encryption and ECC SignerInfo,
+	// we would need to:
+	// 1. Fork the smallstep/scep library and modify the pkcs7 message creation
+	// 2. Or use lower-level pkcs7 libraries to manually construct the message
+	// 3. Update the server-side to handle ECC-signed requests properly
+	// For now, we use RSA for the entire SCEP protocol, but the CSR still uses
+	// the ECC key so the server can identify which certificate to renew
 	tempRSAKey, tempRSACert := createTempRSAKeyAndCert(t, existingCert.Subject.CommonName)
 
 	// Create SCEP PKI message for renewal
-	// Note: We use MessageType: RenewalReq to indicate this is a renewal,
-	// but we cannot pass the existing ECC cert as SignerCert due to SCEP limitations
 	pkiMsgReq := &scep.PKIMessage{
 		MessageType: scep.RenewalReq, // Use RenewalReq for renewal
-		Recipients:  caCerts,
-		SignerKey:   tempRSAKey,  // RSA key for SCEP envelope encryption
-		SignerCert:  tempRSACert, // Must use RSA cert to match SignerKey
+		Recipients:  caCerts,         // RSA CA cert for envelope encryption
+		SignerKey:   tempRSAKey,      // RSA key for SCEP protocol
+		SignerCert:  tempRSACert,     // RSA cert for SCEP protocol
 	}
 
 	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(s.Logger))
@@ -722,7 +725,8 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 	// The renewal should succeed.
 	require.Equal(t, scep.SUCCESS, pkiMsgResp.PKIStatus, "Renewal should succeed")
 
-	// Decrypt PKI envelope using RSA key
+	// Decrypt PKI envelope
+	// The response is encrypted for the requester's certificate (RSA in this case)
 	err = pkiMsgResp.DecryptPKIEnvelope(tempRSACert, tempRSAKey)
 	require.NoError(t, err)
 
