@@ -814,6 +814,7 @@ const SoftwareSelfService = ({
           }}
           hostSoftware={selectedVPPInstallDetails}
           onCancel={() => setSelectedVPPInstallDetails(null)}
+          onRetry={onClickInstallAction}
         />
       )}
       {selectedUpdateDetails && (
