@@ -28,7 +28,7 @@ Fleet API: Use the [Add custom OS setting (configuration profile) endpoint](http
 
 Currently, on macOS hosts, Fleet supports enforcing OS settings at the device (device-scoped) and user (user-scoped) levels. User-scoped declaration (DDM) profiles and iOS, iPadOS, and Windows configuration profiles are coming soon.
 
-If a host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For hosts that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that installed Fleet's agent (fleetd).
+If a host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For hosts that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that turned on MDM on the **Fleet Desktop > My device** page.
 
 How to deliver user-scoped configuration profiles:
 1. If you use iMazing Profile Creator, open your configuration profile in iMazing, select the **General** tab and update the **Payoad Scope** to **User**.
