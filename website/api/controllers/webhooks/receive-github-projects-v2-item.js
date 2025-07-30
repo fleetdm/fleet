@@ -276,7 +276,7 @@ async function processStatusChange(payload, gcpServiceAccountKey) {
   const statusChangeData = {
     date: new Date().toISOString(),
     repo: issueDetails.repo,
-    issue_number: issueDetails.issueNumber,
+    issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
     status: 'in_progress'
   };
 
