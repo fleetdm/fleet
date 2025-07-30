@@ -4,13 +4,9 @@ name: Check Microsoft MDM related protocol specification feeds for changes
 # for changes and create a Github issue for MDM engineers to review the changes
 
 on:
-  # TODO re-enable once tested
-  # schedule:
+  schedule:
     # Daily at 8:35pm CDT (1:35am UTC) -- run during off-hours to prevent hitting GitHub API rate limit
-    # - cron: "35 1 * * *"
-  push:
-    branches:
-      - JM-mdm-rss-feed
+    - cron: "35 1 * * *"
 
 jobs:
   check-ms-mdm-protocol-docs:
@@ -39,7 +35,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           feed: https://winprotocoldocs-bhdugrdyduf5h2e4.b02.azurefd.net/MS-MDM/%5bMS-MDM%5d.rss
           prefix: "MDM: Review Microsoft MS-MDM Proto Change for compatibility: "
-          character-limit: 255
           dry-run: false
           max-age: 36h
           labels: "#g-mdm"
