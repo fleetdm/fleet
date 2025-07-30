@@ -240,6 +240,10 @@ func RenewCertificate(
 	keyPath := filepath.Join(metadataDir, constant.FleetHTTPSignatureTPMKeyFileName)
 	oldKeyPath := filepath.Join(metadataDir, constant.FleetHTTPSignatureTPMKeyBackupFileName)
 
+	if _, err := os.Stat(keyPath); err != nil {
+		return nil, fmt.Errorf("failed to find existing TPM key: %w", err)
+	}
+
 	// Clean up any existing old key file
 	if err := os.RemoveAll(oldKeyPath); err != nil {
 		return nil, fmt.Errorf("failed to clean up existing old key: %w", err)
