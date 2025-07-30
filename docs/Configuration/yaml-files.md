@@ -4,9 +4,9 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings.
 
-Users that have global admin permissions may apply GitOps configurations globally and to all teams, while users whose permissions are scoped to specific teams may apply settings to only to teams they has permissions to modify.
+Users with global admin permissions may apply GitOps configurations globally and to all teams, while users whose permissions are scoped to specific teams may apply settings to only the teams they have permission to modify.
 
-Any settings not defined in your YAML files (including missing or mispelled keys) will be reset to the default values, which may include deleting assets such as software packages.
+Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values, which may include deleting assets such as software packages.
 
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
@@ -19,6 +19,27 @@ controls: # Can be defined in teams/no-team.yml too.
 software: # Can be defined in teams/no-team.yml too
 org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
+```
+Paths in YAML files are always relative to the file you’re editing, keeping configurations simple and portable. 
+
+For example:
+```yaml
+# If the package is in the same directory:
+package_path: package_name.yml
+
+# If the package is in a different directory:
+package_path: ../software/package_name.yml
+```
+Here's how it looks in a policy file:
+```yaml
+- name: Policy name
+  query:
+  install_software:
+    package_path: ../software/package_name.yml
+  critical:
+  description:
+  resolution:
+  platform:
 ```
 
 You may also wish to create specialized API-Only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
