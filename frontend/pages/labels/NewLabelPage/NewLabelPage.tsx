@@ -433,7 +433,7 @@ const NewLabelPage = ({
               options={availableCriteria}
               classname={`${baseClass}__criteria-dropdown`}
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
-              helpText="Currently supported on macOS hosts."
+              helpText="Currently, label criteria can be IdP group or department on macOS hosts."
             />
             <p>is equal to</p>
             <InputField
