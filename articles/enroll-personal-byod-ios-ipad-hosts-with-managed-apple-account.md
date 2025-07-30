@@ -2,30 +2,30 @@
 
 _Available in Fleet Premium._
 
-To enroll personal iPhones and iPads with [Account-driven User Enrollment](https://support.apple.com/en-gb/guide/deployment/dep23db2037d/web), and provide seamless experience for your end users, follow steps below.
-This approach allows both a Managed Apple Account and a personal Apple Account to be signed in on the same device, with complete separation of work and personal data. Users maintain privacy over their personal information, and IT manages work-related OS settings and apps.
+To enroll personal iPhones and iPads using [Account-driven User Enrollment](https://support.apple.com/en-gb/guide/deployment/dep23db2037d/web), and provide a seamless experience for your end users, follow the steps below.
 
-- Step 1: Add Apple Business Manager (ABM) to Fleet
-- Step 2: Add and verify your domain in Apple Business Manager (ABM)
-- Step 3: Federate your IdP accounts to Apple Business Manager (ABM)
-- Step 4: Host service discovery file (optional)
-- Step 5: Login to enroll to Fleet (end user experience)
+This approach enables both a Managed Apple Account and a personal Apple Account to be signed in on the same device, ensuring complete separation of work profile and personal data. Users retain privacy over their personal information, while IT manages work-related OS settings and applications.
+
+- [Step 1: Connect Apple Business Manager (ABM) to Fleet](#step-1-connect-apple-business-manager-abm-to-fleet)
+- [Step 2: Add and verify your domain in Apple Business Manager (ABM)](#step-2-add-and-verify-your-domain-in-apple-business-manager-abm)
+- [Step 3: Federate your IdP accounts to Apple Business Manager (ABM)](#step-3-federate-your-idp-accounts-to-apple-business-manager-ab)
+- [Step 4: Host service discovery file (optional)](#step-4-host-service-discovery-file-optional)
+- [Step 5: Login to enroll to Fleet (end user experience)](#step-5-login-to-enroll-to-fleet-end-user-experience)
 
 
-## Step 1: Add Apple Business Manager (ABM) to Fleet
+## Step 1: Connect Apple Business Manager (ABM) to Fleet
 
-1. Follow instructions to add ABM to Fleet.
-2. In ABM, select **Your name > Preferences > Management Assignment**. Then, choose **Edit** and set the Fleet MDM server, created in the first step, as the default for iPhone and iPad.
-
-> Fleet MDM server must be default for iPhone and iPad for User Enrollment to work.
+1. Follow the [instructions](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager) to connect ABM to Fleet.
+2. If you have already connected ABM to enable automatic enrollment, skip the previous step. 
+3. Ensure that personal (BYOD) iOS and iPadOS devices are associated with Fleet in **Default Server Assignment** section for User Enrollment to work.
 
 ## Step 2: Add and verify your domain in Apple Business Manager (ABM)
 
-Follow [Apple documentation](https://support.apple.com/en-gb/guide/apple-business-manager/axm48c3280c0/web#axm2033c47b0) to add and verify your company domain to your ABM. Add domain name that's used in your work email (yourcompany.com from name@yourcompany.com). This will enable automatic creation of Apple Managed Accounts from your identitity provider (IdP) accounts in the next step.
+Follow the [Apple documentation](https://support.apple.com/en-gb/guide/apple-business-manager/axm48c3280c0/web#axm2033c47b0) to add and verify your company domain in your ABM. Use the domain name associated with your work email (for example, yourcompany.com from name@yourcompany.com). This will enable the automatic creation of Apple Managed Accounts from your identity provider (IdP) accounts in the next step.
 
 ## Step 3: Federate your IdP accounts to Apple Business Manager (ABM)
 
-Follow [Apple documentation](https://support.apple.com/en-gb/guide/apple-business-manager/axmb19317543/web) to connect your identity provider (IdP) to enable end users to login to Managed Apple Account with existing IdP credentials.
+Follow the [Apple documentation](https://support.apple.com/en-gb/guide/apple-business-manager/axmb19317543/web) o connect your identity provider (IdP). This will enable end users to log in to their Managed Apple Account using their existing IdP credentials.
 
 You can watch these videos as well:
  - [Connect Google Workspace to ABM](https://www.youtube.com/watch?v=CPfO6W67d3A)
@@ -33,12 +33,34 @@ You can watch these videos as well:
 
 ## Step 4: Host service discovery file (optional)
 
-Fleet manages service discovery for hosts that run iOS 18.2/iPadOS 18.2 and above. For hosts below these versions, you need to self-host service discovery file on your company domain that you added to ABM in the second step above.
+Fleet manages service discovery for hosts running iOS 18.2/iPadOS 18.2 and later. For hosts below these versions, you must self-host the service discovery JSON file on your company domain, which you added to ABM in the previous step. This file directs personal hosts to the MDM server for enrollment.
 
-// TODO: JSON that needs to be hosted and instructions that server must return the `Content-Type: application/json` header with the file
+The server must return JSON file below with `Content-Type` header set to `application/json`.
 
+```json
+{
+  "Servers": [
+    {
+      "Version": "mdm-byod",
+      "BaseURL": "https://<fleet_server_url>/...TODO..."
+    }
+  ]
+}
+```
 ## Step 5: Login to enroll to Fleet (end user experience)
 
-// TODO: Steps for the end user. Go to Settings > General > ... > Login with company email > ...
+Ask your end users to go to **Settings > General > VPN & Device Management > Sign In to Work or School Account...** and log in using their IdP credentials.
 
-// TODO: update https://fleetdm.com/guides/macos-mdm-setup#automatic-enrollment
+## Inventory and OS settings limitations
+
+- Fleet does not have access to the serial numbers of personal hosts due to Apple's privacy limitations.
+- For personal hosts, Fleet can only inventory applications from the work profile.
+- Only specific MDM payloads can be applied to hosts enrolled with User Enrollment. To find out which payloads are compatible with User Enrollment, visit the [Apple documentation](https://support.apple.com/en-gb/guide/deployment/dep6ae3f1d5a/1/web/1.0).
+
+
+<meta name="articleTitle" value="Enroll personal (BYOD) iPhones and iPads with Managed Apple Account">
+<meta name="authorFullName" value="Marko Lisica">
+<meta name="authorGitHubUsername" value="marko-lisica">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2025-08-01">
+<meta name="description" value="Enroll personal iPhones and iPads using Account-driven User Enrollment">

@@ -19,11 +19,11 @@ Then click **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
 > - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
-## Automatic enrollment
+## Apple Business Manager
 
 > Available in Fleet Premium
 
-Add your ABM to automatically enroll newly purchased Apple hosts when they're first unboxed and set up by your end users.
+Add your ABM to allow automatic enrollment for company-owned devices and personal (BYOD) enrollment with Managed Apple Account.
 
 To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token: 
 
@@ -45,7 +45,7 @@ After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
 4. Click **MDM Server Assignment** and click **Edit** next to **Default Server Assignment**.
 5. Switch **Mac**, **iPhone**, and **iPad** to Fleet.
 
-macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
+macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending". 
 
 Hosts that automatically enroll will be assigned to a default team. You can configure the default team for macOS, iOS, and iPadOS hosts by:
 
