@@ -1048,6 +1048,17 @@ CREATE TABLE `labels` (
 INSERT INTO `labels` VALUES (1,'2024-04-03 00:00:00','2024-04-03 00:00:00','macOS 14+ (Sonoma+)','macOS hosts with version 14 and above','select 1 from os_version where platform = \'darwin\' and major >= 14;','darwin',1,0,NULL,NULL),(2,'2024-06-28 00:00:00','2024-06-28 00:00:00','iOS','All iOS hosts','','ios',1,1,NULL,NULL),(3,'2024-06-28 00:00:00','2024-06-28 00:00:00','iPadOS','All iPadOS hosts','','ipados',1,1,NULL,NULL),(4,'2024-09-27 00:00:00','2024-09-27 00:00:00','Fedora Linux','All Fedora hosts','select 1 from os_version where name = \'Fedora Linux\';','rhel',1,0,NULL,NULL),(5,'2025-02-25 00:00:00','2025-02-25 00:00:00','Android','All Android hosts','','android',1,1,NULL,NULL);
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `legacy_host_filevault_profiles` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `operation_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `profile_uuid` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `legacy_host_mdm_enroll_refs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
