@@ -56,7 +56,7 @@ When upgrading to 4.71.0, here's how to prepare your already enrolled hosts for 
 When upgrading to Fleet 4.71.0, here's how to update configuration profiles that are already installed on hosts so that they're delivered to the user scope:
 
 1. Check for profiles with `PayloadScope` set to `User`. Already deployed profiles with `PayloadScope` set to `User` won’t be re-installed on hosts automatically.
-2. To change them to the user-scope and re-install them, update the `PayloadIdentifier` and re-add the profile to Fleet. This will uninstall the device-scope profile and install the profile in the user scope.
+2. To change them to the user-scope, update the `PayloadIdentifier`, re-add the profile to Fleet, and delete the old profile. This will uninstall the device-scope profile and install the profile in the user scope. If you're using [GitOps](https://fleetdm.com/docs/configuration/yaml-files), just update the `PayloadIdentifier` and run GitOps.
 
 In versions older than 4.71.0, Fleet always delivered configuration profiles to the device scope (even when the profile's `PayloadScope` was set to `User`)
 
