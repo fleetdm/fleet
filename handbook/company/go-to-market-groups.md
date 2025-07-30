@@ -112,7 +112,7 @@ When you reach out to a prospect or customer, make sure you're the right person:
 
 ### Programs
 
-Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/company/go-to-market-groups#video), and articles.
+Fleet's community programs are rooted in several areas created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/company/go-to-market-groups#video), and articles.
 
 
 #### Social media
