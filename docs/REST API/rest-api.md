@@ -8958,7 +8958,7 @@ Request (using `host_ids`):
 {
   "script_id": 123,
   "host_ids": [1, 2, 3],
-  "starts_at": "2025-07-01T15:00:00Z"
+  "not_before": "2025-07-01T15:00:00Z"
 }
 ```
 
@@ -9025,7 +9025,7 @@ Get statuses and host counts for a batch-run script.
   "script_id": 555,
   "script_name": "my-script.sh",
   "team_id": 123,
-  "starts_at": "2025-07-01T15:00:00Z",
+  "not_before": "2025-07-01T15:00:00Z",
   "completed_at": "2025-07-06T15:00:00Z",
   "status": "completed",
   "cancelled": false
