@@ -713,12 +713,12 @@ FROM
 	LEFT JOIN host_disks hd ON hmdm.host_id = hd.host_id
 WHERE
 	hmdm.host_id = ?`,
+		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
+		fleet.DiskEncryptionActionRequired,
 		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionVerified,
 		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionVerifying,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
-		fleet.DiskEncryptionActionRequired,
 		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionEnforcing,
 		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),

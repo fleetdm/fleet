@@ -1549,9 +1549,9 @@ AND (
             ELSE
                 ''
             END`,
+			ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
 			ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
 			ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
-			ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
 			ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
 			ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
 		)
