@@ -7,7 +7,9 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
+import { SoftwareInstallStatus } from "interfaces/software";
 import { ActivityType, IActivityDetails } from "interfaces/activity";
+
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
@@ -251,13 +253,18 @@ const ActivityFeed = ({
           onCancel={() => setPackageUninstallDetails(null)}
         />
       )}
-      {/* TODO */}
-      {/* {appInstallDetails && (
+      {appInstallDetails && (
         <AppInstallDetailsModal
-          details={appInstallDetails}
+          details={{
+            appName: appInstallDetails.software_title || "",
+            fleetInstallStatus: (appInstallDetails.status ||
+              "pending_install") as SoftwareInstallStatus,
+            hostDisplayName: appInstallDetails.host_display_name || "",
+            commandUuid: appInstallDetails.command_uuid || "",
+          }}
           onCancel={() => setAppInstallDetails(null)}
         />
-      )} */}
+      )}
       {activityAutomationDetails && (
         <ActivityAutomationDetailsModal
           details={activityAutomationDetails}

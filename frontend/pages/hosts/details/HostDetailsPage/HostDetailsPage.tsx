@@ -669,7 +669,6 @@ const HostDetailsPage = ({
           });
           break;
         case "installed_app_store_app":
-          // TODO
           setActivityVPPInstallDetails({
             appName: details?.software_title || "",
             fleetInstallStatus: (details?.status ||
