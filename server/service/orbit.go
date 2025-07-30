@@ -397,6 +397,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			host,
 			appConfig,
 			mdmConfig.EnableDiskEncryption,
+			mdmConfig.RequireBitLockerPIN,
 			isConnectedToFleetMDM,
 			mdmInfo,
 		)
@@ -472,9 +473,11 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		host,
 		appConfig,
 		appConfig.MDM.EnableDiskEncryption.Value,
+		appConfig.MDM.RequireBitLockerPIN.Value,
 		isConnectedToFleetMDM,
 		mdmInfo,
 	)
+
 	if err != nil {
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting no-team disk encryption notifications")
 	}
@@ -574,6 +577,7 @@ func (svc *Service) setDiskEncryptionNotifications(
 	host *fleet.Host,
 	appConfig *fleet.AppConfig,
 	diskEncryptionConfigured bool,
+	requireBitLockerPIN bool,
 	isConnectedToFleetMDM bool,
 	mdmInfo *fleet.HostMDM,
 ) error {
@@ -614,6 +618,8 @@ func (svc *Service) setDiskEncryptionNotifications(
 		notifs.EnforceBitLockerEncryption = !isServer &&
 			mdmInfo != nil &&
 			(needsEncryption || encryptedWithoutKey)
+
+		notifs.EnableBitLockerPINProtectorConfig = !isServer && requireBitLockerPIN
 	}
 
 	return nil

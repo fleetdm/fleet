@@ -43,6 +43,12 @@ type OrbitConfigNotifications struct {
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
 
+	// EnableBitLockerPINProtectorConfig is set if Windows MDM is enabled, BitLocker encryption is
+	// enforced, and the RequireBitLockerPIN server config flag is set. If set, this will
+	// make sure that the BitLocker policy is configured correctly so that the user can configure a
+	// TPM PIN protector.
+	EnableBitLockerPINProtectorConfig bool `json:"enable_bitlocker_pin_protector_config,omitempty"`
+
 	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
 	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 
