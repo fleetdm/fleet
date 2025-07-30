@@ -33,8 +33,8 @@ import (
 func main() {
 	mysqlAddr := flag.String("mysql", "", "mysql address")
 	mysqlUser := flag.String("mysql-user", "", "mysql user")
-	mysqlPass := flag.String("mysql-pw", "", "mysql password")
-	serverPrivateKey := flag.String("server-private-key", "", "Fleet server's private key (to decrypt MDM assets)")
+	mysqlPass := flag.String("mysql-pw", "", "mysql password (optional, omit this flag to be prompted to enter in the terminal)")
+	serverPrivateKey := flag.String("server-private-key", "", "Fleet server's private key to decrypt MDM assets (optional, omit this flag to be prompted to enter in the terminal)")
 	profileUUID := flag.String("profile-uuid", "", "Apple profile UUID to retrieve")
 	serialNum := flag.String("serial-number", "", "serial number of a device to get the device details")
 	orgName := flag.String("org-name", "", "organization name associated with the token used to access Apple Business Manager (e.g., 'Fleet Device Management Inc.')")
