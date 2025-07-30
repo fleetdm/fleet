@@ -10,6 +10,7 @@ describe("getStatusMessage helper function", () => {
         isMDMStatusAcknowledged: false,
         appName: "Logic Pro",
         hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(screen.getByText(/Fleet tried to install/i)).toBeInTheDocument();
@@ -28,6 +29,7 @@ describe("getStatusMessage helper function", () => {
         isMDMStatusAcknowledged: true,
         appName: "Logic Pro",
         hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(
@@ -49,10 +51,11 @@ describe("getStatusMessage helper function", () => {
         isMDMStatusAcknowledged: false,
         appName: "Logic Pro",
         hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(
-      screen.getByText(/failed. Please re-attempt this installation/i)
+      screen.getByText(/Please re-attempt this installation/i)
     ).toBeInTheDocument();
   });
 
@@ -64,6 +67,7 @@ describe("getStatusMessage helper function", () => {
         isMDMStatusAcknowledged: true,
         appName: "Logic Pro",
         hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(
@@ -81,6 +85,7 @@ describe("getStatusMessage helper function", () => {
         isMDMStatusAcknowledged: true,
         appName: "Logic Pro",
         hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
@@ -96,6 +101,7 @@ describe("getStatusMessage helper function", () => {
         isMDMStatusAcknowledged: false,
         appName: "Logic Pro",
         hostDisplayName: "",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
