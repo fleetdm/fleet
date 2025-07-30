@@ -1054,6 +1054,11 @@ CREATE TABLE `legacy_host_filevault_profiles` (
   `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `operation_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `profile_uuid` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `detail` text COLLATE utf8mb4_unicode_ci,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `scope` enum('System','User') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'System',
+  `created_at` timestamp(6) NOT NULL,
+  `updated_at` timestamp(6) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
