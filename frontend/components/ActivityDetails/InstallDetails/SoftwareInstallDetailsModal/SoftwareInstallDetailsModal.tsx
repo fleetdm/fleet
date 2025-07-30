@@ -66,11 +66,10 @@ const StatusMessage = ({
     "the host"
   );
 
-  const timeStamp = updated_at || created_at;
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
   )
-    ? ` (${formatDistanceToNow(new Date(timeStamp), {
+    ? ` (${formatDistanceToNow(new Date(updated_at || created_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`

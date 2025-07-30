@@ -4,6 +4,7 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import { formatDistanceToNow } from "date-fns";
 
 import mdmApi, { IGetMdmCommandResultsResponse } from "services/entities/mdm";
 import deviceUserAPI, {
@@ -36,6 +37,7 @@ interface IGetStatusMessageProps {
   isMDMStatusAcknowledged: boolean;
   appName: string;
   hostDisplayName: string;
+  commandUpdatedAt: string;
 }
 
 export const getStatusMessage = ({
@@ -45,8 +47,17 @@ export const getStatusMessage = ({
   isMDMStatusAcknowledged,
   appName,
   hostDisplayName,
+  commandUpdatedAt,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
+  const displayTimeStamp = ["failed_install", "installed"].includes(
+    displayStatus || ""
+  )
+    ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
+        includeSeconds: true,
+        addSuffix: true,
+      })})`
+    : null;
 
   // Handle NotNow case separately
   if (isMDMStatusNotNow) {
@@ -58,6 +69,7 @@ export const getStatusMessage = ({
             {" "}
             on {formattedHost} but couldn&apos;t because the host was locked or
             was running on battery power while in Power Nap
+            {displayTimeStamp && <> {displayTimeStamp}</>}
           </>
         )}
         . Fleet will try again.
@@ -93,8 +105,9 @@ export const getStatusMessage = ({
     return (
       <>
         The MDM command (request) to install <b>{appName}</b>
-        {!isDUP && <> on {formattedHost}</>} failed. Please re-attempt this
-        installation.
+        {!isDUP && <> on {formattedHost}</>} failed
+        {!isDUP && displayTimeStamp && <> {displayTimeStamp}</>}. Please
+        re-attempt this installation.
       </>
     );
   }
@@ -108,6 +121,7 @@ export const getStatusMessage = ({
         {" "}
         on {formattedHost}
         {displayStatus === "pending_install" && " when it comes online"}
+        {displayTimeStamp && <> {displayTimeStamp}</>}
       </>
     );
   };
@@ -257,6 +271,7 @@ export const AppInstallDetailsModal = ({
     isMDMStatusAcknowledged,
     appName,
     hostDisplayName,
+    commandUpdatedAt: vppCommandResult?.updated_at || "",
   });
 
   const renderInventoryVersionsSection = () => {
