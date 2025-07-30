@@ -257,6 +257,8 @@ When procuring SaaS tools and services, analyze the purchase of these subscripti
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
 
+> For Sofwate Engineers, the device provided should have a minimum of 32GB of RAM due to the high number of virtualized environments Software Engineers need to run locally to build Fleet. See our recommendations for [Apple users](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/Mac/MacBook-Pro/16-inch-MacBook-Pro%3A-Silver/p/MX2U3LL-A).
+
 - [**Check the "📦 Warehouse" team in dogfood**](https://dogfood.fleetdm.com/dashboard?team_id=279) before purchasing any equipment including laptops, to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
 
 - Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
