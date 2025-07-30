@@ -31,7 +31,11 @@ import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
-import { IHostSoftware } from "interfaces/software";
+import {
+  IHostSoftware,
+  IVPPHostSoftware,
+  SoftwareInstallStatus,
+} from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
 import {
@@ -63,7 +67,7 @@ import EmptyTable from "components/EmptyTable";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
   AppInstallDetailsModal,
-  IAppInstallDetails,
+  IVppInstallDetails,
 } from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
 import {
   SoftwareInstallDetailsModal,
@@ -212,9 +216,9 @@ const HostDetailsPage = ({
     setPackageUninstallDetails,
   ] = useState<ISoftwareUninstallDetails | null>(null);
   const [
-    appInstallDetails,
-    setAppInstallDetails,
-  ] = useState<IAppInstallDetails | null>(null);
+    activityVPPInstallDetails,
+    setActivityVPPInstallDetails,
+  ] = useState<IVppInstallDetails | null>(null);
 
   const [isUpdatingHost, setIsUpdatingHost] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
@@ -666,14 +670,17 @@ const HostDetailsPage = ({
           break;
         case "installed_app_store_app":
           // TODO
-          // setAppInstallDetails({
-          //   ...details,
-          //   // FIXME: It seems like the backend is not using the correct display name when it returns
-          //   // upcoming install activities. As a workaround, we'll prefer the display name from
-          //   // the host object if it's available.
-          //   hostDisplayName:
-          //     host?.display_name || details?.host_display_name || "",
-          // });
+          setActivityVPPInstallDetails({
+            appName: details?.software_title || "",
+            fleetInstallStatus: (details?.status ||
+              "pending_install") as SoftwareInstallStatus,
+            commandUuid: details?.command_uuid || "",
+            // FIXME: It seems like the backend is not using the correct display name when it returns
+            // upcoming install activities. As a workaround, we'll prefer the display name from
+            // the host object if it's available.
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
+          });
           break;
         default: // do nothing
       }
@@ -722,7 +729,7 @@ const HostDetailsPage = ({
   }, []);
 
   const onCancelAppInstallDetailsModal = useCallback(() => {
-    setAppInstallDetails(null);
+    setActivityVPPInstallDetails(null);
   }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -1369,13 +1376,12 @@ const HostDetailsPage = ({
               onCancel={() => setPackageUninstallDetails(null)}
             />
           )}
-          {/* TODO - activity feed */}
-          {/* {!!appInstallDetails && (
-            <VPPInstallDetailsModal
-              details={appInstallDetails}
+          {!!activityVPPInstallDetails && (
+            <AppInstallDetailsModal
+              details={activityVPPInstallDetails}
               onCancel={onCancelAppInstallDetailsModal}
             />
-          )} */}
+          )}
           {showLockHostModal && (
             <LockModal
               id={host.id}

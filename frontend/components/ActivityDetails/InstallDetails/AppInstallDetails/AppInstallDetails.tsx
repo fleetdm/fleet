@@ -101,7 +101,7 @@ export const getStatusMessage = ({
 
 const baseClass = "app-install-details";
 
-export type IAppInstallDetails = {
+export type IVppInstallDetails = {
   fleetInstallStatus: SoftwareInstallStatus;
   hostDisplayName: string;
   appName: string;
@@ -109,7 +109,7 @@ export type IAppInstallDetails = {
 };
 
 interface IVPPInstallDetailsModalProps {
-  details: IAppInstallDetails;
+  details: IVppInstallDetails;
   hostSoftware?: IHostSoftware; // for inventory versions, not present on activity feeds
   deviceAuthToken?: string; // DUP only
   onCancel: () => void;
