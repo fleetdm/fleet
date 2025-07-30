@@ -52,6 +52,29 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		})
 	}
 
+	// Helper function to set the queued job not_before to current time to ensure it can be picked up without waiting.
+	speedUpQueuedAppleMdmJob := func(t *testing.T) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE jobs SET not_before = ? WHERE name = 'apple_mdm' AND state = 'queued'", time.Now().Add(-1*time.Second))
+			require.NoError(t, err)
+			return nil
+		})
+	}
+
+	enrollAppleDevice := func(t *testing.T, device godep.Device) *mdmtest.TestAppleMDMClient {
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+		mdmDevice.SerialNumber = device.SerialNumber
+		err := mdmDevice.Enroll()
+		require.NoError(t, err)
+
+		cmd, err := mdmDevice.Idle()
+		require.Nil(t, cmd) // check no command is enqueued.
+		require.NoError(t, err)
+
+		return mdmDevice
+	}
+
 	device := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
 
 	profileAssignmentReqs := []profileAssignmentReq{}
@@ -114,33 +137,14 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{config}}, http.StatusNoContent)
 
 		// enroll the host
-		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
-		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
-		mdmDevice.SerialNumber = device.SerialNumber
-		err := mdmDevice.Enroll()
-		require.NoError(t, err)
-
-		cmd, err := mdmDevice.Idle()
-		require.Nil(t, cmd) // No command as no command is enqueued.
-		require.NoError(t, err)
+		mdmDevice := enrollAppleDevice(t, device)
 
 		// Run worker to start device release (NOTE: Should not release yet)
 		s.runWorker()
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, "UPDATE jobs SET not_before = ? WHERE name = 'apple_mdm' AND state = 'queued'", time.Now())
-			require.NoError(t, err)
-			return nil
-		})
-		time.Sleep(1 * time.Second)
+		speedUpQueuedAppleMdmJob(t)
 
 		// Get install enterprise application command and acknowledge it
-		cmd, err = mdmDevice.Idle()
-		require.NoError(t, err)
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-		require.Nil(t, cmd)
-
-		time.Sleep(1 * time.Second)
+		expectMDMCommandsOfType(t, mdmDevice, "InstallEnterpriseApplication", 1)
 
 		s.runWorker() // Run after install enterprise command to install profiles. (Should requeue until we trigger profile schedule)
 
@@ -149,24 +153,15 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 
 		// Trigger profiles scheduler to set which profiles should be installed on the host.
 		s.awaitTriggerProfileSchedule(t)
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, "UPDATE jobs SET not_before = ? WHERE name = 'apple_mdm' AND state = 'queued'", time.Now())
-			require.NoError(t, err)
-			return nil
-		})
+		speedUpQueuedAppleMdmJob(t)
 
 		// Verify install profiles three times due to the two default fleet profiles and our custom one added.
 		expectMDMCommandsOfType(t, mdmDevice, "InstallProfile", 3)
 
-		time.Sleep(1 * time.Second) // Wait for the acks to come in.
-		s.runWorker()               // release device
-		time.Sleep(1 * time.Second) // Ensure we wait just a bit for state to update.
+		s.runWorker() // release device
 
 		// See DeviceConfigured is in Database and next command for mdm device
 		expectDeviceConfiguredSent(t, true)
-		cmd, err = mdmDevice.Idle()
-		require.NotNil(t, cmd)
-		require.Equal(t, "DeviceConfigured", cmd.Command.RequestType)
-		require.NoError(t, err)
+		expectMDMCommandsOfType(t, mdmDevice, "DeviceConfigured", 1)
 	})
 }
