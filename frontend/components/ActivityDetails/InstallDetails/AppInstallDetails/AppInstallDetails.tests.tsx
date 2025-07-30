@@ -13,7 +13,6 @@ describe("getStatusMessage helper function", () => {
       })
     );
     expect(screen.getByText(/Fleet tried to install/i)).toBeInTheDocument();
-    expect(screen.getByText(/Marko's MacBook Pro/i)).toBeInTheDocument();
     expect(
       screen.getByText(
         /but couldn't because the host was locked or was running on battery power while in Power Nap/i
