@@ -1537,11 +1537,11 @@ AND (
 	if diskEncryptionConfig.Enabled {
 		bitlockerStatus = fmt.Sprintf(`
             CASE WHEN (%s) THEN
+                'bitlocker_action_required'
+            WHEN (%s) THEN
                 'bitlocker_verified'
             WHEN (%s) THEN
                 'bitlocker_verifying'
-            WHEN (%s) THEN
-                'bitlocker_action_required'
             WHEN (%s) THEN
                 'bitlocker_pending'
             WHEN (%s) THEN
