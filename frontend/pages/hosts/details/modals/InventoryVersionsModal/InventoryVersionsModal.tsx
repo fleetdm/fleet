@@ -19,7 +19,6 @@ const InventoryVersionsModal = ({
   hostSoftware,
   onExit,
 }: IInventoryVersionsModal) => {
-
   // For scrollable modal
   const [isTopScrolling, setIsTopScrolling] = useState(false);
   const topDivRef = useRef<HTMLDivElement>(null);
