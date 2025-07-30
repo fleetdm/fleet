@@ -9030,7 +9030,7 @@ Get statuses and host counts for a batch-run script.
   "not_before": "2025-07-01T15:00:00Z",
   "completed_at": "2025-07-06T15:00:00Z",
   "status": "completed",
-  "cancelled": false,
+  "cancelled": false
 }
 ```
 
