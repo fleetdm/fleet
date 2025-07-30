@@ -3,6 +3,7 @@ import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
+import PATHS from "router/paths";
 
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
@@ -46,7 +47,13 @@ interface IOSUpdates {
 }
 
 const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
-  const { isPremiumTier, config, setConfig } = useContext(AppContext);
+  const {
+    isPremiumTier,
+    isGlobalAdmin,
+    isTeamAdmin,
+    config,
+    setConfig,
+  } = useContext(AppContext);
 
   const [
     selectedPlatformTab,
@@ -54,7 +61,6 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   ] = useState<OSUpdatesTargetPlatform | null>(null);
 
   const {
-    isError: isErrorConfig,
     isFetching: isFetchingConfig,
     isLoading: isLoadingConfig,
     refetch: refetchAppConfig,
@@ -66,7 +72,6 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
 
   const {
     data: teamConfig,
-    isError: isErrorTeamConfig,
     isFetching: isFetchingTeamConfig,
     isLoading: isLoadingTeam,
     refetch: refetchTeamConfig,
@@ -75,10 +80,14 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     () => teamsAPI.load(teamIdForApi),
     {
       refetchOnWindowFocus: false,
-      enabled: !!teamIdForApi,
+      enabled: !!teamIdForApi && (isGlobalAdmin || isTeamAdmin),
       select: (data) => data.team,
     }
   );
+
+  if (!isGlobalAdmin && !isTeamAdmin) {
+    router.replace(PATHS.CONTROLS_OS_SETTINGS);
+  }
 
   // Not premium shows premium message
   if (!isPremiumTier) {
