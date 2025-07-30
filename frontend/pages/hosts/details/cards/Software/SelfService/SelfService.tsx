@@ -808,9 +808,20 @@ const SoftwareSelfService = ({
           deviceAuthToken={deviceToken}
         />
       )}
-      {/* TODO: */}
-      {/* {selectedVPPInstallDetails && (
-        <AppInstallDetailsModal />} */}
+      {selectedVPPInstallDetails && (
+        <AppInstallDetailsModal
+          deviceAuthToken={deviceToken}
+          details={{
+            fleetInstallStatus:
+              selectedVPPInstallDetails.status || "pending_install", // TODO - okay default?
+            hostDisplayName,
+            appName: selectedVPPInstallDetails.name,
+            commandUuid: selectedVPPInstallDetails.commandUuid,
+          }}
+          hostSoftware={selectedVPPInstallDetails}
+          onCancel={() => setSelectedVPPInstallDetails(null)}
+        />
+      )}
       {selectedUpdateDetails && (
         <SoftwareUpdateModal
           hostDisplayName={hostDisplayName}

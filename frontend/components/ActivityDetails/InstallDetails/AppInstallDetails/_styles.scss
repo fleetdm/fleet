@@ -1,15 +1,12 @@
 .app-install-details {
   overflow-wrap: anywhere; // Prevent long software name overflow
 
-  &__software-install-details {
+  &__modal-content {
     display: flex;
     flex-direction: column;
     gap: $pad-medium;
   }
 
-  .modal__content {
-    margin-top: $pad-xlarge;
-  }
   &__status-message {
     display: flex;
     align-items: center;
@@ -18,5 +15,11 @@
     .icon {
       align-self: flex-start;
     }
+  }
+  .data-set__horizontal {
+    flex-direction: row;
+  }
+  .reveal-button {
+    width: min-content;
   }
 }

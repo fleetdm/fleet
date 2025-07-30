@@ -77,7 +77,6 @@ import {
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
 import { InstallOrCommandUuid } from "../cards/Software/InstallStatusCell/InstallStatusCell";
-// import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 
 const baseClass = "device-user";
@@ -660,20 +659,6 @@ const DeviceUserPage = ({
             deviceAuthToken={deviceAuthToken}
           />
         )}
-        {/* {selectedHostSoftware &&
-          "command_uuid" in selectedHostSoftware &&
-          !!host && (
-            <AppInstallDetailsModal
-              details={{
-                software_title: selectedHostSoftware.name,
-                status: selectedHostSoftware.status as string,
-                host_display_name: host.display_name,
-                // command_uuid: selectedHostSoftware.command_uuid as InstallOrCommandUuid,
-              }}
-              onCancel={() => setSelectedHostSoftware(undefined)}
-              deviceAuthToken={deviceAuthToken}
-            />
-          )} */}
         {hostSWForInventoryVersions && !!host && (
           <InventoryVersionsModal
             hostSoftware={hostSWForInventoryVersions}

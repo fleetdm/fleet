@@ -226,7 +226,7 @@ export const AppInstallDetailsModal = ({
     ["pending_install", "failed_install"].includes(fleetInstallStatus);
 
   const isInstalledByFleet = hostSoftware
-    ? !!hostSoftware.software_package?.last_install
+    ? !!hostSoftware.app_store_app?.last_install
     : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
 
   const statusMessage = getStatusMessage({
@@ -301,18 +301,14 @@ export const AppInstallDetailsModal = ({
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <div className={`${baseClass}__software-install-details`}>
-            <div className={`${baseClass}__status-message`}>
-              {!!iconName && <Icon name={iconName} />}
-              <span>{statusMessage}</span>
-            </div>
-            {hostSoftware &&
-              !excludeVersions &&
-              renderInventoryVersionsSection()}
-            {fleetInstallStatus !== "pending_install" &&
-              isInstalledByFleet &&
-              renderInstallDetailsSection()}
+          <div className={`${baseClass}__status-message`}>
+            {!!iconName && <Icon name={iconName} />}
+            <span>{statusMessage}</span>
           </div>
+          {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
+          {fleetInstallStatus !== "pending_install" &&
+            isInstalledByFleet &&
+            renderInstallDetailsSection()}
         </div>
         {renderCta()}
       </>

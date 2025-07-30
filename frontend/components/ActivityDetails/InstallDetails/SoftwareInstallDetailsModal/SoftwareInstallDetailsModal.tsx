@@ -47,6 +47,8 @@ export type IPackageInstallDetails = {
   deviceAuthToken?: string;
 };
 
+// TODO - match AppInstallDetailsModal status to this, still accounting for MDM-specific cases
+// present there
 const StatusMessage = ({
   result: {
     host_display_name,
