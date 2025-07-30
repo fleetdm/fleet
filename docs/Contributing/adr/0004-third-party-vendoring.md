@@ -25,16 +25,13 @@ The `httpsig-go` library in the `third_party` directory already follows best pra
 
 All external repositories requiring Fleet-specific changes will be vendored into the `third_party` directory following these standards:
 
-1. **📁 Directory structure**: Each library must be copied WITHOUT the `.git` directory
+1. **📁 Directory structure**: Copy the library's working tree but *omit* its `.git` directory to keep Fleet’s history clean and avoid nested repositories.
 2. **📄 Required files**: Each vendored library must include:
    - `UPSTREAM_COMMIT`: A file containing the exact upstream commit hash that was vendored
    - `UPDATE_INSTRUCTIONS`: A file containing detailed instructions for updating the library to the latest upstream version
 
 3. **🔄 Update process**: The UPDATE_INSTRUCTIONS file should contain:
-   - Step-by-step commands for pulling in upstream changes
-   - Instructions for merging Fleet-specific changes with upstream updates
-   - Commands to update the UPSTREAM_COMMIT file
-   - Example commands for committing the updates
+   - A copy-paste-able bash block that fetches upstream, checks out the recorded commit, rebases Fleet changes, and updates `UPSTREAM_COMMIT`
 
 4. **📦 Migration**: Current third-party libraries copied in our repo should migrate to this format whenever they need to be updated
 
@@ -51,6 +48,7 @@ All external repositories requiring Fleet-specific changes will be vendored into
 
 ### Negative ⚠️
 - 💾 Increased repository size from vendored code
+- 🔒 Possible security risk if vendored code is not updated with upstream fixes
 - 🔧 Manual effort required to maintain UPDATE_INSTRUCTIONS
 - 📅 Potential for vendored libraries to become stale if not regularly updated
 - 📋 Additional process overhead when vendoring new libraries
