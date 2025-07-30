@@ -53,6 +53,35 @@ func enforceFileVaultAtLogin(original []byte) ([]byte, error) {
 func Up_20250723111413(tx *sql.Tx) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
+	// legacy_host_filevault_profiles contains all hosts that had the filevault profile applied before it was updated below.
+	// this should assist us in debugging in case any issues arise
+	// and later down the line we can look into clearing out this table and getting it dropped.
+	createStmt := `
+CREATE TABLE IF NOT EXISTS legacy_host_filevault_profiles (
+	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	host_uuid VARCHAR(36) NOT NULL,
+	status VARCHAR(20) NOT NULL,
+	operation_type VARCHAR(20) NOT NULL,
+	profile_uuid VARCHAR(37) NOT NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+	`
+
+	_, err := txx.Exec(createStmt)
+	if err != nil {
+		return err
+	}
+
+	_, err = txx.Exec(`
+		INSERT INTO legacy_host_filevault_profiles (host_uuid, status, operation_type, profile_uuid)
+		SELECT 
+			host_uuid, status, operation_type, profile_uuid 
+		FROM host_mdm_apple_profiles
+		WHERE profile_identifier = 'com.fleetdm.fleet.mdm.filevault' 
+	`)
+	if err != nil {
+		return fmt.Errorf("inserting legacy filevault profile hosts %w", err)
+	}
+
 	fvProfiles := []struct {
 		ID           uint   `db:"profile_id"`
 		Mobileconfig []byte `db:"mobileconfig"`
