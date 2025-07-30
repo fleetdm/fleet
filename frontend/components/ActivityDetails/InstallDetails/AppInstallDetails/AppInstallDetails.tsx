@@ -30,6 +30,7 @@ import {
 } from "../constants";
 
 interface IGetStatusMessageProps {
+  isDUP?: boolean;
   displayStatus: SoftwareInstallStatus | "pending";
   isMDMStatusNotNow: boolean;
   isMDMStatusAcknowledged: boolean;
@@ -38,6 +39,7 @@ interface IGetStatusMessageProps {
 }
 
 export const getStatusMessage = ({
+  isDUP = false,
   displayStatus,
   isMDMStatusNotNow,
   isMDMStatusAcknowledged,
@@ -50,9 +52,11 @@ export const getStatusMessage = ({
   if (isMDMStatusNotNow) {
     return (
       <>
-        Fleet tried to install <b>{appName}</b> on {formattedHost} but
-        couldn&apos;t because the host was locked or was running on battery
-        power while in Power Nap. Fleet will try again.
+        Fleet tried to install <b>{appName}</b>
+        {!isDUP &&
+          ` on ${{ formattedHost }} but couldn't because the
+        host was locked or was running on battery power while in Power Nap`}
+        . Fleet will try again.
       </>
     );
   }
@@ -61,9 +65,10 @@ export const getStatusMessage = ({
   if (displayStatus === "pending_install" && isMDMStatusAcknowledged) {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b> on {formattedHost}{" "}
-        was acknowledged but the installation has not been verified. To
-        re-check, select <b>Refetch</b> for this host.
+        The MDM command (request) to install <b>{appName}</b>
+        {!isDUP && ` on ${formattedHost}`} was acknowledged but the installation
+        has not been verified. To re-check, select <b>Refetch</b>
+        {!isDUP && " for this host"}.
       </>
     );
   }
@@ -72,9 +77,9 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b> on {formattedHost}{" "}
-        was acknowledged but the installation has not been verified. Please
-        re-attempt this installation.
+        The MDM command (request) to install <b>{appName}</b>
+        {!isDUP && ` on ${formattedHost}`} was acknowledged but the installation
+        has not been verified. Please re-attempt this installation.
       </>
     );
   }
@@ -83,18 +88,29 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install") {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b> on {formattedHost}{" "}
-        failed. Please re-attempt this installation.
+        The MDM command (request) to install <b>{appName}</b>
+        {!isDUP && ` on ${formattedHost}`} failed. Please re-attempt this
+        installation.
       </>
     );
   }
 
+  const renderSuffix = () => {
+    if (isDUP) {
+      return null;
+    }
+    return (
+      <>
+        on {formattedHost}
+        {displayStatus === "pending" && " when it comes online"}
+      </>
+    );
+  };
   // Create predicate and subordinate for other statuses
   return (
     <>
-      Fleet {getInstallDetailsStatusPredicate(displayStatus)} <b>{appName}</b>{" "}
-      on {formattedHost}
-      {displayStatus === "pending" ? " when it comes online" : ""}.
+      Fleet {getInstallDetailsStatusPredicate(displayStatus)} <b>{appName}</b>
+      {renderSuffix()}.
     </>
   );
 };
@@ -230,6 +246,7 @@ export const AppInstallDetailsModal = ({
     : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
 
   const statusMessage = getStatusMessage({
+    isDUP: !!deviceAuthToken,
     displayStatus,
     isMDMStatusNotNow,
     isMDMStatusAcknowledged,
