@@ -59,9 +59,6 @@ module.exports.http = {
           // If an error occurs while parsing an incoming request body, we'll return a badRequest response if error.statusCode is between 400-500
           if (_.isNumber(err.statusCode) && err.statusCode >= 400 && err.statusCode < 500) {
             return res.status(400).send(err.message);
-          // If an error occurs and this was a request going to a static asset, return a 403 response.
-          } else if(req.url.match(sails.LOOKS_LIKE_ASSET_RX)) {
-            return res.status(403).send();
           } else {
             sails.log.error('Sending 500 ("Server Error") response: \n', err);
             return res.status(500).send();
