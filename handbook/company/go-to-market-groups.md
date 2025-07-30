@@ -162,7 +162,7 @@ Often, Fleeties will engage with new contacts from current and future customers.
   - LinkedIn profile URL (this is the best option)
   - Company name
   - Company website
-  - email
+  - Email
 
 > Please use the following guidelines when posting in the channel:
 >   - Use only one top-level message per contact. Don't batch contacts inside one message, and don't create multiple messages for a single person. Use thread replies to add context.
