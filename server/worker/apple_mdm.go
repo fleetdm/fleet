@@ -410,10 +410,10 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
 	}
 	if len(profilesMissingInstallation) > 0 {
-		a.Log.Log("info", "re-enqueuing due to profiles missing installation")
+		level.Info(a.Log).Log("msg", "re-enqueuing due to profiles missing installation", "host_uuid", args.HostUUID)
 		// requeue the task if some profiles are still missing.
 		if err := reenqueueTask(); err != nil {
-			return fmt.Errorf("failed to re-enqueue task: %w", err)
+			return ctxerr.Wrap(ctx, err, "failed to re-enqueue task")
 		}
 		return nil
 	}
