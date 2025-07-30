@@ -6,8 +6,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
+	"github.com/micromdm/plist"
 	"github.com/pkg/errors"
-	"howett.net/plist"
 )
 
 func init() {
@@ -22,7 +22,7 @@ func init() {
 // unmarshalling and marshalling the profile without making additional changes.
 func enforceFileVaultAtLogin(original []byte) ([]byte, error) {
 	var configuration map[string]interface{}
-	if _, err := plist.Unmarshal(original, &configuration); err != nil {
+	if err := plist.Unmarshal(original, &configuration); err != nil {
 		return nil, fmt.Errorf("unmarshalling configuration profile: %w", err)
 	}
 
@@ -42,7 +42,7 @@ func enforceFileVaultAtLogin(original []byte) ([]byte, error) {
 		}
 	}
 
-	out, err := plist.MarshalIndent(configuration, plist.XMLFormat, "  ")
+	out, err := plist.MarshalIndent(configuration, "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal new payload: %w", err)
 	}
@@ -56,13 +56,20 @@ func Up_20250723111413(tx *sql.Tx) error {
 	// legacy_host_filevault_profiles contains all hosts that had the filevault profile applied before it was updated below.
 	// this should assist us in debugging in case any issues arise
 	// and later down the line we can look into clearing out this table and getting it dropped.
+	// timestamps are transferred from old table and not tied to row entry.
 	createStmt := `
 CREATE TABLE IF NOT EXISTS legacy_host_filevault_profiles (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	host_uuid VARCHAR(36) NOT NULL,
 	status VARCHAR(20) NOT NULL,
 	operation_type VARCHAR(20) NOT NULL,
-	profile_uuid VARCHAR(37) NOT NULL
+	profile_uuid VARCHAR(37) NOT NULL,
+	detail TEXT,
+	command_uuid VARCHAR(127) NOT NULL,
+	scope ENUM('System', 'User') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'System',
+	created_at TIMESTAMP(6) NOT NULL,
+	updated_at TIMESTAMP(6) NOT NULL
+
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 	`
 
@@ -72,9 +79,18 @@ CREATE TABLE IF NOT EXISTS legacy_host_filevault_profiles (
 	}
 
 	_, err = txx.Exec(`
-		INSERT INTO legacy_host_filevault_profiles (host_uuid, status, operation_type, profile_uuid)
+		INSERT INTO legacy_host_filevault_profiles 
+			(host_uuid, status, operation_type, profile_uuid, detail, command_uuid, scope, created_at, updated_at)
 		SELECT 
-			host_uuid, status, operation_type, profile_uuid 
+			host_uuid, 
+			status, 
+			operation_type, 
+			profile_uuid, 
+			detail, 
+			command_uuid, 
+			scope, 
+			created_at, 
+			updated_at
 		FROM host_mdm_apple_profiles
 		WHERE profile_identifier = 'com.fleetdm.fleet.mdm.filevault' 
 	`)

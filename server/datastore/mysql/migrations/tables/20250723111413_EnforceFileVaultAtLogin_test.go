@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/micromdm/plist"
 	"github.com/stretchr/testify/require"
-	"howett.net/plist"
 )
 
 func TestUp_20250723111413(t *testing.T) {
@@ -147,7 +147,7 @@ VALUES (?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)))`
 		var payload struct {
 			PayloadContent []map[string]interface{}
 		}
-		_, err = plist.Unmarshal(mc, &payload)
+		err = plist.Unmarshal(mc, &payload)
 		require.NoError(t, err)
 		require.Len(t, payload.PayloadContent, 4)
 
