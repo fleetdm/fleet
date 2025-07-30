@@ -3,23 +3,16 @@ import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 import { AxiosError } from "axios";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
 import { AppContext } from "context/app";
 
-import { IActivityDetails } from "interfaces/activity";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
 import {
   IHostSoftware,
   ISoftwareInstallResult,
   ISoftwareInstallResults,
-  ISoftwareInstallVersion,
-  ISoftwareTitleDetails,
-  SoftwareSource,
 } from "interfaces/software";
-import softwareAPI, {
-  IGetSoftwareTitleQueryKey,
-  ISoftwareTitleResponse,
-} from "services/entities/software";
+import softwareAPI from "services/entities/software";
 import deviceUserAPI from "services/entities/device_user";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
@@ -73,8 +66,6 @@ const StatusMessage = ({
     "the host"
   );
 
-  // TODO: Potential implementation HumanTimeDiffWithDateTip for consistency
-  // Design currently looks weird since displayTimeStamp might split to multiple lines
   const timeStamp = updated_at || created_at;
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
@@ -86,8 +77,7 @@ const StatusMessage = ({
     : "";
 
   const renderContactOption = () => (
-    // TODO - config is undefined in the DUP context, will need to get this contact_url from
-    // somewhere else or omit the link
+    // config undefined in the DUP context, so omit the link
     <>
       {" "}
       or{" "}
@@ -201,10 +191,9 @@ export const SoftwareInstallDetailsModal = ({
         : softwareAPI.getSoftwareInstallResult(installUUID);
     },
     {
-      refetchOnWindowFocus: false,
+      ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 3000,
       select: (data) => data.results,
-      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
     }
   );
 
@@ -218,7 +207,7 @@ export const SoftwareInstallDetailsModal = ({
         <DeviceUserError />
       ) : (
         <DataError
-          description="Install details are no longer available for this activity."
+          description="Couldn't get install details"
           excludeIssueLink
         />
       );
@@ -234,7 +223,6 @@ export const SoftwareInstallDetailsModal = ({
   }
 
   if (!swInstallResult) {
-    // FIXME: Find a better solution for this.
     return deviceAuthToken ? (
       <DeviceUserError />
     ) : (

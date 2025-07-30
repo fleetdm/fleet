@@ -105,7 +105,7 @@ export type IVppInstallDetails = {
   fleetInstallStatus: SoftwareInstallStatus;
   hostDisplayName: string;
   appName: string;
-  commandUuid: string; // not actually optional
+  commandUuid: string;
 };
 
 interface IVPPInstallDetailsModalProps {
