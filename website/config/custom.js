@@ -406,8 +406,12 @@ module.exports.custom = {
   // GitHub bot:
   // githubAccessToken: '…',
   // githubBotWebhookSecret: '…',
+  // githubProjectsV2ItemWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
+
+  // Engineering metrics:
+  // engMetricsGcpServiceAccountKey: '…',
   // datadogApiKey: '…',
 
   // For receive-from-customer-fleet-instance webhook.
