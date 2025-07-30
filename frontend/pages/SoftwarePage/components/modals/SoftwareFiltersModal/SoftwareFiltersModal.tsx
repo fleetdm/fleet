@@ -7,8 +7,12 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import {
+  ANY_SEVERITY_OPTION,
+  CUSTOM_SERVERITY_OPTION,
   findOptionBySeverityRange,
   ISoftwareVulnFiltersParams,
   SEVERITY_DROPDOWN_OPTIONS,
@@ -22,6 +26,27 @@ interface ISoftwareFiltersModalProps {
   vulnFilters: ISoftwareVulnFiltersParams;
   isPremiumTier: boolean;
 }
+
+interface IFormErrors {
+  minScore?: string | null;
+  maxScore?: string | null;
+}
+
+const validateCvssScore = (cvssScore, currentErrors: IFormErrors) => {
+  const errors: IFormErrors = {};
+
+  const { minScore, maxScore } = cvssScore;
+
+  if (minScore < 0 || minScore > 10) {
+    errors.minScore = "Must be from 0-10 in 0.1 increments";
+  }
+
+  if (maxScore < 0 || maxScore > 10) {
+    errors.minScore = "Must be from 0-10 in 0.1 increments";
+  }
+
+  return errors;
+};
 
 const SoftwareFiltersModal = ({
   onExit,
@@ -38,7 +63,19 @@ const SoftwareFiltersModal = ({
       vulnFilters.maxCvssScore
     )
   );
+  const [minScore, setMinScore] = useState(
+    vulnFilters.minCvssScore?.toString()
+  );
+  const [maxScore, setMaxScore] = useState(
+    vulnFilters.maxCvssScore?.toString()
+  );
   const [hasKnownExploit, setHasKnownExploit] = useState(vulnFilters.exploit);
+
+  const [formErrors, setFormErrors] = useState();
+
+  const onInputBlur = () => {
+    setFormErrors(validateCvssScore(formData));
+  };
 
   const onChangeSeverity = (
     selectedSeverity: SingleValue<CustomOptionType>
@@ -48,15 +85,64 @@ const SoftwareFiltersModal = ({
     );
     if (selectedOption) {
       setSeverity(selectedOption);
+      // Auto populate severity range except for custom serverity
+      if (selectedOption.value === "any") {
+        setMinScore(undefined);
+        setMaxScore(undefined);
+      } else if (selectedOption.value !== "custom") {
+        setMinScore(selectedOption.minSeverity?.toString());
+        setMaxScore(selectedOption.maxSeverity?.toString());
+      }
     }
   };
 
+  const onChangeMinScore = (selectedScore: string) => {
+    const newMin = selectedScore;
+    const newMax = maxScore; // current state
+    if (!newMin && !newMax) {
+      setSeverity(ANY_SEVERITY_OPTION);
+      setMinScore("");
+      setMaxScore("");
+      return;
+    }
+    const selectedScoreNumber = parseFloat(newMin);
+    const selectedOption = SEVERITY_DROPDOWN_OPTIONS.find(
+      (option) =>
+        option.minSeverity === selectedScoreNumber &&
+        option.maxSeverity === parseFloat(newMax || "10")
+    );
+    setSeverity(selectedOption || CUSTOM_SERVERITY_OPTION);
+    setMinScore(newMin);
+  };
+
+  const onChangeMaxScore = (selectedScore: string) => {
+    const newMax = selectedScore;
+    const newMin = minScore; // current state
+    if (!newMin && !newMax) {
+      setSeverity(ANY_SEVERITY_OPTION);
+      setMinScore("");
+      setMaxScore("");
+      return;
+    }
+    const selectedScoreNumber = parseFloat(newMax);
+    const selectedOption = SEVERITY_DROPDOWN_OPTIONS.find(
+      (option) =>
+        option.minSeverity === parseFloat(newMin || "0") &&
+        option.maxSeverity === selectedScoreNumber
+    );
+    setSeverity(selectedOption || CUSTOM_SERVERITY_OPTION);
+    setMaxScore(newMax);
+  };
+
   const onApplyFilters = () => {
+    const min = minScore ? parseFloat(minScore) : undefined;
+    const max = maxScore ? parseFloat(maxScore) : undefined;
+
     onSubmit({
       vulnerable: vulnSoftwareFilterEnabled,
       exploit: hasKnownExploit || undefined,
-      minCvssScore: severity?.minSeverity || undefined,
-      maxCvssScore: severity?.maxSeverity || undefined,
+      minCvssScore: min === 0 ? undefined : min,
+      maxCvssScore: max === 10 ? undefined : max,
     });
   };
 
@@ -99,6 +185,30 @@ const SoftwareFiltersModal = ({
             className={`${baseClass}__select-severity`}
             isDisabled={!vulnSoftwareFilterEnabled}
           />
+        )}
+        {isPremiumTier && (
+          <div className={`${baseClass}__cvss-range`}>
+            <InputField
+              label="Min score"
+              onChange={onChangeMinScore}
+              name="minScore"
+              value={minScore}
+              disabled={!vulnSoftwareFilterEnabled}
+              type="number"
+              min={0}
+              max={10}
+            />
+            <InputField
+              label="Max score"
+              onChange={onChangeMaxScore}
+              name="maxScore"
+              value={maxScore}
+              disabled={!vulnSoftwareFilterEnabled}
+              type="number"
+              min={0}
+              max={10}
+            />
+          </div>
         )}
         {isPremiumTier && (
           <Checkbox
