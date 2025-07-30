@@ -3,6 +3,9 @@
 //
 // Was implemented to test out https://github.com/fleetdm/fleet/issues/7515#issuecomment-1330889768,
 // and can still be useful for debugging purposes.
+//
+// Usage:
+// $ go run ./tools/mdm/apple/applebmapi/main.go -h
 package main
 
 import (
@@ -31,10 +34,10 @@ func main() {
 	mysqlAddr := flag.String("mysql", "", "mysql address")
 	mysqlUser := flag.String("mysql-user", "", "mysql user")
 	mysqlPass := flag.String("mysql-pw", "", "mysql password")
-	serverPrivateKey := flag.String("server-private-key", "", "fleet server's private key (to decrypt MDM assets)")
-	profileUUID := flag.String("profile-uuid", "", "the Apple profile UUID to retrieve")
+	serverPrivateKey := flag.String("server-private-key", "", "Fleet server's private key (to decrypt MDM assets)")
+	profileUUID := flag.String("profile-uuid", "", "Apple profile UUID to retrieve")
 	serialNum := flag.String("serial-number", "", "serial number of a device to get the device details")
-	orgName := flag.String("org-name", "", "organization name of the token")
+	orgName := flag.String("org-name", "", "organization name associated with the token used to access Apple Business Manager (e.g., 'Fleet Device Management Inc.')")
 	serials := flag.String("serials", "", "comma separated list of serial numbers to check profile assignment")
 	pathToSerials := flag.String("path-to-serials", "", "path to a file containing a comma separated list of serial numbers to check profile assignment")
 
@@ -51,12 +54,16 @@ func main() {
 		fmt.Println("mysql-user was empty, using the default of \"fleet\"")
 		mysqlUser = ptr.String("fleet")
 	}
+	if *mysqlAddr == "" {
+		fmt.Println("mysql address was empty, using the default of \"localhost:3306\"")
+		mysqlAddr = ptr.String("localhost:3306")
+	}
 
 	if *mysqlPass == "" {
 		fmt.Print("Password: ")
 		pb, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
-			log.Fatalf("must provide password: %w", err)
+			log.Fatalf("must provide password: %s", err)
 		}
 		fmt.Println()
 		mysqlPass = ptr.String(string(pb))
@@ -178,7 +185,7 @@ func main() {
 
 		b, err := json.MarshalIndent(res, "", "  ")
 		if err != nil {
-			log.Fatalf("pretty-format body: %v", err)
+			log.Fatalf("pretty-format body: %s", err)
 		}
 		fmt.Printf("body: \n%s\n", string(b))
 	}
@@ -202,7 +209,7 @@ func getDevices(ctx context.Context, ds *mysql.NanoDEPStorage, orgName string, s
 		}
 		devices = append(devices, r)
 
-		time.Sleep(1 * time.Second) // to avoid hitting the API rate limit
+		time.Sleep(500 * time.Millisecond) // extra precaution to avoid hitting the API rate limit, adjust as needed
 	}
 
 	return devices, nil
