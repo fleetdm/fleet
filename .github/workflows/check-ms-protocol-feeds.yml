@@ -30,7 +30,7 @@ jobs:
           feed: https://winprotocoldocs-bhdugrdyduf5h2e4.b02.azurefd.net/MS-MDE2/%5bMS-MDE2%5d.rss
           prefix: "MDM: Review Microsoft MS-MDE2 Proto Change for new Request/Enrollment Versions: "
           dry-run: false
-          max-age: 365d
+          max-age: 180d
           labels: "#g-mdm"
           url-only: true
       - name: Check MS-MDM feed
