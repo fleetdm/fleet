@@ -30,8 +30,8 @@ jobs:
           feed: https://winprotocoldocs-bhdugrdyduf5h2e4.b02.azurefd.net/MS-MDE2/%5bMS-MDE2%5d.rss
           prefix: "MDM: Review Microsoft MS-MDE2 Protocol Changes"
           character-limit: 255
-          dry-run: false
-          max-age: 48h
+          dry-run: true
+          max-age: 365d
           labels: "#g-mdm"
           url-only: true
       - name: Check MS-MDM feed
@@ -41,7 +41,7 @@ jobs:
           feed: https://winprotocoldocs-bhdugrdyduf5h2e4.b02.azurefd.net/MS-MDM/%5bMS-MDM%5d.rss
           prefix: "MDM: Review Microsoft MS-MDM Protocol Changes"
           character-limit: 255
-          dry-run: false
-          max-age: 48h
+          dry-run: true
+          max-age: 365d
           labels: "#g-mdm"
           url-only: true
