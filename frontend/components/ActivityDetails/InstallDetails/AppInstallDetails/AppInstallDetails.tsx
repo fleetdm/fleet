@@ -53,9 +53,13 @@ export const getStatusMessage = ({
     return (
       <>
         Fleet tried to install <b>{appName}</b>
-        {!isDUP &&
-          ` on ${{ formattedHost }} but couldn't because the
-        host was locked or was running on battery power while in Power Nap`}
+        {!isDUP && (
+          <>
+            {" "}
+            on {formattedHost} but couldn&apos;t because the host was locked or
+            was running on battery power while in Power Nap
+          </>
+        )}
         . Fleet will try again.
       </>
     );
@@ -66,8 +70,8 @@ export const getStatusMessage = ({
     return (
       <>
         The MDM command (request) to install <b>{appName}</b>
-        {!isDUP && ` on ${formattedHost}`} was acknowledged but the installation
-        has not been verified. To re-check, select <b>Refetch</b>
+        {!isDUP && <> on {formattedHost}</>} was acknowledged but the
+        installation has not been verified. To re-check, select <b>Refetch</b>
         {!isDUP && " for this host"}.
       </>
     );
@@ -78,8 +82,8 @@ export const getStatusMessage = ({
     return (
       <>
         The MDM command (request) to install <b>{appName}</b>
-        {!isDUP && ` on ${formattedHost}`} was acknowledged but the installation
-        has not been verified. Please re-attempt this installation.
+        {!isDUP && <> on {formattedHost}</>} was acknowledged but the
+        installation has not been verified. Please re-attempt this installation.
       </>
     );
   }
@@ -89,7 +93,7 @@ export const getStatusMessage = ({
     return (
       <>
         The MDM command (request) to install <b>{appName}</b>
-        {!isDUP && ` on ${formattedHost}`} failed. Please re-attempt this
+        {!isDUP && <> on {formattedHost}</>} failed. Please re-attempt this
         installation.
       </>
     );
@@ -101,8 +105,9 @@ export const getStatusMessage = ({
     }
     return (
       <>
+        {" "}
         on {formattedHost}
-        {displayStatus === "pending" && " when it comes online"}
+        {displayStatus === "pending_install" && " when it comes online"}
       </>
     );
   };
@@ -226,7 +231,7 @@ export const AppInstallDetailsModal = ({
   }
 
   const displayStatus =
-    (fleetInstallStatus as SoftwareInstallStatus) || "pending";
+    (fleetInstallStatus as SoftwareInstallStatus) || "pending_install";
   const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
 
   // Note: We need to reconcile status values from two different sources. From props, we
