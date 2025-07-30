@@ -19,7 +19,6 @@ import {
   IHostSoftware,
   IVPPHostSoftware,
   ISoftware,
-  IHostSoftwareWithUiStatus,
 } from "interfaces/software";
 import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 
@@ -145,7 +144,7 @@ const HostSoftwareLibrary = ({
   ] = useState<IHostSoftware | null>(null);
   // these states and modal logic exist at this level intead of the page level to match the similar
   // pattern on
-  // the device user page, which needs to be at this level to manipulate relevant UI states e.g.
+  // the device user page, which facilitates manipulating relevant UI states e.g.
   // "updating..." when the user clicks "Retry" in the SoftwareInstallDetailsModal
   const [
     selectedHostSWInstallDetails,
@@ -558,7 +557,7 @@ const HostSoftwareLibrary = ({
         <AppInstallDetailsModal
           details={{
             fleetInstallStatus:
-              selectedVPPInstallDetails.status || "pending_install", // TODO - okay default?
+              selectedVPPInstallDetails.status || "pending_install",
             hostDisplayName,
             appName: selectedVPPInstallDetails.name,
             commandUuid: selectedVPPInstallDetails.commandUuid,

@@ -51,8 +51,6 @@ import UninstallSoftwareModal from "./UninstallSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
-import { InstallOrCommandUuid } from "../InstallStatusCell/InstallStatusCell";
-import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
 
 import {
   CATEGORIES_NAV_ITEMS,
@@ -541,8 +539,6 @@ const SoftwareSelfService = ({
 
   const tableConfig = useMemo(() => {
     return generateSoftwareTableHeaders({
-      deviceToken,
-      onInstallOrUninstall,
       onShowUpdateDetails,
       onShowInstallDetails,
       onShowVPPInstallDetails,
@@ -561,8 +557,6 @@ const SoftwareSelfService = ({
       },
     });
   }, [
-    deviceToken,
-    onInstallOrUninstall,
     onClickInstallAction,
     onShowUpdateDetails,
     onShowInstallDetails,
@@ -813,7 +807,7 @@ const SoftwareSelfService = ({
           deviceAuthToken={deviceToken}
           details={{
             fleetInstallStatus:
-              selectedVPPInstallDetails.status || "pending_install", // TODO - okay default?
+              selectedVPPInstallDetails.status || "pending_install",
             hostDisplayName,
             appName: selectedVPPInstallDetails.name,
             commandUuid: selectedVPPInstallDetails.commandUuid,

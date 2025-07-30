@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { CellProps, Column } from "react-table";
 
 import {
@@ -14,17 +14,9 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
-import InstallerStatusCell, {
-  InstallOrCommandUuid,
-} from "../InstallStatusCell/InstallStatusCell";
-import {
-  getInstallerActionButtonConfig,
-  IButtonDisplayConfig,
-  installStatusSortType,
-} from "../helpers";
-import HostInstallerActionCell, {
-  HostInstallerActionButton,
-} from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
+import InstallerStatusCell from "../InstallStatusCell/InstallStatusCell";
+import { installStatusSortType } from "../helpers";
+import HostInstallerActionCell from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 
 type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
 type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
@@ -47,8 +39,6 @@ export const generateSoftwareTableData = (
 };
 
 interface ISelfServiceTableHeaders {
-  deviceToken: string;
-  onInstallOrUninstall: () => void;
   onShowUpdateDetails: (software: IDeviceSoftware) => void;
   onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
   onShowVPPInstallDetails: (hostSoftware: IVPPHostSoftware) => void;
@@ -60,8 +50,6 @@ interface ISelfServiceTableHeaders {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateSoftwareTableHeaders = ({
-  deviceToken,
-  onInstallOrUninstall,
   onShowUpdateDetails,
   onShowInstallDetails,
   onShowVPPInstallDetails,

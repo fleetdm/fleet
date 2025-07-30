@@ -118,7 +118,7 @@ const HostSoftware = ({
   queryParams,
   pathname,
   hostTeamId = 0,
-  onShowInventoryVersions: onShowSoftwareDetails,
+  onShowInventoryVersions,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
 }: IHostSoftwareProps) => {
@@ -252,9 +252,9 @@ const HostSoftware = ({
       : generateHostSoftwareTableConfig({
           router,
           teamId: hostTeamId,
-          onClickMoreDetails: onShowSoftwareDetails,
+          onClickMoreDetails: onShowInventoryVersions,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowSoftwareDetails]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading
@@ -304,7 +304,7 @@ const HostSoftware = ({
             pathPrefix={pathname}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}
-            onShowSoftwareDetails={onShowSoftwareDetails}
+            onShowSoftwareDetails={onShowInventoryVersions}
           />
         )}
         {showSoftwareFiltersModal && (

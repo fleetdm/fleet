@@ -281,7 +281,7 @@ type IInstallStatusCellProps = {
   onShowUpdateDetails: (software: IHostSoftware) => void;
   onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
   onShowVPPInstallDetails: (s: IVPPHostSoftware) => void;
-  onShowUninstallDetails: (hostSoftware: ISoftwareUninstallDetails) => void;
+  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   isSelfService?: boolean;
   isHostOnline?: boolean;
   hostName?: string;
@@ -325,7 +325,7 @@ const InstallStatusCell = ({
   hostName,
 }: IInstallStatusCellProps) => {
   const hasAppStoreApp = !!software.app_store_app;
-  const lastInstall = getLastInstall(software); // TODO - lastInstall coming back `null` for VPP apps, so not displaying relevant modal right now
+  const lastInstall = getLastInstall(software); // TODO (back end bug fix) - `software.app_store_app.last_install sometimes coming back `null` for VPP apps, currently falls back to displaying the `InventoryVersionsModal`
   const lastUninstall = getLastUninstall(software);
   const softwareName = getSoftwareName(software);
   const displayStatus = software.ui_status;
@@ -359,22 +359,20 @@ const InstallStatusCell = ({
   };
 
   const onClickUninstallStatus = () => {
-    // TODO
-
+    // TODO - update
     if (onShowUninstallDetails && lastUninstall) {
       if ("script_execution_id" in lastUninstall) {
         onShowUninstallDetails({
           ...lastUninstall,
           status: software.status || undefined,
-          // software_title: software.name,
+          software_title: software.name,
           host_display_name: hostName,
         });
+      } else {
+        onShowUninstallDetails(undefined);
       }
-      // else {
-      //     onShowUninstallDetails(undefined);
-      //   }
-      // } else if (onShowInventoryVersions) {
-      //   onShowInventoryVersions(software);
+    } else if (onShowInventoryVersions) {
+      onShowInventoryVersions(software);
     }
   };
 

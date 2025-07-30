@@ -19,6 +19,7 @@ const InventoryVersionsModal = ({
   hostSoftware,
   onExit,
 }: IInventoryVersionsModal) => {
+
   // For scrollable modal
   const [isTopScrolling, setIsTopScrolling] = useState(false);
   const topDivRef = useRef<HTMLDivElement>(null);
@@ -30,12 +31,12 @@ const InventoryVersionsModal = ({
     }
   };
 
-  // For scrollable modal (re-rerun when reopened)
   useEffect(() => {
     checkScroll();
     window.addEventListener("resize", checkScroll);
     return () => window.removeEventListener("resize", checkScroll);
   }, []);
+  // end scrollable modal logic
 
   const renderScrollableContent = () => {
     return (

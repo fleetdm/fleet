@@ -38,7 +38,6 @@ import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
 import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -76,7 +75,6 @@ import {
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
-import { InstallOrCommandUuid } from "../cards/Software/InstallStatusCell/InstallStatusCell";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
 

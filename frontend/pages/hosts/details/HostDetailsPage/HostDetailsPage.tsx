@@ -31,11 +31,7 @@ import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
-import {
-  IHostSoftware,
-  IVPPHostSoftware,
-  SoftwareInstallStatus,
-} from "interfaces/software";
+import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
 import {
