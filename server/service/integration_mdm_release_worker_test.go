@@ -22,10 +22,39 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 	ctx := context.Background()
 	mysql.TruncateTables(t, s.ds, "nano_commands") // We truncate this table beforehand to avoid persistence from other tests.
 
+	expectMDMCommandsOfType := func(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, commandType string, count int) {
+		// Get the first command
+		cmd, err := mdmDevice.Idle()
+
+		for range count {
+			require.NoError(t, err)
+			require.NotNil(t, cmd)
+			require.Equal(t, commandType, cmd.Command.RequestType)
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		}
+
+		// We do not expect any other commands
+		require.Nil(t, cmd)
+		require.NoError(t, err)
+	}
+
+	expectDeviceConfiguredSent := func(t *testing.T, shouldBeSent bool) {
+		expectedCount := 0
+		if shouldBeSent == true {
+			expectedCount = 1
+		}
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var count int
+			err := sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM nano_commands WHERE request_type = 'DeviceConfigured'")
+			require.NoError(t, err)
+			require.EqualValues(t, expectedCount, count)
+			return nil
+		})
+	}
+
 	device := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
 
 	profileAssignmentReqs := []profileAssignmentReq{}
-
 	s.setSkipWorkerJobs(t)
 	s.enableABM(t.Name())
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -83,10 +112,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 	t.Run("waits for config profiles installation before automatic release", func(t *testing.T) {
 		config := mobileconfigForTest("N1", "I1")
 		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{config}}, http.StatusNoContent)
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			mysql.DumpTable(t, q, "mdm_apple_configuration_profiles")
-			return nil
-		})
+
 		// enroll the host
 		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
@@ -119,13 +145,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		s.runWorker() // Run after install enterprise command to install profiles. (Should requeue until we trigger profile schedule)
 
 		// Verify device was not released yet
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			var count int
-			err := sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM nano_commands WHERE request_type = 'DeviceConfigured'")
-			require.NoError(t, err)
-			require.EqualValues(t, 0, count)
-			return nil
-		})
+		expectDeviceConfiguredSent(t, false)
 
 		// Trigger profiles scheduler to set which profiles should be installed on the host.
 		s.awaitTriggerProfileSchedule(t)
@@ -136,38 +156,14 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		})
 
 		// Verify install profiles three times due to the two default fleet profiles and our custom one added.
-		cmd, err = mdmDevice.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NotNil(t, cmd)
-		require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-		require.NoError(t, err)
-
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NotNil(t, cmd)
-		require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-		require.NoError(t, err)
-
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID) // No other commands now.
-		require.Nil(t, cmd)
-		require.NoError(t, err)
+		expectMDMCommandsOfType(t, mdmDevice, "InstallProfile", 3)
 
 		time.Sleep(1 * time.Second) // Wait for the acks to come in.
-
 		s.runWorker()               // release device
 		time.Sleep(1 * time.Second) // Ensure we wait just a bit for state to update.
 
 		// See DeviceConfigured is in Database and next command for mdm device
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			var count int
-			err := sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM nano_commands WHERE request_type = 'DeviceConfigured'")
-			require.NoError(t, err)
-			require.EqualValues(t, 1, count)
-			return nil
-		})
+		expectDeviceConfiguredSent(t, true)
 		cmd, err = mdmDevice.Idle()
 		require.NotNil(t, cmd)
 		require.Equal(t, "DeviceConfigured", cmd.Command.RequestType)
