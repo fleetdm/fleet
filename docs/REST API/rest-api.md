@@ -9031,11 +9031,6 @@ Get statuses and host counts for a batch-run script.
   "completed_at": "2025-07-06T15:00:00Z",
   "status": "completed",
   "cancelled": false,
-  "host_ids": null,
-  "filters": {
-    "status": "online",
-    "query": "abc"
-  }
 }
 ```
 
