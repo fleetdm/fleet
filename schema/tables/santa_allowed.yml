@@ -4,10 +4,10 @@ platforms:
   - darwin
 evented: false
 examples: |-
-  TODO
+  Show Google Chrome open events, as allowed by santa.
 
   ```
-  TODO
+  SELECT * FROM santa_allowed WHERE application = '/Applications/Google Chrome.app'
   ```
 columns:
   - name: timestamp
