@@ -19,7 +19,7 @@ import (
 const (
 	testUsername = "root"
 	testPassword = "toor"
-	testAddress  = "localhost:3307"
+	testAddress  = "localhost:3317"
 )
 
 func panicif(err error) {

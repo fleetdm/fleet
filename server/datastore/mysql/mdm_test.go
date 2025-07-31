@@ -7229,7 +7229,26 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 
 			var stmt string
 			var err error
-			if strings.HasPrefix(profUUID, "w") {
+			if table == "host_mdm_apple_profiles" {
+				// Apple profiles require profile_identifier, checksum, and command_uuid
+				commandUUID := "cmd-" + profUUID
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status, profile_identifier, checksum, command_uuid) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				testChecksum := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16} // 16 bytes for checksum
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, "com.test."+profUUID, testChecksum, commandUUID, status)
+			} else if table == "host_mdm_apple_declarations" {
+				// Apple declarations require declaration_identifier and token
+				testToken := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16} // 16 bytes for token
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status, declaration_identifier, token) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, "com.test."+profUUID, testToken, status)
+			} else if strings.HasPrefix(profUUID, "w") {
 				// Windows profiles require command_uuid
 				commandUUID := "cmd-" + profUUID
 				stmt = fmt.Sprintf(
