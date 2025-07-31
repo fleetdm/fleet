@@ -9062,7 +9062,7 @@ TODO: Description text here.
 ```json
 {
   "team_id": 123,
-  "status": "started"
+  "status": "completed"
 }
 ```
 
@@ -9072,9 +9072,27 @@ TODO: Description text here.
 
 ```json
 {
-  "batch_script_executions": [
-    
-  ]
+  "batch_executions": [
+    {
+      "ran": 12345,
+      "pending": 234,
+      "errored": 18,
+      "incompatible": 3,
+      "canceled": 2,
+      "targeted": 12599,
+      "script_id": 555,
+      "script_name": "my-script.sh",
+      "team_id": 123,
+      "not_before": "2025-07-01T15:00:00Z",
+      "completed_at": "2025-07-06T15:00:00Z",
+      "status": "completed",
+      "cancelled": false
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
