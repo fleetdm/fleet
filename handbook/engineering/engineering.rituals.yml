@@ -99,6 +99,13 @@
   moreInfoUrl:
   dri: "xpkoala"
 -
+  task: "Submit test coverage requests to QA Wolf"
+  startedOn: "2025-07-29" 
+  frequency: "Triweekly"
+  description: "After each sprint, review merged work and submit automation candidates to QA Wolf using the coverage request form."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#submit-test-coverage-requests-to-qa-wolf"
+  dri: "AndreyKizimenko"
+-
   task: "Review ongoing articles"
   startedOn: "2023-10-02"
   frequency: "Daily"
