@@ -7238,11 +7238,11 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 					table,
 					profType,
 				)
-				testChecksum := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16} // 16 bytes for checksum
+				testChecksum := test.MakeTestBytes() // 16 bytes for checksum
 				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, "com.test."+profUUID, testChecksum, commandUUID, status)
 			case table == "host_mdm_apple_declarations":
 				// Apple declarations require declaration_identifier and token
-				testToken := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16} // 16 bytes for token
+				testToken := test.MakeTestBytes() // 16 bytes for token
 				stmt = fmt.Sprintf(
 					`INSERT INTO %s (host_uuid, %s_uuid, status, declaration_identifier, token) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
 					table,

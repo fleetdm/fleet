@@ -605,15 +605,15 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	i := 0
 	for _, p := range expectedProfiles0 {
 		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name,
-			"com.test.profile."+p.ProfileUUID,                            // profile_identifier
-			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(i)}, // checksum (16 bytes)
+			"com.test.profile."+p.ProfileUUID, // profile_identifier
+			test.MakeTestChecksum(byte(i)),    // checksum (16 bytes)
 		)
 		i++
 	}
 	for _, p := range expectedProfiles1 {
 		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name,
-			"com.test.profile."+p.ProfileUUID,                            // profile_identifier
-			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(i)}, // checksum (16 bytes)
+			"com.test.profile."+p.ProfileUUID, // profile_identifier
+			test.MakeTestChecksum(byte(i)),    // checksum (16 bytes)
 		)
 		i++
 	}
@@ -6807,15 +6807,15 @@ func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 	i := 0
 	for _, p := range expectedProfilesIOS {
 		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name,
-			"com.test.profile."+p.ProfileUUID,                            // profile_identifier
-			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(i)}, // checksum (16 bytes)
+			"com.test.profile."+p.ProfileUUID, // profile_identifier
+			test.MakeTestChecksum(byte(i)),    // checksum (16 bytes)
 		)
 		i++
 	}
 	for _, p := range expectedProfilesIPadOS {
 		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name,
-			"com.test.profile."+p.ProfileUUID,                            // profile_identifier
-			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(i)}, // checksum (16 bytes)
+			"com.test.profile."+p.ProfileUUID, // profile_identifier
+			test.MakeTestChecksum(byte(i)),    // checksum (16 bytes)
 		)
 		i++
 	}
