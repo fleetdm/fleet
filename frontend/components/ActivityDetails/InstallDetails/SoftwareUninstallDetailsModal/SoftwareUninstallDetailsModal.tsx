@@ -248,15 +248,16 @@ const SoftwareUninstallDetailsModal = ({
       className={baseClass}
     >
       <>
-        <StatusMessage
-          host_display_name={hostDisplayName || ""}
-          status={
-            (uninstallStatus || "pending_uninstall") as SoftwareUninstallStatus
-          }
-          software_title={softwareName}
-          timestamp={uninstallResult.created_at}
-        />
         <div className={`${baseClass}__modal-content`}>
+          <StatusMessage
+            host_display_name={hostDisplayName || ""}
+            status={
+              (uninstallStatus ||
+                "pending_uninstall") as SoftwareUninstallStatus
+            }
+            software_title={softwareName}
+            timestamp={uninstallResult.created_at}
+          />
           {uninstallStatus !== "pending_uninstall" && renderDetailsSection()}
         </div>
         {renderCta()}
