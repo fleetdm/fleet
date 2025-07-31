@@ -498,17 +498,17 @@ Remove the “:reproduce” label, add the following labels:
 
 #### In product drafting
 
-After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated. During drafting, product design will take any of the following actions:
+After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated. During drafting, product design will take one of the following actions:
 
-+ Close the bug
-+ Update it to a feature request
-  - Remove all bug labels
-  - Leave the issue in the "New requests" column
-+ Assign it to a non-engineering team
-+ Prepare the bug for engineering review and estimation
++ Prepare for engineering review and estimation
   - Specify a fix or a timebox
   - Update the issue title, if it no longer matches our understanding of the issue
   - Move it to the "Ready to estimate" column of the drafting board
++ Convert to a feature request
+  - Remove all bug labels
+  - Leave the issue in the "New requests" column
++ Assign to a non-engineering team
++ Close, if determined to be expected behavior
 
 If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing), the `~critical bug` label is added, and product design follows the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug).
 
