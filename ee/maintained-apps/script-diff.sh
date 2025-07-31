@@ -111,8 +111,8 @@ show_script_diff() {
     fi
     
     # Create temporary files for diff
-    TEMP_PREV=$(mktemp)
-    TEMP_CURR=$(mktemp)
+    TEMP_PREV=$(mktemp -t old)
+    TEMP_CURR=$(mktemp -t new)
     
     echo "$PREV_SCRIPT" > "$TEMP_PREV"
     echo "$CURR_SCRIPT" > "$TEMP_CURR"
