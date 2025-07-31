@@ -69,14 +69,14 @@ All bug fix pull requests should reference the issue they resolve with the issue
 
 ### Review a community pull request
 
-If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
+If you're assigned a community pull request (PR) for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor. This applies to PRs from Fleeties, open source contributors, member of the Customer Success team, etc.
 
 If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
 
 **For PRs that change the product:**
 
-- Assign the PR to the appropriate product group EM (Engineering Manager).
-- Notify the relevant Product Designer (PD) in the #g-mdm, #g-software, or #g-orchestration Slack channel.
+- Assign the PR to the appropriate product group Product Designer (PD).
+- Notify the relevant PD in the #g-mdm, #g-software, or #g-orchestration Slack channel.
 
 The PD will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The PD should:
 
