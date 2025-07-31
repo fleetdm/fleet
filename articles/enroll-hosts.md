@@ -305,7 +305,7 @@ fleetctl package
 ```
 If this setting is not used, you will need to configure client TLS certificates on devices' browsers.
 
-#### fleetd Chrome browswer extension
+#### fleetd Chrome browser extension
 
 To use mTLS use the [AutoSelectCertificateForUrls policy](https://chromeenterprise.google/policies/?policy=AutoSelectCertificateForUrls) to point Chrome to your client certificates
 
