@@ -1255,7 +1255,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 
 	// list profiles to install, should result in the global profiles for all
 	// enrolled hosts
-	toInstallDarwin, err := ds.ListMDMAppleProfilesToInstall(ctx)
+	toInstallDarwin, err := ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	require.Len(t, toInstallDarwin, len(macGlobalProfiles)*len(darwinHosts))
 	toInstallWindows, err := ds.ListMDMWindowsProfilesToInstall(ctx)
@@ -1437,7 +1437,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// 6 are still reported as "to install" because op=install and status=nil
-	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	require.Len(t, toInstallDarwin, 6)
 	toInstallWindows, err = ds.ListMDMWindowsProfilesToInstall(ctx)
@@ -1610,7 +1610,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// 3 are still reported as "to install" because op=install and status=nil
-	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	require.Len(t, toInstallDarwin, 3)
 	toInstallWindows, err = ds.ListMDMWindowsProfilesToInstall(ctx)
@@ -1778,7 +1778,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, tm1Profiles, 4)
 
 	// 5 are now reported as "to install" (3 global + 2 team1)
-	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	require.Len(t, toInstallDarwin, 5)
 	toInstallWindows, err = ds.ListMDMWindowsProfilesToInstall(ctx)

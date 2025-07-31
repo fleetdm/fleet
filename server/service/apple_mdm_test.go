@@ -2351,7 +2351,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	contents5 := []byte("test-contents-5")
 
 	p1, p2, p3, p4, p5, p6 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
-	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
 		return []*fleet.MDMAppleProfilePayload{
 			{ProfileUUID: p1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
 			{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
@@ -2991,7 +2991,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			contents5 = originalContents5
 		})
 
-		profilesToInstall, _ := ds.ListMDMAppleProfilesToInstallFunc(ctx)
+		profilesToInstall, _ := ds.ListMDMAppleProfilesToInstallFunc(ctx, "")
 		hostUUIDs = make([]string, 0, len(profilesToInstall))
 		for _, p := range profilesToInstall {
 			// This host will error before this point - should not be updated by the variable failure

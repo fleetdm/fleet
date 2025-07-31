@@ -849,6 +849,17 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 	return profiles[:i]
 }
 
+// FilterOutUserScopedProfiles returns a slice with only system-scoped profiles.
+func FilterOutUserScopedProfiles(profiles []*MDMAppleProfilePayload) []*MDMAppleProfilePayload {
+	var filtered []*MDMAppleProfilePayload
+	for _, p := range profiles {
+		if p.Scope != "User" {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
+}
+
 // RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
 const (
 	RefetchBaseCommandUUIDPrefix   = "REFETCH-"

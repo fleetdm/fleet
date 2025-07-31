@@ -1280,8 +1280,8 @@ type Datastore interface {
 
 	// ListMDMAppleProfilesToInstall returns all the profiles that should
 	// be installed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
-	ListMDMAppleProfilesToInstall(ctx context.Context) ([]*MDMAppleProfilePayload, error)
+	// registered in `host_mdm_apple_profiles`, except if the optional argument `hostUUID` is passed.
+	ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*MDMAppleProfilePayload, error)
 
 	// ListMDMAppleProfilesToRemove returns all the profiles that should
 	// be removed based on diffing the ideal state vs the state we have
