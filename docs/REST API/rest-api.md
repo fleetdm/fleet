@@ -9044,6 +9044,45 @@ Get statuses and host counts for a batch-run script.
 
 > TODO: API to list batch script executions. Paginated, with status filter (started, scheduled, completed).
 
+TODO: Description text here.
+
+`GET /api/v1/fleet/scripts/batch`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| team_id         | integer | query | _Available in Fleet Premium_. Filters to batch script runs for the specified team. |
+| status          | string  | query | Filters to batch script runs with this status. Either `"started"`, `"scheduled"`, or "`completed`". |
+| page            | integer | query | Page number of the results to fetch. |
+| per_page        | integer | query | Results per page. |
+
+
+#### Example
+
+`GET /api/v1/fleet/scripts/batch`
+
+##### Request body
+
+```json
+{
+  "team_id": 123,
+  "status": "started"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "batch_script_executions": [
+    
+  ]
+}
+```
+
 ### List batch script results
 
 > TODO: API to list hosts & their results. Paginated, with status filter (ran, pending, errored, incompatible, canceled).
