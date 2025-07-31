@@ -52,7 +52,8 @@ echo "=================================="
 
 # Get current and previous file content
 CURRENT_CONTENT=$(cat "$FILE_PATH")
-PREVIOUS_CONTENT=$(git show HEAD~1:"$FILE_PATH" 2>/dev/null || echo "")
+PREVIOUS_COMMIT=$(git log -n 1 --skip=1 --pretty=format:"%H" -- "$FILE_PATH")
+PREVIOUS_CONTENT=$(git show "$PREVIOUS_COMMIT":"$FILE_PATH" 2>/dev/null || echo "")
 
 if [ -z "$PREVIOUS_CONTENT" ]; then
     echo "ERROR: Could not retrieve previous version of file (file may not exist in previous commit)"
