@@ -7031,9 +7031,9 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 	t := s.T()
-
-	// Preparing the Discovery Request message
-	requestBytes := []byte(`
+	// Preparing the Discovery Request message. We are testing all versions Fleet claims to support
+	for _, requestVersion := range syncml.SupportedEnrollmentVersions {
+		requestBytes := []byte(`
 		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
 		   <s:Header>
 		     <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
@@ -7047,7 +7047,7 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 		     <Discover xmlns="http://schemas.microsoft.com/windows/management/2012/01/enrollment">
 		       <request xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
 		         <EmailAddress>demo@mdmwindows.com</EmailAddress>
-		         <RequestVersion>5.0</RequestVersion>
+		         <RequestVersion>` + requestVersion + `</RequestVersion>
 		         <DeviceType>CIMClient_Windows</DeviceType>
 		         <ApplicationVersion>6.2.9200.2965</ApplicationVersion>
 		         <OSEdition>48</OSEdition>
@@ -7060,25 +7060,26 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 		   </s:Body>
 		 </s:Envelope>`)
 
-	resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
+		resp := s.DoRaw("POST", microsoft_mdm.MDE2DiscoveryPath, requestBytes, http.StatusOK)
 
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
+		resBytes, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
+		require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
-	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
+		// Checking if SOAP response can be unmarshalled to an golang type
+		var xmlType interface{}
+		err = xml.Unmarshal(resBytes, &xmlType)
+		require.NoError(t, err)
 
-	// Checking if SOAP response contains a valid DiscoveryResponse message
-	resSoapMsg := string(resBytes)
-	require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
-	require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
+		// Checking if SOAP response contains a valid DiscoveryResponse message
+		resSoapMsg := string(resBytes)
+		require.True(t, s.isXMLTagPresent("DiscoverResult", resSoapMsg))
+		require.True(t, s.isXMLTagContentPresent("AuthPolicy", resSoapMsg))
+		require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
+		require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
+		require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
+	}
 }
 
 func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
@@ -17316,4 +17317,21 @@ func createTestServerWithStatusCode(statusCode int) (*httptest.Server, func()) {
 	}
 
 	return server, cleanup
+}
+
+func (s *integrationMDMTestSuite) TestServiceDiscovery() {
+	t := s.T()
+
+	type serviceDiscoveryServer struct {
+		Version string `json:"Version"`
+		BaseURL string `json:"BaseURL"`
+	}
+	type serviceDiscoveryResponse struct {
+		Servers []serviceDiscoveryServer `json:"Servers"`
+	}
+
+	res := serviceDiscoveryResponse{}
+	s.DoJSON("GET", "/mdm/apple/service_discovery", nil, http.StatusOK, &res)
+	require.Contains(t, res.Servers[0].BaseURL, apple_mdm.AccountDrivenEnrollPath)
+	require.Equal(t, "mdm-byod", res.Servers[0].Version)
 }

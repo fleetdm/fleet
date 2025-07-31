@@ -1571,7 +1571,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// if there are no hosts, then no profilesToInstall need to be installed
-	profilesToInstall, err := ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err := ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	require.Empty(t, profilesToInstall)
 
@@ -1611,7 +1611,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// global profiles to install on the newly added host
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
@@ -1633,7 +1633,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host2, false) // no user-channel enrollment for this host yet
 
-	profiles, err := ds.ListMDMAppleProfilesToInstall(ctx)
+	profiles, err := ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 
 	// all profiles of host1 for now, host2 has no profiles yet
@@ -1659,7 +1659,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	require.Len(t, teamPfs, 2)
 
 	// new profiles, this time for host2 belonging to team 1
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
@@ -1672,7 +1672,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	// create the user enrollment for host2
 	nanoEnrollUserOnly(t, ds, host2)
 
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
@@ -1695,7 +1695,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, host3, false) // no user enrollment
 
 	// global profiles to install on host3
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
@@ -1793,7 +1793,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// user profile N3 on host3 is still pending install (no user enrollment)
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-3", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
@@ -1831,7 +1831,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// profiles to be added are host1's team profiles and the user profile for host3
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
@@ -1879,7 +1879,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	setNanoDeviceEnrolledAt(t, ds, host3, time.Now().Add(-24*time.Hour))
 
 	// user-scoped profile for host3 is still listed as to install
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
@@ -1891,7 +1891,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	err = ds.BatchSetMDMAppleProfiles(ctx, nil, globalProfiles[:2])
 	require.NoError(t, err)
 
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
@@ -8555,7 +8555,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	require.Len(t, globalPfs, 2)
 
 	// if there are no hosts, then no profilesToInstall need to be installed
-	profilesToInstall, err := ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err := ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	require.Empty(t, profilesToInstall)
 
@@ -8595,7 +8595,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// global profiles to install on the newly added host
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: globProf1.ProfileUUID, ProfileIdentifier: globProf1.Identifier, ProfileName: globProf1.Name, HostUUID: "test-uuid-1", HostPlatform: "darwin", Scope: fleet.PayloadScopeSystem},
@@ -8663,7 +8663,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	require.Len(t, globalPfs, 5)
 
 	// still the same profiles to assign (plus the one for hostLabel) as there are no profiles for team 1
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
@@ -8686,7 +8686,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l2.ID, hostLabel.ID}})
 	require.NoError(t, err)
 
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
@@ -8705,7 +8705,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	// include-any
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l2.ID, hostLabel.ID}})
 	require.NoError(t, err)
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
@@ -8723,7 +8723,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	// up even though the l5<->hostLabel connection is still there.
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{l4.ID, hostLabel.ID}})
 	require.NoError(t, err)
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
@@ -8739,7 +8739,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 	// Add a l6<->host relationship. The exclude-any profile should no longer be assigned to hostLabel.
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l6.ID, hostLabel.ID}})
 	require.NoError(t, err)
-	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	profilesToInstall, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 
 	matchProfiles([]*fleet.MDMAppleProfilePayload{

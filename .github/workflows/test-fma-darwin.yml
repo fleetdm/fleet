@@ -1,0 +1,69 @@
+name: Test Fleet Maintained Apps - Darwin
+
+on: 
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ee/maintained-apps/inputs/**
+      - ee/maintained-apps/outputs/**
+      - cmd/maintained-apps/validate/**
+  workflow_dispatch: # Manual trigger
+    inputs:
+      log_level:
+        description: 'Log level (debug, info, warn, error)'
+        required: false
+        default: 'info'
+        type: choice
+        options:
+          - debug
+          - info
+          - warn
+          - error
+  
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  test-fma:
+    env:
+      LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Fleet
+        uses: actions/checkout@v4
+        with:
+          repository: fleetdm/fleet
+          fetch-depth: 1
+          ref: ${{ github.ref }}
+          path: fleet
+      
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'fleet/go.mod'
+
+      - name: Install osquery mac
+        run: |
+          echo "Runner architecture: $(uname -m)"
+          curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1_1.macos_arm64.tar.gz"
+          tar -xzf osquery.tar.gz
+          sudo cp -r opt /
+          sudo cp -r private /
+          sudo ln -sf /opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd /usr/local/bin/osqueryi
+          sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
+  
+      - name : Remove pre-installed google chrome mac
+        run: |
+          ls /Applications | grep -i "Chrome"
+          find /Applications -name "*Chrome*.app" -type d | while read app;
+          do
+            echo "Removing $app..."
+            sudo rm -rf "$app"
+          done
+        
+      - name: Verify Fleet Maintained Apps mac
+        run: |
+          ls /Applications
+          cd fleet
+          sudo -E go run ./cmd/maintained-apps/validate
