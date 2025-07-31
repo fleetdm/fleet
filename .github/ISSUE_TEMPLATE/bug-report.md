@@ -17,6 +17,12 @@ assignees: ''
 <!-- What did you see?  Paste a screenshot, include a 30s video, or write 1-2 sentences describing the issue you observed. -->
 TODO
 
+### 🛠️ To fix
+<!-- Add the expected fix here. If you're not sure, leave this blank for product to specify.  -->
+TBD
+
+Product designer: _________________________<!-- Who is the product designer to contact if folks have questions about this fix? -->
+
 ### 🧑‍💻  Steps to reproduce
 <!-- Provide step-by-step actions of how to recreate this bug in a clean install of Fleet. (This helps others understand and fix it more quickly.) -->
 1. TODO
@@ -28,7 +34,3 @@ TODO
 N/A
 
 <!-- If this is a performance issue, follow these steps to generate and attach a debug archive: https://fleetdm.com/docs/using-fleet/monitoring-fleet#debugging-performance-issues -->
-
-<!-- ### 🛠️ To fix -->
-<!-- If this bug requires additional product design work, uncomment the heading above and add instructions to fix, Figma link, etc. here once design changes are settled. -->
-<!-- Product designer: _________________________ --> <!-- Who is the product designer to contact if folks have questions about this fix? -->
