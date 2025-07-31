@@ -76,19 +76,6 @@ func checkDeclarationStatus(t *testing.T, ds *Datastore, ctx context.Context, ho
 	assert.Equal(t, expectedStatus, status)
 }
 
-// Helper function to check if a declaration is deleted
-func checkDeclarationDeleted(t *testing.T, ds *Datastore, ctx context.Context, hostUUID, declarationUUID, operation string) {
-	var count int
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		db := q.(*sqlx.DB)
-		return db.QueryRowContext(ctx, `
-			SELECT COUNT(*) FROM host_mdm_apple_declarations
-			WHERE host_uuid = ? AND declaration_uuid = ? AND operation_type = ?`,
-			hostUUID, declarationUUID, operation).Scan(&count)
-	})
-	assert.Zero(t, count)
-}
-
 func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 	t.Run("BasicTest", func(t *testing.T) {
 		ctx := t.Context()
