@@ -6310,13 +6310,19 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		return nil, ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
 	}
 
+	// Set default value for zero RenewAt to avoid MySQL strict mode errors
+	renewAt := tok.RenewAt
+	if renewAt.IsZero() {
+		renewAt = time.Now()
+	}
+
 	res, err := ds.writer(ctx).ExecContext(
 		ctx,
 		stmt,
 		tok.OrganizationName,
 		tok.AppleID,
 		tok.TermsExpired,
-		tok.RenewAt,
+		renewAt,
 		doubleEncTok,
 		tok.MacOSDefaultTeamID,
 		tok.IOSDefaultTeamID,

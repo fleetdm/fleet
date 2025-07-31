@@ -40,13 +40,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSQLMode combines ANSI mode components with MySQL 8 default strict modes for testing
-// ANSI mode includes: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY
-// We add all MySQL 8.0 default strict modes to match production behavior
-// Note: The value needs to be wrapped in single quotes when passed to MySQL DSN due to comma separation
-// Reference: https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html
-const TestSQLMode = "'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'"
-
 func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	cfg := testing_utils.MysqlTestConfig(testName)
 
@@ -75,7 +68,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 	// Use TestSQLMode which combines ANSI mode components with MySQL 8 strict modes
 	// This ensures we catch data truncation errors and other strict behaviors during testing
 	// Reference: https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html
-	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode(TestSQLMode), WithFleetConfig(&tc))
+	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode(common_mysql.TestSQLMode), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {
@@ -86,7 +79,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 			MaxAttempts:         1,
 			Logger:              log.NewNopLogger(),
-			SqlMode:             TestSQLMode,
+			SqlMode:             common_mysql.TestSQLMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}

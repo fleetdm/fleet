@@ -41,8 +41,8 @@ func setupMDMDeviceAndEnrollment(t *testing.T, ds *Datastore, ctx context.Contex
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			hostUUID, hostUUID, "Device", "topic", "push_magic", "token_hex", 1)
+			`INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, enabled, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			hostUUID, hostUUID, "Device", "topic", "push_magic", "token_hex", 1, time.Now())
 		return err
 	})
 }

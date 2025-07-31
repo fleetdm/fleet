@@ -7397,8 +7397,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
-          INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid)
-          VALUES (?, uuid())
+          INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid, token, declaration_identifier, declaration_name)
+          VALUES (?, uuid(), UNHEX(REPLACE(UUID(), '-', '')), 'test-identifier', 'test-name')
 	`, host.UUID)
 	require.NoError(t, err)
 
@@ -7434,8 +7434,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	// Add a calendar event for the host.
 	_, err = ds.writer(context.Background()).Exec(`
-		          INSERT INTO calendar_events (email, start_time, end_time, event)
-		          VALUES ('foobar@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, '{}');
+		          INSERT INTO calendar_events (email, start_time, end_time, event, uuid_bin)
+		          VALUES ('foobar@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, '{}', UNHEX(REPLACE(UUID(), '-', '')));
 			`)
 	require.NoError(t, err)
 	var calendarEventID int
@@ -7474,17 +7474,23 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	// Add a host certificate
 	sha1Sum := sha1.Sum([]byte("foo"))
+	now := time.Now()
 	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{{
-		HostID:     host.ID,
-		CommonName: "foo",
-		SHA1Sum:    sha1Sum[:],
+		HostID:         host.ID,
+		CommonName:     "foo",
+		SHA1Sum:        sha1Sum[:],
+		NotValidBefore: now,
+		NotValidAfter:  now.Add(365 * 24 * time.Hour),
+		Source:         fleet.SystemHostCertificate,
+		Username:       "test-user",
 	}}))
 
 	// create an android device from this host
+	deviceID := strings.ReplaceAll(uuid.NewString(), "-", "")
 	_, err = ds.writer(context.Background()).Exec(`
 	INSERT INTO android_devices (host_id, device_id)
 	VALUES (?, ?);
-	`, host.ID, uuid.NewString())
+	`, host.ID, deviceID)
 	require.NoError(t, err)
 
 	// Create a SCIM user and link it to host

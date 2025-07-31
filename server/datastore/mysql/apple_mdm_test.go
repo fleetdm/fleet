@@ -2071,9 +2071,9 @@ func nanoEnrollUserDevice(t *testing.T, ds *Datastore, host *fleet.Host) {
 
 	_, err = ds.writer(t.Context()).Exec(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, ?)`,
+	(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		host.UUID,
 		host.UUID,
 		nil,
@@ -2082,6 +2082,7 @@ VALUES
 		host.UUID+".magic",
 		host.UUID,
 		1,
+		time.Now(),
 	)
 	require.NoError(t, err)
 }
@@ -2092,9 +2093,9 @@ func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host, withUser bool) {
 
 	_, err = ds.writer(t.Context()).Exec(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, ?)`,
+	(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		host.UUID,
 		host.UUID,
 		nil,
@@ -2103,6 +2104,7 @@ VALUES
 		host.UUID+".magic",
 		host.UUID,
 		1,
+		time.Now(),
 	)
 	require.NoError(t, err)
 
@@ -2128,9 +2130,9 @@ VALUES
 
 	_, err = ds.writer(t.Context()).Exec(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?)`,
+	(?, ?, ?, ?, ?, ?, ?, ?)`,
 		userUUID,
 		host.UUID,
 		userUUID,
@@ -2138,6 +2140,7 @@ VALUES
 		host.UUID+".topic",
 		host.UUID+".magic",
 		host.UUID,
+		time.Now(),
 	)
 	require.NoError(t, err)
 }
