@@ -280,6 +280,7 @@ func generateCP(name string, identifier string, teamID uint) *fleet.MDMAppleConf
 		Identifier:   identifier,
 		TeamID:       &teamID,
 		Mobileconfig: mc,
+		Scope:        fleet.PayloadScopeSystem,
 	}
 }
 
