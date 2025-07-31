@@ -718,7 +718,9 @@ const SoftwareSelfService = ({
               header="Updates"
               subheader={
                 <>
-                  The following app require updating.{" "}
+                  Your device has outdated software. Update to 
+                  address potential security vulnerabilities or 
+                  compatibility issues.{" "}
                   {contactUrl && (
                     <span>
                       If you need help,{" "}
