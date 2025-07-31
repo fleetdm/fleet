@@ -1348,7 +1348,7 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	}
 
 	encTok := uuid.NewString()
-	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
@@ -4563,7 +4563,7 @@ func testDEPHostsExpiration(t *testing.T, ds *Datastore) {
 		{SerialNumber: "def", Model: "iPad", OS: "iOS", OpType: "added"},
 	}
 
-	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte(uuid.NewString())})
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
@@ -8327,7 +8327,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	encTok := uuid.NewString()
-	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
@@ -8387,7 +8387,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	encTok := uuid.NewString()
-	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
@@ -10825,7 +10825,7 @@ func testGetMatchingHostSerialsMarkedDeleted(t *testing.T, ds *Datastore) {
 		Name: "team1",
 	})
 	require.NoError(t, err)
-	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte("token")})
+	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte("token"), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	var hosts []fleet.Host
 	for i, serial := range serials {
