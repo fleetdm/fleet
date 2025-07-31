@@ -2,12 +2,14 @@ package mysql
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"math/big"
-	"math/rand/v2"
+	mathrand "math/rand/v2"
 	"testing"
 	"time"
 
@@ -27,6 +29,7 @@ func TestHostCertificates(t *testing.T) {
 		{"UpdateAndList", testUpdateAndListHostCertificates},
 		{"Update with host_mdm_managed_certificates to update", testUpdatingHostMDMManagedCertificates},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
+		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -52,7 +55,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 				CommonName:   "issuer.test.example.com",
 				Organization: []string{"Issuer"},
 			},
-			SerialNumber: big.NewInt(rand.Int64()), // nolint:gosec
+			SerialNumber: big.NewInt(mathrand.Int64()), // nolint:gosec
 			KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 			ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 
@@ -320,6 +323,37 @@ func generateTestHostCertificateRecord(t *testing.T, hostID uint, template *x509
 	return fleet.NewHostCertificateRecord(hostID, parsed)
 }
 
+// generateTestHostCertificateRecordWithParent creates a certificate signed by a parent certificate
+// allowing for different issuer attributes (like country code) than the certificate itself.
+// This is useful for testing scenarios where the certificate's subject country differs from
+// the issuer's country, which is common in real-world certificate chains.
+func generateTestHostCertificateRecordWithParent(t *testing.T, hostID uint, certTemplate, parentTemplate *x509.Certificate) *fleet.HostCertificateRecord {
+	// Generate parent key pair
+	parentPriv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	// Create parent certificate (self-signed)
+	parentCertBytes, err := x509.CreateCertificate(rand.Reader, parentTemplate, parentTemplate, &parentPriv.PublicKey, parentPriv)
+	require.NoError(t, err)
+
+	parentCert, err := x509.ParseCertificate(parentCertBytes)
+	require.NoError(t, err)
+
+	// Generate certificate key pair
+	certPriv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	// Create certificate signed by parent
+	certBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, parentCert, &certPriv.PublicKey, parentPriv)
+	require.NoError(t, err)
+
+	parsed, err := x509.ParseCertificate(certBytes)
+	require.NoError(t, err)
+	require.NotNil(t, parsed)
+
+	return fleet.NewHostCertificateRecord(hostID, parsed)
+}
+
 func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	// regression test for #30574
 	ctx := context.Background()
@@ -468,4 +502,107 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	require.Len(t, host1CertsMultiSource, 1)
 	require.Equal(t, fleet.UserHostCertificate, host1CertsMultiSource[0].Source)
 	require.Equal(t, "jdoe", host1CertsMultiSource[0].Username)
+}
+
+// testHostCertificateWithInvalidCountryCode tests that a certificate with a country code longer than the standard 2 letters works
+func testHostCertificateWithInvalidCountryCode(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create certificate templates for the actual certificates
+	certWithLongSubjectCountryTemplate := x509.Certificate{
+		Subject: pkix.Name{
+			Country:            []string{"Internet"},
+			CommonName:         "long.example.com",
+			Organization:       []string{"Org"},
+			OrganizationalUnit: []string{"Engineering"},
+		},
+		SerialNumber: big.NewInt(mathrand.Int64()), // nolint:gosec
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+		BasicConstraintsValid: true,
+	}
+
+	parentWithNormalCountryTemplate := x509.Certificate{
+		Subject: pkix.Name{
+			Country:      []string{"US"},
+			CommonName:   "issuer.test.example.com",
+			Organization: []string{"Issuer"},
+		},
+		SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-2 * time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour).Truncate(time.Second).UTC(),
+	}
+
+	certWithNormalCountryTemplate := x509.Certificate{
+		Subject: pkix.Name{
+			Country:            []string{"US"},
+			CommonName:         "another.long.example.com",
+			Organization:       []string{"Org"},
+			OrganizationalUnit: []string{"Engineering"},
+		},
+		SerialNumber: big.NewInt(mathrand.Int64()), // nolint:gosec
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(48 * time.Hour).Truncate(time.Second).UTC(),
+		BasicConstraintsValid: true,
+	}
+
+	parentWithLongIssuerCountryTemplate := x509.Certificate{
+		Subject: pkix.Name{
+			Country:      []string{"Internet"},
+			CommonName:   "issuer.test.example.com",
+			Organization: []string{"Issuer"},
+		},
+		SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-2 * time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour).Truncate(time.Second).UTC(),
+	}
+
+	payload := []*fleet.HostCertificateRecord{
+		generateTestHostCertificateRecordWithParent(t, 1, &certWithLongSubjectCountryTemplate, &parentWithNormalCountryTemplate),
+		generateTestHostCertificateRecordWithParent(t, 1, &certWithNormalCountryTemplate, &parentWithLongIssuerCountryTemplate),
+	}
+
+	// Manually override the country codes to preserve the full length for testing
+	// (they get truncated to 2 characters by the database VARCHAR(2) constraint)
+	payload[0].SubjectCountry = certWithLongSubjectCountryTemplate.Subject.Country[0]
+	payload[0].IssuerCountry = parentWithNormalCountryTemplate.Subject.Country[0]
+	payload[1].SubjectCountry = certWithNormalCountryTemplate.Subject.Country[0]
+	payload[1].IssuerCountry = parentWithLongIssuerCountryTemplate.Subject.Country[0]
+
+	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload))
+
+	// verify that we saved the records correctly
+	certs, _, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name"})
+	require.NoError(t, err)
+	require.Len(t, certs, 2)
+
+	// First certificate (another.long.example.com) - cert with normal country, issuer with long country
+	assert.Equal(t, []string{certWithNormalCountryTemplate.Subject.Country[0]}, []string{certs[0].SubjectCountry})
+	assert.Equal(t, []string{parentWithLongIssuerCountryTemplate.Subject.Country[0]}, []string{certs[0].IssuerCountry})
+	require.Equal(t, certWithNormalCountryTemplate.Subject.CommonName, certs[0].CommonName)
+	require.Equal(t, certWithNormalCountryTemplate.Subject.CommonName, certs[0].SubjectCommonName)
+	require.Equal(t, fleet.SystemHostCertificate, certs[0].Source)
+
+	// Second certificate (long.example.com) - cert with long subject country, issuer with normal country
+	assert.Equal(t, []string{certWithLongSubjectCountryTemplate.Subject.Country[0]}, []string{certs[1].SubjectCountry})
+	assert.Equal(t, []string{parentWithNormalCountryTemplate.Subject.Country[0]}, []string{certs[1].IssuerCountry})
+	require.Equal(t, certWithLongSubjectCountryTemplate.Subject.CommonName, certs[1].CommonName)
+	require.Equal(t, certWithLongSubjectCountryTemplate.Subject.CommonName, certs[1].SubjectCommonName)
+	require.Equal(t, fleet.SystemHostCertificate, certs[1].Source)
 }
