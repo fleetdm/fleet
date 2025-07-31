@@ -34,7 +34,7 @@ N/A
 ## Changes
 
 ### 🛠️ To fix
-<!-- Add instructions to fix, Figma link, etc. here once a fix is specfied. If engineering will decide the fix, srite "TBD - Engineering" -->
+<!-- Add instructions to fix, Figma link, etc. here once a fix is specfied. If engineering will decide the fix, put "TBD" -->
 TODO
 
 
