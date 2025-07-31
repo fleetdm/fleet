@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/uuid"
+	"github.com/micromdm/plist"
 	"github.com/remitly-oss/httpsig-go"
 )
 
@@ -225,6 +226,34 @@ func (a *mdmAgent) CachedString(key string) string {
 	return val
 }
 
+// adamIDsToSoftware is the set of VPP apps that we support in our mock VPP install flow.
+var adamIDsToSoftware = map[int]*fleet.Software{
+	406056744: {
+		Name:             "Evernote",
+		BundleIdentifier: "com.evernote.Evernote",
+		Version:          "10.147.1",
+		Installed:        false,
+	},
+	1091189122: {
+		Name:             "Bear: Markdown Notes",
+		BundleIdentifier: "net.shinyfrog.bear",
+		Version:          "2.4.5",
+		Installed:        false,
+	},
+	1487937127: {
+		Name:             "Craft: Write docs, AI editing",
+		BundleIdentifier: "com.lukilabs.lukiapp",
+		Version:          "3.1.7",
+		Installed:        false,
+	},
+	1444383602: {
+		Name:             "Goodnotes 6: AI Notes & Docs",
+		BundleIdentifier: "com.goodnotesapp.x",
+		Version:          "6.7.2",
+		Installed:        false,
+	},
+}
+
 type agent struct {
 	agentIndex                    int
 	softwareCount                 softwareEntityCount
@@ -319,6 +348,7 @@ type agent struct {
 
 	entraIDDeviceID          string
 	entraIDUserPrincipalName string
+	installedAdamIDs         []int
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -946,6 +976,57 @@ func (a *agent) runMacosMDMLoop() {
 				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
 				a.doDeclarativeManagement(mdmCommandPayload)
 				mdmCommandPayload = nextMdmCommandPayload
+			case "InstalledApplicationList":
+				var installedVPPSoftware []fleet.Software
+				// Our mock VPP apps start off as "not installed".
+				// The first time we get a verification command, we flip the flag to "installed",
+				// but don't include the software in the response.
+				// This ensures that 2 verification commands will be sent per VPP install.
+				for _, adamID := range a.installedAdamIDs {
+					if sw, ok := adamIDsToSoftware[adamID]; ok && sw != nil {
+						if sw.Installed {
+							installedVPPSoftware = append(installedVPPSoftware, *sw)
+						}
+
+						sw.Installed = true
+					}
+				}
+				nextMdmCommandPayload, err := a.macMDMClient.AcknowledgeInstalledApplicationList(
+					a.macMDMClient.UUID,
+					mdmCommandPayload.CommandUUID,
+					installedVPPSoftware,
+				)
+				if err != nil {
+					log.Printf("MDM Acknowledge InstalledApplicationList request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+
+				mdmCommandPayload = nextMdmCommandPayload
+			case "InstallApplication":
+				var appRequest struct {
+					Command map[string]any `plist:"Command"`
+				}
+
+				err = plist.Unmarshal(mdmCommandPayload.Raw, &appRequest)
+				if err != nil {
+					log.Printf("parsing InstallApplication request: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+				log.Printf("got install application command for %d", appRequest.Command["iTunesStoreID"])
+
+				if adamID, ok := appRequest.Command["iTunesStoreID"].(uint64); ok {
+					a.installedAdamIDs = append(a.installedAdamIDs, int(adamID))
+				}
+
+				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+
 			default:
 				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
 				if err != nil {

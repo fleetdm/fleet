@@ -1432,8 +1432,6 @@ const ManageHostsPage = ({
   const renderDeleteSecretModal = () => (
     <DeleteSecretModal
       onDeleteSecret={onDeleteSecret}
-      selectedTeam={teamIdForApi || 0}
-      teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
       isUpdatingSecret={isUpdating}
     />
@@ -1692,13 +1690,13 @@ const ManageHostsPage = ({
           graphicName: "empty-hosts",
           header: "Hosts will show up here once they’re added to Fleet",
           info:
-            "Expecting to see hosts? Try again in a few seconds as the system catches up.",
+            "Expecting to see hosts? Try again soon as the system catches up.",
         };
         if (includesFilterQueryParam) {
           delete emptyHosts.graphicName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
-            "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
+            "Expecting to see new hosts? Try again soon as the system catches up.";
         } else if (canEnrollHosts) {
           emptyHosts.header = "Add your hosts to Fleet";
           emptyHosts.info =
@@ -1784,12 +1782,12 @@ const ManageHostsPage = ({
       const emptyHosts: IEmptyTableProps = {
         header: "No hosts match the current criteria",
         info:
-          "Expecting to see new hosts? Try again in a few seconds as the system catches up.",
+          "Expecting to see new hosts? Try again soon as the system catches up.",
       };
       if (isLastPage) {
         emptyHosts.header = "No more hosts to display";
         emptyHosts.info =
-          "Expecting to see more hosts? Try again in a few seconds as the system catches up.";
+          "Expecting to see more hosts? Try again soon as the system catches up.";
       }
 
       return emptyHosts;

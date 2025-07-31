@@ -54,9 +54,12 @@ import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import MainContent from "components/MainContent";
+import MainContent, { IMainContentConfig } from "components/MainContent";
 import BackLink from "components/BackLink";
 import Card from "components/Card";
+import CustomLink from "components/CustomLink/CustomLink";
+import EmptyTable from "components/EmptyTable";
+
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
   AppInstallDetailsModal,
@@ -123,6 +126,8 @@ const baseClass = "host-details";
 const defaultCardClass = `${baseClass}__card`;
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 const doubleHeightCardClass = `${baseClass}__card--double-height`;
+
+export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -332,6 +337,15 @@ const HostDetailsPage = ({
     hostCertificates && refetchHostCertificates();
   };
 
+  /**
+   * Hides refetch spinner and resets refetch timer,
+   * ensuring no stale timeout triggers on new requests.
+   */
+  const resetHostRefetchStates = () => {
+    setShowRefetchSpinner(false);
+    setRefetchStartTime(null);
+  };
+
   const {
     isLoading: isLoadingHost,
     data: host,
@@ -347,42 +361,22 @@ const HostDetailsPage = ({
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
-        setShowRefetchSpinner(returnedHost.refetch_requested);
-        setHostMdmDeviceState(
-          getHostDeviceStatusUIState(
-            returnedHost.mdm.device_status,
-            returnedHost.mdm.pending_action
-          )
-        );
-        if (
-          returnedHost.refetch_requested &&
-          !isAndroid(returnedHost.platform)
-        ) {
-          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
-          // host details. Here we set a one second timeout and poll the API again using
-          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
-          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
-          // or that the host has gone offline.
+        // If API returns refetch_requested: true,
+        // only set timer if *not* already set!
+        if (returnedHost.refetch_requested) {
           if (!refetchStartTime) {
-            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
-            // the first page loads), we start it now if the host is online. If the host is offline,
-            // we skip the refetch on page load.
-            if (
-              returnedHost.status === "online" ||
-              isIPadOrIPhone(returnedHost.platform)
-            ) {
-              setRefetchStartTime(Date.now());
-              setTimeout(() => {
-                refetchHostDetails();
-                refetchExtensions();
-              }, 1000);
-            } else {
-              setShowRefetchSpinner(false);
-            }
-          } else {
-            // !!refetchStartTime
-            const totalElapsedTime = Date.now() - refetchStartTime;
-            if (totalElapsedTime < 60000) {
+            setRefetchStartTime(Date.now());
+          }
+          setShowRefetchSpinner(true);
+
+          // If Android, don't run timers/polling logic
+          if (!isAndroid(returnedHost.platform)) {
+            // Compute how long since timer started (if set)
+            const totalElapsedTime = refetchStartTime
+              ? Date.now() - refetchStartTime
+              : 0;
+            if (!refetchStartTime) {
+              // Timer just started - poll again after interval!
               if (
                 returnedHost.status === "online" ||
                 isIPadOrIPhone(returnedHost.platform)
@@ -390,25 +384,47 @@ const HostDetailsPage = ({
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
-                }, 1000);
+                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+              } else {
+                resetHostRefetchStates();
+              }
+            } else if (totalElapsedTime < 60000) {
+              // Timer running, still inside poll window
+              if (
+                returnedHost.status === "online" ||
+                isIPadOrIPhone(returnedHost.platform)
+              ) {
+                setTimeout(() => {
+                  refetchHostDetails();
+                  refetchExtensions();
+                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 renderFlash(
                   "error",
                   `This host is offline. Please try refetching host vitals later.`
                 );
-                setShowRefetchSpinner(false);
+                resetHostRefetchStates();
               }
             } else {
-              // totalElapsedTime > 60000
+              // Total elapsed poll window exceeded (60s), stop and alert
               renderFlash(
                 "error",
                 `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
-              setShowRefetchSpinner(false);
+              resetHostRefetchStates();
             }
           }
-          return; // exit early because refectch is pending so we can avoid unecessary steps below
+        } else {
+          // Not refetching: reset spinner and timer
+          resetHostRefetchStates();
         }
+
+        setHostMdmDeviceState(
+          getHostDeviceStatusUIState(
+            returnedHost.mdm.device_status,
+            returnedHost.mdm.pending_action
+          )
+        );
         setUsersState(returnedHost.users || []);
         setSchedule(schedule);
         if (returnedHost.pack_stats) {
@@ -624,11 +640,11 @@ const HostDetailsPage = ({
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();
-          }, 1000);
+          }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
         });
       } catch (error) {
         renderFlash("error", getErrorMessage(error, host.display_name));
-        setShowRefetchSpinner(false);
+        resetHostRefetchStates();
       }
     }
   };
@@ -990,25 +1006,47 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              <SoftwareLibraryCard
-                id={host.id}
-                platform={host.platform}
-                softwareUpdatedAt={host.software_updated_at}
-                hostScriptsEnabled={host.scripts_enabled || false}
-                isSoftwareEnabled={featuresConfig?.enable_software_inventory}
-                router={router}
-                queryParams={{
-                  ...parseHostSoftwareQueryParams(location.query),
-                  available_for_install: true,
-                }}
-                pathname={location.pathname}
-                onShowSoftwareDetails={onShowSoftwareDetails}
-                onShowUninstallDetails={onShowUninstallDetails}
-                hostTeamId={host.team_id || 0}
-                hostName={host.display_name}
-                hostMDMEnrolled={host.mdm.connected_to_fleet}
-                isHostOnline={host.status === "online"}
-              />
+              {/* There is a special case for personally enrolled mdm hosts where we are not
+               currently supporting software installs. This check should be removed
+               when we add that feature. */}
+              {host.mdm.enrollment_status === "On (personal)" ? (
+                <EmptyTable
+                  header="Software library is currently not supported on this host."
+                  info={
+                    <>
+                      Software install is coming soon.{" "}
+                      <CustomLink
+                        newTab
+                        text="Learn more"
+                        url="https://fleetdm.com/learn-more-about/byod-hosts-vpp-install"
+                      />
+                    </>
+                  }
+                />
+              ) : (
+                <SoftwareLibraryCard
+                  id={host.id}
+                  platform={host.platform}
+                  hostDisplayName={host?.display_name || ""}
+                  softwareUpdatedAt={host.software_updated_at}
+                  hostScriptsEnabled={host.scripts_enabled || false}
+                  isSoftwareEnabled={featuresConfig?.enable_software_inventory}
+                  router={router}
+                  queryParams={{
+                    ...parseHostSoftwareQueryParams(location.query),
+                    available_for_install: true,
+                  }}
+                  pathname={location.pathname}
+                  onShowSoftwareDetails={onShowSoftwareDetails}
+                  onShowUninstallDetails={onShowUninstallDetails}
+                  hostTeamId={host.team_id || 0}
+                  hostName={host.display_name}
+                  hostMDMEnrolled={host.mdm.connected_to_fleet}
+                  isHostOnline={host.status === "online"}
+                  refetchHostDetails={refetchHostDetails}
+                  isHostDetailsPolling={showRefetchSpinner}
+                />
+              )}
             </TabPanel>
           </>
         ) : (
@@ -1040,357 +1078,371 @@ const HostDetailsPage = ({
     );
   };
 
-  return (
-    <MainContent className={baseClass}>
+  const renderContent = (mainContentConfig: IMainContentConfig) => {
+    return (
       <>
-        <HostDetailsBanners
-          mdmEnrollmentStatus={host?.mdm.enrollment_status}
-          hostPlatform={host?.platform}
-          macDiskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
-          connectedToFleetMdm={host?.mdm.connected_to_fleet}
-          diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
-          diskIsEncrypted={host?.disk_encryption_enabled}
-          diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
-        />
-        <div className={`${baseClass}__header-links`}>
-          <BackLink
-            text="Back to all hosts"
-            path={filteredHostsPath || PATHS.MANAGE_HOSTS}
-          />
-        </div>
-        <div className={`${baseClass}__header-summary`}>
-          <HostHeader
-            summaryData={summaryData}
-            showRefetchSpinner={showRefetchSpinner}
-            onRefetchHost={onRefetchHost}
-            renderActionDropdown={renderActionDropdown}
-            hostMdmDeviceStatus={hostMdmDeviceStatus}
-          />
-        </div>
-        <TabNav className={`${baseClass}__tab-nav`}>
-          <Tabs
-            selectedIndex={getTabIndex(location.pathname)}
-            onSelect={(i) => navigateToNav(i)}
-          >
-            <TabList>
-              {hostDetailsSubNav.map((navItem) => {
-                // Bolding text when the tab is active causes a layout shift
-                // so we add a hidden pseudo element with the same text string
-                return (
-                  <Tab key={navItem.title}>
-                    <TabText count={navItem.count} isErrorCount>
-                      {navItem.name}
-                    </TabText>
-                  </Tab>
-                );
-              })}
-            </TabList>
-            <TabPanel className={`${baseClass}__details-panel`}>
-              <HostSummaryCard
-                summaryData={summaryData}
-                bootstrapPackageData={bootstrapPackageData}
-                isPremiumTier={isPremiumTier}
-                toggleOSSettingsModal={toggleOSSettingsModal}
-                toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-                hostSettings={host?.mdm.profiles ?? []}
-                osSettings={host?.mdm.os_settings}
-                osVersionRequirement={getOSVersionRequirementFromMDMConfig(
-                  host.platform
-                )}
-                className={fullWidthCardClass}
-              />
-              <AboutCard
-                className={
-                  showUsersCard ? defaultCardClass : fullWidthCardClass
-                }
-                aboutData={aboutData}
-                munki={macadmins?.munki}
-                mdm={mdm}
-              />
-              {showUsersCard && (
-                <UserCard
-                  className={defaultCardClass}
-                  platform={host.platform}
-                  endUsers={host.end_users ?? []}
-                  enableAddEndUser={
-                    isDarwinHost &&
-                    generateUsernameValues(host.end_users ?? []).length === 0
-                  }
-                  onAddEndUser={() => setShowAddEndUserModal(true)}
-                />
-              )}
-              {showActivityCard && (
-                <ActivityCard
-                  className={
-                    showAgentOptionsCard
-                      ? doubleHeightCardClass
-                      : defaultCardClass
-                  }
-                  activeTab={activeActivityTab}
-                  activities={
-                    activeActivityTab === "past"
-                      ? pastActivities
-                      : upcomingActivities
-                  }
-                  isLoading={
-                    activeActivityTab === "past"
-                      ? pastActivitiesIsFetching
-                      : upcomingActivitiesIsFetching
-                  }
-                  isError={
-                    activeActivityTab === "past"
-                      ? pastActivitiesIsError
-                      : upcomingActivitiesIsError
-                  }
-                  canCancelActivities={
-                    isGlobalAdmin ||
-                    isGlobalMaintainer ||
-                    isHostTeamAdmin ||
-                    isHostTeamMaintainer
-                  }
-                  upcomingCount={upcomingActivities?.count || 0}
-                  onChangeTab={onChangeActivityTab}
-                  onNextPage={() => setActivityPage(activityPage + 1)}
-                  onPreviousPage={() => setActivityPage(activityPage - 1)}
-                  onShowDetails={onShowActivityDetails}
-                  onCancel={onCancelActivity}
-                />
-              )}
-              {showAgentOptionsCard && (
-                <AgentOptionsCard
-                  className={defaultCardClass}
-                  osqueryData={osqueryData}
-                  wrapFleetHelper={wrapFleetHelper}
-                  isChromeOS={host?.platform === "chrome"}
-                />
-              )}
-              <LabelsCard
-                className={
-                  !showActivityCard && !showAgentOptionsCard
-                    ? fullWidthCardClass
-                    : defaultCardClass
-                }
-                labels={host?.labels || []}
-                onLabelClick={onLabelClick}
-              />
-              {showLocalUserAccountsCard && (
-                <LocalUserAccountsCard
-                  className={fullWidthCardClass}
-                  users={host?.users || []}
-                  usersState={usersState}
-                  isLoading={isLoadingHost}
-                  onUsersTableSearchChange={onUsersTableSearchChange}
-                  hostUsersEnabled={featuresConfig?.enable_host_users}
-                />
-              )}
-              {showCertificatesCard && (
-                <CertificatesCard
-                  className={fullWidthCardClass}
-                  data={hostCertificates}
-                  hostPlatform={host.platform}
-                  onSelectCertificate={onSelectCertificate}
-                  isError={isErrorHostCertificates}
-                  page={certificatePage}
-                  pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
-                  onNextPage={() => setCertificatePage(certificatePage + 1)}
-                  onPreviousPage={() => setCertificatePage(certificatePage - 1)}
-                  sortDirection={sortCerts.order_direction}
-                  sortHeader={sortCerts.order_key}
-                  onSortChange={setSortCerts}
-                />
-              )}
-            </TabPanel>
-            <TabPanel>
-              <TabNav className={`${baseClass}__software-tab-nav`}>
-                <Tabs
-                  selectedIndex={getSoftwareTabIndex(location.pathname)}
-                  onSelect={(i) => navigateToSoftwareTab(i)}
-                >
-                  {renderSoftwareCard()}
-                </Tabs>
-              </TabNav>
-            </TabPanel>
-            <TabPanel>
-              <QueriesCard
-                hostId={host.id}
-                router={router}
-                hostPlatform={host.platform}
-                schedule={schedule}
-                queryReportsDisabled={
-                  config?.server_settings?.query_reports_disabled
-                }
-              />
-              {canViewPacks && (
-                <PacksCard packsState={packsState} isLoading={isLoadingHost} />
-              )}
-            </TabPanel>
-            <TabPanel>
-              <PoliciesCard
-                policies={host?.policies || []}
-                isLoading={isLoadingHost}
-                togglePolicyDetailsModal={togglePolicyDetailsModal}
-                hostPlatform={host.platform}
-                router={router}
-                currentTeamId={currentTeam?.id}
-              />
-            </TabPanel>
-          </Tabs>
-        </TabNav>
-        {showDeleteHostModal && (
-          <DeleteHostModal
-            onCancel={() => setShowDeleteHostModal(false)}
-            onSubmit={onDestroyHost}
-            hostName={host?.display_name}
-            isUpdating={isUpdatingHost}
-          />
-        )}
-        {showSelectQueryModal && host && (
-          <SelectQueryModal
-            onCancel={() => setShowSelectQueryModal(false)}
-            isOnlyObserver={isOnlyObserver}
-            hostId={hostIdFromURL}
-            hostTeamId={host?.team_id}
-            router={router}
-            currentTeamId={currentTeam?.id}
-          />
-        )}
-        {showScriptModalGroup && (
-          <ScriptModalGroup
-            host={host}
-            currentUser={currentUser}
-            onCloseScriptModalGroup={onCloseScriptModalGroup}
-            teamIdForApi={currentTeam?.id}
-          />
-        )}
-        {!!host && showTransferHostModal && (
-          <TransferHostModal
-            onCancel={() => setShowTransferHostModal(false)}
-            onSubmit={onTransferHostSubmit}
-            teams={teams || []}
-            isGlobalAdmin={isGlobalAdmin as boolean}
-            isUpdating={isUpdatingHost}
-          />
-        )}
-        {!!host && showPolicyDetailsModal && (
-          <PolicyDetailsModal
-            onCancel={onCancelPolicyDetailsModal}
-            policy={selectedPolicy}
-          />
-        )}
-        {showOSSettingsModal && (
-          <OSSettingsModal
-            canResendProfiles={host.platform === "darwin"}
-            hostId={host.id}
-            platform={host.platform}
-            hostMDMData={host.mdm}
-            onClose={toggleOSSettingsModal}
-            onProfileResent={refetchHostDetails}
-          />
-        )}
-        {showUnenrollMdmModal && !!host && (
-          <UnenrollMdmModal
-            hostId={host.id}
-            hostPlatform={host.platform}
-            hostName={host.display_name}
-            onClose={toggleUnenrollMdmModal}
-          />
-        )}
-        {showDiskEncryptionModal && host && (
-          <DiskEncryptionKeyModal
-            platform={host.platform}
-            hostId={host.id}
-            onCancel={() => setShowDiskEncryptionModal(false)}
-          />
-        )}
-        {showBootstrapPackageModal &&
-          bootstrapPackageData.details &&
-          bootstrapPackageData.name && (
-            <BootstrapPackageModal
-              packageName={bootstrapPackageData.name}
-              details={bootstrapPackageData.details}
-              onClose={() => setShowBootstrapPackageModal(false)}
+        <>
+          {!mainContentConfig.renderedBanner && (
+            <HostDetailsBanners
+              mdmEnrollmentStatus={host?.mdm.enrollment_status}
+              hostPlatform={host?.platform}
+              macDiskEncryptionStatus={
+                host?.mdm.macos_settings?.disk_encryption
+              }
+              connectedToFleetMdm={host?.mdm.connected_to_fleet}
+              diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
+              diskIsEncrypted={host?.disk_encryption_enabled}
+              diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
             />
           )}
-        {scriptExecutionId && (
-          <RunScriptDetailsModal
-            scriptExecutionId={scriptExecutionId}
-            onCancel={onCancelRunScriptDetailsModal}
-          />
-        )}
-        {!!packageInstallDetails && (
-          <SoftwareInstallDetailsModal
-            details={packageInstallDetails}
-            onCancel={onCancelSoftwareInstallDetailsModal}
-          />
-        )}
-        {packageUninstallDetails && (
-          <SoftwareUninstallDetailsModal
-            details={packageUninstallDetails}
-            onCancel={() => setPackageUninstallDetails(null)}
-          />
-        )}
-        {!!appInstallDetails && (
-          <AppInstallDetailsModal
-            details={appInstallDetails}
-            onCancel={onCancelAppInstallDetailsModal}
-          />
-        )}
-        {showLockHostModal && (
-          <LockModal
-            id={host.id}
-            platform={host.platform}
-            hostName={host.display_name}
-            onSuccess={() => setHostMdmDeviceState("locking")}
-            onClose={() => setShowLockHostModal(false)}
-          />
-        )}
-        {showUnlockHostModal && (
-          <UnlockModal
-            id={host.id}
-            platform={host.platform}
-            hostName={host.display_name}
-            onSuccess={() => {
-              host.platform !== "darwin" && setHostMdmDeviceState("unlocking");
-            }}
-            onClose={() => setShowUnlockHostModal(false)}
-          />
-        )}
-        {showWipeModal && (
-          <WipeModal
-            id={host.id}
-            hostName={host.display_name}
-            onSuccess={() => setHostMdmDeviceState("wiping")}
-            onClose={() => setShowWipeModal(false)}
-          />
-        )}
-        {selectedSoftwareDetails && (
-          <SoftwareDetailsModal
-            hostDisplayName={host.display_name}
-            software={selectedSoftwareDetails}
-            onExit={() => setSelectedSoftwareDetails(null)}
-          />
-        )}
-        {selectedCancelActivity && (
-          <CancelActivityModal
-            hostId={host.id}
-            activity={selectedCancelActivity}
-            onCancelActivity={() => refetchUpcomingActivities()}
-            onSuccessCancel={onSuccessCancelActivity}
-            onExit={() => setSelectedCancelActivity(null)}
-          />
-        )}
-        {selectedCertificate && (
-          <CertificateDetailsModal
-            certificate={selectedCertificate}
-            onExit={() => setSelectedCertificate(null)}
-          />
+          <div className={`${baseClass}__header-links`}>
+            <BackLink
+              text="Back to all hosts"
+              path={filteredHostsPath || PATHS.MANAGE_HOSTS}
+            />
+          </div>
+          <div className={`${baseClass}__header-summary`}>
+            <HostHeader
+              summaryData={summaryData}
+              showRefetchSpinner={showRefetchSpinner}
+              onRefetchHost={onRefetchHost}
+              renderActionDropdown={renderActionDropdown}
+              hostMdmDeviceStatus={hostMdmDeviceStatus}
+            />
+          </div>
+          <TabNav className={`${baseClass}__tab-nav`}>
+            <Tabs
+              selectedIndex={getTabIndex(location.pathname)}
+              onSelect={(i) => navigateToNav(i)}
+            >
+              <TabList>
+                {hostDetailsSubNav.map((navItem) => {
+                  // Bolding text when the tab is active causes a layout shift
+                  // so we add a hidden pseudo element with the same text string
+                  return (
+                    <Tab key={navItem.title}>
+                      <TabText count={navItem.count} isErrorCount>
+                        {navItem.name}
+                      </TabText>
+                    </Tab>
+                  );
+                })}
+              </TabList>
+              <TabPanel className={`${baseClass}__details-panel`}>
+                <HostSummaryCard
+                  summaryData={summaryData}
+                  bootstrapPackageData={bootstrapPackageData}
+                  isPremiumTier={isPremiumTier}
+                  toggleOSSettingsModal={toggleOSSettingsModal}
+                  toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+                  hostSettings={host?.mdm.profiles ?? []}
+                  osSettings={host?.mdm.os_settings}
+                  osVersionRequirement={getOSVersionRequirementFromMDMConfig(
+                    host.platform
+                  )}
+                  className={fullWidthCardClass}
+                />
+                <AboutCard
+                  className={
+                    showUsersCard ? defaultCardClass : fullWidthCardClass
+                  }
+                  aboutData={aboutData}
+                  munki={macadmins?.munki}
+                  mdm={mdm}
+                />
+                {showUsersCard && (
+                  <UserCard
+                    className={defaultCardClass}
+                    platform={host.platform}
+                    endUsers={host.end_users ?? []}
+                    enableAddEndUser={
+                      isDarwinHost &&
+                      generateUsernameValues(host.end_users ?? []).length === 0
+                    }
+                    onAddEndUser={() => setShowAddEndUserModal(true)}
+                  />
+                )}
+                {showActivityCard && (
+                  <ActivityCard
+                    className={
+                      showAgentOptionsCard
+                        ? doubleHeightCardClass
+                        : defaultCardClass
+                    }
+                    activeTab={activeActivityTab}
+                    activities={
+                      activeActivityTab === "past"
+                        ? pastActivities
+                        : upcomingActivities
+                    }
+                    isLoading={
+                      activeActivityTab === "past"
+                        ? pastActivitiesIsFetching
+                        : upcomingActivitiesIsFetching
+                    }
+                    isError={
+                      activeActivityTab === "past"
+                        ? pastActivitiesIsError
+                        : upcomingActivitiesIsError
+                    }
+                    canCancelActivities={
+                      isGlobalAdmin ||
+                      isGlobalMaintainer ||
+                      isHostTeamAdmin ||
+                      isHostTeamMaintainer
+                    }
+                    upcomingCount={upcomingActivities?.count || 0}
+                    onChangeTab={onChangeActivityTab}
+                    onNextPage={() => setActivityPage(activityPage + 1)}
+                    onPreviousPage={() => setActivityPage(activityPage - 1)}
+                    onShowDetails={onShowActivityDetails}
+                    onCancel={onCancelActivity}
+                  />
+                )}
+                {showAgentOptionsCard && (
+                  <AgentOptionsCard
+                    className={defaultCardClass}
+                    osqueryData={osqueryData}
+                    wrapFleetHelper={wrapFleetHelper}
+                    isChromeOS={host?.platform === "chrome"}
+                  />
+                )}
+                <LabelsCard
+                  className={
+                    !showActivityCard && !showAgentOptionsCard
+                      ? fullWidthCardClass
+                      : defaultCardClass
+                  }
+                  labels={host?.labels || []}
+                  onLabelClick={onLabelClick}
+                />
+                {showLocalUserAccountsCard && (
+                  <LocalUserAccountsCard
+                    className={fullWidthCardClass}
+                    users={host?.users || []}
+                    usersState={usersState}
+                    isLoading={isLoadingHost}
+                    onUsersTableSearchChange={onUsersTableSearchChange}
+                    hostUsersEnabled={featuresConfig?.enable_host_users}
+                  />
+                )}
+                {showCertificatesCard && (
+                  <CertificatesCard
+                    className={fullWidthCardClass}
+                    data={hostCertificates}
+                    hostPlatform={host.platform}
+                    onSelectCertificate={onSelectCertificate}
+                    isError={isErrorHostCertificates}
+                    page={certificatePage}
+                    pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                    onNextPage={() => setCertificatePage(certificatePage + 1)}
+                    onPreviousPage={() =>
+                      setCertificatePage(certificatePage - 1)
+                    }
+                    sortDirection={sortCerts.order_direction}
+                    sortHeader={sortCerts.order_key}
+                    onSortChange={setSortCerts}
+                  />
+                )}
+              </TabPanel>
+              <TabPanel>
+                <TabNav className={`${baseClass}__software-tab-nav`}>
+                  <Tabs
+                    selectedIndex={getSoftwareTabIndex(location.pathname)}
+                    onSelect={(i) => navigateToSoftwareTab(i)}
+                  >
+                    {renderSoftwareCard()}
+                  </Tabs>
+                </TabNav>
+              </TabPanel>
+              <TabPanel>
+                <QueriesCard
+                  hostId={host.id}
+                  router={router}
+                  hostPlatform={host.platform}
+                  schedule={schedule}
+                  queryReportsDisabled={
+                    config?.server_settings?.query_reports_disabled
+                  }
+                />
+                {canViewPacks && (
+                  <PacksCard
+                    packsState={packsState}
+                    isLoading={isLoadingHost}
+                  />
+                )}
+              </TabPanel>
+              <TabPanel>
+                <PoliciesCard
+                  policies={host?.policies || []}
+                  isLoading={isLoadingHost}
+                  togglePolicyDetailsModal={togglePolicyDetailsModal}
+                  hostPlatform={host.platform}
+                  router={router}
+                  currentTeamId={currentTeam?.id}
+                />
+              </TabPanel>
+            </Tabs>
+          </TabNav>
+          {showDeleteHostModal && (
+            <DeleteHostModal
+              onCancel={() => setShowDeleteHostModal(false)}
+              onSubmit={onDestroyHost}
+              hostName={host?.display_name}
+              isUpdating={isUpdatingHost}
+            />
+          )}
+          {showSelectQueryModal && host && (
+            <SelectQueryModal
+              onCancel={() => setShowSelectQueryModal(false)}
+              isOnlyObserver={isOnlyObserver}
+              hostId={hostIdFromURL}
+              hostTeamId={host?.team_id}
+              router={router}
+              currentTeamId={currentTeam?.id}
+            />
+          )}
+          {showScriptModalGroup && (
+            <ScriptModalGroup
+              host={host}
+              currentUser={currentUser}
+              onCloseScriptModalGroup={onCloseScriptModalGroup}
+              teamIdForApi={currentTeam?.id}
+            />
+          )}
+          {!!host && showTransferHostModal && (
+            <TransferHostModal
+              onCancel={() => setShowTransferHostModal(false)}
+              onSubmit={onTransferHostSubmit}
+              teams={teams || []}
+              isGlobalAdmin={isGlobalAdmin as boolean}
+              isUpdating={isUpdatingHost}
+            />
+          )}
+          {!!host && showPolicyDetailsModal && (
+            <PolicyDetailsModal
+              onCancel={onCancelPolicyDetailsModal}
+              policy={selectedPolicy}
+            />
+          )}
+          {showOSSettingsModal && (
+            <OSSettingsModal
+              canResendProfiles={host.platform === "darwin"}
+              hostId={host.id}
+              platform={host.platform}
+              hostMDMData={host.mdm}
+              onClose={toggleOSSettingsModal}
+              onProfileResent={refetchHostDetails}
+            />
+          )}
+          {showUnenrollMdmModal && !!host && (
+            <UnenrollMdmModal
+              hostId={host.id}
+              hostPlatform={host.platform}
+              hostName={host.display_name}
+              onClose={toggleUnenrollMdmModal}
+            />
+          )}
+          {showDiskEncryptionModal && host && (
+            <DiskEncryptionKeyModal
+              platform={host.platform}
+              hostId={host.id}
+              onCancel={() => setShowDiskEncryptionModal(false)}
+            />
+          )}
+          {showBootstrapPackageModal &&
+            bootstrapPackageData.details &&
+            bootstrapPackageData.name && (
+              <BootstrapPackageModal
+                packageName={bootstrapPackageData.name}
+                details={bootstrapPackageData.details}
+                onClose={() => setShowBootstrapPackageModal(false)}
+              />
+            )}
+          {scriptExecutionId && (
+            <RunScriptDetailsModal
+              scriptExecutionId={scriptExecutionId}
+              onCancel={onCancelRunScriptDetailsModal}
+            />
+          )}
+          {!!packageInstallDetails && (
+            <SoftwareInstallDetailsModal
+              details={packageInstallDetails}
+              onCancel={onCancelSoftwareInstallDetailsModal}
+            />
+          )}
+          {packageUninstallDetails && (
+            <SoftwareUninstallDetailsModal
+              details={packageUninstallDetails}
+              onCancel={() => setPackageUninstallDetails(null)}
+            />
+          )}
+          {!!appInstallDetails && (
+            <AppInstallDetailsModal
+              details={appInstallDetails}
+              onCancel={onCancelAppInstallDetailsModal}
+            />
+          )}
+          {showLockHostModal && (
+            <LockModal
+              id={host.id}
+              platform={host.platform}
+              hostName={host.display_name}
+              onSuccess={() => setHostMdmDeviceState("locking")}
+              onClose={() => setShowLockHostModal(false)}
+            />
+          )}
+          {showUnlockHostModal && (
+            <UnlockModal
+              id={host.id}
+              platform={host.platform}
+              hostName={host.display_name}
+              onSuccess={() => {
+                host.platform !== "darwin" &&
+                  setHostMdmDeviceState("unlocking");
+              }}
+              onClose={() => setShowUnlockHostModal(false)}
+            />
+          )}
+          {showWipeModal && (
+            <WipeModal
+              id={host.id}
+              hostName={host.display_name}
+              onSuccess={() => setHostMdmDeviceState("wiping")}
+              onClose={() => setShowWipeModal(false)}
+            />
+          )}
+          {selectedSoftwareDetails && (
+            <SoftwareDetailsModal
+              hostDisplayName={host.display_name}
+              software={selectedSoftwareDetails}
+              onExit={() => setSelectedSoftwareDetails(null)}
+            />
+          )}
+          {selectedCancelActivity && (
+            <CancelActivityModal
+              hostId={host.id}
+              activity={selectedCancelActivity}
+              onCancelActivity={() => refetchUpcomingActivities()}
+              onSuccessCancel={onSuccessCancelActivity}
+              onExit={() => setSelectedCancelActivity(null)}
+            />
+          )}
+          {selectedCertificate && (
+            <CertificateDetailsModal
+              certificate={selectedCertificate}
+              onExit={() => setSelectedCertificate(null)}
+            />
+          )}
+        </>
+        {showAddEndUserModal && (
+          <AddEndUserModal onExit={() => setShowAddEndUserModal(false)} />
         )}
       </>
-      {showAddEndUserModal && (
-        <AddEndUserModal onExit={() => setShowAddEndUserModal(false)} />
-      )}
-    </MainContent>
-  );
+    );
+  };
+
+  return <MainContent className={baseClass}>{renderContent}</MainContent>;
 };
 
 export default HostDetailsPage;

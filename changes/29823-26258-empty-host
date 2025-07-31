@@ -1,1 +1,0 @@
-- Fixed host API to returns empty array (instead of 404) if software title or version is not found on hosts on that team consistent with other host filters

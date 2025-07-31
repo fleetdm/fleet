@@ -377,7 +377,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     let suffix;
     if (!isPrimoMode) {
-      suffix = isAllTeamsSelected ? "for all hosts" : "on this team";
+      suffix = isAllTeamsSelected ? " for all hosts" : " on this team";
     }
     return (
       <p>

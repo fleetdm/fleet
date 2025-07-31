@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -85,6 +86,10 @@ func main() {
 		return
 	}
 	log.Info().Msgf("fleet-desktop version=%s", version)
+
+	if permanentError := os.Getenv("FLEET_DESKTOP_PERMANENT_ERROR"); permanentError != "" {
+		runWithPermanentError(permanentError)
+	}
 
 	identifierPath := os.Getenv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
 	if identifierPath == "" {
@@ -393,6 +398,9 @@ func main() {
 				refreshMenuItems(sum.DesktopSummary, selfServiceItem, myDeviceItem)
 				myDeviceItem.Enable()
 				myDeviceItem.Show()
+
+				transparencyItem.Enable()
+				transparencyItem.Show()
 
 				// Check our file to see if we should migrate
 				var migrationType string
@@ -788,4 +796,32 @@ func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, clie
 	offlineWatcher := useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
 
 	return mdmMigrator, swiftDialogCh, offlineWatcher, nil
+}
+
+func runWithPermanentError(errorMessage string) {
+	onReady := func() {
+		log.Info().Msg("ready")
+
+		systray.SetTooltip("Fleet Desktop")
+
+		// Default to dark theme icon because this seems to be a better fit on Linux (Ubuntu at
+		// least). On macOS this is used as a template icon anyway.
+		systray.SetTemplateIcon(iconDark, iconDark)
+
+		// Add a disabled menu item with the current version
+		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
+		versionItem.Disable()
+		systray.AddSeparator()
+
+		// We are doing this using two menu items because line breaks
+		// are not rendered correctly on Windows and MacOS.
+		for errorMessageLine := range strings.SplitSeq(errorMessage, "\n") {
+			item := systray.AddMenuItem(strings.TrimSpace(errorMessageLine), "")
+			item.Disable()
+		}
+	}
+
+	systray.Run(onReady, func() {
+		log.Info().Msg("exit")
+	})
 }

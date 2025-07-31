@@ -72,10 +72,8 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       },
     },
     {
-      Header: (cellProps: ITableHeaderProps) => (
-        <HeaderCell value="Type" isSortedDesc={cellProps.column.isSortedDesc} />
-      ),
-      disableSortBy: false,
+      Header: "Type",
+      disableSortBy: true,
       disableGlobalFilter: true,
       accessor: "source",
       Cell: (cellProps: ITableStringCellProps) => (

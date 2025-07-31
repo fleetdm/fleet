@@ -12,8 +12,12 @@ import AndroidEnterpriseDeletedMessage from "components/MDM/AndroidEnterpriseDel
 
 import VppRenewalMessage from "./banners/VppRenewalMessage";
 
+export interface IMainContentConfig {
+  renderedBanner: boolean;
+}
+
 interface IMainContentProps {
-  children: ReactNode;
+  children: ReactNode | ((mainContentConfig: IMainContentConfig) => ReactNode);
   /** An optional classname to pass to the main content component.
    * This can be used to apply styles directly onto the main content div
    */
@@ -80,10 +84,16 @@ const MainContent = ({
 
     return null;
   };
+
+  const appWideBanner = renderAppWideBanner();
+  const mainContentConfig: IMainContentConfig = {
+    renderedBanner: !!appWideBanner,
+  };
+
   return (
     <div className={classes}>
-      {renderAppWideBanner()}
-      {children}
+      {appWideBanner}
+      {typeof children === "function" ? children(mainContentConfig) : children}
     </div>
   );
 };

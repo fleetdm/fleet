@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -202,9 +201,6 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, labelsInclud
 	}, nil
 }
 
-var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
-var upgradeCodeRegex = regexp.MustCompile(`((("\$UPGRADE_CODE")|(\$UPGRADE_CODE))(?P<suffix>\W|$))|(("\${UPGRADE_CODE}")|(\${UPGRADE_CODE}))`)
-
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) error {
 	// We assume that we already validated that payload.PackageIDs is not empty.
 	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
@@ -228,15 +224,15 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 		packageID = fmt.Sprintf("\"%s\"", payload.PackageIDs[0])
 	}
 
-	payload.UninstallScript = packageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
+	payload.UninstallScript = file.PackageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
 
 	// If $UPGRADE_CODE is in the script and we have one, replace it; if the var is included but we don't have one, error
-	if upgradeCodeRegex.MatchString(payload.UninstallScript) {
+	if file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
 		if payload.UpgradeCode == "" {
 			return errors.New("blank upgrade code when required in script")
 		}
 
-		payload.UninstallScript = upgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("\"%s\"${suffix}", payload.UpgradeCode))
+		payload.UninstallScript = file.UpgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("\"%s\"${suffix}", payload.UpgradeCode))
 	}
 
 	return nil
@@ -1664,8 +1660,13 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+	if !dryRun {
+		// presence of these secrets are validated on the gitops side,
+		// we only want to ensure that secrets are in the database on the
+		// non-dry run case.
+		if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
+			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		}
 	}
 
 	// keyExpireTime is the current maximum time supported for retrieving
@@ -2002,6 +2003,23 @@ func (svc *Service) softwareBatchUpload(
 				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
 				installer.Title = appName
 				installer.Version = p.MaintainedApp.Version
+
+				// Some FMAs (e.g. Chrome for macOS) aren't version-pinned by URL, so we have to extract the
+				// version from the package once we download it.
+				if installer.Version == "latest" && installer.InstallerFile != nil {
+					meta, err := file.ExtractInstallerMetadata(installer.InstallerFile)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "extracting installer metadata")
+					}
+
+					// reset the reader (it was consumed to extract metadata)
+					if err := installer.InstallerFile.Rewind(); err != nil {
+						return ctxerr.Wrap(ctx, err, "resetting installer file reader")
+					}
+
+					installer.Version = meta.Version
+				}
+
 				installer.Platform = p.MaintainedApp.Platform
 				installer.Source = p.MaintainedApp.Source()
 				installer.Extension = extension
@@ -2352,10 +2370,10 @@ func UninstallSoftwareMigration(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	logger kitlog.Logger,
 ) error {
-	// Find software installers without package_id
-	idMap, err := ds.GetSoftwareInstallersWithoutPackageIDs(ctx)
+	// Find software installers that should have their uninstall script populated
+	idMap, err := ds.GetSoftwareInstallersPendingUninstallScriptPopulation(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting software installers without package_id")
+		return ctxerr.Wrap(ctx, err, "getting software installers to modufy")
 	}
 	if len(idMap) == 0 {
 		return nil

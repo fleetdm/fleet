@@ -591,7 +591,7 @@ type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) 
 
 type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
 
-type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error
+type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error
 
 type CreateOrUpdateCalendarEventFunc func(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte, timeZone *string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error)
 
@@ -785,7 +785,7 @@ type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fle
 
 type InsertOSVulnerabilityFunc func(ctx context.Context, vuln fleet.OSVulnerability, source fleet.VulnerabilitySource) (bool, error)
 
-type DeleteOutOfDateOSVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error
+type DeleteOutOfDateOSVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error
 
 type ListVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error)
 
@@ -1211,7 +1211,7 @@ type ValidateOrbitSoftwareInstallerAccessFunc func(ctx context.Context, hostID u
 
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
-type GetSoftwareInstallersWithoutPackageIDsFunc func(ctx context.Context) (map[uint]string, error)
+type GetSoftwareInstallersPendingUninstallScriptPopulationFunc func(ctx context.Context) (map[uint]string, error)
 
 type GetMSIInstallersWithoutUpgradeCodeFunc func(ctx context.Context) (map[uint]string, error)
 
@@ -1428,6 +1428,8 @@ type GetHostIdentityCertBySerialNumberFunc func(ctx context.Context, serialNumbe
 type GetHostIdentityCertByNameFunc func(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
 
 type UpdateHostIdentityCertHostIDBySerialFunc func(ctx context.Context, serialNumber uint64, hostID uint) error
+
+type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -3212,8 +3214,8 @@ type DataStore struct {
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
 
-	GetSoftwareInstallersWithoutPackageIDsFunc        GetSoftwareInstallersWithoutPackageIDsFunc
-	GetSoftwareInstallersWithoutPackageIDsFuncInvoked bool
+	GetSoftwareInstallersPendingUninstallScriptPopulationFunc        GetSoftwareInstallersPendingUninstallScriptPopulationFunc
+	GetSoftwareInstallersPendingUninstallScriptPopulationFuncInvoked bool
 
 	GetMSIInstallersWithoutUpgradeCodeFunc        GetMSIInstallersWithoutUpgradeCodeFunc
 	GetMSIInstallersWithoutUpgradeCodeFuncInvoked bool
@@ -3538,6 +3540,9 @@ type DataStore struct {
 
 	UpdateHostIdentityCertHostIDBySerialFunc        UpdateHostIdentityCertHostIDBySerialFunc
 	UpdateHostIdentityCertHostIDBySerialFuncInvoked bool
+
+	GetCurrentTimeFunc        GetCurrentTimeFunc
+	GetCurrentTimeFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5530,11 +5535,11 @@ func (s *DataStore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabi
 	return s.DeleteSoftwareVulnerabilitiesFunc(ctx, vulnerabilities)
 }
 
-func (s *DataStore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+func (s *DataStore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 	s.mu.Lock()
 	s.DeleteOutOfDateVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteOutOfDateVulnerabilitiesFunc(ctx, source, duration)
+	return s.DeleteOutOfDateVulnerabilitiesFunc(ctx, source, olderThan)
 }
 
 func (s *DataStore) CreateOrUpdateCalendarEvent(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte, timeZone *string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error) {
@@ -6209,11 +6214,11 @@ func (s *DataStore) InsertOSVulnerability(ctx context.Context, vuln fleet.OSVuln
 	return s.InsertOSVulnerabilityFunc(ctx, vuln, source)
 }
 
-func (s *DataStore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+func (s *DataStore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 	s.mu.Lock()
 	s.DeleteOutOfDateOSVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteOutOfDateOSVulnerabilitiesFunc(ctx, source, duration)
+	return s.DeleteOutOfDateOSVulnerabilitiesFunc(ctx, source, olderThan)
 }
 
 func (s *DataStore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
@@ -7700,11 +7705,11 @@ func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Con
 	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
 }
 
-func (s *DataStore) GetSoftwareInstallersWithoutPackageIDs(ctx context.Context) (map[uint]string, error) {
+func (s *DataStore) GetSoftwareInstallersPendingUninstallScriptPopulation(ctx context.Context) (map[uint]string, error) {
 	s.mu.Lock()
-	s.GetSoftwareInstallersWithoutPackageIDsFuncInvoked = true
+	s.GetSoftwareInstallersPendingUninstallScriptPopulationFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareInstallersWithoutPackageIDsFunc(ctx)
+	return s.GetSoftwareInstallersPendingUninstallScriptPopulationFunc(ctx)
 }
 
 func (s *DataStore) GetMSIInstallersWithoutUpgradeCode(ctx context.Context) (map[uint]string, error) {
@@ -8461,4 +8466,11 @@ func (s *DataStore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 	s.UpdateHostIdentityCertHostIDBySerialFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostIdentityCertHostIDBySerialFunc(ctx, serialNumber, hostID)
+}
+
+func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
+	s.mu.Lock()
+	s.GetCurrentTimeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCurrentTimeFunc(ctx)
 }

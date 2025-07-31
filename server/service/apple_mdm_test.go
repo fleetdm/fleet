@@ -1175,7 +1175,8 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		require.Nil(t, user)
 		require.Equal(t, "mdm_enrolled", activity.ActivityName())
 		require.NotNil(t, a.HostSerial)
-		require.Equal(t, serial, a.HostSerial)
+		require.Equal(t, serial, *a.HostSerial)
+		require.Nil(t, a.EnrollmentID)
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.False(t, a.InstalledFromDEP)
 		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
@@ -1242,7 +1243,8 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		require.Nil(t, user)
 		require.Equal(t, "mdm_enrolled", activity.ActivityName())
 		require.NotNil(t, a.HostSerial)
-		require.Equal(t, serial, a.HostSerial)
+		require.Equal(t, serial, *a.HostSerial)
+		require.Nil(t, a.EnrollmentID)
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.True(t, a.InstalledFromDEP)
 		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
@@ -2143,7 +2145,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.UpdateMDMDiskEncryption(ctx, tt.teamID, nil)
+			err := svc.UpdateMDMDiskEncryption(ctx, tt.teamID, nil, nil)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return

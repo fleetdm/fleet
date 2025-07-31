@@ -65,7 +65,7 @@ func TestNewClientValidation(t *testing.T) {
 			errorMsg:    "should fail with empty URL",
 		},
 		{
-			name: "missing TEE",
+			name: "missing SecureHW",
 			options: []Option{
 				WithURL("https://example.com/scep"),
 				WithChallenge("test-challenge"),
@@ -73,7 +73,7 @@ func TestNewClientValidation(t *testing.T) {
 				WithTimeout(ptr.Duration(5 * time.Second)),
 			},
 			expectError: true,
-			errorMsg:    "should fail without TEE",
+			errorMsg:    "should fail without SecureHW",
 		},
 		{
 			name: "all required parameters",
@@ -115,7 +115,7 @@ func TestClient_FetchCert(t *testing.T) {
 
 	t.Run("successful fetch", func(t *testing.T) {
 		signingKey, err := newSigningKey()
-		require.NoError(t, err, "Failed to create test TEE")
+		require.NoError(t, err, "Failed to create test SecureHW")
 
 		// Create a SCEP client with all required parameters
 		client, err := NewClient(
@@ -149,7 +149,7 @@ func TestClient_FetchCert(t *testing.T) {
 
 	t.Run("bad challenge password", func(t *testing.T) {
 		signingKey, err := newSigningKey()
-		require.NoError(t, err, "Failed to create test TEE")
+		require.NoError(t, err, "Failed to create test SecureHW")
 
 		// Create a SCEP client with all required parameters
 		client, err := NewClient(

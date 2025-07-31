@@ -97,14 +97,14 @@
       "slug": "google-chrome/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.Chrome",
-      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
+      "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
       "name": "Google Chrome",
       "slug": "google-chrome/windows",
       "platform": "windows",
       "unique_identifier": "Google Chrome",
-      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
+      "description": "Google Chrome Enterprise is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
       "name": "Company Portal",

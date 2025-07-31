@@ -321,6 +321,18 @@ When rate limiting is enabled:
 - Different hosts are not affected by each other's rate limits
 - Rate limiting uses the same configuration as host enrollment cooldown
 
+#### Certificate validity period (development only)
+
+For development and testing purposes only, you can override the default certificate validity period:
+
+```bash
+export FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS=30
+```
+
+This environment variable overrides the default 365-day validity period for host identity certificates. This is intended only for development and testing scenarios where shorter certificate lifetimes are needed.
+
+After getting a new certificate, Orbit will attempt to renew the certificate within 1 hour or within 180 days of certificate expiration, whichever is longer.
+
 ### Load testing configuration
 
 For load testing TPM-backed HTTP message signing without actual TPM hardware, use the `osquery-perf` tool with the following flag (other flags not shown):
@@ -338,19 +350,45 @@ go run agent.go --http_message_signature_prob 1.0
 
 The `--http_message_signature_prob` flag controls the probability (0.0 to 1.0) that each simulated host will use HTTP message signatures. This allows testing Fleet's HTTP message signing feature at scale without requiring actual TPM hardware on load testing machines.
 
+## Certificate renewal
+
+The certificate is issued with a validity period of 365 days. Orbit attempts to renew it within 180 days of expiration.
+
+### Problem
+
+We can't use standard SCEP renewal because our SCEP library does not support signing the CMS envelope with ECC certificates. This breaks the renewal flow, which requires the CMS to be signed with the existing certificate.
+
+### Solution
+
+Instead, we implement a re-enrollment flow in Orbit that proves possession of the current ECC private key:
+
+**Orbit:**
+1. Generates a new ECC key and CSR.
+2. Signs a message: `<current cert serial number>` using the existing ECC private key.
+3. Embeds the message and signature in a custom CSR extension:
+   - OID: `1.3.6.1.4.1.99999.1.1` (99999 will be replaced by our IANA private enterprise number once assigned)
+   - Value: JSON like `{ "sn":"0x1b", "sig":"MEUCIQ..." }`
+   - This indicates that this is a renewal request
+4. Wraps the CSR in a CMS envelope signed by a temporary RSA key (to satisfy SCEP protocol requirements).
+
+**Server:**
+1. Verifies the signature against the old certificate.
+2. If valid, issues a new certificate and revokes the old one to prevent replay.
+
+> **Note**: Apple MDM also uses a re-enrollment flow for renewal, but with a static challenge.
+
 ## Future enhancements
 
 Additional features that may be implemented in future releases:
 
-1. **Key Rotation/Renewal**: Automatic key rotation policies and certificate renewal
-2. **One-time enrollment secret**: This provides additional security to make sure an unauthorized device cannot get an identity certificate and enroll in Fleet.
-3. **Windows Support**: TPM support for Windows platforms using TBS (TPM Base Services)
-4. **Apple Secure Enclave**: Integration with Apple's Secure Enclave for macOS devices
-5. **Fleet server visibility**: Allow IT admin to see which hosts have host identity certificates. For example, we can add a field to `orbit_info` table and IT admin could set up a policy to make sure all hosts have certificates.
-6. **Multiple Key Support**: Support for multiple signing keys and certificates, like a separate key for WiFi/VPN.
-7. **Hardware Attestation**: TPM-based device attestation and platform integrity
-8. **SCEP Extensions**: Support for additional SCEP features and external CA integrations
-9. **ACME**: Use ACME protocol instead of SCEP to get a certificate.
+1. **One-time enrollment secret**: This provides additional security to make sure an unauthorized device cannot get an identity certificate and enroll in Fleet.
+2. **Windows Support**: TPM support for Windows platforms using TBS (TPM Base Services)
+3. **Apple Secure Enclave**: Integration with Apple's Secure Enclave for macOS devices
+4. **Fleet server visibility**: Allow IT admin to see which hosts have host identity certificates. For example, we can add a field to `orbit_info` table and IT admin could set up a policy to make sure all hosts have certificates.
+5. **Multiple Key Support**: Support for multiple signing keys and certificates, like a separate key for WiFi/VPN.
+6. **Hardware Attestation**: TPM-based device attestation and platform integrity
+7. **SCEP Extensions**: Support for additional SCEP features and external CA integrations
+8. **ACME**: Use ACME protocol instead of SCEP to get a certificate.
 
 ## Troubleshooting
 
@@ -391,3 +429,15 @@ Additional features that may be implemented in future releases:
 ### General debugging
 
 Enable fleetd/server debug logging to troubleshoot issues.
+
+## Known issues
+
+### Certificate enrollment and renewal interruptions
+
+If the client disconnects (e.g., loses network connection or crashes) after submitting the SCEP request but before receiving the issued certificate, the host may be disconnected from Fleet. This can occur during:
+- Initial certificate enrollment with one-time enrollment secrets
+- Certificate renewal processes
+
+**Mitigation**: Clear the TPM artifacts and/or reinstall the fleetd agent on affected hosts with a working enrollment secret.
+
+**Long-term solution**: Switch to ACME protocol, which supports certificate issuance via polling with retryable identifiers (e.g., JWK thumbprints), making the process more resilient to network interruptions.
