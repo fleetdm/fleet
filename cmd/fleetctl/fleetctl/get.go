@@ -1482,6 +1482,12 @@ func getMDMCommandResultsCommand() *cli.Command {
 				Usage:    "Filter MDM commands by ID.",
 				Required: true,
 			},
+			&cli.BoolFlag{
+				Name:     "line",
+				Usage:    "Output results in line format, instead of table format.",
+				Aliases:  []string{"l"},
+				Required: false,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -1546,6 +1552,15 @@ func getMDMCommandResultsCommand() *cli.Command {
 				})
 			}
 			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "PAYLOAD", "RESULTS"}
+			if c.Bool("line") {
+				for i, c := range columns {
+					for _, d := range data {
+						fmt.Printf("%s:\n%s\n\n", c, d[i])
+					}
+				}
+
+				return nil
+			}
 			printTableWithXML(c, columns, data)
 
 			return nil
