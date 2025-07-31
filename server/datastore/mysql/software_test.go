@@ -3702,6 +3702,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 					assert.Equal(t, e.SoftwarePackage.LastUninstall.ExecutionID, g.SoftwarePackage.LastUninstall.ExecutionID)
 					assert.NotNil(t, g.SoftwarePackage.LastUninstall.UninstalledAt)
 				}
+				if e.SoftwarePackage.AutomaticInstallPolicies != nil {
+					require.Len(t, e.SoftwarePackage.AutomaticInstallPolicies, len(g.SoftwarePackage.AutomaticInstallPolicies))
+					for i, p := range e.SoftwarePackage.AutomaticInstallPolicies {
+						require.Equal(t, p.ID, g.SoftwarePackage.AutomaticInstallPolicies[i].ID)
+						require.Equal(t, p.Name, g.SoftwarePackage.AutomaticInstallPolicies[i].Name)
+					}
+				}
 			}
 
 			if e.AppStoreApp != nil {
@@ -3715,6 +3722,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 					require.Equal(t, e.AppStoreApp.LastInstall.InstallUUID, g.AppStoreApp.LastInstall.InstallUUID)
 					require.Equal(t, e.AppStoreApp.LastInstall.CommandUUID, g.AppStoreApp.LastInstall.CommandUUID)
 					require.NotNil(t, g.AppStoreApp.LastInstall.InstalledAt)
+				}
+				if e.AppStoreApp.AutomaticInstallPolicies != nil {
+					require.Len(t, e.AppStoreApp.AutomaticInstallPolicies, len(g.AppStoreApp.AutomaticInstallPolicies))
+					for i, p := range e.AppStoreApp.AutomaticInstallPolicies {
+						require.Equal(t, p.ID, g.AppStoreApp.AutomaticInstallPolicies[i].ID)
+						require.Equal(t, p.Name, g.AppStoreApp.AutomaticInstallPolicies[i].Name)
+					}
 				}
 			}
 			// require.Equal(t, e.SoftwarePackage, g.SoftwarePackage)
@@ -4220,6 +4234,33 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		i3.Name + i3.Source: expected[i3.Name+i3.Source],
 	}, sw, true)
 
+	// add policies to software
+	policy1 := newTestPolicy(t, ds, user, "policy 1", "darwin", &tm.ID)
+	policy1.SoftwareInstallerID = ptr.Uint(swi5Tm)
+	err = ds.SavePolicy(context.Background(), policy1, false, false)
+	require.NoError(t, err)
+	policy2 := newTestPolicy(t, ds, user, "policy 2", "darwin", &tm.ID)
+	policy2.SoftwareInstallerID = ptr.Uint(swi5Tm)
+	err = ds.SavePolicy(context.Background(), policy2, false, false)
+	require.NoError(t, err)
+	sw, meta, err = ds.ListHostSoftware(ctx, tmHost, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 1}, meta)
+	expectedWithPolicies := map[string]fleet.HostSoftwareWithInstaller{
+		i3.Name + i3.Source: expected[i3.Name+i3.Source],
+	}
+	expectedWithPolicies[i3.Name+i3.Source].SoftwarePackage.AutomaticInstallPolicies = []fleet.AutomaticInstallPolicy{
+		{
+			ID:   policy1.ID,
+			Name: policy1.Name,
+		},
+		{
+			ID:   policy2.ID,
+			Name: policy2.Name,
+		},
+	}
+	compareResults(expectedWithPolicies, sw, true)
+
 	// test with a search query (searches on name), with and without available software
 	opts.ListOptions.MatchQuery = "a"
 	opts.IncludeAvailableForInstall = false
@@ -4260,7 +4301,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			BundleIdentifier: "com.app.vpp1",
 		}, nil)
 	require.NoError(t, err)
-	_, err = ds.InsertVPPAppWithTeam(ctx,
+	vatm1, err := ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1",
@@ -4302,6 +4343,20 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// main host
 	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user)
 	require.NotEmpty(t, vpp1TmCmdUUID)
+
+	// add policies to vpp app 1
+	va1FromDB, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, vatm1.AdamID, vatm1.Platform, &tm.ID)
+	require.NoError(t, err)
+
+	policy3 := newTestPolicy(t, ds, user, "policy 3", "darwin", &tm.ID)
+	policy3.VPPAppsTeamsID = &va1FromDB.AppTeamID
+	err = ds.SavePolicy(context.Background(), policy3, false, false)
+	require.NoError(t, err)
+
+	policy4 := newTestPolicy(t, ds, user, "policy 4", "darwin", &tm.ID)
+	policy4.VPPAppsTeamsID = &va1FromDB.AppTeamID
+	err = ds.SavePolicy(context.Background(), policy4, false, false)
+	require.NoError(t, err)
 
 	opts.IncludeAvailableForInstall = false
 	opts.ListOptions.MatchQuery = ""
@@ -4374,10 +4429,25 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults(map[string]fleet.HostSoftwareWithInstaller{
 		i3.Name + i3.Source: expected[i3.Name+i3.Source],
 		"vpp1apps": {
-			Name:        "vpp1",
-			Source:      "apps",
-			Status:      expectStatus(fleet.SoftwareInstallPending),
-			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID}},
+			Name:   "vpp1",
+			Source: "apps",
+			Status: expectStatus(fleet.SoftwareInstallPending),
+			AppStoreApp: &fleet.SoftwarePackageOrApp{
+				AppStoreID:  vpp1,
+				Platform:    "darwin",
+				SelfService: ptr.Bool(false),
+				LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID},
+				AutomaticInstallPolicies: []fleet.AutomaticInstallPolicy{
+					{
+						ID:   policy3.ID,
+						Name: policy3.Name,
+					},
+					{
+						ID:   policy4.ID,
+						Name: policy4.Name,
+					},
+				},
+			},
 		},
 	}, sw, true)
 
