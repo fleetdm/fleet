@@ -11350,6 +11350,38 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
+		// Update DB by clearing package ids and swapping extension to one we skip
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if _, err = q.ExecContext(context.Background(), `UPDATE software_installers SET package_ids = '', extension = 'tar.gz' WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			return nil
+		})
+
+		// Running the migration again causes no issues.
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
+		require.NoError(t, err)
+
+		// Package ID and extension should not have been modified
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var packageIDs string
+			if err := sqlx.GetContext(context.Background(), q, &packageIDs, `SELECT package_ids FROM software_installers WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			assert.Empty(t, packageIDs)
+
+			var extension string
+			if err := sqlx.GetContext(context.Background(), q, &extension, `SELECT extension FROM software_installers WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			assert.Equal(t, "tar.gz", extension)
+
+			return nil
+		})
+
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
 			"team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -11658,17 +11690,29 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	errMsg := extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
 
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Empty(t, errMsg)
+
 	softwareToInstallBadSecret[0].InstallScript = ""
 	softwareToInstallBadSecret[0].PostInstallScript = "echo $FLEET_SECRET_ALSO_INVALID"
 	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_ALSO_INVALID")
 
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Empty(t, errMsg)
+
 	softwareToInstallBadSecret[0].PostInstallScript = ""
 	softwareToInstallBadSecret[0].UninstallScript = "echo $FLEET_SECRET_THIRD_INVALID"
 	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_THIRD_INVALID")
+
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Empty(t, errMsg)
 
 	// TODO(roberto): test with a variety of response codes
 
@@ -11885,8 +11929,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
 	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
 
-	// maintained app with no_check for sha
-	// https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg
+	// maintained app with no_check for sha, latest for version
 	maintained2, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Google Chrome",
 		Slug:             "google-chrome/darwin",
@@ -11895,7 +11938,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	})
 	require.NoError(t, err)
 
-	chromeBytes := []byte("chrome installer content")
+	chromeBytes, err := os.ReadFile(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
+	require.NoError(t, err)
 	h := sha256.New()
 	_, err = h.Write(chromeBytes)
 	require.NoError(t, err)
@@ -11915,6 +11959,38 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	}
 	http.DefaultTransport = mockTransport
 
+	// Mock server to serve manifest with no_check/latest
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "latest",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:       "https://dl.google.com/chrome.pkg",
+			InstallScriptRef:   "foobaz",
+			UninstallScriptRef: "foobaz",
+			SHA256:             "no_check",
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"foobaz": "Hello World!",
+			},
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	defer manifestServer.Close()
+	mockTransport = &mockRoundTripper{
+		mockServer:  manifestServer.URL,
+		origBaseURL: "https://raw.githubusercontent.com",
+		next:        http.DefaultTransport,
+	}
+	http.DefaultTransport = mockTransport
+
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
 		{Slug: &maintained2.Slug},
 	}
@@ -11923,9 +11999,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
 	require.NotNil(t, packages[0].URL)
-	// Given that the manifest returns no_check for chrome, the SHA should be taken of the downloaded file.
+	// Given that the manifest returns "no_check" for Chrome hash, the SHA should be calculated from the downloaded file.
 	require.Equal(t, chromeSHA, packages[0].HashSHA256)
 	require.Nil(t, packages[0].TeamID)
+
+	// Given that the manifest returns "latest", the version should be parsed from the downloaded file.
+	titleResponse := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	require.Equal(t, "1.0.0", titleResponse.SoftwareTitle.SoftwarePackage.Version)
 
 	http.DefaultTransport = oldTransport
 }
@@ -16953,8 +17034,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// check that we created an activity for the policy creation
 	wantAct := fleet.ActivityTypeCreatedPolicy{
-		ID:   gotPolicy.ID,
-		Name: gotPolicy.Name,
+		ID:       gotPolicy.ID,
+		Name:     gotPolicy.Name,
+		TeamID:   0,
+		TeamName: ptr.String("No Team"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 

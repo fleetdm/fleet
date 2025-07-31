@@ -605,6 +605,11 @@
 
     [purpose='option-value'] {
       margin-bottom: 32px;
+      [purpose='nested-label'] {
+        font-size: 14px;
+        margin-bottom: 4px;
+
+      }
       input {
         display: flex;
         width: 260px;
@@ -697,6 +702,9 @@
           height: 40px;
 
         }
+      }
+      [purpose='select-option'] {
+        max-width: 50%;
       }
     }
     [purpose='name-and-access-type'] {

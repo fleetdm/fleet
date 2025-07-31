@@ -1660,8 +1660,13 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+	if !dryRun {
+		// presence of these secrets are validated on the gitops side,
+		// we only want to ensure that secrets are in the database on the
+		// non-dry run case.
+		if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
+			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		}
 	}
 
 	// keyExpireTime is the current maximum time supported for retrieving
@@ -1998,6 +2003,23 @@ func (svc *Service) softwareBatchUpload(
 				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
 				installer.Title = appName
 				installer.Version = p.MaintainedApp.Version
+
+				// Some FMAs (e.g. Chrome for macOS) aren't version-pinned by URL, so we have to extract the
+				// version from the package once we download it.
+				if installer.Version == "latest" && installer.InstallerFile != nil {
+					meta, err := file.ExtractInstallerMetadata(installer.InstallerFile)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "extracting installer metadata")
+					}
+
+					// reset the reader (it was consumed to extract metadata)
+					if err := installer.InstallerFile.Rewind(); err != nil {
+						return ctxerr.Wrap(ctx, err, "resetting installer file reader")
+					}
+
+					installer.Version = meta.Version
+				}
+
 				installer.Platform = p.MaintainedApp.Platform
 				installer.Source = p.MaintainedApp.Source()
 				installer.Extension = extension
@@ -2348,10 +2370,10 @@ func UninstallSoftwareMigration(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	logger kitlog.Logger,
 ) error {
-	// Find software installers without package_id
-	idMap, err := ds.GetSoftwareInstallersWithoutPackageIDs(ctx)
+	// Find software installers that should have their uninstall script populated
+	idMap, err := ds.GetSoftwareInstallersPendingUninstallScriptPopulation(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting software installers without package_id")
+		return ctxerr.Wrap(ctx, err, "getting software installers to modufy")
 	}
 	if len(idMap) == 0 {
 		return nil

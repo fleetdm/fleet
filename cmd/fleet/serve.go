@@ -946,12 +946,11 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 			}
 
-			// // TODO(BMAA): uncomment this to enable MDM Apple Service Discovery
-			// if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			// 	return newMDMAppleServiceDiscoverySchedule(ctx, instanceID, ds, depStorage, logger)
-			// }); err != nil {
-			// 	initFatal(err, "failed to register mdm_apple_service_discovery schedule")
-			// }
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newMDMAppleServiceDiscoverySchedule(ctx, instanceID, ds, depStorage, logger, config.Server.URLPrefix)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_apple_service_discovery schedule")
+			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newAppleMDMProfileManagerSchedule(

@@ -3408,12 +3408,15 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 		}
-		// TODO BMAA Update for activity changes
 		mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
 			HostDisplayName:  updatedInfo.DisplayName,
 			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
 			MDMPlatform:      fleet.MDMPlatformApple,
-			HostSerial:       updatedInfo.HardwareSerial,
+		}
+		if r.Type == mdm.UserEnrollmentDevice {
+			mdmEnrolledActivity.EnrollmentID = ptr.String(m.EnrollmentID)
+		} else {
+			mdmEnrolledActivity.HostSerial = ptr.String(updatedInfo.HardwareSerial)
 		}
 		return newActivity(
 			r.Context, nil, mdmEnrolledActivity, svc.ds, svc.logger,
@@ -6996,7 +6999,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 // EnsureMDMAppleServiceDiscovery checks if the service discovery URL is set up correctly with Apple
 // and assigns it if necessary.
-func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger kitlog.Logger) error {
+func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger kitlog.Logger, urlPrefix string) error {
 	var depSvc *apple_mdm.DEPService
 	if depSvc == nil {
 		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
@@ -7006,8 +7009,7 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking account driven enrollment service discovery")
 	}
-	// TODO: check with lucas if we need to account for svc.config.Server.URLPrefix
-	wantURL := strings.TrimSuffix(ac.MDMUrl(), "/") + `/mdm/apple/service_discovery`
+	sdURL := ac.MDMUrl() + urlPrefix + apple_mdm.ServiceDiscoveryPath
 
 	tokens, err := ds.ListABMTokens(ctx)
 	switch {
@@ -7042,9 +7044,9 @@ func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, dep
 	}
 	level.Info(logger).Log("msg", "account driven enrollment service discovery url confirmed", "service_discovery_url", gotURL, "last_updated", lastUpdated)
 
-	if gotURL != wantURL {
+	if gotURL != sdURL {
 		// proced to assignment
-		return ctxerr.Wrap(ctx, depSvc.AssignMDMAppleServiceDiscoveryURL(ctx, orgName, wantURL),
+		return ctxerr.Wrap(ctx, depSvc.AssignMDMAppleServiceDiscoveryURL(ctx, orgName, sdURL),
 			"assigning account driven enrollment service discovery URL")
 	}
 

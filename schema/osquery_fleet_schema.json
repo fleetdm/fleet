@@ -2420,6 +2420,32 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/bitlocker_info.yml"
   },
   {
+    "name": "bitlocker_key_protectors",
+    "description": "Returns what BitLocker key protectors are setup on the system.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "platforms": [
+      "windows"
+    ],
+    "columns": [
+      {
+        "name": "drive_letter",
+        "description": "The drive letter of the volume.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key_protector_type",
+        "required": false,
+        "type": "integer",
+        "description": "An unsigned integer that specifies the type of key protector.\nSee https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume#parameters\nfor a list of possible values.\n"
+      }
+    ],
+    "examples": "Determine whether 'C:' encryption key is protected by TPM and PIN\n```\nSELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type = 4;\n```",
+    "url": "https://fleetdm.com/tables/bitlocker_key_protectors",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/bitlocker_key_protectors.yml"
+  },
+  {
     "name": "block_devices",
     "description": "Block (buffered access) device file nodes: disks, ramdisks, and DMG containers.",
     "url": "https://fleetdm.com/tables/block_devices",
