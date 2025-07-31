@@ -2353,10 +2353,9 @@ func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, 
 	return result.Name, result.SelfService, nil
 }
 
-func (ds *Datastore) GetSoftwareInstallersWithoutPackageIDs(ctx context.Context) (map[uint]string, error) {
-	query := `
-		SELECT id, storage_id FROM software_installers WHERE package_ids = ''
-	`
+func (ds *Datastore) GetSoftwareInstallersPendingUninstallScriptPopulation(ctx context.Context) (map[uint]string, error) {
+	query := `SELECT id, storage_id FROM software_installers WHERE package_ids = ''
+                                                 AND extension NOT IN ('exe', 'tar.gz', 'dmg', 'zip')`
 	type result struct {
 		ID        uint   `db:"id"`
 		StorageID string `db:"storage_id"`

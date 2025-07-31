@@ -4403,7 +4403,7 @@ func ReconcileAppleProfiles(
 	}
 
 	// retrieve the profiles to install/remove.
-	toInstall, err := ds.ListMDMAppleProfilesToInstall(ctx)
+	toInstall, err := ds.ListMDMAppleProfilesToInstall(ctx, "")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}

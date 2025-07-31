@@ -187,7 +187,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.t4g.small | 3     |
-| MySQL        | 8.0.mysql_aurora.3.07.1 | db.t4g.medium   | 2     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.t4g.medium   | 2     |
 
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=d735758715f059118dbce8dc42f3ff2410adc621)
@@ -199,7 +199,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.large    | 2     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.large    | 2     |
 
 
 ###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=689fea65efff361ee070b15044a01224b8d26621)
@@ -211,7 +211,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.4xlarge  | 2     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.4xlarge  | 2     |
 
 
 ###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=19b667fde567df0d64d9fae632d4885d7fdc726a)
@@ -223,7 +223,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.16xlarge | 2     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.16xlarge | 2     |
 
 AWS reference architecture can be found in the [reference terraform](https://github.com/fleetdm/fleet-terraform/tree/main/example). This configuration includes:
 
