@@ -720,17 +720,7 @@ const SoftwareSelfService = ({
                 <>
                   Your device has outdated software. Update to 
                   address potential security vulnerabilities or 
-                  compatibility issues.{" "}
-                  {contactUrl && (
-                    <span>
-                      If you need help,{" "}
-                      <CustomLink
-                        url={contactUrl}
-                        text="reach out to IT"
-                        newTab
-                      />
-                    </span>
-                  )}
+                  compatibility issues.
                 </>
               }
             />
