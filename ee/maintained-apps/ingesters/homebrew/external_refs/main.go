@@ -10,6 +10,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"microsoft-word/darwin":  {MicrosoftVersionFromReleaseNotes},
 	"microsoft-excel/darwin": {MicrosoftVersionFromReleaseNotes},
 	"brave-browser/darwin":   {BraveVersionTransformer},
+	"whatsapp/darwin":        {WhatsAppVersionShortener},
 	"google-chrome/darwin":   {ChromePKGInstaller},
 }
 
