@@ -1311,11 +1311,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	if host.IsLUKSSupported() {
 		// since Linux hosts don't require MDM to be enabled & configured, explicitly check that disk encryption is
 		// enabled for the host's team
-		eDE, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+		diskEncryptionConfig, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption enabled setting")
 		}
-		if eDE {
+		if diskEncryptionConfig.Enabled {
 			status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")

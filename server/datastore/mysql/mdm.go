@@ -1991,16 +1991,19 @@ GROUP BY
 		return counts, err
 	}
 
+	// Note that hosts with "BitLocker action required" are counted as pending.
 	for _, row := range rows {
 		switch row.Status {
 		case "failed":
 			counts.Failed = row.Count
 		case "pending":
-			counts.Pending = row.Count
+			counts.Pending += row.Count
 		case "verifying":
 			counts.Verifying = row.Count
 		case "verified":
 			counts.Verified = row.Count
+		case "action_required":
+			counts.Pending += row.Count
 		case "":
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d windows hosts for profile %s with mdm turned on but no profiles", row.Count, profileUUID))
 		default:
