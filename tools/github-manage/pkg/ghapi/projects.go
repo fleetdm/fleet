@@ -4,7 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 )
+
+var Aliases = map[string]int{
+	"mdm":             58,
+	"g-mdm":           58,
+	"draft":           67,
+	"drafting":        67,
+	"g-software":      70,
+	"soft":            70,
+	"g-orchestration": 71,
+	"orch":            71,
+}
+
+var MapProjectFieldNameToField = map[int]map[string]ProjectField{}
 
 func ParseJSONtoProjectItems(jsonData []byte, limit int) ([]ProjectItem, error) {
 	var items ProjectItemsResponse
@@ -13,14 +27,14 @@ func ParseJSONtoProjectItems(jsonData []byte, limit int) ([]ProjectItem, error) 
 		return nil, err
 	}
 	if limit > 0 && items.TotalCount > limit {
-		fmt.Printf("Warning: The number of items returned exceeds the specified limit. Only the first ", limit, " items will be returned.\n")
+		log.Printf("Warning: The number of items returned exceeds the specified limit. Only the first %d / %d items will be returned.\n", limit, items.TotalCount)
 	}
 	return items.Items, nil
 }
 
 func GetProjectItems(projectID, limit int) ([]ProjectItem, error) {
 	// Run the command to get project items
-	results, err := RunCommandAndParseJSON(fmt.Sprintf("gh project item-list --owner fleetdm --format json --limit %d %d", limit, projectID))
+	results, err := RunCommandAndReturnOutput(fmt.Sprintf("gh project item-list --owner fleetdm --format json --limit %d %d", limit, projectID))
 	if err != nil {
 		log.Printf("Error fetching issues: %v", err)
 		return nil, err
@@ -32,4 +46,61 @@ func GetProjectItems(projectID, limit int) ([]ProjectItem, error) {
 	}
 	log.Printf("Fetched %d items from project %d", len(items), projectID)
 	return items, nil
+}
+
+func GetProjectFields(projectID int) (map[string]ProjectField, error) {
+	// Run the command to get project fields
+	results, err := RunCommandAndReturnOutput(fmt.Sprintf("gh project field-list --owner fleetdm --format json %d", projectID))
+	if err != nil {
+		log.Printf("Error fetching project fields: %v", err)
+		return nil, err
+	}
+	var fields ProjectFieldsResponse
+	err = json.Unmarshal(results, &fields)
+	if err != nil {
+		log.Printf("Error parsing project fields: %v", err)
+		return nil, err
+	}
+	fieldMap := make(map[string]ProjectField)
+	for _, field := range fields.Fields {
+		fieldMap[field.Name] = field
+	}
+	return fieldMap, nil
+}
+
+func LoadProjectFields(projectID int) (map[string]ProjectField, error) {
+	if fields, exists := MapProjectFieldNameToField[projectID]; exists {
+		return fields, nil
+	}
+	fields, err := GetProjectFields(projectID)
+	if err != nil {
+		return nil, err
+	}
+	MapProjectFieldNameToField[projectID] = fields
+	return fields, nil
+}
+
+func LookupProjectFieldName(projectID int, fieldName string) (ProjectField, error) {
+	fields, err := LoadProjectFields(projectID)
+	if err != nil {
+		return ProjectField{}, err
+	}
+	field, exists := fields[fieldName]
+	if !exists {
+		return ProjectField{}, fmt.Errorf("field '%s' not found in project %d", fieldName, projectID)
+	}
+	return field, nil
+}
+
+func FindFieldValueByName(projectID int, fieldName, search string) (string, error) {
+	field, err := LookupProjectFieldName(projectID, fieldName)
+	if err != nil {
+		return "", err
+	}
+	for _, option := range field.Options {
+		if strings.Contains(strings.ToLower(option.Name), strings.ToLower(search)) {
+			return option.Name, nil
+		}
+	}
+	return "", fmt.Errorf("field '%s' not found in project %d", fieldName, projectID)
 }

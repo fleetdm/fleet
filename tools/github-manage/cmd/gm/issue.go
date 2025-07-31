@@ -97,7 +97,7 @@ var issuesCmd = &cobra.Command{
 	Use:   "issues",
 	Short: "Get GitHub issues",
 	Run: func(cmd *cobra.Command, args []string) {
-		issues, err := ghapi.GetIssues()
+		issues, err := ghapi.GetIssues("")
 		if err != nil {
 			fmt.Printf("Error fetching issues: %v\n", err)
 			return

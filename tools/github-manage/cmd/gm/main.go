@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	"fleetdm/gm/pkg/ghapi"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -20,16 +22,18 @@ func main() {
 
 	rootCmd.AddCommand(issuesCmd)
 	rootCmd.AddCommand(projectCmd)
+	rootCmd.AddCommand(estimatedCmd)
 
 	// Example of adding a subcommand
 	rootCmd.AddCommand(&cobra.Command{
-		Use:   "example",
+		Use:   "test",
 		Short: "An example subcommand",
 		Run: func(cmd *cobra.Command, args []string) {
-			p := tea.NewProgram(initialModel{})
-			if err := p.Start(); err != nil {
-				log.Fatalf("Error running Bubble Tea program: %v", err)
+			fields, err := ghapi.GetProjectFields(58)
+			if err != nil {
+				log.Fatalf("Error fetching project fields: %v", err)
 			}
+			log.Printf("Project fields: %+v", fields)
 		},
 	})
 

@@ -43,7 +43,28 @@ type Sprint struct {
 	Title       string `json:"title"`
 }
 
-type ProjectContent struct {
+type GenericCount struct {
+	TotalCount int `json:"totalCount"`
+}
+
+type ProjectDetails struct {
+	ID        string       `json:"id"`
+	Title     string       `json:"title"`
+	ShortDesc string       `json:"shortDescription"`
+	URL       string       `json:"url"`
+	README    string       `json:"readme"`
+	Number    int          `json:"number"`
+	Public    bool         `json:"public"`
+	Closed    bool         `json:"closed"`
+	Fields    GenericCount `json:"fields"`
+	Items     GenericCount `json:"items"`
+	Owner     struct {
+		Login string `json:"login"`
+		Type  string `json:"type"`
+	} `json:"owner"`
+}
+
+type ProjectItemContent struct {
 	Body   string `json:"body"`
 	Number int    `json:"number"`
 	Title  string `json:"title"`
@@ -52,21 +73,38 @@ type ProjectContent struct {
 }
 
 type ProjectItem struct {
-	ID         string         `json:"id"`
-	Title      string         `json:"title"`
-	Content    ProjectContent `json:"content"`
-	Estimate   int            `json:"estimate"`
-	Repository string         `json:"repository"`
-	Labels     []string       `json:"labels"`
-	Assignees  []string       `json:"assignees"`
-	Milestone  *Milestone     `json:"milestone,omitempty"`
-	Sprint     *Sprint        `json:"sprint,omitempty"`
-	Status     string         `json:"status"`
+	ID         string             `json:"id"`
+	Title      string             `json:"title"`
+	Content    ProjectItemContent `json:"content"`
+	Estimate   int                `json:"estimate"`
+	Repository string             `json:"repository"`
+	Labels     []string           `json:"labels"`
+	Assignees  []string           `json:"assignees"`
+	Milestone  *Milestone         `json:"milestone,omitempty"`
+	Sprint     *Sprint            `json:"sprint,omitempty"`
+	Status     string             `json:"status"`
 }
 
 type ProjectItemsResponse struct {
 	Items      []ProjectItem `json:"items"`
 	TotalCount int           `json:"totalCount"`
+}
+
+type ProjectFieldsResponse struct {
+	Fields     []ProjectField `json:"fields"`
+	TotalCount int            `json:"totalCount"`
+}
+
+type ProjectFieldOption struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type ProjectField struct {
+	ID      string               `json:"id"`
+	Name    string               `json:"name"`
+	Type    string               `json:"type"`
+	Options []ProjectFieldOption `json:"options,omitempty"`
 }
 
 func ConvertItemsToIssues(items []ProjectItem) []Issue {
