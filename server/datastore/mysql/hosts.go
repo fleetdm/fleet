@@ -1535,9 +1535,10 @@ AND (
 
 	bitlockerStatus := `''`
 	if diskEncryptionConfig.Enabled {
+		// Count "BitLocker action required" as pending for profile status.
 		bitlockerStatus = fmt.Sprintf(`
             CASE WHEN (%s) THEN
-                'bitlocker_action_required'
+                'bitlocker_pending'
             WHEN (%s) THEN
                 'bitlocker_verified'
             WHEN (%s) THEN
@@ -1572,10 +1573,10 @@ AND (
         CASE (%s)
         WHEN 'bitlocker_failed' THEN
             'failed'
-        WHEN 'bitlocker_action_required' THEN
+			WHEN 'bitlocker_pending' THEN
             'pending'
-        WHEN 'bitlocker_pending' THEN
-            'pending'
+		WHEN 'bitlocker_action_required' THEN
+			'pending'
         ELSE
             'verifying'
         END)
@@ -1583,10 +1584,10 @@ AND (
         CASE (%s)
         WHEN 'bitlocker_failed' THEN
             'failed'
-        WHEN 'bitlocker_action_required' THEN
+		WHEN 'bitlocker_pending' THEN
             'pending'
-        WHEN 'bitlocker_pending' THEN
-            'pending'
+		WHEN 'bitlocker_action_required' THEN
+			'pending'
         WHEN 'bitlocker_verifying' THEN
             'verifying'
         ELSE

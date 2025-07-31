@@ -978,16 +978,19 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 	}
 
 	var res fleet.MDMProfilesSummary
+	// Note that hosts with "BitLocker action required" are counted as pending.
 	for _, c := range counts {
 		switch c.Status {
 		case "failed":
 			res.Failed = c.Count
 		case "pending":
-			res.Pending = c.Count
+			res.Pending += c.Count
 		case "verifying":
 			res.Verifying = c.Count
 		case "verified":
 			res.Verified = c.Count
+		case "action_required":
+			res.Pending += c.Count
 		case "":
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d windows hosts on team %v with mdm turned on but no profiles or bitlocker status", c.Count, teamID))
 		default:
@@ -1206,6 +1209,7 @@ GROUP BY
 	)
 
 	var counts []statusCounts
+	// fmt.Println(stmt, args)
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
 	if err != nil {
 		return nil, err
