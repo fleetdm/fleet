@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/google/go-tpm/tpm2/transport/linuxtpm"
 	"github.com/rs/zerolog"
 )
@@ -20,7 +21,7 @@ func newSecureHW(metadataDir string, logger zerolog.Logger) (SecureHW, error) {
 		return nil, errors.New("required metadata directory not set")
 	}
 
-	logger.Info().Msg("initializing TPM 2.0 connection")
+	logger.Info().Msg("opening TPM 2.0 resource manager")
 
 	// Open the TPM 2.0 resource manager, which
 	// - Provides managed access to TPM resources, allowing multiple applications to share the TPM safely.
@@ -32,11 +33,11 @@ func newSecureHW(metadataDir string, logger zerolog.Logger) (SecureHW, error) {
 		}
 	}
 
-	logger.Info().Str("device_path", tpm20DevicePath).Msg("successfully opened TPM 2.0 device")
+	logger.Info().Str("device_path", tpm20DevicePath).Msg("successfully opened TPM 2.0 resource manager")
 
 	return &tpm2SecureHW{
 		device:      device,
 		logger:      logger.With().Str("component", "securehw-tpm").Logger(),
-		keyFilePath: filepath.Join(metadataDir, "host_identity_tpm.pem"),
+		keyFilePath: filepath.Join(metadataDir, constant.FleetHTTPSignatureTPMKeyFileName),
 	}, nil
 }
