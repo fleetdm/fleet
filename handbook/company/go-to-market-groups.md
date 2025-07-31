@@ -256,7 +256,7 @@ Use the following steps to send Fleet's vendor collateral to a prospect or custo
 
 > 🧑‍🚀 Attention Fleeties:
 >
-> Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🦄 #g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help.
+> Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🦄 #g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help. Any collateral documents (e.g. SOC2, Pen test, etc.) you send to a prospect or customer should be downloaded from the [🗃️ Vendor collateral folder](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive. If it's not in the "🗃️ Vendor collateral folder", it's not ready to be sent out.
 
 
 ### Vendor questionnaires 
