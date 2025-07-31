@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
-import { min, noop, pick } from "lodash";
+import { noop, pick } from "lodash";
 
 import { stringToClipboard } from "utilities/copy_text";
 
