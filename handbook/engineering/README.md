@@ -76,17 +76,13 @@ If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn
 **For PRs that change the product:**
 
 - Assign the PR to the appropriate product group EM (Engineering Manager).
-- Notify the EM in the #help-engineering Slack channel.
+- Notify the relevant Product Designer (PD) in the #g-mdm, #g-software, or #g-orchestration Slack channel.
 
-The EM will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The EM should:
+The PD will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The PD should:
 
 - Set the PR to draft.
-- Thank the contributor for their hard work, explain that all changes to the product go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized), and ask them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describe the change their PR is introducing.
-
-**For PRs that will not be merged:**
-
-- Thank the contributor for their effort and explain why the changes won't be merged.
-- Close the PR.
+- Immediately decide whether to prioritize a user story and bring it through drafting or put the change to the side (not prioritize).
+- Thank the contributor for their hard work, notify them on whether their change was prioritized or put to the side. If the change was put to the side, ask the contributor to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describe the change their PR is introducing, let them know that it only means the change has been rejected _at that time_, and close the PR.
 
 
 ### Merge a community pull request
