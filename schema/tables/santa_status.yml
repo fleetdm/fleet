@@ -4,10 +4,10 @@ platforms:
   - darwin
 evented: false
 examples: |-
-  TODO
+  Confirm santa is running in lockdown mode across hosts
 
   ```
-  TODO
+  SELECT mode FROM santa_status;
   ```
 columns:
   - name: last_successful_rule
