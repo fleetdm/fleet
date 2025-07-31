@@ -76,6 +76,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing apple config profiles to install")
 	}
+	profilesMissingInstallation = fleet.FilterOutUserScopedProfiles(profilesMissingInstallation)
 	if host.Platform != "darwin" {
 		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
 	}

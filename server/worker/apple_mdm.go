@@ -406,9 +406,11 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to list profiles missing installation")
 	}
+	profilesMissingInstallation = fleet.FilterOutUserScopedProfiles(profilesMissingInstallation)
 	if args.Platform != "darwin" {
 		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
 	}
+
 	if len(profilesMissingInstallation) > 0 {
 		level.Info(a.Log).Log("msg", "re-enqueuing due to profiles missing installation", "host_uuid", args.HostUUID)
 		// requeue the task if some profiles are still missing.

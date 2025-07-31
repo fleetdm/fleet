@@ -20,7 +20,7 @@ import (
 func (s *integrationMDMTestSuite) TestReleaseWorker() {
 	t := s.T()
 	ctx := context.Background()
-	mysql.TruncateTables(t, s.ds, "nano_commands") // We truncate this table beforehand to avoid persistence from other tests.
+	mysql.TruncateTables(t, s.ds, "nano_commands", "host_mdm_apple_profiles", "mdm_apple_configuration_profiles") // We truncate this table beforehand to avoid persistence from other tests.
 
 	expectMDMCommandsOfType := func(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, commandType string, count int) {
 		// Get the first command
@@ -132,36 +132,76 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 1)
 
-	t.Run("waits for config profiles installation before automatic release", func(t *testing.T) {
-		config := mobileconfigForTest("N1", "I1")
-		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{config}}, http.StatusNoContent)
+	t.Run("automatic release", func(t *testing.T) {
+		t.Run("waits for config profiles being installed", func(t *testing.T) {
+			// Clean up
+			mysql.TruncateTables(t, s.ds, "mdm_apple_configuration_profiles", "host_mdm_apple_profiles", "nano_commands") // Clean tables after use
+			config := mobileconfigForTest("N1", "I1")
+			s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{config}}, http.StatusNoContent)
 
-		// enroll the host
-		mdmDevice := enrollAppleDevice(t, device)
+			// enroll the host
+			mdmDevice := enrollAppleDevice(t, device)
 
-		// Run worker to start device release (NOTE: Should not release yet)
-		s.runWorker()
-		speedUpQueuedAppleMdmJob(t)
+			// Run worker to start device release (NOTE: Should not release yet)
+			s.runWorker()
+			speedUpQueuedAppleMdmJob(t)
 
-		// Get install enterprise application command and acknowledge it
-		expectMDMCommandsOfType(t, mdmDevice, "InstallEnterpriseApplication", 1)
+			// Get install enterprise application command and acknowledge it
+			expectMDMCommandsOfType(t, mdmDevice, "InstallEnterpriseApplication", 1)
 
-		s.runWorker() // Run after install enterprise command to install profiles. (Should requeue until we trigger profile schedule)
+			s.runWorker() // Run after install enterprise command to install profiles. (Should requeue until we trigger profile schedule)
 
-		// Verify device was not released yet
-		expectDeviceConfiguredSent(t, false)
+			// Verify device was not released yet
+			expectDeviceConfiguredSent(t, false)
 
-		// Trigger profiles scheduler to set which profiles should be installed on the host.
-		s.awaitTriggerProfileSchedule(t)
-		speedUpQueuedAppleMdmJob(t)
+			// Trigger profiles scheduler to set which profiles should be installed on the host.
+			s.awaitTriggerProfileSchedule(t)
+			speedUpQueuedAppleMdmJob(t)
 
-		// Verify install profiles three times due to the two default fleet profiles and our custom one added.
-		expectMDMCommandsOfType(t, mdmDevice, "InstallProfile", 3)
+			// Verify install profiles three times due to the two default fleet profiles and our custom one added.
+			expectMDMCommandsOfType(t, mdmDevice, "InstallProfile", 3)
 
-		s.runWorker() // release device
+			s.runWorker() // release device
 
-		// See DeviceConfigured is in Database and next command for mdm device
-		expectDeviceConfiguredSent(t, true)
-		expectMDMCommandsOfType(t, mdmDevice, "DeviceConfigured", 1)
+			// See DeviceConfigured is in Database and next command for mdm device
+			expectDeviceConfiguredSent(t, true)
+			expectMDMCommandsOfType(t, mdmDevice, "DeviceConfigured", 1)
+		})
+
+		t.Run("ignores user scoped config profiles", func(t *testing.T) {
+			mysql.TruncateTables(t, s.ds, "mdm_apple_configuration_profiles", "host_mdm_apple_profiles", "nano_commands") // Clean tables after use
+			systemScopedConfig := mobileconfigForTest("N1", "I1")
+			userScope := fleet.PayloadScopeUser
+			userScopedConfig := scopedMobileconfigForTest("N-USER-SCOPED", "I-USER-SCOPED", &userScope)
+			s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{systemScopedConfig, userScopedConfig}}, http.StatusNoContent)
+
+			// enroll the host
+			mdmDevice := enrollAppleDevice(t, device)
+
+			// Run worker to start device release (NOTE: Should not release yet)
+			s.runWorker()
+			speedUpQueuedAppleMdmJob(t)
+
+			// Get install enterprise application command and acknowledge it
+			expectMDMCommandsOfType(t, mdmDevice, "InstallEnterpriseApplication", 1)
+
+			s.runWorker() // Run after install enterprise command to install profiles. (Should requeue until we trigger profile schedule)
+
+			// Verify device was not released yet
+			expectDeviceConfiguredSent(t, false)
+
+			// Trigger profiles scheduler to set which profiles should be installed on the host.
+			s.awaitTriggerProfileSchedule(t)
+			speedUpQueuedAppleMdmJob(t)
+
+			// Verify install profiles three times due to the two default fleet profiles and our custom one added, and it ignores the user scope.
+			expectMDMCommandsOfType(t, mdmDevice, "InstallProfile", 3)
+
+			s.runWorker() // release device
+
+			// See DeviceConfigured is in Database and next command for mdm device
+			expectDeviceConfiguredSent(t, true)
+			expectMDMCommandsOfType(t, mdmDevice, "DeviceConfigured", 1)
+		})
 	})
 }
