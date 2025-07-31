@@ -4,7 +4,7 @@ platforms:
   - darwin
 evented: false
 examples: |-
-  Confirm santa is running in lockdown mode across hosts
+  Confirm Santa is running in lockdown mode across all macOS hosts.
 
   ```
   SELECT mode FROM santa_status;
