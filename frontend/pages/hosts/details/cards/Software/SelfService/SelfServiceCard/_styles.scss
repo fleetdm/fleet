@@ -1,0 +1,76 @@
+.self-service-card {
+  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
+  .empty-table__container {
+    margin: 64px 0;
+  }
+
+  &__header-filters {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: $pad-medium;
+    align-items: center;
+    margin: 0 0 24px 0;
+  }
+
+  &__table {
+    display: flex;
+    flex-direction: row;
+
+    > *:nth-child(2) {
+      flex-grow: 1;
+    }
+
+    .data-table-block .data-table__wrapper {
+      margin-top: 0;
+    }
+
+    .self-service-table__status-content,
+    .table-container .children-wrapper {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+    }
+
+    // No column shift when changed statuses
+    // min-width longest status: "Failed (uninstall)"
+    .self-service-table__status-content {
+      min-width: 138px;
+    }
+
+    .self-service-table__item-status-button {
+      height: auto;
+    }
+
+    .self-service-table__item-actions {
+      display: flex;
+      flex-direction: row;
+      gap: $pad-large;
+    }
+  }
+
+  .data-table-block .data-table tbody {
+    .self-service-table__item-action {
+      min-width: 82px; // Second action buttons align between rows
+
+      .component__tooltip-wrapper {
+        margin: 0; // Override 10px vertical margin
+      }
+    }
+  }
+
+  .categories-menu {
+    display: none;
+  }
+
+  // Custom breakpoint to fit table with categories
+  @media (min-width: 1020px) {
+    .categories-menu {
+      display: flex;
+    }
+
+    &__categories-dropdown {
+      display: none;
+    }
+  }
+}

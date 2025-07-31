@@ -19,11 +19,11 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Spinner from "components/Spinner";
 
-import { HostInstallerActionButton } from "../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
+import { HostInstallerActionButton } from "../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 import {
   InstallOrCommandUuid,
   IStatusDisplayConfig,
-} from "../../InstallStatusCell/InstallStatusCell";
+} from "../../../InstallStatusCell/InstallStatusCell";
 
 const baseClass = "update-software-item";
 
