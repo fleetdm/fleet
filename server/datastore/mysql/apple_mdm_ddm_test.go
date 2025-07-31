@@ -57,7 +57,7 @@ func insertHostDeclaration(t *testing.T, ds *Datastore, ctx context.Context, hos
 		_, err := q.ExecContext(ctx, `
 			INSERT INTO host_mdm_apple_declarations
 			(host_uuid, declaration_uuid, status, operation_type, token, declaration_identifier)
-			VALUES (?, ?, ?, ?, ?, ?)`,
+			VALUES (?, ?, ?, ?, UNHEX(MD5(?)), ?)`,
 			hostUUID, declarationUUID, statusPtr, operationType, token, identifier)
 		return err
 	})

@@ -100,7 +100,7 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 			DeviceID:             "device_id",
 			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
 			AndroidPolicyID:      ptr.Uint(1),
-			LastPolicySyncTime:   ptr.Time(time.Now()),
+			LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 		},
 	}
 	host.SetNodeKey(enterpriseSpecificID)

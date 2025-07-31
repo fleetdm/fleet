@@ -2146,14 +2146,23 @@ INSERT INTO hosts (
 	team_id
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
+		// Handle zero time values by converting them to nil for SQL NULL
+		var lastEnrolledAt, detailUpdatedAt interface{}
+		if !host.LastEnrolledAt.IsZero() {
+			lastEnrolledAt = host.LastEnrolledAt
+		}
+		if !host.DetailUpdatedAt.IsZero() {
+			detailUpdatedAt = host.DetailUpdatedAt
+		}
+
 		args := []interface{}{
 			host.ID,
 			host.UUID,
 			host.HardwareSerial,
 			host.HardwareModel,
 			host.Platform,
-			host.LastEnrolledAt,
-			host.DetailUpdatedAt,
+			lastEnrolledAt,
+			detailUpdatedAt,
 			nil, // osquery_host_id is not restored
 			host.RefetchRequested,
 			host.TeamID,
