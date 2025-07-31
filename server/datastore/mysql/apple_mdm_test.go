@@ -8386,6 +8386,10 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// wait for async updates to be flushed (capacity is 2, so storing 2 reports should trigger a flush)
+	// The async update happens in a goroutine, so we need to wait a bit
+	time.Sleep(500 * time.Millisecond)
+
 	// timestamps should've been updated
 	ts1b, ts2b := getHostLastSeenAt(enrolledHosts[0]), getHostLastSeenAt(enrolledHosts[1])
 	require.True(t, ts1b.After(ts1))
