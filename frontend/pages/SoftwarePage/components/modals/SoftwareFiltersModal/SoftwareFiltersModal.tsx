@@ -265,6 +265,7 @@ const SoftwareFiltersModal = ({
             showArrow
             position="top"
             tipOffset={8}
+            underline={false}
           >
             <Button type="submit" disabled={!!formErrors.disableApplyButton}>
               Apply
