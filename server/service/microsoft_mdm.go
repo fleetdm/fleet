@@ -1848,7 +1848,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
 			HostDisplayName: displayName,
 			MDMPlatform:     fleet.MDMPlatformMicrosoft,
-			HostSerial:      serial,
+			HostSerial:      &serial,
 		})
 	if err != nil {
 		// only logging, the device is enrolled at this point, and we

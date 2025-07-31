@@ -1,0 +1,1 @@
+* Added host identity certificate renewal support for TPM-backed certificates (Linux-only). When a certificate is within 180 days of expiration, orbit will automatically renew it using proof-of-possession with the existing certificate's private key.

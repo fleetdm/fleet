@@ -1,3 +1,7 @@
+//go:build !windows
+
+// Windows is disabled because the TPM simulator requires CGO, which causes lint failures on Windows.
+
 package hostidentity
 
 import (
@@ -6,23 +10,37 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	mathrand "math/rand/v2"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
+	orbitscep "github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/google/go-tpm/tpm2/transport/simulator"
 	"github.com/remitly-oss/httpsig-go"
+	"github.com/rs/zerolog"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,7 +49,9 @@ import (
 const testEnrollmentSecret = "test_secret"
 
 func TestHostIdentity(t *testing.T) {
-	s := SetUpSuite(t, "integrationtest.HostIdentity", false)
+	s := SetUpSuiteWithConfig(t, "integrationtest.HostIdentity", false, func(cfg *config.FleetConfig) {
+		cfg.Osquery.EnrollCooldown = 0 // Disable rate limiting for tests
+	})
 
 	cases := []struct {
 		name string
@@ -40,6 +60,7 @@ func TestHostIdentity(t *testing.T) {
 		{"GetCertAndSignReq", testGetCertAndSignReq},
 		{"GetCertFailures", testGetCertFailures},
 		{"WrongCertAuthentication", testWrongCertAuthentication},
+		{"RealSecureHWAndSCEP", testRealSecureHWAndSCEP},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -55,19 +76,25 @@ func testGetCertAndSignReq(t *testing.T, s *Suite) {
 	t.Run("ECC P256, orbit", func(t *testing.T) {
 		t.Parallel()
 		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P256())
-		testOrbitEnrollment(t, s, cert, eccPrivateKey)
+		nodeKey := testOrbitEnrollment(t, s, cert, eccPrivateKey)
+		testCertificateRenewal(t, s, cert, eccPrivateKey, nodeKey, false) // false = orbit
+		testDeleteHostAndReenroll(t, s, cert, eccPrivateKey, nodeKey)
 	})
 
 	t.Run("ECC P384, orbit", func(t *testing.T) {
 		t.Parallel()
 		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
-		testOrbitEnrollment(t, s, cert, eccPrivateKey)
+		nodeKey := testOrbitEnrollment(t, s, cert, eccPrivateKey)
+		testCertificateRenewal(t, s, cert, eccPrivateKey, nodeKey, false) // false = orbit
+		testDeleteHostAndReenroll(t, s, cert, eccPrivateKey, nodeKey)
 	})
 
 	t.Run("ECC P384, osquery", func(t *testing.T) {
 		t.Parallel()
 		cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
-		testOsqueryEnrollment(t, s, cert, eccPrivateKey)
+		nodeKey := testOsqueryEnrollment(t, s, cert, eccPrivateKey)
+		testCertificateRenewal(t, s, cert, eccPrivateKey, nodeKey, true) // true = osquery
+		testDeleteHostAndReenrollOsquery(t, s, cert, eccPrivateKey, nodeKey)
 	})
 }
 
@@ -201,20 +228,16 @@ func createHTTPSigner(t *testing.T, eccPrivateKey *ecdsa.PrivateKey, cert *x509.
 	}
 
 	// Create signer
-	signer, err := httpsig.NewSigner(httpsig.SigningProfile{
-		Algorithm: algo,
-		// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
-		Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
-		Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
-	}, httpsig.SigningKey{
-		Key:       eccPrivateKey,
-		MetaKeyID: fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
-	})
+	signer, err := fleethttpsig.Signer(
+		fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+		eccPrivateKey,
+		algo,
+	)
 	require.NoError(t, err)
 	return signer
 }
 
-func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
+func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) string {
 	ctx := t.Context()
 	// Test orbit enrollment with the certificate
 	enrollRequest := contract.EnrollOrbitRequest{
@@ -244,6 +267,8 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	err = signer.Sign(req)
 	require.NoError(t, err)
 
+	clonedRequest := req.Clone(ctx)
+
 	// Send the signed request
 	client := fleethttp.NewClient()
 	httpResp, err := client.Do(req)
@@ -261,10 +286,11 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	require.NoError(t, signedEnrollResp.Err)
 
 	// Send the same request again. We don't have replay protection, so it should succeed.
-	httpResp, err = client.Do(req)
+	httpResp, err = client.Do(clonedRequest)
 	require.NoError(t, err)
 	defer httpResp.Body.Close()
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Same request with HTTP signature should succeed")
+
 	// Parse the response
 	signedEnrollResp = enrollOrbitResponse{}
 	err = json.NewDecoder(httpResp.Body).Decode(&signedEnrollResp)
@@ -365,38 +391,10 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 		}
 	})
 
-	// Important: since this subtest deletes the host, it should run last.
-	// Test deleting host and trying to enroll with same certificate
-	t.Run("delete host and enroll with same certificate", func(t *testing.T) {
-		// Get the host using the orbit node key (standard pattern used in Fleet tests)
-		hostToDelete, err := s.DS.LoadHostByOrbitNodeKey(ctx, signedEnrollResp.OrbitNodeKey)
-		require.NoError(t, err)
-		require.NotNil(t, hostToDelete, "Should find the enrolled host")
-
-		// Delete the host using the API endpoint
-		s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
-
-		// Try to enroll the same host with the same certificate - this should fail
-		// because deleting the host should have invalidated its certificate
-		req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-
-		err = signer.Sign(req)
-		require.NoError(t, err)
-
-		httpResp, err := client.Do(req)
-		require.NoError(t, err)
-		defer httpResp.Body.Close()
-
-		// This should fail because the host certificate should be deleted when the host is deleted.
-		// The host needs to request a new cert to re-enroll.
-		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with deleted host certificate should fail")
-	})
+	return signedEnrollResp.OrbitNodeKey
 }
 
-func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) {
-	ctx := t.Context()
+func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) string {
 	// Test osquery enrollment with the certificate
 	enrollRequest := contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   testEnrollmentSecret,
@@ -536,34 +534,334 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 		}
 	})
 
-	// Important: since this subtest deletes the host, it should run last.
-	// Test deleting host and trying to enroll with same certificate
-	t.Run("delete host and enroll with same certificate", func(t *testing.T) {
-		// Get the host using the osquery node key (standard pattern used in Fleet tests)
-		hostToDelete, err := s.DS.LoadHostByNodeKey(ctx, enrollResp.NodeKey)
+	return enrollResp.NodeKey
+}
+
+// testCertificateRenewal tests the SCEP certificate renewal flow with proof-of-possession
+func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey, nodeKey string, isOsquery bool) {
+	ctx := t.Context()
+
+	// Get the original certificate's host_id before renewal (it will get revoked)
+	originalStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, existingCert.SerialNumber.Uint64())
+	require.NoError(t, err)
+	require.NotNil(t, originalStoredCert)
+	require.NotNil(t, originalStoredCert.HostID, "Original certificate should have host_id")
+	originalHostID := *originalStoredCert.HostID
+
+	// Generate a new ECC key pair for the renewed certificate
+	newEccPrivateKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
+	require.NoError(t, err)
+
+	// Create the renewal data
+	serialHex := fmt.Sprintf("0x%x", existingCert.SerialNumber.Bytes())
+
+	// Sign the message with the existing private key
+	hash := sha256.Sum256([]byte(serialHex))
+	signature, err := ecdsa.SignASN1(rand.Reader, eccPrivateKey, hash[:])
+	require.NoError(t, err)
+
+	renewalData := types.RenewalData{
+		SerialNumber: serialHex,
+		Signature:    base64.StdEncoding.EncodeToString(signature),
+	}
+
+	renewalDataJSON, err := json.Marshal(renewalData)
+	require.NoError(t, err)
+
+	// Create CSR with renewal extension
+	csrTemplate := x509util.CertificateRequest{
+		CertificateRequest: x509.CertificateRequest{
+			Subject: pkix.Name{
+				CommonName: existingCert.Subject.CommonName,
+			},
+			SignatureAlgorithm: x509.ECDSAWithSHA256,
+			ExtraExtensions: []pkix.Extension{
+				{
+					Id:    types.RenewalExtensionOID,
+					Value: renewalDataJSON,
+				},
+			},
+		},
+		// No challenge password for renewal
+	}
+
+	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newEccPrivateKey)
+	require.NoError(t, err)
+	csr, err := x509.ParseCertificateRequest(csrDerBytes)
+	require.NoError(t, err)
+
+	// Create SCEP client
+	scepURL := fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)
+	scepClient, err := scepclient.New(scepURL, s.Logger)
+	require.NoError(t, err)
+
+	// Get CA certificate
+	resp, _, err := scepClient.GetCACert(ctx, "")
+	require.NoError(t, err)
+	caCerts, err := x509.ParseCertificates(resp)
+	require.NoError(t, err)
+	require.NotEmpty(t, caCerts)
+
+	// Create temporary RSA key for SCEP envelope
+	tempRSAKey, tempRSACert := createTempRSAKeyAndCert(t, existingCert.Subject.CommonName)
+
+	// Create SCEP PKI message for renewal
+	pkiMsgReq := &scep.PKIMessage{
+		MessageType: scep.PKCSReq,
+		Recipients:  caCerts,
+		SignerKey:   tempRSAKey,
+		SignerCert:  tempRSACert,
+	}
+
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(s.Logger))
+	require.NoError(t, err)
+
+	// Send PKI operation request
+	respBytes, err := scepClient.PKIOperation(ctx, msg.Raw)
+	require.NoError(t, err)
+
+	// Parse response
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(s.Logger), scep.WithCACerts(msg.Recipients))
+	require.NoError(t, err)
+
+	// The renewal should succeed
+	require.Equal(t, scep.SUCCESS, pkiMsgResp.PKIStatus, "Renewal should succeed")
+
+	// Decrypt PKI envelope using RSA key
+	err = pkiMsgResp.DecryptPKIEnvelope(tempRSACert, tempRSAKey)
+	require.NoError(t, err)
+
+	// Verify we got a new certificate
+	require.NotNil(t, pkiMsgResp.CertRepMessage)
+	require.NotNil(t, pkiMsgResp.CertRepMessage.Certificate)
+
+	renewedCert := pkiMsgResp.CertRepMessage.Certificate
+	require.NotNil(t, renewedCert)
+
+	// Verify renewed certificate properties
+	assert.Equal(t, existingCert.Subject.CommonName, renewedCert.Subject.CommonName, "Common name should be preserved")
+	assert.Equal(t, x509.ECDSA, renewedCert.PublicKeyAlgorithm)
+
+	// Verify the renewed certificate has the new public key
+	renewedPubKey, ok := renewedCert.PublicKey.(*ecdsa.PublicKey)
+	require.True(t, ok, "Renewed certificate should contain ECC public key")
+	assert.True(t, newEccPrivateKey.PublicKey.Equal(renewedPubKey), "Renewed certificate should have the new public key")
+
+	// Verify the renewed certificate has a different serial number
+	assert.NotEqual(t, existingCert.SerialNumber, renewedCert.SerialNumber, "Renewed certificate should have a new serial number")
+
+	// Verify the renewed certificate maintains the host_id association
+	renewedStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, renewedCert.SerialNumber.Uint64())
+	require.NoError(t, err)
+	require.NotNil(t, renewedStoredCert)
+	require.NotNil(t, renewedStoredCert.HostID, "Renewed certificate should maintain host_id association")
+	require.Equal(t, originalHostID, *renewedStoredCert.HostID, "Renewed certificate should have the same host_id as the original")
+
+	// Test that we can use the renewed certificate to access the config endpoint
+	t.Run("test config endpoint with renewed certificate", func(t *testing.T) {
+		var configReq interface{}
+		var configURL string
+
+		if isOsquery {
+			configReq = osqueryConfigRequest{NodeKey: nodeKey}
+			configURL = s.Server.URL + "/api/osquery/config"
+		} else {
+			configReq = orbitConfigRequest{OrbitNodeKey: nodeKey}
+			configURL = s.Server.URL + "/api/fleet/orbit/config"
+		}
+
+		configReqBody, err := json.Marshal(configReq)
 		require.NoError(t, err)
-		require.NotNil(t, hostToDelete, "Should find the enrolled host")
 
-		// Delete the host using the API endpoint
-		s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
-
-		// Try to enroll the same host with the same certificate - this should fail
-		// because deleting the host should have invalidated its certificate
-		req, err := http.NewRequest("POST", s.Server.URL+"/api/osquery/enroll", bytes.NewReader(reqBody))
+		req, err := http.NewRequest("POST", configURL, bytes.NewReader(configReqBody))
 		require.NoError(t, err)
 		req.Header.Set("Content-Type", "application/json")
 
+		// Create signer with the renewed certificate and new private key
+		signer := createHTTPSigner(t, newEccPrivateKey, renewedCert)
 		err = signer.Sign(req)
 		require.NoError(t, err)
 
+		client := fleethttp.NewClient()
 		httpResp, err := client.Do(req)
 		require.NoError(t, err)
 		defer httpResp.Body.Close()
 
-		// This should fail because the host certificate should be deleted when the host is deleted.
-		// The host needs to request a new cert to re-enroll.
-		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with deleted host certificate should fail")
+		// Should succeed with the renewed certificate
+		require.Equal(t, http.StatusOK, httpResp.StatusCode, "Config request with renewed certificate should succeed")
 	})
+
+	// Test that config endpoint does not work with old certificate after renewal
+	t.Run("config endpoint fails with old certificate after renewal", func(t *testing.T) {
+		var configReq interface{}
+		var configURL string
+
+		if isOsquery {
+			configReq = osqueryConfigRequest{NodeKey: nodeKey}
+			configURL = s.Server.URL + "/api/osquery/config"
+		} else {
+			configReq = orbitConfigRequest{OrbitNodeKey: nodeKey}
+			configURL = s.Server.URL + "/api/fleet/orbit/config"
+		}
+
+		configReqBody, err := json.Marshal(configReq)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest("POST", configURL, bytes.NewReader(configReqBody))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		// Create signer with the OLD certificate and OLD private key
+		signer := createHTTPSigner(t, eccPrivateKey, existingCert)
+		err = signer.Sign(req)
+		require.NoError(t, err)
+
+		client := fleethttp.NewClient()
+		httpResp, err := client.Do(req)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		// Should fail because the old certificate has been revoked
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Config request with old certificate should fail after renewal")
+	})
+
+	// Test that renewal cannot be retried with the same serial number
+	t.Run("renewal fails when retrying with same serial", func(t *testing.T) {
+		// Try to renew again using the same old certificate serial number
+		// This should fail because the certificate has already been revoked
+
+		// Generate another new key pair for this attempt
+		anotherNewKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
+		require.NoError(t, err)
+
+		// Use the same renewal data as before (same serial and signature)
+		retryCSRTemplate := x509util.CertificateRequest{
+			CertificateRequest: x509.CertificateRequest{
+				Subject: pkix.Name{
+					CommonName: existingCert.Subject.CommonName,
+				},
+				SignatureAlgorithm: x509.ECDSAWithSHA256,
+				ExtraExtensions: []pkix.Extension{
+					{
+						Id:    types.RenewalExtensionOID,
+						Value: renewalDataJSON, // Reuse the same renewal data
+					},
+				},
+			},
+		}
+
+		retryCSRDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &retryCSRTemplate, anotherNewKey)
+		require.NoError(t, err)
+		retryCSR, err := x509.ParseCertificateRequest(retryCSRDerBytes)
+		require.NoError(t, err)
+
+		// Create new temp RSA key for SCEP envelope
+		retryTempRSAKey, retryTempRSACert := createTempRSAKeyAndCert(t, existingCert.Subject.CommonName)
+
+		// Create SCEP PKI message for retry
+		retryPkiMsgReq := &scep.PKIMessage{
+			MessageType: scep.PKCSReq,
+			Recipients:  caCerts,
+			SignerKey:   retryTempRSAKey,
+			SignerCert:  retryTempRSACert,
+		}
+
+		retryMsg, err := scep.NewCSRRequest(retryCSR, retryPkiMsgReq, scep.WithLogger(s.Logger))
+		require.NoError(t, err)
+
+		// Send PKI operation request
+		retryRespBytes, err := scepClient.PKIOperation(ctx, retryMsg.Raw)
+		require.NoError(t, err)
+
+		// Parse response
+		retryPkiMsgResp, err := scep.ParsePKIMessage(retryRespBytes, scep.WithLogger(s.Logger), scep.WithCACerts(retryMsg.Recipients))
+		require.NoError(t, err)
+
+		// Should fail - the certificate has already been revoked
+		require.Equal(t, scep.FAILURE, retryPkiMsgResp.PKIStatus, "Renewal retry with same serial should fail")
+	})
+}
+
+func testDeleteHostAndReenroll(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey, nodeKey string) {
+	ctx := t.Context()
+
+	// Get the host using the orbit node key
+	hostToDelete, err := s.DS.LoadHostByOrbitNodeKey(ctx, nodeKey)
+	require.NoError(t, err)
+	require.NotNil(t, hostToDelete, "Should find the enrolled host")
+
+	// Delete the host using the API endpoint
+	s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
+
+	// Try to enroll the same host with the same certificate - this should fail
+	enrollRequest := contract.EnrollOrbitRequest{
+		EnrollSecret:      testEnrollmentSecret,
+		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
+		HardwareSerial:    "test-serial-" + cert.Subject.CommonName,
+		Hostname:          "test-hostname-" + cert.Subject.CommonName,
+		OsqueryIdentifier: cert.Subject.CommonName,
+	}
+
+	reqBody, err := json.Marshal(enrollRequest)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	signer := createHTTPSigner(t, eccPrivateKey, cert)
+	err = signer.Sign(req)
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient()
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	// This should fail because the host certificate should be deleted when the host is deleted
+	require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with deleted host certificate should fail")
+}
+
+func testDeleteHostAndReenrollOsquery(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey, nodeKey string) {
+	ctx := t.Context()
+
+	// Get the host using the osquery node key
+	hostToDelete, err := s.DS.LoadHostByNodeKey(ctx, nodeKey)
+	require.NoError(t, err)
+	require.NotNil(t, hostToDelete, "Should find the enrolled host")
+
+	// Delete the host using the API endpoint
+	s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
+
+	// Try to enroll the same host with the same certificate - this should fail
+	enrollRequest := contract.EnrollOsqueryAgentRequest{
+		EnrollSecret:   testEnrollmentSecret,
+		HostIdentifier: cert.Subject.CommonName,
+		HostDetails: map[string]map[string]string{
+			"osquery_info": {
+				"version": "5.0.0",
+			},
+		},
+	}
+
+	reqBody, err := json.Marshal(enrollRequest)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest("POST", s.Server.URL+"/api/osquery/enroll", bytes.NewReader(reqBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	signer := createHTTPSigner(t, eccPrivateKey, cert)
+	err = signer.Sign(req)
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient()
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	// This should fail because the host certificate should be deleted when the host is deleted
+	require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with deleted host certificate should fail")
 }
 
 func createTempRSAKeyAndCert(t *testing.T, commonName string) (*rsa.PrivateKey, *x509.Certificate) {
@@ -746,14 +1044,11 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 
 	// Create a signer using the local private key with a fake certificate serial
-	localSigner, err := httpsig.NewSigner(httpsig.SigningProfile{
-		Algorithm: httpsig.Algo_ECDSA_P384_SHA384,
-		Fields:    httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
-		Metadata:  []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
-	}, httpsig.SigningKey{
-		Key:       localPrivateKey,
-		MetaKeyID: "999999", // Fake certificate serial number
-	})
+	localSigner, err := fleethttpsig.Signer(
+		"999999", // Fake certificate serial number
+		localPrivateKey,
+		httpsig.Algo_ECDSA_P384_SHA384,
+	)
 	require.NoError(t, err)
 
 	enrollRequest := contract.EnrollOrbitRequest{
@@ -980,5 +1275,327 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 
 		// Should fail because the certificate doesn't match the host identifier
 		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Enrollment with wrong certificate should fail even after other hosts are enrolled")
+	})
+}
+
+// testRealSecureHWAndSCEP uses the SecureHW and SCEP packages that are used by Orbit. Only the TPM device is fake/simulated.
+func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
+	t.Parallel()
+	ctx := t.Context()
+
+	// Create TPM simulator
+	sim, err := simulator.OpenSimulator()
+	require.NoError(t, err)
+
+	// Create a temporary directory for metadata
+	tempDir := t.TempDir()
+
+	// Create a zerolog logger for the test
+	zerologLogger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+
+	// Create SecureHW instance with TPM simulator
+	tpmHW, err := securehw.NewTestSecureHW(sim, tempDir, zerologLogger)
+	require.NoError(t, err)
+
+	// Create a new key in the TPM
+	tpmKey, err := tpmHW.CreateKey()
+	require.NoError(t, err)
+
+	// Set up cleanup - the TPM hardware will be closed once at the end
+	t.Cleanup(func() {
+		if err := tpmHW.Close(); err != nil {
+			// Don't fail if already closed
+			t.Logf("TPM close error (may be expected): %v", err)
+		}
+	})
+
+	// Verify we can get the public key
+	pubKey, err := tpmKey.Public()
+	require.NoError(t, err)
+	eccPubKey, ok := pubKey.(*ecdsa.PublicKey)
+	require.True(t, ok, "Expected ECC public key")
+
+	// Create enrollment secret
+	err = s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{
+		{
+			Secret: testEnrollmentSecret,
+		},
+	})
+	require.NoError(t, err)
+
+	// Generate a unique common name
+	commonName := generateRandomString(16)
+
+	// Create SCEP client with the TPM key
+	scepClient, err := orbitscep.NewClient(
+		orbitscep.WithSigningKey(tpmKey),
+		orbitscep.WithURL(fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL)),
+		orbitscep.WithCommonName(commonName),
+		orbitscep.WithChallenge(testEnrollmentSecret),
+		orbitscep.WithLogger(zerologLogger),
+	)
+	require.NoError(t, err)
+
+	// Fetch certificate using SCEP
+	cert, err := scepClient.FetchCert(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+
+	// Verify certificate properties
+	assert.Equal(t, commonName, cert.Subject.CommonName)
+	assert.Equal(t, x509.ECDSA, cert.PublicKeyAlgorithm)
+
+	// Verify the certificate's public key matches our TPM key
+	certPubKey, ok := cert.PublicKey.(*ecdsa.PublicKey)
+	require.True(t, ok, "Certificate should contain ECC public key")
+	assert.True(t, eccPubKey.Equal(certPubKey), "Certificate public key should match TPM key")
+
+	// Test enrollment with HTTP signature using TPM key
+	enrollRequest := contract.EnrollOrbitRequest{
+		EnrollSecret:      testEnrollmentSecret,
+		HardwareUUID:      "test-uuid-" + commonName,
+		HardwareSerial:    "test-serial-" + commonName,
+		Hostname:          "test-hostname-" + commonName,
+		OsqueryIdentifier: commonName,
+	}
+
+	reqBody, err := json.Marshal(enrollRequest)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/enroll", bytes.NewReader(reqBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Get HTTP signer from TPM key
+	httpSigner, err := tpmKey.HTTPSigner()
+	require.NoError(t, err)
+
+	// Determine algorithm based on the curve
+	var algo httpsig.Algorithm
+	switch httpSigner.ECCAlgorithm() {
+	case securehw.ECCAlgorithmP256:
+		algo = httpsig.Algo_ECDSA_P256_SHA256
+	case securehw.ECCAlgorithmP384:
+		algo = httpsig.Algo_ECDSA_P384_SHA384
+	default:
+		t.Fatalf("Unsupported ECC algorithm from TPM")
+	}
+
+	// Create HTTP signature signer
+	signer, err := fleethttpsig.Signer(
+		fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+		httpSigner,
+		algo,
+	)
+	require.NoError(t, err)
+
+	// Sign the request
+	err = signer.Sign(req)
+	require.NoError(t, err)
+
+	// Send the signed request
+	client := fleethttp.NewClient()
+	httpResp, err := client.Do(req)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	// The request with a valid HTTP signature should succeed
+	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Request with TPM-based HTTP signature should succeed")
+
+	// Parse the response
+	var enrollResp enrollOrbitResponse
+	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
+	require.NoError(t, err)
+	require.NotEmpty(t, enrollResp.OrbitNodeKey, "Should receive orbit node key")
+	require.NoError(t, enrollResp.Err)
+
+	// Test that we can load the key from storage
+	require.NoError(t, tpmKey.Close()) // Close the original key
+
+	loadedKey, err := tpmHW.LoadKey()
+	require.NoError(t, err)
+
+	// Verify loaded key has same public key
+	loadedPubKey, err := loadedKey.Public()
+	require.NoError(t, err)
+	loadedECCPubKey, ok := loadedPubKey.(*ecdsa.PublicKey)
+	require.True(t, ok, "Loaded key should be ECC")
+	assert.True(t, eccPubKey.Equal(loadedECCPubKey), "Loaded key should match original")
+
+	// Test config endpoint with loaded key
+	configRequest := orbitConfigRequest{
+		OrbitNodeKey: enrollResp.OrbitNodeKey,
+	}
+
+	configReqBody, err := json.Marshal(configRequest)
+	require.NoError(t, err)
+
+	configReq, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(configReqBody))
+	require.NoError(t, err)
+	configReq.Header.Set("Content-Type", "application/json")
+
+	// Sign with loaded key
+	loadedHTTPSigner, err := loadedKey.HTTPSigner()
+	require.NoError(t, err)
+
+	loadedSigner, err := fleethttpsig.Signer(
+		fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+		loadedHTTPSigner,
+		algo,
+	)
+	require.NoError(t, err)
+
+	err = loadedSigner.Sign(configReq)
+	require.NoError(t, err)
+
+	httpResp, err = client.Do(configReq)
+	require.NoError(t, err)
+	defer httpResp.Body.Close()
+
+	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Config request with loaded TPM key should succeed")
+
+	t.Run("renew certificate with real SecureHW and SCEP client", func(t *testing.T) {
+		// Get the original certificate's host_id before renewal (it will get revoked)
+		originalStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, cert.SerialNumber.Uint64())
+		require.NoError(t, err)
+		require.NotNil(t, originalStoredCert)
+		require.NotNil(t, originalStoredCert.HostID, "Original certificate should have host_id")
+		originalHostID := *originalStoredCert.HostID
+		// Save the current certificate to the expected location
+		certPath := filepath.Join(tempDir, constant.FleetHTTPSignatureCertificateFileName)
+		certFile, err := os.OpenFile(certPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
+		require.NoError(t, err)
+		err = pem.Encode(certFile, &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		})
+		require.NoError(t, err)
+		require.NoError(t, certFile.Close())
+
+		// Now we can use hostidentity.RenewCertificate directly since SecureHW is exported
+		// Create a Credentials struct with our test TPM
+		credentials := &hostidentity.Credentials{
+			Certificate:     cert,
+			SecureHWKey:     loadedKey,
+			CertificatePath: certPath,
+			SecureHW:        tpmHW,
+		}
+
+		// Use the hostidentity.RenewCertificate method directly
+		renewedCert, err := hostidentity.RenewCertificate(
+			ctx,
+			tempDir,
+			credentials,
+			fmt.Sprintf("%s/api/fleet/orbit/host_identity/scep", s.Server.URL),
+			"",   // rootCA - empty for insecure
+			true, // insecure
+			zerologLogger,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, renewedCert)
+
+		// The RenewCertificate method should have updated credentials.SecureHWKey
+		// and saved the renewed certificate
+
+		// Verify renewed certificate properties
+		assert.Equal(t, cert.Subject.CommonName, renewedCert.Subject.CommonName, "Common name should be preserved")
+		assert.NotEqual(t, cert.SerialNumber, renewedCert.SerialNumber, "Serial number should be different")
+		assert.Equal(t, x509.ECDSA, renewedCert.PublicKeyAlgorithm)
+
+		// Verify the renewed certificate has a new public key (from the new TPM key)
+		renewedPubKey, ok := renewedCert.PublicKey.(*ecdsa.PublicKey)
+		require.True(t, ok, "Renewed certificate should contain ECC public key")
+		assert.False(t, certPubKey.Equal(renewedPubKey), "Renewed certificate should have a different public key")
+
+		// Verify the new key's public key matches the renewed certificate
+		// The new key is now in credentials.SecureHWKey
+		newPubKey, err := credentials.SecureHWKey.Public()
+		require.NoError(t, err)
+		newECCPubKey, ok := newPubKey.(*ecdsa.PublicKey)
+		require.True(t, ok, "New key should be ECC")
+		assert.True(t, renewedPubKey.Equal(newECCPubKey), "Renewed certificate public key should match new TPM key")
+
+		// Verify the renewed certificate maintains the host_id association
+		renewedStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, renewedCert.SerialNumber.Uint64())
+		require.NoError(t, err)
+		require.NotNil(t, renewedStoredCert)
+		require.NotNil(t, renewedStoredCert.HostID, "Renewed certificate should maintain host_id association")
+		require.Equal(t, originalHostID, *renewedStoredCert.HostID, "Renewed certificate should have the same host_id as the original")
+
+		// Test that we can use the renewed certificate and new key
+		renewedConfigRequest := orbitConfigRequest{
+			OrbitNodeKey: enrollResp.OrbitNodeKey,
+		}
+
+		renewedConfigReqBody, err := json.Marshal(renewedConfigRequest)
+		require.NoError(t, err)
+
+		renewedConfigReq, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(renewedConfigReqBody))
+		require.NoError(t, err)
+		renewedConfigReq.Header.Set("Content-Type", "application/json")
+
+		// Sign with renewed certificate and new key
+		renewedHTTPSigner, err := credentials.SecureHWKey.HTTPSigner()
+		require.NoError(t, err)
+
+		// Determine algorithm for renewed key
+		var renewedAlgo httpsig.Algorithm
+		switch renewedHTTPSigner.ECCAlgorithm() {
+		case securehw.ECCAlgorithmP256:
+			renewedAlgo = httpsig.Algo_ECDSA_P256_SHA256
+		case securehw.ECCAlgorithmP384:
+			renewedAlgo = httpsig.Algo_ECDSA_P384_SHA384
+		default:
+			t.Fatalf("Unsupported ECC algorithm from renewed TPM key")
+		}
+
+		renewedSigner, err := fleethttpsig.Signer(
+			fmt.Sprintf("%d", renewedCert.SerialNumber.Uint64()),
+			renewedHTTPSigner,
+			renewedAlgo,
+		)
+		require.NoError(t, err)
+
+		err = renewedSigner.Sign(renewedConfigReq)
+		require.NoError(t, err)
+
+		httpResp, err = client.Do(renewedConfigReq)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		require.Equal(t, http.StatusOK, httpResp.StatusCode, "Config request with renewed certificate should succeed")
+
+		// Test that old certificate no longer works
+		// Since the old key was closed and replaced, we need to recreate the signer with the old serial
+		oldConfigReq, err := http.NewRequest("POST", s.Server.URL+"/api/fleet/orbit/config", bytes.NewReader(renewedConfigReqBody))
+		require.NoError(t, err)
+		oldConfigReq.Header.Set("Content-Type", "application/json")
+
+		// Create a signer with the old certificate serial but it should fail since the cert was replaced
+		oldSerialSigner, err := fleethttpsig.Signer(
+			fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
+			renewedHTTPSigner, // Using new key with old serial
+			renewedAlgo,
+		)
+		require.NoError(t, err)
+
+		err = oldSerialSigner.Sign(oldConfigReq)
+		require.NoError(t, err)
+
+		httpResp, err = client.Do(oldConfigReq)
+		require.NoError(t, err)
+		defer httpResp.Body.Close()
+
+		require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode, "Config request with old certificate serial should fail after renewal")
+
+		// Verify the old key backup was cleaned up by RenewCertificate
+		oldKeyPath := filepath.Join(tempDir, constant.FleetHTTPSignatureTPMKeyBackupFileName)
+		_, err = os.Stat(oldKeyPath)
+		require.True(t, os.IsNotExist(err), "Old key backup should have been removed by RenewCertificate")
+
+		// Clean up the new key
+		t.Cleanup(func() {
+			_ = credentials.SecureHWKey.Close()
+		})
 	})
 }

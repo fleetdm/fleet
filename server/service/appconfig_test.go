@@ -950,6 +950,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:          "newDefaultTeamNoLicense",
@@ -991,6 +992,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:        "foundEdit",
@@ -1017,6 +1019,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:          "ssoFree",
@@ -1049,6 +1052,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:        "ssoAllFields",
@@ -1082,6 +1086,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:        "ssoShortEntityID",
@@ -1147,6 +1152,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		},
 	}

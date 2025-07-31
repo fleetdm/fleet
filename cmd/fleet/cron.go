@@ -178,11 +178,16 @@ func scanVulnerabilities(
 
 	level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
-	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	startTime, err := ds.GetCurrentTime(ctx)
+	if err != nil {
+		return fmt.Errorf("getting current time from database: %w", err)
+	}
+
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	customVulns := checkCustomVulnerabilities(ctx, ds, logger, config, vulnAutomationEnabled != "")
+	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
@@ -267,10 +272,10 @@ func checkCustomVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
+	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
-	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger, config.Periodicity)
+	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger, startTime)
 	if err != nil {
 		errHandler(ctx, logger, "checking custom vulnerabilities", err)
 	}
@@ -446,6 +451,7 @@ func checkNVDVulnerabilities(
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
+	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
 		opts := nvd.SyncOptions{
@@ -472,7 +478,7 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Periodicity)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, startTime)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil
@@ -1284,26 +1290,26 @@ func newWindowsMDMProfileManagerSchedule(
 	return s, nil
 }
 
-// // TODO(BMAA): Uncomment this when ready to test Apple account-driven enrollment flow
-// func newMDMAppleServiceDiscoverySchedule(
-// 	ctx context.Context,
-// 	instanceID string,
-// 	ds fleet.Datastore,
-// 	depStorage *mysql.NanoDEPStorage,
-// 	logger kitlog.Logger,
-// ) (*schedule.Schedule, error) {
-// 	const name = "mdm_service_discovery"
-// 	interval := 1 * time.Hour
-// 	logger = kitlog.With(logger, "cron", name)
-// 	s := schedule.New(
-// 		ctx, name, instanceID, interval, ds, ds,
-// 		schedule.WithLogger(logger),
-// 		schedule.WithJob("mdm_apple_account_driven_enrollment_profile", func(ctx context.Context) error {
-// 			return service.EnsureMDMAppleServiceDiscovery(ctx, ds, depStorage, logger)
-// 		}),
-// 	)
-// 	return s, nil
-// }
+func newMDMAppleServiceDiscoverySchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	depStorage *mysql.NanoDEPStorage,
+	logger kitlog.Logger,
+	urlPrefix string,
+) (*schedule.Schedule, error) {
+	const name = "mdm_service_discovery"
+	interval := 1 * time.Hour
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("mdm_apple_account_driven_enrollment_profile", func(ctx context.Context) error {
+			return service.EnsureMDMAppleServiceDiscovery(ctx, ds, depStorage, logger, urlPrefix)
+		}),
+	)
+	return s, nil
+}
 
 func newMDMAPNsPusher(
 	ctx context.Context,

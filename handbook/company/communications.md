@@ -825,7 +825,7 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 ### Retirement contributions
 
-**US based team members:** Starting August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 1% contribution unless they opt out or change their contribution amount within 30 days of commencement. Fleet currently does not match any contributions made by team members to 401(k) plans.
+**US based team members:** Starting August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 3% contribution unless they opt out or change their contribution amount within 30 days of commencement. Auto-enrolled employee’s contributions will increase by 1% every year, on January 1, until 10% is reached. Fleet currently does not match any contributions made by team members to 401(k) plans.
 
 **Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
 
@@ -945,7 +945,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 #### Capitalization and proper nouns
 
 - **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management".
-- **Fleet the product:** We always say “Fleet” or “Fleet for osquery".  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
+- **Fleet the product:** We always say “Fleet”.  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
 - **Team members:** [Core team members](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant) are “Fleeties".
 - **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.

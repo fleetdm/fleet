@@ -1,5 +1,4 @@
 //go:build !linux
-// +build !linux
 
 package securehw
 
@@ -9,6 +8,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func newTEE(string, zerolog.Logger) (TEE, error) {
+func newSecureHW(string, zerolog.Logger) (SecureHW, error) {
 	return nil, errors.New("not implemented")
 }

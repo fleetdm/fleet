@@ -123,6 +123,7 @@
         "grace_period_days": 3
       },
       "windows_migration_enabled": false,
+      "windows_require_bitlocker_pin": null,
       "macos_migration": {
         "enable": false,
         "mode": "",

@@ -1,5 +1,6 @@
 import React from "react";
 import { getErrorReason } from "interfaces/errors";
+import { IHostSoftware } from "interfaces/software";
 import { trimEnd, upperFirst } from "lodash";
 
 const INSTALL_SOFTWARE_ERROR_PREFIX = "Couldn't install.";
@@ -89,3 +90,11 @@ export const getUninstallErrorMessage = (e: unknown) => {
 
   return DEFAULT_UNINSTALL_ERROR_MESSAGE;
 };
+
+export const getLastInstall = (software: IHostSoftware) =>
+  software.software_package?.last_install ||
+  software.app_store_app?.last_install ||
+  null;
+
+export const getLastUninstall = (software: IHostSoftware) =>
+  software.software_package?.last_uninstall || null;

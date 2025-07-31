@@ -19,6 +19,25 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Reusable snippet to conditionally wait to restart orbit upon an in-band upgrade
+// (orbit installing an update to itself). Without this, the maintainer script will
+// terminate orbit along with the package installation, aborting the install and
+// potentially leaving the host in an unreachable state.
+const postInstallSafeRestart = `
+  if test -z "${INSTALLER_PATH:-}"; then
+    systemctl restart orbit.service 2>&1
+  else
+    echo "Detected in-band upgrade (orbit upgrading orbit). Delaying service"
+    echo "restart to prevent orbit from being stopped mid-script."
+    if command -v systemd-run >/dev/null 2>&1; then
+      systemd-run --on-active=60 --working-directory=/ systemctl restart --no-block orbit.service
+    else
+      echo "...nevermind, systemd-run not available, exiting postinst"
+      echo "without restarting."
+    fi
+  fi
+`
+
 func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	// Initialize directories
 	tmpDir, err := initializeTempDir()
@@ -333,7 +352,7 @@ ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST={{ .FleetDesktopAlternativeBrowserH
 {{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}ORBIT_HOST_IDENTIFIER={{.HostIdentifier}}{{ end }}
 {{ if .OsqueryDB }}ORBIT_OSQUERY_DB={{.OsqueryDB}}{{ end }}
 {{ if .EndUserEmail }}ORBIT_END_USER_EMAIL={{.EndUserEmail}}{{ end }}
-{{ if .FleetManagedClientCertificate }}ORBIT_FLEET_MANAGED_CLIENT_CERTIFICATE=true{{ end }}
+{{ if .FleetManagedHostIdentityCertificate }}ORBIT_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE=true{{ end }}
 `))
 
 func writeEnvFile(opt Options, rootPath string) error {
@@ -367,7 +386,7 @@ set -e
 if command -v systemctl >/dev/null 2>&1; then
   systemctl daemon-reload >/dev/null 2>&1
 {{ if .StartService -}}
-  systemctl restart orbit.service 2>&1
+  ` + postInstallSafeRestart + `
   systemctl enable orbit.service 2>&1
 {{- end}}
 fi
@@ -391,14 +410,37 @@ func writePreRemove(opt Options, path string) error {
 	// or has been manually disabled already. Otherwise,
 	// uninstallation fails.
 	//
+	// Upgrades require special considerations.
+	//
+	// On Debian systems, the old package is removed BEFORE the
+	// new package is installed. The old package's prerm script is
+	// called with the first argument set to "upgrade" if the
+	// package is being upgraded. In this case, we do not stop or
+	// disable the service; it will be restarted by the post-install
+	// script. If called with "remove" or "deconfigure", we should
+	// stop and disable any running orbit service.
+	// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html#details-of-unpack-phase-of-installation-or-upgrade
+	//
+	// On RPM systems, the old package is removed AFTER the new
+	// package is installed. The preun script is called with the
+	// argument "0" upon uninstall and "1" upon upgrade.
+	// https://docs.fedoraproject.org/en-US/packaging-guidelines/Scriptlets/#_syntax
+	// https://docs.fedoraproject.org/en-US/packaging-guidelines/Scriptlets/#ordering
+	//
 	// "pkill fleet-desktop" is required because the application
 	// runs as user (separate from sudo command that launched it),
 	// so on some systems it's not killed properly.
 	if err := os.WriteFile(path, []byte(`#!/bin/sh
 
-systemctl stop orbit.service || true
-systemctl disable orbit.service || true
-pkill fleet-desktop || true
+case "${1:-}" in
+  1|remove|deconfigure)
+    systemctl disable --now orbit.service || true
+    pkill fleet-desktop || true
+    ;;
+  0|upgrade)
+    ;;
+esac
+
 `), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
@@ -438,7 +480,7 @@ if ! systemctl is-enabled orbit >/dev/null 2>&1; then
 	if command -v systemctl >/dev/null 2>&1; then
 		systemctl daemon-reload >/dev/null 2>&1
 {{ if .StartService -}}
-		systemctl restart orbit.service 2>&1
+		` + postInstallSafeRestart + `
 		systemctl enable orbit.service 2>&1
 {{- end}}
 	fi

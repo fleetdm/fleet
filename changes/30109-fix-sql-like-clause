@@ -1,0 +1,1 @@
+- Fixed an issue where using ESCAPE in a LIKE clause caused SQL validation to fail
