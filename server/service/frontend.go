@@ -95,6 +95,8 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
+		enrollSecret := r.URL.Query().Get("enroll_secret")
+
 		appCfg, err := ds.AppConfig(r.Context())
 		if err != nil {
 			herr(w, "load appconfig err: "+err.Error())
@@ -120,7 +122,7 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
-		enrollURL, err := generateEnrollOTAURL(urlPrefix, r.URL.Query().Get("enroll_secret"))
+		enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
 		if err != nil {
 			herr(w, "generate enroll ota url: "+err.Error())
 			return
