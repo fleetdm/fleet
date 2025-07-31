@@ -613,11 +613,12 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 	certPEM := assets[fleet.MDMAssetABMCert].Value
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+		ConsumerKey:    "test_consumer",
+		ConsumerSecret: "test_secret",
+		AccessToken:    "test_access_token",
+		AccessSecret:   "test_access_secret",
+		// Use 2037 to avoid Y2K38 issues with 32-bit timestamps and potential MySQL date validation issues
+		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
 	rawToken, err := json.Marshal(testBMToken)
@@ -668,7 +669,11 @@ func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMTok
 	err = ds.InsertMDMConfigAssets(context.Background(), assets, nil)
 	require.NoError(t, err)
 
-	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: orgName})
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
+		EncryptedToken:   tokenBytes,
+		OrganizationName: orgName,
+		RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+	})
 	require.NoError(t, err)
 
 	appCfg, err := ds.AppConfig(context.Background())
@@ -686,11 +691,12 @@ func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
 	require.NoError(t, err)
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+		ConsumerKey:    "test_consumer",
+		ConsumerSecret: "test_secret",
+		AccessToken:    "test_access_token",
+		AccessSecret:   "test_access_secret",
+		// Use 2037 to avoid Y2K38 issues with 32-bit timestamps and potential MySQL date validation issues
+		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
 	rawToken, err := json.Marshal(testBMToken)
