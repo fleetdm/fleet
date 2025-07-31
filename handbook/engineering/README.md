@@ -82,7 +82,7 @@ The PD will be the contact point for the contributor and will ensure the PR is r
 
 - Set the PR to draft.
 - Immediately decide whether to prioritize a user story and bring it through drafting or put the change to the side (not prioritize).
-- Thank the contributor for their hard work, notify them on whether their change was prioritized or put to the side. If the change was put to the side, ask the contributor to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describe the change their PR is introducing, let them know that it only means the change has been rejected _at that time_, and close the PR.
+- Thank the contributor for their hard work, notify them on whether their change was prioritized or put to the side. If the change was put to the side, ask the contributor to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describes the change, let them know that it only means the change has been rejected _at that time_, and close the PR.
 
 
 ### Merge a community pull request
