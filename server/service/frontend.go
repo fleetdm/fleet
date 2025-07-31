@@ -9,6 +9,7 @@ import (
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
+	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/log"
@@ -120,7 +121,42 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
-		enrollURL, err := generateEnrollOTAURL(urlPrefix, r.URL.Query().Get("enroll_secret"))
+		enrollSecret := r.URL.Query().Get("enroll_secret")
+
+		requiresEndUserAuth := false
+		if !appCfg.MDM.EndUserAuthentication.IsEmpty() {
+			foundSecret, err := ds.VerifyEnrollSecret(r.Context(), enrollSecret)
+			if err != nil && !fleet.IsNotFound(err) {
+				herr(w, "verify enroll secret: "+err.Error())
+				return
+			}
+			// TODO handle fleetnotfound
+			if foundSecret.TeamID == nil || *foundSecret.TeamID == 0 {
+				requiresEndUserAuth = appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+			} else {
+				team, err := ds.Team(r.Context(), *foundSecret.TeamID)
+				if err != nil {
+					herr(w, "fetch team for enroll secret: "+err.Error())
+					return
+				}
+				requiresEndUserAuth = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+			}
+		}
+
+		logger.Log("msg", "serving enroll page", "requires_end_user_auth", requiresEndUserAuth)
+
+		serveMDMSSOPage := false
+		if requiresEndUserAuth {
+			bearerToken := token.FromHTTPRequest(r)
+			if bearerToken == "" {
+				serveMDMSSOPage = true
+			}
+			// Todo check if valid
+		}
+
+		logger.Log("msg", "serving enroll page", "serve_mdm_sso_page", serveMDMSSOPage)
+
+		enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
 		if err != nil {
 			herr(w, "generate enroll ota url: "+err.Error())
 			return
