@@ -34,8 +34,8 @@ Security policies are best when they're alive, in context of how an organization
 
 Fleet is successful because of our customers and community, and those relationships are built on [trust](https://fleetdm.com/trust).
 
-> **SOC2**
-> Community members can [request a copy of Fleet's SOC 2 report](https://fleetdm.com/trust), in its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet. Internal stakeholders can [contact Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) to locate Fleet's SOC 2 report in Google Drive.
+> **Compliance**
+> Community members can request compliance documentation (e.g. SOC 2 report) at https://fleetdm.com/trust. In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-groups#fleets-vendor-collateral) from Google Drive.
 
 
 ## Directly responsible individuals (DRIs)
