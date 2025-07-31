@@ -1958,13 +1958,11 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			HostUUID: darwinHosts[0].UUID, ProfileUUID: darwinGlobalProfiles[0].ProfileUUID, ProfileIdentifier: darwinGlobalProfiles[0].Identifier,
-			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
-			Scope: fleet.PayloadScopeSystem,
+			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
 		},
 		{
 			HostUUID: darwinHosts[0].UUID, ProfileUUID: darwinGlobalProfiles[1].ProfileUUID, ProfileIdentifier: darwinGlobalProfiles[1].Identifier,
-			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
-			Scope: fleet.PayloadScopeSystem,
+			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
 		},
 		{
 			HostUUID: darwinHosts[0].UUID, ProfileUUID: darwinGlobalProfiles[2].ProfileUUID, ProfileIdentifier: darwinGlobalProfiles[2].Identifier,
@@ -2843,8 +2841,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// TODO(mna): temporary, until BatchSetMDMProfiles supports labels
 	setProfileLabels := func(t *testing.T, p *fleet.MDMConfigProfilePayload, labels ...*fleet.Label) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			if _, err := q.ExecContext(ctx, `DELETE FROM mdm_configuration_profile_labels WHERE apple_profile_uuid = ? OR windows_profile_uuid = ?`,
-				p.ProfileUUID, p.ProfileUUID); err != nil {
+			if _, err := q.ExecContext(ctx, `DELETE FROM mdm_configuration_profile_labels WHERE apple_profile_uuid = ? OR windows_profile_uuid = ?`, p.ProfileUUID, p.ProfileUUID); err != nil {
 				return err
 			}
 
@@ -5815,20 +5812,16 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			configProfileForTest(t, "T6.2", "T6.2", "h"),
 
 			// This profile will use an "include any" rule where the host has both of the labels, thus should be included
-			configProfileForTest(t, "include_any_all_match_prof", "include_any_all_match_prof", "i", includeAnyMatchedLabel1,
-				includeAnyMatchedLabel2),
+			configProfileForTest(t, "include_any_all_match_prof", "include_any_all_match_prof", "i", includeAnyMatchedLabel1, includeAnyMatchedLabel2),
 			// This profile will use an "include any" rule where the host has one of the labels, thus should be included
-			configProfileForTest(t, "include_any_one_matches_prof", "include_any_one_matches_prof", "j", includeAnyMatchedLabel1,
-				includeAnyUnmatchedLabel),
+			configProfileForTest(t, "include_any_one_matches_prof", "include_any_one_matches_prof", "j", includeAnyMatchedLabel1, includeAnyUnmatchedLabel),
 			// This profile will use an "include any" rule where the host has none of the labels, thus should be excluded
 			configProfileForTest(t, "include_any_none_match_prof", "include_any_none_match_prof", "k", includeAnyUnmatchedLabel),
 
 			// This profile will use an "include all" rule where the host has all of the labels and thus should be included
-			configProfileForTest(t, "include_all_all_match_prof", "include_all_all_match_prof", "l", includeAllMatchedLabel1,
-				includeAllMatchedLabel2),
+			configProfileForTest(t, "include_all_all_match_prof", "include_all_all_match_prof", "l", includeAllMatchedLabel1, includeAllMatchedLabel2),
 			// This profile will use an "include all" rule where the host has one of the labels and thus should be excluded
-			configProfileForTest(t, "include_all_one_matches_prof", "include_all_one_matches_prof", "m", includeAllMatchedLabel1,
-				includeAllUnmatchedLabel),
+			configProfileForTest(t, "include_all_one_matches_prof", "include_all_one_matches_prof", "m", includeAllMatchedLabel1, includeAllUnmatchedLabel),
 			// This profile will use an "include any" rule where the host has none of the labels and thus should be excluded
 			configProfileForTest(t, "include_all_none_match_prof", "include_all_none_match_prof", "n", includeAllUnmatchedLabel),
 
@@ -6228,20 +6221,16 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			windowsConfigProfileForTest(t, "T5.2", "T5.2"),
 
 			// This profile will use an "include any" rule where the host has both of the labels, thus should be included
-			windowsConfigProfileForTest(t, "include_any_all_match_prof", "include_any_all_match_prof", includeAnyMatchedLabel1,
-				includeAnyMatchedLabel2),
+			windowsConfigProfileForTest(t, "include_any_all_match_prof", "include_any_all_match_prof", includeAnyMatchedLabel1, includeAnyMatchedLabel2),
 			// This profile will use an "include any" rule where the host has one of the labels, thus should be included
-			windowsConfigProfileForTest(t, "include_any_one_matches_prof", "include_any_one_matches_prof", includeAnyMatchedLabel1,
-				includeAnyUnmatchedLabel),
+			windowsConfigProfileForTest(t, "include_any_one_matches_prof", "include_any_one_matches_prof", includeAnyMatchedLabel1, includeAnyUnmatchedLabel),
 			// This profile will use an "include any" rule where the host has none of the labels, thus should be excluded
 			windowsConfigProfileForTest(t, "include_any_none_match_prof", "include_any_none_match_prof", includeAnyUnmatchedLabel),
 
 			// This profile will use an "include all" rule where the host has all of the labels and thus should be included
-			windowsConfigProfileForTest(t, "include_all_all_match_prof", "include_all_all_match_prof", includeAllMatchedLabel1,
-				includeAllMatchedLabel2),
+			windowsConfigProfileForTest(t, "include_all_all_match_prof", "include_all_all_match_prof", includeAllMatchedLabel1, includeAllMatchedLabel2),
 			// This profile will use an "include all" rule where the host has one of the labels and thus should be excluded
-			windowsConfigProfileForTest(t, "include_all_one_matches_prof", "include_all_one_matches_prof", includeAllMatchedLabel1,
-				includeAllUnmatchedLabel),
+			windowsConfigProfileForTest(t, "include_all_one_matches_prof", "include_all_one_matches_prof", includeAllMatchedLabel1, includeAllUnmatchedLabel),
 			// This profile will use an "include any" rule where the host has none of the labels and thus should be excluded
 			windowsConfigProfileForTest(t, "include_all_none_match_prof", "include_all_none_match_prof", includeAllUnmatchedLabel),
 
@@ -7231,15 +7220,32 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 			case strings.HasPrefix(profUUID, "d"):
 				table = "host_mdm_apple_declarations"
 				profType = "declaration"
+			case strings.HasPrefix(profUUID, "b"):
+				// Bootstrap packages don't have status, skip them
+				return nil
 			default:
 				require.FailNow(t, "unknown profile type")
 			}
-			stmt := fmt.Sprintf(
-				`INSERT INTO %s (host_uuid, %s_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
-				table,
-				profType,
-			)
-			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+
+			var stmt string
+			var err error
+			if strings.HasPrefix(profUUID, "w") {
+				// Windows profiles require command_uuid
+				commandUUID := "cmd-" + profUUID
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status, command_uuid) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, commandUUID, status)
+			} else {
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			}
 			if err != nil {
 				require.NoError(t, err)
 				return err

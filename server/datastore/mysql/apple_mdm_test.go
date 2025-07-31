@@ -608,12 +608,44 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
 	}
 
+	// Add profile_identifier and checksum for each profile
+	var extendedArgs []interface{}
+	i := 0
+	for _, p := range expectedProfiles0 {
+		extendedArgs = append(extendedArgs,
+			p.HostUUID,
+			p.ProfileUUID,
+			p.CommandUUID,
+			*p.Status,
+			p.OperationType,
+			p.Detail,
+			p.Name,
+			"com.test.profile."+p.ProfileUUID, // profile_identifier
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(i)}, // checksum (16 bytes)
+		)
+		i++
+	}
+	for _, p := range expectedProfiles1 {
+		extendedArgs = append(extendedArgs,
+			p.HostUUID,
+			p.ProfileUUID,
+			p.CommandUUID,
+			*p.Status,
+			p.OperationType,
+			p.Detail,
+			p.Name,
+			"com.test.profile."+p.ProfileUUID, // profile_identifier
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(i)}, // checksum (16 bytes)
+		)
+		i++
+	}
+
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 	INSERT INTO host_mdm_apple_profiles (
-		host_uuid, profile_uuid, command_uuid, status, operation_type, detail, profile_name)
-	VALUES (?,?,?,?,?,?,?),(?,?,?,?,?,?,?),(?,?,?,?,?,?,?),(?,?,?,?,?,?,?),(?,?,?,?,?,?,?),(?,?,?,?,?,?,?)
-		`, args...,
+		host_uuid, profile_uuid, command_uuid, status, operation_type, detail, profile_name, profile_identifier, checksum)
+	VALUES (?,?,?,?,?,?,?,?,?),(?,?,?,?,?,?,?,?,?),(?,?,?,?,?,?,?,?,?),(?,?,?,?,?,?,?,?,?),(?,?,?,?,?,?,?,?,?),(?,?,?,?,?,?,?,?,?)
+		`, extendedArgs...,
 		)
 		if err != nil {
 			return err
@@ -3479,12 +3511,14 @@ func testBulkUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 		Identifier:   "DummyTestIdentifier",
 		Mobileconfig: mc,
 		TeamID:       nil,
+		Scope:        fleet.PayloadScopeSystem,
 	}
 	teamCP := &fleet.MDMAppleConfigProfile{
 		Name:         "DummyTestName",
 		Identifier:   "DummyTestIdentifier",
 		Mobileconfig: mc,
 		TeamID:       ptr.Uint(1),
+		Scope:        fleet.PayloadScopeSystem,
 	}
 	allProfiles := []*fleet.MDMAppleConfigProfile{globalCP, teamCP}
 
@@ -5310,6 +5344,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		Identifier: "decl-1",
 		Name:       "decl-1",
+		RawJSON:    []byte(`{"Type":"com.apple.test.declaration","Identifier":"decl-1"}`),
 	})
 	require.NoError(t, err)
 	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
@@ -5538,6 +5573,7 @@ func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastor
 	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		Identifier: "decl-1",
 		Name:       "decl-1",
+		RawJSON:    []byte(`{"Type":"com.apple.test.declaration","Identifier":"decl-1"}`),
 	})
 	require.NoError(t, err)
 
@@ -6774,19 +6810,30 @@ func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 		},
 	}
 
+	// Add profile_identifier and checksum for each profile
 	var args []interface{}
-	for _, p := range expectedProfilesIOS {
-		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
-	}
-	for _, p := range expectedProfilesIPadOS {
-		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
+	for i, p := range append(
+		[]fleet.HostMDMAppleProfile{expectedProfilesIOS[p0.ProfileUUID]},
+		expectedProfilesIPadOS[p0.ProfileUUID],
+	) {
+		args = append(args,
+			p.HostUUID,
+			p.ProfileUUID,
+			p.CommandUUID,
+			*p.Status,
+			p.OperationType,
+			p.Detail,
+			p.Name,
+			"com.test.profile."+p.ProfileUUID, // profile_identifier
+			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, byte(i)}, // checksum (16 bytes)
+		)
 	}
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 	INSERT INTO host_mdm_apple_profiles (
-		host_uuid, profile_uuid, command_uuid, status, operation_type, detail, profile_name)
-	VALUES (?,?,?,?,?,?,?),(?,?,?,?,?,?,?)
+		host_uuid, profile_uuid, command_uuid, status, operation_type, detail, profile_name, profile_identifier, checksum)
+	VALUES (?,?,?,?,?,?,?,?,?),(?,?,?,?,?,?,?,?,?)
 		`, args...,
 		)
 		if err != nil {
