@@ -322,7 +322,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 	if strings.HasSuffix(installerPath, ".tgz") || strings.HasSuffix(installerPath, ".tar.gz") {
 		logger.Info().Msg("detected tar.gz archive, extracting to subdirectory")
 		extractDestination := filepath.Join(tmpDir, extractionDirectoryName)
-		err := os.Mkdir(extractDestination, 0700)
+		err := os.Mkdir(extractDestination, 0o700)
 		if err != nil {
 			logger.Err(err).Msg("failed to create directory for .tar.gz extraction")
 			// Using download failed exit code here to indicate that installer extraction failed
@@ -424,6 +424,12 @@ func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, 
 	env := os.Environ()
 	installerPathEnv := fmt.Sprintf("INSTALLER_PATH=%s", installerPath)
 	env = append(env, installerPathEnv)
+	if strings.HasSuffix(installerPath, ".deb") {
+		// On Debian and Ubuntu systems, packages sometimes ask the user questions
+		// during installation. This will cause package installation to hang
+		// indefinitely. Setting this envvar prevents that.
+		env = append(env, "DEBIAN_FRONTEND=noninteractive")
+	}
 
 	output, exitCode, err := execFn(ctx, scriptPath, env)
 	if err != nil {

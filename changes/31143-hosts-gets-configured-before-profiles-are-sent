@@ -1,0 +1,1 @@
+* Fixes a potential race condition issue, where a host might get released because no profiles has been sent for installation before releasing the device, by checking the currently installed profiles against what is expected.

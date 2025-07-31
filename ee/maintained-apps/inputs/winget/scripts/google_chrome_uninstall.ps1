@@ -52,7 +52,7 @@ try {
                 ArgumentList = "$uninstallArgs --force-uninstall".Split(' ')
                 NoNewWindow = $true
             }
-            
+
             # Start process and track exit code
             $process = Start-Process @processOptions
             $exitCode = $process.ExitCode

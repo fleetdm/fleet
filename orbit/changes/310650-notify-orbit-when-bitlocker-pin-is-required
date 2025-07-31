@@ -1,0 +1,1 @@
+* Added new Orbit config flag, set iff Disk Encryption is enforced enabled and the require BitLocker PIN flag is set.
