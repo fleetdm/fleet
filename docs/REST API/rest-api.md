@@ -8945,7 +8945,7 @@ The script will be added to each host's list of upcoming activities.
 | label_id                          | number  | ID of a label to filter by.  |
 | team_id                           | number  | ID of the team to filter by. | 
 
-> Note that if a batch script is scheduled for the future using `not_before`, and hosts are targeted using `filters`, the script will run on any hosts matching the filters _at the scheduled time_. This means the hosts targeted may change between the time the script was queued and the time it's scheduled to run. To target a specific list of hosts, use `host_ids`.
+> Note that if a batch script is scheduled for the future using `not_before`, and hosts are targeted using `filters`, the script will run on any hosts matching the filters _at the time the batch script was added_. To see all targeted hosts, use the [List batch script results](#list-batch-script-results) endpoint.
 
 
 #### Example
@@ -9030,12 +9030,7 @@ Get statuses and host counts for a batch-run script.
   "not_before": "2025-07-01T15:00:00Z",
   "completed_at": "2025-07-06T15:00:00Z",
   "status": "completed",
-  "cancelled": false,
-  "host_ids": null,
-  "filters": {
-    "status": "online",
-    "query": "abc"
-  }
+  "cancelled": false
 }
 ```
 
