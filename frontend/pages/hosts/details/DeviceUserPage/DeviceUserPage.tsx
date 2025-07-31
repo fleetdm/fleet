@@ -20,12 +20,12 @@ import {
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
-import { IDeviceSoftware, IHostSoftware } from "interfaces/software";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
 import { isAppleDevice } from "interfaces/platform";
+import { IHostSoftware } from "interfaces/software";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -36,7 +36,6 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
-import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";

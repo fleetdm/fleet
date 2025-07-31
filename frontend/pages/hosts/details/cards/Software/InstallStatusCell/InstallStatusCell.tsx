@@ -290,7 +290,7 @@ type IInstallStatusCellProps = {
   isHostOnline?: boolean;
 };
 
-const getSoftwareName = (software: IHostSoftware) =>
+const getSoftwarePackageName = (software: IHostSoftware) =>
   software.software_package?.name;
 
 const resolveDisplayText = (
@@ -329,7 +329,7 @@ const InstallStatusCell = ({
   const hasAppStoreApp = !!software.app_store_app;
   const lastInstall = getLastInstall(software); // TODO (back end bug fix) - `software.app_store_app.last_install sometimes coming back `null` for VPP apps, currently falls back to displaying the `InventoryVersionsModal`
   const lastUninstall = getLastUninstall(software);
-  const softwareName = getSoftwareName(software);
+  const softwarePackageName = getSoftwarePackageName(software); // @RachelElysia I renamed this function and the variable name its return value is set to here because it is looking at the software_package.name, which has a suffix like ".pkg". software.name has the more human-readable version. Not sure how else this data is being used so I am not going to refactor anything. Please update if needed.
   const displayStatus = software.ui_status;
 
   if (displayStatus === "uninstalled") {
@@ -337,7 +337,10 @@ const InstallStatusCell = ({
       <TextCell
         grey
         italic
-        emptyCellTooltipText={getEmptyCellTooltip(hasAppStoreApp, softwareName)}
+        emptyCellTooltipText={getEmptyCellTooltip(
+          hasAppStoreApp,
+          softwarePackageName
+        )}
       />
     );
   }
@@ -375,7 +378,8 @@ const InstallStatusCell = ({
     if (lastUninstall) {
       if ("script_execution_id" in lastUninstall) {
         onShowUninstallDetails({
-          softwareName: softwareName || "",
+          softwareName: software.name || "",
+          softwarePackageName,
           uninstallStatus: (software.status ||
             "pending_uninstall") as SoftwareUninstallStatus,
           scriptExecutionId: lastUninstall.script_execution_id,
@@ -441,7 +445,7 @@ const InstallStatusCell = ({
 
   const tooltipContent = displayConfig.tooltip({
     lastInstalledAt: lastInstall?.installed_at,
-    softwareName,
+    softwareName: softwarePackageName,
     isAppStoreApp: hasAppStoreApp,
     isSelfService,
     isHostOnline,

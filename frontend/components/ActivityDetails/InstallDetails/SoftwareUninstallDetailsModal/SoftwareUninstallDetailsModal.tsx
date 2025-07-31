@@ -24,7 +24,6 @@ data needed from props:
 - `uninstallStatus` - used to determine description copy as well as whether or not to show details
   section. Always needed.
   - source from parent `activity.details.status` OR parent `hostSoftware`
-    - TODO - looks like `"failed"` is an option here, so might have to massage types
 
 - `onRetry` and local wrapper
   - retries the uninstall operation
@@ -37,19 +36,20 @@ data needed from props:
 - `onCancel`
   - close the modal
   - comes from parent
-- `deviceAuthToken`
+  - `deviceAuthToken`
   - used to
-    - determine which API to GET
-    - conditionally include Retry button
-- `scriptExecutionId/script_execution_id`
+  - determine which API to GET
+  - conditionally include Retry button
+  - `scriptExecutionId/script_execution_id`
   - defines with uninstall (script) result to get from the API call
   - comes from parent `activity.details.script_execution_id` or
-    `hostSoftware.software_package.last_uninstall.script_execution_id`
+  `hostSoftware.software_package.last_uninstall.script_execution_id`
   
-from API call:
-- `uninstallResult` - used to show `.output` in details and `.created_at` in description
+  from API call:
+  - `uninstallResult` - used to show `.output` in details and `.created_at` in description
   - comes from response to API call
- */
+  */
+
 import React, { useState } from "react";
 import { AxiosError } from "axios";
 import { useQuery } from "react-query";
@@ -77,21 +77,28 @@ import {
   getInstallDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
 } from "../constants";
+import { renderContactOption } from "../SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 
 const baseClass = "software-uninstall-details-modal";
 
 interface IUninstallStatusMessage {
   host_display_name: string;
   status: SoftwareUninstallStatus;
-  software_title: string;
+  softwareName: string;
+  softwarePackageName?: string;
   timestamp: string;
+  isDUP: boolean;
+  contactUrl?: string;
 }
 
 const StatusMessage = ({
   host_display_name,
   status,
-  software_title,
+  softwareName,
+  softwarePackageName,
   timestamp,
+  isDUP,
+  contactUrl,
 }: IUninstallStatusMessage) => {
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
@@ -108,16 +115,39 @@ const StatusMessage = ({
         })})`
       : "";
 
-  // TODO - incorporate renderContactOption
+  const renderStatusCopy = () => {
+    const prefix = (
+      <>
+        Fleet {getInstallDetailsStatusPredicate(status)} <b>{softwareName}</b>
+      </>
+    );
+    let suffix = null;
+    if (isDUP) {
+      if (status === "failed_uninstall") {
+        suffix = <>. You can retry{renderContactOption(contactUrl)}</>;
+      }
+    } else {
+      // host details page
+      suffix = (
+        <>
+          {softwarePackageName && <> ({softwarePackageName})</>} from{" "}
+          {formattedHost}
+          {status === "pending_uninstall" ? " when it comes online" : ""}
+          {displayTimeStamp}.
+        </>
+      );
+    }
+    return (
+      <span>
+        {prefix}
+        {suffix}
+      </span>
+    );
+  };
   return (
     <div className={`${baseClass}__status-message`}>
       <Icon name={INSTALL_DETAILS_STATUS_ICONS[status] ?? "pending-outline"} />
-      <span>
-        Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
-        from {formattedHost}
-        {isPending ? " when it comes online" : ""}
-        {displayTimeStamp}.
-      </span>
+      {renderStatusCopy()}
     </div>
   );
 };
@@ -126,6 +156,7 @@ export interface ISWUninstallDetailsParentState {
   softwareName: string;
   uninstallStatus: SoftwareUninstallStatus; // TODO - type massage for "pending"?
   scriptExecutionId: string;
+  softwarePackageName?: string;
   /** Optional since may come from dedicated state, may come from elsewhere */
   hostDisplayName?: string;
 
@@ -138,15 +169,18 @@ export interface ISoftwareUninstallDetailsModalProps {
   uninstallStatus: SoftwareUninstallStatus; // TODO - type massage for "pending"?
   scriptExecutionId: string;
   onCancel: () => void; // optional to facilitate use as state type, must always be provided
+  softwarePackageName?: string;
 
   /** DUP only */
   onRetry?: (s: IHostSoftwareWithUiStatus) => void;
   hostSoftware?: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
-  deviceAuthToken?: string; // DUP only
+  deviceAuthToken?: string;
+  contactUrl?: string;
 }
 const SoftwareUninstallDetailsModal = ({
   hostDisplayName,
   softwareName,
+  softwarePackageName,
   uninstallStatus,
   scriptExecutionId,
   onCancel,
@@ -154,6 +188,7 @@ const SoftwareUninstallDetailsModal = ({
   onRetry,
   hostSoftware,
   deviceAuthToken,
+  contactUrl,
 }: ISoftwareUninstallDetailsModalProps) => {
   const [showDetails, setShowDetails] = useState(false);
 
@@ -246,6 +281,7 @@ const SoftwareUninstallDetailsModal = ({
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
+      // width="large"
     >
       <>
         <div className={`${baseClass}__modal-content`}>
@@ -255,8 +291,11 @@ const SoftwareUninstallDetailsModal = ({
               (uninstallStatus ||
                 "pending_uninstall") as SoftwareUninstallStatus
             }
-            software_title={softwareName}
+            softwareName={softwareName}
+            softwarePackageName={softwarePackageName}
             timestamp={uninstallResult.created_at}
+            isDUP={!!deviceAuthToken}
+            contactUrl={contactUrl}
           />
           {uninstallStatus !== "pending_uninstall" && renderDetailsSection()}
         </div>

@@ -5,7 +5,7 @@ import {
 } from "interfaces/software";
 
 export const INSTALL_DETAILS_STATUS_ICONS: Record<
-  SoftwareInstallStatus | SoftwareUninstallStatus,
+  SoftwareInstallStatus | SoftwareUninstallStatus, // former is superset of latter, latter included in union for type system
   IconNames
 > = {
   pending_install: "pending-outline",
@@ -17,7 +17,7 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
 } as const;
 
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<
-  SoftwareInstallStatus,
+  SoftwareInstallStatus | SoftwareUninstallStatus, // former is superset of latter, latter included in union for type system
   string
 > = {
   pending_install: "is installing or will install",

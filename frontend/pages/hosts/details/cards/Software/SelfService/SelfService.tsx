@@ -44,7 +44,6 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
 import SoftwareUninstallDetailsModal, {
-  ISoftwareUninstallDetailsModalProps,
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
@@ -844,6 +843,7 @@ const SoftwareSelfService = ({
           onCancel={() => setSelectedHostSWUninstallDetails(undefined)}
           onRetry={onClickUninstallAction}
           deviceAuthToken={deviceToken}
+          contactUrl={contactUrl}
         />
       )}
       {selectedUpdateDetails && (
