@@ -7,7 +7,7 @@ examples: |-
   Show Google Chrome open events, as allowed by santa.
 
   ```
-  SELECT * FROM santa_allowed WHERE application = '/Applications/Google Chrome.app'
+  SELECT * FROM santa_allowed WHERE application = '/Applications/Google Chrome.app';
   ```
 columns:
   - name: timestamp
