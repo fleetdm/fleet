@@ -50,8 +50,10 @@ interface IHostSWLibraryTableHeaders {
   onShowInventoryVersions?: (software?: IHostSoftware) => void;
   onShowUpdateDetails: (software?: IHostSoftware) => void;
   onSetSelectedHostSWInstallDetails: (details?: IHostSoftware) => void;
+  onSetSelectedHostSWUninstallDetails: (
+    details?: ISWUninstallDetailsParentState
+  ) => void;
   onSetSelectedVPPInstallDetails: (s: IVPPHostSoftware) => void;
-  onShowUninstallDetails: (details?: ISWUninstallDetailsParentState) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (softwareId: number) => void;
   isHostOnline: boolean;
@@ -70,8 +72,8 @@ export const generateHostSWLibraryTableHeaders = ({
   onShowInventoryVersions,
   onShowUpdateDetails,
   onSetSelectedHostSWInstallDetails,
+  onSetSelectedHostSWUninstallDetails,
   onSetSelectedVPPInstallDetails,
-  onShowUninstallDetails,
   onClickInstallAction,
   onClickUninstallAction,
   isHostOnline,
@@ -132,7 +134,7 @@ export const generateHostSWLibraryTableHeaders = ({
             onShowUpdateDetails={onShowUpdateDetails}
             onShowInstallDetails={onSetSelectedHostSWInstallDetails}
             onShowVPPInstallDetails={onSetSelectedVPPInstallDetails}
-            onShowUninstallDetails={onShowUninstallDetails}
+            onShowUninstallDetails={onSetSelectedHostSWUninstallDetails}
             isHostOnline={isHostOnline}
           />
         );

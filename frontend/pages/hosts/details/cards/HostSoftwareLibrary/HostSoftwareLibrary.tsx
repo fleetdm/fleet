@@ -35,7 +35,9 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 import AppInstallDetailsModal from "components/ActivityDetails/InstallDetails/AppInstallDetails";
-import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
@@ -61,7 +63,6 @@ interface IHostSoftwareLibraryProps {
   hostTeamId: number;
   hostName: string;
   onShowInventoryVersions: (software?: IHostSoftware) => void;
-  onShowUninstallDetails: (details?: ISWUninstallDetailsParentState) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   hostMDMEnrolled?: boolean;
@@ -115,7 +116,6 @@ const HostSoftwareLibrary = ({
   hostTeamId = 0,
   hostName,
   onShowInventoryVersions,
-  onShowUninstallDetails,
   isSoftwareEnabled = false,
   hostMDMEnrolled,
   isHostOnline = false,
@@ -150,6 +150,10 @@ const HostSoftwareLibrary = ({
     selectedHostSWInstallDetails,
     setSelectedHostSWInstallDetails,
   ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedHostSWUninstallDetails,
+    setSelectedHostSWUninstallDetails,
+  ] = useState<ISWUninstallDetailsParentState | null>(null);
   const [
     selectedVPPInstallDetails,
     setSelectedVPPInstallDetails,
@@ -373,6 +377,15 @@ const HostSoftwareLibrary = ({
     [setSelectedHostSWInstallDetails]
   );
 
+  const onSetSelectedHostSWUninstallDetails = useCallback(
+    (uninstallDetails?: ISWUninstallDetailsParentState) => {
+      if (uninstallDetails) {
+        setSelectedHostSWUninstallDetails(uninstallDetails);
+      }
+    },
+    [setSelectedHostSWUninstallDetails]
+  );
+
   const onSetSelectedVPPInstallDetails = useCallback(
     (s?: IVPPHostSoftware) => {
       if (s) {
@@ -466,8 +479,8 @@ const HostSoftwareLibrary = ({
       onShowInventoryVersions,
       onShowUpdateDetails,
       onSetSelectedHostSWInstallDetails,
+      onSetSelectedHostSWUninstallDetails,
       onSetSelectedVPPInstallDetails,
-      onShowUninstallDetails,
       onClickInstallAction,
       onClickUninstallAction,
       isHostOnline,
@@ -482,8 +495,8 @@ const HostSoftwareLibrary = ({
     onShowInventoryVersions,
     onShowUpdateDetails,
     onSetSelectedHostSWInstallDetails,
+    onSetSelectedHostSWUninstallDetails,
     onSetSelectedVPPInstallDetails,
-    onShowUninstallDetails,
     onClickInstallAction,
     onClickUninstallAction,
     isHostOnline,
@@ -551,6 +564,13 @@ const HostSoftwareLibrary = ({
           }}
           hostSoftware={selectedHostSWInstallDetails}
           onCancel={() => setSelectedHostSWInstallDetails(null)}
+        />
+      )}
+      {selectedHostSWUninstallDetails && (
+        <SoftwareUninstallDetailsModal
+          {...selectedHostSWUninstallDetails}
+          hostDisplayName={hostDisplayName}
+          onCancel={() => setSelectedHostSWUninstallDetails(null)}
         />
       )}
       {selectedVPPInstallDetails && (

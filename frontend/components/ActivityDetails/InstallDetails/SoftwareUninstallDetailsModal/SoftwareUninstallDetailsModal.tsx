@@ -126,7 +126,6 @@ export interface ISWUninstallDetailsParentState {
   softwareName: string;
   uninstallStatus: SoftwareUninstallStatus; // TODO - type massage for "pending"?
   scriptExecutionId: string;
-
   /** Optional since may come from dedicated state, may come from elsewhere */
   hostDisplayName?: string;
 
