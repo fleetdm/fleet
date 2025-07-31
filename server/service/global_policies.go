@@ -85,8 +85,10 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy{
-			ID:   policy.ID,
-			Name: policy.Name,
+			ID:       policy.ID,
+			Name:     policy.Name,
+			TeamID:   -1,
+			TeamName: nil,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for global policy creation")
@@ -267,8 +269,10 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy{
-				ID:   id,
-				Name: policiesByID[id].Name,
+				ID:       id,
+				Name:     policiesByID[id].Name,
+				TeamID:   -1,
+				TeamName: nil,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")

@@ -11690,17 +11690,29 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	errMsg := extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
 
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Empty(t, errMsg)
+
 	softwareToInstallBadSecret[0].InstallScript = ""
 	softwareToInstallBadSecret[0].PostInstallScript = "echo $FLEET_SECRET_ALSO_INVALID"
 	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_ALSO_INVALID")
 
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Empty(t, errMsg)
+
 	softwareToInstallBadSecret[0].PostInstallScript = ""
 	softwareToInstallBadSecret[0].UninstallScript = "echo $FLEET_SECRET_THIRD_INVALID"
 	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_THIRD_INVALID")
+
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Empty(t, errMsg)
 
 	// TODO(roberto): test with a variety of response codes
 
@@ -17022,8 +17034,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// check that we created an activity for the policy creation
 	wantAct := fleet.ActivityTypeCreatedPolicy{
-		ID:   gotPolicy.ID,
-		Name: gotPolicy.Name,
+		ID:       gotPolicy.ID,
+		Name:     gotPolicy.Name,
+		TeamID:   0,
+		TeamName: ptr.String("No Team"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
