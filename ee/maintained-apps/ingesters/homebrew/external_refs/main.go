@@ -9,6 +9,7 @@ import (
 var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error){
 	"microsoft-word/darwin":  {MicrosoftVersionFromReleaseNotes},
 	"microsoft-excel/darwin": {MicrosoftVersionFromReleaseNotes},
+	"whatsapp/darwin":        {WhatsAppVersionShortener},
 	"google-chrome/darwin":   {ChromePKGInstaller},
 }
 
