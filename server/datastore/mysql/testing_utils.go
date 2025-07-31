@@ -646,7 +646,11 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 			"Content-Description: S/MIME Encrypted Message\r\n"+
 			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
 
-	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: []byte(tokenBytes), OrganizationName: orgName})
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
+		EncryptedToken:   []byte(tokenBytes),
+		OrganizationName: orgName,
+		RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+	})
 	require.NoError(t, err)
 	return tok
 }
