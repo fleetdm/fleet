@@ -2,21 +2,10 @@
 
 set -e
 
-# Function to display usage
-usage() {
-    echo "Usage: $0 <file_path>"
-    echo "Example: $0 ee/maintained-apps/outputs/adobe-acrobat-reader/darwin.json"
-    echo ""
-    echo "This script will:"
-    echo "1. Find changes in install_script_ref and uninstall_script_ref between current and previous commit"
-    echo "2. Extract the actual scripts from the refs section"
-    echo "3. Show a diff of the scripts"
-    exit 1
-}
-
 # Check if file path is provided
 if [ $# -ne 1 ]; then
-    usage
+    echo "Usage: $0 <path_to_manifest>"
+    exit 1
 fi
 
 FILE_PATH="$1"
@@ -46,10 +35,6 @@ extract_script() {
     echo "$json_content" | jq -r ".refs[\"$ref_id\"] // empty" 2>/dev/null || echo ""
 }
 
-# Get current file content
-echo "Analyzing changes in: $FILE_PATH"
-echo "=================================="
-
 # Get current and previous file content
 CURRENT_CONTENT=$(cat "$FILE_PATH")
 PREVIOUS_COMMIT=$(git log -n 1 --skip=1 --pretty=format:"%H" -- "$FILE_PATH")
@@ -67,11 +52,6 @@ CURRENT_UNINSTALL_REF=$(echo "$CURRENT_CONTENT" | jq -r '.versions[0].uninstall_
 PREVIOUS_INSTALL_REF=$(echo "$PREVIOUS_CONTENT" | jq -r '.versions[0].install_script_ref // empty')
 PREVIOUS_UNINSTALL_REF=$(echo "$PREVIOUS_CONTENT" | jq -r '.versions[0].uninstall_script_ref // empty')
 
-echo ""
-echo "Script reference changes:"
-echo "Install script:   $PREVIOUS_INSTALL_REF -> $CURRENT_INSTALL_REF"
-echo "Uninstall script: $PREVIOUS_UNINSTALL_REF -> $CURRENT_UNINSTALL_REF"
-
 # Function to show script diff
 show_script_diff() {
     local script_type="$1"
@@ -81,16 +61,11 @@ show_script_diff() {
     local curr_content="$5"
     
     if [ "$prev_ref" = "$curr_ref" ]; then
-        echo ""
         echo "=== $script_type Script (no changes) ==="
-        echo "Reference: $curr_ref"
         return
     fi
-    
-    echo ""
-    echo "=== $script_type Script Diff ==="
-    echo "Previous ref: $prev_ref"
-    echo "Current ref:  $curr_ref"
+
+    echo "=== $script_type // $prev_ref -> $curr_ref ==="
     echo ""
     
     # Extract scripts
@@ -126,6 +101,8 @@ show_script_diff() {
     
     # Clean up temp files
     rm -f "$TEMP_PREV" "$TEMP_CURR"
+
+    echo ""
 }
 
 # Show install script diff
@@ -137,6 +114,3 @@ fi
 if [ -n "$CURRENT_UNINSTALL_REF" ] || [ -n "$PREVIOUS_UNINSTALL_REF" ]; then
     show_script_diff "Uninstall" "$PREVIOUS_UNINSTALL_REF" "$CURRENT_UNINSTALL_REF" "$PREVIOUS_CONTENT" "$CURRENT_CONTENT"
 fi
-
-echo ""
-echo "Done."
