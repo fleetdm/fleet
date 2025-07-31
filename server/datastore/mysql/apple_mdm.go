@@ -6325,10 +6325,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		return nil, ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
 	}
 
-	// Set default value for zero RenewAt to avoid MySQL strict mode errors
-	renewAt := tok.RenewAt
-	if renewAt.IsZero() {
-		renewAt = time.Now()
+	// Check that RenewAt is not zero
+	if tok.RenewAt.IsZero() {
+		return nil, ctxerr.New(ctx, "ABM token RenewAt date cannot be zero")
 	}
 
 	res, err := ds.writer(ctx).ExecContext(
@@ -6337,7 +6336,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		tok.OrganizationName,
 		tok.AppleID,
 		tok.TermsExpired,
-		renewAt,
+		tok.RenewAt,
 		doubleEncTok,
 		tok.MacOSDefaultTeamID,
 		tok.IOSDefaultTeamID,
