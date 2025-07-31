@@ -1,1 +1,1 @@
-* Fleet Premium UI: Adds custom CVSS scores input fields to filter host software and team software tables
+* Allowed filtering host and team software by minimum and maximum CVSS score in the Fleet Premium UI
