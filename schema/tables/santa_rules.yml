@@ -4,10 +4,10 @@ platforms:
   - darwin
 evented: false
 examples: |-
-  TODO
+  Verify that WhatsApp is being blocked via TeamID
 
   ```
-  TODO
+  SELECT state FROM santa_rules WHERE identifier = '57T9237FN3'
   ```
 columns:
   - name: identifier
