@@ -186,6 +186,7 @@
               pop-up.
             </span>
           </p>
+          <!-- TODO IB Need to auth this request -->
           <a class="download-link" href="{{.EnrollURL}}">Download</a>
         </li>
         <li>
@@ -349,6 +350,7 @@
       };
 
       const getEnrollmentToken = async () => {
+        // TODO IB We need to pass the bearer token here
         const enrollSecret = getEnrollmentSecret();
 
         const response = await fetch(

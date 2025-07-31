@@ -6781,6 +6781,7 @@ type getOTAProfileRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 }
 
+// TODO IB This endpoint should be authenticated in some contexts
 func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOTAProfileRequest)
 	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret)

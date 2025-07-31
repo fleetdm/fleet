@@ -130,7 +130,7 @@ func ServeEndUserEnrollOTA(
 				herr(w, "verify enroll secret: "+err.Error())
 				return
 			}
-			// TODO handle fleetnotfound
+			// TODO IB handle fleetnotfound
 			if foundSecret.TeamID == nil || *foundSecret.TeamID == 0 {
 				requiresEndUserAuth = appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
 			} else {
@@ -151,10 +151,13 @@ func ServeEndUserEnrollOTA(
 			if bearerToken == "" {
 				serveMDMSSOPage = true
 			}
-			// Todo check if valid
+			// TODO IB check if valid
+			if bearerToken != "supersecret" {
+				serveMDMSSOPage = true
+			}
 		}
 
-		logger.Log("msg", "serving enroll page", "serve_mdm_sso_page", serveMDMSSOPage)
+		logger.Log("msg", "serving enroll page - post SSO check", "serve_mdm_sso_page", serveMDMSSOPage)
 
 		enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
 		if err != nil {
@@ -167,12 +170,16 @@ func ServeEndUserEnrollOTA(
 			AndroidMDMEnabled     bool
 			MacMDMEnabled         bool
 			AndroidFeatureEnabled bool
+			RequiresEndUserAuth   bool
+			ServeMDMSSOPage       bool
 		}{
 			URLPrefix:             urlPrefix,
 			EnrollURL:             enrollURL,
 			AndroidMDMEnabled:     appCfg.MDM.AndroidEnabledAndConfigured,
 			MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
 			AndroidFeatureEnabled: true,
+			RequiresEndUserAuth:   requiresEndUserAuth,
+			ServeMDMSSOPage:       serveMDMSSOPage,
 		}); err != nil {
 			herr(w, "execute react template: "+err.Error())
 			return
