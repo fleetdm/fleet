@@ -4582,10 +4582,11 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	checkTeamConfig(teamID, "")
 
 	// create a default bootstrap package
+	contentHash := sha256.Sum256([]byte("content"))
 	defaultBP := &fleet.MDMAppleBootstrapPackage{
 		TeamID: noTeamID,
 		Name:   "name",
-		Sha256: sha256.New().Sum([]byte("content")),
+		Sha256: contentHash[:],
 		Bytes:  []byte("content"),
 		Token:  uuid.New().String(),
 	}
@@ -4612,10 +4613,11 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	checkStoredBP(teamID, nil, true, defaultBP)        // still exists
 
 	// update the default bootstrap package
+	newContentHash := sha256.Sum256([]byte("new content"))
 	defaultBP2 := &fleet.MDMAppleBootstrapPackage{
 		TeamID: noTeamID,
 		Name:   "new name",
-		Sha256: sha256.New().Sum([]byte("new content")),
+		Sha256: newContentHash[:],
 		Bytes:  []byte("new content"),
 		Token:  uuid.New().String(),
 	}
