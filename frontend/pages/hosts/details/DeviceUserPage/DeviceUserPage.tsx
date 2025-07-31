@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import { pick } from "lodash";
+import Modal from "components/Modal";
 
 import { NotificationContext } from "context/notification";
 
@@ -20,7 +21,7 @@ import {
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
-import { IDeviceSoftware, IHostSoftware } from "interfaces/software";
+import { IHostSoftware } from "interfaces/software";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
@@ -128,6 +129,7 @@ const DeviceUserPage = ({
     NotificationContext
   );
 
+  const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
@@ -492,6 +494,7 @@ const DeviceUserPage = ({
                 host.mdm.macos_settings?.action_required ?? null
               }
               onTurnOnMdm={toggleEnrollMdmModal}
+              onClickCreatePIN={() => setShowBitLockerPINModal(true)}
               onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
               diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
               diskIsEncrypted={host.disk_encryption_enabled}
@@ -639,6 +642,43 @@ const DeviceUserPage = ({
                   token={deviceAuthToken}
                 />
               ))}
+            {showBitLockerPINModal && (
+              <Modal
+                title="Create PIN"
+                onExit={() => setShowBitLockerPINModal(false)}
+                onEnter={() => setShowBitLockerPINModal(false)}
+                className={baseClass}
+                width="large"
+              >
+                <div>
+                  <p>
+                    <ol>
+                      <li>
+                        <p>
+                          Open the <b>Start menu</b>.
+                        </p>
+                      </li>
+                      <li>
+                        <p>Type &ldquo;Manage BitLocker&rdquo; and launch.</p>
+                      </li>
+                      <li>
+                        <p>
+                          <b>Choose Enter a PIN (recommended)</b> and follow the
+                          prompts to create a PIN.
+                        </p>
+                      </li>
+                      <li>
+                        <p>
+                          Close this window and select <b>Refetch</b> on your{" "}
+                          <b>My device</b> page. This informs your organization
+                          that you have set a BitLocker PIN.
+                        </p>
+                      </li>
+                    </ol>
+                  </p>
+                </div>
+              </Modal>
+            )}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (
