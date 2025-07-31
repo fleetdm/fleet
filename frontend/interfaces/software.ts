@@ -441,6 +441,10 @@ export type IVPPHostSoftware = IHostSoftware & {
   commandUuid: string;
 };
 
+export type IHostSoftwareUninstall = IHostSoftwareWithUiStatus & {
+  scriptExecutionId: string;
+};
+
 export type IDeviceSoftware = IHostSoftware;
 export type IDeviceSoftwareWithUiStatus = IHostSoftwareWithUiStatus;
 

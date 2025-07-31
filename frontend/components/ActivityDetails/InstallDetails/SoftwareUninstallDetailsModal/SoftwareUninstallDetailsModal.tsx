@@ -3,11 +3,13 @@ Uninstall data model
 
 data needed from props:
   Always:
-  - `host_display_name` - from `host` or `activity.details`
   - `softwareName` - from `activity.details.software_title` or host `software.name`
   - `uninstallStatus` - from `hostSoftware` or `activity.details`
   - `onCancel`
   - `scriptExecutionId` - from `activity` or host `software`
+  
+  Optional:
+  - `host_display_name` - provided by either the parent state `activity.details` or the parent `host`
 
   DUP SS only:
   - `onRetry` - from `selfService`
@@ -120,16 +122,27 @@ const StatusMessage = ({
   );
 };
 
-export interface ISoftwareUninstallDetailsModalProps {
-  hostDisplayName: string;
+export interface ISWUninstallDetailsParentState {
   softwareName: string;
   uninstallStatus: SoftwareUninstallStatus; // TODO - type massage for "pending"?
   scriptExecutionId: string;
-  onCancel: () => void;
+
+  /** Optional since may come from dedicated state, may come from elsewhere */
+  hostDisplayName?: string;
+
+  /** Optional since DUP only */
+  hostSoftware?: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
+}
+export interface ISoftwareUninstallDetailsModalProps {
+  hostDisplayName: string; // optional to facilitate use as state type, must always be provided
+  softwareName: string;
+  uninstallStatus: SoftwareUninstallStatus; // TODO - type massage for "pending"?
+  scriptExecutionId: string;
+  onCancel: () => void; // optional to facilitate use as state type, must always be provided
 
   /** DUP only */
   onRetry?: (s: IHostSoftwareWithUiStatus) => void;
-  hostSoftware: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
+  hostSoftware?: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
   deviceAuthToken?: string; // DUP only
 }
 const SoftwareUninstallDetailsModal = ({
@@ -237,7 +250,7 @@ const SoftwareUninstallDetailsModal = ({
     >
       <>
         <StatusMessage
-          host_display_name={hostDisplayName}
+          host_display_name={hostDisplayName || ""}
           status={
             (uninstallStatus || "pending_uninstall") as SoftwareUninstallStatus
           }

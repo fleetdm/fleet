@@ -37,8 +37,20 @@ const baseClass = "software-install-details-modal";
 export type IPackageInstallDetails = {
   host_display_name?: string;
   install_uuid?: string; // not actually optional
-  deviceAuthToken?: string;
 };
+
+export const renderContactOption = (url?: string) => (
+  // config undefined in the DUP context, so omit the link
+  <>
+    {" "}
+    or{" "}
+    {url ? (
+      <CustomLink url={url} text="contact your IT admin" newTab />
+    ) : (
+      "contact your IT admin"
+    )}
+  </>
+);
 
 // TODO - match AppInstallDetailsModal status to this, still accounting for MDM-specific cases
 // present there
@@ -75,23 +87,6 @@ const StatusMessage = ({
       })})`
     : "";
 
-  const renderContactOption = () => (
-    // config undefined in the DUP context, so omit the link
-    <>
-      {" "}
-      or{" "}
-      {config?.org_info.contact_url ? (
-        <CustomLink
-          url={config.org_info.contact_url}
-          text="contact your IT admin"
-          newTab
-        />
-      ) : (
-        "contact your IT admin"
-      )}
-    </>
-  );
-
   const renderStatusCopy = () => {
     if (isInstalledByFleet) {
       const prefix = (
@@ -103,7 +98,11 @@ const StatusMessage = ({
       let middle = null;
       if (isDUP) {
         if (status === "failed_install") {
-          middle = <>. You can retry{renderContactOption()}</>;
+          middle = (
+            <>
+              . You can retry{renderContactOption(config?.org_info.contact_url)}
+            </>
+          );
         }
       } else {
         // host details page
@@ -248,24 +247,22 @@ export const SoftwareInstallDetailsModal = ({
     return "If you uninstalled it outside of Fleet it will still show as installed.";
   };
 
-  const renderInstallDetailsSection = () => {
-    return (
-      <>
-        <RevealButton
-          isShowing={showInstallDetails}
-          showText="Details"
-          hideText="Details"
-          caretPosition="after"
-          onClick={toggleInstallDetails}
-        />
-        {showInstallDetails && swInstallResult.output && (
-          <Textarea label="Install script output:" variant="code">
-            {swInstallResult.output}
-          </Textarea>
-        )}
-      </>
-    );
-  };
+  const renderInstallDetailsSection = () => (
+    <>
+      <RevealButton
+        isShowing={showInstallDetails}
+        showText="Details"
+        hideText="Details"
+        caretPosition="after"
+        onClick={toggleInstallDetails}
+      />
+      {showInstallDetails && swInstallResult.output && (
+        <Textarea label="Install script output:" variant="code">
+          {swInstallResult.output}
+        </Textarea>
+      )}
+    </>
+  );
 
   const isInstalledByFleet = hostSoftware
     ? !!hostSoftware.software_package?.last_install

@@ -247,12 +247,13 @@ const ActivityFeed = ({
           onCancel={() => setPackageInstallDetails(null)}
         />
       )}
-      {packageUninstallDetails && (
+      {/* TODO */}
+      {/* {packageUninstallDetails && (
         <SoftwareUninstallDetailsModal
           details={packageUninstallDetails}
           onCancel={() => setPackageUninstallDetails(null)}
         />
-      )}
+      )} */}
       {appInstallDetails && (
         <AppInstallDetailsModal
           details={{

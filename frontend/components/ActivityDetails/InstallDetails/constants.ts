@@ -1,8 +1,11 @@
 import { IconNames } from "components/icons";
-import { SoftwareInstallStatus } from "interfaces/software";
+import {
+  SoftwareInstallStatus,
+  SoftwareUninstallStatus,
+} from "interfaces/software";
 
 export const INSTALL_DETAILS_STATUS_ICONS: Record<
-  SoftwareInstallStatus,
+  SoftwareInstallStatus | SoftwareUninstallStatus,
   IconNames
 > = {
   pending_install: "pending-outline",

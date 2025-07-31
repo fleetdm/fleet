@@ -7,6 +7,7 @@ import {
   IHostSoftwareUiStatus,
   SoftwareInstallStatus,
   IVPPHostSoftware,
+  SoftwareUninstallStatus,
 } from "interfaces/software";
 import { Colors } from "styles/var/colors";
 
@@ -15,7 +16,10 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import {
+  ISoftwareUninstallDetailsModalProps,
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import {
   getLastInstall,
   getLastUninstall,
@@ -281,10 +285,9 @@ type IInstallStatusCellProps = {
   onShowUpdateDetails: (software: IHostSoftware) => void;
   onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
   onShowVPPInstallDetails: (s: IVPPHostSoftware) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
+  onShowUninstallDetails: (details: ISWUninstallDetailsParentState) => void;
   isSelfService?: boolean;
   isHostOnline?: boolean;
-  hostName?: string;
 };
 
 const getSoftwareName = (software: IHostSoftware) =>
@@ -322,7 +325,6 @@ const InstallStatusCell = ({
   onShowUninstallDetails,
   isSelfService = false,
   isHostOnline = false,
-  hostName,
 }: IInstallStatusCellProps) => {
   const hasAppStoreApp = !!software.app_store_app;
   const lastInstall = getLastInstall(software); // TODO (back end bug fix) - `software.app_store_app.last_install sometimes coming back `null` for VPP apps, currently falls back to displaying the `InventoryVersionsModal`
@@ -359,17 +361,15 @@ const InstallStatusCell = ({
   };
 
   const onClickUninstallStatus = () => {
-    // TODO - update
-    if (onShowUninstallDetails && lastUninstall) {
+    if (lastUninstall) {
       if ("script_execution_id" in lastUninstall) {
         onShowUninstallDetails({
-          ...lastUninstall,
-          status: software.status || undefined,
-          software_title: software.name,
-          host_display_name: hostName,
+          softwareName: softwareName || "",
+          uninstallStatus: (software.status ||
+            "pending_uninstall") as SoftwareUninstallStatus,
+          scriptExecutionId: lastUninstall.script_execution_id,
+          hostSoftware: software,
         });
-      } else {
-        onShowUninstallDetails(undefined);
       }
     } else if (onShowInventoryVersions) {
       onShowInventoryVersions(software);

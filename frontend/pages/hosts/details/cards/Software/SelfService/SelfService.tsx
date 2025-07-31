@@ -15,6 +15,7 @@ import { INotification } from "interfaces/notification";
 import {
   IDeviceSoftware,
   IHostSoftware,
+  IHostSoftwareWithUiStatus,
   IVPPHostSoftware,
 } from "interfaces/software";
 
@@ -42,7 +43,10 @@ import SearchField from "components/forms/fields/SearchField";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISoftwareUninstallDetailsModalProps,
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
 
@@ -81,7 +85,6 @@ export interface ISoftwareSelfServiceProps {
   pathname: string;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   refetchHostDetails: () => void;
   isHostDetailsPolling: boolean;
   hostDisplayName: string;
@@ -100,7 +103,6 @@ const SoftwareSelfService = ({
   pathname,
   queryParams,
   router,
-  onShowUninstallDetails,
   refetchHostDetails,
   isHostDetailsPolling,
   hostDisplayName,
@@ -121,6 +123,10 @@ const SoftwareSelfService = ({
     selectedVPPInstallDetails,
     setSelectedVPPInstallDetails,
   ] = useState<IVPPHostSoftware | null>(null);
+  const [
+    selectedHostSWUninstallDetails,
+    setSelectedHostSWUninstallDetails,
+  ] = useState<ISWUninstallDetailsParentState | undefined>(undefined);
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
@@ -381,6 +387,21 @@ const SoftwareSelfService = ({
     [deviceToken, onInstallOrUninstall, renderFlash]
   );
 
+  const onClickUninstallAction = useCallback(
+    (hostSW: IHostSoftwareWithUiStatus) => {
+      selectedSoftware.current = {
+        softwareId: hostSW.id,
+        softwareName: hostSW.name,
+        softwareInstallerType: getExtensionFromFileName(
+          hostSW.software_package?.name || ""
+        ),
+        version: hostSW.software_package?.version || "",
+      };
+      setShowUninstallSoftwareModal(true);
+    },
+    []
+  );
+
   const onClickUpdateAction = useCallback(
     async (id: number) => {
       try {
@@ -454,6 +475,7 @@ const SoftwareSelfService = ({
     },
     [setSelectedUpdateDetails]
   );
+
   const onShowInstallDetails = useCallback(
     (hostSoftware?: IHostSoftware) => {
       setSelectedHostSWInstallDetails(hostSoftware);
@@ -466,6 +488,13 @@ const SoftwareSelfService = ({
       setSelectedVPPInstallDetails(s);
     },
     [setSelectedVPPInstallDetails]
+  );
+
+  const onShowUninstallDetails = useCallback(
+    (uninstallModalDetails: ISWUninstallDetailsParentState) => {
+      setSelectedHostSWUninstallDetails(uninstallModalDetails);
+    },
+    [setSelectedHostSWUninstallDetails]
   );
 
   const onSearchQueryChange = (value: string) => {
@@ -544,24 +573,15 @@ const SoftwareSelfService = ({
       onShowVPPInstallDetails,
       onShowUninstallDetails,
       onClickInstallAction,
-      onClickUninstallAction: (software) => {
-        selectedSoftware.current = {
-          softwareId: software.id,
-          softwareName: software.name,
-          softwareInstallerType: getExtensionFromFileName(
-            software.software_package?.name || ""
-          ),
-          version: software.software_package?.version || "",
-        };
-        setShowUninstallSoftwareModal(true);
-      },
+      onClickUninstallAction,
     });
   }, [
-    onClickInstallAction,
     onShowUpdateDetails,
     onShowInstallDetails,
     onShowVPPInstallDetails,
     onShowUninstallDetails,
+    onClickInstallAction,
+    onClickUninstallAction,
   ]);
 
   const renderUpdatesCard = () => {
@@ -815,6 +835,15 @@ const SoftwareSelfService = ({
           hostSoftware={selectedVPPInstallDetails}
           onCancel={() => setSelectedVPPInstallDetails(null)}
           onRetry={onClickInstallAction}
+        />
+      )}
+      {selectedHostSWUninstallDetails && (
+        <SoftwareUninstallDetailsModal
+          {...selectedHostSWUninstallDetails}
+          hostDisplayName={hostDisplayName}
+          onCancel={() => setSelectedHostSWUninstallDetails(undefined)}
+          onRetry={onClickUninstallAction}
+          deviceAuthToken={deviceToken}
         />
       )}
       {selectedUpdateDetails && (

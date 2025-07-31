@@ -8,11 +8,11 @@ import {
   IVPPHostSoftware,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import InstallerStatusCell from "../InstallStatusCell/InstallStatusCell";
 import { installStatusSortType } from "../helpers";
@@ -42,7 +42,9 @@ interface ISelfServiceTableHeaders {
   onShowUpdateDetails: (software: IDeviceSoftware) => void;
   onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
   onShowVPPInstallDetails: (hostSoftware: IVPPHostSoftware) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
+  onShowUninstallDetails: (
+    uninstallDetails: ISWUninstallDetailsParentState
+  ) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (software: IHostSoftwareWithUiStatus) => void;
 }

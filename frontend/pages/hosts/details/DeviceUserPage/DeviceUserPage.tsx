@@ -37,7 +37,6 @@ import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -133,10 +132,6 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
-  const [
-    selectedSelfServiceScriptDetails,
-    setSelectedSelfServiceScriptDetails,
-  ] = useState<ISoftwareUninstallDetails | undefined>(undefined);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
@@ -346,13 +341,6 @@ const DeviceUserPage = ({
     setShowOSSettingsModal(!showOSSettingsModal);
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
-  const onShowUninstallDetails = useCallback(
-    (details?: ISoftwareUninstallDetails) => {
-      setSelectedSelfServiceScriptDetails(details);
-    },
-    [setSelectedSelfServiceScriptDetails]
-  );
-
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -527,7 +515,6 @@ const DeviceUserPage = ({
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
                       router={router}
-                      onShowUninstallDetails={onShowUninstallDetails}
                       refetchHostDetails={refetchHostDetails}
                       isHostDetailsPolling={showRefetchSpinner}
                       hostDisplayName={host?.hostname || ""}
@@ -657,16 +644,6 @@ const DeviceUserPage = ({
             onExit={() => {
               setShowCreateLinuxKeyModal(false);
             }}
-          />
-        )}
-        {selectedSelfServiceScriptDetails && !!host && (
-          <SoftwareUninstallDetailsModal
-            details={{
-              ...selectedSelfServiceScriptDetails,
-              host_display_name: host.display_name,
-            }}
-            onCancel={() => setSelectedSelfServiceScriptDetails(undefined)}
-            deviceAuthToken={deviceAuthToken}
           />
         )}
         {hostSWForInventoryVersions && !!host && (

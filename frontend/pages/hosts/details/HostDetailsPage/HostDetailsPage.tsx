@@ -70,7 +70,7 @@ import {
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
-  ISoftwareUninstallDetails,
+  ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
@@ -212,7 +212,7 @@ const HostDetailsPage = ({
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
-  ] = useState<ISoftwareUninstallDetails | null>(null);
+  ] = useState<ISWUninstallDetailsParentState | null>(null);
   const [
     activityVPPInstallDetails,
     setActivityVPPInstallDetails,
@@ -671,11 +671,13 @@ const HostDetailsPage = ({
           });
           break;
         case "uninstalled_software":
-          setPackageUninstallDetails({
-            ...details,
-            host_display_name:
-              host?.display_name || details?.host_display_name || "",
-          });
+          // TODO
+
+          // setPackageUninstallDetails({
+          //   ...details,
+          //   host_display_name:
+          //     host?.display_name || details?.host_display_name || "",
+          // });
           break;
         case "installed_app_store_app":
           setActivityVPPInstallDetails({
@@ -716,11 +718,12 @@ const HostDetailsPage = ({
   );
 
   const onShowUninstallDetails = useCallback(
-    (details?: ISoftwareUninstallDetails) => {
-      setPackageUninstallDetails({
-        ...details,
-        host_display_name: host?.display_name || "",
-      });
+    (details?: ISWUninstallDetailsParentState) => {
+      // TODO
+      // setPackageUninstallDetails({
+      //   ...details,
+      //   host_display_name: host?.display_name || "",
+      // });
     },
     [setPackageUninstallDetails]
   );
@@ -1378,12 +1381,13 @@ const HostDetailsPage = ({
               onCancel={onCancelSoftwareInstallDetailsModal}
             />
           )}
-          {packageUninstallDetails && (
+          {/* TODO */}
+          {/* {packageUninstallDetails && (
             <SoftwareUninstallDetailsModal
               details={packageUninstallDetails}
               onCancel={() => setPackageUninstallDetails(null)}
             />
-          )}
+          )} */}
           {!!activityVPPInstallDetails && (
             <AppInstallDetailsModal
               details={activityVPPInstallDetails}
