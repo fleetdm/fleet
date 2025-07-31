@@ -120,6 +120,7 @@ import {
   generateUsernameValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader";
+import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 const baseClass = "host-details";
 
@@ -1009,7 +1010,7 @@ const HostDetailsPage = ({
               {/* There is a special case for personally enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
                when we add that feature. */}
-              {host.mdm.enrollment_status === "On (personal)" ? (
+              {isPersonalEnrollmentInMdm(host.mdm.enrollment_status) ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={
