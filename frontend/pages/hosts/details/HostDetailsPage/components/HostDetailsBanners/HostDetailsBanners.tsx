@@ -55,16 +55,6 @@ const HostDetailsBanners = ({
     connectedToFleetMdm &&
     macDiskEncryptionStatus === "action_required";
 
-  const actionRequiredBanner = (
-    <div className={baseClass}>
-      <InfoBanner color="yellow">
-        Disk encryption: Requires action from the end user. Ask the user to
-        follow <b>Disk encryption</b> instructions on their <b>My device</b>{" "}
-        page.
-      </InfoBanner>
-    </div>
-  );
-
   if (showTurnOnMdmInfoBanner) {
     return (
       <div className={baseClass}>
@@ -118,16 +108,17 @@ const HostDetailsBanners = ({
       // linux host's disk is encrypted, but Fleet doesn't yet have a disk
       // encryption key escrowed (note that this state is also possible for Windows hosts, which we
       // don't show this banner for currently)
-      return actionRequiredBanner;
+      return (
+        <div className={baseClass}>
+          <InfoBanner color="yellow">
+            Disk encryption: Requires action from the end user. Ask the user to
+            follow <b>Disk encryption</b> instructions on their <b>My device</b>{" "}
+            page.
+          </InfoBanner>
+        </div>
+      );
     }
   }
-  if (
-    hostPlatform === "windows" &&
-    diskEncryptionOSSetting?.status === "action_required"
-  ) {
-    return actionRequiredBanner;
-  }
-
   return null;
 };
 
