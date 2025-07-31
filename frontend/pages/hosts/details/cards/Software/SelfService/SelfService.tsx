@@ -718,9 +718,8 @@ const SoftwareSelfService = ({
               header="Updates"
               subheader={
                 <>
-                  Your device has outdated software. Update to
-                  address potential security vulnerabilities or
-                  compatibility issues.
+                  Your device has outdated software. Update to address potential 
+                  security vulnerabilities or compatibility issues.
                 </>
               }
             />
