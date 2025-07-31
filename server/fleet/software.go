@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -94,6 +95,7 @@ type Software struct {
 	// TODO: should we create a separate type? Feels like this field shouldn't be here since it's
 	// just used for VPP install verification.
 	Installed bool `json:"-"`
+	IsKernel  bool `json:"-"`
 }
 
 func (Software) AuthzType() string {
@@ -209,6 +211,7 @@ type SoftwareTitle struct {
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	IsKernel         bool    `json:"is_kernel" db:"is_kernel"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
@@ -469,6 +472,14 @@ func SoftwareFromOsqueryRow(
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
 	}
+
+	const linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
+	kernelRegex := regexp.MustCompile(linuxImageRegex)
+
+	if source == "deb_packages" && kernelRegex.MatchString(name) {
+		software.IsKernel = true
+	}
+
 	return &software, nil
 }
 

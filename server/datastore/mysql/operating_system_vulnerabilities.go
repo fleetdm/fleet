@@ -87,7 +87,7 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 					JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
 					JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
 				WHERE
-					operating_systems.name = ?
+					operating_systems.name = ? AND software_titles.is_kernel = 1
 				GROUP BY software_cve.cve
 			) osv
 			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
