@@ -1209,7 +1209,6 @@ GROUP BY
 	)
 
 	var counts []statusCounts
-	// fmt.Println(stmt, args)
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
 	if err != nil {
 		return nil, err
