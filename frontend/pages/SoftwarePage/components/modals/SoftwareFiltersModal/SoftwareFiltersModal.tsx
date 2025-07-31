@@ -266,7 +266,14 @@ const SoftwareFiltersModal = ({
             tipOffset={8}
             underline={false}
           >
-            <Button type="submit" disabled={!!formErrors.disableApplyButton}>
+            <Button
+              type="submit"
+              disabled={
+                !!formErrors.disableApplyButton ||
+                !!formErrors.minScore ||
+                !!formErrors.maxScore
+              }
+            >
               Apply
             </Button>
           </TooltipWrapper>
