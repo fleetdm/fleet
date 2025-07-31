@@ -648,14 +648,6 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 			OperationType: fleet.MDMOperationTypeRemove, Detail: "Error removing profile"},
 	}
 
-	var args []interface{}
-	for _, p := range expectedProfiles0 {
-		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
-	}
-	for _, p := range expectedProfiles1 {
-		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
-	}
-
 	// Add profile_identifier and checksum for each profile
 	var extendedArgs []interface{}
 	i := 0
