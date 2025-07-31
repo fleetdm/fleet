@@ -202,61 +202,60 @@ const SoftwareFiltersModal = ({
           activeText="Vulnerable software"
         />
         {isPremiumTier && (
-          <DropdownWrapper
-            name="severity-filter"
-            label={renderSeverityLabel()}
-            options={SEVERITY_DROPDOWN_OPTIONS}
-            value={severity}
-            onChange={onChangeSeverity}
-            placeholder="Any severity"
-            className={`${baseClass}__select-severity`}
-            isDisabled={!vulnSoftwareFilterEnabled}
-            helpText="CVSS scores (v3) range from 0.0 to 10.0 in 0.1 increments."
-          />
-        )}
-        {isPremiumTier && (
-          <div className={`${baseClass}__cvss-range`}>
-            <InputField
-              label="Min score"
-              onChange={onScoreChange}
-              name="minScore"
-              value={formData.minScore}
-              disabled={!vulnSoftwareFilterEnabled}
-              type="number"
-              min={0}
-              max={10}
-              step="0.1"
-              parseTarget
-              error={formErrors.minScore}
+          <>
+            <DropdownWrapper
+              name="severity-filter"
+              label={renderSeverityLabel()}
+              options={SEVERITY_DROPDOWN_OPTIONS}
+              value={severity}
+              onChange={onChangeSeverity}
+              placeholder="Any severity"
+              className={`${baseClass}__select-severity`}
+              isDisabled={!vulnSoftwareFilterEnabled}
+              helpText="CVSS scores (v3) range from 0.0 to 10.0 in 0.1 increments."
             />
-            <InputField
-              label="Max score"
-              onChange={onScoreChange}
-              name="maxScore"
-              value={formData.maxScore}
-              disabled={!vulnSoftwareFilterEnabled}
-              type="number"
-              min={0}
-              max={10}
-              step="0.1"
+
+            <div className={`${baseClass}__cvss-range`}>
+              <InputField
+                label="Min score"
+                onChange={onScoreChange}
+                name="minScore"
+                value={formData.minScore}
+                disabled={!vulnSoftwareFilterEnabled}
+                type="number"
+                min={0}
+                max={10}
+                step="0.1"
+                parseTarget
+                error={formErrors.minScore}
+              />
+              <InputField
+                label="Max score"
+                onChange={onScoreChange}
+                name="maxScore"
+                value={formData.maxScore}
+                disabled={!vulnSoftwareFilterEnabled}
+                type="number"
+                min={0}
+                max={10}
+                step="0.1"
+                parseTarget
+                error={formErrors.maxScore}
+              />
+            </div>
+            <Checkbox
+              onChange={({ value }: { value: boolean }) =>
+                setHasKnownExploit(value)
+              }
+              name="hasKnownExploit"
+              value={hasKnownExploit}
               parseTarget
-              error={formErrors.maxScore}
-            />
-          </div>
-        )}
-        {isPremiumTier && (
-          <Checkbox
-            onChange={({ value }: { value: boolean }) =>
-              setHasKnownExploit(value)
-            }
-            name="hasKnownExploit"
-            value={hasKnownExploit}
-            parseTarget
-            helpText="Software has vulnerabilities that have been actively exploited in the wild."
-            disabled={!vulnSoftwareFilterEnabled}
-          >
-            Has known exploit
-          </Checkbox>
+              helpText="Software has vulnerabilities that have been actively exploited in the wild."
+              disabled={!vulnSoftwareFilterEnabled}
+            >
+              Has known exploit
+            </Checkbox>
+          </>
         )}
         <div className="modal-cta-wrap">
           <TooltipWrapper
