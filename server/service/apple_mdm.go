@@ -2241,6 +2241,11 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	if nanoEnroll == nil || !nanoEnroll.Enabled {
 		return fleet.NewUserMessageError(ctxerr.New(ctx, fmt.Sprintf("mdm is not enabled for host %d", hostID)), http.StatusConflict)
 	}
+	if nanoEnroll.Type == "User enrollment(Device)" {
+		return &fleet.BadRequestError{
+			Message: fleet.CantTurnOffMDMForPersonalHostsMessage,
+		}
+	}
 
 	cmdUUID := uuid.New().String()
 	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{nanoEnroll.ID}, apple_mdm.FleetPayloadIdentifier, cmdUUID)
