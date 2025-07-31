@@ -68,4 +68,4 @@ All external repositories requiring Fleet-specific changes will be vendored into
 ## References 📚
 
 - 🚫 [ADR-0003: Fork management](0003-fork-management.md) (Rejected)
-- 📦 Current example: `/third_party/httpsig-go/` - Already follows this standard and demonstrates the process. Scheduled for removal once upstream merges Fleet's changes.
+- 📦 Current example: [`/third_party/httpsig-go/`](https://github.com/fleetdm/fleet/commit/c25fed24929b03df0576919d1e72ae1e13df0a39) - Already follows this standard and demonstrates the process. Scheduled for removal once upstream merges Fleet's changes.
