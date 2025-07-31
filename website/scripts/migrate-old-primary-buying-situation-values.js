@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Migrate old primary buying situation values',
 
 
-  description: '',
+  description: 'Updates the primaryBuyingSituation value of user records that have older values set.',
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run. (No database changes will be made.)' },
