@@ -42,10 +42,6 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 			JOIN operating_systems os ON os.id = osv.operating_system_id
 				AND os.name = ? AND os.version = ?
 			GROUP BY osv.cve
-
-			UNION
-
-
 			`
 
 	if includeCVSS {
@@ -94,6 +90,7 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 			`
 	}
 
+	fmt.Println("running big select")
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, name, version, name); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
