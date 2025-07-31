@@ -282,11 +282,9 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 		for _, host := range hosts {
 			// Check remove declarations first
 			for _, decl := range removeDeclarations {
-				if slices.Contains(removeTokens, decl.DeclarationUUID) {
-					checkDeclarationStatus(t, ds, ctx, host.UUID, decl.DeclarationUUID, "pending", "remove")
-				} else {
-					checkDeclarationDeleted(t, ds, ctx, host.UUID, decl.DeclarationUUID, "remove")
-				}
+				// All remove declarations should be marked as pending since they were inserted
+				// with verified status and should be converted to remove operations
+				checkDeclarationStatus(t, ds, ctx, host.UUID, decl.DeclarationUUID, "pending", "remove")
 			}
 
 			// Check install declarations

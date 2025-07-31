@@ -7861,6 +7861,16 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, appleHost, false)
 
+	// Set LabelUpdatedAt to a time before labels were created to simulate hosts that haven't reported label membership
+	// Use a time in the past (2020) to ensure it's before any label created in this test
+	oldTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	winHost.LabelUpdatedAt = oldTime
+	appleHost.LabelUpdatedAt = oldTime
+	err = ds.UpdateHost(ctx, winHost)
+	require.NoError(t, err)
+	err = ds.UpdateHost(ctx, appleHost)
+	require.NoError(t, err)
+
 	// at this point the hosts have not reported any label results, so a sync
 	// does NOT install the exclude any profiles as we don't know yet if the
 	// hosts will be members or not
