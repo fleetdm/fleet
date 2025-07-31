@@ -9,6 +9,13 @@
       "description": "Password manager that keeps all passwords secure behind one password"
     },
     {
+      "name": "7-Zip",
+      "slug": "7-zip/windows",
+      "platform": "windows",
+      "unique_identifier": "7zip",
+      "description": ""
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
