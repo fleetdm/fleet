@@ -7,7 +7,7 @@ examples: |-
   Verify that WhatsApp is being blocked via TeamID
 
   ```
-  SELECT state FROM santa_rules WHERE identifier = '57T9237FN3'
+  SELECT state FROM santa_rules WHERE identifier = '57T9237FN3';
   ```
 columns:
   - name: identifier
