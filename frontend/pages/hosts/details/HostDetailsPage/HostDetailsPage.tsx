@@ -50,6 +50,7 @@ import {
 } from "utilities/constants";
 
 import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
+import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -120,7 +121,6 @@ import {
   generateUsernameValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader";
-import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 const baseClass = "host-details";
 
