@@ -4,7 +4,7 @@ platforms:
   - darwin
 evented: false
 examples: |-
-  Collects all Santa denied logs from macOS hosts.
+  Collect all Santa denied logs from macOS hosts.
 
   ```
   SELECT * FROM santa_denied;
