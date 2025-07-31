@@ -354,6 +354,17 @@ const InstallStatusCell = ({
       } else if ("install_uuid" in lastInstall) {
         onShowInstallDetails(software);
       }
+
+      //   // NO last install, not installed by Fleet:
+      // } else if (software.app_store_app) {
+      //   // // TODO - handle vpp app installed but not by fleet
+      //   // onShowVPPInstallDetails({
+      //   //   ...software,
+      //   //   // commandUuid: lastInstall.command_uuid,
+      //   // });
+      // } else if (software.software_package) {
+      //   // TODO - handle software package installed but not by fleet
+      //   // onShowInstallDetails(software);
     } else if (onShowInventoryVersions) {
       onShowInventoryVersions(software);
     }

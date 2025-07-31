@@ -7,7 +7,10 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
-import { SoftwareInstallStatus } from "interfaces/software";
+import {
+  resolveUninstallStatus,
+  SoftwareInstallStatus,
+} from "interfaces/software";
 import { ActivityType, IActivityDetails } from "interfaces/activity";
 
 import { getPerformanceImpactDescription } from "utilities/helpers";
@@ -19,7 +22,9 @@ import Pagination from "components/Pagination";
 
 import AppInstallDetailsModal from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
-import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import GlobalActivityItem from "./GlobalActivityItem";
@@ -55,7 +60,7 @@ const ActivityFeed = ({
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<ISWUninstallDetailsParentState | null>(null);
   const [
     appInstallDetails,
     setAppInstallDetails,
@@ -140,7 +145,13 @@ const ActivityFeed = ({
         setPackageInstallDetails({ ...details });
         break;
       case ActivityType.UninstalledSoftware:
-        setPackageUninstallDetails({ ...details });
+        setPackageUninstallDetails({
+          ...details,
+          softwareName: details?.software_title || "",
+          uninstallStatus: resolveUninstallStatus(details?.status),
+          scriptExecutionId: details?.script_execution_id || "",
+          hostDisplayName: details?.host_display_name,
+        });
         break;
       case ActivityType.InstalledAppStoreApp:
         setAppInstallDetails({ ...details });
@@ -247,13 +258,13 @@ const ActivityFeed = ({
           onCancel={() => setPackageInstallDetails(null)}
         />
       )}
-      {/* TODO */}
-      {/* {packageUninstallDetails && (
+      {packageUninstallDetails && (
         <SoftwareUninstallDetailsModal
-          details={packageUninstallDetails}
+          {...packageUninstallDetails}
+          hostDisplayName={packageUninstallDetails.hostDisplayName || ""}
           onCancel={() => setPackageUninstallDetails(null)}
         />
-      )} */}
+      )}
       {appInstallDetails && (
         <AppInstallDetailsModal
           details={{

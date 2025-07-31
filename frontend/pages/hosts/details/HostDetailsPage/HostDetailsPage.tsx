@@ -34,6 +34,7 @@ import { IQueryStats } from "interfaces/query_stats";
 import {
   IHostSoftware,
   isSoftwareUninstallStatus,
+  resolveUninstallStatus,
   SoftwareInstallStatus,
   SoftwareUninstallStatus,
 } from "interfaces/software";
@@ -657,25 +658,6 @@ const HostDetailsPage = ({
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
     setActivityPage(0);
-  };
-
-  const resolveUninstallStatus = (
-    activityStatus?: string
-  ): SoftwareUninstallStatus => {
-    let resolvedStatus = activityStatus;
-    if (resolvedStatus === "pending") {
-      resolvedStatus = "pending_uninstall";
-    }
-    if (resolvedStatus === "failed") {
-      resolvedStatus = "failed_uninstall";
-    }
-    if (!isSoftwareUninstallStatus(resolvedStatus)) {
-      console.warn(
-        `Unexpected uninstall status "${activityStatus}" for activity. Defaulting to "pending_uninstall".`
-      );
-      resolvedStatus = "pending_uninstall";
-    }
-    return resolvedStatus as SoftwareUninstallStatus;
   };
 
   const onShowActivityDetails = useCallback(

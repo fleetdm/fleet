@@ -317,6 +317,25 @@ export const isSoftwareUninstallStatus = (
 export const isPendingStatus = (s: string | undefined | null) =>
   ["pending_install", "pending_uninstall"].includes(s || "");
 
+export const resolveUninstallStatus = (
+  activityStatus?: string
+): SoftwareUninstallStatus => {
+  let resolvedStatus = activityStatus;
+  if (resolvedStatus === "pending") {
+    resolvedStatus = "pending_uninstall";
+  }
+  if (resolvedStatus === "failed") {
+    resolvedStatus = "failed_uninstall";
+  }
+  if (!isSoftwareUninstallStatus(resolvedStatus)) {
+    console.warn(
+      `Unexpected uninstall status "${activityStatus}" for activity. Defaulting to "pending_uninstall".`
+    );
+    resolvedStatus = "pending_uninstall";
+  }
+  return resolvedStatus as SoftwareUninstallStatus;
+};
+
 /**
  * ISoftwareInstallResult is the shape of a software install result object
  * returned by the Fleet API.
