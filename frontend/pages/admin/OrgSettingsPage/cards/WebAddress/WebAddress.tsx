@@ -10,7 +10,8 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
+import { IAppConfigFormProps } from "../constants";
 
 interface IWebAddressFormData {
   serverURL: string;
@@ -53,7 +54,7 @@ const WebAddress = ({
 
   const [formErrors, setFormErrors] = useState<IWebAddressFormErrors>({});
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IParseTargetFormField) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validateFormData(newFormData);

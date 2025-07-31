@@ -19,10 +19,8 @@ import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-import {
-  IAppConfigFormProps,
-  IFormField,
-} from "../../../OrgSettingsPage/cards/constants";
+import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
+import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 
 interface IGlobalHostStatusWebhookFormData {
   enableHostStatusWebhook: boolean;
@@ -71,7 +69,7 @@ const GlobalHostStatusWebhook = ({
     setFormErrors,
   ] = useState<IGlobalHostStatusWebhookFormErrors>({});
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IParseTargetFormField) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };

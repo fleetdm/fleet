@@ -18,9 +18,9 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
 
+import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
 import {
   IAppConfigFormProps,
-  IFormField,
   authMethodOptions,
   authTypeOptions,
 } from "../constants";
@@ -132,7 +132,7 @@ const Smtp = ({
 
   const sesConfigured = appConfig.email?.backend === "ses" || false;
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IParseTargetFormField) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validateFormData(newFormData);

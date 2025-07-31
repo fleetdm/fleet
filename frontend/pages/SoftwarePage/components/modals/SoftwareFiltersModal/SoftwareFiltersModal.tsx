@@ -17,6 +17,7 @@ import {
   ISoftwareVulnFiltersParams,
   SEVERITY_DROPDOWN_OPTIONS,
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
 
 const baseClass = "software-filters-modal";
 
@@ -27,24 +28,61 @@ interface ISoftwareFiltersModalProps {
   isPremiumTier: boolean;
 }
 
-interface IFormErrors {
-  minScore?: string | null;
-  maxScore?: string | null;
-}
+type IFormData = {
+  minScore: string;
+  maxScore: string;
+};
 
-const validateCvssScore = (cvssScore, currentErrors: IFormErrors) => {
+type IFormErrors = {
+  minScore?: string;
+  maxScore?: string;
+  disableApplyButton?: React.ReactNode;
+};
+
+const hasAtMostOneDecimal = (n: number) =>
+  Number.isFinite(n) && Number((n * 10).toFixed(0)) / 10 === n;
+
+const isBetween0and10 = (n: number) => n >= 0 && n <= 10;
+
+const validate = (data: IFormData): IFormErrors => {
   const errors: IFormErrors = {};
+  const min = data.minScore ? parseFloat(data.minScore) : undefined;
+  const max = data.maxScore ? parseFloat(data.maxScore) : undefined;
 
-  const { minScore, maxScore } = cvssScore;
-
-  if (minScore < 0 || minScore > 10) {
-    errors.minScore = "Must be from 0-10 in 0.1 increments";
+  if (data.minScore) {
+    if (
+      typeof min !== "number" ||
+      !hasAtMostOneDecimal(min) ||
+      !isBetween0and10(min)
+    ) {
+      errors.minScore = "Must be from 0-10 in 0.1 increments";
+    }
   }
-
-  if (maxScore < 0 || maxScore > 10) {
-    errors.minScore = "Must be from 0-10 in 0.1 increments";
+  if (data.maxScore) {
+    if (
+      max === undefined ||
+      !hasAtMostOneDecimal(max) ||
+      !isBetween0and10(max)
+    ) {
+      errors.maxScore = "Must be from 0-10 in 0.1 increments";
+    }
   }
-
+  if (
+    data.minScore &&
+    data.maxScore &&
+    !errors.minScore &&
+    !errors.maxScore &&
+    min !== undefined &&
+    max !== undefined &&
+    min > max
+  ) {
+    errors.disableApplyButton = (
+      <>
+        Minimum CVSS score cannot be greater
+        <br /> than the maximum CVSS score.
+      </>
+    );
+  }
   return errors;
 };
 
@@ -63,19 +101,13 @@ const SoftwareFiltersModal = ({
       vulnFilters.maxCvssScore
     )
   );
-  const [minScore, setMinScore] = useState(
-    vulnFilters.minCvssScore?.toString()
-  );
-  const [maxScore, setMaxScore] = useState(
-    vulnFilters.maxCvssScore?.toString()
-  );
+  // Unified form state:
+  const [formData, setFormData] = useState<IFormData>({
+    minScore: vulnFilters.minCvssScore?.toString() ?? "",
+    maxScore: vulnFilters.maxCvssScore?.toString() ?? "",
+  });
   const [hasKnownExploit, setHasKnownExploit] = useState(vulnFilters.exploit);
-
-  const [formErrors, setFormErrors] = useState();
-
-  const onInputBlur = () => {
-    setFormErrors(validateCvssScore(formData));
-  };
+  const [formErrors, setFormErrors] = useState<IFormErrors>({});
 
   const onChangeSeverity = (
     selectedSeverity: SingleValue<CustomOptionType>
@@ -87,56 +119,51 @@ const SoftwareFiltersModal = ({
       setSeverity(selectedOption);
       // Auto populate severity range except for custom serverity
       if (selectedOption.value === "any") {
-        setMinScore(undefined);
-        setMaxScore(undefined);
+        setFormData({ minScore: "", maxScore: "" });
       } else if (selectedOption.value !== "custom") {
-        setMinScore(selectedOption.minSeverity?.toString());
-        setMaxScore(selectedOption.maxSeverity?.toString());
+        setFormData({
+          minScore: selectedOption.minSeverity?.toString() ?? "",
+          maxScore: selectedOption.maxSeverity?.toString() ?? "",
+        });
       }
     }
   };
 
-  const onChangeMinScore = (selectedScore: string) => {
-    const newMin = selectedScore;
-    const newMax = maxScore; // current state
-    if (!newMin && !newMax) {
+  const onScoreChange = ({ name, value }: IParseTargetFormField) => {
+    // Prepare new form data
+    const newFormData = { ...formData, [name]: value as string };
+
+    // If both fields are empty, reset to "Any severity"
+    if (!newFormData.minScore && !newFormData.maxScore) {
       setSeverity(ANY_SEVERITY_OPTION);
-      setMinScore("");
-      setMaxScore("");
+      setFormData({ minScore: "", maxScore: "" });
+      setFormErrors({});
       return;
     }
-    const selectedScoreNumber = parseFloat(newMin);
+
+    // Parse values for matching severity option
+    const minVal = parseFloat(newFormData.minScore || "0");
+    const maxVal = parseFloat(newFormData.maxScore || "10");
+
     const selectedOption = SEVERITY_DROPDOWN_OPTIONS.find(
-      (option) =>
-        option.minSeverity === selectedScoreNumber &&
-        option.maxSeverity === parseFloat(newMax || "10")
+      (option) => option.minSeverity === minVal && option.maxSeverity === maxVal
     );
     setSeverity(selectedOption || CUSTOM_SERVERITY_OPTION);
-    setMinScore(newMin);
+    setFormData(newFormData);
+    // InputField only allows numbers
+    // Only errors if number outside range or multiple decimals
+    setFormErrors(validate(newFormData));
   };
 
-  const onChangeMaxScore = (selectedScore: string) => {
-    const newMax = selectedScore;
-    const newMin = minScore; // current state
-    if (!newMin && !newMax) {
-      setSeverity(ANY_SEVERITY_OPTION);
-      setMinScore("");
-      setMaxScore("");
+  const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    const errors = validate(formData);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
-    const selectedScoreNumber = parseFloat(newMax);
-    const selectedOption = SEVERITY_DROPDOWN_OPTIONS.find(
-      (option) =>
-        option.minSeverity === parseFloat(newMin || "0") &&
-        option.maxSeverity === selectedScoreNumber
-    );
-    setSeverity(selectedOption || CUSTOM_SERVERITY_OPTION);
-    setMaxScore(newMax);
-  };
-
-  const onApplyFilters = () => {
-    const min = minScore ? parseFloat(minScore) : undefined;
-    const max = maxScore ? parseFloat(maxScore) : undefined;
+    const min = formData.minScore ? parseFloat(formData.minScore) : undefined;
+    const max = formData.maxScore ? parseFloat(formData.maxScore) : undefined;
 
     onSubmit({
       vulnerable: vulnSoftwareFilterEnabled,
@@ -165,7 +192,7 @@ const SoftwareFiltersModal = ({
 
   const renderModalContent = () => {
     return (
-      <>
+      <form onSubmit={handleSubmit}>
         <Slider
           value={vulnSoftwareFilterEnabled}
           onChange={() =>
@@ -184,29 +211,36 @@ const SoftwareFiltersModal = ({
             placeholder="Any severity"
             className={`${baseClass}__select-severity`}
             isDisabled={!vulnSoftwareFilterEnabled}
+            helpText="CVSS scores (v3) range from 0.0 to 10.0 in 0.1 increments."
           />
         )}
         {isPremiumTier && (
           <div className={`${baseClass}__cvss-range`}>
             <InputField
               label="Min score"
-              onChange={onChangeMinScore}
+              onChange={onScoreChange}
               name="minScore"
-              value={minScore}
+              value={formData.minScore}
               disabled={!vulnSoftwareFilterEnabled}
               type="number"
               min={0}
               max={10}
+              step="0.1"
+              parseTarget
+              error={formErrors.minScore}
             />
             <InputField
               label="Max score"
-              onChange={onChangeMaxScore}
+              onChange={onScoreChange}
               name="maxScore"
-              value={maxScore}
+              value={formData.maxScore}
               disabled={!vulnSoftwareFilterEnabled}
               type="number"
               min={0}
               max={10}
+              step="0.1"
+              parseTarget
+              error={formErrors.maxScore}
             />
           </div>
         )}
@@ -225,12 +259,22 @@ const SoftwareFiltersModal = ({
           </Checkbox>
         )}
         <div className="modal-cta-wrap">
-          <Button onClick={onApplyFilters}>Apply</Button>
+          <TooltipWrapper
+            tipContent={formErrors.disableApplyButton}
+            disableTooltip={!formErrors.disableApplyButton}
+            showArrow
+            position="top"
+            tipOffset={8}
+          >
+            <Button type="submit" disabled={!!formErrors.disableApplyButton}>
+              Apply
+            </Button>
+          </TooltipWrapper>
           <Button variant="inverse" onClick={onExit}>
             Cancel
           </Button>
         </div>
-      </>
+      </form>
     );
   };
 

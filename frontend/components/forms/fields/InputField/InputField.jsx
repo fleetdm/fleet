@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
-import { noop, pick } from "lodash";
+import { min, noop, pick } from "lodash";
 
 import { stringToClipboard } from "utilities/copy_text";
 
@@ -34,6 +34,7 @@ class InputField extends Component {
       PropTypes.string,
       PropTypes.number,
     ]).isRequired,
+    /** Returns both name and value */
     parseTarget: PropTypes.bool,
     tooltip: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     labelTooltipPosition: PropTypes.string,
@@ -46,6 +47,12 @@ class InputField extends Component {
     enableShowSecret: PropTypes.bool,
     enableCopy: PropTypes.bool,
     ignore1password: PropTypes.bool,
+    /** Only effective on number inputs */
+    step: PropTypes.string,
+    /** Only effective on number inputs */
+    min: PropTypes.number,
+    /** Only effective on number inputs */
+    max: PropTypes.number,
   };
 
   static defaultProps = {
@@ -66,6 +73,9 @@ class InputField extends Component {
     enableCopy: false,
     enableShowSecret: false,
     ignore1password: false,
+    step: undefined,
+    min: undefined,
+    max: undefined,
   };
 
   constructor() {
@@ -172,6 +182,9 @@ class InputField extends Component {
       ignore1password,
       enableCopy,
       enableShowSecret,
+      step,
+      min,
+      max,
     } = this.props;
 
     const { onInputChange } = this;
@@ -260,6 +273,9 @@ class InputField extends Component {
             value={value}
             autoComplete={blockAutoComplete ? "new-password" : ""}
             data-1p-ignore={ignore1password}
+            step={step}
+            min={min}
+            max={max}
           />
 
           {enableCopy && this.renderCopyButton()}

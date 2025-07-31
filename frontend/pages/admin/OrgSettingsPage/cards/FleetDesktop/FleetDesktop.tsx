@@ -8,11 +8,8 @@ import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
 
-import {
-  DEFAULT_TRANSPARENCY_URL,
-  IAppConfigFormProps,
-  IFormField,
-} from "../constants";
+import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
+import { DEFAULT_TRANSPARENCY_URL, IAppConfigFormProps } from "../constants";
 
 interface IFleetDesktopFormData {
   transparencyUrl: string;
@@ -37,7 +34,7 @@ const FleetDesktop = ({
 
   const [formErrors, setFormErrors] = useState<IFleetDesktopFormErrors>({});
 
-  const onInputChange = ({ value }: IFormField) => {
+  const onInputChange = ({ value }: IParseTargetFormField) => {
     setFormData({ transparencyUrl: value.toString() });
     setFormErrors({});
   };

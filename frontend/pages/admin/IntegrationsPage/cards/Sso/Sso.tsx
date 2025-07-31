@@ -10,10 +10,8 @@ import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import {
-  IAppConfigFormProps,
-  IFormField,
-} from "../../../OrgSettingsPage/cards/constants";
+import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
+import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 
 const baseClass = "app-config-form";
 
@@ -115,7 +113,7 @@ const Sso = ({
 
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IParseTargetFormField) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validate(newFormData);

@@ -13,7 +13,8 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
 import { getCustomDropdownOptions } from "utilities/helpers";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
+import { IAppConfigFormProps } from "../constants";
 
 const baseClass = "app-config-form";
 
@@ -126,7 +127,7 @@ const Advanced = ({
     [deleteActivities]
   );
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IParseTargetFormField) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validateFormData(newFormData);
