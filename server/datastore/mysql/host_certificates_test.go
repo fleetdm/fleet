@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	mathrand "math/rand/v2"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ func TestHostCertificates(t *testing.T) {
 		{"Update with host_mdm_managed_certificates to update", testUpdatingHostMDMManagedCertificates},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
+		{"Truncate long certificate fields", testTruncateLongCertificateFields},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -605,4 +607,124 @@ func testHostCertificateWithInvalidCountryCode(t *testing.T, ds *Datastore) {
 	require.Equal(t, certWithLongSubjectCountryTemplate.Subject.CommonName, certs[1].CommonName)
 	require.Equal(t, certWithLongSubjectCountryTemplate.Subject.CommonName, certs[1].SubjectCommonName)
 	require.Equal(t, fleet.SystemHostCertificate, certs[1].Source)
+}
+
+// testTruncateLongCertificateFields tests that all string fields in certificates are properly truncated
+// when they exceed the database column limits
+func testTruncateLongCertificateFields(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create strings that exceed database limits
+	longString256 := strings.Repeat("a", 256)   // Exceeds varchar(255)
+	longString300 := strings.Repeat("b", 300)   // Exceeds varchar(255)
+	longCountry33 := strings.Repeat("c", 33)    // Exceeds varchar(32)
+	longCountry50 := strings.Repeat("d", 50)    // Exceeds varchar(32)
+	longUsername260 := strings.Repeat("u", 260) // Exceeds varchar(255)
+
+	// Expected truncated values
+	expectedString255 := strings.Repeat("a", 255)
+	expectedString255B := strings.Repeat("b", 255)
+	expectedCountry32 := strings.Repeat("c", 32)
+	expectedCountry32D := strings.Repeat("d", 32)
+	expectedUsername255 := strings.Repeat("u", 255)
+
+	// Create a certificate template with all fields exceeding limits
+	certTemplate := x509.Certificate{
+		Subject: pkix.Name{
+			Country:            []string{longCountry33},
+			CommonName:         longString256,
+			Organization:       []string{longString300},
+			OrganizationalUnit: []string{longString256},
+		},
+		SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+		BasicConstraintsValid: true,
+	}
+
+	// Create a parent certificate for signing (with long fields)
+	parentTemplate := x509.Certificate{
+		Subject: pkix.Name{
+			Country:            []string{longCountry50},
+			CommonName:         longString300,
+			Organization:       []string{longString256},
+			OrganizationalUnit: []string{longString300},
+		},
+		SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-2 * time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour).Truncate(time.Second).UTC(),
+	}
+
+	// Generate the certificate
+	cert := generateTestHostCertificateRecordWithParent(t, 1, &certTemplate, &parentTemplate)
+
+	// Override all string fields with long values to test truncation
+	cert.CommonName = longString256
+	cert.KeyAlgorithm = longString300
+	cert.KeyUsage = longString256
+	cert.Serial = longString300
+	cert.SigningAlgorithm = longString256
+	cert.SubjectCountry = longCountry33
+	cert.SubjectOrganization = longString300
+	cert.SubjectOrganizationalUnit = longString256
+	cert.SubjectCommonName = longString300
+	cert.IssuerCountry = longCountry50
+	cert.IssuerOrganization = longString256
+	cert.IssuerOrganizationalUnit = longString300
+	cert.IssuerCommonName = longString256
+	cert.Username = longUsername260
+	cert.Source = fleet.UserHostCertificate
+
+	// Create a host for testing
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("test-truncate-host-osquery-id"),
+		NodeKey:         ptr.String("test-truncate-host-node-key"),
+		UUID:            "test-truncate-host-uuid",
+		Hostname:        "test-truncate-host",
+	})
+	require.NoError(t, err)
+
+	// Update certificates - this should trigger truncation
+	err = ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{cert})
+	require.NoError(t, err)
+
+	// Retrieve the certificate and verify all fields were truncated
+	certs, _, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 1)
+
+	savedCert := certs[0]
+
+	// Verify all varchar(255) fields were truncated to 255 characters
+	assert.Equal(t, expectedString255, savedCert.CommonName, "CommonName should be truncated to 255 chars")
+	assert.Equal(t, expectedString255B, savedCert.KeyAlgorithm, "KeyAlgorithm should be truncated to 255 chars")
+	assert.Equal(t, expectedString255, savedCert.KeyUsage, "KeyUsage should be truncated to 255 chars")
+	assert.Equal(t, expectedString255B, savedCert.Serial, "Serial should be truncated to 255 chars")
+	assert.Equal(t, expectedString255, savedCert.SigningAlgorithm, "SigningAlgorithm should be truncated to 255 chars")
+	assert.Equal(t, expectedString255B, savedCert.SubjectOrganization, "SubjectOrganization should be truncated to 255 chars")
+	assert.Equal(t, expectedString255, savedCert.SubjectOrganizationalUnit, "SubjectOrganizationalUnit should be truncated to 255 chars")
+	assert.Equal(t, expectedString255B, savedCert.SubjectCommonName, "SubjectCommonName should be truncated to 255 chars")
+	assert.Equal(t, expectedString255, savedCert.IssuerOrganization, "IssuerOrganization should be truncated to 255 chars")
+	assert.Equal(t, expectedString255B, savedCert.IssuerOrganizationalUnit, "IssuerOrganizationalUnit should be truncated to 255 chars")
+	assert.Equal(t, expectedString255, savedCert.IssuerCommonName, "IssuerCommonName should be truncated to 255 chars")
+	assert.Equal(t, expectedUsername255, savedCert.Username, "Username should be truncated to 255 chars")
+
+	// Verify varchar(32) country fields were truncated to 32 characters
+	assert.Equal(t, expectedCountry32, savedCert.SubjectCountry, "SubjectCountry should be truncated to 32 chars")
+	assert.Equal(t, expectedCountry32D, savedCert.IssuerCountry, "IssuerCountry should be truncated to 32 chars")
+
+	// Verify non-string fields remain unchanged
+	assert.Equal(t, fleet.UserHostCertificate, savedCert.Source, "Source should not be changed")
+	assert.Equal(t, host.ID, savedCert.HostID, "HostID should not be changed")
 }
