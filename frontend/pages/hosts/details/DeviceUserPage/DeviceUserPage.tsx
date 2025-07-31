@@ -659,7 +659,7 @@ const DeviceUserPage = ({
                         </p>
                       </li>
                       <li>
-                        <p>Type "Manage BitLocker" and launch.</p>
+                        <p>Type &ldquo;Manage BitLocker&rdquo; and launch.</p>
                       </li>
                       <li>
                         <p>
