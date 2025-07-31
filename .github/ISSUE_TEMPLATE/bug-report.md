@@ -19,7 +19,7 @@ TODO
 
 ### 🛠️ To fix
 <!-- Add the expected fix here. If you're not sure, leave this blank for product to specify.  -->
-TODO
+TBD
 
 Product designer: _________________________<!-- Who is the product designer to contact if folks have questions about this fix? -->
 
