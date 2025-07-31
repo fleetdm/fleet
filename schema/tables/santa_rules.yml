@@ -4,7 +4,7 @@ platforms:
   - darwin
 evented: false
 examples: |-
-  Verify that WhatsApp is being blocked via TeamID
+  Verify that running WhatsApp will be blocked by Santa via TeamID.
 
   ```
   SELECT state FROM santa_rules WHERE identifier = '57T9237FN3';
