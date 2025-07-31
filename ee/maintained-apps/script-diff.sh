@@ -55,30 +55,8 @@ CURRENT_CONTENT=$(cat "$FILE_PATH")
 PREVIOUS_CONTENT=$(git show HEAD~1:"$FILE_PATH" 2>/dev/null || echo "")
 
 if [ -z "$PREVIOUS_CONTENT" ]; then
-    echo "Warning: Could not retrieve previous version of file (file may not exist in previous commit)"
-    echo "Current file content will be shown without comparison"
-
-    # Show current refs
-    CURRENT_INSTALL_REF=$(echo "$CURRENT_CONTENT" | jq -r '.versions[0].install_script_ref // empty')
-    CURRENT_UNINSTALL_REF=$(echo "$CURRENT_CONTENT" | jq -r '.versions[0].uninstall_script_ref // empty')
-
-    echo ""
-    echo "Current install_script_ref: $CURRENT_INSTALL_REF"
-    echo "Current uninstall_script_ref: $CURRENT_UNINSTALL_REF"
-
-    if [ -n "$CURRENT_INSTALL_REF" ] && [ "$CURRENT_INSTALL_REF" != "null" ]; then
-        echo ""
-        echo "=== Current Install Script (ref: $CURRENT_INSTALL_REF) ==="
-        extract_script "$CURRENT_CONTENT" "$CURRENT_INSTALL_REF"
-    fi
-
-    if [ -n "$CURRENT_UNINSTALL_REF" ] && [ "$CURRENT_UNINSTALL_REF" != "null" ]; then
-        echo ""
-        echo "=== Current Uninstall Script (ref: $CURRENT_UNINSTALL_REF) ==="
-        extract_script "$CURRENT_CONTENT" "$CURRENT_UNINSTALL_REF"
-    fi
-
-    exit 0
+    echo "ERROR: Could not retrieve previous version of file (file may not exist in previous commit)"
+    exit 1
 fi
 
 # Extract script references from both versions
