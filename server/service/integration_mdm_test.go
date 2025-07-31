@@ -14046,16 +14046,16 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
 	assert.True(t, *host.MDM.ConnectedToFleet)
 
-	// Confirm that wiping, locking or turning off MDM on this host errors
+	// Confirm that turning off MDM, locking or wiping the host fails with an appropriate error
 	r := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForWindowsHostsMessage)
+	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForPersonalHostsMessage)
+
+	r = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), fleet.CantLockPersonalHostsMessage)
 
 	// try to wipe the host
 	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(r.Body), fleet.CantLockPersonalHostsMessage)
-
-	r = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), fleet.CantLockPersonalHostsMessage)
+	require.Contains(t, extractServerErrorText(r.Body), fleet.CantWipePersonalHostsMessage)
 }
 
 func (s *integrationMDMTestSuite) TestSCEPProxy() {

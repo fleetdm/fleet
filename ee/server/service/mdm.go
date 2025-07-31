@@ -89,12 +89,6 @@ func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
-		return &fleet.BadRequestError{
-			Message: fleet.CantLockPersonalHostsMessage,
-		}
-	}
-
 	_, err = svc.mdmAppleCommander.DeviceLock(ctx, host, uuid.New().String())
 	if err != nil {
 		return err
@@ -115,12 +109,6 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 	// TODO: define and use right permissions according to the spec.
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
 		return err
-	}
-
-	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
-		return &fleet.BadRequestError{
-			Message: fleet.CantWipePersonalHostsMessage,
-		}
 	}
 
 	err = svc.mdmAppleCommander.EraseDevice(ctx, host, uuid.New().String())
