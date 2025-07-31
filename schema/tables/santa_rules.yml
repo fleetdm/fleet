@@ -19,7 +19,7 @@ columns:
     required: false
     type: text
   - name: state
-    description: Rule state (Whitelist, Blacklist)
+    description: Rule state (Allowlist, Denylist)
     required: false
     type: text
   - name: custom_message
