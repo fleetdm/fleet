@@ -31,7 +31,12 @@ import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
-import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
+import {
+  IHostSoftware,
+  isSoftwareUninstallStatus,
+  SoftwareInstallStatus,
+  SoftwareUninstallStatus,
+} from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
 import {
@@ -69,7 +74,9 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
-import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -652,6 +659,25 @@ const HostDetailsPage = ({
     setActivityPage(0);
   };
 
+  const resolveUninstallStatus = (
+    activityStatus?: string
+  ): SoftwareUninstallStatus => {
+    let resolvedStatus = activityStatus;
+    if (resolvedStatus === "pending") {
+      resolvedStatus = "pending_uninstall";
+    }
+    if (resolvedStatus === "failed") {
+      resolvedStatus = "failed_uninstall";
+    }
+    if (!isSoftwareUninstallStatus(resolvedStatus)) {
+      console.warn(
+        `Unexpected uninstall status "${activityStatus}" for activity. Defaulting to "pending_uninstall".`
+      );
+      resolvedStatus = "pending_uninstall";
+    }
+    return resolvedStatus as SoftwareUninstallStatus;
+  };
+
   const onShowActivityDetails = useCallback(
     ({ type, details }: IShowActivityDetailsData) => {
       switch (type) {
@@ -669,13 +695,13 @@ const HostDetailsPage = ({
           });
           break;
         case "uninstalled_software":
-          // TODO
-
-          // setPackageUninstallDetails({
-          //   ...details,
-          //   host_display_name:
-          //     host?.display_name || details?.host_display_name || "",
-          // });
+          setPackageUninstallDetails({
+            ...details,
+            softwareName: details?.software_title || "",
+            uninstallStatus: resolveUninstallStatus(details?.status),
+            scriptExecutionId: details?.script_execution_id || "",
+            hostDisplayName: host?.display_name || details?.host_display_name,
+          });
           break;
         case "installed_app_store_app":
           setActivityVPPInstallDetails({
@@ -713,17 +739,6 @@ const HostDetailsPage = ({
       }
     },
     [setSelectedHostSWForInventoryVersions]
-  );
-
-  const onShowUninstallDetails = useCallback(
-    (details?: ISWUninstallDetailsParentState) => {
-      // TODO
-      // setPackageUninstallDetails({
-      //   ...details,
-      //   host_display_name: host?.display_name || "",
-      // });
-    },
-    [setPackageUninstallDetails]
   );
 
   const onCancelRunScriptDetailsModal = useCallback(() => {
@@ -1378,13 +1393,13 @@ const HostDetailsPage = ({
               onCancel={onCancelSoftwareInstallDetailsModal}
             />
           )}
-          {/* TODO */}
-          {/* {packageUninstallDetails && (
+          {packageUninstallDetails && (
             <SoftwareUninstallDetailsModal
-              details={packageUninstallDetails}
+              {...packageUninstallDetails}
+              hostDisplayName={packageUninstallDetails.hostDisplayName || ""}
               onCancel={() => setPackageUninstallDetails(null)}
             />
-          )} */}
+          )}
           {!!activityVPPInstallDetails && (
             <AppInstallDetailsModal
               details={activityVPPInstallDetails}
