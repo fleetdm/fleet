@@ -732,7 +732,7 @@ const HostDetailsPage = ({
     setPackageInstallDetails(null);
   }, []);
 
-  const onCancelAppInstallDetailsModal = useCallback(() => {
+  const onCancelVppInstallDetailsModal = useCallback(() => {
     setActivityVPPInstallDetails(null);
   }, []);
 
@@ -1383,7 +1383,7 @@ const HostDetailsPage = ({
           {!!activityVPPInstallDetails && (
             <VppInstallDetailsModal
               details={activityVPPInstallDetails}
-              onCancel={onCancelAppInstallDetailsModal}
+              onCancel={onCancelVppInstallDetailsModal}
             />
           )}
           {showLockHostModal && (

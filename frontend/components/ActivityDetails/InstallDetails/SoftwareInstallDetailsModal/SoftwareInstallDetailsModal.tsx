@@ -52,7 +52,7 @@ export const renderContactOption = (url?: string) => (
   </>
 );
 
-// TODO - match AppInstallDetailsModal status to this, still accounting for MDM-specific cases
+// TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
 // present there
 const StatusMessage = ({
   softwareName,

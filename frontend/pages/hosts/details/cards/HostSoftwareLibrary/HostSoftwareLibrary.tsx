@@ -34,7 +34,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
-import AppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -574,7 +574,7 @@ const HostSoftwareLibrary = ({
         />
       )}
       {selectedVPPInstallDetails && (
-        <AppInstallDetailsModal
+        <VppInstallDetailsModal
           details={{
             fleetInstallStatus:
               selectedVPPInstallDetails.status || "pending_install",
