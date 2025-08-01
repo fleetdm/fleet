@@ -53,7 +53,6 @@ const validate = (formData: ISsoFormData) => {
       errors.idp_image_url = `${idpImageUrl} is not a valid URL`;
     }
 
-
     if (!metadata) {
       if (!metadataUrl) {
         errors.metadata_url =
