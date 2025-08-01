@@ -107,7 +107,7 @@ spec:
     issuer_uri: ""
     metadata: ""
     metadata_url: ""
-    sso_url: ""
+    sso_server_url: ""
   vulnerability_settings:
     databases_path: ""
   webhook_settings:

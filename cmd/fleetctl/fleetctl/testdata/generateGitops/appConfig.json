@@ -144,7 +144,7 @@
         "enable_sso_idp_login": false,
         "enable_jit_provisioning": true,
         "enable_jit_role_sync": false,
-        "sso_url": "https://sso.fleetdm.com"
+        "sso_server_url": "https://sso.fleetdm.com"
     },
     "fleet_desktop": {
         "transparency_url": "https://fleetdm.com/transparency"

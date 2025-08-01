@@ -135,7 +135,7 @@ org_settings:
     idp_name: some-idp-name
     metadata: # TODO: Add your SSO metadata here
     metadata_url: # TODO: Add your SSO metadata URL here
-    sso_url: https://sso.fleetdm.com
+    sso_server_url: https://sso.fleetdm.com
   webhook_settings:
     activities_webhook:
       destination_url: https://some-activities-webhook-url.com

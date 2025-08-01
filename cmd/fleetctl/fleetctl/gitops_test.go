@@ -2955,7 +2955,7 @@ func TestGitOpsSSOSettings(t *testing.T) {
 	require.Nil(t, appConfig.SSOSettings)
 }
 
-func TestGitOpsSSOURL(t *testing.T) {
+func TestGitOpsSSOServerURL(t *testing.T) {
 	tmpDir := t.TempDir()
 	globalFile, err := os.CreateTemp(tmpDir, "*.yml")
 	require.NoError(t, err)
@@ -2974,7 +2974,7 @@ org_settings:
     idp_name: "Test IdP"
     metadata: "<xml>test-metadata</xml>"
     enable_sso: true
-    sso_url: "https://sso.example.com"
+    sso_server_url: "https://sso.example.com"
   secrets:
     - secret: test-secret
 `)
@@ -2999,7 +2999,7 @@ org_settings:
 	require.NoError(t, err)
 
 	require.NotNil(t, appConfig.SSOSettings)
-	require.Equal(t, "https://sso.example.com", appConfig.SSOSettings.SSOURL)
+	require.Equal(t, "https://sso.example.com", appConfig.SSOSettings.SSOServerURL)
 	require.Equal(t, "test-entity", appConfig.SSOSettings.EntityID)
 	require.True(t, appConfig.SSOSettings.EnableSSO)
 }

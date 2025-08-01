@@ -529,7 +529,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 	require.Contains(t, string(body), "/login?status=error")
 }
 
-func (s *integrationSSOTestSuite) TestSSOURL() {
+func (s *integrationSSOTestSuite) TestSSOServerURL() {
 	t := s.T()
 
 	// Use the test metadata instead of trying to fetch from localhost:9080
@@ -549,7 +549,7 @@ func (s *integrationSSOTestSuite) TestSSOURL() {
   </md:IDPSSODescriptor>
 </md:EntityDescriptor>`
 
-	// Configure SSO with a specific SSO URL and inline metadata
+	// Configure SSO with a specific SSO server URL and inline metadata
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"sso_settings": {
@@ -558,14 +558,14 @@ func (s *integrationSSOTestSuite) TestSSOURL() {
 			"idp_name": "SimpleSAML",
 			"metadata": %q,
 			"enable_jit_provisioning": false,
-			"sso_url": "https://admin.localhost:8080"
+			"sso_server_url": "https://admin.localhost:8080"
 		}
 	}`, testMetadata)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
-	// Verify the SSO URL is set
+	// Verify the SSO server URL is set
 	require.NotNil(t, acResp.SSOSettings)
-	require.Equal(t, "https://admin.localhost:8080", acResp.SSOSettings.SSOURL)
+	require.Equal(t, "https://admin.localhost:8080", acResp.SSOSettings.SSOServerURL)
 
 	// Initiate SSO
 	var resIni initiateSSOResponse
@@ -580,7 +580,7 @@ func (s *integrationSSOTestSuite) TestSSOURL() {
 	assert.NotEmpty(t, encoded)
 	authReq := inflate(t, encoded)
 
-	// Check that the ACS URL in the auth request uses the SSO URL
+	// Check that the ACS URL in the auth request uses the SSO server URL
 	require.NotNil(t, authReq.AssertionConsumerServiceURL)
 	assert.Equal(t, "https://admin.localhost:8080/api/v1/fleet/sso/callback", authReq.AssertionConsumerServiceURL)
 }

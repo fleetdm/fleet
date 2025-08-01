@@ -803,7 +803,7 @@ None.
     "enable_sso": false,
     "enable_sso_idp_login": false,
     "enable_jit_provisioning": false,
-    "sso_url": ""
+    "sso_server_url": ""
   },
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",

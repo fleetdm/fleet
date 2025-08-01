@@ -438,7 +438,7 @@ func TestGetSSOUser(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestInitiateSSOWithSSOURL(t *testing.T) {
+func TestInitiateSSOWithSSOServerURL(t *testing.T) {
 	ds := new(mock.Store)
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
 
@@ -446,14 +446,14 @@ func TestInitiateSSOWithSSOURL(t *testing.T) {
 		Pool: pool,
 	})
 
-	// Mock app config with SSO URL
+	// Mock app config with SSO server URL
 	appConfig := &fleet.AppConfig{
 		ServerSettings: fleet.ServerSettings{
 			ServerURL: "https://fleet.example.com",
 		},
 		SSOSettings: &fleet.SSOSettings{
-			EnableSSO: true,
-			SSOURL:    "https://admin.fleet.example.com",
+			EnableSSO:    true,
+			SSOServerURL: "https://admin.fleet.example.com",
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID: "fleet",
 				IDPName:  "TestIDP",
@@ -484,7 +484,7 @@ func TestInitiateSSOWithSSOURL(t *testing.T) {
 	require.NotEmpty(t, sessionID)
 	require.NotEmpty(t, idpURL)
 
-	// The ACS URL should use the SSO URL
+	// The ACS URL should use the SSO server URL
 	// We can't directly test the ACS URL in the SAML request here since it's embedded in the XML,
 	// but the integration test verifies this works correctly
 }
