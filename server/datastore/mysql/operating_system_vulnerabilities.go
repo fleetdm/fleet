@@ -43,6 +43,23 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 			JOIN operating_systems os ON os.id = osv.operating_system_id
 				AND os.name = ? AND os.version = ?
 			GROUP BY osv.cve
+
+			UNION
+
+			SELECT DISTINCT
+				software_cve.cve,
+				MIN(software_cve.created_at) created_at
+			FROM
+				software_cve
+				JOIN software ON software.id = software_cve.software_id
+				JOIN software_titles ON software_titles.id = software.title_id
+				JOIN host_software ON host_software.software_id = software.id
+				JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
+				JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
+			WHERE
+				operating_systems.name = ? AND software_titles.is_kernel = TRUE
+			GROUP BY software_cve.cve
+
 			`
 
 	if includeCVSS {
@@ -79,12 +96,12 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				FROM
 					software_cve
 					JOIN software ON software.id = software_cve.software_id
-					JOIN software_titles ON software_titles.id = software.title_id -- AND software.is_kernel = TRUE
+					JOIN software_titles ON software_titles.id = software.title_id
 					JOIN host_software ON host_software.software_id = software.id
 					JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
 					JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
 				WHERE
-					operating_systems.name = ? AND software_titles.is_kernel = 1
+					operating_systems.name = ? AND software_titles.is_kernel = TRUE
 				GROUP BY software_cve.cve
 			) osv
 			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
