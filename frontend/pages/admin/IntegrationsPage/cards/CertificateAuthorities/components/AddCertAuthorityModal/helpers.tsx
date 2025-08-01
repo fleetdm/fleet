@@ -8,13 +8,16 @@ import CustomLink from "components/CustomLink";
 
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
   { label: "DigiCert", value: "digicert" },
-  { label: "Hydrant EST (Enrollment Over Secure Transport)", value: "hydrant" },
+  {
+    label: "Hydrant EST (Enrollment Over Secure Transport)",
+    value: "hydrant",
+  },
   {
     label: "Microsoft NDES (Network Device Enrollment Service)",
     value: "ndes",
   },
   {
-    label: "Custom (SCEP: Simple Certificate Enrollment Protocol)",
+    label: "Custom SCEP (Simple Certificate Enrollment Protocol)",
     value: "custom",
   },
 ];

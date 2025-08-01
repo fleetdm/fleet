@@ -1,4 +1,4 @@
-import { ICertificatesIntegrationDigicert } from "interfaces/integration";
+import { ICertificatesIntegrationHydrant } from "interfaces/integration";
 
 import valid_url from "components/forms/validators/valid_url";
 
@@ -33,7 +33,7 @@ type IFormValidations = Record<
 >;
 
 export const generateFormValidations = (
-  digicertIntegrations: ICertificatesIntegrationDigicert[],
+  hydrantIntegrations: ICertificatesIntegrationHydrant[],
   isEditing: boolean
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
@@ -58,12 +58,12 @@ export const generateFormValidations = (
           isValid: (formData: IHydrantFormData) => {
             return (
               isEditing ||
-              digicertIntegrations.find(
+              hydrantIntegrations.find(
                 (cert) => cert.name === formData.name
               ) === undefined
             );
           },
-          message: "Name is already used by another DigiCert CA.",
+          message: "Name is already used by another Hydrant CA.",
         },
       ],
     },

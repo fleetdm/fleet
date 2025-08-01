@@ -77,7 +77,7 @@ const HydrantForm = ({
           value={name}
           onChange={onInputChange}
           error={formValidation.name?.message}
-          helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_DIGICERT_DATA_WIFI_CERTIFICATE)."
+          helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_HYDRANT_DATA_WIFI_CERTIFICATE)."
           parseTarget
           placeholder="WIFI_CERTIFICATE"
         />
@@ -89,6 +89,7 @@ const HydrantForm = ({
           error={formValidation.url?.message}
           parseTarget
           helpText="EST endpoint provided by Hydrant."
+          placeholder="https://example.hydrantid.com/.well-known/est/abc123"
         />
         <InputField
           name="clientId"
