@@ -206,47 +206,54 @@ func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src f
 func (ds *Datastore) ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error) {
 	var kernels []*fleet.Kernel
 	stmt := `
-	SELECT DISTINCT
-		software.id AS id,
-		software_cve.cve AS cve,
-		software.version AS version,
- 	    software_host_counts.hosts_count AS hosts_count
+SELECT DISTINCT
+	software.id AS id,
+	software_cve.cve AS cve,
+	software.version AS version,
+    software_host_counts.hosts_count AS hosts_count
 FROM
-		software_cve
-		JOIN software ON software.id = software_cve.software_id
-		JOIN software_titles ON software_titles.id = software.title_id
-		JOIN host_software ON host_software.software_id = software.id
-		JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
-		JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
-        JOIN software_host_counts ON software_host_counts.software_id = software.id
+	software
+	LEFT JOIN software_cve ON software.id = software_cve.software_id
+	JOIN software_titles ON software_titles.id = software.title_id
+	JOIN host_software ON host_software.software_id = software.id
+	JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
+	JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
+    JOIN software_host_counts ON software_host_counts.software_id = software.id
 WHERE
-		software_titles.is_kernel = TRUE AND
-		operating_systems.os_version_id = ? AND
-        software_host_counts.team_id = ?;
+	software_titles.is_kernel = TRUE AND
+	operating_systems.os_version_id = ? AND
+    software_host_counts.team_id = ?;
 	`
 	var results []struct {
-		ID         uint   `db:"id"`
-		CVE        string `db:"cve"`
-		Version    string `db:"version"`
-		HostsCount uint   `db:"hosts_count"`
+		ID         uint    `db:"id"`
+		CVE        *string `db:"cve"`
+		Version    string  `db:"version"`
+		HostsCount uint    `db:"hosts_count"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, osID, *teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing kernels by OS name")
 	}
+
 	kernelSet := make(map[uint]*fleet.Kernel)
 	for _, result := range results {
-		if k, ok := kernelSet[result.ID]; !ok {
+		k, ok := kernelSet[result.ID]
+		if !ok {
 			kernel := &fleet.Kernel{
-				ID:              result.ID,
-				Version:         result.Version,
-				HostsCount:      result.HostsCount,
-				Vulnerabilities: []string{result.CVE},
+				ID:         result.ID,
+				Version:    result.Version,
+				HostsCount: result.HostsCount,
+			}
+			if result.CVE != nil {
+				kernel.Vulnerabilities = append(kernel.Vulnerabilities, *result.CVE)
 			}
 			kernelSet[kernel.ID] = kernel
 			continue
-		} else {
-			k.Vulnerabilities = append(k.Vulnerabilities, result.CVE)
 		}
+
+		if result.CVE != nil {
+			k.Vulnerabilities = append(k.Vulnerabilities, *result.CVE)
+		}
+
 	}
 	for _, kernel := range kernelSet {
 		kernels = append(kernels, kernel)

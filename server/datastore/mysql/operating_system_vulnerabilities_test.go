@@ -354,13 +354,6 @@ func testDeleteOutOfDateOSVulnerabilities(t *testing.T, ds *Datastore) {
 func testListKernelsByOS(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// create some operating systems
-	// create some kernels
-	// add the OS to some hosts
-	// add the kernel to some hosts
-	// add vulns to the kernel
-	// check output from ListKernelByOS
-
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("linux"))
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1_" + t.Name()})
@@ -371,19 +364,16 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host.ID, testOS))
 
-	var osInfo struct {
-		ID          uint `db:"id"`
-		OSVersionID uint `db:"os_version_id"`
-	}
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &osInfo,
-			`SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
-			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
-	})
-	require.Greater(t, osInfo.ID, uint(0))
+	os, err := ds.GetHostOperatingSystem(ctx, host.ID)
+	require.NoError(t, err)
 
+	kernel1 := fleet.Software{Name: "linux-image-6.11.0-9-generic", Version: "6.11.0-9.9", Source: "deb_packages", IsKernel: true}
+	kernel2 := fleet.Software{Name: "linux-image-7.11.0-10-generic", Version: "7.11.0-10.10", Source: "deb_packages", IsKernel: true}
+	kernel3 := fleet.Software{Name: "linux-image-8.11.0-11-generic", Version: "8.11.0-11.11", Source: "deb_packages", IsKernel: true}
 	software := []fleet.Software{
-		{Name: "linux-image-6.11.0-9-generic", Version: "6.11.0-9.9", Source: "deb_packages", IsKernel: true},
+		kernel1,
+		kernel2,
+		kernel3, // this one has 0 vulns
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -398,7 +388,8 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 
 	vulns := []fleet.SoftwareVulnerability{
 		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0001"},
-		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0002"},
+		{SoftwareID: host.Software[1].ID, CVE: "CVE-2022-0002"},
+		// {SoftwareID: host.Software[2].ID, CVE: "CVE-2022-0002"},
 	}
 	for _, v := range vulns {
 		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
@@ -411,7 +402,9 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
-	kernels, err := ds.ListKernelsByOS(ctx, osInfo.OSVersionID, &team1.ID)
-	require.Len(t, kernels, 1)
+	kernels, err := ds.ListKernelsByOS(ctx, os.OSVersionID, &team1.ID)
+	require.NoError(t, err)
+
+	require.Len(t, kernels, 3)
 
 }
