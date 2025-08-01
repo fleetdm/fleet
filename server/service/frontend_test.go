@@ -8,9 +8,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/go-kit/log"
@@ -67,31 +70,40 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 		return appCfg, nil
 	}
 
-	svc, _ := newTestService(t, ds, nil, nil)
-
+	svc, _ := newTestService(t, ds, nil, nil, &TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
+		Pool: redistest.SetupRedis(t, "frontend", false, false, false),
+	})
 	logger := log.NewLogfmtLogger(os.Stdout)
 	h := ServeEndUserEnrollOTA(svc, "", ds, logger)
 	ts := httptest.NewServer(h)
 	t.Cleanup(func() {
 		ts.Close()
 	})
+	noRedirectClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 
 	makeEnrollRequest := func(enrollSecret string) *http.Response {
-		response, err := http.DefaultClient.Get(ts.URL + "?enroll_secret=" + enrollSecret)
+		response, err := noRedirectClient.Get(ts.URL + "?enroll_secret=" + enrollSecret)
 		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, response.StatusCode)
-		// assert html is returned
-		require.Equal(t, response.Header.Get("Content-Type"), "text/html; charset=utf-8")
 		assert.True(t, ds.AppConfigFuncInvoked)
 		return response
 	}
 
-	validateEnrollPageIsReturned := func(response *http.Response, mdmEnabled bool) {
+	validateEnrollPageIsReturned := func(response *http.Response, enrollSecret string, mdmEnabled bool) {
+		require.Equal(t, http.StatusOK, response.StatusCode)
+		// assert html is returned
+		require.Equal(t, response.Header.Get("Content-Type"), "text/html; charset=utf-8")
 		defer response.Body.Close()
 		bodyBytes, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
 		bodyString := string(bodyBytes)
-		require.Contains(t, bodyString, "api/v1/fleet/enrollment_profiles/ota?enroll_secret=foo")
+		require.Contains(t, bodyString, "api/v1/fleet/enrollment_profiles/ota?enroll_secret="+enrollSecret)
 		require.Contains(t, bodyString, "/api/v1/fleet/android_enterprise/enrollment_token")
 		require.Contains(t, bodyString, fmt.Sprintf(`const ANDROID_MDM_ENABLED = "%t" === "true";`, mdmEnabled))
 		require.Contains(t, bodyString, fmt.Sprintf(`const MAC_MDM_ENABLED = "%t" == "true";`, mdmEnabled))
@@ -101,11 +113,12 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 		t.Run(fmt.Sprintf("MDM enabled: %t", enabled), func(t *testing.T) {
 			appCfg.MDM.EnabledAndConfigured = enabled
 			appCfg.MDM.AndroidEnabledAndConfigured = enabled
+			enrollSecret := "foo"
 
-			response := makeEnrollRequest("foo")
+			response := makeEnrollRequest(enrollSecret)
 
 			// assert it contains the content we expect
-			validateEnrollPageIsReturned(response, enabled)
+			validateEnrollPageIsReturned(response, enrollSecret, enabled)
 		})
 	}
 
@@ -116,7 +129,9 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 		validTeamId := uint(1)
 		ds.VerifyEnrollSecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
 			if enrollSecret == invalidSecret {
-				return nil, nil
+				return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{
+					ResourceType: "EnrollSecret",
+				}, "no matching secret found")
 			}
 			if enrollSecret == globalSecret {
 				return &fleet.EnrollSecret{
@@ -131,7 +146,7 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 
 			return nil, ctxerr.Errorf(ctx, "failure")
 		}
-		teamMdmConfig := fleet.TeamMDM{
+		teamMdmConfig := &fleet.TeamMDM{
 			MacOSSetup: fleet.MacOSSetup{},
 		}
 		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
@@ -139,24 +154,34 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 				return nil, ctxerr.Errorf(ctx, "invalid team id")
 			}
 
-			return &teamMdmConfig, nil
+			return teamMdmConfig, nil
 		}
 
 		t.Run("if end user auth is configured", func(t *testing.T) {
 			ssoUrl := "https://fake-sso.com/sso"
 			appCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{
 				SSOProviderSettings: fleet.SSOProviderSettings{
-					EntityID:    "fake-sso",
-					IDPName:     "fake-sso",
-					MetadataURL: "https://fake-sso.com/metadata",
+					EntityID: "fake-sso",
+					IDPName:  "fake-sso",
+					Metadata: fmt.Sprintf(`
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+    entityID="https://fake-sso.com">
+    <md:IDPSSODescriptor WantAuthnRequestsSigned="false"
+        protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+        <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+            Location="%s" />
+    </md:IDPSSODescriptor>
+</md:EntityDescriptor>
+					`, ssoUrl),
 				},
 			}
 
 			t.Run("but enroll secret is invalid", func(t *testing.T) {
 				response := makeEnrollRequest(invalidSecret)
 
-				require.Equal(t, 302, response.StatusCode)
-				require.Equal(t, ssoUrl+"?RelayState=/enroll?enroll_secret="+invalidSecret, response.Header.Get("Location"))
+				require.Equal(t, http.StatusSeeOther, response.StatusCode)
+				require.True(t, strings.HasPrefix(response.Header.Get("Location"), ssoUrl+"?SAMLRequest"))
+				require.True(t, ds.VerifyEnrollSecretFuncInvoked)
 			})
 
 			t.Run("enroll secret matches a team with end user auth enabled", func(t *testing.T) {
@@ -164,8 +189,9 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 
 				response := makeEnrollRequest(teamSecret)
 
-				require.Equal(t, 302, response.StatusCode)
-				require.Equal(t, ssoUrl+"?RelayState=/enroll?enroll_secret="+teamSecret, response.Header.Get("Location"))
+				require.Equal(t, http.StatusSeeOther, response.StatusCode)
+				require.True(t, strings.HasPrefix(response.Header.Get("Location"), ssoUrl+"?SAMLRequest"))
+				require.True(t, ds.VerifyEnrollSecretFuncInvoked)
 			})
 
 			t.Run("enroll secret matches a team with no end user auth do not show", func(t *testing.T) {
@@ -175,18 +201,17 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 
 				response := makeEnrollRequest(teamSecret)
 
-				require.Equal(t, 200, response.StatusCode)
-				validateEnrollPageIsReturned(response, true)
+				validateEnrollPageIsReturned(response, teamSecret, true)
 			})
 
 			// TODO(IB): Add test when coming back to page after SSO, that SSO is not prompted.
 		})
 
 		t.Run("is not shown if end user auth is not configured", func(t *testing.T) {
+			appCfg.MDM = fleet.MDM{}
 			response := makeEnrollRequest(globalSecret)
 
-			require.Equal(t, 200, response.StatusCode)
-			validateEnrollPageIsReturned(response, false)
+			validateEnrollPageIsReturned(response, globalSecret, false)
 		})
 	})
 }

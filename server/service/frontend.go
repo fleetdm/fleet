@@ -103,6 +103,11 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
+		shouldExit := checkMDMSSORedirect(ds, svc, enrollSecret, appCfg, r, w, herr)
+		if shouldExit == true {
+			return // http responses are handled in `checkSSORedirect`
+		}
+
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/enroll-ota.html")
 		if err != nil {
@@ -144,6 +149,69 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 	})
+}
+
+// Returns true if an error happened or a redirect was made, used to early exit the calling method
+func checkMDMSSORedirect(ds fleet.Datastore, svc fleet.Service, enrollSecret string, appCfg *fleet.AppConfig, r *http.Request, w http.ResponseWriter, herr func(w http.ResponseWriter, err string)) bool {
+	// Initiates an MDM SSO session and sets the relevant HTTP redirect things.
+	initiateMDMSSORedirect := func() {
+		sessionID, cookieDurationSeconds, url, err := svc.InitiateMDMAppleSSO(r.Context(), "/enroll?enroll_secret="+enrollSecret)
+		if err != nil {
+			herr(w, "failed to initiate mdm sso "+err.Error())
+			return
+		}
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "__Host-FLEETSSOSESSIONID",
+			Value:    sessionID,
+			Path:     "/",
+			MaxAge:   cookieDurationSeconds,
+			Secure:   true,
+			HttpOnly: true,
+			// SameSite: Strict or Lax do not work with SSO.
+		})
+		http.Redirect(w, r, url, http.StatusSeeOther)
+	}
+
+	isMDMEndUserAuthConfigured := !appCfg.MDM.EndUserAuthentication.IsEmpty()
+
+	if !isMDMEndUserAuthConfigured {
+		return false // Skip all SSO checks if not configured.
+	}
+
+	// We only have `team_id` here.
+	secret, err := ds.VerifyEnrollSecret(r.Context(), enrollSecret)
+	if err != nil && !fleet.IsNotFound(err) {
+		herr(w, "verifying enroll secret "+err.Error())
+		return true
+	}
+
+	// Invalid token, and we have validated end user auth is configured above.
+	if fleet.IsNotFound(err) {
+		initiateMDMSSORedirect()
+		return true
+	}
+
+	teamID := secret.GetTeamID()
+
+	// Global team (no-team), use app config for end user auth check
+	if teamID == nil && appCfg.MDM.MacOSSetup.EnableEndUserAuthentication {
+		initiateMDMSSORedirect()
+		return true
+	}
+
+	team, err := ds.TeamMDMConfig(r.Context(), *teamID)
+	if err != nil {
+		herr(w, "getting team mdm config "+err.Error())
+		return true
+	}
+
+	if team.MacOSSetup.EnableEndUserAuthentication {
+		initiateMDMSSORedirect()
+		return true
+	}
+
+	return false
 }
 
 func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) {
