@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,6 +28,7 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 		{"DeleteOSVulnerabilitiesEmpty", testDeleteOSVulnerabilitiesEmpty},
 		{"DeleteOSVulnerabilities", testDeleteOSVulnerabilities},
 		{"DeleteOutOfDateOSVulnerabilities", testDeleteOutOfDateOSVulnerabilities},
+		{"TestListKernelsByOS", testListKernelsByOS},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -349,7 +351,67 @@ func testDeleteOutOfDateOSVulnerabilities(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []fleet.OSVulnerability{newVuln}, actual)
 }
 
-// func testListLinuxKernelVulnerabilities(t *testing.T, ds *Datastore) {
-// 	ctx := context.Background()
+func testListKernelsByOS(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
 
-// }
+	// create some operating systems
+	// create some kernels
+	// add the OS to some hosts
+	// add the kernel to some hosts
+	// add vulns to the kernel
+	// check output from ListKernelByOS
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("linux"))
+
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1_" + t.Name()})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID})))
+
+	testOS := fleet.OperatingSystem{Name: "Ubuntu", Version: "24.10", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"}
+
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host.ID, testOS))
+
+	var osInfo struct {
+		ID          uint `db:"id"`
+		OSVersionID uint `db:"os_version_id"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &osInfo,
+			`SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
+			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
+	})
+	require.Greater(t, osInfo.ID, uint(0))
+
+	software := []fleet.Software{
+		{Name: "linux-image-6.11.0-9-generic", Version: "6.11.0-9.9", Source: "deb_packages", IsKernel: true},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	cpes := []fleet.SoftwareCPE{
+		{SoftwareID: host.Software[0].ID, CPE: "somecpe"},
+	}
+	_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	vulns := []fleet.SoftwareVulnerability{
+		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0001"},
+		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0002"},
+	}
+	for _, v := range vulns {
+		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	require.NoError(t, ds.UpdateOSVersions(ctx))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	kernels, err := ds.ListKernelsByOS(ctx, osInfo.OSVersionID, &team1.ID)
+	require.Len(t, kernels, 1)
+
+}
