@@ -198,6 +198,8 @@ func checkMDMSSORedirect(ds fleet.Datastore, svc fleet.Service, enrollSecret str
 	if teamID == nil && appCfg.MDM.MacOSSetup.EnableEndUserAuthentication {
 		initiateMDMSSORedirect()
 		return true
+	} else if teamID == nil {
+		return false
 	}
 
 	team, err := ds.TeamMDMConfig(r.Context(), *teamID)
