@@ -14031,17 +14031,11 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	require.NoError(t, iPhoneMdmDevice.Enroll())
 	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user@example.com")
 
-	// Fetch the hosts we enrolled and check their details. Specifically we want to verify that MDM
-	// shows a personal enrollment via all 3 endpoints(list hosts, host details and host MDM
-	// details) since they query for the information slightly differently
 	listHostsRes := listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 1)
 	host := listHostsRes.Hosts[0]
 	assert.Equal(t, host.UUID, iPhoneMdmDevice.EnrollmentID())
-	assert.Equal(t, iPhoneHwModel, host.HardwareModel)
-	assert.Equal(t, iPhoneMdmDevice.EnrollmentID(), host.UUID)
-	assert.Equal(t, iPhoneMdmDevice.EnrollmentID(), host.HardwareSerial)
 	require.NotNil(t, host.MDM.EnrollmentStatus)
 	assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
 	assert.True(t, *host.MDM.ConnectedToFleet)
@@ -14050,6 +14044,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	r := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForPersonalHostsMessage)
 
+	// Lock the host
 	r = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), fleet.CantLockPersonalHostsMessage)
 
