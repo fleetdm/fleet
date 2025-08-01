@@ -351,8 +351,6 @@ type SaveAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) error
 
 type GetEnrollSecretsFunc func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error)
 
-type GetEnrollSecretBySecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
-
 type ApplyEnrollSecretsFunc func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error
 
 type AggregateEnrollSecretPerTeamFunc func(ctx context.Context) ([]*fleet.EnrollSecret, error)
@@ -1925,9 +1923,6 @@ type DataStore struct {
 
 	GetEnrollSecretsFunc        GetEnrollSecretsFunc
 	GetEnrollSecretsFuncInvoked bool
-
-	GetEnrollSecretBySecretFunc        GetEnrollSecretBySecretFunc
-	GetEnrollSecretBySecretFuncInvoked bool
 
 	ApplyEnrollSecretsFunc        ApplyEnrollSecretsFunc
 	ApplyEnrollSecretsFuncInvoked bool
@@ -4698,13 +4693,6 @@ func (s *DataStore) GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*flee
 	s.GetEnrollSecretsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetEnrollSecretsFunc(ctx, teamID)
-}
-
-func (s *DataStore) GetEnrollSecretBySecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-	s.mu.Lock()
-	s.GetEnrollSecretBySecretFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetEnrollSecretBySecretFunc(ctx, secret)
 }
 
 func (s *DataStore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {

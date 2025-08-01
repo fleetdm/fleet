@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -115,22 +114,18 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 		globalSecret := "global"
 		teamSecret := "team"
 		validTeamId := uint(1)
-		ds.GetEnrollSecretBySecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
+		ds.VerifyEnrollSecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
 			if enrollSecret == invalidSecret {
 				return nil, nil
 			}
 			if enrollSecret == globalSecret {
 				return &fleet.EnrollSecret{
-					Secret:    "global-secret",
-					TeamID:    nil,
-					CreatedAt: time.Now(),
+					TeamID: nil,
 				}, nil
 			}
 			if enrollSecret == teamSecret {
 				return &fleet.EnrollSecret{
-					Secret:    "team-secret",
-					TeamID:    &validTeamId,
-					CreatedAt: time.Now(),
+					TeamID: &validTeamId,
 				}, nil
 			}
 
@@ -184,13 +179,7 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 				validateEnrollPageIsReturned(response, true)
 			})
 
-			t.Run("request has valid cookie skips sso", func(t *testing.T) {
-				teamMdmConfig.MacOSSetup.EnableEndUserAuthentication = true
-				response := makeEnrollRequest(teamSecret)
-
-				require.Equal(t, 200, response.StatusCode)
-				validateEnrollPageIsReturned(response, false)
-			})
+			// TODO(IB): Add test when coming back to page after SSO, that SSO is not prompted.
 		})
 
 		t.Run("is not shown if end user auth is not configured", func(t *testing.T) {

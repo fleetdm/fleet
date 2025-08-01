@@ -460,8 +460,6 @@ type Datastore interface {
 
 	// GetEnrollSecrets gets the enroll secrets for a team (or global if teamID is nil).
 	GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*EnrollSecret, error)
-	// GetEnrollSecretBySecret grabs the enroll secret object from the secret passed in (nil if no match)
-	GetEnrollSecretBySecret(ctx context.Context, secret string) (*EnrollSecret, error)
 	// ApplyEnrollSecrets replaces the current enroll secrets for a team with the provided secrets.
 	ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*EnrollSecret) error
 
