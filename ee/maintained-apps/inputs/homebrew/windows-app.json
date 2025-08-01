@@ -2,7 +2,6 @@
   "name": "Windows App",
   "slug": "windows-app/darwin",
   "unique_identifier": "com.microsoft.rdc.macos",
-  "description": "Windows App securely connects you to Windows 365, Azure Virtual Desktop, Remote PCs, and more.",
   "token": "windows-app",
   "installer_format": "pkg",
   "default_categories": ["Productivity"]

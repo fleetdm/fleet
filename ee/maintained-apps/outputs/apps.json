@@ -223,7 +223,7 @@
       "slug": "windows-app/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.rdc.macos",
-      "description": ""
+      "description": "Windows App securely connects you to Windows 365, Azure Virtual Desktop, Remote PCs, and more."
     },
     {
       "name": "Yubikey Manager",
