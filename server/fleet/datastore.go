@@ -1097,6 +1097,8 @@ type Datastore interface {
 	// the updated_at timestamp is older than the provided duration
 	DeleteOutOfDateOSVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
 
+	ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*Kernel, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
