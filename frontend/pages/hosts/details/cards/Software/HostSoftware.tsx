@@ -252,7 +252,7 @@ const HostSoftware = ({
       : generateHostSoftwareTableConfig({
           router,
           teamId: hostTeamId,
-          onClickMoreDetails: onShowInventoryVersions,
+          onShowInventoryVersions,
         });
   }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
 

@@ -1,6 +1,3 @@
-// Used on: Dashboard > activity, Host details > past activity
-// Also used on Self-service failed install details
-
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";

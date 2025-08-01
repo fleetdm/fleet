@@ -3,8 +3,6 @@ import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 import { AxiosError } from "axios";
 
-import { AppContext } from "context/app";
-
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import {
@@ -40,7 +38,6 @@ export type IPackageInstallDetails = {
 };
 
 export const renderContactOption = (url?: string) => (
-  // config undefined in the DUP context, so omit the link
   <>
     {" "}
     or{" "}

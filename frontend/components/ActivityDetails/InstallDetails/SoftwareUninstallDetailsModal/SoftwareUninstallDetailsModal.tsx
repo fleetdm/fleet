@@ -1,55 +1,3 @@
-/** 
-Uninstall data model
-
-data needed from props:
-  Always:
-  - `softwareName` - from `activity.details.software_title` or host `software.name`
-  - `uninstallStatus` - from `hostSoftware` or `activity.details`
-  - `onCancel`
-  - `scriptExecutionId` - from `activity` or host `software`
-  
-  Optional:
-  - `host_display_name` - provided by either the parent state `activity.details` or the parent `host`
-
-  DUP SS only:
-  - `onRetry` - from `selfService`
-  - `hostSoftware: IHostSoftwareWithUiStatus` - from parent `InstallStatusCell`
-  - `deviceAuthToken`
-
----details---
-- `host_display_name`
-  - used for rendering name of host in description. needs to be present in all cases,
-  - source from parent `host` or `activity.details.host_display_name`
-
-- `uninstallStatus` - used to determine description copy as well as whether or not to show details
-  section. Always needed.
-  - source from parent `activity.details.status` OR parent `hostSoftware`
-
-- `onRetry` and local wrapper
-  - retries the uninstall operation
-  - method sourced from parent, argument to it sourced from parent, which is set
-    by`InstallStatusCell` from its config `hostSoftware`
-- `hostSoftware`
-  - passed in to `onRetry`
-  - from parent `software` on self-service page only
-
-- `onCancel`
-  - close the modal
-  - comes from parent
-  - `deviceAuthToken`
-  - used to
-  - determine which API to GET
-  - conditionally include Retry button
-  - `scriptExecutionId/script_execution_id`
-  - defines with uninstall (script) result to get from the API call
-  - comes from parent `activity.details.script_execution_id` or
-  `hostSoftware.software_package.last_uninstall.script_execution_id`
-  
-  from API call:
-  - `uninstallResult` - used to show `.output` in details and `.created_at` in description
-  - comes from response to API call
-  */
-
 import React, { useState } from "react";
 import { AxiosError } from "axios";
 import { useQuery } from "react-query";
@@ -154,7 +102,7 @@ const StatusMessage = ({
 
 export interface ISWUninstallDetailsParentState {
   softwareName: string;
-  uninstallStatus: SoftwareUninstallStatus; // TODO - type massage for "pending"?
+  uninstallStatus: SoftwareUninstallStatus;
   scriptExecutionId: string;
   softwarePackageName?: string;
   /** Optional since may come from dedicated state, may come from elsewhere */
@@ -164,11 +112,11 @@ export interface ISWUninstallDetailsParentState {
   hostSoftware?: IHostSoftwareWithUiStatus; // UI status not necessary in this modal, but type aligns with onRetry argument
 }
 export interface ISoftwareUninstallDetailsModalProps {
-  hostDisplayName: string; // optional to facilitate use as state type, must always be provided
+  hostDisplayName: string;
   softwareName: string;
-  uninstallStatus: SoftwareUninstallStatus; // TODO - type massage for "pending"?
+  uninstallStatus: SoftwareUninstallStatus;
   scriptExecutionId: string;
-  onCancel: () => void; // optional to facilitate use as state type, must always be provided
+  onCancel: () => void;
   softwarePackageName?: string;
 
   /** DUP only */
@@ -281,7 +229,6 @@ const SoftwareUninstallDetailsModal = ({
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
-      // width="large"
     >
       <>
         <div className={`${baseClass}__modal-content`}>

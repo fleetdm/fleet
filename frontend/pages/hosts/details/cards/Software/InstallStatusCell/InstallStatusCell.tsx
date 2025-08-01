@@ -16,10 +16,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
-import {
-  ISoftwareUninstallDetailsModalProps,
-  ISWUninstallDetailsParentState,
-} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import {
   getLastInstall,
   getLastUninstall,
@@ -348,10 +345,6 @@ const InstallStatusCell = ({
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
   const onClickInstallStatus = () => {
-    // app store app –> vpp modal
-    // package -> install modal
-    //  neither -> install modal
-
     if (lastInstall) {
       if ("command_uuid" in lastInstall) {
         onShowVPPInstallDetails({
