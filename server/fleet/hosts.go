@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -1011,23 +1012,13 @@ var HostRpmPackageOSs = map[string]struct{}{
 }
 
 func IsLinux(hostPlatform string) bool {
-	for _, linuxPlatform := range HostLinuxOSs {
-		if linuxPlatform == hostPlatform {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(HostLinuxOSs, hostPlatform)
 }
 
 func IsUnixLike(hostPlatform string) bool {
 	unixLikeOSs := HostLinuxOSs
 	unixLikeOSs = append(unixLikeOSs, "darwin")
-	for _, p := range unixLikeOSs {
-		if p == hostPlatform {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(unixLikeOSs, hostPlatform)
 }
 
 // PlatformFromHost converts the given host platform into
@@ -1310,10 +1301,17 @@ type VulnerableOS struct {
 	ResolvedInVersion *string `json:"resolved_in_version"`
 }
 
+type Kernel struct {
+	ID              uint     `json:"id"`
+	Version         string   `json:"version"`
+	Vulnerabilities []string `json:"vulnerabilities"`
+	HostsCount      uint     `json:"hosts_count"`
+}
+
 type OSVersion struct {
 	// ID is the unique id of the operating system.
 	ID uint `json:"id,omitempty"`
-	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
+	// OSVersionID is a unique NameOnly/Version combination for the operating system.
 	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
@@ -1333,6 +1331,7 @@ type OSVersion struct {
 	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
 	// Vulnerabilities are the vulnerabilities associated with the operating system.
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
+	Kernels         []*Kernel       `json:"kernels"`
 }
 
 type HostDetailOptions struct {
