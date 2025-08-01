@@ -12,7 +12,7 @@ import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import {
   ANY_SEVERITY_OPTION,
-  CUSTOM_SERVERITY_OPTION,
+  CUSTOM_SEVERITY_OPTION,
   findOptionBySeverityRange,
   ISoftwareVulnFiltersParams,
   SEVERITY_DROPDOWN_OPTIONS,
@@ -117,7 +117,7 @@ const SoftwareFiltersModal = ({
     );
     if (selectedOption) {
       setSeverity(selectedOption);
-      // Auto populate severity range except for custom serverity
+      // Auto populate severity range except for custom severity
       if (selectedOption.value === "any") {
         setFormData({ minScore: "", maxScore: "" });
       } else if (selectedOption.value !== "custom") {
@@ -148,7 +148,7 @@ const SoftwareFiltersModal = ({
     const selectedOption = SEVERITY_DROPDOWN_OPTIONS.find(
       (option) => option.minSeverity === minVal && option.maxSeverity === maxVal
     );
-    setSeverity(selectedOption || CUSTOM_SERVERITY_OPTION);
+    setSeverity(selectedOption || CUSTOM_SEVERITY_OPTION);
     setFormData(newFormData);
     // InputField only allows numbers
     // Only errors if number outside range or multiple decimals

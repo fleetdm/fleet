@@ -28,7 +28,7 @@ export const SOFTWARE_TITLES_DROPDOWN_OPTIONS = [
   },
 ];
 
-export const CUSTOM_SERVERITY_OPTION = {
+export const CUSTOM_SEVERITY_OPTION = {
   disabled: false,
   label: "Custom severity",
   value: "custom",
@@ -80,7 +80,7 @@ export const SEVERITY_DROPDOWN_OPTIONS = [
     minSeverity: 0.1,
     maxSeverity: 3.9,
   },
-  CUSTOM_SERVERITY_OPTION,
+  CUSTOM_SEVERITY_OPTION,
 ];
 
 export const buildSoftwareFilterQueryParams = (
