@@ -243,7 +243,7 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: true,
     });
     expect(result).toBe(
-      "Software installed on your device. Built-in apps (ex. Calculator) aren't included."
+      "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
     );
   });
 
@@ -254,7 +254,7 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: false,
     });
     expect(result).toBe(
-      "Software installed on this host. Built-in apps (ex. Calculator) aren't included."
+      "Software installed on this host. Built-in apps (e.g. Calculator) aren't included."
     );
   });
 

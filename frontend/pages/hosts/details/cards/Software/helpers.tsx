@@ -367,8 +367,8 @@ export const getSoftwareSubheader = ({
     }
     if (hostMdmEnrollmentStatus === "On (manual)") {
       return isMyDevicePage
-        ? "Software installed on your device. Built-in apps (ex. Calculator) aren't included."
-        : "Software installed on this host. Built-in apps (ex. Calculator) aren't included.";
+        ? "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
+        : "Software installed on this host. Built-in apps (e.g. Calculator) aren't included.";
     }
   }
   return isMyDevicePage
