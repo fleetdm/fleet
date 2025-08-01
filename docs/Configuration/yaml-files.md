@@ -374,9 +374,9 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 
 | Name | Platforms | Description |
 | ---- | --------- | ----------- |
-| `$FLEET_VAR_NDES_SCEP_CHALLENGE`                   | macOS     | TODO        |
-| `$FLEET_VAR_NDES_SCEP_PROXY_URL`                   | macOS     | TODO        |
-| `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`            | macOS     | Host's IdP username. When this changes, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_NDES_SCEP_CHALLENGE`                   | macOS | TODO        |
+| `$FLEET_VAR_NDES_SCEP_PROXY_URL`                   | macOS | TODO        |
+| `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`            | macOS | Host's IdP username. When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`              | macOS | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`          | macOS | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
