@@ -20,7 +20,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 
-import AppInstallDetailsModal from "components/ActivityDetails/InstallDetails/AppInstallDetails";
+import AppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,

@@ -33,10 +33,8 @@ import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
 import {
   IHostSoftware,
-  isSoftwareUninstallStatus,
   resolveUninstallStatus,
   SoftwareInstallStatus,
-  SoftwareUninstallStatus,
 } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
@@ -68,9 +66,9 @@ import EmptyTable from "components/EmptyTable";
 
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
-  AppInstallDetailsModal,
+  VppInstallDetailsModal,
   IVppInstallDetails,
-} from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
+} from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
@@ -1383,7 +1381,7 @@ const HostDetailsPage = ({
             />
           )}
           {!!activityVPPInstallDetails && (
-            <AppInstallDetailsModal
+            <VppInstallDetailsModal
               details={activityVPPInstallDetails}
               onCancel={onCancelAppInstallDetailsModal}
             />

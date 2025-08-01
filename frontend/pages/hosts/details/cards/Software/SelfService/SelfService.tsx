@@ -47,7 +47,7 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
-import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
+import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
@@ -823,7 +823,7 @@ const SoftwareSelfService = ({
         />
       )}
       {selectedVPPInstallDetails && (
-        <AppInstallDetailsModal
+        <VppInstallDetailsModal
           deviceAuthToken={deviceToken}
           details={{
             fleetInstallStatus:

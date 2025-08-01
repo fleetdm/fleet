@@ -134,7 +134,7 @@ export const getStatusMessage = ({
   );
 };
 
-const baseClass = "app-install-details";
+const baseClass = "vpp-install-details-modal";
 
 export type IVppInstallDetails = {
   fleetInstallStatus: SoftwareInstallStatus;
@@ -150,7 +150,7 @@ interface IVPPInstallDetailsModalProps {
   onCancel: () => void;
   onRetry?: (id: number) => void; // DUP only
 }
-export const AppInstallDetailsModal = ({
+export const VppInstallDetailsModal = ({
   details,
   onCancel,
   deviceAuthToken,
@@ -353,4 +353,4 @@ export const AppInstallDetailsModal = ({
   );
 };
 
-export default AppInstallDetailsModal;
+export default VppInstallDetailsModal;
