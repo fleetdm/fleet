@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 
 import { createMockHostSoftware } from "__mocks__/hostMock";
-import SoftwareDetailsModal from "./SoftwareDetailsModal";
+import InventoryVersionsModal from "./InventoryVersionsModal";
 
 // Mock current time for time stamp test
 beforeAll(() => {
@@ -14,11 +14,7 @@ describe("SoftwareDetailsModal", () => {
   it("renders details including hash, vulnerabilities, and paths", () => {
     const mockSoftware = createMockHostSoftware();
     render(
-      <SoftwareDetailsModal
-        hostDisplayName="Test Host"
-        software={mockSoftware}
-        onExit={jest.fn()}
-      />
+      <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
 
     // Modal title
@@ -45,10 +41,6 @@ describe("SoftwareDetailsModal", () => {
     // Vulnerabilities
     expect(screen.getByText(/CVE-2020-0001/)).toBeVisible();
 
-    // Tabs: Software details and Install details
-    expect(screen.getByText("Software details")).toBeVisible();
-    expect(screen.getByText("Install details")).toBeVisible();
-
     // Done button
     expect(screen.getByRole("button", { name: "Done" })).toBeVisible();
   });
@@ -67,11 +59,7 @@ describe("SoftwareDetailsModal", () => {
       ],
     });
     render(
-      <SoftwareDetailsModal
-        hostDisplayName="Test Host"
-        software={mockSoftware}
-        onExit={jest.fn()}
-      />
+      <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
 
     expect(screen.queryByText("Hash:")).not.toBeInTheDocument();
@@ -81,11 +69,7 @@ describe("SoftwareDetailsModal", () => {
   it("renders only software type if there are no installed versions", () => {
     const mockSoftware = createMockHostSoftware({ installed_versions: [] });
     render(
-      <SoftwareDetailsModal
-        hostDisplayName="Test Host"
-        software={mockSoftware}
-        onExit={jest.fn()}
-      />
+      <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
     expect(screen.getByText("Type")).toBeVisible();
     expect(screen.getByText("Application (macOS)")).toBeVisible();
@@ -119,11 +103,7 @@ describe("SoftwareDetailsModal", () => {
     });
 
     render(
-      <SoftwareDetailsModal
-        hostDisplayName="Test Host"
-        software={mockSoftware}
-        onExit={jest.fn()}
-      />
+      <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
 
     // File paths

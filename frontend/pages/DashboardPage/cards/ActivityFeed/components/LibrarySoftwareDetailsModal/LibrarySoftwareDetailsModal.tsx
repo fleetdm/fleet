@@ -8,7 +8,7 @@ import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
 
-const baseClass = "software-details-modal";
+const baseClass = "library-software-details-modal";
 
 interface ITargetValueProps {
   labelIncludeAny?: ILabelSoftwareTitle[];
@@ -67,15 +67,15 @@ export const TargetValue = ({
   );
 };
 
-interface ISoftwareDetailsModalProps {
+interface ILibrarySoftwareDetailsModalProps {
   details: IActivityDetails;
   onCancel: () => void;
 }
 
-const SoftwareDetailsModal = ({
+const LibrarySoftwareDetailsModal = ({
   details,
   onCancel,
-}: ISoftwareDetailsModalProps) => {
+}: ILibrarySoftwareDetailsModalProps) => {
   const { labels_include_any, labels_exclude_any } = details;
 
   return (
@@ -117,4 +117,4 @@ const SoftwareDetailsModal = ({
   );
 };
 
-export default SoftwareDetailsModal;
+export default LibrarySoftwareDetailsModal;

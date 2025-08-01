@@ -1,19 +1,19 @@
 import { render, screen } from "@testing-library/react";
-import { getStatusMessage } from "./AppInstallDetails";
+import { getStatusMessage } from "./VppInstallDetailsModal";
 
 describe("getStatusMessage helper function", () => {
   it("shows NotNow message when isStatusNotNow is true", () => {
     render(
       getStatusMessage({
         displayStatus: "pending",
-        isStatusNotNow: true,
-        isStatusAcknowledged: false,
-        software_title: "Logic Pro",
-        host_display_name: "Marko's MacBook Pro",
+        isMDMStatusNotNow: true,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(screen.getByText(/Fleet tried to install/i)).toBeInTheDocument();
-    expect(screen.getByText(/Marko's MacBook Pro/i)).toBeInTheDocument();
     expect(
       screen.getByText(
         /but couldn't because the host was locked or was running on battery power while in Power Nap/i
@@ -25,10 +25,11 @@ describe("getStatusMessage helper function", () => {
     render(
       getStatusMessage({
         displayStatus: "pending_install",
-        isStatusNotNow: false,
-        isStatusAcknowledged: true,
-        software_title: "Logic Pro",
-        host_display_name: "Marko's MacBook Pro",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(
@@ -46,14 +47,15 @@ describe("getStatusMessage helper function", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
-        isStatusNotNow: false,
-        isStatusAcknowledged: false,
-        software_title: "Logic Pro",
-        host_display_name: "Marko's MacBook Pro",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(
-      screen.getByText(/failed. Please re-attempt this installation/i)
+      screen.getByText(/Please re-attempt this installation/i)
     ).toBeInTheDocument();
   });
 
@@ -61,10 +63,11 @@ describe("getStatusMessage helper function", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
-        isStatusNotNow: false,
-        isStatusAcknowledged: true,
-        software_title: "Logic Pro",
-        host_display_name: "Marko's MacBook Pro",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(
@@ -78,10 +81,11 @@ describe("getStatusMessage helper function", () => {
     render(
       getStatusMessage({
         displayStatus: "installed",
-        isStatusNotNow: false,
-        isStatusAcknowledged: true,
-        software_title: "Logic Pro",
-        host_display_name: "Marko's MacBook Pro",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
@@ -93,10 +97,11 @@ describe("getStatusMessage helper function", () => {
     render(
       getStatusMessage({
         displayStatus: "installed",
-        isStatusNotNow: false,
-        isStatusAcknowledged: false,
-        software_title: "Logic Pro",
-        host_display_name: "",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
       })
     );
     expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
