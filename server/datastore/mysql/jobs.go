@@ -56,10 +56,14 @@ ORDER BY
 LIMIT ?
 `
 
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+
 	args := []interface{}{fleet.JobStateQueued, now, maxNumJobs}
 
-	var nameClause string
 	// Add job name filter if needed
+	var nameClause string
 	if len(jobNames) > 0 {
 		clause, nameArgs, err := sqlx.In("AND name IN (?)", jobNames)
 		if err != nil {
@@ -68,11 +72,8 @@ LIMIT ?
 		nameClause = clause
 		args = append(args, nameArgs...)
 	}
-	query = fmt.Sprintf(query, nameClause)
 
-	if now.IsZero() {
-		now = time.Now().UTC()
-	}
+	query = fmt.Sprintf(query, nameClause)
 
 	var jobs []*fleet.Job
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &jobs, query, args...)
