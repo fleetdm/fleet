@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium._
 
-To enroll personal iPhones and iPads using [Account-driven User Enrollment](https://support.apple.com/en-gb/guide/deployment/dep23db2037d/web), and provide a seamless experience for your end users, follow the steps below.
+In Fleet, you can allow your end users to enroll their personal iPhones and iPads to Fleet using [Account-driven User Enrollment](https://support.apple.com/en-gb/guide/deployment/dep23db2037d/web).
 
 This approach enables both a Managed Apple Account and a personal Apple Account to be signed in on the same device, ensuring complete separation of work profile and personal data. Users retain privacy over their personal information, while IT manages work-related OS settings and applications.
 
