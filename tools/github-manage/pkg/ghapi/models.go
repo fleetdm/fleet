@@ -34,6 +34,7 @@ type Issue struct {
 	State     string     `json:"state"`
 	Labels    []Label    `json:"labels"`
 	Milestone *Milestone `json:"milestone,omitempty"`
+	Estimate  int        `json:"estimate,omitempty"` // Custom field for estimate
 }
 
 type Sprint struct {
@@ -127,6 +128,21 @@ func ConvertItemsToIssues(items []ProjectItem) []Issue {
 		for _, assignee := range item.Assignees {
 			issue.Assignees = append(issue.Assignees, Author{
 				Login: assignee,
+			})
+		}
+		issue.Estimate = item.Estimate
+		for _, label := range item.Labels {
+			if label == "story" {
+				issue.Typename = "Feature"
+			}
+			if label == "bug" {
+				issue.Typename = "Bug"
+			}
+			if label == "~sub-task" {
+				issue.Typename = "Task"
+			}
+			issue.Labels = append(issue.Labels, Label{
+				Name: label,
 			})
 		}
 		issues = append(issues, issue)

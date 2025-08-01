@@ -23,8 +23,8 @@ var projectCmd = &cobra.Command{
 			fmt.Printf("Error fetching issues: %v\n", err)
 			return
 		}
-		model := initializeModel(issues)
-		p := tea.NewProgram(model)
+		model := initializeModelWithIssues(issues)
+		p := tea.NewProgram(&model)
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)
 		}
@@ -51,8 +51,8 @@ var estimatedCmd = &cobra.Command{
 			fmt.Printf("Error fetching issues: %v\n", err)
 			return
 		}
-		model := initializeModel(issues)
-		p := tea.NewProgram(model)
+		model := initializeModelWithIssues(issues)
+		p := tea.NewProgram(&model)
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)
 		}

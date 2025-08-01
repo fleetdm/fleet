@@ -44,7 +44,7 @@ func GetProjectItems(projectID, limit int) ([]ProjectItem, error) {
 		log.Printf("Error parsing issues: %v", err)
 		return nil, err
 	}
-	log.Printf("Fetched %d items from project %d", len(items), projectID)
+	// log.Printf("Fetched %d items from project %d", len(items), projectID)
 	return items, nil
 }
 
@@ -103,4 +103,9 @@ func FindFieldValueByName(projectID int, fieldName, search string) (string, erro
 		}
 	}
 	return "", fmt.Errorf("field '%s' not found in project %d", fieldName, projectID)
+}
+
+// gh project item-edit --id "$ITEM_ID" --project-id "$PROJECT_ID" --field-id "$FIELD_ID" --number "$ESTIMATE"
+func SetProjectItemFieldValue(itemID string, fieldName, value string) error {
+	return nil
 }

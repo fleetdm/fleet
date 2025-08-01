@@ -18,7 +18,7 @@ func ParseJSONtoIssues(jsonData []byte) ([]Issue, error) {
 func GetIssues(search string) ([]Issue, error) {
 	// This function would typically interact with the GitHub API to fetch issues.
 	// For now, we return an empty slice and nil error for demonstration purposes.
-	log.Printf("Fetching issues from GitHub API...")
+	// log.Printf("Fetching issues from GitHub API...")
 	var issues []Issue
 
 	command := "gh issue list --json number,title,author,createdAt,updatedAt,state,labels"
@@ -37,7 +37,7 @@ func GetIssues(search string) ([]Issue, error) {
 		log.Printf("Error parsing issues: %v", err)
 		return nil, err
 	}
-	log.Printf("Fetched %d issues from GitHub API", len(issues))
+	// log.Printf("Fetched %d issues from GitHub API", len(issues))
 	return issues, nil
 }
 
@@ -48,7 +48,7 @@ func AddLabelToIssue(issueNumber int, label string) error {
 		log.Printf("Error adding label to issue %d: %v", issueNumber, err)
 		return err
 	}
-	log.Printf("Added label '%s' to issue #%d", label, issueNumber)
+	// log.Printf("Added label '%s' to issue #%d", label, issueNumber)
 	return nil
 }
 
@@ -59,7 +59,7 @@ func RemoveLabelFromIssue(issueNumber int, label string) error {
 		log.Printf("Error removing label from issue %d: %v", issueNumber, err)
 		return err
 	}
-	log.Printf("Removed label '%s' from issue #%d", label, issueNumber)
+	// log.Printf("Removed label '%s' from issue #%d", label, issueNumber)
 	return nil
 }
 
@@ -70,6 +70,6 @@ func SetMilestoneToIssue(issueNumber int, milestone string) error {
 		log.Printf("Error setting milestone for issue %d: %v", issueNumber, err)
 		return err
 	}
-	log.Printf("Set milestone '%s' for issue #%d", milestone, issueNumber)
+	// log.Printf("Set milestone '%s' for issue #%d", milestone, issueNumber)
 	return nil
 }

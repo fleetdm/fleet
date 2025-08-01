@@ -59,6 +59,6 @@ func GetMDMTicketsEstimated() ([]ProjectItem, error) {
 			}
 		}
 	}
-	log.Printf("Found %d estimated issues with label '#g-mdm'", len(estimatedIssues))
+	// log.Printf("Found %d estimated issues with label '#g-mdm'", len(estimatedIssues))
 	return estimatedIssues, nil
 }
