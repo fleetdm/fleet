@@ -12,6 +12,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type CommandType int
+
+const (
+	IssuesCommand CommandType = iota
+	ProjectCommand
+	EstimatedCommand
+)
+
 type model struct {
 	choices       []ghapi.Issue
 	cursor        int
@@ -20,6 +28,10 @@ type model struct {
 	spinner       spinner.Model
 	totalCount    int
 	selectedCount int
+	// Command-specific parameters
+	commandType CommandType
+	projectID   int
+	limit       int
 }
 
 type issuesLoadedMsg []ghapi.Issue
@@ -36,19 +48,43 @@ func initializeModel() model {
 		spinner:       s,
 		totalCount:    0,
 		selectedCount: 0,
+		commandType:   IssuesCommand,
 	}
 }
 
-func initializeModelWithIssues(issues []ghapi.Issue) model {
+func initializeModelForProject(projectID, limit int) model {
 	s := spinner.New()
-	s.Spinner = spinner.Monkey
+	s.Spinner = spinner.Moon
 	s.Style = s.Style.Foreground(spinner.New().Style.GetForeground())
 	return model{
-		choices:  issues,
-		cursor:   0,
-		selected: make(map[int]struct{}),
-		loading:  false,
-		spinner:  s,
+		choices:       nil,
+		cursor:        0,
+		selected:      make(map[int]struct{}),
+		loading:       true,
+		spinner:       s,
+		totalCount:    0,
+		selectedCount: 0,
+		commandType:   ProjectCommand,
+		projectID:     projectID,
+		limit:         limit,
+	}
+}
+
+func initializeModelForEstimated(projectID, limit int) model {
+	s := spinner.New()
+	s.Spinner = spinner.Moon
+	s.Style = s.Style.Foreground(spinner.New().Style.GetForeground())
+	return model{
+		choices:       nil,
+		cursor:        0,
+		selected:      make(map[int]struct{}),
+		loading:       true,
+		spinner:       s,
+		totalCount:    0,
+		selectedCount: 0,
+		commandType:   EstimatedCommand,
+		projectID:     projectID,
+		limit:         limit,
 	}
 }
 
@@ -63,8 +99,43 @@ func fetchIssues() tea.Cmd {
 	}
 }
 
+func fetchProjectItems(projectID, limit int) tea.Cmd {
+	return func() tea.Msg {
+		items, err := ghapi.GetProjectItems(projectID, limit)
+		if err != nil {
+			return err
+		}
+		issues := ghapi.ConvertItemsToIssues(items)
+		time.Sleep(500 * time.Millisecond) // Brief loading simulation
+		return issuesLoadedMsg(issues)
+	}
+}
+
+func fetchEstimatedItems(projectID, limit int) tea.Cmd {
+	return func() tea.Msg {
+		items, err := ghapi.GetEstimatedTicketsForProject(projectID, limit)
+		if err != nil {
+			return err
+		}
+		issues := ghapi.ConvertItemsToIssues(items)
+		time.Sleep(500 * time.Millisecond) // Brief loading simulation
+		return issuesLoadedMsg(issues)
+	}
+}
+
 func (m model) Init() tea.Cmd {
-	return tea.Batch(fetchIssues(), m.spinner.Tick)
+	var fetchCmd tea.Cmd
+	switch m.commandType {
+	case IssuesCommand:
+		fetchCmd = fetchIssues()
+	case ProjectCommand:
+		fetchCmd = fetchProjectItems(m.projectID, m.limit)
+	case EstimatedCommand:
+		fetchCmd = fetchEstimatedItems(m.projectID, m.limit)
+	default:
+		fetchCmd = fetchIssues()
+	}
+	return tea.Batch(fetchCmd, m.spinner.Tick)
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -75,6 +146,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch msg.String() {
+		case "a":
+			// add label
+
 		case "j", "down":
 			if m.cursor < len(m.choices)-1 {
 				m.cursor++
@@ -179,7 +253,18 @@ func truncType(typename string) string {
 
 func (m model) View() string {
 	if m.loading {
-		return fmt.Sprintf("\n%s Fetching Issues...\n\n", m.spinner.View())
+		var loadingMessage string
+		switch m.commandType {
+		case IssuesCommand:
+			loadingMessage = "Fetching Issues..."
+		case ProjectCommand:
+			loadingMessage = fmt.Sprintf("Fetching Project Items (ID: %d)...", m.projectID)
+		case EstimatedCommand:
+			loadingMessage = fmt.Sprintf("Fetching Estimated Tickets (Project: %d)...", m.projectID)
+		default:
+			loadingMessage = "Fetching Issues..."
+		}
+		return fmt.Sprintf("\n%s %s\n\n", m.spinner.View(), loadingMessage)
 	}
 
 	s := fmt.Sprintf("GitHub Issues:\n\n %-2d/%-2d Number Estimate  Type       Labels                              Title\n", m.selectedCount, m.totalCount)

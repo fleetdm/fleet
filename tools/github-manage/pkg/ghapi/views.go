@@ -3,6 +3,7 @@
 package ghapi
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -30,6 +31,17 @@ func NewView(viewType ViewType, title string, filters ...string) *View {
 }
 
 func GetMDMTicketsEstimated() ([]ProjectItem, error) {
+	return GetEstimatedTicketsForProject(58, 500)
+}
+
+// GetEstimatedTicketsForProject gets estimated tickets from the drafting project filtered by the project's label
+func GetEstimatedTicketsForProject(projectID, limit int) ([]ProjectItem, error) {
+	// Get the label for this project
+	label, exists := ProjectLabels[projectID]
+	if !exists {
+		return nil, fmt.Errorf("no label mapping found for project ID %d. Available projects: %v", projectID, getProjectIDsWithLabels())
+	}
+
 	// Grab issues from Drafting project
 	draftingProjectID := Aliases["draft"]
 	estimatedName, err := FindFieldValueByName(draftingProjectID, "Status", "estimated")
@@ -38,19 +50,19 @@ func GetMDMTicketsEstimated() ([]ProjectItem, error) {
 		return nil, err
 	}
 
-	issues, err := GetProjectItems(draftingProjectID, 500)
+	issues, err := GetProjectItems(draftingProjectID, limit)
 	if err != nil {
 		log.Printf("Error fetching issues from Drafting project: %v", err)
 		return nil, err
 	}
 
 	log.Printf("Fetched %d issues from Drafting project", len(issues))
-	// filter down to issues that are estimated with the label "#g-mdm"
+	// filter down to issues that are estimated with the specified label
 	var estimatedIssues []ProjectItem
 	for _, issue := range issues {
 		if issue.Labels != nil {
-			for _, label := range issue.Labels {
-				if label == MDM_LABEL {
+			for _, issueLabel := range issue.Labels {
+				if issueLabel == label {
 					if issue.Status == estimatedName {
 						estimatedIssues = append(estimatedIssues, issue)
 					}
@@ -59,6 +71,15 @@ func GetMDMTicketsEstimated() ([]ProjectItem, error) {
 			}
 		}
 	}
-	// log.Printf("Found %d estimated issues with label '#g-mdm'", len(estimatedIssues))
+	log.Printf("Found %d estimated issues with label '%s'", len(estimatedIssues), label)
 	return estimatedIssues, nil
+}
+
+// getProjectIDsWithLabels returns a slice of project IDs that have label mappings
+func getProjectIDsWithLabels() []int {
+	ids := make([]int, 0, len(ProjectLabels))
+	for id := range ProjectLabels {
+		ids = append(ids, id)
+	}
+	return ids
 }

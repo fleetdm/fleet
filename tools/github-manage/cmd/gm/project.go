@@ -26,17 +26,7 @@ var projectCmd = &cobra.Command{
 			return
 		}
 
-		items, err := ghapi.GetProjectItems(projectID, limit)
-		if err != nil {
-			fmt.Printf("Error fetching issues: %v\n", err)
-			return
-		}
-		issues := ghapi.ConvertItemsToIssues(items)
-		if err != nil {
-			fmt.Printf("Error converting issues: %v\n", err)
-			return
-		}
-		model := initializeModelWithIssues(issues)
+		model := initializeModelForProject(projectID, limit)
 		p := tea.NewProgram(&model)
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)
@@ -51,24 +41,28 @@ var projectCmd = &cobra.Command{
 }
 
 func init() {
-	projectCmd.Flags().IntP("limit", "l", 100, "Maximum number of items to fetch (default: 100)")
+	projectCmd.Flags().IntP("limit", "l", 100, "Maximum number of items to fetch")
+	estimatedCmd.Flags().IntP("limit", "l", 500, "Maximum number of items to fetch from drafting project")
 }
 
 var estimatedCmd = &cobra.Command{
-	Use:   "estimated",
-	Short: "Get GitHub issues",
+	Use:   "estimated [project-id-or-alias]",
+	Short: "Get estimated GitHub issues from the drafting project filtered by project label",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		items, err := ghapi.GetMDMTicketsEstimated()
+		projectID, err := ghapi.ResolveProjectID(args[0])
 		if err != nil {
-			fmt.Printf("Error fetching issues: %v\n", err)
+			fmt.Printf("Error resolving project: %v\n", err)
 			return
 		}
-		issues := ghapi.ConvertItemsToIssues(items)
+
+		limit, err := cmd.Flags().GetInt("limit")
 		if err != nil {
-			fmt.Printf("Error fetching issues: %v\n", err)
+			fmt.Printf("Error getting limit flag: %v\n", err)
 			return
 		}
-		model := initializeModelWithIssues(issues)
+
+		model := initializeModelForEstimated(projectID, limit)
 		p := tea.NewProgram(&model)
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)

@@ -19,6 +19,13 @@ var Aliases = map[string]int{
 	"orch":            71,
 }
 
+// ProjectLabels maps project IDs to their corresponding label filters for the drafting project
+var ProjectLabels = map[int]string{
+	58: "#g-mdm",           // mdm project
+	70: "#g-software",      // g-software project
+	71: "#g-orchestration", // g-orchestration project
+}
+
 // ResolveProjectID resolves a project identifier (alias or numeric string) to a project ID
 func ResolveProjectID(identifier string) (int, error) {
 	// First check if it's an alias
