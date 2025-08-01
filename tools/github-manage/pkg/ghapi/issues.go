@@ -86,54 +86,60 @@ func AddIssueToProject(issueNumber int, projectID int) error {
 }
 
 func RemoveIssueFromProject(issueNumber int, projectID int) error {
-	// First get the project item ID for this issue
-	command := fmt.Sprintf("gh project item-list %d --owner fleetdm --format json", projectID)
-	output, err := RunCommandAndReturnOutput(command)
+	// Get the project item ID for this issue using the same method as other functions
+	itemID, err := GetProjectItemID(issueNumber, projectID)
 	if err != nil {
-		log.Printf("Error listing project items for project %d: %v", projectID, err)
-		return err
-	}
-
-	// Parse the output to find the item ID for this issue
-	var items []map[string]interface{}
-	err = json.Unmarshal(output, &items)
-	if err != nil {
-		return err
-	}
-
-	var itemID string
-	for _, item := range items {
-		if content, ok := item["content"].(map[string]interface{}); ok {
-			if number, ok := content["number"].(float64); ok && int(number) == issueNumber {
-				if id, ok := item["id"].(string); ok {
-					itemID = id
-					break
-				}
-			}
+		// If the issue is not found in the project, that's not an error
+		if err.Error() == fmt.Sprintf("issue #%d not found in project %d", issueNumber, projectID) {
+			log.Printf("Issue #%d not found in project %d (already removed or never added)", issueNumber, projectID)
+			return nil
 		}
+		return fmt.Errorf("failed to get project item ID: %v", err)
 	}
 
-	if itemID == "" {
-		log.Printf("Issue #%d not found in project %d", issueNumber, projectID)
-		return nil // Not an error if item is not in project
-	}
-
-	// Remove the item
-	command = fmt.Sprintf("gh project item-delete %d --owner fleetdm --id %s", projectID, itemID)
+	// Remove the item using the project ID and item ID
+	command := fmt.Sprintf("gh project item-delete %d --owner fleetdm --id %s", projectID, itemID)
 	_, err = RunCommandAndReturnOutput(command)
 	if err != nil {
-		log.Printf("Error removing issue %d from project %d: %v", issueNumber, projectID, err)
-		return err
+		return fmt.Errorf("failed to remove issue %d from project %d: %v", issueNumber, projectID, err)
 	}
-	// log.Printf("Removed issue #%d from project %d", issueNumber, projectID)
+
+	log.Printf("Removed issue #%d from project %d", issueNumber, projectID)
 	return nil
 }
 
 func SyncEstimateField(issueNumber int, sourceProjectID, targetProjectID int) error {
-	// For now, this is a placeholder function
-	// In a real implementation, this would sync the estimate field from the drafting project
-	// to the target project for the given issue
-	log.Printf("Syncing estimate field for issue #%d from project %d to project %d (placeholder)", issueNumber, sourceProjectID, targetProjectID)
+	// Get the source project item to find the current estimate
+	sourceItemID, err := GetProjectItemID(issueNumber, sourceProjectID)
+	if err != nil {
+		return fmt.Errorf("failed to get source project item ID: %v", err)
+	}
+
+	// Get the target project item
+	targetItemID, err := GetProjectItemID(issueNumber, targetProjectID)
+	if err != nil {
+		return fmt.Errorf("failed to get target project item ID: %v", err)
+	}
+
+	// Get the estimate value from the source project using GraphQL
+	sourceEstimate, err := getProjectItemFieldValue(sourceItemID, sourceProjectID, "Estimate")
+	if err != nil {
+		return fmt.Errorf("failed to get source estimate: %v", err)
+	}
+
+	if sourceEstimate == "" || sourceEstimate == "0" {
+		log.Printf("No estimate found for issue #%d in source project %d", issueNumber, sourceProjectID)
+		return nil
+	}
+
+	// Use the updated SetProjectItemFieldValue function to set the estimate in target project
+	err = SetProjectItemFieldValue(targetItemID, targetProjectID, "Estimate", sourceEstimate)
+	if err != nil {
+		return fmt.Errorf("failed to sync estimate: %v", err)
+	}
+
+	log.Printf("Synced estimate %s for issue #%d from project %d to project %d",
+		sourceEstimate, issueNumber, sourceProjectID, targetProjectID)
 	return nil
 }
 
@@ -146,9 +152,18 @@ func SetCurrentSprint(issueNumber int, projectID int) error {
 }
 
 func SetIssueStatus(issueNumber int, projectID int, status string) error {
-	// For now, this is a placeholder function
-	// In a real implementation, this would set the status field for the given issue
-	// in the specified project using GitHub CLI or API
-	log.Printf("Setting status '%s' for issue #%d in project %d (placeholder)", status, issueNumber, projectID)
+	// Get the project item ID for this issue
+	itemID, err := GetProjectItemID(issueNumber, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to get project item ID: %v", err)
+	}
+
+	// Use the updated SetProjectItemFieldValue function which handles GraphQL properly
+	err = SetProjectItemFieldValue(itemID, projectID, "Status", status)
+	if err != nil {
+		return fmt.Errorf("failed to set status: %v", err)
+	}
+
+	log.Printf("Set status '%s' for issue #%d in project %d", status, issueNumber, projectID)
 	return nil
 }

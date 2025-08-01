@@ -137,7 +137,358 @@ func FindFieldValueByName(projectID int, fieldName, search string) (string, erro
 	return "", fmt.Errorf("field '%s' not found in project %d", fieldName, projectID)
 }
 
-// gh project item-edit --id "$ITEM_ID" --project-id "$PROJECT_ID" --field-id "$FIELD_ID" --number "$ESTIMATE"
-func SetProjectItemFieldValue(itemID string, fieldName, value string) error {
-	return nil
+// SetProjectItemFieldValue sets a field value for a project item
+// Uses GraphQL node IDs for proper API compatibility
+func SetProjectItemFieldValue(itemID string, projectID int, fieldName, value string) error {
+	// Get the field information
+	field, err := LookupProjectFieldName(projectID, fieldName)
+	if err != nil {
+		return fmt.Errorf("failed to lookup field '%s': %v", fieldName, err)
+	}
+
+	// Get the project's GraphQL node ID
+	projectNodeID, err := getProjectNodeID(projectID)
+	if err != nil {
+		return fmt.Errorf("failed to get project node ID: %v", err)
+	}
+
+	// If itemID is provided, use it directly
+	if itemID != "" {
+		// Debug: Log the field type to understand what we're getting
+		log.Printf("Field '%s' has type: '%s'", fieldName, field.Type)
+
+		// For number fields (like Estimate) - try different possible type names
+		if field.Type == "NUMBER" || field.Type == "ProjectV2Field" || strings.Contains(strings.ToLower(field.Type), "number") {
+			command := fmt.Sprintf(`gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "%s", itemId: "%s", fieldId: "%s", value: { number: %s } }) { projectV2Item { id } } }'`,
+				projectNodeID, itemID, field.ID, value)
+
+			_, err := RunCommandAndReturnOutput(command)
+			if err != nil {
+				return fmt.Errorf("failed to set number field value: %v", err)
+			}
+			return nil
+		}
+
+		// For single select fields (like Status)
+		if field.Type == "SINGLE_SELECT" || field.Type == "ProjectV2SingleSelectField" || strings.Contains(strings.ToLower(field.Type), "select") {
+			// Use FindFieldValueByName to get the actual option name (which may include emojis)
+			actualOptionName, err := FindFieldValueByName(projectID, fieldName, value)
+			if err != nil {
+				return fmt.Errorf("failed to find option '%s' for field '%s': %v", value, fieldName, err)
+			}
+
+			// Find the option ID for the actual option name
+			var optionID string
+			for _, option := range field.Options {
+				if option.Name == actualOptionName {
+					optionID = option.ID
+					break
+				}
+			}
+
+			if optionID == "" {
+				return fmt.Errorf("option ID not found for '%s' in field '%s'", actualOptionName, fieldName)
+			}
+
+			log.Printf("Setting field '%s' to option '%s' (ID: %s)", fieldName, actualOptionName, optionID)
+			command := fmt.Sprintf(`gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "%s", itemId: "%s", fieldId: "%s", value: { singleSelectOptionId: "%s" } }) { projectV2Item { id } } }'`,
+				projectNodeID, itemID, field.ID, optionID)
+
+			_, err = RunCommandAndReturnOutput(command)
+			if err != nil {
+				return fmt.Errorf("failed to set single select field value: %v", err)
+			}
+			return nil
+		}
+
+		// For text fields
+		if field.Type == "TEXT" || strings.Contains(strings.ToLower(field.Type), "text") {
+			command := fmt.Sprintf(`gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "%s", itemId: "%s", fieldId: "%s", value: { text: "%s" } }) { projectV2Item { id } } }'`,
+				projectNodeID, itemID, field.ID, value)
+
+			_, err := RunCommandAndReturnOutput(command)
+			if err != nil {
+				return fmt.Errorf("failed to set text field value: %v", err)
+			}
+			return nil
+		}
+
+		// If we can't determine the type, try to infer from field name or context
+		if strings.EqualFold(fieldName, "Estimate") || strings.Contains(strings.ToLower(fieldName), "estimate") {
+			log.Printf("Attempting to set field '%s' as number based on field name", fieldName)
+			command := fmt.Sprintf(`gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "%s", itemId: "%s", fieldId: "%s", value: { number: %s } }) { projectV2Item { id } } }'`,
+				projectNodeID, itemID, field.ID, value)
+
+			_, err := RunCommandAndReturnOutput(command)
+			if err != nil {
+				return fmt.Errorf("failed to set number field value (inferred): %v", err)
+			}
+			return nil
+		}
+
+		return fmt.Errorf("unsupported field type: %s for field: %s", field.Type, fieldName)
+	}
+
+	return fmt.Errorf("itemID is required for SetProjectItemFieldValue")
+}
+
+// GetProjectItemID finds the project item ID for a given issue number in a project
+// Uses GitHub API directly for better performance and reliability
+func GetProjectItemID(issueNumber int, projectID int) (string, error) {
+	// First, we need to get the project's node ID
+	projectNodeID, err := getProjectNodeID(projectID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get project node ID: %v", err)
+	}
+
+	// GraphQL query to find the project item for the specific issue
+	query := fmt.Sprintf(`{
+		node(id: "%s") {
+			... on ProjectV2 {
+				items(first: 100) {
+					nodes {
+						id
+						content {
+							... on Issue {
+								number
+							}
+						}
+					}
+					pageInfo {
+						hasNextPage
+						endCursor
+					}
+				}
+			}
+		}
+	}`, projectNodeID)
+
+	// Use gh api to execute the GraphQL query
+	command := fmt.Sprintf(`gh api graphql -f query='%s'`, query)
+	output, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return "", fmt.Errorf("failed to query project items via API: %v", err)
+	}
+
+	// Parse the GraphQL response
+	var response struct {
+		Data struct {
+			Node struct {
+				Items struct {
+					Nodes []struct {
+						ID      string `json:"id"`
+						Content struct {
+							Number int `json:"number"`
+						} `json:"content"`
+					} `json:"nodes"`
+					PageInfo struct {
+						HasNextPage bool   `json:"hasNextPage"`
+						EndCursor   string `json:"endCursor"`
+					} `json:"pageInfo"`
+				} `json:"items"`
+			} `json:"node"`
+		} `json:"data"`
+	}
+
+	err = json.Unmarshal(output, &response)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse GraphQL response: %v", err)
+	}
+
+	// Search through the items to find the matching issue number
+	for _, item := range response.Data.Node.Items.Nodes {
+		if item.Content.Number == issueNumber {
+			return item.ID, nil
+		}
+	}
+
+	// If we have more pages, we should search them too
+	if response.Data.Node.Items.PageInfo.HasNextPage {
+		return getProjectItemIDWithPagination(issueNumber, projectNodeID, response.Data.Node.Items.PageInfo.EndCursor)
+	}
+
+	return "", fmt.Errorf("issue #%d not found in project %d", issueNumber, projectID)
+}
+
+// getProjectNodeID gets the GraphQL node ID for a project
+func getProjectNodeID(projectID int) (string, error) {
+	command := fmt.Sprintf("gh project view --owner fleetdm --format json %d", projectID)
+	output, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return "", fmt.Errorf("failed to get project details: %v", err)
+	}
+
+	var response struct {
+		ID string `json:"id"`
+	}
+
+	err = json.Unmarshal(output, &response)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse project details response: %v", err)
+	}
+
+	if response.ID == "" {
+		return "", fmt.Errorf("project ID not found in response for project %d", projectID)
+	}
+
+	return response.ID, nil
+}
+
+// getProjectItemIDWithPagination handles pagination when searching for project items
+func getProjectItemIDWithPagination(issueNumber int, projectNodeID, cursor string) (string, error) {
+	query := fmt.Sprintf(`{
+		node(id: "%s") {
+			... on ProjectV2 {
+				items(first: 100, after: "%s") {
+					nodes {
+						id
+						content {
+							... on Issue {
+								number
+							}
+						}
+					}
+					pageInfo {
+						hasNextPage
+						endCursor
+					}
+				}
+			}
+		}
+	}`, projectNodeID, cursor)
+
+	command := fmt.Sprintf(`gh api graphql -f query='%s'`, query)
+	output, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return "", fmt.Errorf("failed to query project items via API (pagination): %v", err)
+	}
+
+	var response struct {
+		Data struct {
+			Node struct {
+				Items struct {
+					Nodes []struct {
+						ID      string `json:"id"`
+						Content struct {
+							Number int `json:"number"`
+						} `json:"content"`
+					} `json:"nodes"`
+					PageInfo struct {
+						HasNextPage bool   `json:"hasNextPage"`
+						EndCursor   string `json:"endCursor"`
+					} `json:"pageInfo"`
+				} `json:"items"`
+			} `json:"node"`
+		} `json:"data"`
+	}
+
+	err = json.Unmarshal(output, &response)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse GraphQL response (pagination): %v", err)
+	}
+
+	// Search through this page of items
+	for _, item := range response.Data.Node.Items.Nodes {
+		if item.Content.Number == issueNumber {
+			return item.ID, nil
+		}
+	}
+
+	// If there are more pages, continue searching
+	if response.Data.Node.Items.PageInfo.HasNextPage {
+		return getProjectItemIDWithPagination(issueNumber, projectNodeID, response.Data.Node.Items.PageInfo.EndCursor)
+	}
+
+	return "", fmt.Errorf("issue #%d not found in project after searching all pages", issueNumber)
+}
+
+// getProjectItemFieldValue retrieves the value of a specific field for a project item
+func getProjectItemFieldValue(itemID string, projectID int, fieldName string) (string, error) {
+	// Get the field information
+	field, err := LookupProjectFieldName(projectID, fieldName)
+	if err != nil {
+		return "", fmt.Errorf("failed to lookup field '%s': %v", fieldName, err)
+	}
+
+	// GraphQL query to get the specific project item with field values
+	query := fmt.Sprintf(`{
+		node(id: "%s") {
+			... on ProjectV2Item {
+				fieldValues(first: 10) {
+					nodes {
+						... on ProjectV2ItemFieldNumberValue {
+							field {
+								... on ProjectV2FieldCommon {
+									id
+								}
+							}
+							number
+						}
+						... on ProjectV2ItemFieldTextValue {
+							field {
+								... on ProjectV2FieldCommon {
+									id
+								}
+							}
+							text
+						}
+						... on ProjectV2ItemFieldSingleSelectValue {
+							field {
+								... on ProjectV2FieldCommon {
+									id
+								}
+							}
+							name
+						}
+					}
+				}
+			}
+		}
+	}`, itemID)
+
+	command := fmt.Sprintf(`gh api graphql -f query='%s'`, query)
+	output, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return "", fmt.Errorf("failed to query project item field values: %v", err)
+	}
+
+	// Parse the GraphQL response
+	var response struct {
+		Data struct {
+			Node struct {
+				FieldValues struct {
+					Nodes []struct {
+						Field struct {
+							ID string `json:"id"`
+						} `json:"field"`
+						Number *float64 `json:"number,omitempty"`
+						Text   *string  `json:"text,omitempty"`
+						Name   *string  `json:"name,omitempty"`
+					} `json:"nodes"`
+				} `json:"fieldValues"`
+			} `json:"node"`
+		} `json:"data"`
+	}
+
+	err = json.Unmarshal(output, &response)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse field values response: %v", err)
+	}
+
+	// Find the field value that matches our field ID
+	for _, fieldValue := range response.Data.Node.FieldValues.Nodes {
+		if fieldValue.Field.ID == field.ID {
+			if fieldValue.Number != nil {
+				return fmt.Sprintf("%.0f", *fieldValue.Number), nil
+			}
+			if fieldValue.Text != nil {
+				return *fieldValue.Text, nil
+			}
+			if fieldValue.Name != nil {
+				return *fieldValue.Name, nil
+			}
+		}
+	}
+
+	return "", nil // Field not set or empty value
 }
