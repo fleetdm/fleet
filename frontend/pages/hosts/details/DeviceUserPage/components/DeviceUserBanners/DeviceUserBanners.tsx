@@ -46,7 +46,7 @@ const DeviceUserBanners = ({
     diskEncryptionActionRequired === "rotate_key";
 
   const turnOnMdmButton = (
-    <Button variant="text-link" onClick={onTurnOnMdm}>
+    <Button variant="text-link-dark" onClick={onTurnOnMdm}>
       Turn on MDM
     </Button>
   );

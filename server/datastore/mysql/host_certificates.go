@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -32,6 +33,9 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			// caller should ensure this does not happen
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
 		}
+
+		// Validate and truncate certificate fields
+		ds.validateAndTruncateCertificateFields(ctx, hostID, cert)
 
 		// NOTE: it is SUPER important that the sha1 sum was created with
 		// sha1.Sum(...) and NOT sha1.New().Sum(...), as the latter is a wrong use
@@ -181,6 +185,51 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 		return nil
 	})
+}
+
+// validateAndTruncateCertificateFields validates and truncates certificate string fields to match database schema constraints
+func (ds *Datastore) validateAndTruncateCertificateFields(ctx context.Context, hostID uint, cert *fleet.HostCertificateRecord) {
+	// Field length limits based on schema
+	const (
+		maxVarchar255 = 255
+		maxCountry    = 32
+	)
+
+	// Helper function to truncate strings and log if needed
+	truncateString := func(field string, value string, maxLen int) string {
+		if len(value) > maxLen {
+			truncated := value[:maxLen]
+			err := errors.New("certificate field too long")
+			ctxerr.Handle(ctx, err)
+			level.Error(ds.logger).Log(
+				"err", err,
+				"msg", "truncating certificate field",
+				"field", field,
+				"host_id", hostID,
+				"original_length", len(value),
+				"max_length", maxLen,
+				"truncated_value", truncated,
+			)
+			return truncated
+		}
+		return value
+	}
+
+	// Validate and truncate all string fields
+	cert.CommonName = truncateString("common_name", cert.CommonName, maxVarchar255)
+	cert.KeyAlgorithm = truncateString("key_algorithm", cert.KeyAlgorithm, maxVarchar255)
+	cert.KeyUsage = truncateString("key_usage", cert.KeyUsage, maxVarchar255)
+	cert.Serial = truncateString("serial", cert.Serial, maxVarchar255)
+	cert.SigningAlgorithm = truncateString("signing_algorithm", cert.SigningAlgorithm, maxVarchar255)
+	cert.SubjectCountry = truncateString("subject_country", cert.SubjectCountry, maxCountry)
+	cert.SubjectOrganization = truncateString("subject_org", cert.SubjectOrganization, maxVarchar255)
+	cert.SubjectOrganizationalUnit = truncateString("subject_org_unit", cert.SubjectOrganizationalUnit, maxVarchar255)
+	cert.SubjectCommonName = truncateString("subject_common_name", cert.SubjectCommonName, maxVarchar255)
+	cert.IssuerCountry = truncateString("issuer_country", cert.IssuerCountry, maxCountry)
+	cert.IssuerOrganization = truncateString("issuer_org", cert.IssuerOrganization, maxVarchar255)
+	cert.IssuerOrganizationalUnit = truncateString("issuer_org_unit", cert.IssuerOrganizationalUnit, maxVarchar255)
+	cert.IssuerCommonName = truncateString("issuer_common_name", cert.IssuerCommonName, maxVarchar255)
+	cert.Username = truncateString("username", cert.Username, maxVarchar255)
 }
 
 func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostID uint, sha1s []string) (map[string]uint, error) {

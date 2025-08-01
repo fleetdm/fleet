@@ -50,6 +50,7 @@ import {
 } from "utilities/constants";
 
 import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
+import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -1009,7 +1010,7 @@ const HostDetailsPage = ({
               {/* There is a special case for personally enrolled mdm hosts where we are not
                currently supporting software installs. This check should be removed
                when we add that feature. */}
-              {host.mdm.enrollment_status === "On (personal)" ? (
+              {isPersonalEnrollmentInMdm(host.mdm.enrollment_status) ? (
                 <EmptyTable
                   header="Software library is currently not supported on this host."
                   info={
