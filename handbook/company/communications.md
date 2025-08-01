@@ -467,9 +467,9 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 3. Click _"Commit changes...."_
 4. Give your proposed change a title or _["Commit message"](https://about.gitlab.com/topics/version-control/version-control-best-practices/#write-descriptive-commit-messages)_ and optional _"Extended description"_ (good commit messages help page maintainers quickly understand the proposed changes).
  - **Note:** _Keep commit messages short and clear. (e.g. "Add DRI automation")_ 
-4. Click _"Propose changes"_
-5. Request a review from the page maintainer, and finally, press “Create pull request.”
-6. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
+5. Click _"Propose changes"_
+6. Request a review from the page maintainer, and finally, press “Create pull request.”
+7. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
 8. Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
 > Note: Pages in the `./docs/Contributing/` folder are not included in the documentation on [fleetdm.com](https://fleetdm.com/).
