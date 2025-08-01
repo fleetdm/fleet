@@ -46,8 +46,6 @@ services:
         "--server-id=1",
         # Required for storage of Apple MDM bootstrap packages.
         "--max_allowed_packet=536870912",
-        # Increase redo log capacity to avoid warnings (default is 100MB, we set 200MB)
-        "--innodb_redo_log_capacity=209715200",
       ]
     environment: *mysql-default-environment
     ports:

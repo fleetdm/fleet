@@ -2093,7 +2093,7 @@ VALUES
 		host.UUID+".magic",
 		host.UUID,
 		1,
-		time.Now(),
+		time.Now().Add(-2*time.Second).Truncate(time.Second),
 	)
 	require.NoError(t, err)
 }
@@ -2115,7 +2115,7 @@ VALUES
 		host.UUID+".magic",
 		host.UUID,
 		1,
-		time.Now(),
+		time.Now().Add(-2*time.Second).Truncate(time.Second),
 	)
 	require.NoError(t, err)
 
@@ -2151,7 +2151,7 @@ VALUES
 		host.UUID+".topic",
 		host.UUID+".magic",
 		host.UUID,
-		time.Now(),
+		time.Now().Add(-2*time.Second).Truncate(time.Second),
 	)
 	require.NoError(t, err)
 }
