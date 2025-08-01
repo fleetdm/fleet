@@ -34,6 +34,13 @@ export interface ICertificatesIntegrationDigicert {
   certificate_seat_id: string;
 }
 
+export interface ICertificatesIntegrationHydrant {
+  name: string;
+  url: string;
+  client_id: string;
+  client_secret: string;
+}
+
 export interface ICertificatesIntegrationCustomSCEP {
   name: string;
   url: string;
@@ -61,6 +68,17 @@ export const isDigicertCertIntegration = (
   );
 };
 
+export const isHydrantCertIntegration = (
+  integration: ICertificateIntegration
+): integration is ICertificatesIntegrationHydrant => {
+  return (
+    "name" in integration &&
+    "url" in integration &&
+    "client_id" in integration &&
+    "client_secret" in integration
+  );
+};
+
 export const isCustomSCEPCertIntegration = (
   integration: ICertificateIntegration
 ): integration is ICertificatesIntegrationCustomSCEP => {
@@ -69,12 +87,17 @@ export const isCustomSCEPCertIntegration = (
   );
 };
 
-export type ICertificateAuthorityType = "ndes" | "digicert" | "custom";
+export type ICertificateAuthorityType =
+  | "ndes"
+  | "digicert"
+  | "custom"
+  | "hydrant";
 
 /** all the types of certificate integrations */
 export type ICertificateIntegration =
   | ICertificatesIntegrationNDES
   | ICertificatesIntegrationDigicert
+  | ICertificatesIntegrationHydrant
   | ICertificatesIntegrationCustomSCEP;
 
 export interface IIntegration {

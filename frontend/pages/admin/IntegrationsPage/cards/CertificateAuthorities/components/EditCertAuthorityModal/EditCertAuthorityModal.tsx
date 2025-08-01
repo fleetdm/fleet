@@ -5,6 +5,7 @@ import { AppContext } from "context/app";
 import {
   ICertificateIntegration,
   isDigicertCertIntegration,
+  isHydrantCertIntegration,
   isNDESCertIntegration,
 } from "interfaces/integration";
 import certificatesAPI from "services/entities/certificates";
@@ -23,6 +24,7 @@ import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
 import NDESForm from "../NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
+import HydrantForm from "../HydrantForm";
 
 const baseClass = "edit-cert-authority-modal";
 
@@ -76,6 +78,9 @@ const EditCertAuthorityModal = ({
     }
     if (isDigicertCertIntegration(certAuthority)) {
       return DigicertForm;
+    }
+    if (isHydrantCertIntegration(certAuthority)) {
+      return HydrantForm;
     }
     return CustomSCEPForm;
   };

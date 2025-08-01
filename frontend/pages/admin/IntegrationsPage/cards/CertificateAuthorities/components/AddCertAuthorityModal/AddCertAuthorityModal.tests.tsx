@@ -27,7 +27,7 @@ describe("AddCertAuthorityModal", () => {
     await user.click(screen.getByRole("combobox"));
     await user.click(
       screen.getByRole("option", {
-        name: "Custom (SCEP: Simple Certificate Enrollment Protocol)",
+        name: "Custom SCEP (Simple Certificate Enrollment Protocol)",
       })
     );
 
