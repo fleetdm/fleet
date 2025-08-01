@@ -101,6 +101,7 @@ sso_settings:
   idp_name: some-idp-name
   metadata: some-sso-metadata
   metadata_url: http://some-sso-metadata-url.com
+  sso_url: https://sso.fleetdm.com
 webhook_settings:
   activities_webhook:
     destination_url: https://some-activities-webhook-url.com

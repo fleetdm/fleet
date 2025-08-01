@@ -647,6 +647,7 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 		jsonFieldName(t, "Metadata"):          ssoSettings.Metadata,
 		jsonFieldName(t, "MetadataURL"):       ssoSettings.MetadataURL,
 		jsonFieldName(t, "EnableSSOIdPLogin"): ssoSettings.EnableSSOIdPLogin,
+		jsonFieldName(t, "SSOURL"):            ssoSettings.SSOURL,
 	}
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "EnableJITProvisioning")] = ssoSettings.EnableJITProvisioning

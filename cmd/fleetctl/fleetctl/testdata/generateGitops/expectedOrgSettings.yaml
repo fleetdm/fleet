@@ -101,6 +101,7 @@ sso_settings:
   idp_name: some-idp-name
   metadata: ___GITOPS_COMMENT_9___
   metadata_url: ___GITOPS_COMMENT_10___
+  sso_url: https://sso.fleetdm.com
 webhook_settings:
   activities_webhook:
     destination_url: https://some-activities-webhook-url.com
