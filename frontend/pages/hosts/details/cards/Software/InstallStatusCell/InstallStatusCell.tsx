@@ -302,8 +302,8 @@ const resolveDisplayText = (
     ? displayText({ isSelfService, isHostOnline })
     : displayText;
 
-const getEmptyCellTooltip = (hasAppStoreApp: boolean, softwareName?: string) =>
-  hasAppStoreApp ? (
+const getEmptyCellTooltip = (isAppStoreApp: boolean, softwareName?: string) =>
+  isAppStoreApp ? (
     <>
       App Store app can be installed on the host. <br />
       Select <b>Actions &gt; Install</b> to install.
@@ -326,7 +326,7 @@ const InstallStatusCell = ({
   isSelfService = false,
   isHostOnline = false,
 }: IInstallStatusCellProps) => {
-  const hasAppStoreApp = !!software.app_store_app;
+  const isAppStoreApp = !!software.app_store_app;
   const lastInstall = getLastInstall(software); // TODO (back end bug fix) - `software.app_store_app.last_install sometimes coming back `null` for VPP apps, currently falls back to displaying the `InventoryVersionsModal`
   const lastUninstall = getLastUninstall(software);
   const softwarePackageName = getSoftwarePackageName(software); // @RachelElysia I renamed this function and the variable name its return value is set to here because it is looking at the software_package.name, which has a suffix like ".pkg". software.name has the more human-readable version. Not sure how else this data is being used so I am not going to refactor anything. Please update if needed.
@@ -338,7 +338,7 @@ const InstallStatusCell = ({
         grey
         italic
         emptyCellTooltipText={getEmptyCellTooltip(
-          hasAppStoreApp,
+          isAppStoreApp,
           softwarePackageName
         )}
       />
@@ -348,30 +348,30 @@ const InstallStatusCell = ({
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
   const onClickInstallStatus = () => {
-  // app store app –> vpp modal
-    if (software.app_store_app) {
-        onShowVPPInstallDetails({
-          ...software,
-          // commandUuid: lastInstall.command_uuid,
-        });
-    }
+    // app store app –> vpp modal
     // package -> install modal
     //  neither -> install modal
 
-  //   if (lastInstall) {
-  //     if ("command_uuid" in lastInstall) {
-  //       onShowVPPInstallDetails({
-  //         ...software,
-  //         commandUuid: lastInstall.command_uuid,
-  //       });
-  //     } else if ("install_uuid" in lastInstall) {
-  //       onShowInstallDetails(software);
-  //     }
-  //   } else {
-  //     // user-initiated install
-  //     onShowInstallDetails(software);
-  //   }
-  // };
+    if (lastInstall) {
+      if ("command_uuid" in lastInstall) {
+        onShowVPPInstallDetails({
+          ...software,
+          commandUuid: lastInstall.command_uuid,
+        });
+      } else if ("install_uuid" in lastInstall) {
+        onShowInstallDetails(software);
+      }
+    } else if (isAppStoreApp) {
+      // app store app, no last install, fall back to inventory versions
+      if (onShowInventoryVersions) {
+        // should always be true
+        onShowInventoryVersions(software);
+      }
+    } else {
+      // it's a user-initiated install
+      onShowInstallDetails(software);
+    }
+  };
 
   const onClickUninstallStatus = () => {
     if (lastUninstall) {
@@ -445,7 +445,7 @@ const InstallStatusCell = ({
   const tooltipContent = displayConfig.tooltip({
     lastInstalledAt: lastInstall?.installed_at,
     softwareName: softwarePackageName,
-    isAppStoreApp: hasAppStoreApp,
+    isAppStoreApp,
     isSelfService,
     isHostOnline,
   });
