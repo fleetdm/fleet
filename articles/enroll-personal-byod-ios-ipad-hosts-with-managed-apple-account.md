@@ -31,7 +31,7 @@ You can watch these videos as well:
  - [Connect Google Workspace to ABM](https://www.youtube.com/watch?v=CPfO6W67d3A)
  - [Connect Microsoft Entra ID to ABM](https://www.youtube.com/watch?v=_-PnhMurAVk)
 
-## Step 4: Host service discovery file
+## Step 4: Host a service discovery file
 
 If your iOS/iPadOS hosts are running OS 18.2/iPadOS 18.2 and later, you can skip this step. Fleet manages service discovery for hosts running iOS 18.2/iPadOS 18.2 and later. 
 
