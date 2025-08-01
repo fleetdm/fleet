@@ -13,7 +13,7 @@ const createTestFormData = (overrides?: Partial<IHydrantFormData>) => ({
   ...overrides,
 });
 
-describe("DigicertForm", () => {
+describe("HydrantForm", () => {
   it("render the custom button text", () => {
     render(
       <HydrantForm

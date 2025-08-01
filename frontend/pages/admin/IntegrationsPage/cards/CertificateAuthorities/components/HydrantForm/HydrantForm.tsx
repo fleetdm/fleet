@@ -43,6 +43,8 @@ const HydrantForm = ({
   const { config } = useContext(AppContext);
   const validations = useMemo(
     () =>
+      // @ts-ignore
+      // ignore for now as this will be changing with the API update PR
       generateFormValidations(config?.integrations.digicert ?? [], isEditing),
     [config?.integrations.digicert, isEditing]
   );
