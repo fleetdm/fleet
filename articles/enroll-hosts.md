@@ -311,6 +311,20 @@ If this setting is not used, you will need to configure client TLS certificates 
 
 To use mTLS use the [AutoSelectCertificateForUrls policy](https://chromeenterprise.google/policies/?policy=AutoSelectCertificateForUrls) to point Chrome to your client certificates
 
+### Using host identity certificates
+
+`Applies only to Fleet Premium`
+
+Host identity certificates allow Fleet's agent (fleetd) to use hardware-backed client certificates for authentication to the Fleet server. All fleetd requests (except `/api/fleet/orbit/ping` and [Fleet Desktop](https://github.com/fleetdm/fleet/blob/2b33a445e9bfce808cebe31f8fef91058e8635e3/docs/Contributing/product-groups/orchestration/tpm-backed-http-signing.md#fleet-desktop-authentication) requests) to the Fleet server will include an HTTP message signature for enhanced security.
+
+This feature uses the host's TPM (Trusted Platform Module) to generate and store cryptographic keys, providing strong hardware-based authentication.
+
+This provides a level of security similar to [mTLS](#using-mtls), but the certificate is hardware-backed and managed by the TPM rather than being stored as a file on disk. The TPM ensures the private key cannot be extracted or copied, providing stronger security guarantees.
+
+The certificate is issued for 365 days. 180 days before expiration, fleetd will automatically try to renew the certificate using a new TPM-based private key. The original enrollment secret is not needed for renewal. The renewal process is based on proof-of-possession of the existing certificate's private key.
+
+Currently, host identity certificates are only supported for Linux hosts (`.deb` and `.rpm` fleetd agents) with TPM 2.0 hardware (or vTPM for VMs) and Linux kernel 4.12 or later.
+
 ### Specifying update channels
 
 Fleetd uses the concept of "update channels" to determine the version of it's components: Orbit, Fleet Desktop, osquery.
