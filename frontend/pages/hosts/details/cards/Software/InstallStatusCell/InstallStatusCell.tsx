@@ -8,6 +8,7 @@ import {
   SoftwareInstallStatus,
   IVPPHostSoftware,
   SoftwareUninstallStatus,
+  IAppLastInstall,
 } from "interfaces/software";
 import { Colors } from "styles/var/colors";
 
@@ -158,9 +159,11 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
             Select <b>Retry</b> to install again, or contact your IT department.
           </>
         ) : (
-          <>
-            Select <b>Details &gt; Activity</b> to view errors.
-          </>
+          !lastInstalledAt && (
+            <>
+              Select <b>Details &gt; Activity</b> to view errors.
+            </>
+          )
         )}
       </>
     ),
@@ -344,24 +347,18 @@ const InstallStatusCell = ({
 
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
+  // This is never called for App Store app missing 'last_install' info for
+  // successful and failed installs (Old clients <4.72 bug) See shouldOnClickBeDisabled
   const onClickInstallStatus = () => {
-    if (lastInstall) {
-      if ("command_uuid" in lastInstall) {
-        onShowVPPInstallDetails({
-          ...software,
-          commandUuid: lastInstall.command_uuid,
-        });
-      } else if ("install_uuid" in lastInstall) {
-        onShowInstallDetails(software);
-      }
-    } else if (isAppStoreApp) {
-      // app store app, no last install, fall back to inventory versions
-      if (onShowInventoryVersions) {
-        // should always be true
-        onShowInventoryVersions(software);
-      }
+    // VPP Install details modal will handle command_uuid missing gracefully for pending installs, etc
+    if (isAppStoreApp) {
+      onShowVPPInstallDetails({
+        ...software,
+        ...(lastInstall && {
+          commandUuid: (lastInstall as IAppLastInstall).command_uuid,
+        }),
+      });
     } else {
-      // it's a user-initiated install
       onShowInstallDetails(software);
     }
   };
@@ -394,6 +391,18 @@ const InstallStatusCell = ({
       isHostOnline
     );
 
+    // Software "installed" by Fleet (backend) and shows as "installed" (UI)
+    const isInstalledInFleetAndUI =
+      software.status === "installed" && software.ui_status === "installed";
+
+    // Is this an App Store app missing 'last_install' info? (Old clients <4.72 bug)
+    const isMissingLastInstallInfo =
+      isAppStoreApp && !software.app_store_app?.last_install;
+
+    const shouldOnClickBeDisabled =
+      isMissingLastInstallInfo &&
+      (software.status === "failed_install" || isInstalledInFleetAndUI);
+
     // Status groups and their click handlers
     const displayStatusConfig = [
       {
@@ -419,7 +428,7 @@ const InstallStatusCell = ({
         condition && statuses.includes(resolvedDisplayText as string)
     );
 
-    if (match) {
+    if (match && !shouldOnClickBeDisabled) {
       return (
         <Button
           className={`${baseClass}__item-status-button`}

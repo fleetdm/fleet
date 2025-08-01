@@ -455,9 +455,10 @@ export interface IHostSoftwareWithUiStatus extends IHostSoftware {
 
 /**
  * Allows unified data model for rendering of host VPP software installs and uninstalls
+ * Optional as pending may not have a commandUuid
  */
 export type IVPPHostSoftware = IHostSoftware & {
-  commandUuid: string;
+  commandUuid?: string;
 };
 
 export type IHostSoftwareUninstall = IHostSoftwareWithUiStatus & {

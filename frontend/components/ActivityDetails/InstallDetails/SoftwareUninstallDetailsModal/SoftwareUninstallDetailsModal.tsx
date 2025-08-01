@@ -34,7 +34,7 @@ interface IUninstallStatusMessage {
   status: SoftwareUninstallStatus;
   softwareName: string;
   softwarePackageName?: string;
-  timestamp: string;
+  timestamp?: string;
   isDUP: boolean;
   contactUrl?: string;
 }
@@ -167,41 +167,60 @@ const SoftwareUninstallDetailsModal = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       // are 4xx errors other than 404 expected intermittently?
       retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+      // Prevent any error UI with pending uninstall
+      enabled: uninstallStatus !== "pending_uninstall",
     }
   );
 
-  if (isLoading) {
-    return <Spinner />;
-  } else if (isError && error?.status === 404) {
-    return (
-      <DataError
-        description="These uninstall details are no longer available."
-        excludeIssueLink
-      />
-    );
-  } else if (isError) {
-    return <DataError description="Close this modal and try again." />;
-  } else if (!uninstallResult) {
-    // FIXME: Find a better solution for this.
-    return <DataError description="No data returned." />;
-  }
+  const renderContent = () => {
+    if (isLoading) {
+      return <Spinner />;
+    } else if (isError && error?.status === 404) {
+      return (
+        <DataError
+          description="These uninstall details are no longer available."
+          excludeIssueLink
+        />
+      );
+    } else if (isError) {
+      return <DataError description="Close this modal and try again." />;
+    } else if (!uninstallResult && uninstallStatus !== "pending_uninstall") {
+      // FIXME: Find a better solution for this.
+      return <DataError description="No data returned." />;
+    }
 
-  const renderDetailsSection = () => (
-    <>
-      <RevealButton
-        isShowing={showDetails}
-        showText="Details"
-        hideText="Details"
-        caretPosition="after"
-        onClick={toggleDetails}
-      />
-      {showDetails && uninstallResult.output && (
-        <Textarea label="Uninstall script output:" variant="code">
-          {uninstallResult.output}
-        </Textarea>
-      )}
-    </>
-  );
+    return (
+      <div className={`${baseClass}__modal-content`}>
+        <StatusMessage
+          host_display_name={hostDisplayName || ""}
+          status={
+            (uninstallStatus || "pending_uninstall") as SoftwareUninstallStatus
+          }
+          softwareName={softwareName}
+          softwarePackageName={softwarePackageName}
+          timestamp={uninstallResult?.created_at}
+          isDUP={!!deviceAuthToken}
+          contactUrl={contactUrl}
+        />
+        {uninstallStatus !== "pending_uninstall" && (
+          <RevealButton
+            isShowing={showDetails}
+            showText="Details"
+            hideText="Details"
+            caretPosition="after"
+            onClick={toggleDetails}
+          />
+        )}
+        {uninstallStatus !== "pending_uninstall" &&
+          showDetails &&
+          uninstallResult?.output && (
+            <Textarea label="Uninstall script output:" variant="code">
+              {uninstallResult.output}
+            </Textarea>
+          )}
+      </div>
+    );
+  };
 
   const renderCta = () => {
     if (deviceAuthToken && uninstallStatus === "failed_uninstall") {
@@ -231,21 +250,7 @@ const SoftwareUninstallDetailsModal = ({
       className={baseClass}
     >
       <>
-        <div className={`${baseClass}__modal-content`}>
-          <StatusMessage
-            host_display_name={hostDisplayName || ""}
-            status={
-              (uninstallStatus ||
-                "pending_uninstall") as SoftwareUninstallStatus
-            }
-            softwareName={softwareName}
-            softwarePackageName={softwarePackageName}
-            timestamp={uninstallResult.created_at}
-            isDUP={!!deviceAuthToken}
-            contactUrl={contactUrl}
-          />
-          {uninstallStatus !== "pending_uninstall" && renderDetailsSection()}
-        </div>
+        {renderContent()}
         {renderCta()}
       </>
     </Modal>

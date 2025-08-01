@@ -47,14 +47,14 @@ export const getStatusMessage = ({
   commandUpdatedAt,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
-  const displayTimeStamp = ["failed_install", "installed"].includes(
-    displayStatus || ""
-  )
-    ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
-        includeSeconds: true,
-        addSuffix: true,
-      })})`
-    : null;
+  const displayTimeStamp =
+    ["failed_install", "installed"].includes(displayStatus || "") &&
+    commandUpdatedAt
+      ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
+          includeSeconds: true,
+          addSuffix: true,
+        })})`
+      : null;
 
   // Handle NotNow case separately
   if (isMDMStatusNotNow) {
@@ -212,37 +212,9 @@ export const VppInstallDetailsModal = ({
     {
       refetchOnWindowFocus: false,
       staleTime: 3000,
+      enabled: !!commandUuid,
     }
   );
-
-  if (isLoadingVPPCommandResult) {
-    return <Spinner />;
-  }
-
-  if (isErrorVPPCommandResult) {
-    if (errorVPPCommandResult?.status === 404) {
-      return deviceAuthToken ? (
-        <DeviceUserError />
-      ) : (
-        <DataError
-          description="Install details are no longer available for this activity."
-          excludeIssueLink
-        />
-      );
-    }
-
-    if (errorVPPCommandResult?.status === 401) {
-      return deviceAuthToken ? (
-        <DeviceUserError />
-      ) : (
-        <DataError description="Close this modal and try again." />
-      );
-    }
-  } else if (!vppCommandResult) {
-    // FIXME: It's currently possible that the command results API response is empty for pending
-    // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
-    // display some minimal pending UI. This should be updated once the API response is fixed.
-  }
 
   const displayStatus =
     (fleetInstallStatus as SoftwareInstallStatus) || "pending_install";
@@ -309,6 +281,49 @@ export const VppInstallDetailsModal = ({
     );
   };
 
+  const renderContent = () => {
+    if (isLoadingVPPCommandResult) {
+      return <Spinner />;
+    }
+
+    if (isErrorVPPCommandResult) {
+      if (errorVPPCommandResult?.status === 404) {
+        return deviceAuthToken ? (
+          <DeviceUserError />
+        ) : (
+          <DataError
+            description="Install details are no longer available for this activity."
+            excludeIssueLink
+          />
+        );
+      }
+
+      if (errorVPPCommandResult?.status === 401) {
+        return deviceAuthToken ? (
+          <DeviceUserError />
+        ) : (
+          <DataError description="Close this modal and try again." />
+        );
+      }
+    } else if (!vppCommandResult) {
+      // FIXME: It's currently possible that the command results API response is empty for pending
+      // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
+      // display some minimal pending UI. This should be updated once the API response is fixed.
+    }
+    return (
+      <div className={`${baseClass}__modal-content`}>
+        <div className={`${baseClass}__status-message`}>
+          {!!iconName && <Icon name={iconName} />}
+          <span>{statusMessage}</span>
+        </div>
+        {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
+        {fleetInstallStatus !== "pending_install" &&
+          isInstalledByFleet &&
+          renderInstallDetailsSection()}
+      </div>
+    );
+  };
+
   const renderCta = () => {
     if (deviceAuthToken && fleetInstallStatus === "failed_install") {
       return (
@@ -337,16 +352,7 @@ export const VppInstallDetailsModal = ({
       className={baseClass}
     >
       <>
-        <div className={`${baseClass}__modal-content`}>
-          <div className={`${baseClass}__status-message`}>
-            {!!iconName && <Icon name={iconName} />}
-            <span>{statusMessage}</span>
-          </div>
-          {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-          {fleetInstallStatus !== "pending_install" &&
-            isInstalledByFleet &&
-            renderInstallDetailsSection()}
-        </div>
+        {renderContent()}
         {renderCta()}
       </>
     </Modal>

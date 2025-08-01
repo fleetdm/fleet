@@ -201,53 +201,6 @@ export const SoftwareInstallDetailsModal = ({
     }
   );
 
-  if (isInstalledByFleet) {
-    if (isLoading) {
-      return <Spinner />;
-    }
-
-    if (isError) {
-      if (error?.status === 404) {
-        return deviceAuthToken ? (
-          <DeviceUserError />
-        ) : (
-          <DataError
-            description="Couldn't get install details"
-            excludeIssueLink
-          />
-        );
-      }
-
-      if (error?.status === 401) {
-        return deviceAuthToken ? (
-          <DeviceUserError />
-        ) : (
-          <DataError description="Close this modal and try again." />
-        );
-      }
-    }
-
-    if (!swInstallResult) {
-      return deviceAuthToken ? (
-        <DeviceUserError />
-      ) : (
-        <DataError description="No data returned." />
-      );
-    }
-
-    if (
-      !["installed", "pending_install", "failed_install"].includes(
-        swInstallResult.status
-      )
-    ) {
-      return (
-        <DataError
-          description={`Unexpected software install status ${swInstallResult.status}`}
-        />
-      );
-    }
-  }
-
   const renderInventoryVersionsSection = () => {
     if (hostSoftware?.installed_versions?.length) {
       return <InventoryVersions hostSoftware={hostSoftware} />;
@@ -271,12 +224,9 @@ export const SoftwareInstallDetailsModal = ({
       )}
     </>
   );
-
-  const excludeVersions =
-    !deviceAuthToken &&
-    ["pending_install", "failed_install"].includes(
-      swInstallResult?.status || ""
-    );
+  const excludeVersions = ["pending_install", "failed_install"].includes(
+    swInstallResult?.status || ""
+  );
 
   const hostDisplayname =
     swInstallResult?.host_display_name || detailsFromProps.host_display_name;
@@ -287,6 +237,72 @@ export const SoftwareInstallDetailsModal = ({
         host_display_name: hostDisplayname,
       }
     : undefined;
+
+  const renderContent = () => {
+    if (isInstalledByFleet) {
+      if (isLoading) {
+        return <Spinner />;
+      }
+
+      if (isError) {
+        if (error?.status === 404) {
+          return deviceAuthToken ? (
+            <DeviceUserError />
+          ) : (
+            <DataError
+              description="Couldn't get install details"
+              excludeIssueLink
+            />
+          );
+        }
+
+        if (error?.status === 401) {
+          return deviceAuthToken ? (
+            <DeviceUserError />
+          ) : (
+            <DataError description="Close this modal and try again." />
+          );
+        }
+      }
+
+      if (!swInstallResult) {
+        return deviceAuthToken ? (
+          <DeviceUserError />
+        ) : (
+          <DataError description="No data returned." />
+        );
+      }
+
+      if (
+        !["installed", "pending_install", "failed_install"].includes(
+          swInstallResult.status
+        )
+      ) {
+        return (
+          <DataError
+            description={`Unexpected software install status ${swInstallResult.status}`}
+          />
+        );
+      }
+    }
+
+    return (
+      <div className={`${baseClass}__modal-content`}>
+        <StatusMessage
+          installResult={installResultWithHostDisplayName}
+          softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
+          isDUP={!!deviceAuthToken}
+          contactUrl={contactUrl}
+        />
+
+        {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
+
+        {swInstallResult?.status !== "pending_install" &&
+          isInstalledByFleet &&
+          renderInstallDetailsSection()}
+      </div>
+    );
+  };
 
   const renderCta = () => {
     if (deviceAuthToken && swInstallResult?.status === "failed_install") {
@@ -316,20 +332,7 @@ export const SoftwareInstallDetailsModal = ({
       className={baseClass}
     >
       <>
-        <div className={`${baseClass}__modal-content`}>
-          <StatusMessage
-            installResult={installResultWithHostDisplayName}
-            softwareName={hostSoftware?.name || "Software"} // will always be defined at this point
-            isDUP={!!deviceAuthToken}
-            contactUrl={contactUrl}
-          />
-
-          {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-
-          {swInstallResult?.status !== "pending_install" &&
-            isInstalledByFleet &&
-            renderInstallDetailsSection()}
-        </div>
+        {renderContent()}
         {renderCta()}
       </>
     </Modal>
