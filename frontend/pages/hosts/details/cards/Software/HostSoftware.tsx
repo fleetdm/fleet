@@ -36,7 +36,6 @@ import {
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
-import { get } from "lodash";
 import { getSoftwareSubheader } from "./helpers";
 
 const baseClass = "software-card";
