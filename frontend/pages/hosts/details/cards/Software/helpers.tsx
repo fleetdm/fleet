@@ -372,6 +372,6 @@ export const getSoftwareSubheader = ({
     }
   }
   return isMyDevicePage
-    ? "Software installed on your device"
-    : "Software installed on this host";
+    ? "Software installed on your device."
+    : "Software installed on this host.";
 };
