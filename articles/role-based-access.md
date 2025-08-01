@@ -49,6 +49,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Add, edit, and delete software                                                                                                             |          |           |            | ✅    | ✅       |
+| Add, edit, and delete package or app                                                                                                       |          |           | ✅         | ✅    | ✅       |
 | Download added software                                                                                                                    |          |           | ✅         | ✅    |         |
 | Install/uninstall software on hosts                                                                                                                  |          |           | ✅         | ✅    |         |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)               | ✅       | ✅         | ✅         | ✅    |         |
@@ -138,6 +139,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | View software                                                                                                                    | ✅            | ✅               | ✅              | ✅        |             |
 | Add, edit and delete software                                                                                                    |               |                | ✅              | ✅         | ✅            |
+| Add, edit and delete package or app                                                                                              |               |                | ✅              | ✅         | ✅            |
 | Download added software                                                                                                          |               |                | ✅              | ✅         |              |
 | Install/uninstall software on hosts                                                                                                        |               |                | ✅              | ✅         |              |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)     | ✅            | ✅             | ✅              | ✅         |             |
