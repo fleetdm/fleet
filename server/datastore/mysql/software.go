@@ -3792,8 +3792,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 
 	var vppAdamIDs []string
-	for key := range byVPPAdamID {
+	var vppTitleIds []uint
+	for key, v := range byVPPAdamID {
 		vppAdamIDs = append(vppAdamIDs, key)
+		vppTitleIds = append(vppTitleIds, v.ID)
 	}
 
 	var titleCount uint
@@ -4126,6 +4128,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			vulnerabilitiesBySoftwareID[cve.SoftwareID] = append(vulnerabilitiesBySoftwareID[cve.SoftwareID], cve.CVE)
 		}
 
+		// Grab the automatic install policies, if any exist
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, append(vppTitleIds, softwareTitleIds...), host.TeamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
+		}
+
+		policiesBySoftwareTitleId := make(map[uint][]fleet.AutomaticInstallPolicy, len(policies))
+		for _, p := range policies {
+			policiesBySoftwareTitleId[p.TitleID] = append(policiesBySoftwareTitleId[p.TitleID], p)
+		}
+
 		indexOfSoftwareTitle := make(map[uint]uint)
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
@@ -4265,6 +4278,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if softwareTitleRecord.VPPAppAdamID != nil {
 				if _, ok := filteredByVPPAdamID[*softwareTitleRecord.VPPAppAdamID]; ok {
 					promoteSoftwareTitleVPPApp(softwareTitleRecord)
+				}
+			}
+
+			if policies, ok := policiesBySoftwareTitleId[softwareTitleRecord.ID]; ok {
+				if softwareTitleRecord.AppStoreApp != nil {
+					softwareTitleRecord.AppStoreApp.AutomaticInstallPolicies = policies
+				} else {
+					softwareTitleRecord.SoftwarePackage.AutomaticInstallPolicies = policies
 				}
 			}
 
