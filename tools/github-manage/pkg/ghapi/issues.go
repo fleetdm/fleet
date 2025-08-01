@@ -1,11 +1,13 @@
+// Package ghapi provides GitHub issue management functionality including
+// label operations, milestone management, and project interactions.
 package ghapi
 
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 )
 
+// ParseJSONtoIssues converts JSON data to a slice of Issue structs.
 func ParseJSONtoIssues(jsonData []byte) ([]Issue, error) {
 	var issues []Issue
 	err := json.Unmarshal(jsonData, &issues)
@@ -15,10 +17,8 @@ func ParseJSONtoIssues(jsonData []byte) ([]Issue, error) {
 	return issues, nil
 }
 
+// GetIssues fetches issues from GitHub using optional search criteria.
 func GetIssues(search string) ([]Issue, error) {
-	// This function would typically interact with the GitHub API to fetch issues.
-	// For now, we return an empty slice and nil error for demonstration purposes.
-	// log.Printf("Fetching issues from GitHub API...")
 	var issues []Issue
 
 	command := "gh issue list --json number,title,author,createdAt,updatedAt,state,labels"
@@ -28,70 +28,62 @@ func GetIssues(search string) ([]Issue, error) {
 
 	results, err := RunCommandAndReturnOutput(command)
 	if err != nil {
-		log.Printf("Error fetching issues: %v", err)
-		log.Printf("Command: %s", results)
 		return nil, err
 	}
 	issues, err = ParseJSONtoIssues(results)
 	if err != nil {
-		log.Printf("Error parsing issues: %v", err)
 		return nil, err
 	}
-	// log.Printf("Fetched %d issues from GitHub API", len(issues))
 	return issues, nil
 }
 
+// AddLabelToIssue adds a label to an issue.
 func AddLabelToIssue(issueNumber int, label string) error {
 	command := fmt.Sprintf("gh issue edit %d --add-label %s", issueNumber, label)
 	_, err := RunCommandAndReturnOutput(command)
 	if err != nil {
-		log.Printf("Error adding label to issue %d: %v", issueNumber, err)
 		return err
 	}
-	// log.Printf("Added label '%s' to issue #%d", label, issueNumber)
 	return nil
 }
 
+// RemoveLabelFromIssue removes a label from an issue.
 func RemoveLabelFromIssue(issueNumber int, label string) error {
 	command := fmt.Sprintf("gh issue edit %d --remove-label %s", issueNumber, label)
 	_, err := RunCommandAndReturnOutput(command)
 	if err != nil {
-		log.Printf("Error removing label from issue %d: %v", issueNumber, err)
 		return err
 	}
-	// log.Printf("Removed label '%s' from issue #%d", label, issueNumber)
 	return nil
 }
 
+// SetMilestoneToIssue sets a milestone for an issue.
 func SetMilestoneToIssue(issueNumber int, milestone string) error {
 	command := fmt.Sprintf("gh issue edit %d --milestone %s", issueNumber, milestone)
 	_, err := RunCommandAndReturnOutput(command)
 	if err != nil {
-		log.Printf("Error setting milestone for issue %d: %v", issueNumber, err)
 		return err
 	}
-	// log.Printf("Set milestone '%s' for issue #%d", milestone, issueNumber)
 	return nil
 }
 
+// AddIssueToProject adds an issue to a project.
 func AddIssueToProject(issueNumber int, projectID int) error {
 	command := fmt.Sprintf("gh project item-add %d --owner fleetdm --url https://github.com/fleetdm/fleet/issues/%d", projectID, issueNumber)
 	_, err := RunCommandAndReturnOutput(command)
 	if err != nil {
-		log.Printf("Error adding issue %d to project %d: %v", issueNumber, projectID, err)
 		return err
 	}
-	// log.Printf("Added issue #%d to project %d", issueNumber, projectID)
 	return nil
 }
 
+// RemoveIssueFromProject removes an issue from a project.
 func RemoveIssueFromProject(issueNumber int, projectID int) error {
 	// Get the project item ID for this issue using the same method as other functions
 	itemID, err := GetProjectItemID(issueNumber, projectID)
 	if err != nil {
 		// If the issue is not found in the project, that's not an error
 		if err.Error() == fmt.Sprintf("issue #%d not found in project %d", issueNumber, projectID) {
-			log.Printf("Issue #%d not found in project %d (already removed or never added)", issueNumber, projectID)
 			return nil
 		}
 		return fmt.Errorf("failed to get project item ID: %v", err)
@@ -104,10 +96,10 @@ func RemoveIssueFromProject(issueNumber int, projectID int) error {
 		return fmt.Errorf("failed to remove issue %d from project %d: %v", issueNumber, projectID, err)
 	}
 
-	log.Printf("Removed issue #%d from project %d", issueNumber, projectID)
 	return nil
 }
 
+// SyncEstimateField synchronizes the estimate field value from one project to another.
 func SyncEstimateField(issueNumber int, sourceProjectID, targetProjectID int) error {
 	// Get the source project item to find the current estimate
 	sourceItemID, err := GetProjectItemID(issueNumber, sourceProjectID)
@@ -128,42 +120,40 @@ func SyncEstimateField(issueNumber int, sourceProjectID, targetProjectID int) er
 	}
 
 	if sourceEstimate == "" || sourceEstimate == "0" {
-		log.Printf("No estimate found for issue #%d in source project %d", issueNumber, sourceProjectID)
-		return nil
+		return nil // No estimate to sync
 	}
 
-	// Use the updated SetProjectItemFieldValue function to set the estimate in target project
+	// Set the estimate in the target project
 	err = SetProjectItemFieldValue(targetItemID, targetProjectID, "Estimate", sourceEstimate)
 	if err != nil {
-		return fmt.Errorf("failed to sync estimate: %v", err)
+		return fmt.Errorf("failed to set target estimate: %v", err)
 	}
 
-	log.Printf("Synced estimate %s for issue #%d from project %d to project %d",
-		sourceEstimate, issueNumber, sourceProjectID, targetProjectID)
 	return nil
 }
 
+// SetCurrentSprint sets the current sprint for an issue in a project.
 func SetCurrentSprint(issueNumber int, projectID int) error {
-	// For now, this is a placeholder function
-	// In a real implementation, this would set the sprint field to the current sprint
-	// for the given issue in the specified project
-	log.Printf("Setting current sprint for issue #%d in project %d (placeholder)", issueNumber, projectID)
+	// This is a placeholder implementation
+	// In a real implementation, you would:
+	// 1. Get the current sprint information from the project
+	// 2. Set the sprint field for the issue
 	return nil
 }
 
+// SetIssueStatus sets the status of an issue in a project using the Status field.
 func SetIssueStatus(issueNumber int, projectID int, status string) error {
-	// Get the project item ID for this issue
+	// Get the project item ID
 	itemID, err := GetProjectItemID(issueNumber, projectID)
 	if err != nil {
 		return fmt.Errorf("failed to get project item ID: %v", err)
 	}
 
-	// Use the updated SetProjectItemFieldValue function which handles GraphQL properly
+	// Use the general field setting function to set the Status field
 	err = SetProjectItemFieldValue(itemID, projectID, "Status", status)
 	if err != nil {
 		return fmt.Errorf("failed to set status: %v", err)
 	}
 
-	log.Printf("Set status '%s' for issue #%d in project %d", status, issueNumber, projectID)
 	return nil
 }

@@ -1,10 +1,9 @@
-// views are managed searches and display templates for GitHub issues
+// Package ghapi provides views for managed searches and display templates for GitHub issues.
 
 package ghapi
 
 import (
 	"fmt"
-	"log"
 )
 
 type ViewType string
@@ -22,6 +21,7 @@ type View struct {
 	Filters []string `json:"filters,omitempty"` // Search filters for issues
 }
 
+// NewView creates a new view with the specified type, title, and optional filters.
 func NewView(viewType ViewType, title string, filters ...string) *View {
 	return &View{
 		Type:    viewType,
@@ -30,11 +30,12 @@ func NewView(viewType ViewType, title string, filters ...string) *View {
 	}
 }
 
+// GetMDMTicketsEstimated returns estimated tickets from the MDM project.
 func GetMDMTicketsEstimated() ([]ProjectItem, error) {
 	return GetEstimatedTicketsForProject(58, 500)
 }
 
-// GetEstimatedTicketsForProject gets estimated tickets from the drafting project filtered by the project's label
+// GetEstimatedTicketsForProject gets estimated tickets from the drafting project filtered by the project's label.
 func GetEstimatedTicketsForProject(projectID, limit int) ([]ProjectItem, error) {
 	// Get the label for this project
 	label, exists := ProjectLabels[projectID]
@@ -46,17 +47,14 @@ func GetEstimatedTicketsForProject(projectID, limit int) ([]ProjectItem, error) 
 	draftingProjectID := Aliases["draft"]
 	estimatedName, err := FindFieldValueByName(draftingProjectID, "Status", "estimated")
 	if err != nil {
-		log.Printf("Error looking up Status field: %v", err)
 		return nil, err
 	}
 
 	issues, err := GetProjectItems(draftingProjectID, limit)
 	if err != nil {
-		log.Printf("Error fetching issues from Drafting project: %v", err)
 		return nil, err
 	}
 
-	log.Printf("Fetched %d issues from Drafting project", len(issues))
 	// filter down to issues that are estimated with the specified label
 	var estimatedIssues []ProjectItem
 	for _, issue := range issues {
@@ -71,11 +69,10 @@ func GetEstimatedTicketsForProject(projectID, limit int) ([]ProjectItem, error) 
 			}
 		}
 	}
-	log.Printf("Found %d estimated issues with label '%s'", len(estimatedIssues), label)
 	return estimatedIssues, nil
 }
 
-// getProjectIDsWithLabels returns a slice of project IDs that have label mappings
+// getProjectIDsWithLabels returns a slice of project IDs that have label mappings.
 func getProjectIDsWithLabels() []int {
 	ids := make([]int, 0, len(ProjectLabels))
 	for id := range ProjectLabels {

@@ -1,9 +1,10 @@
+// Package ghapi provides GitHub project management functionality including
+// project item management, field operations, and GraphQL API interactions.
 package ghapi
 
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -26,7 +27,7 @@ var ProjectLabels = map[int]string{
 	71: "#g-orchestration", // g-orchestration project
 }
 
-// ResolveProjectID resolves a project identifier (alias or numeric string) to a project ID
+// ResolveProjectID resolves a project identifier (alias or numeric string) to a project ID.
 func ResolveProjectID(identifier string) (int, error) {
 	// First check if it's an alias
 	if projectID, exists := Aliases[identifier]; exists {
@@ -41,7 +42,7 @@ func ResolveProjectID(identifier string) (int, error) {
 	return 0, fmt.Errorf("invalid project identifier '%s'. Must be a numeric ID or one of these aliases: %v", identifier, getAliasKeys())
 }
 
-// getAliasKeys returns a slice of all available alias keys
+// getAliasKeys returns a slice of all available alias keys.
 func getAliasKeys() []string {
 	keys := make([]string, 0, len(Aliases))
 	for k := range Aliases {
@@ -50,45 +51,40 @@ func getAliasKeys() []string {
 	return keys
 }
 
+// ParseJSONtoProjectItems converts JSON data to a slice of ProjectItem structs.
 func ParseJSONtoProjectItems(jsonData []byte, limit int) ([]ProjectItem, error) {
 	var items ProjectItemsResponse
 	err := json.Unmarshal(jsonData, &items)
 	if err != nil {
 		return nil, err
 	}
-	if limit > 0 && items.TotalCount > limit {
-		log.Printf("Warning: The number of items returned exceeds the specified limit. Only the first %d / %d items will be returned.\n", limit, items.TotalCount)
-	}
 	return items.Items, nil
 }
 
+// GetProjectItems retrieves project items for a specific project with a limit.
 func GetProjectItems(projectID, limit int) ([]ProjectItem, error) {
 	// Run the command to get project items
 	results, err := RunCommandAndReturnOutput(fmt.Sprintf("gh project item-list --owner fleetdm --format json --limit %d %d", limit, projectID))
 	if err != nil {
-		log.Printf("Error fetching issues: %v", err)
 		return nil, err
 	}
 	items, err := ParseJSONtoProjectItems(results, limit)
 	if err != nil {
-		log.Printf("Error parsing issues: %v", err)
 		return nil, err
 	}
-	// log.Printf("Fetched %d items from project %d", len(items), projectID)
 	return items, nil
 }
 
+// GetProjectFields retrieves all fields for a specific project.
 func GetProjectFields(projectID int) (map[string]ProjectField, error) {
 	// Run the command to get project fields
 	results, err := RunCommandAndReturnOutput(fmt.Sprintf("gh project field-list --owner fleetdm --format json %d", projectID))
 	if err != nil {
-		log.Printf("Error fetching project fields: %v", err)
 		return nil, err
 	}
 	var fields ProjectFieldsResponse
 	err = json.Unmarshal(results, &fields)
 	if err != nil {
-		log.Printf("Error parsing project fields: %v", err)
 		return nil, err
 	}
 	fieldMap := make(map[string]ProjectField)
@@ -98,21 +94,20 @@ func GetProjectFields(projectID int) (map[string]ProjectField, error) {
 	return fieldMap, nil
 }
 
+// LoadProjectFields loads project fields from cache or API.
 func LoadProjectFields(projectID int) (map[string]ProjectField, error) {
 	if fields, exists := MapProjectFieldNameToField[projectID]; exists {
-		log.Printf("Using cached project fields for project %d", projectID)
 		return fields, nil
 	}
-	log.Printf("Fetching project fields for project %d from API", projectID)
 	fields, err := GetProjectFields(projectID)
 	if err != nil {
 		return nil, err
 	}
 	MapProjectFieldNameToField[projectID] = fields
-	log.Printf("Cached %d project fields for project %d", len(fields), projectID)
 	return fields, nil
 }
 
+// LookupProjectFieldName looks up a project field by name.
 func LookupProjectFieldName(projectID int, fieldName string) (ProjectField, error) {
 	fields, err := LoadProjectFields(projectID)
 	if err != nil {
@@ -125,6 +120,7 @@ func LookupProjectFieldName(projectID int, fieldName string) (ProjectField, erro
 	return field, nil
 }
 
+// FindFieldValueByName finds a field option by partial name match (case-insensitive).
 func FindFieldValueByName(projectID int, fieldName, search string) (string, error) {
 	field, err := LookupProjectFieldName(projectID, fieldName)
 	if err != nil {
@@ -138,8 +134,8 @@ func FindFieldValueByName(projectID int, fieldName, search string) (string, erro
 	return "", fmt.Errorf("field '%s' not found in project %d", fieldName, projectID)
 }
 
-// SetProjectItemFieldValue sets a field value for a project item
-// Uses GraphQL node IDs for proper API compatibility
+// SetProjectItemFieldValue sets a field value for a project item.
+// Uses GraphQL node IDs for proper API compatibility.
 func SetProjectItemFieldValue(itemID string, projectID int, fieldName, value string) error {
 	// Get the field information
 	field, err := LookupProjectFieldName(projectID, fieldName)
@@ -155,9 +151,6 @@ func SetProjectItemFieldValue(itemID string, projectID int, fieldName, value str
 
 	// If itemID is provided, use it directly
 	if itemID != "" {
-		// Debug: Log the field type to understand what we're getting
-		log.Printf("Field '%s' has type: '%s'", fieldName, field.Type)
-
 		// For number fields (like Estimate) - try different possible type names
 		if field.Type == "NUMBER" || field.Type == "ProjectV2Field" || strings.Contains(strings.ToLower(field.Type), "number") {
 			command := fmt.Sprintf(`gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "%s", itemId: "%s", fieldId: "%s", value: { number: %s } }) { projectV2Item { id } } }'`,
@@ -191,7 +184,6 @@ func SetProjectItemFieldValue(itemID string, projectID int, fieldName, value str
 				return fmt.Errorf("option ID not found for '%s' in field '%s'", actualOptionName, fieldName)
 			}
 
-			log.Printf("Setting field '%s' to option '%s' (ID: %s)", fieldName, actualOptionName, optionID)
 			command := fmt.Sprintf(`gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "%s", itemId: "%s", fieldId: "%s", value: { singleSelectOptionId: "%s" } }) { projectV2Item { id } } }'`,
 				projectNodeID, itemID, field.ID, optionID)
 
@@ -216,7 +208,6 @@ func SetProjectItemFieldValue(itemID string, projectID int, fieldName, value str
 
 		// If we can't determine the type, try to infer from field name or context
 		if strings.EqualFold(fieldName, "Estimate") || strings.Contains(strings.ToLower(fieldName), "estimate") {
-			log.Printf("Attempting to set field '%s' as number based on field name", fieldName)
 			command := fmt.Sprintf(`gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "%s", itemId: "%s", fieldId: "%s", value: { number: %s } }) { projectV2Item { id } } }'`,
 				projectNodeID, itemID, field.ID, value)
 
@@ -233,21 +224,19 @@ func SetProjectItemFieldValue(itemID string, projectID int, fieldName, value str
 	return fmt.Errorf("itemID is required for SetProjectItemFieldValue")
 }
 
-// GetProjectItemID finds the project item ID for a given issue number in a project with caching
-// Uses GitHub API directly for better performance and reliability
+// GetProjectItemID finds the project item ID for a given issue number in a project with caching.
+// Uses GitHub API directly for better performance and reliability.
 func GetProjectItemID(issueNumber int, projectID int) (string, error) {
 	// Check cache first
 	cacheKey := generateProjectItemCacheKey(issueNumber, projectID)
 	projectItemIDMutex.RLock()
 	if itemID, exists := projectItemIDCache[cacheKey]; exists {
 		projectItemIDMutex.RUnlock()
-		log.Printf("Using cached project item ID for issue #%d in project %d", issueNumber, projectID)
 		return itemID, nil
 	}
 	projectItemIDMutex.RUnlock()
 
 	// Not in cache, fetch from API
-	log.Printf("Fetching project item ID for issue #%d in project %d from API", issueNumber, projectID)
 
 	// First, we need to get the project's node ID
 	projectNodeID, err := getProjectNodeID(projectID)
@@ -317,7 +306,6 @@ func GetProjectItemID(issueNumber int, projectID int) (string, error) {
 			projectItemIDCache[cacheKey] = item.ID
 			projectItemIDMutex.Unlock()
 
-			log.Printf("Cached project item ID %s for issue #%d in project %d", item.ID, issueNumber, projectID)
 			return item.ID, nil
 		}
 	}
@@ -330,19 +318,17 @@ func GetProjectItemID(issueNumber int, projectID int) (string, error) {
 	return "", fmt.Errorf("issue #%d not found in project %d", issueNumber, projectID)
 }
 
-// getProjectNodeID gets the GraphQL node ID for a project with caching
+// getProjectNodeID gets the GraphQL node ID for a project with caching.
 func getProjectNodeID(projectID int) (string, error) {
 	// Check cache first
 	projectNodeIDMutex.RLock()
 	if nodeID, exists := projectNodeIDCache[projectID]; exists {
 		projectNodeIDMutex.RUnlock()
-		log.Printf("Using cached project node ID for project %d", projectID)
 		return nodeID, nil
 	}
 	projectNodeIDMutex.RUnlock()
 
 	// Not in cache, fetch from API
-	log.Printf("Fetching project node ID for project %d from API", projectID)
 	command := fmt.Sprintf("gh project view --owner fleetdm --format json %d", projectID)
 	output, err := RunCommandAndReturnOutput(command)
 	if err != nil {
@@ -367,11 +353,10 @@ func getProjectNodeID(projectID int) (string, error) {
 	projectNodeIDCache[projectID] = response.ID
 	projectNodeIDMutex.Unlock()
 
-	log.Printf("Cached project node ID %s for project %d", response.ID, projectID)
 	return response.ID, nil
 }
 
-// getProjectItemIDWithPagination handles pagination when searching for project items with caching
+// getProjectItemIDWithPagination handles pagination when searching for project items with caching.
 func getProjectItemIDWithPagination(issueNumber int, projectNodeID, cursor, cacheKey string) (string, error) {
 	query := fmt.Sprintf(`{
 		node(id: "%s") {
@@ -432,7 +417,6 @@ func getProjectItemIDWithPagination(issueNumber int, projectNodeID, cursor, cach
 			projectItemIDCache[cacheKey] = item.ID
 			projectItemIDMutex.Unlock()
 
-			log.Printf("Cached project item ID %s for issue #%d (found via pagination)", item.ID, issueNumber)
 			return item.ID, nil
 		}
 	}
@@ -445,7 +429,7 @@ func getProjectItemIDWithPagination(issueNumber int, projectNodeID, cursor, cach
 	return "", fmt.Errorf("issue #%d not found in project after searching all pages", issueNumber)
 }
 
-// getProjectItemFieldValue retrieves the value of a specific field for a project item
+// getProjectItemFieldValue retrieves the value of a specific field for a project item.
 func getProjectItemFieldValue(itemID string, projectID int, fieldName string) (string, error) {
 	// Get the field information
 	field, err := LookupProjectFieldName(projectID, fieldName)

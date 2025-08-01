@@ -1,5 +1,6 @@
 package ghapi
 
+// ActionType represents the type of action to be performed on an issue.
 type ActionType string
 
 const (
@@ -12,6 +13,7 @@ const (
 	ATSetSprint              ActionType = "set_sprint"
 )
 
+// Action represents a single action to be performed on an issue.
 type Action struct {
 	Type          ActionType `json:"type"`
 	Issue         Issue      `json:"issue"`
@@ -22,11 +24,13 @@ type Action struct {
 	SourceProject int        `json:"source_project,omitempty"` // Source project for moving issues
 }
 
+// Status represents the status of an item in a project.
 type Status struct {
 	Index int    `json:"index"`
 	State string `json:"state"`
 }
 
+// CreateBulkAddLableAction creates actions to add a label to multiple issues.
 func CreateBulkAddLableAction(issues []Issue, label string) []Action {
 	var actions []Action
 	for _, issue := range issues {
@@ -39,6 +43,7 @@ func CreateBulkAddLableAction(issues []Issue, label string) []Action {
 	return actions
 }
 
+// CreateBulkRemoveLabelAction creates actions to remove a label from multiple issues.
 func CreateBulkRemoveLabelAction(issues []Issue, label string) []Action {
 	var actions []Action
 	for _, issue := range issues {
@@ -51,6 +56,7 @@ func CreateBulkRemoveLabelAction(issues []Issue, label string) []Action {
 	return actions
 }
 
+// CreateBulkAddIssueToProjectAction creates actions to add multiple issues to a project.
 func CreateBulkAddIssueToProjectAction(issues []Issue, projectID int) []Action {
 	var actions []Action
 	for _, issue := range issues {
@@ -63,6 +69,7 @@ func CreateBulkAddIssueToProjectAction(issues []Issue, projectID int) []Action {
 	return actions
 }
 
+// CreateBulkRemoveIssueFromProjectAction creates actions to remove multiple issues from a project.
 func CreateBulkRemoveIssueFromProjectAction(issues []Issue, projectID int) []Action {
 	var actions []Action
 	for _, issue := range issues {
@@ -75,6 +82,7 @@ func CreateBulkRemoveIssueFromProjectAction(issues []Issue, projectID int) []Act
 	return actions
 }
 
+// CreateBulkSetStatusAction creates actions to set the status for multiple issues in a project.
 func CreateBulkSetStatusAction(issues []Issue, projectID int, status string) []Action {
 	var actions []Action
 	for _, issue := range issues {
@@ -88,6 +96,7 @@ func CreateBulkSetStatusAction(issues []Issue, projectID int, status string) []A
 	return actions
 }
 
+// CreateBulkSyncEstimateAction creates actions to sync estimates from source to target projects for multiple issues.
 func CreateBulkSyncEstimateAction(issues []Issue, sourceProjectID, targetProjectID int) []Action {
 	var actions []Action
 	for _, issue := range issues {
@@ -101,6 +110,7 @@ func CreateBulkSyncEstimateAction(issues []Issue, sourceProjectID, targetProject
 	return actions
 }
 
+// CreateBulkSetSprintAction creates actions to set the sprint for multiple issues in a project.
 func CreateBulkSetSprintAction(issues []Issue, projectID int) []Action {
 	var actions []Action
 	for _, issue := range issues {
@@ -124,106 +134,92 @@ func AsyncManager(actions []Action, statusChan chan<- Status) {
 		case ATAddLabel:
 			err := AddLabelToIssue(action.Issue.Number, action.Label)
 			if err != nil {
-				// log.Printf("Error adding label to issue #%d: %v", action.Issue.Number, err)
 				statusChan <- Status{Index: i, State: "error"}
 				continue
 			}
-			// log.Printf("Added label '%s' to issue #%d", action.Label, action.Issue.Number)
 			statusChan <- Status{Index: i, State: "success"}
 
 		case ATRemoveLabel:
 			err := RemoveLabelFromIssue(action.Issue.Number, action.Label)
 			if err != nil {
-				// log.Printf("Error removing label from issue #%d: %v", action.Issue.Number, err)
 				statusChan <- Status{Index: i, State: "error"}
 				continue
 			}
-			// log.Printf("Removed label '%s' from issue #%d", action.Label, action.Issue.Number)
 			statusChan <- Status{Index: i, State: "success"}
 
 		case ATAddIssueToProject:
 			err := AddIssueToProject(action.Issue.Number, action.Project)
 			if err != nil {
-				// log.Printf("Error adding issue #%d to project %d: %v", action.Issue.Number, action.Project, err)
 				statusChan <- Status{Index: i, State: "error"}
 				continue
 			}
-			// log.Printf("Added issue #%d to project %d", action.Issue.Number, action.Project)
 			statusChan <- Status{Index: i, State: "success"}
 		case ATRemoveIssueFromProject:
 			err := RemoveIssueFromProject(action.Issue.Number, action.Project)
 			if err != nil {
-				// log.Printf("Error removing issue #%d from project %d: %v", action.Issue.Number, action.Project, err)
 				statusChan <- Status{Index: i, State: "error"}
 				continue
 			}
-			// log.Printf("Removed issue #%d from project %d", action.Issue.Number, action.Project)
 			statusChan <- Status{Index: i, State: "success"}
 
 		case ATSetStatus:
 			err := SetIssueStatus(action.Issue.Number, action.Project, action.Status)
 			if err != nil {
-				// log.Printf("Error setting status for issue #%d: %v", action.Issue.Number, err)
 				statusChan <- Status{Index: i, State: "error"}
 				continue
 			}
-			// log.Printf("Set status '%s' for issue #%d", action.Status, action.Issue.Number)
 			statusChan <- Status{Index: i, State: "success"}
 
 		case ATSyncEstimate:
 			err := SyncEstimateField(action.Issue.Number, action.SourceProject, action.Project)
 			if err != nil {
-				// log.Printf("Error syncing estimate for issue #%d: %v", action.Issue.Number, err)
 				statusChan <- Status{Index: i, State: "error"}
 				continue
 			}
-			// log.Printf("Synced estimate for issue #%d", action.Issue.Number)
 			statusChan <- Status{Index: i, State: "success"}
 
 		case ATSetSprint:
 			err := SetCurrentSprint(action.Issue.Number, action.Project)
 			if err != nil {
-				// log.Printf("Error setting sprint for issue #%d: %v", action.Issue.Number, err)
 				statusChan <- Status{Index: i, State: "error"}
 				continue
 			}
-			// log.Printf("Set sprint for issue #%d", action.Issue.Number)
 			statusChan <- Status{Index: i, State: "success"}
 		default:
-			// log.Printf("Unknown action type: %s", action.Type)
 			statusChan <- Status{Index: i, State: "error"}
 		}
 	}
 }
 
+// BulkAddLabel adds a label to multiple issues.
 func BulkAddLabel(issues []Issue, label string) error {
 	for _, issue := range issues {
 		err := AddLabelToIssue(issue.Number, label)
 		if err != nil {
-			// log.Printf("Error adding label '%s' to issue #%d: %v", label, issue.Number, err)
 			return err
 		}
 	}
 	return nil
 }
 
+// BulkRemoveLabel removes a label from multiple issues.
 func BulkRemoveLabel(issues []Issue, label string) error {
 	for _, issue := range issues {
 		err := RemoveLabelFromIssue(issue.Number, label)
 		if err != nil {
-			// log.Printf("Error removing label '%s' from issue #%d: %v", label, issue.Number, err)
 			return err
 		}
 	}
 	return nil
 }
 
+// BulkSprintKickoff performs the sprint kickoff workflow for multiple issues.
+// This includes adding issues to the target project, adding release labels, syncing estimates, and setting sprints.
 func BulkSprintKickoff(issues []Issue, sourceProjectID, projectID int) error {
 	// Add ticket to the target product group project
 	for _, issue := range issues {
 		err := AddIssueToProject(issue.Number, projectID)
 		if err != nil {
-			// log.Printf("Error adding issue #%d to project %d: %v", issue.Number, projectID, err)
 			return err
 		}
 	}
@@ -238,7 +234,6 @@ func BulkSprintKickoff(issues []Issue, sourceProjectID, projectID int) error {
 	for _, issue := range issues {
 		err := SyncEstimateField(issue.Number, sourceProjectID, projectID)
 		if err != nil {
-			// log.Printf("Error syncing estimate for issue #%d: %v", issue.Number, err)
 			return err
 		}
 	}
@@ -247,7 +242,6 @@ func BulkSprintKickoff(issues []Issue, sourceProjectID, projectID int) error {
 	for _, issue := range issues {
 		err := SetCurrentSprint(issue.Number, projectID)
 		if err != nil {
-			// log.Printf("Error setting sprint for issue #%d: %v", issue.Number, err)
 			return err
 		}
 	}
@@ -263,7 +257,6 @@ func BulkSprintKickoff(issues []Issue, sourceProjectID, projectID int) error {
 	for _, issue := range issues {
 		err := RemoveIssueFromProject(issue.Number, draftingProjectID)
 		if err != nil {
-			// log.Printf("Error removing issue #%d from drafting project: %v", issue.Number, err)
 			return err
 		}
 	}
@@ -271,13 +264,14 @@ func BulkSprintKickoff(issues []Issue, sourceProjectID, projectID int) error {
 	return nil
 }
 
+// BulkMilestoneClose performs the milestone close workflow for multiple issues.
+// This includes moving issues back to the drafting project and removing them from product group projects.
 func BulkMilestoneClose(issues []Issue) error {
 	// Add ticket to the drafting project
 	draftingProjectID := Aliases["draft"]
 	for _, issue := range issues {
 		err := AddIssueToProject(issue.Number, draftingProjectID)
 		if err != nil {
-			// log.Printf("Error adding issue #%d to drafting project: %v", issue.Number, err)
 			return err
 		}
 	}
@@ -292,7 +286,6 @@ func BulkMilestoneClose(issues []Issue) error {
 	for _, issue := range issues {
 		err := SetIssueStatus(issue.Number, draftingProjectID, "confirm and celebrate")
 		if err != nil {
-			// log.Printf("Error setting status for issue #%d: %v", issue.Number, err)
 			return err
 		}
 	}
