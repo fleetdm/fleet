@@ -33,7 +33,9 @@ You can watch these videos as well:
 
 ## Step 4: Host service discovery file
 
-Fleet manages service discovery for hosts running iOS 18.2/iPadOS 18.2 and later. For hosts below these versions, you must self-host the service discovery JSON file on your company domain, which you added to ABM in the previous step. This file directs personal hosts to the MDM server for enrollment.
+If your iOS/iPadOS hosts are running OS 18.2/iPadOS 18.2 and later, you can skip this step. Fleet manages service discovery for hosts running iOS 18.2/iPadOS 18.2 and later. 
+
+For hosts below these versions, you must self-host the service discovery JSON file on your company domain, which you added to ABM in the previous step. This file directs personal hosts to the MDM server for enrollment.
 
 The server must return JSON file below with `Content-Type` header set to `application/json`.
 
