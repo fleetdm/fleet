@@ -134,10 +134,24 @@ func SyncEstimateField(issueNumber int, sourceProjectID, targetProjectID int) er
 
 // SetCurrentSprint sets the current sprint for an issue in a project.
 func SetCurrentSprint(issueNumber int, projectID int) error {
-	// This is a placeholder implementation
-	// In a real implementation, you would:
-	// 1. Get the current sprint information from the project
-	// 2. Set the sprint field for the issue
+	// Get the project item ID
+	itemID, err := GetProjectItemID(issueNumber, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to get project item ID: %v", err)
+	}
+
+	// Look up the sprint field ID
+	sprintField, err := LookupProjectFieldName(projectID, "sprint")
+	if err != nil {
+		return fmt.Errorf("failed to lookup sprint field: %v", err)
+	}
+
+	// Use the general field setting function to set the sprint field to @current
+	err = SetProjectItemFieldValue(itemID, projectID, sprintField.Name, "@current")
+	if err != nil {
+		return fmt.Errorf("failed to set current sprint: %v", err)
+	}
+
 	return nil
 }
 

@@ -857,15 +857,52 @@ func (m *model) executeWorkflow() tea.Cmd {
 
 		actions = ghapi.CreateBulkSprintKickoffActions(selectedIssues, ghapi.Aliases["draft"], projectID)
 		for i, issue := range selectedIssues {
-			temptasks := []WorkflowTask{
-				{ID: (i * 6) + 0, Description: fmt.Sprintf("Adding #%d issue to project %d", issue.Number, projectID), Status: TaskPending, Progress: 0.0},
-				{ID: (i * 6) + 1, Description: fmt.Sprintf("Adding ':release' label to #%d issue", issue.Number), Status: TaskPending, Progress: 0.0},
-				{ID: (i * 6) + 2, Description: fmt.Sprintf("Syncing estimate fields for #%d issue", issue.Number), Status: TaskPending, Progress: 0.0},
-				{ID: (i * 6) + 3, Description: fmt.Sprintf("Setting current sprint for #%d issue", issue.Number), Status: TaskPending, Progress: 0.0},
-				{ID: (i * 6) + 4, Description: fmt.Sprintf("Removing ':product' label from #%d issue", issue.Number), Status: TaskPending, Progress: 0.0},
-				{ID: (i * 6) + 5, Description: fmt.Sprintf("Removing #%d issue from drafting project", issue.Number), Status: TaskPending, Progress: 0.0},
-			}
-			m.tasks = append(m.tasks, temptasks...)
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          i,
+				Description: fmt.Sprintf("Adding #%d issue to project %d", issue.Number, projectID),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          len(selectedIssues) + i,
+				Description: fmt.Sprintf("Adding ':release' label to #%d issue", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          (2 * len(selectedIssues)) + i,
+				Description: fmt.Sprintf("Syncing estimate fields for #%d issue", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          (3 * len(selectedIssues)) + i,
+				Description: fmt.Sprintf("Setting current sprint for #%d issue in project %d", issue.Number, projectID),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          (4 * len(selectedIssues)) + i,
+				Description: fmt.Sprintf("Removing ':product' label from #%d issue", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          (5 * len(selectedIssues)) + i,
+				Description: fmt.Sprintf("Removing #%d issue from drafting project", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
 		}
 	case BulkMilestoneClose:
 		m.tasks = []WorkflowTask{

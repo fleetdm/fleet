@@ -107,17 +107,27 @@ func LoadProjectFields(projectID int) (map[string]ProjectField, error) {
 	return fields, nil
 }
 
-// LookupProjectFieldName looks up a project field by name.
+// LookupProjectFieldName looks up a project field by name (case-insensitive).
 func LookupProjectFieldName(projectID int, fieldName string) (ProjectField, error) {
 	fields, err := LoadProjectFields(projectID)
 	if err != nil {
 		return ProjectField{}, err
 	}
-	field, exists := fields[fieldName]
-	if !exists {
-		return ProjectField{}, fmt.Errorf("field '%s' not found in project %d", fieldName, projectID)
+
+	// First try exact match
+	if field, exists := fields[fieldName]; exists {
+		return field, nil
 	}
-	return field, nil
+
+	// Then try case-insensitive match
+	lowercaseSearch := strings.ToLower(fieldName)
+	for name, field := range fields {
+		if strings.ToLower(name) == lowercaseSearch {
+			return field, nil
+		}
+	}
+
+	return ProjectField{}, fmt.Errorf("field '%s' not found in project %d", fieldName, projectID)
 }
 
 // FindFieldValueByName finds a field option by partial name match (case-insensitive).
@@ -192,6 +202,38 @@ func SetProjectItemFieldValue(itemID string, projectID int, fieldName, value str
 				return fmt.Errorf("failed to set single select field value: %v", err)
 			}
 			return nil
+		}
+
+		// For iteration fields (Sprint)
+		if field.Type == "ITERATION" || field.Type == "ProjectV2IterationField" || strings.Contains(strings.ToLower(field.Type), "iteration") {
+			// For iteration fields, if value is "@current", we need to find the current iteration ID
+			if value == "@current" {
+				// First, get the current iteration ID for this field
+				currentIterationID, err := getCurrentIterationID(projectNodeID, field.ID)
+				if err != nil {
+					return fmt.Errorf("failed to get current iteration ID: %v", err)
+				}
+
+				if currentIterationID == "" {
+					return fmt.Errorf("no current iteration found for field '%s'", fieldName)
+				}
+
+				// Use GraphQL mutation with the actual current iteration ID
+				command := fmt.Sprintf(`gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "%s", itemId: "%s", fieldId: "%s", value: { iterationId: "%s" } }) { projectV2Item { id } } }'`,
+					projectNodeID, itemID, field.ID, currentIterationID)
+
+				out, err := RunCommandAndReturnOutput(command)
+				if err != nil {
+					return fmt.Errorf("failed to set current iteration: %v", err)
+				}
+				fmt.Println("command input: ", command)
+				fmt.Println("command output: ", string(out))
+				return nil
+			}
+
+			// For other iteration values, we would need to look up the iteration ID
+			// This is more complex and would require additional API calls
+			return fmt.Errorf("setting specific iteration values (other than @current) is not yet implemented")
 		}
 
 		// For text fields
@@ -518,4 +560,103 @@ func getProjectItemFieldValue(itemID string, projectID int, fieldName string) (s
 	}
 
 	return "", nil // Field not set or empty value
+}
+
+// getCurrentIterationID finds the current iteration ID for a project's iteration field.
+func getCurrentIterationID(projectNodeID, fieldID string) (string, error) {
+	// GraphQL query to get the iteration field configuration and find current iteration
+	query := fmt.Sprintf(`{
+		node(id: "%s") {
+			... on ProjectV2 {
+				fields(first: 20) {
+					nodes {
+						... on ProjectV2IterationField {
+							id
+							name
+							configuration {
+								iterations {
+									id
+									title
+									startDate
+									duration
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`, projectNodeID)
+
+	command := fmt.Sprintf(`gh api graphql -f query='%s'`, query)
+	output, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return "", fmt.Errorf("failed to query iterations: %v", err)
+	}
+
+	// Debug: Let's see what the actual response looks like
+	fmt.Printf("Iterations query response: %s\n", string(output))
+
+	// Parse the GraphQL response
+	var response struct {
+		Data struct {
+			Node struct {
+				Fields struct {
+					Nodes []struct {
+						ID            string `json:"id"`
+						Name          string `json:"name"`
+						Configuration struct {
+							Iterations []struct {
+								ID        string `json:"id"`
+								Title     string `json:"title"`
+								StartDate string `json:"startDate"`
+								Duration  int    `json:"duration"`
+							} `json:"iterations"`
+						} `json:"configuration"`
+					} `json:"nodes"`
+				} `json:"fields"`
+			} `json:"node"`
+		} `json:"data"`
+	}
+
+	err = json.Unmarshal(output, &response)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse iterations response: %v", err)
+	}
+
+	// Find the field that matches our fieldID
+	var targetField *struct {
+		ID            string `json:"id"`
+		Name          string `json:"name"`
+		Configuration struct {
+			Iterations []struct {
+				ID        string `json:"id"`
+				Title     string `json:"title"`
+				StartDate string `json:"startDate"`
+				Duration  int    `json:"duration"`
+			} `json:"iterations"`
+		} `json:"configuration"`
+	}
+
+	for _, field := range response.Data.Node.Fields.Nodes {
+		if field.ID == fieldID {
+			targetField = &field
+			break
+		}
+	}
+
+	if targetField == nil {
+		return "", fmt.Errorf("iteration field with ID %s not found", fieldID)
+	}
+
+	// Find the current iteration (the first one in the list is the current active one)
+	// GitHub appears to return iterations in chronological order with past iterations removed
+	iterations := targetField.Configuration.Iterations
+	if len(iterations) > 0 {
+		// Return the first iteration (current active one)
+		fmt.Printf("Selected current iteration: %s (ID: %s)\n", iterations[0].Title, iterations[0].ID)
+		return iterations[0].ID, nil
+	}
+
+	return "", fmt.Errorf("no iterations found for field")
 }
