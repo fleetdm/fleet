@@ -145,10 +145,13 @@ export type IVppInstallDetails = {
 
 interface IVPPInstallDetailsModalProps {
   details: IVppInstallDetails;
-  hostSoftware?: IHostSoftware; // for inventory versions, not present on activity feeds
-  deviceAuthToken?: string; // DUP only
+  /** for inventory versions, not present on activity feeds */
+  hostSoftware?: IHostSoftware;
+  /** DUP only */
+  deviceAuthToken?: string;
   onCancel: () => void;
-  onRetry?: (id: number) => void; // DUP only
+  /** DUP only */
+  onRetry?: (id: number) => void;
 }
 export const VppInstallDetailsModal = ({
   details,

@@ -146,9 +146,9 @@ const StatusMessage = ({
 };
 
 interface ISoftwareInstallDetailsProps {
-  // note that details.install_uuid is present in hostSoftware, but since it is always needed for
-  // this modal while hostSoftware is not, as in the case of the activity feeds, it is specifically
-  // necessary in the details prop
+  /** note that details.install_uuid is present in hostSoftware, but since it is always needed for
+  this modal while hostSoftware is not, as in the case of the activity feeds, it is specifically
+  necessary in the details prop */
   details: IPackageInstallDetails;
   hostSoftware?: IHostSoftware; // for inventory versions, and software name when not Fleet installed (not present on activity feeds)
   deviceAuthToken?: string; // DUP only
