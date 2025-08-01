@@ -8,6 +8,7 @@ describe("Device User Banners", () => {
   const turnOnMdmExpcetedText = /Mobile device management \(MDM\) is off\./;
   const resetNonLinuxDiskEncryptKeyExpectedText = /Disk encryption: Log out of your device or restart it to safeguard your data in case your device is lost or stolen\./;
   const createNewLinuxDiskEncryptKeyExpectedText = /Disk encryption: Create a new disk encryption key\. This lets your organization help you unlock your device if you forget your passphrase\./;
+  const createPINExepectedText = /Disk encryption: Create a BitLocker PIN to safeguard your data/;
 
   it("renders the turn on mdm banner correctly", () => {
     render(
@@ -20,6 +21,7 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired={null}
         onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
       />
     );
     expect(screen.getByText(turnOnMdmExpcetedText)).toBeInTheDocument();
@@ -36,6 +38,7 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired="rotate_key"
         onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
       />
     );
     expect(
@@ -57,6 +60,7 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired={null}
         onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
       />
     );
     expect(
@@ -79,11 +83,33 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired={null}
         onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
       />
     );
     expect(
       screen.getByText(createNewLinuxDiskEncryptKeyExpectedText)
     ).toBeInTheDocument();
+  });
+
+  it("renders the create PIN banner correctly for Windows", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="windows"
+        diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
+        diskIsEncrypted
+        // explicit for testing purposes
+        diskEncryptionKeyAvailable={false}
+        mdmEnrollmentStatus="On (automatic)"
+        mdmEnabledAndConfigured
+        connectedToFleetMdm
+        macDiskEncryptionStatus={null}
+        diskEncryptionActionRequired={null}
+        onTurnOnMdm={noop}
+        onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
+      />
+    );
+    expect(screen.getByText(createPINExepectedText)).toBeInTheDocument();
   });
 
   it("renders no banner correctly for a mac that is verifying its disk encryption", () => {
@@ -98,6 +124,7 @@ describe("Device User Banners", () => {
         onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
         diskEncryptionOSSetting={{ status: "verifying", detail: "" }}
+        onClickCreatePIN={noop}
       />
     );
 
@@ -121,6 +148,7 @@ describe("Device User Banners", () => {
         diskEncryptionActionRequired={null}
         onTurnOnMdm={noop}
         onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
       />
     );
 
