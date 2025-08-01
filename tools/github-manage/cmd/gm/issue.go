@@ -26,7 +26,7 @@ type issuesLoadedMsg []ghapi.Issue
 
 func initializeModel() model {
 	s := spinner.New()
-	s.Spinner = spinner.Dot
+	s.Spinner = spinner.Moon
 	s.Style = s.Style.Foreground(spinner.New().Style.GetForeground())
 	return model{
 		choices:       nil,
@@ -58,7 +58,7 @@ func fetchIssues() tea.Cmd {
 		if err != nil {
 			return err
 		}
-		time.Sleep(3 * time.Second) // Simulate a delay for loading
+		time.Sleep(1 * time.Second) // Simulate a delay for loading
 		return issuesLoadedMsg(issues)
 	}
 }

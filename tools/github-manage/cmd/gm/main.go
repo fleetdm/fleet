@@ -5,7 +5,6 @@ import (
 
 	"fleetdm/gm/pkg/ghapi"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -40,19 +39,4 @@ func main() {
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Error executing command: %v", err)
 	}
-}
-
-// Bubble Tea model
-type initialModel struct{}
-
-func (m initialModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m initialModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	return m, nil
-}
-
-func (m initialModel) View() string {
-	return "Hello from Bubble Tea!\nPress Ctrl+C to exit."
 }
