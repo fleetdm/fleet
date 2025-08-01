@@ -7,6 +7,7 @@ import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import { isAndroid, isMobilePlatform } from "interfaces/platform";
+import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
@@ -611,7 +612,10 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     id: "hardware_serial",
     Cell: (cellProps: IHostTableStringCellProps) => {
       // TODO(android): is iOS/iPadOS supported?
-      if (isAndroid(cellProps.row.original.platform)) {
+      if (
+        isAndroid(cellProps.row.original.platform) ||
+        isPersonalEnrollmentInMdm(cellProps.row.original.mdm.enrollment_status)
+      ) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;
