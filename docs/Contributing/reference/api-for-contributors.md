@@ -3196,6 +3196,7 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
       "software_package": {
         "name": "GoogleChrome.pkg"
         "version": "125.12.2"
@@ -3229,8 +3230,8 @@ Lists the software installed on the current device.
     {
       "id": 143,
       "name": "Firefox.app",
+      "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
       "software_package": null,
-      "app_store_app": null,
       "source": "apps",
       "status": null,
       "installed_versions": [
@@ -3247,7 +3248,6 @@ Lists the software installed on the current device.
         "categories": ["Browsers"],
         "version": "125.6",
         "self_service": false,
-        "icon_url": "https://example.com/logo-light.jpg",
         "last_install": null
       },
     }

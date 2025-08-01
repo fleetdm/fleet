@@ -9361,6 +9361,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List software versions](#list-software-versions)
 - [List operating systems](#list-operating-systems)
 - [Get software](#get-software)
+- [Edit software](#edit-software)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
@@ -9422,6 +9423,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
+      "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
@@ -9463,6 +9465,7 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
+      "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 5,
@@ -9698,6 +9701,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Falcon.app",
+    "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "available_software": {
       "fleet_maintained_app": {
@@ -9783,6 +9787,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
+    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
     "bundle_identifier": "com.apple.logic10",
     "available_software": {
       "fleet_maintained_app": null,
@@ -9798,7 +9803,6 @@ Returns information about the specified software. By default, `versions` are sor
       "platform": "darwin",
       "latest_version": "2.04",
       "created_at": "2024-04-01T14:22:58Z",
-      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
       "automatic_install_policies": [
         {
@@ -9827,6 +9831,42 @@ Returns information about the specified software. By default, `versions` are sor
   }
 }
 ```
+
+### Edit software
+
+Edit software icon. Uploaded icon will be applied across all teams.
+
+`PATCH /api/v1/fleet/software/titles/:id`
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The software title's ID. |
+| icon | file | form | PNG icon in square format with dimensions between 120x120 px and 1024x1024 px.  |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/1`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+Content-Disposition: form-data; name="icon"; filename="zoom-icon-512x512.png"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
 
 ### Get software version
 
