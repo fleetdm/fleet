@@ -56,7 +56,7 @@ interface IHostSoftwareProps {
   queryParams: HostSoftwareQueryParams;
   pathname: string;
   hostTeamId: number;
-  onShowSoftwareDetails: (software: IHostSoftware) => void;
+  onShowInventoryVersions: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   isMyDevicePage?: boolean;
 }
@@ -118,7 +118,7 @@ const HostSoftware = ({
   queryParams,
   pathname,
   hostTeamId = 0,
-  onShowSoftwareDetails,
+  onShowInventoryVersions,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
 }: IHostSoftwareProps) => {
@@ -252,9 +252,9 @@ const HostSoftware = ({
       : generateHostSoftwareTableConfig({
           router,
           teamId: hostTeamId,
-          onClickMoreDetails: onShowSoftwareDetails,
+          onShowInventoryVersions,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowSoftwareDetails]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading
@@ -304,7 +304,7 @@ const HostSoftware = ({
             pathPrefix={pathname}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}
-            onShowSoftwareDetails={onShowSoftwareDetails}
+            onShowInventoryVersions={onShowInventoryVersions}
           />
         )}
         {showSoftwareFiltersModal && (
@@ -351,4 +351,6 @@ const HostSoftware = ({
   );
 };
 
+// TODO - name this consistently, it is confusing. This same component is called `SoftwareInventoryCard` one place,
+// `SoftwareCard` another, and `HostSoftware` here.
 export default React.memo(HostSoftware);

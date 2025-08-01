@@ -25,7 +25,7 @@ describe("HostSoftwareTable", () => {
     pathPrefix: "/hosts/1/software",
     vulnFilters: {},
     onAddFiltersClick: noop,
-    onShowSoftwareDetails: noop,
+    onShowInventoryVersions: noop,
   };
 
   const renderWithContext = (props = {}) =>
