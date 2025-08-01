@@ -7583,7 +7583,7 @@ VALUES
 			`, script.ScriptContents)
 			err := row.Scan(&scID)
 
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				// Content doesn't exist, insert it
 				res, err := tx.ExecContext(ctx, `
 INSERT INTO

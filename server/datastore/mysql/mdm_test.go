@@ -7220,9 +7220,6 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 			case strings.HasPrefix(profUUID, "d"):
 				table = "host_mdm_apple_declarations"
 				profType = "declaration"
-			case strings.HasPrefix(profUUID, "b"):
-				// Bootstrap packages don't have status, skip them
-				return nil
 			default:
 				require.FailNow(t, "unknown profile type")
 			}
