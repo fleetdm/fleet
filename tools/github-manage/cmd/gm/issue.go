@@ -11,8 +11,13 @@ var issuesCmd = &cobra.Command{
 	Use:   "issues",
 	Short: "Get GitHub issues",
 	Run: func(cmd *cobra.Command, args []string) {
-		model := initializeModel()
-		p := tea.NewProgram(&model)
+		search, err := cmd.Flags().GetString("search")
+		if err != nil {
+			fmt.Printf("Error getting search flag: %v\n", err)
+			return
+		}
+		model := initializeModelForIssues(search)
+		p := tea.NewProgram(&model, tea.WithMouseAllMotion())
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)
 		}
@@ -23,4 +28,8 @@ var issuesCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+func init() {
+	issuesCmd.Flags().StringP("search", "s", "", "Search for issues by github search syntax")
 }
