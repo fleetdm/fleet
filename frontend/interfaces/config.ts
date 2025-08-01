@@ -146,6 +146,7 @@ export interface IConfig {
     enable_sso_idp_login: boolean;
     enable_jit_provisioning: boolean;
     enable_jit_role_sync: boolean;
+    sso_server_url?: string;
   };
   // configuration details for conditional access. For enabled/disabled status per team, see
   // subfields under `integrations`
