@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -86,11 +87,7 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 		ts.Close()
 		premiumTS.Close()
 	})
-	noRedirectClient := &http.Client{ // Custom client here not following redirects, so we can verify on the redirect response sent to clients
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+	noRedirectClient := fleethttp.NewClient(fleethttp.WithFollowRedir(false))
 
 	makeEnrollRequest := func(enrollSecret string, premium bool) *http.Response {
 		url := ts.URL

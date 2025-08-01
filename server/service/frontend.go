@@ -104,7 +104,7 @@ func ServeEndUserEnrollOTA(
 		}
 
 		shouldExit := checkMDMSSORedirect(ds, svc, enrollSecret, appCfg, r, w, herr)
-		if shouldExit == true {
+		if shouldExit {
 			return // http responses are handled in `checkSSORedirect`
 		}
 
