@@ -54,6 +54,7 @@ import UninstallSoftwareModal from "./UninstallSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
+import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
 
 import {
   CATEGORIES_NAV_ITEMS,
@@ -519,7 +520,22 @@ const SoftwareSelfService = ({
   };
 
   const onClickFailedUpdateStatus = (hostSoftware: IHostSoftware) => {
-    onShowInstallDetails(hostSoftware);
+    const lastInstall = getLastInstall(hostSoftware);
+
+    if (onShowInstallDetails && lastInstall) {
+      if ("command_uuid" in lastInstall) {
+        // vpp software
+        onShowVPPInstallDetails({
+          ...hostSoftware,
+          commandUuid: lastInstall.command_uuid,
+        });
+      } else if ("install_uuid" in lastInstall) {
+        // other software
+        onShowInstallDetails(hostSoftware);
+      } else {
+        onShowInstallDetails(undefined);
+      }
+    }
   };
 
   const onExitUninstallSoftwareModal = () => {
