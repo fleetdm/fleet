@@ -219,6 +219,13 @@
       "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
     },
     {
+      "name": "Windows App",
+      "slug": "windows-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.rdc.macos",
+      "description": ""
+    },
+    {
       "name": "Yubikey Manager",
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
