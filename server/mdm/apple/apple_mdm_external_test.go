@@ -158,7 +158,8 @@ func TestDEPService_RunAssigner(t *testing.T) {
 				respBytes, err := json.Marshal(&apiResp)
 				require.NoError(t, err)
 
-				_, _ = w.Write(respBytes)
+				_, err = w.Write(respBytes)
+				require.NoError(t, err)
 			default:
 				t.Errorf("unexpected request to %s", r.URL.Path)
 			}
@@ -260,7 +261,8 @@ func TestDEPService_RunAssigner(t *testing.T) {
 				respBytes, err := json.Marshal(&apiResp)
 				require.NoError(t, err)
 
-				_, _ = w.Write(respBytes)
+				_, err = w.Write(respBytes)
+				require.NoError(t, err)
 			default:
 				t.Errorf("unexpected request to %s", r.URL.Path)
 			}
@@ -384,7 +386,8 @@ func TestDEPService_RunAssigner(t *testing.T) {
 				respBytes, err := json.Marshal(&apiResp)
 				require.NoError(t, err)
 
-				_, _ = w.Write(respBytes)
+				_, err = w.Write(respBytes)
+				require.NoError(t, err)
 			default:
 				t.Errorf("unexpected request to %s", r.URL.Path)
 			}
