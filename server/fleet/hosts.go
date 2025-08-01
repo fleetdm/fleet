@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -1011,23 +1012,13 @@ var HostRpmPackageOSs = map[string]struct{}{
 }
 
 func IsLinux(hostPlatform string) bool {
-	for _, linuxPlatform := range HostLinuxOSs {
-		if linuxPlatform == hostPlatform {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(HostLinuxOSs, hostPlatform)
 }
 
 func IsUnixLike(hostPlatform string) bool {
 	unixLikeOSs := HostLinuxOSs
 	unixLikeOSs = append(unixLikeOSs, "darwin")
-	for _, p := range unixLikeOSs {
-		if p == hostPlatform {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(unixLikeOSs, hostPlatform)
 }
 
 // PlatformFromHost converts the given host platform into

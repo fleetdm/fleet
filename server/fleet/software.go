@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -471,13 +470,6 @@ func SoftwareFromOsqueryRow(
 	}
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
-	}
-
-	const linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
-	kernelRegex := regexp.MustCompile(linuxImageRegex)
-
-	if source == "deb_packages" && kernelRegex.MatchString(name) {
-		software.IsKernel = true
 	}
 
 	return &software, nil

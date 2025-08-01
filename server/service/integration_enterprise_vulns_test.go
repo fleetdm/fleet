@@ -86,11 +86,10 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 		require.True(t, inserted)
 	}
 
-	var hostResponse getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResponse)
-
+	// Aggregate OS versions
 	require.NoError(t, s.ds.UpdateOSVersions(ctx))
 
+	// TODO(JVE): remove this
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		mysql.DumpTable(t, q, "software_titles")
 		return nil
