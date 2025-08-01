@@ -7,7 +7,12 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
+import {
+  resolveUninstallStatus,
+  SoftwareInstallStatus,
+} from "interfaces/software";
 import { ActivityType, IActivityDetails } from "interfaces/activity";
+
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
@@ -15,15 +20,17 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 
-import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
-import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
-import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
-import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
+import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
 import VppDetailsModal from "./components/VPPDetailsModal";
 import ScriptBatchSummaryModal from "./components/ScriptBatchSummaryModal";
 
@@ -53,10 +60,10 @@ const ActivityFeed = ({
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<ISWUninstallDetailsParentState | null>(null);
   const [
-    appInstallDetails,
-    setAppInstallDetails,
+    vppInstallDetails,
+    setVppInstallDetails,
   ] = useState<IActivityDetails | null>(null);
   const [
     activityAutomationDetails,
@@ -138,10 +145,16 @@ const ActivityFeed = ({
         setPackageInstallDetails({ ...details });
         break;
       case ActivityType.UninstalledSoftware:
-        setPackageUninstallDetails({ ...details });
+        setPackageUninstallDetails({
+          ...details,
+          softwareName: details?.software_title || "",
+          uninstallStatus: resolveUninstallStatus(details?.status),
+          scriptExecutionId: details?.script_execution_id || "",
+          hostDisplayName: details?.host_display_name,
+        });
         break;
       case ActivityType.InstalledAppStoreApp:
-        setAppInstallDetails({ ...details });
+        setVppInstallDetails({ ...details });
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
@@ -247,14 +260,21 @@ const ActivityFeed = ({
       )}
       {packageUninstallDetails && (
         <SoftwareUninstallDetailsModal
-          details={packageUninstallDetails}
+          {...packageUninstallDetails}
+          hostDisplayName={packageUninstallDetails.hostDisplayName || ""}
           onCancel={() => setPackageUninstallDetails(null)}
         />
       )}
-      {appInstallDetails && (
-        <AppInstallDetailsModal
-          details={appInstallDetails}
-          onCancel={() => setAppInstallDetails(null)}
+      {vppInstallDetails && (
+        <VppInstallDetailsModal
+          details={{
+            appName: vppInstallDetails.software_title || "",
+            fleetInstallStatus: (vppInstallDetails.status ||
+              "pending_install") as SoftwareInstallStatus,
+            hostDisplayName: vppInstallDetails.host_display_name || "",
+            commandUuid: vppInstallDetails.command_uuid || "",
+          }}
+          onCancel={() => setVppInstallDetails(null)}
         />
       )}
       {activityAutomationDetails && (

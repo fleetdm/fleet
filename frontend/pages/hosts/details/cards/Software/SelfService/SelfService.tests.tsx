@@ -33,8 +33,6 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     self_service: false,
   },
   router: createMockRouter(),
-  onShowInstallDetails: noop,
-  onShowUninstallDetails: noop,
   refetchHostDetails: noop,
   isHostDetailsPolling: false,
   hostDisplayName: DEFAULT_HOST_HOSTNAME,
