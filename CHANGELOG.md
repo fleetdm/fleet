@@ -1,3 +1,10 @@
+## Fleet 4.71.1 (Aug 01, 2025)
+
+### Bug fixes
+
+Added `sso_server_url` configuration option to support SSO setups with separate URLs for admin access vs agent/API access. When set, SSO authentication will only work from the specified URL. This fixes SSO authentication errors for organizations using dual URL configurations.
+Added support for MS-MDE2 v7.0 Windows MDM Enrollments
+
 ## Fleet 4.71.0 (Jul 23, 2025)
 
 ### Security Engineers
