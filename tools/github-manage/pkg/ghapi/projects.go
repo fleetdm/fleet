@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 )
 
@@ -16,6 +17,30 @@ var Aliases = map[string]int{
 	"soft":            70,
 	"g-orchestration": 71,
 	"orch":            71,
+}
+
+// ResolveProjectID resolves a project identifier (alias or numeric string) to a project ID
+func ResolveProjectID(identifier string) (int, error) {
+	// First check if it's an alias
+	if projectID, exists := Aliases[identifier]; exists {
+		return projectID, nil
+	}
+
+	// Try to parse as a number
+	if projectID, err := strconv.Atoi(identifier); err == nil {
+		return projectID, nil
+	}
+
+	return 0, fmt.Errorf("invalid project identifier '%s'. Must be a numeric ID or one of these aliases: %v", identifier, getAliasKeys())
+}
+
+// getAliasKeys returns a slice of all available alias keys
+func getAliasKeys() []string {
+	keys := make([]string, 0, len(Aliases))
+	for k := range Aliases {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 var MapProjectFieldNameToField = map[int]map[string]ProjectField{}

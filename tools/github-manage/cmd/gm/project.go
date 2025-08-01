@@ -10,17 +10,30 @@ import (
 )
 
 var projectCmd = &cobra.Command{
-	Use:   "project",
-	Short: "Get GitHub issues",
+	Use:   "project [project-id-or-alias]",
+	Short: "Get GitHub issues from a project",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		items, err := ghapi.GetProjectItems(58, 100)
+		projectID, err := ghapi.ResolveProjectID(args[0])
+		if err != nil {
+			fmt.Printf("Error resolving project: %v\n", err)
+			return
+		}
+
+		limit, err := cmd.Flags().GetInt("limit")
+		if err != nil {
+			fmt.Printf("Error getting limit flag: %v\n", err)
+			return
+		}
+
+		items, err := ghapi.GetProjectItems(projectID, limit)
 		if err != nil {
 			fmt.Printf("Error fetching issues: %v\n", err)
 			return
 		}
 		issues := ghapi.ConvertItemsToIssues(items)
 		if err != nil {
-			fmt.Printf("Error fetching issues: %v\n", err)
+			fmt.Printf("Error converting issues: %v\n", err)
 			return
 		}
 		model := initializeModelWithIssues(issues)
@@ -35,6 +48,10 @@ var projectCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+func init() {
+	projectCmd.Flags().IntP("limit", "l", 100, "Maximum number of items to fetch (default: 100)")
 }
 
 var estimatedCmd = &cobra.Command{
