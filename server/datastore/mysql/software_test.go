@@ -5285,6 +5285,23 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	`, host.ID, softwareID)
 	require.NoError(t, err)
 
+	hostLibraryOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 20},
+		SelfServiceOnly:            false,
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    true,
+		IsMDMEnrolled:              true,
+	}
+	// vpp1 installed and inventoried by osquery
+	// ensure we don't lose install data from host_vpp_software_installs
+	sw, _, err = ds.ListHostSoftware(ctx, host, hostLibraryOpts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+	assert.NotNil(t, sw[0].InstalledVersions)
+	assert.NotNil(t, sw[0].AppStoreApp.LastInstall)
+	assert.Equal(t, vpp1CmdUUID, sw[0].AppStoreApp.LastInstall.CommandUUID)
+	assert.NotNil(t, sw[0].AppStoreApp.LastInstall.InstalledAt)
+
 	opts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: uint(numberOfApps - 1), IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}}
 	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
