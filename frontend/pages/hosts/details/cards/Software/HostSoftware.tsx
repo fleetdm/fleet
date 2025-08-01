@@ -304,7 +304,7 @@ const HostSoftware = ({
             pathPrefix={pathname}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}
-            onShowSoftwareDetails={onShowInventoryVersions}
+            onShowInventoryVersions={onShowInventoryVersions}
           />
         )}
         {showSoftwareFiltersModal && (
