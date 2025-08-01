@@ -801,7 +801,8 @@ None.
     "idp_name": "",
     "enable_sso": false,
     "enable_sso_idp_login": false,
-    "enable_jit_provisioning": false
+    "enable_jit_provisioning": false,
+    "sso_server_url": ""
   },
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",
@@ -1440,7 +1441,8 @@ Modifies the Fleet's configuration with the supplied information.
     "metadata": "",
     "idp_name": "",
     "enable_sso_idp_login": false,
-    "enable_jit_provisioning": false
+    "enable_jit_provisioning": false,
+    "sso_server_url": ""
   }
 }
 ```
