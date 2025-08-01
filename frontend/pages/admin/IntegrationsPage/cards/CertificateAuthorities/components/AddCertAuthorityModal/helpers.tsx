@@ -8,6 +8,7 @@ import CustomLink from "components/CustomLink";
 
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
   { label: "DigiCert", value: "digicert" },
+  { label: "Hydrant EST (Enrollment Over Secure Transport)", value: "hydrant" },
   {
     label: "Microsoft NDES (Network Device Enrollment Service)",
     value: "ndes",
@@ -23,9 +24,15 @@ export const generateDropdownOptions = (hasNDESCert: boolean) => {
     return DEFAULT_CERT_AUTHORITY_OPTIONS;
   }
 
-  const ndesOption = DEFAULT_CERT_AUTHORITY_OPTIONS[1];
-  ndesOption.disabled = true;
-  ndesOption.tooltipContent = "Only one NDES can be added.";
+  // We only allow one NDES configuration, if ones exists disable the option and
+  // add a tooltip.
+  const ndesOption = DEFAULT_CERT_AUTHORITY_OPTIONS.find((option) => {
+    return option.value === "ndes";
+  });
+  if (ndesOption) {
+    ndesOption.disabled = true;
+    ndesOption.tooltipContent = "Only one NDES can be added.";
+  }
 
   return DEFAULT_CERT_AUTHORITY_OPTIONS;
 };
