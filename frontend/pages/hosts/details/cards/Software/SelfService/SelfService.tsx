@@ -819,6 +819,7 @@ const SoftwareSelfService = ({
           onRetry={onClickInstallAction}
           onCancel={() => setSelectedHostSWInstallDetails(undefined)}
           deviceAuthToken={deviceToken}
+          contactUrl={contactUrl}
         />
       )}
       {selectedVPPInstallDetails && (
