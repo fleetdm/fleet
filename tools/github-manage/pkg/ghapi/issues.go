@@ -23,7 +23,7 @@ func GetIssues(search string) ([]Issue, error) {
 
 	command := "gh issue list --json number,title,author,createdAt,updatedAt,state,labels"
 	if search != "" {
-		command = fmt.Sprintf("%s -S %s", command, search)
+		command = fmt.Sprintf("%s -S '%s'", command, search)
 	}
 
 	results, err := RunCommandAndReturnOutput(command)
@@ -129,11 +129,11 @@ func RemoveIssueFromProject(issueNumber int, projectID int) error {
 	return nil
 }
 
-func SyncEstimateField(issueNumber int, targetProjectID int) error {
+func SyncEstimateField(issueNumber int, sourceProjectID, targetProjectID int) error {
 	// For now, this is a placeholder function
 	// In a real implementation, this would sync the estimate field from the drafting project
 	// to the target project for the given issue
-	log.Printf("Syncing estimate field for issue #%d to project %d (placeholder)", issueNumber, targetProjectID)
+	log.Printf("Syncing estimate field for issue #%d from project %d to project %d (placeholder)", issueNumber, sourceProjectID, targetProjectID)
 	return nil
 }
 

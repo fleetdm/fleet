@@ -27,7 +27,7 @@ var projectCmd = &cobra.Command{
 		}
 
 		model := initializeModelForProject(projectID, limit)
-		p := tea.NewProgram(&model, tea.WithMouseAllMotion())
+		p := tea.NewProgram(&model)
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)
 		}
@@ -63,7 +63,7 @@ var estimatedCmd = &cobra.Command{
 		}
 
 		model := initializeModelForEstimated(projectID, limit)
-		p := tea.NewProgram(&model, tea.WithMouseAllMotion())
+		p := tea.NewProgram(&model)
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)
 		}

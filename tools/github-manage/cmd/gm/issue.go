@@ -17,7 +17,7 @@ var issuesCmd = &cobra.Command{
 			return
 		}
 		model := initializeModelForIssues(search)
-		p := tea.NewProgram(&model, tea.WithMouseAllMotion())
+		p := tea.NewProgram(&model)
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)
 		}

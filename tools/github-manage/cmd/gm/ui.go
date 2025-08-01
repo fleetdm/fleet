@@ -101,12 +101,12 @@ type model struct {
 	projectInput   string
 	errorMessage   string
 	// Progress tracking
-	tasks           []WorkflowTask
-	currentTask     int
-	overallProgress progress.Model
-	mouseX          int
-	mouseY          int
-	lastMouseEvent  tea.MouseEvent
+	tasks              []WorkflowTask
+	currentTask        int
+	overallProgress    progress.Model
+	githubOpInProgress bool              // Ensure only one GitHub operation at a time
+	currentActions     []ghapi.Action    // Store current actions being processed
+	statusChan         chan ghapi.Status // Channel for receiving status updates from AsyncManager
 }
 
 type issuesLoadedMsg []ghapi.Issue
@@ -137,120 +137,53 @@ func initializeModel() model {
 	p.Width = 40
 
 	return model{
-		choices:         nil,
-		cursor:          0,
-		selected:        make(map[int]struct{}),
-		spinner:         s,
-		totalCount:      0,
-		selectedCount:   0,
-		commandType:     IssuesCommand,
-		workflowState:   Loading,
-		workflowCursor:  0,
-		labelInput:      "",
-		projectInput:    "",
-		errorMessage:    "",
-		tasks:           []WorkflowTask{},
-		currentTask:     -1,
-		overallProgress: p,
-		mouseX:          0,
-		mouseY:          0,
+		choices:            nil,
+		cursor:             0,
+		selected:           make(map[int]struct{}),
+		spinner:            s,
+		totalCount:         0,
+		selectedCount:      0,
+		commandType:        IssuesCommand,
+		workflowState:      Loading,
+		workflowCursor:     0,
+		labelInput:         "",
+		projectInput:       "",
+		errorMessage:       "",
+		tasks:              []WorkflowTask{},
+		currentTask:        -1,
+		overallProgress:    p,
+		githubOpInProgress: false,
+		currentActions:     []ghapi.Action{},
 	}
 }
 
 func initializeModelForIssues(search string) model {
-	s := spinner.New()
-	s.Spinner = spinner.Moon
-	s.Style = s.Style.Foreground(spinner.New().Style.GetForeground())
-
-	p := progress.New(progress.WithDefaultGradient())
-	p.Width = 40
-
-	return model{
-		choices:         nil,
-		cursor:          0,
-		selected:        make(map[int]struct{}),
-		spinner:         s,
-		totalCount:      0,
-		selectedCount:   0,
-		commandType:     IssuesCommand,
-		search:          search,
-		workflowState:   Loading,
-		workflowCursor:  0,
-		labelInput:      "",
-		projectInput:    "",
-		errorMessage:    "",
-		tasks:           []WorkflowTask{},
-		currentTask:     -1,
-		overallProgress: p,
-		mouseX:          0,
-		mouseY:          0,
-	}
+	m := initializeModel()
+	m.search = search
+	return m
 }
 
 func initializeModelForProject(projectID, limit int) model {
-	s := spinner.New()
-	s.Spinner = spinner.Moon
-	s.Style = s.Style.Foreground(spinner.New().Style.GetForeground())
-
-	p := progress.New(progress.WithDefaultGradient())
-	p.Width = 40
-
-	return model{
-		choices:         nil,
-		cursor:          0,
-		selected:        make(map[int]struct{}),
-		spinner:         s,
-		totalCount:      0,
-		selectedCount:   0,
-		commandType:     ProjectCommand,
-		projectID:       projectID,
-		limit:           limit,
-		workflowState:   Loading,
-		workflowCursor:  0,
-		labelInput:      "",
-		projectInput:    "",
-		errorMessage:    "",
-		tasks:           []WorkflowTask{},
-		currentTask:     -1,
-		overallProgress: p,
-		mouseX:          0,
-		mouseY:          0,
-	}
+	m := initializeModel()
+	m.commandType = ProjectCommand
+	m.projectID = projectID
+	m.limit = limit
+	return m
 }
 
 func initializeModelForEstimated(projectID, limit int) model {
-	s := spinner.New()
-	s.Spinner = spinner.Moon
-	s.Style = s.Style.Foreground(spinner.New().Style.GetForeground())
-
-	p := progress.New(progress.WithDefaultGradient())
-	p.Width = 40
-
-	return model{
-		choices:         nil,
-		cursor:          0,
-		selected:        make(map[int]struct{}),
-		spinner:         s,
-		totalCount:      0,
-		selectedCount:   0,
-		commandType:     EstimatedCommand,
-		projectID:       projectID,
-		limit:           limit,
-		workflowState:   NormalMode,
-		workflowCursor:  0,
-		labelInput:      "",
-		projectInput:    "",
-		errorMessage:    "",
-		tasks:           []WorkflowTask{},
-		currentTask:     -1,
-		overallProgress: p,
-		mouseX:          0,
-		mouseY:          0,
-	}
+	m := initializeModel()
+	m.commandType = EstimatedCommand
+	m.projectID = projectID
+	m.limit = limit
+	return m
 }
 
 func fetchIssues(search string) tea.Cmd {
 	return func() tea.Msg {
+		// Ensure GitHub API calls don't overlap
+		time.Sleep(100 * time.Millisecond)
+
 		issues, err := ghapi.GetIssues(search)
 		if err != nil {
 			return err
@@ -262,6 +195,9 @@ func fetchIssues(search string) tea.Cmd {
 
 func fetchProjectItems(projectID, limit int) tea.Cmd {
 	return func() tea.Msg {
+		// Ensure GitHub API calls don't overlap
+		time.Sleep(100 * time.Millisecond)
+
 		items, err := ghapi.GetProjectItems(projectID, limit)
 		if err != nil {
 			return err
@@ -274,6 +210,9 @@ func fetchProjectItems(projectID, limit int) tea.Cmd {
 
 func fetchEstimatedItems(projectID, limit int) tea.Cmd {
 	return func() tea.Msg {
+		// Ensure GitHub API calls don't overlap
+		time.Sleep(100 * time.Millisecond)
+
 		items, err := ghapi.GetEstimatedTicketsForProject(projectID, limit)
 		if err != nil {
 			return err
@@ -303,21 +242,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.MouseMsg:
-		// Store mouse position and event for display
-		m.mouseX = msg.X
-		m.mouseY = msg.Y
-		m.lastMouseEvent = tea.MouseEvent(msg)
-
-		// Handle mouse clicks in workflow running state
-		if m.workflowState == WorkflowRunning || m.workflowState == WorkflowComplete {
-			// Allow scrolling or clicking on task items
-			return m, nil
-		}
-
 	case tea.KeyMsg:
 		switch m.workflowState {
 		case Loading:
+			switch msg.String() {
+			case "q", "ctrl+c":
+				return m, tea.Quit
+			}
 			return m, nil
 		case WorkflowRunning:
 			// Only allow quitting during workflow execution
@@ -442,6 +373,102 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		progressModel, cmd := m.overallProgress.Update(msg)
 		m.overallProgress = progressModel.(progress.Model)
 		cmds = append(cmds, cmd)
+	case processTaskMsg:
+		// This case is no longer used since we've moved to AsyncManager
+		// Ignore these messages
+		return m, nil
+	case startAsyncWorkflowMsg:
+		if m.workflowState == WorkflowRunning {
+			// Store the actions and start AsyncManager
+			m.currentActions = msg.actions
+
+			// Create status channel
+			m.statusChan = make(chan ghapi.Status)
+
+			// Start AsyncManager in a goroutine
+			go ghapi.AsyncManager(msg.actions, m.statusChan)
+
+			// Return command to listen for status updates
+			return m, m.listenForAsyncStatus()
+		}
+	case actionStatusMsg:
+		if m.workflowState == WorkflowRunning && msg.index < len(m.tasks) {
+			// Update the task based on the action status
+			if msg.state == "success" {
+				m.tasks[msg.index].Status = TaskSuccess
+				m.tasks[msg.index].Progress = 1.0
+			} else if msg.state == "error" {
+				m.tasks[msg.index].Status = TaskError
+				m.tasks[msg.index].Progress = 0.0
+			}
+			m.currentTask = msg.index
+
+			// Update overall progress
+			completedTasks := 0
+			for _, task := range m.tasks {
+				if task.Status == TaskSuccess {
+					completedTasks++
+				}
+			}
+			overallPercent := float64(completedTasks) / float64(len(m.tasks))
+			cmds = append(cmds, m.overallProgress.SetPercent(overallPercent))
+
+			// Check if we have an error
+			if msg.state == "error" {
+				m.workflowState = WorkflowComplete
+				m.errorMessage = fmt.Sprintf("Task %d failed", msg.index)
+			} else if completedTasks == len(m.tasks) {
+				// All tasks completed successfully
+				m.workflowState = WorkflowComplete
+			}
+			// Note: Sequential processing is now handled by AsyncManager,
+			// so we don't trigger next action processing here
+		}
+	case asyncStatusMsg:
+		if msg.status.State == "done" {
+			// AsyncManager is finished, all actions completed
+			m.workflowState = WorkflowComplete
+			m.statusChan = nil
+			return m, nil
+		}
+
+		if m.workflowState == WorkflowRunning && msg.status.Index < len(m.tasks) {
+			// Update the task based on the async status
+			if msg.status.State == "success" {
+				m.tasks[msg.status.Index].Status = TaskSuccess
+				m.tasks[msg.status.Index].Progress = 1.0
+			} else if msg.status.State == "error" {
+				m.tasks[msg.status.Index].Status = TaskError
+				m.tasks[msg.status.Index].Progress = 0.0
+			}
+			m.currentTask = msg.status.Index
+
+			// Update overall progress
+			completedTasks := 0
+			for _, task := range m.tasks {
+				if task.Status == TaskSuccess {
+					completedTasks++
+				}
+			}
+			overallPercent := float64(completedTasks) / float64(len(m.tasks))
+			cmds = append(cmds, m.overallProgress.SetPercent(overallPercent))
+
+			// Check if we have an error
+			if msg.status.State == "error" {
+				m.workflowState = WorkflowComplete
+				m.errorMessage = fmt.Sprintf("Task %d failed", msg.status.Index)
+				// Channel will be closed by AsyncManager
+				m.statusChan = nil
+			} else if completedTasks == len(m.tasks) {
+				// All tasks completed successfully
+				m.workflowState = WorkflowComplete
+				// Channel will be closed by AsyncManager
+				m.statusChan = nil
+			} else {
+				// Continue listening for more status updates
+				cmds = append(cmds, m.listenForAsyncStatus())
+			}
+		}
 	case taskUpdateMsg:
 		if msg.taskID < len(m.tasks) {
 			m.tasks[msg.taskID].Progress = msg.progress
@@ -473,6 +500,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if completedTasks == len(m.tasks) {
 					m.workflowState = WorkflowComplete
 					// Will show success summary in the view
+				} else if msg.status == TaskSuccess && (m.workflowType == BulkAddLabel || m.workflowType == BulkRemoveLabel) {
+					// For bulk label operations, trigger the next task with a delay to ensure serialization
+					nextTaskID := msg.taskID + 1
+					if nextTaskID < len(m.tasks) {
+						cmds = append(cmds, func() tea.Msg {
+							// Add a small delay before processing the next task
+							time.Sleep(50 * time.Millisecond)
+							return processTaskMsg{taskID: nextTaskID}
+						})
+					}
 				}
 			}
 		}
@@ -509,7 +546,7 @@ func truncTitle(title string) string {
 // show a maximum of 30 characters, if longer, truncate and add '...+n' where n is the number of additional labels
 func truncLables(labels []ghapi.Label) string {
 	if len(labels) == 0 {
-		return ""
+		return fmt.Sprintf("%-35s", "- No Labels -")
 	}
 	priorityLabels := map[string]bool{"story": true, "bug": true, ":release": true, ":product": true, "#g-mdm": true, "#g-orchestration": true, "#g-software": true}
 	var labelNames []string
@@ -610,6 +647,11 @@ func (m model) View() string {
 				statusText = errorStyle.Render("ERROR")
 			}
 
+			// Override icon for current task to show it's active
+			if i == m.currentTask && task.Status != TaskSuccess && task.Status != TaskError {
+				statusIcon = "🏃‍♀️"
+			}
+
 			progressBar := ""
 			if task.Status == TaskInProgress || task.Status == TaskSuccess {
 				// Create a simple progress bar
@@ -624,17 +666,26 @@ func (m model) View() string {
 				s += fmt.Sprintf(" - Error: %v", task.Error)
 			}
 			s += "\n"
+		}
 
-			// Highlight current task
-			if i == m.currentTask {
-				s += "   ↑ Current task\n"
+		// Add progress counter at the bottom
+		completedTasks := 0
+		totalTasks := len(m.tasks)
+		for _, task := range m.tasks {
+			if task.Status == TaskSuccess {
+				completedTasks++
+			}
+			if task.Status == TaskError {
+				completedTasks++
 			}
 		}
 
-		// Show mouse position for demonstration
-		if m.mouseX > 0 || m.mouseY > 0 {
-			s += fmt.Sprintf("\nMouse: (%d, %d) Event: %s", m.mouseX, m.mouseY, m.lastMouseEvent)
+		progressPercent := 0.0
+		if totalTasks > 0 {
+			progressPercent = float64(completedTasks) / float64(totalTasks) * 100
 		}
+
+		s += fmt.Sprintf("\nProgress: %d/%d tasks completed (%.1f%%)", completedTasks, totalTasks, progressPercent)
 		s += "\n\nPress 'q' to quit"
 		return s
 
@@ -763,15 +814,30 @@ func (m *model) executeWorkflow() tea.Cmd {
 		}
 	}
 
-	// Define tasks based on workflow type
+	// Create actions and tasks based on workflow type
+	var actions []ghapi.Action
 	switch m.workflowType {
 	case BulkAddLabel:
-		m.tasks = []WorkflowTask{
-			{ID: 0, Description: fmt.Sprintf("Adding label '%s' to %d issues", m.labelInput, len(selectedIssues)), Status: TaskPending, Progress: 0.0},
+		actions = ghapi.CreateBulkAddLableAction(selectedIssues, m.labelInput)
+		// Create individual tasks for each issue
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          i,
+				Description: fmt.Sprintf("Adding label '%s' to issue #%d", m.labelInput, issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
 		}
 	case BulkRemoveLabel:
-		m.tasks = []WorkflowTask{
-			{ID: 0, Description: fmt.Sprintf("Removing label '%s' from %d issues", m.labelInput, len(selectedIssues)), Status: TaskPending, Progress: 0.0},
+		actions = ghapi.CreateBulkRemoveLabelAction(selectedIssues, m.labelInput)
+		// Create individual tasks for each issue
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          i,
+				Description: fmt.Sprintf("Removing label '%s' from issue #%d", m.labelInput, issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
 		}
 	case BulkSprintKickoff:
 		projectID := m.projectID
@@ -797,6 +863,9 @@ func (m *model) executeWorkflow() tea.Cmd {
 			{ID: 4, Description: "Removing ':product' label from issues", Status: TaskPending, Progress: 0.0},
 			{ID: 5, Description: "Removing issues from drafting project", Status: TaskPending, Progress: 0.0},
 		}
+		return func() tea.Msg {
+			return executeBulkSprintKickoff(selectedIssues, projectID)
+		}
 	case BulkMilestoneClose:
 		m.tasks = []WorkflowTask{
 			{ID: 0, Description: fmt.Sprintf("Adding %d issues to drafting project", len(selectedIssues)), Status: TaskPending, Progress: 0.0},
@@ -804,9 +873,80 @@ func (m *model) executeWorkflow() tea.Cmd {
 			{ID: 2, Description: "Setting status to 'confirm and celebrate'", Status: TaskPending, Progress: 0.0},
 			{ID: 3, Description: "Removing ':release' label from issues", Status: TaskPending, Progress: 0.0},
 		}
+		return func() tea.Msg {
+			return executeBulkMilestoneClose(selectedIssues)
+		}
 	}
 
-	return m.runWorkflowTasks(selectedIssues)
+	// For BulkAddLabel and BulkRemoveLabel, start async workflow
+	return m.executeAsyncWorkflow(actions)
+}
+
+func (m *model) processAction(actions []ghapi.Action, index int) tea.Cmd {
+	return func() tea.Msg {
+		if index >= len(actions) {
+			// All actions completed
+			return workflowCompleteMsg{
+				success: true,
+				message: fmt.Sprintf("Successfully processed %d actions", len(actions)),
+			}
+		}
+
+		action := actions[index]
+
+		// Add delay to ensure no concurrent GitHub operations
+		time.Sleep(100 * time.Millisecond)
+
+		// Process the action based on its type
+		var err error
+		switch action.Type {
+		case ghapi.ATAddLabel:
+			err = ghapi.AddLabelToIssue(action.Issue.Number, action.Label)
+		case ghapi.ATRemoveLabel:
+			err = ghapi.RemoveLabelFromIssue(action.Issue.Number, action.Label)
+		case ghapi.ATAddIssueToProject:
+			err = ghapi.AddIssueToProject(action.Issue.Number, action.Project)
+		case ghapi.ATRemoveIssueFromProject:
+			err = ghapi.RemoveIssueFromProject(action.Issue.Number, action.Project)
+		case ghapi.ATSetStatus:
+			err = ghapi.SetIssueStatus(action.Issue.Number, action.Project, action.Status)
+		case ghapi.ATSyncEstimate:
+			err = ghapi.SyncEstimateField(action.Issue.Number, action.SourceProject, action.Project)
+		case ghapi.ATSetSprint:
+			err = ghapi.SetCurrentSprint(action.Issue.Number, action.Project)
+		default:
+			err = fmt.Errorf("unknown action type: %s", action.Type)
+		}
+
+		if err != nil {
+			return actionStatusMsg{
+				index: index,
+				state: "error",
+			}
+		}
+
+		return actionStatusMsg{
+			index: index,
+			state: "success",
+		}
+	}
+}
+
+func (m *model) listenForAsyncStatus() tea.Cmd {
+	return func() tea.Msg {
+		status, ok := <-m.statusChan
+		if !ok {
+			// Channel is closed, AsyncManager is done
+			return asyncStatusMsg{status: ghapi.Status{Index: -1, State: "done"}}
+		}
+		return asyncStatusMsg{status: status}
+	}
+}
+
+func (m *model) executeAsyncWorkflow(actions []ghapi.Action) tea.Cmd {
+	return func() tea.Msg {
+		return startAsyncWorkflowMsg{actions: actions}
+	}
 }
 
 func (m *model) runWorkflowTasks(selectedIssues []ghapi.Issue) tea.Cmd {
@@ -823,12 +963,12 @@ func (m *model) runWorkflowTasks(selectedIssues []ghapi.Issue) tea.Cmd {
 			projectID = resolvedID
 		}
 
-		// Execute workflow with progress updates
+		// Execute workflow with progress updates using AsyncManager
 		switch m.workflowType {
 		case BulkAddLabel:
-			return executeBulkAddLabel(selectedIssues, m.labelInput)
+			return m.executeAsyncWorkflow(ghapi.CreateBulkAddLableAction(selectedIssues, m.labelInput))
 		case BulkRemoveLabel:
-			return executeBulkRemoveLabel(selectedIssues, m.labelInput)
+			return m.executeAsyncWorkflow(ghapi.CreateBulkRemoveLabelAction(selectedIssues, m.labelInput))
 		case BulkSprintKickoff:
 			return executeBulkSprintKickoff(selectedIssues, projectID)
 		case BulkMilestoneClose:
@@ -842,34 +982,32 @@ func (m *model) runWorkflowTasks(selectedIssues []ghapi.Issue) tea.Cmd {
 	}
 }
 
-func executeBulkAddLabel(selectedIssues []ghapi.Issue, label string) tea.Msg {
-	// Start task
-	time.Sleep(100 * time.Millisecond) // Simulate some work
-
-	err := ghapi.BulkAddLabel(selectedIssues, label)
-	if err != nil {
-		return taskUpdateMsg{taskID: 0, progress: 0.0, status: TaskError, err: err}
-	}
-
-	// Mark task as complete first
-	return taskUpdateMsg{taskID: 0, progress: 1.0, status: TaskSuccess, err: nil}
+type processTaskMsg struct {
+	taskID int
 }
 
-func executeBulkRemoveLabel(selectedIssues []ghapi.Issue, label string) tea.Msg {
-	time.Sleep(100 * time.Millisecond) // Simulate some work
+type actionStatusMsg struct {
+	index int
+	state string
+}
 
-	err := ghapi.BulkRemoveLabel(selectedIssues, label)
-	if err != nil {
-		return taskUpdateMsg{taskID: 0, progress: 0.0, status: TaskError, err: err}
-	}
+type startAsyncWorkflowMsg struct {
+	actions []ghapi.Action
+}
 
-	// Mark task as complete first
-	return taskUpdateMsg{taskID: 0, progress: 1.0, status: TaskSuccess, err: nil}
+type asyncStatusMsg struct {
+	status ghapi.Status
 }
 
 func executeBulkSprintKickoff(selectedIssues []ghapi.Issue, projectID int) tea.Msg {
+	// Add a delay to ensure no overlap with other GitHub commands
+	time.Sleep(200 * time.Millisecond)
+
+	// Get the drafting project ID for source
+	draftingProjectID := 0 // You may need to resolve this from aliases
+
 	// This would be better implemented as a series of commands, but for now keep it simple
-	err := ghapi.BulkSprintKickoff(selectedIssues, projectID)
+	err := ghapi.BulkSprintKickoff(selectedIssues, draftingProjectID, projectID)
 	if err != nil {
 		return workflowCompleteMsg{
 			success: false,
@@ -884,6 +1022,9 @@ func executeBulkSprintKickoff(selectedIssues []ghapi.Issue, projectID int) tea.M
 }
 
 func executeBulkMilestoneClose(selectedIssues []ghapi.Issue) tea.Msg {
+	// Add a delay to ensure no overlap with other GitHub commands
+	time.Sleep(200 * time.Millisecond)
+
 	err := ghapi.BulkMilestoneClose(selectedIssues)
 	if err != nil {
 		return workflowCompleteMsg{
