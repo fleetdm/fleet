@@ -60,7 +60,7 @@ LIMIT ?
 		now = time.Now().UTC()
 	}
 
-	args := []interface{}{fleet.JobStateQueued, now, maxNumJobs}
+	args := []interface{}{fleet.JobStateQueued, now}
 
 	// Add job name filter if needed
 	var nameClause string
@@ -74,7 +74,7 @@ LIMIT ?
 	}
 
 	query = fmt.Sprintf(query, nameClause)
-
+	args = append(args, maxNumJobs)
 	var jobs []*fleet.Job
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &jobs, query, args...)
 	if err != nil {
