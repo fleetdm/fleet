@@ -997,6 +997,7 @@ const HostDetailsPage = ({
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
+                hostMdmEnrollmentStatus={host.mdm.enrollment_status}
               />
               {isDarwinHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard

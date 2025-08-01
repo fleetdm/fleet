@@ -13,6 +13,7 @@ import deviceAPI, {
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
 import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
@@ -35,6 +36,8 @@ import {
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
+import { get } from "lodash";
+import { getSoftwareSubheader } from "./helpers";
 
 const baseClass = "software-card";
 
@@ -59,6 +62,8 @@ interface IHostSoftwareProps {
   onShowSoftwareDetails: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   isMyDevicePage?: boolean;
+  /** Used to show custom Software card header */
+  hostMdmEnrollmentStatus?: MdmEnrollmentStatus | null;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -121,6 +126,7 @@ const HostSoftware = ({
   onShowSoftwareDetails,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
+  hostMdmEnrollmentStatus = null,
 }: IHostSoftwareProps) => {
   const { isPremiumTier } = useContext(AppContext);
 
@@ -334,7 +340,11 @@ const HostSoftware = ({
       >
         <CardHeader
           header="Software"
-          subheader="Software installed on your device"
+          subheader={getSoftwareSubheader({
+            platform,
+            isMyDevicePage: true,
+            hostMdmEnrollmentStatus,
+          })}
         />
         {renderHostSoftware()}
       </Card>
@@ -344,7 +354,13 @@ const HostSoftware = ({
   return (
     <div className={baseClass}>
       {!isAndroid(platform) && (
-        <CardHeader subheader="Software installed on this host" />
+        <CardHeader
+          subheader={getSoftwareSubheader({
+            platform,
+            isMyDevicePage: false,
+            hostMdmEnrollmentStatus,
+          })}
+        />
       )}
       {renderHostSoftware()}
     </div>
