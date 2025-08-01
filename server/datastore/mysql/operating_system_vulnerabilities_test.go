@@ -348,3 +348,8 @@ func testDeleteOutOfDateOSVulnerabilities(t *testing.T, ds *Datastore) {
 	require.Len(t, actual, 1)
 	require.ElementsMatch(t, []fleet.OSVulnerability{newVuln}, actual)
 }
+
+// func testListLinuxKernelVulnerabilities(t *testing.T, ds *Datastore) {
+// 	ctx := context.Background()
+
+// }
