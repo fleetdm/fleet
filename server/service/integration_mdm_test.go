@@ -13988,6 +13988,70 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	assert.Equal(t, fleet.WellKnownMDMFleet, getHostMDMResponse.Name)
 }
 
+func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
+	t := s.T()
+
+	// We are going to login and do some SSO operations then do the actual enrollments during the
+	// test. Why? Testing the SAML SSO flow requires specific hardcoded server values but the actual
+	// server URL changes between runs, so once we've done the SSO operations we reset the server config
+	// to the proper value and then fetch the enrollment profiles and do the enrollments.
+	// TODO: Is there a better way to do this?
+	originalServerUrl := s.server.URL
+	s.setUpMDMSSO(t)
+
+	getSSOAccessToken := func(username, password string) string {
+		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
+		// check location for apple-remotemanagement-user-login://authentication-results?access-token=
+		returnedLocation, err := ssoResult.Location()
+		require.NoError(t, err)
+		require.NotNil(t, returnedLocation)
+		returnedLocationURL := returnedLocation.String()
+		require.True(t, strings.HasPrefix(returnedLocationURL, "apple-remotemanagement-user-login://authentication-results?access-token="))
+		accessToken := strings.Split(returnedLocationURL, "apple-remotemanagement-user-login://authentication-results?access-token=")[1]
+		return accessToken
+	}
+
+	iPhoneAccessToken := getSSOAccessToken("sso_user", "user123#")
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"server_url": "`+originalServerUrl+`"
+		}
+	}`), http.StatusOK, &acResp)
+
+	iPhoneHwModel := "iPhone14,5"
+
+	iPhoneMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
+		s.server.URL,
+		iPhoneHwModel,
+		iPhoneAccessToken,
+	)
+	require.NoError(t, iPhoneMdmDevice.Enroll())
+	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user@example.com")
+
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	host := listHostsRes.Hosts[0]
+	assert.Equal(t, host.UUID, iPhoneMdmDevice.EnrollmentID())
+	require.NotNil(t, host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+	assert.True(t, *host.MDM.ConnectedToFleet)
+
+	// Confirm that turning off MDM, locking or wiping the host fails with an appropriate error
+	r := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForPersonalHostsMessage)
+
+	// Lock the host
+	r = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), fleet.CantLockPersonalHostsMessage)
+
+	// try to wipe the host
+	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), fleet.CantWipePersonalHostsMessage)
+}
+
 func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	t := s.T()
 	ctx := context.Background()
