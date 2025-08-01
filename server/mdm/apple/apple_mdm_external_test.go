@@ -416,7 +416,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		}
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
 
-		// tODO EJM
+		// Verify that the two hosts have assignments marked failed
 		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id IN (?, ?) AND assign_profile_response = ?"
 			var result int
