@@ -301,215 +301,215 @@ parasails.registerPage('configuration-builder', {
               },
             ],
           },
-          {
-            subcategoryName: 'FileVault',
-            subcategorySlug: 'macos-filevault',
-            description: 'Settings related disk encryption on macOS devices.',
-            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/fdefilevault',
-            noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
-            docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
-            payloads: [
-              // {// TODO: how do we want to accept this value?
-              //   name: 'Filevault certificate',
-              //   uniqueSlug: 'macos-filevault-certificate',
-              //   tooltip: 'The DER-encoded certificate data if the system creates an institutional recovery key. This key isn’t supported on Macs with Apple silicon.',
-              //   category: 'FileVault',
-              //   payload: 'FDEFileVault',
-              //   payloadType: 'com.apple.MCX.FileVault2',
-              //   formInput: {
-              //     type: 'text',
-              //   },
-              //   formOutput: {
-              //     settingFormat: 'data',
-              //     settingKey: 'Certificate',
-              //   },
-              // },
-              {
-                name: 'Enable FileVault',
-                uniqueSlug: 'macos-enable-filevault',
-                tooltip: 'Enables FileVault on macOS devices. Payloads that enable filevault sent through MDM need to either include full authentication information in the payload or have the Defer option set to true.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'Enable',
-                  trueValue: 'On',
-                  falseValue: 'Off'
-                },
-              },
-              {
-                name: 'Create FileVault recovery key',
-                uniqueSlug: 'macos-use-recovery-key',
-                tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'UseRecoveryKey',
-                },
-              },
-              {
-                name: 'Show recovery key to user after enabling FileVault',
-                uniqueSlug: 'macos-show-recovery-key',
-                tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'UseRecoveryKey',
-                },
-              },
-              {
-                name: 'Open directory username',
-                uniqueSlug: 'macos-filevault-od-username',
-                tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'Username',
-                },
-              },
-              {
-                name: 'Open directory password',
-                uniqueSlug: 'macos-filevault-od-password',
-                tooltip: 'The password of the Open Directory user to add to FileVault. Use the "Ask end-user for missing information" key to prompt for this information.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'Password',
-                },
-              },
-              {
-                name: 'Ask end-user for missing information',
-                uniqueSlug: 'macos-filevault-ask-for-missing-info',
-                tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'UserEntersMissingInfo',
-                },
-              },
-              {
-                name: 'Defer FileVault activation',
-                uniqueSlug: 'macos-defer-filevault-activation',
-                tooltip: 'If true, the system defers enabling FileVault until the designated user logs out. Only a local user or a mobile account user can enable FileVault.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'Defer',
-                },
-              },
-              {
-                name: 'Disable requests to enable FileVault when users log out.',
-                uniqueSlug: 'macos-disable-filevault-activiation-log-out',
-                tooltip: 'If true, the system prevents requests to enable FileVault at user logout time.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'DeferDontAskAtUserLogout',
-                },
-              },
-              {
-                name: 'Maximum number of times users can defer',
-                uniqueSlug: 'macos-filevault-max-bypass-attempts',
-                tooltip: 'The maximum number of times users can bypass enabling FileVault before the system requires the user to enable it to log in. If the value is 0, the system requires the user to enable FileVault the next time they attempt to log in. Set this key to -1 to disable this feature.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'number',
-                  maxValue: 9999,
-                  minValue: -1,
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'DeferForceAtUserLoginMaxBypassAttempts',
-                },
-              },
-              {
-                name: 'Specify a path to FileVault recovery key',
-                uniqueSlug: 'macos-filevault-recovery-key',
-                tooltip: 'The path to the location of the recovery key and computer information property list.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'text',
-                },
-                formOutput: {
-                  settingFormat: 'string',
-                  settingKey: 'OutputPath',
-                },
-              },
-              {
-                name: 'Store recovery key in keychain',
-                uniqueSlug: 'macos-filevault-recovery-key-in-keychain',
-                tooltip: 'If true and you don’t include certificate information in this payload, the system uses the keychain created at /Library/Keychains/FileVaultMaster.keychain when it adds the institutional recovery key.',
-                category: 'FileVault',
-                payload: 'FDEFileVault',
-                payloadType: 'com.apple.MCX.FileVault2',
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'UseKeychain',
-                },
-              },
-              // {
-              //   name: 'Certificate UUID',
-              //   uniqueSlug: 'macos-filevault-certificate-uuid',
-              //   tooltip: 'The UUID of the payload within the same profile containing the asymmetric recovery key certificate payload.',
-              //   category: 'FileVault',
-              //   payload: 'FDEFileVault',
-              //   payloadType: 'com.apple.MCX.FileVault2',
-              //   formInput: {
-              //     type: 'text',
-              //   },
-              //   formOutput: {
-              //     settingFormat: 'string',
-              //     settingKey: 'PayloadCertificateUUID',
-              //   },
-              // },
-            ],
-          },
+          // {
+          //   subcategoryName: 'FileVault',
+          //   subcategorySlug: 'macos-filevault',
+          //   description: 'Settings related disk encryption on macOS devices.',
+          //   learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/fdefilevault',
+          //   noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
+          //   docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+          //   payloads: [
+          //     // {// TODO: how do we want to accept this value?
+          //     //   name: 'Filevault certificate',
+          //     //   uniqueSlug: 'macos-filevault-certificate',
+          //     //   tooltip: 'The DER-encoded certificate data if the system creates an institutional recovery key. This key isn’t supported on Macs with Apple silicon.',
+          //     //   category: 'FileVault',
+          //     //   payload: 'FDEFileVault',
+          //     //   payloadType: 'com.apple.MCX.FileVault2',
+          //     //   formInput: {
+          //     //     type: 'text',
+          //     //   },
+          //     //   formOutput: {
+          //     //     settingFormat: 'data',
+          //     //     settingKey: 'Certificate',
+          //     //   },
+          //     // },
+          //     {
+          //       name: 'Enable FileVault',
+          //       uniqueSlug: 'macos-enable-filevault',
+          //       tooltip: 'Enables FileVault on macOS devices. Payloads that enable filevault sent through MDM need to either include full authentication information in the payload or have the Defer option set to true.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'string',
+          //         settingKey: 'Enable',
+          //         trueValue: 'On',
+          //         falseValue: 'Off'
+          //       },
+          //     },
+          //     {
+          //       name: 'Create FileVault recovery key',
+          //       uniqueSlug: 'macos-use-recovery-key',
+          //       tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'boolean',
+          //         settingKey: 'UseRecoveryKey',
+          //       },
+          //     },
+          //     {
+          //       name: 'Show recovery key to user after enabling FileVault',
+          //       uniqueSlug: 'macos-show-recovery-key',
+          //       tooltip: 'If true, the system creates a personal recovery key and displays it to the user.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'boolean',
+          //         settingKey: 'UseRecoveryKey',
+          //       },
+          //     },
+          //     {
+          //       name: 'Open directory username',
+          //       uniqueSlug: 'macos-filevault-od-username',
+          //       tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'text',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'string',
+          //         settingKey: 'Username',
+          //       },
+          //     },
+          //     {
+          //       name: 'Open directory password',
+          //       uniqueSlug: 'macos-filevault-od-password',
+          //       tooltip: 'The password of the Open Directory user to add to FileVault. Use the "Ask end-user for missing information" key to prompt for this information.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'text',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'string',
+          //         settingKey: 'Password',
+          //       },
+          //     },
+          //     {
+          //       name: 'Ask end-user for missing information',
+          //       uniqueSlug: 'macos-filevault-ask-for-missing-info',
+          //       tooltip: 'If true, the system enables a prompt for missing user name or password fields.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'boolean',
+          //         settingKey: 'UserEntersMissingInfo',
+          //       },
+          //     },
+          //     {
+          //       name: 'Defer FileVault activation',
+          //       uniqueSlug: 'macos-defer-filevault-activation',
+          //       tooltip: 'If true, the system defers enabling FileVault until the designated user logs out. Only a local user or a mobile account user can enable FileVault.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'boolean',
+          //         settingKey: 'Defer',
+          //       },
+          //     },
+          //     {
+          //       name: 'Disable requests to enable FileVault when users log out.',
+          //       uniqueSlug: 'macos-disable-filevault-activiation-log-out',
+          //       tooltip: 'If true, the system prevents requests to enable FileVault at user logout time.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'boolean',
+          //         settingKey: 'DeferDontAskAtUserLogout',
+          //       },
+          //     },
+          //     {
+          //       name: 'Maximum number of times users can defer',
+          //       uniqueSlug: 'macos-filevault-max-bypass-attempts',
+          //       tooltip: 'The maximum number of times users can bypass enabling FileVault before the system requires the user to enable it to log in. If the value is 0, the system requires the user to enable FileVault the next time they attempt to log in. Set this key to -1 to disable this feature.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'number',
+          //         maxValue: 9999,
+          //         minValue: -1,
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'integer',
+          //         settingKey: 'DeferForceAtUserLoginMaxBypassAttempts',
+          //       },
+          //     },
+          //     {
+          //       name: 'Specify a path to FileVault recovery key',
+          //       uniqueSlug: 'macos-filevault-recovery-key',
+          //       tooltip: 'The path to the location of the recovery key and computer information property list.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'text',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'string',
+          //         settingKey: 'OutputPath',
+          //       },
+          //     },
+          //     {
+          //       name: 'Store recovery key in keychain',
+          //       uniqueSlug: 'macos-filevault-recovery-key-in-keychain',
+          //       tooltip: 'If true and you don’t include certificate information in this payload, the system uses the keychain created at /Library/Keychains/FileVaultMaster.keychain when it adds the institutional recovery key.',
+          //       category: 'FileVault',
+          //       payload: 'FDEFileVault',
+          //       payloadType: 'com.apple.MCX.FileVault2',
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'boolean',
+          //         settingKey: 'UseKeychain',
+          //       },
+          //     },
+          //     // {
+          //     //   name: 'Certificate UUID',
+          //     //   uniqueSlug: 'macos-filevault-certificate-uuid',
+          //     //   tooltip: 'The UUID of the payload within the same profile containing the asymmetric recovery key certificate payload.',
+          //     //   category: 'FileVault',
+          //     //   payload: 'FDEFileVault',
+          //     //   payloadType: 'com.apple.MCX.FileVault2',
+          //     //   formInput: {
+          //     //     type: 'text',
+          //     //   },
+          //     //   formOutput: {
+          //     //     settingFormat: 'string',
+          //     //     settingKey: 'PayloadCertificateUUID',
+          //     //   },
+          //     // },
+          //   ],
+          // },
         ]
       },
       {
@@ -1471,735 +1471,735 @@ parasails.registerPage('configuration-builder', {
               },
             ],
           },
-          {
-            subcategoryName: 'BitLocker',
-            subcategorySlug: 'windows-bitlocker',
-            description: 'Use BitLocker to encrypt drives and protect data on your device.',
-            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp',
-            noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
-            docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
-            payloads: [
-              {
-                name: 'Enable BitLocker for operating system drives',
-                uniqueSlug: 'windows-enable-bitlocker-for-os-drives',
-                tooltip: 'Require encryption to be turned on using BitLocker.',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'int',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption',
-                  trueValue: 1,
-                  falseValue: 0,
-                },
-              },
-              {
-                name: 'Enforce encryption type for operating system drives',
-                uniqueSlug: 'windows-enforce-encryption-type-for-os-drives',
-                tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress.',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'multifield',
-                  inputs: [
-                    {
-                      type: 'boolean',
-                      slug: 'enabled',
-                      label: 'Enable',
-                      trueValue: '<enabled/>',
-                      falseValue: '<enabled/>',
-                    },
-                    {
-                      type: 'radio',
-                      label: 'Encryption type',
-                      slug: 'encryptionType',
-                      options: [
-                        {
-                          name: 'Allow user to choose encryption type',
-                          value: 0
-                        },
-                        {
-                          name: 'Full encryption',
-                          value: 1
-                        },
-                        {
-                          name: 'Used space only encryption.',
-                          value: 2,
-                        },
-                      ]
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesEncryptionType',
-                  outputTemplate: `<%= enabled %><data id="OSEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
-                  valuesToTransform: {
-                    'enabled': {
-                      true: '<enabled/>',
-                      false: '<disabled/>',
-                    },
-                  }
-                },
-              },
-              {
-                name: 'Enforce startup authentication',
-                uniqueSlug: 'windows-enforce-startup-authentication',
-                tooltip: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM).',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'multifield',
-                  inputs: [
-                    {
-                      type: 'boolean',
-                      slug: 'enabled',
-                      label: 'Enable',
-                    },
-                    {
-                      type: 'select',
-                      label: 'TPM startup',
-                      slug: 'tpmStartup',
-                      options: [
-                        {
-                          name: 'Disallowed',
-                          value: 0
-                        },
-                        {
-                          name: 'Required',
-                          value: 1
-                        },
-                        {
-                          name: 'Optional',
-                          value: 2,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'select',
-                      label: 'TPM startup key',
-                      slug: 'tpmStartupKey',
-                      options: [
-                        {
-                          name: 'Disallowed',
-                          value: 0
-                        },
-                        {
-                          name: 'Required',
-                          value: 1
-                        },
-                        {
-                          name: 'Optional',
-                          value: 2,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'select',
-                      label: 'TPM startup PIN',
-                      slug: 'tpmStartupPin',
-                      options: [
-                        {
-                          name: 'Disallowed',
-                          value: 0
-                        },
-                        {
-                          name: 'Required',
-                          value: 1
-                        },
-                        {
-                          name: 'Optional',
-                          value: 2,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'select',
-                      label: 'TPM startup key and PIN',
-                      slug: 'tpmStartupKeyAndPin',
-                      options: [
-                        {
-                          name: 'Disallowed',
-                          value: 0
-                        },
-                        {
-                          name: 'Required',
-                          value: 1
-                        },
-                        {
-                          name: 'Optional',
-                          value: 2,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      slug: 'allowBitlockerWithoutTpm',
-                      label: 'Allow BitLocker without a compatible TPM',
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication',
-                  outputTemplate:`<%= enabled %><data id="ConfigureNonTPMStartupKeyUsage_Name" value="<%= allowBitlockerWithoutTpm %>"/><data id="ConfigureTPMStartupKeyUsageDropDown_Name" value="<%= tpmStartupKey %>"/><data id="ConfigurePINUsageDropDown_Name" value="<%= tpmStartupPin %>"/><data id="ConfigureTPMPINKeyUsageDropDown_Name" value="<%= tpmStartupKeyAndPin %>"/><data id="ConfigureTPMUsageDropDown_Name" value="<%= tpmStartup %>"/>`,
-                  valuesToTransform: {
-                    'enabled': {
-                      true: '<enabled/>',
-                      false: '<disabled/>',
-                    },
-                  }
-                },
-              },
-              {
-                name: 'Enforce enhanced startup PINs',
-                uniqueSlug: 'windows-enforce-enhanced-startup-pin',
-                tooltip: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM).',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesEnhancedPIN',
-                  trueValue: '<enabled/>',
-                  falseValue: '<disabled/>',
-                },
-              },
-              {
-                name: 'Enforce recovery options for operating system drives',
-                uniqueSlug: 'windows-enforce-system-drive-recovery-options',
-                tooltip: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker.',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'multifield',
-                  inputs: [
-                    {
-                      type: 'boolean',
-                      slug: 'enabled',
-                      label: 'Enable',
-                    },
-                    {
-                      type: 'select',
-                      label: 'Configure 256-bit recovery key',
-                      slug: 'recoveryKey',
-                      options: [
-                        {
-                          name: 'Disallowed',
-                          value: 0
-                        },
-                        {
-                          name: 'Required',
-                          value: 1
-                        },
-                        {
-                          name: 'Allowed',
-                          value: 2,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'select',
-                      label: 'Configure 48-digit recovery password',
-                      slug: 'recoveryPassword',
-                      options: [
-                        {
-                          name: 'Disallowed',
-                          value: 0
-                        },
-                        {
-                          name: 'Required',
-                          value: 1
-                        },
-                        {
-                          name: 'Allowed',
-                          value: 2,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Store BitLocker recovery information on Active Directory',
-                      slug: 'storeOnActiveDirectory',
-                    },
-                    {
-                      type: 'select',
-                      label: 'Choose what recovery information to store on Active Directory',
-                      slug: 'whatToStoreOnActiveDirectory',
-                      options: [
-                        {
-                          name: 'Store recovery passwords and key packages.',
-                          value: 1
-                        },
-                        {
-                          name: 'Store recovery passwords only.',
-                          value: 2,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Do not enable BitLocker until recovery information is stored to Active Directory',
-                      slug: 'doNotEnableUntilStored',
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Allow data recovery agent',
-                      slug: 'allowDataRecoveryAgent',
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Omit recovery options from BitLocker setup wizard',
-                      slug: 'hideRecoveryPage',
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesRecoveryOptions',
-                  outputTemplate:`<%= enabled %><data id="OSAllowDRA_Name" value="<%= allowDataRecoveryAgent %>"/><data id="OSRecoveryPasswordUsageDropDown_Name" value="<%= recoveryPassword %>"/><data id="OSRecoveryKeyUsageDropDown_Name" value="<%= recoveryKey %>"/><data id="OSHideRecoveryPage_Name" value="<%= hideRecoveryPage %>"/><data id="OSActiveDirectoryBackup_Name" value="<%= storeOnActiveDirectory %>"/><data id="OSActiveDirectoryBackupDropDown_Name" value="<%= whatToStoreOnActiveDirectory %>"/><data id="OSRequireActiveDirectoryBackup_Name" value="<%= doNotEnableUntilStored %>"/>`,
-                  valuesToTransform: {
-                    'enabled': {
-                      true: '<enabled/>',
-                      false: '<disabled/>',
-                    },
-                  }
-                },
-              },
-              {
-                name: 'Enable BitLocker for fixed data drives',
-                uniqueSlug: 'windows-enable-bitlocker-for-fixed-data-drives',
-                tooltip: 'This policy setting determines whether BitLocker protection is required for fixed data drives to be writable on a computer.',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption',
-                  trueValue: '<enabled/>',
-                  falseValue: '<disabled/>',
-                },
-              },
-              {
-                name: 'Enforce encryption type for fixed data drives',
-                uniqueSlug: 'windows-enforce-encryption-type-for-fixed-data-drives',
-                tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress. ',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'multifield',
-                  inputs: [
-                    {
-                      type: 'boolean',
-                      slug: 'enabled',
-                      label: 'Enable',
-                      trueValue: '<enabled/>',
-                      falseValue: '<enabled/>',
-                    },
-                    {
-                      type: 'radio',
-                      label: 'Encryption type',
-                      slug: 'encryptionType',
-                      options: [
-                        {
-                          name: 'Allow user to choose encryption type',
-                          value: 0
-                        },
-                        {
-                          name: 'Full encryption',
-                          value: 1
-                        },
-                        {
-                          name: 'Used space only encryption.',
-                          value: 2,
-                        },
-                      ]
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesEncryptionType',
-                  outputTemplate: `<%= enabled %><data id="FDVEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
-                  valuesToTransform: {
-                    'enabled': {
-                      true: '<enabled/>',
-                      false: '<disabled/>',
-                    },
-                  }
-                },
-              },
-              {
-                name: 'Enforce recovery options for operating system drives',
-                uniqueSlug: 'windows-enforce-fixed-data-drive-recovery-options',
-                tooltip: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'multifield',
-                  inputs: [
-                    {
-                      type: 'boolean',
-                      slug: 'enabled',
-                      label: 'Enable',
-                    },
-                    {
-                      type: 'select',
-                      label: 'Configure 256-bit recovery key',
-                      slug: 'recoveryKey',
-                      options: [
-                        {
-                          name: 'Disallowed',
-                          value: 0
-                        },
-                        {
-                          name: 'Required',
-                          value: 1
-                        },
-                        {
-                          name: 'Allowed',
-                          value: 2,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'select',
-                      label: 'Configure 48-digit recovery password',
-                      slug: 'recoveryPassword',
-                      options: [
-                        {
-                          name: 'Disallowed',
-                          value: 0
-                        },
-                        {
-                          name: 'Required',
-                          value: 1
-                        },
-                        {
-                          name: 'Allowed',
-                          value: 2,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Store BitLocker recovery information on Active Directory',
-                      slug: 'storeOnActiveDirectory',
-                    },
-                    {
-                      type: 'select',
-                      label: 'Choose what recovery information to store on Active Directory',
-                      slug: 'whatToStoreOnActiveDirectory',
-                      options: [
-                        {
-                          name: 'Store recovery passwords and key packages.',
-                          value: 1
-                        },
-                        {
-                          name: 'Store recovery passwords only.',
-                          value: 2,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Do not enable BitLocker until recovery information is stored to Active Directory',
-                      slug: 'doNotEnableUntilStored',
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Allow data recovery agent',
-                      slug: 'allowDataRecoveryAgent',
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Omit recovery options from BitLocker setup wizard',
-                      slug: 'hideRecoveryPage',
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRecoveryOptions',
-                  outputTemplate:`<%= enabled %><data id="FDVAllowDRA_Name" value="<%= allowDataRecoveryAgent %>"/><data id="FDVRecoveryPasswordUsageDropDown_Name" value="<%= recoveryPassword %>"/><data id="FDVRecoveryKeyUsageDropDown_Name" value="<%= recoveryKey %>"/><data id="FDVHideRecoveryPage_Name" value="<%= hideRecoveryPage %>"/><data id="FDVActiveDirectoryBackup_Name" value="<%= storeOnActiveDirectory %>"/><data id="FDVActiveDirectoryBackupDropDown_Name" value="<%= whatToStoreOnActiveDirectory %>"/><data id="FDVRequireActiveDirectoryBackup_Name" value="<%= doNotEnableUntilStored %>"/>`,
-                  valuesToTransform: {
-                    'enabled': {
-                      true: '<enabled/>',
-                      false: '<disabled/>',
-                    },
-                  }
-                },
-              },
-              {
-                name: 'Deny write access to fixed data drives not protected by BitLocker',
-                uniqueSlug: 'windows-deny-wrtie-access-to-fixed-data-drives',
-                tooltip: 'This policy setting determines whether BitLocker protection is required for fixed data drives to be writable on a computer. If you enable this policy setting, all fixed data drives that aren\'t BitLocker-protected will be mounted as read-only.',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'boolean',
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption',
-                  trueValue: '<enabled/>',
-                  falseValue: '<disabled/>',
-                },
-              },
-              {
-                name: 'Enable BitLocker for removable data drives',
-                uniqueSlug: 'windows-enable-bitlocker-for-removeable-data-drives',
-                tooltip: 'This policy setting controls the use of BitLocker on removable data drives.',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'multifield',
-                  inputs: [
-                    {
-                      type: 'boolean',
-                      slug: 'enabled',
-                      label: 'Enable',
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Allow users to apply BitLocker protection on removable data drives',
-                      slug: 'allowApplyBitlocker',
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Allow users to suspend and decrypt BitLocker on removable data drives',
-                      slug: 'allowDisableBitlocker',
-                    },
-                  ],
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesConfigureBDE',
-                  outputTemplate:`<%= enabled %><data id="RDVAllowBDE_Name" value="<%= allowApplyBitlocker %>"/><data id="RDVDisableBDE_Name" value="<%= allowDisableBitlocker %>"/>`,
-                  valuesToTransform: {
-                    'enabled': {
-                      true: '<enabled/>',
-                      false: '<disabled/>',
-                    },
-                  }
-                },
-              },
-              {
-                name: 'Enforce encryption type for removable data drives',
-                uniqueSlug: 'windows-enforce-encryption-type-for-removeable-drives',
-                tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress. ',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'multifield',
-                  inputs: [
-                    {
-                      type: 'boolean',
-                      slug: 'enabled',
-                      label: 'Enable',
-                      trueValue: '<enabled/>',
-                      falseValue: '<enabled/>',
-                    },
-                    {
-                      type: 'radio',
-                      label: 'Encryption type',
-                      slug: 'encryptionType',
-                      options: [
-                        {
-                          name: 'Allow user to choose encryption type',
-                          value: 0
-                        },
-                        {
-                          name: 'Full encryption',
-                          value: 1
-                        },
-                        {
-                          name: 'Used space only encryption.',
-                          value: 2,
-                        },
-                      ]
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesEncryptionType',
-                  outputTemplate: `<%= enabled %><data id="RDVEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
-                  valuesToTransform: {
-                    'enabled': {
-                      true: '<enabled/>',
-                      false: '<disabled/>',
-                    },
-                  }
-                },
-              },
-              {
-                name: 'Deny write access to removable data drives not protected by BitLocker',
-                uniqueSlug: 'windows-deny-write-access-to-removeable-data-drives',
-                tooltip: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'multifield',
-                  inputs: [
-                    {
-                      type: 'boolean',
-                      slug: 'enabled',
-                      label: 'Enable',
-                    },
-                    {
-                      type: 'booleanWithLabel',
-                      label: 'Deny write access to devices configured in another organization',
-                      slug: 'crossOrg',
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesRequireEncryption',
-                  outputTemplate: `<%= enabled %><data id="RDVCrossOrg" value="<%= crossOrg %>"/>`,
-                  valuesToTransform: {
-                    'enabled': {
-                      true: '<enabled/>',
-                      false: '<disabled/>',
-                    },
-                  }
-                },
-              },
-              {
-                name: 'Enforce encryption method',
-                uniqueSlug: 'windows-enforce-encryption-method',
-                tooltip: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'multifield',
-                  inputs: [
-                    {
-                      type: 'boolean',
-                      slug: 'enabled',
-                      label: 'Enable',
-                    },
-                    {
-                      type: 'select',
-                      label: 'Operating system drives',
-                      slug: 'osEncryptionType',
-                      options: [
-                        {
-                          name: 'AES-CBC 128',
-                          value: 3
-                        },
-                        {
-                          name: 'AES-CBC 256',
-                          value: 4,
-                        },
-                        {
-                          name: 'XTS-AES 128',
-                          value: 6,
-                        },
-                        {
-                          name: 'XTS-AES 256',
-                          value: 7,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'select',
-                      label: 'Fixed data drives',
-                      slug: 'fixedDriveEncryptionType',
-                      options: [
-                        {
-                          name: 'AES-CBC 128',
-                          value: 3
-                        },
-                        {
-                          name: 'AES-CBC 256',
-                          value: 4,
-                        },
-                        {
-                          name: 'XTS-AES 128',
-                          value: 6,
-                        },
-                        {
-                          name: 'XTS-AES 256',
-                          value: 7,
-                        },
-                      ]
-                    },
-                    {
-                      type: 'select',
-                      label: 'Removable data drives',
-                      slug: 'removeableDriveEncryptionType',
-                      options: [
-                        {
-                          name: 'AES-CBC 128',
-                          value: 3
-                        },
-                        {
-                          name: 'AES-CBC 256',
-                          value: 4,
-                        },
-                        {
-                          name: 'XTS-AES 128',
-                          value: 6,
-                        },
-                        {
-                          name: 'XTS-AES 256',
-                          value: 7,
-                        },
-                      ]
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/EncryptionMethodByDriveType',
-                  outputTemplate: `<%= enabled %><data id="EncryptionMethodWithXtsOsDropDown_Name" value="<%= osEncryptionType %>"/><data id="EncryptionMethodWithXtsFdvDropDown_Name" value="<%= fixedDriveEncryptionType %>"/><data id="EncryptionMethodWithXtsRdvDropDown_Name" value="<%= removeableDriveEncryptionType %>"/>`,
-                  valuesToTransform: {
-                    'enabled': {
-                      true: '<enabled/>',
-                      false: '<disabled/>',
-                    },
-                  }
-                },
-              },
-              {
-                name: 'Configure recovery password rotation',
-                uniqueSlug: 'windows-configure-recover-password-roration',
-                tooltip: 'Allows Admin to configure Numeric Recovery Password Rotation upon use for OS and fixed drives on Entra ID and hybrid domain joined devices.',
-                category: 'BitLocker',
-                supportedAccessTypes: ['add', 'replace'],
-                formInput: {
-                  type: 'radio',
-                  label: 'Encryption type',
-                  options: [
-                    {
-                      name: 'Disable password rotation',
-                      value: 0
-                    },
-                    {
-                      name: 'Enable password rotation for Azure AD-joined devices',
-                      value: 1
-                    },
-                    {
-                      name: 'Enable password rotation for Azure AD-joined and hybrid-joined devices',
-                      value: 2,
-                    },
-                  ]
-                },
-                formOutput: {
-                  settingFormat: 'int',
-                  settingTarget: './Device/Vendor/MSFT/BitLocker/ConfigureRecoveryPasswordRotation',
-                },
-              },
-            ],
-          }
+          // {
+          //   subcategoryName: 'BitLocker',
+          //   subcategorySlug: 'windows-bitlocker',
+          //   description: 'Use BitLocker to encrypt drives and protect data on your device.',
+          //   learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp',
+          //   noteForFleetUsers: 'Disk encryption settings are managed directly in Fleet. Any settings configured here will be ignored.',
+          //   docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+          //   payloads: [
+          //     {
+          //       name: 'Enable BitLocker for operating system drives',
+          //       uniqueSlug: 'windows-enable-bitlocker-for-os-drives',
+          //       tooltip: 'Require encryption to be turned on using BitLocker.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'int',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption',
+          //         trueValue: 1,
+          //         falseValue: 0,
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce encryption type for operating system drives',
+          //       uniqueSlug: 'windows-enforce-encryption-type-for-os-drives',
+          //       tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //             trueValue: '<enabled/>',
+          //             falseValue: '<enabled/>',
+          //           },
+          //           {
+          //             type: 'radio',
+          //             label: 'Encryption type',
+          //             slug: 'encryptionType',
+          //             options: [
+          //               {
+          //                 name: 'Allow user to choose encryption type',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Full encryption',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Used space only encryption.',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesEncryptionType',
+          //         outputTemplate: `<%= enabled %><data id="OSEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce startup authentication',
+          //       uniqueSlug: 'windows-enforce-startup-authentication',
+          //       tooltip: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM).',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'TPM startup',
+          //             slug: 'tpmStartup',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Optional',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'TPM startup key',
+          //             slug: 'tpmStartupKey',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Optional',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'TPM startup PIN',
+          //             slug: 'tpmStartupPin',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Optional',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'TPM startup key and PIN',
+          //             slug: 'tpmStartupKeyAndPin',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Optional',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             slug: 'allowBitlockerWithoutTpm',
+          //             label: 'Allow BitLocker without a compatible TPM',
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication',
+          //         outputTemplate:`<%= enabled %><data id="ConfigureNonTPMStartupKeyUsage_Name" value="<%= allowBitlockerWithoutTpm %>"/><data id="ConfigureTPMStartupKeyUsageDropDown_Name" value="<%= tpmStartupKey %>"/><data id="ConfigurePINUsageDropDown_Name" value="<%= tpmStartupPin %>"/><data id="ConfigureTPMPINKeyUsageDropDown_Name" value="<%= tpmStartupKeyAndPin %>"/><data id="ConfigureTPMUsageDropDown_Name" value="<%= tpmStartup %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce enhanced startup PINs',
+          //       uniqueSlug: 'windows-enforce-enhanced-startup-pin',
+          //       tooltip: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM).',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesEnhancedPIN',
+          //         trueValue: '<enabled/>',
+          //         falseValue: '<disabled/>',
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce recovery options for operating system drives',
+          //       uniqueSlug: 'windows-enforce-system-drive-recovery-options',
+          //       tooltip: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Configure 256-bit recovery key',
+          //             slug: 'recoveryKey',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Allowed',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Configure 48-digit recovery password',
+          //             slug: 'recoveryPassword',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Allowed',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Store BitLocker recovery information on Active Directory',
+          //             slug: 'storeOnActiveDirectory',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Choose what recovery information to store on Active Directory',
+          //             slug: 'whatToStoreOnActiveDirectory',
+          //             options: [
+          //               {
+          //                 name: 'Store recovery passwords and key packages.',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Store recovery passwords only.',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Do not enable BitLocker until recovery information is stored to Active Directory',
+          //             slug: 'doNotEnableUntilStored',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Allow data recovery agent',
+          //             slug: 'allowDataRecoveryAgent',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Omit recovery options from BitLocker setup wizard',
+          //             slug: 'hideRecoveryPage',
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/SystemDrivesRecoveryOptions',
+          //         outputTemplate:`<%= enabled %><data id="OSAllowDRA_Name" value="<%= allowDataRecoveryAgent %>"/><data id="OSRecoveryPasswordUsageDropDown_Name" value="<%= recoveryPassword %>"/><data id="OSRecoveryKeyUsageDropDown_Name" value="<%= recoveryKey %>"/><data id="OSHideRecoveryPage_Name" value="<%= hideRecoveryPage %>"/><data id="OSActiveDirectoryBackup_Name" value="<%= storeOnActiveDirectory %>"/><data id="OSActiveDirectoryBackupDropDown_Name" value="<%= whatToStoreOnActiveDirectory %>"/><data id="OSRequireActiveDirectoryBackup_Name" value="<%= doNotEnableUntilStored %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enable BitLocker for fixed data drives',
+          //       uniqueSlug: 'windows-enable-bitlocker-for-fixed-data-drives',
+          //       tooltip: 'This policy setting determines whether BitLocker protection is required for fixed data drives to be writable on a computer.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption',
+          //         trueValue: '<enabled/>',
+          //         falseValue: '<disabled/>',
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce encryption type for fixed data drives',
+          //       uniqueSlug: 'windows-enforce-encryption-type-for-fixed-data-drives',
+          //       tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress. ',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //             trueValue: '<enabled/>',
+          //             falseValue: '<enabled/>',
+          //           },
+          //           {
+          //             type: 'radio',
+          //             label: 'Encryption type',
+          //             slug: 'encryptionType',
+          //             options: [
+          //               {
+          //                 name: 'Allow user to choose encryption type',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Full encryption',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Used space only encryption.',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesEncryptionType',
+          //         outputTemplate: `<%= enabled %><data id="FDVEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce recovery options for operating system drives',
+          //       uniqueSlug: 'windows-enforce-fixed-data-drive-recovery-options',
+          //       tooltip: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Configure 256-bit recovery key',
+          //             slug: 'recoveryKey',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Allowed',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Configure 48-digit recovery password',
+          //             slug: 'recoveryPassword',
+          //             options: [
+          //               {
+          //                 name: 'Disallowed',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Required',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Allowed',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Store BitLocker recovery information on Active Directory',
+          //             slug: 'storeOnActiveDirectory',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Choose what recovery information to store on Active Directory',
+          //             slug: 'whatToStoreOnActiveDirectory',
+          //             options: [
+          //               {
+          //                 name: 'Store recovery passwords and key packages.',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Store recovery passwords only.',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Do not enable BitLocker until recovery information is stored to Active Directory',
+          //             slug: 'doNotEnableUntilStored',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Allow data recovery agent',
+          //             slug: 'allowDataRecoveryAgent',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Omit recovery options from BitLocker setup wizard',
+          //             slug: 'hideRecoveryPage',
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRecoveryOptions',
+          //         outputTemplate:`<%= enabled %><data id="FDVAllowDRA_Name" value="<%= allowDataRecoveryAgent %>"/><data id="FDVRecoveryPasswordUsageDropDown_Name" value="<%= recoveryPassword %>"/><data id="FDVRecoveryKeyUsageDropDown_Name" value="<%= recoveryKey %>"/><data id="FDVHideRecoveryPage_Name" value="<%= hideRecoveryPage %>"/><data id="FDVActiveDirectoryBackup_Name" value="<%= storeOnActiveDirectory %>"/><data id="FDVActiveDirectoryBackupDropDown_Name" value="<%= whatToStoreOnActiveDirectory %>"/><data id="FDVRequireActiveDirectoryBackup_Name" value="<%= doNotEnableUntilStored %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Deny write access to fixed data drives not protected by BitLocker',
+          //       uniqueSlug: 'windows-deny-wrtie-access-to-fixed-data-drives',
+          //       tooltip: 'This policy setting determines whether BitLocker protection is required for fixed data drives to be writable on a computer. If you enable this policy setting, all fixed data drives that aren\'t BitLocker-protected will be mounted as read-only.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'boolean',
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption',
+          //         trueValue: '<enabled/>',
+          //         falseValue: '<disabled/>',
+          //       },
+          //     },
+          //     {
+          //       name: 'Enable BitLocker for removable data drives',
+          //       uniqueSlug: 'windows-enable-bitlocker-for-removeable-data-drives',
+          //       tooltip: 'This policy setting controls the use of BitLocker on removable data drives.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Allow users to apply BitLocker protection on removable data drives',
+          //             slug: 'allowApplyBitlocker',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Allow users to suspend and decrypt BitLocker on removable data drives',
+          //             slug: 'allowDisableBitlocker',
+          //           },
+          //         ],
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesConfigureBDE',
+          //         outputTemplate:`<%= enabled %><data id="RDVAllowBDE_Name" value="<%= allowApplyBitlocker %>"/><data id="RDVDisableBDE_Name" value="<%= allowDisableBitlocker %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce encryption type for removable data drives',
+          //       uniqueSlug: 'windows-enforce-encryption-type-for-removeable-drives',
+          //       tooltip: 'This policy setting allows you to configure the encryption type used by BitLocker Drive Encryption. This policy setting is applied when you turn on BitLocker. Changing the encryption type has no effect if the drive is already encrypted or if encryption is in progress. ',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //             trueValue: '<enabled/>',
+          //             falseValue: '<enabled/>',
+          //           },
+          //           {
+          //             type: 'radio',
+          //             label: 'Encryption type',
+          //             slug: 'encryptionType',
+          //             options: [
+          //               {
+          //                 name: 'Allow user to choose encryption type',
+          //                 value: 0
+          //               },
+          //               {
+          //                 name: 'Full encryption',
+          //                 value: 1
+          //               },
+          //               {
+          //                 name: 'Used space only encryption.',
+          //                 value: 2,
+          //               },
+          //             ]
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesEncryptionType',
+          //         outputTemplate: `<%= enabled %><data id="RDVEncryptionTypeDropDown_Name" value="<%= encryptionType %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Deny write access to removable data drives not protected by BitLocker',
+          //       uniqueSlug: 'windows-deny-write-access-to-removeable-data-drives',
+          //       tooltip: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'booleanWithLabel',
+          //             label: 'Deny write access to devices configured in another organization',
+          //             slug: 'crossOrg',
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/RemovableDrivesRequireEncryption',
+          //         outputTemplate: `<%= enabled %><data id="RDVCrossOrg" value="<%= crossOrg %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Enforce encryption method',
+          //       uniqueSlug: 'windows-enforce-encryption-method',
+          //       tooltip: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'multifield',
+          //         inputs: [
+          //           {
+          //             type: 'boolean',
+          //             slug: 'enabled',
+          //             label: 'Enable',
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Operating system drives',
+          //             slug: 'osEncryptionType',
+          //             options: [
+          //               {
+          //                 name: 'AES-CBC 128',
+          //                 value: 3
+          //               },
+          //               {
+          //                 name: 'AES-CBC 256',
+          //                 value: 4,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 128',
+          //                 value: 6,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 256',
+          //                 value: 7,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Fixed data drives',
+          //             slug: 'fixedDriveEncryptionType',
+          //             options: [
+          //               {
+          //                 name: 'AES-CBC 128',
+          //                 value: 3
+          //               },
+          //               {
+          //                 name: 'AES-CBC 256',
+          //                 value: 4,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 128',
+          //                 value: 6,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 256',
+          //                 value: 7,
+          //               },
+          //             ]
+          //           },
+          //           {
+          //             type: 'select',
+          //             label: 'Removable data drives',
+          //             slug: 'removeableDriveEncryptionType',
+          //             options: [
+          //               {
+          //                 name: 'AES-CBC 128',
+          //                 value: 3
+          //               },
+          //               {
+          //                 name: 'AES-CBC 256',
+          //                 value: 4,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 128',
+          //                 value: 6,
+          //               },
+          //               {
+          //                 name: 'XTS-AES 256',
+          //                 value: 7,
+          //               },
+          //             ]
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'chr',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/EncryptionMethodByDriveType',
+          //         outputTemplate: `<%= enabled %><data id="EncryptionMethodWithXtsOsDropDown_Name" value="<%= osEncryptionType %>"/><data id="EncryptionMethodWithXtsFdvDropDown_Name" value="<%= fixedDriveEncryptionType %>"/><data id="EncryptionMethodWithXtsRdvDropDown_Name" value="<%= removeableDriveEncryptionType %>"/>`,
+          //         valuesToTransform: {
+          //           'enabled': {
+          //             true: '<enabled/>',
+          //             false: '<disabled/>',
+          //           },
+          //         }
+          //       },
+          //     },
+          //     {
+          //       name: 'Configure recovery password rotation',
+          //       uniqueSlug: 'windows-configure-recover-password-roration',
+          //       tooltip: 'Allows Admin to configure Numeric Recovery Password Rotation upon use for OS and fixed drives on Entra ID and hybrid domain joined devices.',
+          //       category: 'BitLocker',
+          //       supportedAccessTypes: ['add', 'replace'],
+          //       formInput: {
+          //         type: 'radio',
+          //         label: 'Encryption type',
+          //         options: [
+          //           {
+          //             name: 'Disable password rotation',
+          //             value: 0
+          //           },
+          //           {
+          //             name: 'Enable password rotation for Azure AD-joined devices',
+          //             value: 1
+          //           },
+          //           {
+          //             name: 'Enable password rotation for Azure AD-joined and hybrid-joined devices',
+          //             value: 2,
+          //           },
+          //         ]
+          //       },
+          //       formOutput: {
+          //         settingFormat: 'int',
+          //         settingTarget: './Device/Vendor/MSFT/BitLocker/ConfigureRecoveryPasswordRotation',
+          //       },
+          //     },
+          //   ],
+          // }
         ]
       },
       {
@@ -2405,6 +2405,280 @@ parasails.registerPage('configuration-builder', {
             ]
           }
         ],
+      },
+      {
+        categoryName: 'Network',
+        categorySlug: 'windows-network',
+        subcategories: [
+          {
+            subcategoryName: 'Firewall',
+            subcategorySlug: 'windows-firewall',
+            description: 'Settings related to Windows Defender Firewall.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/firewall-csp',
+            payloads: [
+              {
+                name: 'Enable firewall on Domain profile',
+                uniqueSlug: 'windows-firewall-enabled-domain',
+                tooltip: 'Enables windows defender firewall on the devices Domain profile',
+                category: 'Firewall',
+                payloadGroup: 'Domain profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Allow users to override firewall on Domain profile',
+                uniqueSlug: 'windows-firewall-bypass-enabled-domain',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the domain profile',
+                category: 'Firewall',
+                payloadGroup: 'Domain profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/DomainProfile/AllowLocalPolicyMerge',
+                },
+              },
+              {
+                name: 'Enable firewall on private profile',
+                uniqueSlug: 'windows-firewall-enabled-private',
+                tooltip: 'Enables windows defender firewall on the devices Domain profile',
+                category: 'Firewall',
+                payloadGroup: 'Private profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Allow users to override firewall on private profile',
+                uniqueSlug: 'windows-firewall-bypass-enabled-private',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the private profile',
+                category: 'Firewall',
+                payloadGroup: 'Private profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PrivateProfile/AllowLocalPolicyMerge',
+                },
+              },
+              {
+                name: 'Enable firewall on public profile',
+                uniqueSlug: 'windows-firewall-enabled-public',
+                tooltip: 'Enables windows defender firewall on the device\'s private profile',
+                category: 'Firewall',
+                payloadGroup: 'Public profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall',
+                },
+              },
+              {
+                name: 'Allow users to override firewall on public profile',
+                uniqueSlug: 'windows-firewall-bypass-enabled-public',
+                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the public profile',
+                category: 'Firewall',
+                payloadGroup: 'Public profile',
+                supportedAccessTypes: ['replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PublicProfile/AllowLocalPolicyMerge',
+                },
+              },
+            ],
+          },
+          {
+            subcategoryName: 'WiFi',
+            subcategorySlug: 'windows-wifi',
+            description: 'Settings related to wireless networks on Windows devices.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/wifi-csp',
+            payloads: [
+              {
+                name: 'Add WiFi network (device scope)',
+                uniqueSlug: 'windows-wifi-add-network',
+                tooltip: 'This policy lets you add a Wi-Fi network on a windows device.',
+                category: 'Wi-Fi',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'text',
+                      name: 'Network SSID',
+                      slug: 'ssid',
+                    },
+                    {
+                      type: 'text',
+                      name: 'Network password',
+                      slug: 'password',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Encryption type',
+                      slug: 'networkEncryptionType',
+                      options: [
+                        // { // TODO: these values are hidden because they require a different keyType value. https://learn.microsoft.com/en-us/windows/win32/nativewifi/wlan-profileschema-sharedkey-security-element#keymaterial
+                        //   name: 'Open',
+                        //   value: 'open'
+                        // },
+                        // {
+                        //   name: 'Shared',
+                        //   value: 'shared',
+                        // },
+                        // {
+                        //   name: 'WPA Enterprise',
+                        //   value: 'WPA',
+                        // },
+                        {
+                          name: 'WPA Personal',
+                          value: 'WPAPSK',
+                        },
+                        // {
+                        //   name: 'WPA2 Enterprise',
+                        //   value: 'WPA2',
+                        // },
+                        {
+                          name: 'WPA2 Personal',
+                          value: 'WPA2PSK',
+                        },
+                        {
+                          name: 'WPA3 Personal',
+                          value: `WPA3SAE`,
+                        },
+                        // {
+                        //   name: 'WPA3 Enterprise 192-bit mode authentication.',
+                        //   value: 'WPA3ENT192',
+                        // },
+                        // {
+                        //   name: 'WPA3 Enterprise',
+                        //   value: 'WPA2PSK',
+                        // },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Automatically connect to network',
+                      slug: 'connectionMode',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTargetTemplate: `./Device/Vendor/MSFT/WiFi/Profile/<%= ssid %>/WlanXml`,
+                  outputTemplate: `<![CDATA[<?xml version="1.0"?><WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1"><name><%= ssid %></name><SSIDConfig><SSID><name><%= ssid %></name></SSID></SSIDConfig><connectionType>ESS</connectionType><connectionMode><%= connectionMode %></connectionMode><MSM><security><authEncryption><authentication><%= networkEncryptionType %></authentication><encryption>AES</encryption><useOneX>false</useOneX><transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode></authEncryption><sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial><%= password %></keyMaterial></sharedKey></security></MSM></WLANProfile>]]>`,
+                  valuesToTransform: {
+                    'connectionMode': {
+                      true: 'auto',
+                      false: 'manual',
+                    },
+                  }
+                },
+              },
+              {
+                name: 'Add WiFi network (user scope)',
+                uniqueSlug: 'windows-wifi-add-network-user-scope',
+                tooltip: 'This policy lets you add a Wi-Fi network on a windows device.',
+                category: 'Wi-Fi',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'multifield',
+                  inputs: [
+                    {
+                      type: 'text',
+                      name: 'Network SSID',
+                      slug: 'ssid',
+                    },
+                    {
+                      type: 'text',
+                      name: 'Network password',
+                      slug: 'password',
+                    },
+                    {
+                      type: 'select',
+                      label: 'Encryption type',
+                      slug: 'networkEncryptionType',
+                      options: [
+                        // { // TODO: these values are hidden because they require a different keyType value. https://learn.microsoft.com/en-us/windows/win32/nativewifi/wlan-profileschema-sharedkey-security-element#keymaterial
+                        //   name: 'Open',
+                        //   value: 'open'
+                        // },
+                        // {
+                        //   name: 'Shared',
+                        //   value: 'shared',
+                        // },
+                        // {
+                        //   name: 'WPA Enterprise',
+                        //   value: 'WPA',
+                        // },
+                        {
+                          name: 'WPA Personal',
+                          value: 'WPAPSK',
+                        },
+                        // {
+                        //   name: 'WPA2 Enterprise',
+                        //   value: 'WPA2',
+                        // },
+                        {
+                          name: 'WPA2 Personal',
+                          value: 'WPA2PSK',
+                        },
+                        {
+                          name: 'WPA3 Personal',
+                          value: `WPA3SAE`,
+                        },
+                        // {
+                        //   name: 'WPA3 Enterprise 192-bit mode authentication.',
+                        //   value: 'WPA3ENT192',
+                        // },
+                        // {
+                        //   name: 'WPA3 Enterprise',
+                        //   value: 'WPA2PSK',
+                        // },
+                      ]
+                    },
+                    {
+                      type: 'booleanWithLabel',
+                      label: 'Automatically connect to network',
+                      slug: 'connectionMode',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTargetTemplate: `./User/Vendor/MSFT/WiFi/Profile/<%= ssid %>/WlanXml`,
+                  outputTemplate: `<![CDATA[<?xml version="1.0"?><WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1"><name><%= ssid %></name><SSIDConfig><SSID><name><%= ssid %></name></SSID></SSIDConfig><connectionType>ESS</connectionType><connectionMode><%= connectionMode %></connectionMode><MSM><security><authEncryption><authentication><%= networkEncryptionType %></authentication><encryption>AES</encryption><useOneX>false</useOneX><transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode></authEncryption><sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial><%= password %></keyMaterial></sharedKey></security></MSM></WLANProfile>]]>`,
+                  valuesToTransform: {
+                    'connectionMode': {
+                      true: 'auto',
+                      false: 'manual',
+                    },
+                  }
+                },
+              },
+            ],
+          },
+        ],
       }
     ],
   },
@@ -2474,6 +2748,23 @@ parasails.registerPage('configuration-builder', {
         // Get the selected access type for this payload
         let accessType = this.configurationBuilderFormData[payload.uniqueSlug+'-access-type'];
         let value;
+        // If a payload uses a settingTargetTemplate, build the settting target value and add it to the payload.
+        if(payloadToAdd.formOutput.settingTargetTemplate) {
+          let templateToUseForSettingTarget = _.template(payloadToAdd.formOutput.settingTargetTemplate);
+          let formDataForThisPayloadToBuildTheSettingTarget = {};
+          if(payload.formInput.type === 'multifield') {
+            for(let input of payload.formInput.inputs) {
+              if(payload.formOutput.valuesToTransform && payload.formOutput.valuesToTransform[input.slug]){
+                formDataForThisPayloadToBuildTheSettingTarget[input.slug] = encodeURIComponent(payload.formOutput.valuesToTransform[input.slug][this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug]]);
+              } else {
+                formDataForThisPayloadToBuildTheSettingTarget[input.slug] = encodeURIComponent(this.configurationBuilderFormData[payload.uniqueSlug+'-'+input.slug]);
+              }
+            }
+          } else {
+            formDataForThisPayloadToBuildTheSettingTarget[payloadToAdd.uniqueSlug] = encodeURIComponent(this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
+          }
+          payloadToAdd.formOutput.settingTarget = _.trim(templateToUseForSettingTarget(formDataForThisPayloadToBuildTheSettingTarget));
+        }
         if(payload.formInput.type === 'multifield') {
           // If the payload's formInput type is multifield, we'll need to combine the values for this payload.
           // build a dictionary of formData where each key is the input's slug.
@@ -2496,10 +2787,12 @@ parasails.registerPage('configuration-builder', {
           value = this.configurationBuilderFormData[payload.uniqueSlug+'-value'];
           // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
           if(payload.formInput.type === 'boolean'){
-            if(value) {
-              value = payload.formOutput.trueValue;
-            } else {
-              value = payload.formOutput.falseValue;
+            if(payload.formOutput.trueValue){
+              if(value) {
+                value = payload.formOutput.trueValue;
+              } else {
+                value = payload.formOutput.falseValue;
+              }
             }
           }
         }
@@ -2727,6 +3020,9 @@ parasails.registerPage('configuration-builder', {
             this.configurationBuilderFormRules[payloadToAddSlug+'-value'] = {required: true};
             if(this.selectedPlatform === 'windows') {
               this.configurationBuilderFormRules[payloadToAddSlug+'-access-type'] = {required: true};
+              if(payloadToAdd.supportedAccessTypes.length === 1){
+                this.configurationBuilderFormData[payloadToAddSlug+'-access-type'] = payloadToAdd.supportedAccessTypes[0];
+              }
             }
           }
         }
@@ -2758,6 +3054,9 @@ parasails.registerPage('configuration-builder', {
         if(this.selectedPlatform === 'windows') {
           this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-access-type'] = {required: true};
           this.configurationBuilderByCategoryFormRules[selectedPayload.category][selectedPayload.uniqueSlug+'-access-type'] = {required: true};
+          if(selectedPayload.supportedAccessTypes.length === 1){
+            this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-access-type'] = selectedPayload.supportedAccessTypes[0];
+          }
         }
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
         this.selectedPayloadSettings[payloadSlug] = true;

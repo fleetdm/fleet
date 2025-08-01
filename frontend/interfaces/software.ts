@@ -317,6 +317,25 @@ export const isSoftwareUninstallStatus = (
 export const isPendingStatus = (s: string | undefined | null) =>
   ["pending_install", "pending_uninstall"].includes(s || "");
 
+export const resolveUninstallStatus = (
+  activityStatus?: string
+): SoftwareUninstallStatus => {
+  let resolvedStatus = activityStatus;
+  if (resolvedStatus === "pending") {
+    resolvedStatus = "pending_uninstall";
+  }
+  if (resolvedStatus === "failed") {
+    resolvedStatus = "failed_uninstall";
+  }
+  if (!isSoftwareUninstallStatus(resolvedStatus)) {
+    console.warn(
+      `Unexpected uninstall status "${activityStatus}" for activity. Defaulting to "pending_uninstall".`
+    );
+    resolvedStatus = "pending_uninstall";
+  }
+  return resolvedStatus as SoftwareUninstallStatus;
+};
+
 /**
  * ISoftwareInstallResult is the shape of a software install result object
  * returned by the Fleet API.
@@ -407,7 +426,47 @@ export interface IHostSoftware {
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
+export type IHostSoftwareUiStatus =
+  | "installed"
+  | "uninstalled"
+  | "installing"
+  | "uninstalling"
+  | "updating"
+  | "pending_install"
+  | "pending_uninstall"
+  | "pending_update"
+  | "failed_install"
+  | "failed_install_update_available"
+  | "failed_uninstall"
+  | "failed_uninstall_update_available"
+  | "update_available";
+
+/**
+ * Extends IHostSoftware with a computed `ui_status` field.
+ *
+ * The `ui_status` categorizes software installation state for the UI by
+ * combining the `status`, `installed_versions` info, and other factors
+ * like host online state (via getUiStatus helper function), enabling
+ * more detailed and status labels needed for the status and actions columns.
+ */
+export interface IHostSoftwareWithUiStatus extends IHostSoftware {
+  ui_status: IHostSoftwareUiStatus;
+}
+
+/**
+ * Allows unified data model for rendering of host VPP software installs and uninstalls
+ * Optional as pending may not have a commandUuid
+ */
+export type IVPPHostSoftware = IHostSoftware & {
+  commandUuid?: string;
+};
+
+export type IHostSoftwareUninstall = IHostSoftwareWithUiStatus & {
+  scriptExecutionId: string;
+};
+
 export type IDeviceSoftware = IHostSoftware;
+export type IDeviceSoftwareWithUiStatus = IHostSoftwareWithUiStatus;
 
 const INSTALL_STATUS_PREDICATES: Record<
   SoftwareInstallStatus | "pending",

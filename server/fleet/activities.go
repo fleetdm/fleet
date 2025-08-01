@@ -345,8 +345,10 @@ func (a ActivityTypeAppliedSpecPack) Documentation() (activity string, details s
 }
 
 type ActivityTypeCreatedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   int64   `json:"team_id,omitempty"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedPolicy) ActivityName() string {
@@ -357,15 +359,21 @@ func (a ActivityTypeCreatedPolicy) Documentation() (activity string, details str
 	return `Generated when creating policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the created policy.
-- "policy_name": the name of the created policy.`, `{
+- "policy_name": the name of the created policy.
+- "team_id": the ID of the team the policy belongs to.
+- "team_name": the name of the team the policy belongs to.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeEditedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   *uint   `json:"team_id,omitempty"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeEditedPolicy) ActivityName() string {
@@ -376,15 +384,21 @@ func (a ActivityTypeEditedPolicy) Documentation() (activity string, details stri
 	return `Generated when editing policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
-- "policy_name": the name of the edited policy.`, `{
+- "policy_name": the name of the edited policy.
+- "team_id": the ID of the team the policy belongs to.
+- "team_name": the name of the team the policy belongs to.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   int64   `json:"team_id,omitempty"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedPolicy) ActivityName() string {
@@ -395,9 +409,13 @@ func (a ActivityTypeDeletedPolicy) Documentation() (activity string, details str
 	return `Generated when deleting policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
-- "policy_name": the name of the deleted policy.`, `{
+- "policy_name": the name of the deleted policy.
+- "team_id": the ID of the team the policy belonged to.
+- "team_name": the name of the team the policy belonged to.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
@@ -442,8 +460,10 @@ func (a ActivityTypeAppliedSpecPolicy) Documentation() (activity string, details
 }
 
 type ActivityTypeCreatedSavedQuery struct {
-	ID   uint   `json:"query_id"`
-	Name string `json:"query_name"`
+	ID       uint    `json:"query_id"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedSavedQuery) ActivityName() string {
@@ -454,15 +474,21 @@ func (a ActivityTypeCreatedSavedQuery) Documentation() (activity string, details
 	return `Generated when creating a new query.`,
 		`This activity contains the following fields:
 - "query_id": the ID of the created query.
-- "query_name": the name of the created query.`, `{
+- "query_name": the name of the created query.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeEditedSavedQuery struct {
-	ID   uint   `json:"query_id"`
-	Name string `json:"query_name"`
+	ID       uint    `json:"query_id"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeEditedSavedQuery) ActivityName() string {
@@ -473,14 +499,20 @@ func (a ActivityTypeEditedSavedQuery) Documentation() (activity string, details 
 	return `Generated when editing a saved query.`,
 		`This activity contains the following fields:
 - "query_id": the ID of the query being edited.
-- "query_name": the name of the query being edited.`, `{
+- "query_name": the name of the query being edited.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedSavedQuery struct {
-	Name string `json:"query_name"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
@@ -490,13 +522,19 @@ func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
 func (a ActivityTypeDeletedSavedQuery) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when deleting a saved query.`,
 		`This activity contains the following fields:
-- "query_name": the name of the query being deleted.`, `{
-	"query_name": "foo"
+- "query_name": the name of the query being deleted.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedMultipleSavedQuery struct {
-	IDs []uint `json:"query_ids"`
+	IDs      []uint  `json:"query_ids"`
+	Teamid   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
@@ -506,8 +544,13 @@ func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
 func (a ActivityTypeDeletedMultipleSavedQuery) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when deleting multiple saved queries.`,
 		`This activity contains the following fields:
-- "query_ids": list of IDs of the deleted saved queries.`, `{
-	"query_ids": [1, 42, 100]
+- "query_ids": list of IDs of the deleted saved queries.
+- "team_id": the ID of the team the queries belonged to. -1 for global queries, null for no team.
+- "team_name": the name of the team the queries belonged to. null for global or no team queries.`,
+		`{
+	"query_ids": [1, 42, 100],
+	"team_id": 123,
+	"team_name": "Workstations"
 }`
 }
 
@@ -895,10 +938,12 @@ func (a ActivityTypeFleetEnrolled) Documentation() (activity string, details str
 }
 
 type ActivityTypeMDMEnrolled struct {
-	HostSerial       string `json:"host_serial"`
-	HostDisplayName  string `json:"host_display_name"`
-	InstalledFromDEP bool   `json:"installed_from_dep"`
-	MDMPlatform      string `json:"mdm_platform"`
+	HostSerial       *string `json:"host_serial"`
+	HostDisplayName  string  `json:"host_display_name"`
+	InstalledFromDEP bool    `json:"installed_from_dep"`
+	MDMPlatform      string  `json:"mdm_platform"`
+	// EnrollmentID is the unique identifier for the MDM BYOD enrollments. It is nil for other enrollments.
+	EnrollmentID *string `json:"enrollment_id"`
 }
 
 func (a ActivityTypeMDMEnrolled) ActivityName() string {
@@ -911,14 +956,17 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
 - "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
-- "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.`, `{
+- "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
+- "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.`, `{
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
   "mdm_platform": "apple"
+  "enrollment_id": null
 }`
 }
 
+// TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
 type ActivityTypeMDMUnenrolled struct {
 	HostSerial       string `json:"host_serial"`
 	HostDisplayName  string `json:"host_display_name"`

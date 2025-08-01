@@ -65,23 +65,25 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @lukeheath # Temporarily replacing @rachaelshaw while she and @noahtalerman are both out of office
-/docs/Contributing                              @lukeheath # « Contributing guidelines
-/docs/Contributing/architecture/mdm             @lukeheath @georgekarrv
-/docs/Contributing/architecture/orchestration   @lukeheath @sharon-fdm
-/docs/Contributing/architecture/software        @lukeheath @mostlikelee
-/docs/Contributing/product-groups/mdm           @lukeheath @georgekarrv
-/docs/Contributing/product-groups/orchestration  @lukeheath @sharon-fdm
-/docs/Contributing/product-groups/software      @lukeheath @mostlikelee
-/docs/Contributing/research/mdm                 @lukeheath @georgekarrv
-/docs/Contributing/research/orchestration       @lukeheath @sharon-fdm
-/docs/Contributing/research/software            @lukeheath @mostlikelee
-/docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
-/docs/Contributing/reference/api-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
-/docs/Contributing/reference/audit-logs.md                @rachaelshaw # « Advanced / contributors-only audit log documentation
-/schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
-/render.yaml                                    @edwardsb
-/it-and-security                                @allenhouchins
+/docs                                                   @rachaelshaw
+/docs/Configuration                                     @rachaelshaw
+/docs/Contributing                                      @lukeheath # « Contributing guidelines
+/docs/Contributing/architecture/mdm                     @lukeheath @georgekarrv
+/docs/Contributing/architecture/orchestration           @lukeheath @sharon-fdm
+/docs/Contributing/architecture/software                @lukeheath @mostlikelee
+/docs/Contributing/product-groups/mdm                   @lukeheath @georgekarrv
+/docs/Contributing/product-groups/orchestration         @lukeheath @sharon-fdm
+/docs/Contributing/product-groups/software              @lukeheath @mostlikelee
+/docs/Contributing/reference/patterns-backend.md        @fleetdm/go
+/docs/Contributing/research/mdm                         @lukeheath @georgekarrv
+/docs/Contributing/research/orchestration               @lukeheath @sharon-fdm
+/docs/Contributing/research/software                    @lukeheath @mostlikelee
+/docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
+/docs/Contributing/reference/api-for-contributors.md    @rachaelshaw # « Advanced / contributors-only API reference documentation
+/docs/Contributing/reference/audit-logs.md              @rachaelshaw # « Advanced / contributors-only audit log documentation
+/schema                                                 @eashaw # « Data tables (osquery/fleetd schema) documentation
+/render.yaml                                            @edwardsb
+/it-and-security                                        @allenhouchins
 ##############################################################################################
 # 🌐 Repo automation and change control settings
 ##############################################################################################

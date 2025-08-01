@@ -25,7 +25,7 @@ describe("HostSoftwareTable", () => {
     pathPrefix: "/hosts/1/software",
     vulnFilters: {},
     onAddFiltersClick: noop,
-    onShowSoftwareDetails: noop,
+    onShowInventoryVersions: noop,
   };
 
   const renderWithContext = (props = {}) =>
@@ -54,6 +54,9 @@ describe("HostSoftwareTable", () => {
       screen.getByText(/software is not supported for this host/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/let us know/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Software installed on this host/i)
+    ).not.toBeInTheDocument();
   });
 
   it("renders custom filter button when filters are applied", () => {

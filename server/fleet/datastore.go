@@ -307,8 +307,8 @@ type Datastore interface {
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
-	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
-	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
+	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if params.TeamID is nil.
+	AddHostsToTeam(ctx context.Context, params *AddHostsToTeamParams) error
 	// HostnamesByIdentifiers returns the hostnames corresponding to the provided identifiers,
 	// as understood by HostByIdentifier.
 	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
@@ -780,11 +780,11 @@ type Datastore interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, *PaginationMetadata, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
-	// DeleteVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
+	// DeleteSoftwareVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
 	DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
 	// DeleteOutOfDateVulnerabilities deletes 'software_cve' entries from the provided source where
-	// the updated_at timestamp is older than the provided duration
-	DeleteOutOfDateVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
+	// the updated_at timestamp is older than the provided timestamp
+	DeleteOutOfDateVulnerabilities(ctx context.Context, source VulnerabilitySource, olderThan time.Time) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Calendar events
@@ -961,7 +961,7 @@ type Datastore interface {
 	SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error
 
 	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
-	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error
+	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string, isPersonalEnrollment bool) error
 	// UpdateMDMData updates the `enrolled` field of the host with the given ID.
 	UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error
 	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
@@ -1047,12 +1047,12 @@ type Datastore interface {
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
-	EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
+	EnrollHost(ctx context.Context, opts ...DatastoreEnrollHostOption) (*Host, error)
 
 	// EnrollOrbit will enroll a new orbit instance.
 	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
 	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
-	EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo OrbitHostInfo, orbitNodeKey string, teamID *uint) (*Host, error)
+	EnrollOrbit(ctx context.Context, opts ...DatastoreEnrollOrbitOption) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
@@ -1093,9 +1093,9 @@ type Datastore interface {
 	// case it will return true) or if a matching record already exists it will update its
 	// updated_at timestamp (in which case it will return false).
 	InsertOSVulnerability(ctx context.Context, vuln OSVulnerability, source VulnerabilitySource) (bool, error)
-	// DeleteOutOfDateVulnerabilities deletes 'operating_system_vulnerabilities' entries from the provided source where
-	// the updated_at timestamp is older than the provided duration
-	DeleteOutOfDateOSVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
+	// DeleteOutOfDateOSVulnerabilities deletes 'operating_system_vulnerabilities' entries from the provided source where
+	// the updated_at timestamp is older than the supplied timestamp
+	DeleteOutOfDateOSVulnerabilities(ctx context.Context, source VulnerabilitySource, olderThan time.Time) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
@@ -1234,7 +1234,7 @@ type Datastore interface {
 
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
-	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host) error
+	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host, fromPersonalEnrollment bool) error
 
 	// RestoreMDMApplePendingDEPHost restores a host that was previously deleted from Fleet.
 	RestoreMDMApplePendingDEPHost(ctx context.Context, host *Host) error
@@ -1280,8 +1280,8 @@ type Datastore interface {
 
 	// ListMDMAppleProfilesToInstall returns all the profiles that should
 	// be installed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
-	ListMDMAppleProfilesToInstall(ctx context.Context) ([]*MDMAppleProfilePayload, error)
+	// registered in `host_mdm_apple_profiles`, except if the optional argument `hostUUID` is passed.
+	ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*MDMAppleProfilePayload, error)
 
 	// ListMDMAppleProfilesToRemove returns all the profiles that should
 	// be removed based on diffing the ideal state vs the state we have
@@ -1325,6 +1325,8 @@ type Datastore interface {
 
 	// GetMDMIdPAccountByEmail returns MDM IdP account that matches the given email.
 	GetMDMIdPAccountByEmail(ctx context.Context, email string) (*MDMIdPAccount, error)
+
+	GetMDMIdPAccountsByHostUUIDs(ctx context.Context, hostUUIDs []string) (map[string]*MDMIdPAccount, error)
 
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
@@ -1583,6 +1585,8 @@ type Datastore interface {
 	ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *MDMAppleMachineInfo) (string, error)
 	// GetMDMIdPAccountByHostUUID returns the MDM IdP account that associated with the given host UUID.
 	GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*MDMIdPAccount, error)
+	// AssociateHostMDMIdPAccount associates the given host UUID with the MDM IdP account UUID
+	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID string, accountUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
@@ -1897,11 +1901,19 @@ type Datastore interface {
 	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
 
-	// GetSoftwareInstallersWithoutPackageIDs returns a map of software installers to storage ids that do not have a package ID.
-	GetSoftwareInstallersWithoutPackageIDs(ctx context.Context) (map[uint]string, error)
+	// GetSoftwareInstallersPendingUninstallScriptPopulation returns a map of software installers to storage IDs that:
+	// 1. need uninstall scripts populated
+	// 2. can have uninstall scripts auto-generated by Fleet
+	GetSoftwareInstallersPendingUninstallScriptPopulation(ctx context.Context) (map[uint]string, error)
+
+	// GetMSIInstallersWithoutUpgradeCode returns a map of MSI software installers to storage ids that do not have an upgrade code set.
+	GetMSIInstallersWithoutUpgradeCode(ctx context.Context) (map[uint]string, error)
 
 	// UpdateSoftwareInstallerWithoutPackageIDs updates the software installer corresponding to the id. Used to add uninstall scripts.
 	UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint, payload UploadSoftwareInstallerPayload) error
+
+	// UpdateInstallerUpgradeCode updates the software installer corresponding to the id. Used to add upgrade codes.
+	UpdateInstallerUpgradeCode(ctx context.Context, id uint, upgradeCode string) error
 
 	// ProcessInstallerUpdateSideEffects handles, in a transaction, the following based on whether metadata
 	// or package are dirty:
@@ -2213,6 +2225,13 @@ type Datastore interface {
 
 	// GetHostIdentityCertBySerialNumber gets the unrevoked valid cert corresponding to the provided serial number.
 	GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
+	// GetHostIdentityCertByName gets the unrevoked valid cert corresponding to the provided name (CN).
+	GetHostIdentityCertByName(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
+	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
+	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
+
+	// GetCurrentTime gets the current time from the database
+	GetCurrentTime(ctx context.Context) (time.Time, error)
 }
 
 type AndroidDatastore interface {

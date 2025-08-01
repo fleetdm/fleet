@@ -137,8 +137,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, true)
 	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.runWorker()
 	setOrbitEnrollment(t, selfServiceHost, s.ds)
 	selfServiceToken := "selfservicetoken"
+	checkInstallFleetdCommandSent(selfServiceDevice, true)
 	updateDeviceTokenForHost(t, s.ds, selfServiceHost.ID, selfServiceToken)
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, selfServiceDevice.SerialNumber)
 
@@ -643,11 +645,28 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
+	// Trigger install to the self-service device (its data shouldn't be changed)
+	installResp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", selfServiceHost.ID, macOSTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 2, countResp.Count)
+
+	// Trigger verification on other host
+	opts.failOnInstall = false
+	opts.appInstallVerified = false
+	opts.appInstallTimeout = false
+	processVPPInstallOnClient(selfServiceDevice, opts)
+
+	s.runWorker()
+
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost.ID), nil, http.StatusNoContent)
 
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		// We should have cleared out upcoming_activies when disabling MDM
-		var count uint
+		var count int
 		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?", mdmHost.ID)
 		require.NoError(t, err)
 		require.Zero(t, count)
@@ -665,8 +684,27 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.NotEmpty(t, installCmdUUID)
 		require.NoError(t, err)
 
+		count = 99999
+
+		// We also should have cleared out host_mdm_commands to avoid a deadlocked state
+		err = sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?", mdmHost.ID, fleet.VerifySoftwareInstallVPPPrefix)
+		require.NoError(t, err)
+		require.Zero(t, count)
+
+		// The other host should have a verification command pending
+		err = sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?", selfServiceHost.ID, fleet.VerifySoftwareInstallVPPPrefix)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+
 		return nil
 	})
+
+	// Cancel the install for the other host, we don't need it anymore
+	var listUpcomingAct listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", selfServiceHost.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", selfServiceHost.ID, listUpcomingAct.Activities[0].UUID), nil, http.StatusNoContent)
 
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)

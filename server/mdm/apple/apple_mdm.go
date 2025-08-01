@@ -36,9 +36,13 @@ const (
 	SCEPPath = "/mdm/apple/scep"
 	// MDMPath is Fleet's HTTP path for the core MDM service.
 	MDMPath = "/mdm/apple/mdm"
+	// MDMServiceDiscoveryPath is Fleet's HTTP path for the MDM service discovery service.
+	ServiceDiscoveryPath = "/mdm/apple/service_discovery"
 
 	// EnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
 	EnrollPath = "/api/mdm/apple/enroll"
+	// AccountDrivenEnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
+	AccountDrivenEnrollPath = "/api/mdm/apple/account_driven_enroll"
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
 
@@ -529,6 +533,28 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 	}
 
 	return result
+}
+
+func (d *DEPService) GetMDMAppleServiceDiscoveryDetails(ctx context.Context, tokenOrgName string) (*godep.AccountDrivenEnrollmentProfileResponse, error) {
+	// TODO: In some of the other DEPService methods (e.g., RegisterProfileWithAppleDEPServiceE)
+	// we always create a new depClient specifically for that method. Why? Should we do the same
+	// here or should we update those other methods to use the d.depClient instance like we are here?
+	if d.depClient == nil {
+		d.depClient = NewDEPClient(d.depStorage, d.ds, d.logger)
+	}
+
+	return d.depClient.FetchAccountDrivenEnrollmentServiceDiscovery(ctx, tokenOrgName)
+}
+
+func (d *DEPService) AssignMDMAppleServiceDiscoveryURL(ctx context.Context, tokenOrgName string, url string) error {
+	// TODO: In some of the other DEPService methods (e.g., RegisterProfileWithAppleDEPServiceE)
+	// we always create a new depClient specifically for that method. Why? Should we do the same
+	// here or should we update those other methods to use the d.depClient instance like we are here?
+	if d.depClient == nil {
+		d.depClient = NewDEPClient(d.depStorage, d.ds, d.logger)
+	}
+
+	return d.depClient.AssignAccountDrivenEnrollmentServiceDiscovery(ctx, tokenOrgName, url)
 }
 
 func NewDEPService(
@@ -1106,6 +1132,89 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 </dict>
 </plist>`))
 
+var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadContent</key>
+			<dict>
+				<key>Key Type</key>
+				<string>RSA</string>
+				<key>Challenge</key>
+				<string>{{ .SCEPChallenge | xml }}</string>
+				<key>Key Usage</key>
+				<integer>5</integer>
+				<key>Keysize</key>
+				<integer>2048</integer>
+				<key>URL</key>
+				<string>{{ .SCEPURL }}</string>
+				<key>Subject</key>
+				<array>
+					<array><array><string>O</string><string>Fleet</string></array></array>
+					<array><array><string>CN</string><string>Fleet Identity</string></array></array>
+				</array>
+			</dict>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.fleet.mdm.apple.scep</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.scep</string>
+			<key>PayloadUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>CheckOutWhenRemoved</key>
+			<true/>
+			<key>IdentityCertificateUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.fleet.mdm.apple.mdm</string>
+			<key>PayloadType</key>
+			<string>com.apple.mdm</string>
+			<key>PayloadUUID</key>
+			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>AssignedManagedAppleID</key>
+			<string>{{ .AssignedManagedAppleID | xml }}</string>
+			<key>EnrollmentMode</key>
+			<string>BYOD</string>
+			<key>ServerCapabilities</key>
+			<array>
+				<string>UserEnrollment</string>
+				<string>com.apple.mdm.per-user-connections</string>
+				<string>com.apple.mdm.bootstraptoken</string>
+			</array>
+			<key>ServerURL</key>
+			<string>{{ .ServerURL }}</string>
+			<key>SignMessage</key>
+			<true/>
+			<key>Topic</key>
+			<string>{{ .Topic }}</string>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>{{ .Organization | xml }} enrollment</string>
+	<key>PayloadIdentifier</key>
+	<string>` + FleetPayloadIdentifier + `</string>
+	<key>PayloadOrganization</key>
+	<string>{{ .Organization | xml }}</string>
+	<key>PayloadScope</key>
+	<string>User</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`))
+
 func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
 	scepURL, err := ResolveAppleSCEPURL(fleetURL)
 	if err != nil {
@@ -1129,6 +1238,37 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		SCEPChallenge: scepChallenge,
 		Topic:         topic,
 		ServerURL:     serverURL,
+	}); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func GenerateAccountDrivenEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic, assignedManagedAppleID string) ([]byte, error) {
+	scepURL, err := ResolveAppleSCEPURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
+	}
+	serverURL, err := ResolveAppleMDMURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := accountDrivenUserEnrollmentProfileMobileconfigTemplate.Funcs(funcMap).Execute(&buf, struct {
+		Organization           string
+		SCEPURL                string
+		SCEPChallenge          string
+		Topic                  string
+		ServerURL              string
+		AssignedManagedAppleID string
+	}{
+		Organization:           orgName,
+		SCEPURL:                scepURL,
+		SCEPChallenge:          scepChallenge,
+		Topic:                  topic,
+		ServerURL:              serverURL,
+		AssignedManagedAppleID: assignedManagedAppleID,
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}

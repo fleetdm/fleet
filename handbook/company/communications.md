@@ -34,8 +34,8 @@ Security policies are best when they're alive, in context of how an organization
 
 Fleet is successful because of our customers and community, and those relationships are built on [trust](https://fleetdm.com/trust).
 
-> **SOC2**
-> Community members can [request a copy of Fleet's SOC 2 report](https://fleetdm.com/trust), in its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet. Internal stakeholders can [contact Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) to locate Fleet's SOC 2 report in Google Drive.
+> **Compliance**
+> Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-groups#fleets-vendor-collateral) from Google Drive.
 
 
 ## Directly responsible individuals (DRIs)
@@ -225,7 +225,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
 - **"¶":** _(E-group - Direct reports the the CEO)_
-- **"¶¶":** _(Classified - CEO, Head of Digital Experience, and Apprentice)_
+- **"¶¶":** _(Classified - CEO, CFO, Head of Digital Experience)_
 
 
 ## Company database
@@ -825,7 +825,7 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 ### Retirement contributions
 
-**US based team members:** Starting August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 1% contribution unless they opt out or change their contribution amount within 30 days of commencement. Fleet currently does not match any contributions made by team members to 401(k) plans.
+**US based team members:** Starting August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 3% contribution unless they opt out or change their contribution amount within 30 days of commencement. Auto-enrolled employee’s contributions will increase by 1% every year, on January 1, until 10% is reached. Fleet currently does not match any contributions made by team members to 401(k) plans.
 
 **Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
 
@@ -945,7 +945,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 #### Capitalization and proper nouns
 
 - **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management".
-- **Fleet the product:** We always say “Fleet” or “Fleet for osquery".  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
+- **Fleet the product:** We always say “Fleet”.  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
 - **Team members:** [Core team members](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant) are “Fleeties".
 - **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.

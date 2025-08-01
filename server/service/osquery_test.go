@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -286,14 +287,21 @@ func TestEnrollAgent(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 	}
-	ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
-		assert.Equal(t, ptr.Uint(3), teamID)
+	ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+		enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+		for _, opt := range opts {
+			opt(enrollConfig)
+		}
+		assert.Equal(t, ptr.Uint(3), enrollConfig.TeamID)
 		return &fleet.Host{
-			OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
+			OsqueryHostID: &enrollConfig.OsqueryHostID, NodeKey: &enrollConfig.NodeKey,
 		}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+		return nil, newNotFoundError()
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -317,10 +325,14 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 				return nil, errors.New("not found")
 			}
 		}
-		ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+		ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+			enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+			for _, opt := range opts {
+				opt(enrollConfig)
+			}
 			hostIDSeq++
 			return &fleet.Host{
-				ID: hostIDSeq, OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
+				ID: hostIDSeq, OsqueryHostID: &enrollConfig.OsqueryHostID, NodeKey: &enrollConfig.NodeKey,
 			}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -331,6 +343,9 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 		}
 		ds.DeleteHostFunc = func(ctx context.Context, id uint) error {
 			return nil
+		}
+		ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+			return nil, newNotFoundError()
 		}
 
 		redisWrapDS := mysqlredis.New(ds, pool, mysqlredis.WithEnforcedHostLimit(maxHosts))
@@ -401,9 +416,13 @@ func TestEnrollAgentDetails(t *testing.T) {
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		return &fleet.EnrollSecret{}, nil
 	}
-	ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+	ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+		config := &fleet.DatastoreEnrollHostConfig{}
+		for _, opt := range opts {
+			opt(config)
+		}
 		return &fleet.Host{
-			OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
+			OsqueryHostID: &config.OsqueryHostID, NodeKey: &config.NodeKey,
 		}, nil
 	}
 	var gotHost *fleet.Host
@@ -413,6 +432,9 @@ func TestEnrollAgentDetails(t *testing.T) {
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+		return nil, newNotFoundError()
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -446,7 +468,7 @@ func TestAuthenticateHost(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string
-	host := fleet.Host{ID: 1, Hostname: "foobar"}
+	host := fleet.Host{ID: 1, Hostname: "foobar", HasHostIdentityCert: ptr.Bool(false)}
 	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		gotKey = nodeKey
 		return &host, nil
@@ -465,13 +487,13 @@ func TestAuthenticateHost(t *testing.T) {
 	assert.Equal(t, "test", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 
-	host = fleet.Host{ID: 7, Hostname: "foobar"}
+	host = fleet.Host{ID: 7, Hostname: "foobar", HasHostIdentityCert: ptr.Bool(false)}
 	_, _, err = svc.AuthenticateHost(ctx, "floobar")
 	require.NoError(t, err)
 	assert.Equal(t, "floobar", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 	// Host checks in twice
-	host = fleet.Host{ID: 7, Hostname: "foobar"}
+	host = fleet.Host{ID: 7, Hostname: "foobar", HasHostIdentityCert: ptr.Bool(false)}
 	_, _, err = svc.AuthenticateHost(ctx, "floobar")
 	require.NoError(t, err)
 	assert.Equal(t, "floobar", gotKey)
@@ -636,9 +658,15 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 				require.Equal(t, uint(777), rows[i].QueryID)
 			}
 
-			require.JSONEq(t, `{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`, string(*rows[0].Data))
-			require.JSONEq(t, `{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`, string(*rows[1].Data))
-			require.JSONEq(t, `{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8008","protocol":"","removable":"0","serial":"1","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`, string(*rows[2].Data))
+			require.JSONEq(t,
+				`{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`,
+				string(*rows[0].Data))
+			require.JSONEq(t,
+				`{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`,
+				string(*rows[1].Data))
+			require.JSONEq(t,
+				`{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8008","protocol":"","removable":"0","serial":"1","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`,
+				string(*rows[2].Data))
 		}
 		switch {
 		case rows[0].QueryID == 4242:
@@ -1780,11 +1808,14 @@ func TestDetailQueries(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string,
+		fleetEnrollmentRef string, isPersonalEnrollment bool,
+	) error {
 		require.True(t, enrolled)
 		require.False(t, installedFromDep)
 		require.Equal(t, "hi.com", serverURL)
 		require.Empty(t, fleetEnrollmentRef)
+		require.False(t, isPersonalEnrollment)
 		return nil
 	}
 	ds.SetOrUpdateMunkiInfoFunc = func(ctx context.Context, hostID uint, version string, errs, warns []string) error {
@@ -2006,7 +2037,9 @@ func TestDetailQueries(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]struct{},
+		result *fleet.UpdateHostSoftwareDBResult,
+	) error {
 		return nil
 	}
 
@@ -2207,12 +2240,16 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		return camp, nil
 	}
 	var gotTargets []*fleet.DistributedQueryCampaignTarget
-	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context,
+		target *fleet.DistributedQueryCampaignTarget,
+	) (*fleet.DistributedQueryCampaignTarget, error) {
 		gotTargets = append(gotTargets, target)
 		return target, nil
 	}
 
-	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics,
+		error,
+	) {
 		return fleet.TargetMetrics{}, nil
 	}
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
@@ -2797,10 +2834,13 @@ func TestAuthenticationErrors(t *testing.T) {
 	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-		return &fleet.Host{ID: 1}, nil
+		return &fleet.Host{ID: 1, HasHostIdentityCert: ptr.Bool(false)}, nil
 	}
 	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ms.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
+		return nil, newNotFoundError()
 	}
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NoError(t, err)
@@ -3041,10 +3081,14 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 		camp.ID = 21
 		return camp, nil
 	}
-	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context,
+		target *fleet.DistributedQueryCampaignTarget,
+	) (*fleet.DistributedQueryCampaignTarget, error) {
 		return target, nil
 	}
-	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics,
+		error,
+	) {
 		return fleet.TargetMetrics{}, nil
 	}
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
@@ -3103,10 +3147,14 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 		query.ID = 42
 		return query, nil
 	}
-	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context,
+		target *fleet.DistributedQueryCampaignTarget,
+	) (*fleet.DistributedQueryCampaignTarget, error) {
 		return target, nil
 	}
-	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics,
+		error,
+	) {
 		return fleet.TargetMetrics{}, nil
 	}
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
@@ -3158,12 +3206,16 @@ func TestPolicyQueries(t *testing.T) {
 		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
 	}
 	recordedResults := make(map[uint]*bool)
-	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time, deferred bool) error {
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
+		deferred bool,
+	) error {
 		recordedResults = results
 		host = gotHost
 		return nil
 	}
-	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
+		err error,
+	) {
 		return nil, nil, nil
 	}
 
@@ -3444,7 +3496,9 @@ func TestPolicyWebhooks(t *testing.T) {
 		}, nil
 	}
 	recordedResults := make(map[uint]*bool)
-	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time, deferred bool) error {
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
+		deferred bool,
+	) error {
 		recordedResults = results
 		host = gotHost
 		return nil
@@ -3478,7 +3532,9 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	checkPolicyResults(queries)
 
-	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
+		err error,
+	) {
 		return []uint{3}, nil, nil
 	}
 
@@ -3582,7 +3638,9 @@ func TestPolicyWebhooks(t *testing.T) {
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
-	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
+		err error,
+	) {
 		return []uint{1}, []uint{3}, nil
 	}
 
@@ -3629,7 +3687,9 @@ func TestPolicyWebhooks(t *testing.T) {
 	}})
 	require.NoError(t, err)
 
-	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
+	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
+		err error,
+	) {
 		return []uint{}, []uint{2}, nil
 	}
 

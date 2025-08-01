@@ -10,29 +10,29 @@
 #   experience: |
 #     Add markdown content to this field.
 ################################################
-
-- jobTitle: 🚀 Customer Support Engineer
-  department: Sales
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  onTargetEarnings: '$75,000 - $150,000'
-  responsibilities: |
-      - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop an understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo. 
-      - 🚀 Deploy Fleet on your own to better understand the customer experience and how the product works. 
-      - ⏫ Work hand-in-hand with the customer success team by participating in calls with customers to discuss any support issues they may have.
-      - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
-      - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
-      - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
-      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
-  experience: |
-      - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, or MacOS devices and MDM solutions like Jamf, Kandji, InTune, WS1, etc. Experience with AWS, SQL, Redis, Terraform, and osquery. 
-      - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
-      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-      - 💭 Required: IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
-      - 💖 An excellent understanding of macOS, Windows, Linux core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
-      - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus. 
-      - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
+# 
+# - jobTitle: 🚀 Customer Support Engineer
+#   department: Sales
+#   hiringManagerName: Zay Hanlon
+#   hiringManagerGithubUsername: zayhanlon
+#   hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+#   onTargetEarnings: '$75,000 - $150,000'
+#   responsibilities: |
+#       - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop an understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo. 
+#       - 🚀 Deploy Fleet on your own to better understand the customer experience and how the product works. 
+#       - ⏫ Work hand-in-hand with the customer success team by participating in calls with customers to discuss any support issues they may have.
+#       - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
+#       - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
+#       - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
+#       - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+#   experience: |
+#       - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, or MacOS devices and MDM solutions like Jamf, Kandji, InTune, WS1, etc. Experience with AWS, SQL, Redis, Terraform, and osquery. 
+#       - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
+#       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+#       - 💭 Required: IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
+#       - 💖 An excellent understanding of macOS, Windows, Linux core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
+#       - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus. 
+#       - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
 
 
@@ -209,4 +209,31 @@
       - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
       - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
+
+- jobTitle: 🦢 Technical Product Designer
+  department: Product Design
+  hiringManagerName: Noah Talerman
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/noah-talerman/
+  hiringManagerGithubUsername: noahtalerman
+  onTargetEarnings: '$125,000 - $160,000'
+  responsibilities: |
+    - 📣 Design consistent interactions across the Fleet user experience, including API, CLI, and YAML.
+    - 🧭 Prioritize work across competing customer needs, business goals, and technical constraints.
+    - 🎯 Own the full product development lifecycle for your product group—from identifying problems to defining scope, designing solutions, and writing specs.
+    - 🔎 Break down large ideas into shippable iterations and clearly communicate tradeoffs.
+    - 👥 Collaborate with engineers and stakeholders to unblock work and ensure delivery.
+  experience: |
+    - 💭 3 - 5 years of experience as a Product Designer, Product Manager, or Software Engineer.
+    - 🧑‍🔬 Understand developer-first automation workflows, including API, CLI, and Git experiences.
+    - ✍️ Experience designing API/CLI experiences for developers or willingness to learn.
+    - 🧠 Strong product sense—you’re comfortable saying no, scoping down, and sequencing work for impact.
+    - 🦉 Comfortable owning both the "why" and the "how"—from defining the problem to scoping and designing the solution.
+    - 💖 Proficient in visual design and wireframing tools (we use Figma).
+    - ✍️ Experienced in writing clear, concise product specs for engineering teams.
+    - 📖 Maintain a design system that enables speed for designers and engineers.
+    - 🤝 Collaboration: You work best in a participatory, team-based environment.
+    - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high-fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
+    - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
+    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+    - ➕ Bonus: YB2B SaaS background
 

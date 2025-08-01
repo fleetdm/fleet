@@ -33,6 +33,35 @@ import (
 	"golang.org/x/exp/maps"
 )
 
+func TestSoftwareIngestionMutations(t *testing.T) {
+	dcvViewer := &fleet.Software{
+		BundleIdentifier: "com.nicesoftware.dcvviewer",
+		Source:           "apps",
+		Version:          "2024.0 (r8004)",
+	}
+
+	MutateSoftwareOnIngestion(dcvViewer, log.NewNopLogger())
+	assert.Equal(t, "2024.0.8004", dcvViewer.Version)
+
+	noOp := &fleet.Software{
+		BundleIdentifier: "com.nicesoftware.dcvviewer",
+		Source:           "apps",
+		Version:          "2024",
+	}
+
+	MutateSoftwareOnIngestion(dcvViewer, log.NewNopLogger())
+	assert.Equal(t, "2024", noOp.Version)
+
+	noMatch := &fleet.Software{
+		BundleIdentifier: "com.google.chrome",
+		Source:           "apps",
+		Version:          "2024.0 (r8004)",
+	}
+
+	MutateSoftwareOnIngestion(noMatch, log.NewNopLogger())
+	assert.Equal(t, "2024.0 (r8004)", noMatch.Version)
+}
+
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
@@ -602,13 +631,14 @@ func TestDirectIngestMDMMac(t *testing.T) {
 					},
 				}, nil
 			}
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.Equal(t, isServer, c.wantParams[0])
 				require.Equal(t, enrolled, c.wantParams[1])
 				require.Equal(t, serverURL, c.wantParams[2])
 				require.Equal(t, installedFromDep, c.wantParams[3])
 				require.Equal(t, name, c.wantParams[4])
 				require.Equal(t, fleetEnrollmentRef, c.enrollRef)
+				require.False(t, isPersonalEnrollment)
 				return nil
 			}
 
@@ -680,10 +710,11 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.False(t, isServer)
 				require.True(t, enrolled)
 				require.True(t, installedFromDep)
+				require.False(t, isPersonalEnrollment)
 
 				require.Equal(t, tc.wantServerURL, serverURL)
 				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
@@ -726,13 +757,14 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 				},
 			}, nil
 		}
-		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 			require.False(t, isServer)
 			require.True(t, enrolled)
 			require.True(t, installedFromDep)
 			require.Equal(t, "https://test.example.com", serverURL)
 			require.Equal(t, "test-reference", fleetEnrollmentRef)
 			require.Equal(t, fleet.WellKnownMDMFleet, name)
+			require.False(t, isPersonalEnrollment)
 
 			return nil
 		}
@@ -964,13 +996,14 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.Equal(t, c.wantEnrolled, enrolled)
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
 				require.Equal(t, c.wantMDMSolName, name)
 				require.Empty(t, fleetEnrollmentRef)
+				require.False(t, isPersonalEnrollment)
 				return nil
 			}
 		})
@@ -2009,7 +2042,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"path":              "/Users/mna/Library/Keychains/login.keychain-db",
 	}
 
-	// row2 will not be ingeted because of the issue field containing an extra /
+	// row2 will be ingested correctly with the issue field containing a / in the value
 	row2 := map[string]string{
 		"ca":                "1",
 		"common_name":       "Cert 2 Common Name",
@@ -2030,7 +2063,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
-		require.Len(t, certs, 1)
+		require.Len(t, certs, 2)
 		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31", hex.EncodeToString(certs[0].SHA1Sum))
 		require.Equal(t, "Cert 1 Common Name", certs[0].CommonName)
 		require.Equal(t, "Subject 1 Common Name", certs[0].SubjectCommonName)
@@ -2052,10 +2085,30 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		require.EqualValues(t, "user", certs[0].Source)
 		require.Equal(t, "mna", certs[0].Username)
 
+		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd32", hex.EncodeToString(certs[1].SHA1Sum))
+		require.Equal(t, "Cert 2 Common Name", certs[1].CommonName)
+		require.Equal(t, "Subject 1 Common Name", certs[1].SubjectCommonName)
+		require.Equal(t, "Subject 1 Inc.", certs[1].SubjectOrganization)
+		require.Equal(t, "Subject 1 Org Unit", certs[1].SubjectOrganizationalUnit)
+		require.Equal(t, "US", certs[1].SubjectCountry)
+		require.Equal(t, "Issuer 2 Common Name", certs[1].IssuerCommonName)
+		require.Equal(t, "Issuer 2 Inc./foobar", certs[1].IssuerOrganization)
+		require.Empty(t, certs[1].IssuerOrganizationalUnit)
+		require.Equal(t, "US", certs[1].IssuerCountry)
+		require.Equal(t, "rsaEncryption", certs[1].KeyAlgorithm)
+		require.Equal(t, 2048, certs[1].KeyStrength)
+		require.Equal(t, "Data Encipherment, Key Encipherment, Digital Signature", certs[1].KeyUsage)
+		require.Equal(t, "123abcd", certs[1].Serial)
+		require.Equal(t, "sha256WithRSAEncryption", certs[1].SigningAlgorithm)
+		require.Equal(t, int64(1822755797), certs[1].NotValidAfter.Unix())
+		require.Equal(t, int64(1770228826), certs[1].NotValidBefore.Unix())
+		require.True(t, certs[1].CertificateAuthority)
+		require.EqualValues(t, "system", certs[1].Source)
+
 		return nil
 	}
 
-	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row2, row1})
+	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row1, row2})
 	require.NoError(t, err)
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }

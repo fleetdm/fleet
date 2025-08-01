@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/google/uuid"
 	"net"
 	"net/url"
 	"regexp"
@@ -1756,6 +1757,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
+		MutateSoftwareOnIngestion(s, logger)
+
 		if shouldRemoveSoftware(host, s) {
 			continue
 		}
@@ -1797,6 +1800,42 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	}
 
 	return nil
+}
+
+var (
+	dcvVersionFormat   = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
+	softwareSanitizers = []struct {
+		matches func(*fleet.Software) bool
+		mutate  func(*fleet.Software, log.Logger)
+	}{
+		{
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "apps" && s.BundleIdentifier == "com.nicesoftware.dcvviewer"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if versionMatches := dcvVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 3 {
+					s.Version = fmt.Sprintf("%s.%s", versionMatches[1], versionMatches[2])
+				}
+			},
+		},
+	}
+)
+
+// MutateSoftwareOnIngestion performs any tweaks required to the ingested software fields.
+//
+// Some fields are reported with known incorrect values and we need to fix them before using them.
+func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
+	for _, softwareSanitizer := range softwareSanitizers {
+		if softwareSanitizer.matches(s) {
+			defer func() {
+				if r := recover(); r != nil {
+					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+				}
+			}()
+			softwareSanitizer.mutate(s, logger)
+			break
+		}
+	}
 }
 
 // shouldRemoveSoftware returns whether or not we should remove the given Software item from this
@@ -1907,6 +1946,11 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
+	// isPersonalEnrollment is always false for macOS hosts as our current account driven user
+	// enrollment flow does not support macOS however we will need to detect it here if that ever
+	// changes.
+	isPersonalEnrollment := false
+
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
 
@@ -1918,6 +1962,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		installedFromDep,
 		mdmSolutionName,
 		fleetEnrollRef,
+		isPersonalEnrollment,
 	)
 }
 
@@ -1946,7 +1991,7 @@ func deduceMDMNameWindows(data map[string]string) string {
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
 		// no mdm information in the registry
-		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "")
+		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false)
 	}
 	if len(rows) > 1 {
 		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
@@ -1990,6 +2035,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		automatic,
 		mdmSolutionName,
 		"",
+		false, // isPersonalEnrollment is always false for Windows hosts
 	)
 }
 
@@ -2380,6 +2426,79 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 	}
 }
 
+// tpmPINConfigVerifyQuery checks the Windows registry to verify whether the host has the proper
+// BitLocker policy for allowing the setup of a TPM PIN protector, if not properly set, the proper
+// configuration is enforced via an MDM command.
+var tpmPINConfigVerifyQuery = DetailQuery{
+	Platforms: []string{"windows"},
+	// We only want to run this query iff:
+	// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
+	// - And a TPM PIN is not yet set.
+	// - And the volume is encrypted (to avoid errors while trying to apply the policy).
+	Discovery: `
+WITH should_run(ready) AS (
+SELECT
+	(
+	    -- BitLocker is optional but enabled
+		EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+	    -- BitLocker is built in, so it won't appear as an optional feature
+		OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker') 
+	)
+	-- PIN is already set, so regardless of the current config, we don't need to enforce it:
+	-- 4: TPM And PIN.
+	-- 6: TPM And PIN And Startup key.
+	AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
+	-- Volume is encrypted
+	AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
+)
+SELECT 1 FROM should_run WHERE ready = 1`,
+	Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPMPIN'",
+	DirectIngestFunc: func(
+		ctx context.Context,
+		logger log.Logger,
+		host *fleet.Host,
+		ds fleet.Datastore,
+		rows []map[string]string,
+	) error {
+		if host == nil || host.UUID == "" {
+			level.Debug(logger).Log(
+				"method", "tpmPINConfigVerifyQuery",
+				"msg", "Ingestion not run, host is nil or UUID is empty",
+			)
+			return nil
+		}
+
+		if len(rows) > 1 {
+			return ctxerr.Errorf(
+				ctx,
+				"tpmPINConfigVerifyQuery invalid number of rows: %d", len(rows),
+			)
+		}
+
+		// If no results are returned, then the policy setting is in a 'Not Configured' state.
+		// If the policy is 'Enabled', we need to make sure the proper setting is not in a 'Disallowed' state.
+		if len(rows) == 0 || rows[0]["data"] == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
+			level.Info(logger).Log(
+				"method", "tpmPINConfigVerifyQuery",
+				"msg", "Updating TPM PIN protector configuration via MDM",
+				"host_id", host.ID,
+			)
+			cmd, err := microsoft_mdm.SystemDrRequiresStartupAuthCmd(
+				microsoft_mdm.SystemDrRequiresStartupAuthSpec{
+					CmdUUID:      uuid.NewString(),
+					Enabled:      true,
+					ConfigurePIN: ptr.Uint(microsoft_mdm.PolicyOptDropdownOptional),
+				},
+			)
+			if err != nil {
+				return err
+			}
+			return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
+		}
+		return nil
+	},
+}
+
 //go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
 
 type Integrations struct {
@@ -2434,6 +2553,12 @@ func GetDetailQueries(
 				continue
 			}
 			generatedMap[key] = query
+		}
+
+		if appConfig.MDM.WindowsEnabledAndConfigured &&
+			appConfig.MDM.EnableDiskEncryption.Value &&
+			appConfig.MDM.RequireBitLockerPIN.Value {
+			generatedMap["tpm_pin_config_verify"] = tpmPINConfigVerifyQuery
 		}
 	}
 

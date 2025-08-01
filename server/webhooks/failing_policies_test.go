@@ -100,7 +100,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		}
 		return SendFailingPoliciesBatchedPOSTs(
 			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, kitlog.NewNopLogger())
-	})
+	}, false)
 	require.NoError(t, err)
 	timestamp, err := mockClock.MarshalJSON()
 	require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		}
 		return SendFailingPoliciesBatchedPOSTs(
 			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, kitlog.NewNopLogger())
-	})
+	}, false)
 	require.NoError(t, err)
 	assert.Empty(t, requestBody)
 }
@@ -285,7 +285,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		}
 		return SendFailingPoliciesBatchedPOSTs(
 			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, kitlog.NewNopLogger())
-	})
+	}, false)
 	require.NoError(t, err)
 
 	timestamp, err := now.MarshalJSON()
@@ -339,7 +339,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		}
 		return SendFailingPoliciesBatchedPOSTs(
 			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, kitlog.NewNopLogger())
-	})
+	}, false)
 	require.NoError(t, err)
 	assert.Empty(t, webhookBody)
 }

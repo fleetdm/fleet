@@ -5,7 +5,7 @@ This page covers the journey from prospect to customer and details what contribu
 
 ## Why cross-functional GTM groups?
 
-When communicating with future or current customers, hand offs [between departments](https://fleetdm.com/handbook/company#org-chart), contributors, or external organizations can negatively effect the "Return On Investment" (ROI) for Fleet, our customers, and our friends in the community. Cross-functional GTM groups minimize hand offs between internal and external stakeholders and maximize iteration and efficiency in the way we engage with the market.
+When communicating with future or current customers, hand-offs [between departments](https://fleetdm.com/handbook/company#org-chart), contributors, or external organizations can negatively effect the "Return On Investment" (ROI) for Fleet, our customers, and our friends in the community. Cross-functional GTM groups minimize hand-offs between internal and external stakeholders and maximize iteration and efficiency in the way we engage with the market.
 
 
 > Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
@@ -28,12 +28,12 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 |:----------------------------------|:--------------------------|
 | Revenue DRI                       | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_
-| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Kendra McKeever](https://www.linkedin.com/in/kendramckeever/) _([@KendraAtFleet](https://github.com/KendraAtFleet))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_
+| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_
 | Pipeline DRI                      | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Account Development Rep (ADR)     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_  <br> [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Customer Success Manager (CSM)    | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ <br> [Raiven Williams](https://www.linkedin.com/in/raivenwilliams/) _([@bettapizza](https://github.com/bettapizza))_
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_  <br> [Jake Stenger](https://www.linkedin.com/in/jakestenger/) _([@jakestenger](https://github.com/jakestenger))_ <br> [Matt Rebelo](https://www.linkedin.com/in/matt-rebelo/) _([@reeblybeebly](https://github.com/reeblybeebly))_
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_  <br> [Jake Stenger](https://www.linkedin.com/in/jakestenger/) _([@jakestenger](https://github.com/jakestenger))_ <br> [Matt Rebelo](https://www.linkedin.com/in/matt-rebelo/) _([@reeblybeebly](https://github.com/reeblybeebly))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR), [kanban release board](https://github.com/fleetdm/confidential/issues#workspaces/g-unicorns-67b0e98321bc780010a6e78e/board), and [GitHub label](https://github.com/fleetdm/confidential/labels/%23g-unicorns) for this GTM group is `#g-unicorns`.
 
@@ -112,7 +112,7 @@ When you reach out to a prospect or customer, make sure you're the right person:
 
 ### Programs
 
-Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/company/go-to-market-groups#video), and articles.
+Fleet's community programs are rooted in several areas created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/company/go-to-market-groups#video), and articles.
 
 
 #### Social media
@@ -162,7 +162,7 @@ Often, Fleeties will engage with new contacts from current and future customers.
   - LinkedIn profile URL (this is the best option)
   - Company name
   - Company website
-  - email
+  - Email
 
 > Please use the following guidelines when posting in the channel:
 >   - Use only one top-level message per contact. Don't batch contacts inside one message, and don't create multiple messages for a single person. Use thread replies to add context.
@@ -248,9 +248,20 @@ The following contract is ready to sign and has been routed to the CEO for signa
 Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, remove them before routing the agreement to the CEO for signature.
 
 
+### Fleet's vendor collateral
+
+Use the following steps to send Fleet's vendor collateral to a prospect or customer:
+1. Be sure that there's a signed NDA between Fleet and the requesting organization [saved in Google Drive](https://drive.google.com/drive/folders/1ee6E2wwhUL8F5qTRGUleJ9HeWjSRj5xm?usp=drive_link). If not, [send an NDA](https://fleetdm.com/handbook/sales#send-an-nda).
+2. Navigate to the ["🗃️ Vendor collateral" folder (confidential)](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive and to download the neccesary documents.
+
+> 🧑‍🚀 Attention Fleeties:
+>
+> Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🦄 #g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help. Any collateral documents (e.g. SOC2, Pen test, etc.) you send to a prospect or customer should be downloaded from the [🗃️ Vendor collateral folder](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive. If it's not in the "🗃️ Vendor collateral folder", it's not ready to be sent out.
+
+
 ### Vendor questionnaires 
 
-Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/digital-experience/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/digital-experience/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/digital-experience//security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
+Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/digital-experience/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/digital-experience/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/digital-experience/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 
 

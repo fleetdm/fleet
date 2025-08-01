@@ -287,7 +287,7 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	})
 	require.NoError(t, err)
 
-	j, err := json.Marshal(&enrollAgentRequest{
+	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   "1234",
 		HostIdentifier: "4321",
 		HostDetails:    nil,

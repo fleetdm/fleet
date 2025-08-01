@@ -1637,14 +1637,12 @@ func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerab
 	return nil
 }
 
-func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
-	sql := `DELETE FROM software_cve WHERE source = ? AND updated_at < ?`
-
-	var args []interface{}
-	cutPoint := time.Now().UTC().Add(-1 * duration)
-	args = append(args, source, cutPoint)
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
+func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+	if _, err := ds.writer(ctx).ExecContext(
+		ctx,
+		`DELETE FROM software_cve WHERE source = ? AND updated_at < ?`,
+		source, olderThan,
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting out of date vulnerabilities")
 	}
 	return nil
@@ -3150,18 +3148,35 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if host.TeamID != nil {
 		globalOrTeamID = *host.TeamID
 	}
+
+	// By default, installer platform takes care of omitting incompatible packages, but for Linux platforms the installer
+	// type is a bit too broad, so we filter further here. Note that we do *not* enforce this on installations, in case
+	// an admin knows that e.g. alien is installed and wants to push a package anyway. We also don't check software
+	// inventory for deb/rpm to match that way; this differs from the logic we use for auto-install queries for rpm/deb
+	// packages.
+	incompatibleExtensions := []string{"noop"}
+	if fleet.IsLinux(host.Platform) {
+		if !host.PlatformSupportsDebPackages() {
+			incompatibleExtensions = append(incompatibleExtensions, "deb")
+		}
+		if !host.PlatformSupportsRpmPackages() {
+			incompatibleExtensions = append(incompatibleExtensions, "rpm")
+		}
+	}
+
 	namedArgs := map[string]any{
-		"host_id":               host.ID,
-		"host_platform":         host.FleetPlatform(),
-		"global_or_team_id":     globalOrTeamID,
-		"is_mdm_enrolled":       opts.IsMDMEnrolled,
-		"host_label_updated_at": host.LabelUpdatedAt,
-		"avail":                 opts.OnlyAvailableForInstall,
-		"self_service":          opts.SelfServiceOnly,
-		"min_cvss":              opts.MinimumCVSS,
-		"max_cvss":              opts.MaximumCVSS,
-		"vpp_apps_platforms":    fleet.VPPAppsPlatforms,
-		"known_exploit":         1,
+		"host_id":                 host.ID,
+		"host_platform":           host.FleetPlatform(),
+		"incompatible_extensions": incompatibleExtensions,
+		"global_or_team_id":       globalOrTeamID,
+		"is_mdm_enrolled":         opts.IsMDMEnrolled,
+		"host_label_updated_at":   host.LabelUpdatedAt,
+		"avail":                   opts.OnlyAvailableForInstall,
+		"self_service":            opts.SelfServiceOnly,
+		"min_cvss":                opts.MinimumCVSS,
+		"max_cvss":                opts.MaximumCVSS,
+		"vpp_apps_platforms":      fleet.VPPAppsPlatforms,
+		"known_exploit":           1,
 	}
 	var hasCVEMetaFilters bool
 	if opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
@@ -3171,16 +3186,20 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	bySoftwareTitleID := make(map[uint]*hostSoftware)
 	bySoftwareID := make(map[uint]*hostSoftware)
 
-	hostSoftwareInstalls, err := hostSoftwareInstalls(ds, ctx, host.ID)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, s := range hostSoftwareInstalls {
-		if _, ok := bySoftwareTitleID[s.ID]; !ok {
-			bySoftwareTitleID[s.ID] = s
-		} else {
-			bySoftwareTitleID[s.ID].LastInstallInstalledAt = s.LastInstallInstalledAt
-			bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
+	var err error
+	var hostSoftwareInstallsList []*hostSoftware
+	if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
+		hostSoftwareInstallsList, err = hostSoftwareInstalls(ds, ctx, host.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, s := range hostSoftwareInstallsList {
+			if _, ok := bySoftwareTitleID[s.ID]; !ok {
+				bySoftwareTitleID[s.ID] = s
+			} else {
+				bySoftwareTitleID[s.ID].LastInstallInstalledAt = s.LastInstallInstalledAt
+				bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
+			}
 		}
 	}
 
@@ -3264,11 +3283,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						// we want to treat the installed vpp app as a regular software title
 						delete(bySoftwareTitleID, s.ID)
 					}
+					byVPPAdamID[*s.VPPAppAdamID] = s
 				} else {
 					continue
 				}
+			} else if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
+				byVPPAdamID[*s.VPPAppAdamID] = s
 			}
-			byVPPAdamID[*s.VPPAppAdamID] = s
 		}
 	}
 
@@ -3349,7 +3370,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software_titles st
 			LEFT OUTER JOIN
 				-- filter out software that is not available for install on the host's platform
-				software_installers si ON st.id = si.title_id AND si.platform = :host_compatible_platforms AND si.global_or_team_id = :global_or_team_id
+				software_installers si ON st.id = si.title_id AND si.platform = :host_compatible_platforms AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id
 			LEFT OUTER JOIN
 				-- include VPP apps only if the host is on a supported platform
 				vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
@@ -3545,7 +3566,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				tempBySoftwareTitleID[s.ID] = s
 			}
 			if !opts.VulnerableOnly {
-				for _, s := range hostSoftwareInstalls {
+				for _, s := range hostSoftwareInstallsList {
 					tempBySoftwareTitleID[s.ID] = s
 				}
 				for _, s := range hostVPPInstalls {
@@ -3624,7 +3645,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 			for _, s := range installedVPPAppIDs {
 				if s.VPPAppAdamID != nil {
-					tmpByVPPAdamID[*s.VPPAppAdamID] = s
+					if tmpByVPPAdamID[*s.VPPAppAdamID] == nil {
+						// inventoried by osquery, but not installed by fleet
+						tmpByVPPAdamID[*s.VPPAppAdamID] = s
+					} else {
+						// inventoried by osquery, but installed by fleet
+						// We want to preserve the install information from host_vpp_software_installs
+						// so don't overwrite the existing record
+						tmpByVPPAdamID[*s.VPPAppAdamID].VPPAppVersion = s.VPPAppVersion
+						tmpByVPPAdamID[*s.VPPAppAdamID].VPPAppPlatform = s.VPPAppPlatform
+						tmpByVPPAdamID[*s.VPPAppAdamID].VPPAppIconURL = s.VPPAppIconURL
+					}
 				}
 				if VPPAppByFleet, ok := hostVPPInstalledTitles[s.ID]; ok {
 					// Vpp app installed by fleet, so we need to copy over the status,
@@ -3771,8 +3802,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 
 	var vppAdamIDs []string
-	for key := range byVPPAdamID {
+	var vppTitleIds []uint
+	for key, v := range byVPPAdamID {
 		vppAdamIDs = append(vppAdamIDs, key)
+		vppTitleIds = append(vppTitleIds, v.ID)
 	}
 
 	var titleCount uint
@@ -4105,6 +4138,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			vulnerabilitiesBySoftwareID[cve.SoftwareID] = append(vulnerabilitiesBySoftwareID[cve.SoftwareID], cve.CVE)
 		}
 
+		// Grab the automatic install policies, if any exist
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, append(vppTitleIds, softwareTitleIds...), host.TeamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
+		}
+
+		policiesBySoftwareTitleId := make(map[uint][]fleet.AutomaticInstallPolicy, len(policies))
+		for _, p := range policies {
+			policiesBySoftwareTitleId[p.TitleID] = append(policiesBySoftwareTitleId[p.TitleID], p)
+		}
+
 		indexOfSoftwareTitle := make(map[uint]uint)
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
@@ -4244,6 +4288,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if softwareTitleRecord.VPPAppAdamID != nil {
 				if _, ok := filteredByVPPAdamID[*softwareTitleRecord.VPPAppAdamID]; ok {
 					promoteSoftwareTitleVPPApp(softwareTitleRecord)
+				}
+			}
+
+			if policies, ok := policiesBySoftwareTitleId[softwareTitleRecord.ID]; ok {
+				if softwareTitleRecord.AppStoreApp != nil {
+					softwareTitleRecord.AppStoreApp.AutomaticInstallPolicies = policies
+				} else {
+					softwareTitleRecord.SoftwarePackage.AutomaticInstallPolicies = policies
 				}
 			}
 

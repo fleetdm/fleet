@@ -756,7 +756,7 @@ func TestHostAuth(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return nil, nil
 	}
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -1113,9 +1113,9 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		}
 		return hosts, nil
 	}
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		assert.Equal(t, expectedTeam, teamID)
-		assert.Equal(t, expectedHostIDs, hostIDs)
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		assert.Equal(t, expectedTeam, params.TeamID)
+		assert.Equal(t, expectedHostIDs, params.HostIDs)
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
@@ -1157,8 +1157,8 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		}
 		return hosts, nil
 	}
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		assert.Equal(t, expectedHostIDs, hostIDs)
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		assert.Equal(t, expectedHostIDs, params.HostIDs)
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
@@ -1191,7 +1191,7 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return []*fleet.Host{}, nil
 	}
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
@@ -1906,12 +1906,14 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.LockHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload, platform string) error {
 		return nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+	// Some functions use Host, others HostLite. For our purposes either is fine
+	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		if hostID == teamHostID {
 			return teamHost, nil
 		}
 		return globalHost, nil
 	}
+	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 		return nil, nil
 	}
@@ -2438,7 +2440,16 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			}
 
 			notifs := &fleet.OrbitConfigNotifications{}
-			err := svc.setDiskEncryptionNotifications(ctx, notifs, tt.host, tt.appConfig, tt.diskEncryptionConfigured, tt.isConnectedToFleetMDM, tt.mdmInfo)
+			err := svc.setDiskEncryptionNotifications(
+				ctx,
+				notifs,
+				tt.host,
+				tt.appConfig,
+				tt.diskEncryptionConfigured,
+				tt.isConnectedToFleetMDM,
+				tt.mdmInfo,
+			)
+
 			if tt.expectedError {
 				require.Error(t, err)
 			} else {

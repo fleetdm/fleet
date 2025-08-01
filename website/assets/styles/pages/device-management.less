@@ -52,6 +52,34 @@
     max-width: 1072px;
   }
 
+  [purpose='feature-video'] {
+    margin-left: 80px;
+    max-width: 468px;
+    video {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 16px;
+    }
+  }
+  [purpose='video-button'] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    cursor: pointer;
+    color: #192147;
+    img {
+      height: 32px;
+      margin-right: 8px;
+    }
+    span {
+      margin-left: 4px;
+      display: inline-block;
+      color: #8B8FA2;
+      font-size: 12px;
+      margin-top: 2px;
+      font-weight: 400;
+    }
+  }
 
   [purpose='page-section'] {
     padding-top: 64px;
@@ -223,8 +251,7 @@
     justify-content: flex-start;
     align-self: center;
     min-width: 200px;
-    :has(p) {
-
+    &:has(p) {
       justify-content: center;
     }
     p {

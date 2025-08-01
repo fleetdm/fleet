@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -27,6 +28,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
+	httpsigproxy "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsigproxy"
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -50,12 +54,14 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/oklog/run"
+	httpsig "github.com/remitly-oss/httpsig-go"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
@@ -229,6 +235,11 @@ func main() {
 			Name:    "osquery-db",
 			Usage:   "Sets a custom osquery database directory, it must be an absolute path",
 			EnvVars: []string{"ORBIT_OSQUERY_DB"},
+		},
+		&cli.BoolFlag{
+			Name:    "fleet-managed-host-identity-certificate",
+			Usage:   "Configures fleetd to use TPM-backed key to sign HTTP requests. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
+			EnvVars: []string{"ORBIT_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE"},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -820,7 +831,11 @@ func main() {
 		}
 
 		var certPath string
-		if fleetURL != "https://" && c.Bool("insecure") {
+
+		// Both options --fleet-managed-host-identity-certificate and --insecure make use of a local HTTPS proxy.
+		// If the user sets both --fleet-managed-host-identity-certificate and --insecure then only the proxy
+		// for the fleet managed client certificate will be executed.
+		if fleetURL != "https://" && c.Bool("insecure") && !c.Bool("fleet-managed-host-identity-certificate") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
 			if err != nil {
 				return fmt.Errorf("create TLS proxy: %w", err)
@@ -924,6 +939,15 @@ func main() {
 			return fmt.Errorf("error loading fleet client certificate: %w", err)
 		}
 
+		if c.Bool("fleet-managed-host-identity-certificate") {
+			if runtime.GOOS != "linux" {
+				return errors.New("fleet-managed-host-identity-certificate is only supported on Linux")
+			}
+			if fleetClientCrt != nil {
+				return errors.New("fleet-managed-host-identity-certificate for HTTP signing, and TLS client certificates may not be specified together")
+			}
+		}
+
 		var fleetClientCertificate *tls.Certificate
 		if fleetClientCrt != nil {
 			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to Fleet.")
@@ -934,7 +958,110 @@ func main() {
 			}))
 		}
 
-		orbitClient, err := service.NewOrbitClient(
+		var (
+			signerWrapper               func(*http.Client) *http.Client
+			hostIdentityCertificatePath string
+			orbitClient                 *service.OrbitClient
+		)
+		if c.Bool("fleet-managed-host-identity-certificate") {
+			commonName := osqueryHostInfo.HardwareUUID
+			if c.String("host-identifier") == "instance" {
+				commonName = osqueryHostInfo.InstanceID
+			}
+			hostIdentityCredentials, err := hostidentity.Setup(
+				c.Context,
+				c.String("root-dir"),
+				fleetURL+"/api/fleet/orbit/host_identity/scep",
+				c.String("enroll-secret"),
+				commonName,
+				c.String("fleet-certificate"),
+				c.Bool("insecure"),
+				log.Logger,
+				func(reason string) {
+					if orbitClient != nil {
+						orbitClient.TriggerOrbitRestart(reason)
+					}
+				},
+			)
+			if err != nil {
+				if c.Bool("fleet-desktop") {
+					// Generic error for when the TPM-backed certificate could not be generated.
+					// (e.g. invalid enroll secret, server down).
+					errorMessage := "🔒🚫 Missing Fleet certificate.\nPlease contact your IT admin."
+					if errors.As(err, &securehw.ErrSecureHWUnavailable{}) {
+						errorMessage = "🔒🚫 TPM 2.0 device unavailable.\nPlease contact your IT admin."
+					}
+					if err := executeFleetDesktopWithPermanentError(desktopPath, errorMessage); err != nil {
+						log.Error().Err(err).Msg("failed to launch Fleet Desktop with permanent error")
+					}
+				}
+				return fmt.Errorf("failed to create or load client certificate: %w", err)
+			}
+			defer hostIdentityCredentials.Close()
+
+			log.Info().Str(
+				"commonName", hostIdentityCredentials.Certificate.Subject.CommonName,
+			).Msg("certificate issued successfully")
+
+			cryptoSigner, err := hostIdentityCredentials.SecureHWKey.HTTPSigner()
+			if err != nil {
+				return fmt.Errorf("error getting secure HW backed signer: %w", err)
+			}
+
+			// Get serial number as hex string
+			certSN := strings.ToUpper(hostIdentityCredentials.Certificate.SerialNumber.Text(16))
+
+			// Get ECC algorithm for signing.
+			var signingAlgorithm httpsig.Algorithm
+			switch v := cryptoSigner.ECCAlgorithm(); v {
+			case securehw.ECCAlgorithmP256:
+				signingAlgorithm = httpsig.Algo_ECDSA_P256_SHA256
+			case securehw.ECCAlgorithmP384:
+				signingAlgorithm = httpsig.Algo_ECDSA_P384_SHA384
+			default:
+				return fmt.Errorf("invalid ECC algorithm: %v", v)
+			}
+
+			httpSigner, err := fleethttpsig.Signer(certSN, cryptoSigner, signingAlgorithm)
+			if err != nil {
+				return fmt.Errorf("failed to create HTTP signer: %w", err)
+			}
+
+			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
+			proxy, err := httpsigproxy.NewProxy(proxyDirectory, fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), httpSigner)
+			if err != nil {
+				return fmt.Errorf("create TLS proxy: %w", err)
+			}
+
+			addSubsystem(&g, "httpsig localhost proxy", &wrapSubsystem{
+				execute: func() error {
+					log.Info().
+						Str("addr", proxy.ParsedURL.String()).
+						Str("target", fleetURL).
+						Msg("httpsig localhost proxy")
+					return proxy.Serve()
+				},
+				interrupt: func(_ error) {
+					if err := proxy.Close(); err != nil {
+						log.Error().Err(err).Msg("close httpsig proxy")
+					}
+				},
+			})
+
+			signerWrapper = func(client *http.Client) *http.Client {
+				return httpsig.NewHTTPClient(client, httpSigner, nil)
+			}
+			hostIdentityCertificatePath = hostIdentityCredentials.CertificatePath
+
+			options = append(options,
+				osquery.WithFlags(osquery.FleetFlags(proxy.ParsedURL)),
+
+				// This is overriding the previous set of --tls_server_certs in osquery.FleetFlags above.
+				osquery.WithFlags([]string{"--tls_server_certs", proxy.CertificatePath}),
+			)
+		}
+
+		orbitClient, err = service.NewOrbitClient(
 			c.String("root-dir"),
 			fleetURL,
 			c.String("fleet-certificate"),
@@ -950,6 +1077,8 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
+			signerWrapper,
+			hostIdentityCertificatePath,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -1218,7 +1347,6 @@ func main() {
 		}
 		addSubsystem(&g, "osqueryd runner", r)
 
-		// rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string
 		checkerClient, err := service.NewOrbitClient(
 			c.String("root-dir"),
 			fleetURL,
@@ -1235,6 +1363,8 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
+			nil,
+			"",
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
@@ -2171,4 +2301,49 @@ func (w *wrapSubsystem) Execute() error {
 // Interrupt partially implements subSystem.
 func (w *wrapSubsystem) Interrupt(err error) {
 	w.interrupt(err)
+}
+
+// executeFleetDesktopWithPermanentError attempts to execute a Fleet Desktop instance
+// with a permanent error. The routine sleeps for 5 minutes to give some time for the message
+// to be seen by the end-user.
+func executeFleetDesktopWithPermanentError(desktopPath string, errorMessage string) error {
+	loggedInUser, err := user.UserLoggedInViaGui()
+	if err != nil {
+		return fmt.Errorf("failed to get logged in GUI user: %w", err)
+	}
+	if loggedInUser == nil {
+		log.Debug().Msg("No GUI user found, skipping fleet-desktop start")
+		return nil
+	}
+	log.Debug().Msg(fmt.Sprintf("Found GUI user: %v, attempting fleet-desktop start", loggedInUser))
+
+	log.Info().Msg("killing any pre-existing fleet-desktop instances")
+	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
+		!errors.Is(err, platform.ErrProcessNotFound) &&
+		!errors.Is(err, platform.ErrComChannelNotFound) {
+		return fmt.Errorf("pre-existing desktop terminate: %w", err)
+	}
+
+	log.Debug().Msg("opening Fleet Desktop with permantent error")
+
+	opts := []execuser.Option{
+		execuser.WithEnv("FLEET_DESKTOP_PERMANENT_ERROR", errorMessage),
+	}
+
+	if *loggedInUser != "" {
+		opts = append(opts, execuser.WithUser(*loggedInUser))
+	}
+
+	// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
+	// To be able to run the desktop application (mostly to register the icon in the system tray)
+	// we need to run the application as the login user.
+	// Package execuser provides multi-platform support for this.
+	if lastLogs, err := execuser.Run(desktopPath, opts...); err != nil {
+		return fmt.Errorf("failed to run Fleet Desktop: %w, logs: %q", err, lastLogs)
+	}
+
+	// We give enough time to display the permanent error.
+	time.Sleep(5 * time.Minute)
+
+	return nil
 }

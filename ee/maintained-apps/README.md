@@ -88,21 +88,25 @@ These are the default categories assigned to the installer in [self-service](htt
 
 #### `install_script_path` (optional)
 
-This is a filepath to an install script. If provided, this script will be used instead of the generated install script.
+This is a filepath to an install script. If provided, this script will be used instead of the generated install script. Only shell scripts (`.sh`) are supported.
+
+The script should be added to the `inputs/homebrew/scripts` directory.
 
 #### `uninstall_script_path` (optional)
 
-This is a filepath to an uninstall script. If provided, this script will be used instead of the generated uninstall script.
+This is a filepath to an uninstall script. If provided, this script will be used instead of the generated uninstall script. Only shell scripts (`.sh`) are supported.
 
 `uninstall_script_path` can't be used together with `pre_uninstall_scripts` and `post_uninstall_scripts`.
 
-### Validating new additions to the Fleet-maintained apps
+The script should be added to the `inputs/homebrew/scripts` directory.
+
+### Validating Fleet-maintained apps additions
 
 1. When a pull request (PR) is opened containing changes to `ee/maintained-apps/inputs/`, the [#g-software Product Designer (PD) and Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) are automatically added as reviewers.
    1. The PD is responsible for approving the name and default category
    2. The EM is repsonsible for validating or assigning a validator
 
-2. Ensure an associated issue exists for the PR.  If not create one using the `Add Fleet-maintained app` issue template, move the issue to the `g-software` project and set the status to `In Review`.  Ensure the PR is linked to the issue.
+2. Ensure an associated issue exists for the PR.  If not, create one using the `Add Fleet-maintained app` issue template. Move the issue to the `g-software` project and set the status to `In Progress`.  Ensure the PR is linked to the issue.
 
 3. Validate the PR:
 
@@ -110,16 +114,11 @@ This is a filepath to an uninstall script. If provided, this script will be used
    2. Install it on a host and run a live query on the host: `SELECT * FROM apps WHERE name LIKE '%App Name%';`
    3. Validate and check off items in the `Validation` section of the issue.
 
+4. If the PR passes validation, the validator will also execute the test criteria in the QA section of the issue.  If tests fail, add feedback in the PR comments.  If the test failure(s) cannot be addressed by the contributor, close the PR and move the issue to the Drafting board for prioritization.  If tests pass, the PR is approved and merged.
 
-4. If the PR passes validation, set the issue status to `Awaiting QA`.  The validator will also perform the test criteria and check off QA tasks in the issue.  If tests fail, add feedback in the PR comments.  If the test failure(s) cannot be addressed by the contributor, close the PR and move the issue to the Drafting board for prioritization.  If tests pass, the PR is approved and merged.
+5. The validator is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)).
 
-5. Product designer is notified in the issue to add this icon to Fleet's [design system in Figma](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=264-2671) and publish the icon as a part of the Software icon Figma component.
-
-6. The validator is responsible for adding the icon to Fleet (e.g. the TypeScript components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files))
-
-7. QA ensures the icon is added to Fleet
-
-8. @eashaw is notified in the issue to add the icon to the website [fleetdm.com/app-library](https://fleetdm.com/app-library).
+6. QA ensures the icon is added to Fleet
 
 #### Testing additions to Fleet-maintained apps (no icon)
 
@@ -168,7 +167,7 @@ Each app updated in the PR must be validated independently.  Only merge the PR i
 
 If an app does not pass test criteria:
 
-- [Freeze the app](#freezing-an-existing-app)
+- [Freeze the app](#freezing-an-existing-fleet-maintained-app)
 - File a bug for tracking
 
 ## Freezing an existing Fleet-maintained app

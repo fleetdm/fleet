@@ -26,9 +26,6 @@
   frequency: "Daily"
   description: "Filter all action items from CEO's GitHub notifications"
   dri: "SFriendLee"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ]
-    repo: "confidential"
 -
   task: "Check LinkedIn for new activity"
   startedOn: "2025-04-25"
@@ -36,9 +33,6 @@
   description: "Once a day the Apprentice will check LinkedIn for unread messages and pending connect request."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-linkedin-for-new-activity"
   dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
 -
   task: "Add LinkedIn connections to CRM"
   startedOn: "2025-04-25"
@@ -46,16 +40,13 @@
   description: "Add the most recent connections from Linkedin to our CRM."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#add-linkedin-connections-to-crm"
   dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
 -
   task: "Vanta check" 
   startedOn: "2025-06-09"
   frequency: "Weekly"
   description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#monitor-compliance-tests"
-  dri: "SFriendLee"
+  dri: "sampfluger88"
   autoIssue:
     labels: [ "#g-digital-experience" ]
     repo: "confidential"
@@ -66,9 +57,6 @@
   description: "Complete steps 1 - 3 of https://fleetdm.com/handbook/sales#communicate-gross-new-arr-added"
   moreInfoUrl: "https://fleetdm.com/handbook/sales#communicate-gross-new-arr-added"
   dri: "SFriendLee"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ]
-    repo: "confidential"
 -
   task: "Process and backup E-group agenda"
   startedOn: "2023-09-20"
@@ -76,9 +64,6 @@
   description: "Process and backup E-group agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-and-backup-sid-agenda"
   dri: "SFriendLee"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ]
-    repo: "confidential"
 - 
   task: "Complete Digital Experience KPIs"
   startedOn: "2024-08-30" 

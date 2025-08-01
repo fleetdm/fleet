@@ -11,7 +11,50 @@ locals {
     ELASTIC_APM_SERVER_URL                     = var.elastic_url
     ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     ELASTIC_APM_SERVICE_NAME                   = "dogfood-free"
+
+
+    # Load TLS Certificate for RDS Authentication
+    FLEET_MYSQL_TLS_CA              = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
   }
+
+  /* 
+    configurations below are necessary for MySQL TLS authentication
+    MySQL TLS Settings to download and store TLS Certificate
+
+    ca_thumbprint is maintained in the infrastructure/cloud/shared/
+    ca_thumbprint is the sha1 thumbprint value of the following certificate: aws rds describe-db-instances --filters='Name=db-cluster-id,Values='${cluster_name}'' | jq '.DBInstances.[0].CACertificateIdentifier' | sed 's/\"//g'
+    You can retrieve the value with the following command: aws rds describe-certificates --certificate-identifier=${ca_cert_val} | jq '.Certificates.[].Thumbprint' | sed 's/\"//g'
+  */
+
+  # load the certificate with a side car into a volume mount
+  sidecars_free = [
+    {
+      name       = "rds-tls-ca-retriever"
+      image      = "public.ecr.aws/docker/library/alpine@sha256:8a1f59ffb675680d47db6337b49d22281a139e9d709335b492be023728e11715"
+      entrypoint = ["/bin/sh", "-c"]
+      command = [templatefile("./templates/mysql_ca_tls_retrieval.sh.tpl", {
+        aws_region         = data.aws_region.current.id
+        container_path     = local.rds_container_path
+        ca_cert_thumbprint = local.ca_cert_thumbprint
+      })]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = local.customer_free
+          "awslogs-region"        = data.aws_region.current.id
+          "awslogs-stream-prefix" = "rds-tls-ca-retriever"
+        }
+      }
+      mountPoints = [
+        {
+          sourceVolume  = "rds-tls-certs",
+          containerPath = local.rds_container_path
+        }
+      ]
+      essential = false
+    }
+  ]
 }
 
 module "free" {
@@ -83,6 +126,24 @@ module "free" {
     extra_iam_policies          = module.ses-free.fleet_extra_iam_policies
     extra_environment_variables = merge(module.ses-free.fleet_extra_environment_variables, local.extra_environment_variables_free, module.geolite2.extra_environment_variables)
     private_key_secret_name     = "${local.customer_free}-fleet-server-private-key"
+    volumes = [
+      {
+        name = "rds-tls-certs"
+      }
+    ]
+    mount_points = [
+      {
+        sourceVolume  = "rds-tls-certs",
+        containerPath = local.rds_container_path
+      }
+    ]
+    depends_on = [
+      {
+        containerName = "rds-tls-ca-retriever"
+        condition     = "SUCCESS"
+      }
+    ]
+    sidecars = local.sidecars_free
   }
   alb_config = {
     name            = local.customer_free

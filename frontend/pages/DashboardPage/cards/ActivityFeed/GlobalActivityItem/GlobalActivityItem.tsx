@@ -274,7 +274,7 @@ const TAGGED_TEMPLATES = {
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
     // compatibility
     let enrollmentTypeText = "";
-    if (activity.details?.personal_host) {
+    if (activity.details?.enrollment_id) {
       enrollmentTypeText = "personal";
     } else if (activity.details?.installed_from_dep) {
       enrollmentTypeText = "automatic";
@@ -807,8 +807,27 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deletedMultipleSavedQuery: () => {
-    return <> deleted multiple queries.</>;
+  deletedMultipleSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+    return (
+      <>
+        {" "}
+        deleted multiple queries
+        {teamText}.
+      </>
+    );
   },
   lockedHost: (activity: IActivity) => {
     return (
@@ -1182,6 +1201,161 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = ""; // in case any previous activity has no team metadata but not global as well, log no team information
+    }
+    return (
+      <>
+        {" "}
+        created a query <b>{activity.details?.query_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  editedSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+    return (
+      <>
+        {" "}
+        edited the query <b>{activity.details?.query_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  deletedSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+    return (
+      <>
+        {" "}
+        deleted the query <b>{activity.details?.query_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  createdPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          {" "}
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+
+    return (
+      <>
+        {" "}
+        created a policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  editedPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          {" "}
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+
+    return (
+      <>
+        {" "}
+        edited the policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
+      </>
+    );
+  },
+  deletedPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+
+    return (
+      <>
+        {" "}
+        deleted the policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1371,7 +1545,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
       return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
     }
     case ActivityType.DeletedMultipleSavedQuery: {
-      return TAGGED_TEMPLATES.deletedMultipleSavedQuery();
+      return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
     }
     case ActivityType.LockedHost: {
       return TAGGED_TEMPLATES.lockedHost(activity);
@@ -1472,6 +1646,24 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.CanceledUninstallSoftware: {
       return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
+    }
+    case ActivityType.CreatedSavedQuery: {
+      return TAGGED_TEMPLATES.createdSavedQuery(activity);
+    }
+    case ActivityType.EditedSavedQuery: {
+      return TAGGED_TEMPLATES.editedSavedQuery(activity);
+    }
+    case ActivityType.DeletedSavedQuery: {
+      return TAGGED_TEMPLATES.deletedSavedQuery(activity);
+    }
+    case ActivityType.CreatedPolicy: {
+      return TAGGED_TEMPLATES.createdPolicy(activity);
+    }
+    case ActivityType.EditedPolicy: {
+      return TAGGED_TEMPLATES.editedPolicy(activity);
+    }
+    case ActivityType.DeletedPolicy: {
+      return TAGGED_TEMPLATES.deletedPolicy(activity);
     }
 
     default: {

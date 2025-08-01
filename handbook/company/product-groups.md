@@ -204,7 +204,7 @@ Every user story has a product and engineering checklist that is completed befor
 
 When the Product Designer has completed the product checklist, it is moved to the "User story review" column of the drafting board and reviewed during the [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews) rituals.
 
-When a user story completes the review process, it is moved to the "Ready for spec" column on the drafting board and assigned to the product group's EM. The EM is responsible for completing the engineering checklist and finalizing the test plan with the QA Engineer before moving to the "Ready to estimate" column.
+When a user story completes the review process, it is moved to the "Ready to spec" column on the drafting board and assigned to the product group's EM. The EM is responsible for completing the engineering checklist and finalizing the test plan with the QA Engineer before moving to the "Ready to estimate" column.
 
 
 #### Providing context
@@ -255,10 +255,10 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 |:---|:-----------------------------|:-|
 | XXS | ≤1 day for 1 contributor | 1-3 |
 | XS | ≤1 week for 1 contributor | 3-8 |
-| S  | 1 sprint for 1 contributor | 15-25 |
-| M  | 1 sprint for 2 contributors | 30-50 |
-| L  | 1 sprint for the whole team | Variable (>60) |
-| XL | >1 sprint for the whole team | Variable (>100) |
+| S  | 1 sprint for 1 contributor | 8-25 |
+| M  | 1 sprint for 2 contributors | 25-60 |
+| L  | 1 sprint for 3 contributors | Variable (>60) |
+| XL | >1 sprint for 3 contributors | Variable (>100) |
 
 
 ### Implementing
@@ -384,6 +384,8 @@ To make a feature request or advocate for a feature request from a customer or c
 
 New requests are reviewed daily by the Head of Product Design and a former IT admin during the ["Unpacking the why"](https://fleetdm.com/handbook/product-design#unpacking-the-why) call. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
+> **Fast track for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label.
+
 
 ### Criteria for prioritization
 
@@ -417,11 +419,13 @@ At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs 
 
 If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Feature prioritization DRI, and they can add their request back to the feature fest board (`~feature fest` label) to bring it back to a future meeting.
 
+> If a feature request has an urgent Fleet need and can't wait until the next feature fest, @ mention the Head of Product Design in the #g-mdm, #g-software, or #g-orchestration channel with a link to the request's GitHub issue. It's up to the HPD to decide whether it is immediately prioritized to go through drafting or put to the side. If prioritized, the HPD will decide to de-prioritize one or more feature requests to make room in the current design sprint and notify requesters.
+
 
 ### After the feature is accepted
 
 After the 🎁🗣 Feature fest meeting, the feature prioritization DRI will clear the 🎁 Feature fest board as follows:
-- Prioritized features: Remove the `~feature fest` label, add the `~customer request` label, create a new user story with the `:product` label, add a link from the original request to the user story, add the relevant `customer-` labels, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
+- Prioritized features: Remove the `~feature fest` label, add the `~customer request` label, create a new user story with the `:product` label, add the original request as parent issue in the user story, add the relevant `customer-` labels, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 - Put to the side features: Remove `~feature fest` label and notify the requestor.
 
 > The product team's commitment to the requester is that the prioritized user story will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the story.

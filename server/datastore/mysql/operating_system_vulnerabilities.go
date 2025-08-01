@@ -34,11 +34,23 @@ func (ds *Datastore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) (
 func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
 	r := fleet.Vulnerabilities{}
 
-	var sqlstmt string
+	stmt := `
+			SELECT
+				osv.cve,
+				MIN(osv.created_at) created_at
+			FROM operating_system_vulnerabilities osv
+			JOIN operating_systems os ON os.id = osv.operating_system_id
+				AND os.name = ? AND os.version = ?
+			GROUP BY osv.cve
+			`
 
 	if includeCVSS {
-		sqlstmt = `
-			SELECT DISTINCT
+		// The group_concat below ensures we only one item is returned per CVE, and the assumption that we have a
+		// consistent resolved-in version across architectures/build numbers currently holds, so we shouldn't see
+		// distinct resolved-in versions under normal operation. We *could* see a different created_at if we see
+		// a new architecture for the same OS version after a vulnerability has been reported for that OS version.
+		stmt = `
+			SELECT
 				osv.cve,
 				cm.cvss_score,
 				cm.epss_probability,
@@ -47,25 +59,21 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				cm.description,
 				osv.resolved_in_version,
 				osv.created_at
-			FROM operating_system_vulnerabilities osv
+			FROM (
+				SELECT
+					v.cve,
+					MIN(v.created_at) created_at,
+					GROUP_CONCAT(DISTINCT v.resolved_in_version SEPARATOR ',') resolved_in_version
+				FROM operating_system_vulnerabilities v
+				JOIN operating_systems os ON os.id = v.operating_system_id
+					AND os.name = ? AND os.version = ?
+				GROUP BY v.cve
+			) osv
 			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
-			WHERE osv.operating_system_id IN (
-				SELECT id FROM operating_systems WHERE name = ? AND version = ?
-			)
-			`
-	} else {
-		sqlstmt = `
-			SELECT DISTINCT
-				osv.cve,
-				osv.created_at
-			FROM operating_system_vulnerabilities osv
-			WHERE osv.operating_system_id IN (
-				SELECT id FROM operating_systems WHERE name = ? AND version = ?
-			)
 			`
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, sqlstmt, name, version); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, name, version); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
@@ -150,12 +158,12 @@ func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilitie
 	return nil
 }
 
-func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src fleet.VulnerabilitySource, d time.Duration) error {
+func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src fleet.VulnerabilitySource, olderThan time.Time) error {
 	deleteStmt := `
 		DELETE FROM operating_system_vulnerabilities
 		WHERE source = ? AND updated_at < ?
 	`
-	if _, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, src, time.Now().UTC().Add(-d)); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, src, olderThan); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting out of date operating system vulnerabilities")
 	}
 	return nil

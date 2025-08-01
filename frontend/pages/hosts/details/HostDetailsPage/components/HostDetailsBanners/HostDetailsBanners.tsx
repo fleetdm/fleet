@@ -1,8 +1,6 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
 
-import { hasLicenseExpired } from "utilities/helpers";
-
 import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import { IOSSettings } from "interfaces/host";
 import {
@@ -43,46 +41,16 @@ const HostDetailsBanners = ({
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
 }: IHostBannersBaseProps) => {
-  const {
-    config,
-    isPremiumTier,
-    isAppleBmExpired,
-    isApplePnsExpired,
-    isVppExpired,
-    needsAbmTermsRenewal,
-    willAppleBmExpire,
-    willApplePnsExpire,
-    willVppExpire,
-  } = useContext(AppContext);
-
-  // Checks to see if an app-wide banner is being shown (the ABM terms, ABM expiry,
-  // or APNs expiry banner) in a parent component. App-wide banners found in parent
-  // component take priority over host details page-level banners.
-  const isFleetLicenseExpired = hasLicenseExpired(
-    config?.license.expiration || ""
-  );
-
-  const showingAppWideBanner =
-    isPremiumTier &&
-    (needsAbmTermsRenewal ||
-      isApplePnsExpired ||
-      willApplePnsExpire ||
-      isAppleBmExpired ||
-      willAppleBmExpire ||
-      isVppExpired ||
-      willVppExpire ||
-      isFleetLicenseExpired);
+  const { config } = useContext(AppContext);
 
   const isMdmUnenrolled = mdmEnrollmentStatus === "Off" || !mdmEnrollmentStatus;
 
   const showTurnOnMdmInfoBanner =
-    !showingAppWideBanner &&
     hostPlatform === "darwin" &&
     isMdmUnenrolled &&
     config?.mdm.enabled_and_configured;
 
   const showMacDiskEncryptionUserActionRequired =
-    !showingAppWideBanner &&
     config?.mdm.enabled_and_configured &&
     connectedToFleetMdm &&
     macDiskEncryptionStatus === "action_required";

@@ -11,6 +11,13 @@ import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
 
 import { NotificationContext } from "context/notification";
+import { INotification } from "interfaces/notification";
+import {
+  IDeviceSoftware,
+  IHostSoftware,
+  IHostSoftwareWithUiStatus,
+  IVPPHostSoftware,
+} from "interfaces/software";
 
 import deviceApi, {
   IDeviceSoftwareQueryKey,
@@ -25,6 +32,7 @@ import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import Button from "components/buttons/Button";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
@@ -35,11 +43,18 @@ import SearchField from "components/forms/fields/SearchField";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+
+import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
-import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./SelfServiceTableConfig";
+
+import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
-import { InstallOrCommandUuid } from "../InstallStatusCell/InstallStatusCell";
+import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
 
 import {
   CATEGORIES_NAV_ITEMS,
@@ -47,17 +62,21 @@ import {
   ICategory,
 } from "./helpers";
 import CategoriesMenu from "./CategoriesMenu";
+import { getUiStatus } from "../helpers";
+import UpdateSoftwareItem from "./UpdateSoftwareItem";
 
 const baseClass = "software-self-service";
 
 // These default params are not subject to change by the user
 const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
-  per_page: 9999, // Note: There is no pagination on this page because of time constraints (e.g. categories and install statuses are not filtered by API)
+  per_page: 9999, // Note: There is no API pagination on this page because of time constraints (e.g. categories and install statuses are not filtered by API)
   order_key: "name",
   order_direction: "asc",
   self_service: true,
   category_id: undefined,
 } as const;
+
+const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
 
 export interface ISoftwareSelfServiceProps {
   contactUrl: string;
@@ -66,9 +85,16 @@ export interface ISoftwareSelfServiceProps {
   pathname: string;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
-  onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
+  refetchHostDetails: () => void;
+  isHostDetailsPolling: boolean;
+  hostDisplayName: string;
 }
+
+const getUpdatesPageSize = (width: number): number => {
+  if (width >= 1400) return 4;
+  if (width >= 768) return 3;
+  return 2;
+};
 
 const SoftwareSelfService = ({
   contactUrl,
@@ -77,17 +103,97 @@ const SoftwareSelfService = ({
   pathname,
   queryParams,
   router,
-  onShowInstallDetails,
-  onShowUninstallDetails,
+  refetchHostDetails,
+  isHostDetailsPolling,
+  hostDisplayName,
 }: ISoftwareSelfServiceProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
 
   const [selfServiceData, setSelfServiceData] = useState<
     IGetDeviceSoftwareResponse | undefined
   >(undefined);
+  const [selectedUpdateDetails, setSelectedUpdateDetails] = useState<
+    IDeviceSoftware | undefined
+  >(undefined);
+  const [
+    selectedHostSWInstallDetails,
+    setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | undefined>(undefined);
+  const [
+    selectedVPPInstallDetails,
+    setSelectedVPPInstallDetails,
+  ] = useState<IVPPHostSoftware | null>(null);
+  const [
+    selectedHostSWUninstallDetails,
+    setSelectedHostSWUninstallDetails,
+  ] = useState<ISWUninstallDetailsParentState | undefined>(undefined);
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
+  const [updatesPage, setUpdatesPage] = useState(0);
+  const [updatesPageSize, setUpdatesPageSize] = useState(() =>
+    getUpdatesPageSize(window.innerWidth)
+  );
+
+  const enhancedSoftware = useMemo(() => {
+    if (!selfServiceData) return [];
+    return selfServiceData.software.map((software) => ({
+      ...software,
+      ui_status: getUiStatus(software, true),
+    }));
+  }, [selfServiceData]);
+
+  const updateSoftware = enhancedSoftware.filter(
+    (software) =>
+      software.ui_status === "updating" ||
+      software.ui_status === "pending_update" || // Should never show as self-service = host online
+      software.ui_status === "update_available" ||
+      software.ui_status === "failed_install_update_available" ||
+      software.ui_status === "failed_uninstall_update_available"
+  );
+
+  // The page size only changes at 2 breakpoints and state update is very lightweight.
+  // Page size controls the number of shown cards and current page; no API calls or
+  // expensive UI updates occur so debouncing the resize handler isn’t necessary.
+  useEffect(() => {
+    const handleResize = () => {
+      const newPageSize = getUpdatesPageSize(window.innerWidth);
+      setUpdatesPageSize(() => {
+        const newTotalPages = Math.ceil(updateSoftware.length / newPageSize);
+        setUpdatesPage((prevPage) => {
+          // If the current page is now out of range, go to the last valid page
+          return Math.min(prevPage, Math.max(0, newTotalPages - 1));
+        });
+        return newPageSize;
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [updateSoftware.length]);
+
+  const paginatedUpdates = useMemo(() => {
+    const start = updatesPage * updatesPageSize;
+    return updateSoftware.slice(start, start + updatesPageSize);
+  }, [updateSoftware, updatesPage, updatesPageSize]);
+
+  const totalUpdatesPages = Math.ceil(updateSoftware.length / updatesPageSize);
+
+  const onNextUpdatesPage = () => {
+    setUpdatesPage((prev) => Math.min(prev + 1, totalUpdatesPages - 1));
+  };
+
+  const onPreviousUpdatesPage = () => {
+    setUpdatesPage((prev) => Math.max(prev - 1, 0));
+  };
+
+  const disableUpdateAllButton = useMemo(() => {
+    // Disable if all statuses are "updating"
+    return (
+      updateSoftware.length > 0 &&
+      updateSoftware.every((software) => software.ui_status === "updating")
+    );
+  }, [updateSoftware]);
 
   const selectedSoftware = useRef<{
     softwareId: number;
@@ -98,6 +204,7 @@ const SoftwareSelfService = ({
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const isAwaitingHostDetailsPolling = useRef(isHostDetailsPolling);
 
   const queryKey = useMemo<IDeviceSoftwareQueryKey[]>(() => {
     return [
@@ -105,14 +212,19 @@ const SoftwareSelfService = ({
         scope: "device_software",
         id: deviceToken,
         page: queryParams.page,
-        query: queryParams.query,
+        query: "", // Search is now client-side to reduce API calls
         ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
       },
     ];
-  }, [deviceToken, queryParams.page, queryParams.query]);
+  }, [deviceToken, queryParams.page]);
 
   // Fetch self-service software (regular API call)
-  const { isLoading, isError, isFetching } = useQuery<
+  const {
+    isLoading,
+    isError,
+    isFetching,
+    refetch: refetchSelfServiceData,
+  } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError,
     IGetDeviceSoftwareResponse,
@@ -125,6 +237,17 @@ const SoftwareSelfService = ({
       setSelfServiceData(response);
     },
   });
+
+  // After host details polling (in parent) finishes, refetch software data.
+  // Ensures self service data reflects updates to installed_versions from the latest host details.
+  useEffect(() => {
+    // Detect completion of the host details polling (in parent)
+    // Once host details polling completes, refetch software data to retreive updated installed_versions keyed from host details data
+    if (isAwaitingHostDetailsPolling.current && !isHostDetailsPolling) {
+      refetchSelfServiceData();
+    }
+    isAwaitingHostDetailsPolling.current = isHostDetailsPolling;
+  }, [isHostDetailsPolling, refetchSelfServiceData]);
 
   // Poll for pending installs/uninstalls
   const { refetch: refetchForPendingInstallsOrUninstalls } = useQuery<
@@ -146,6 +269,12 @@ const SoftwareSelfService = ({
             )
             .map((software) => String(software.id))
         );
+
+        // Refresh host details if the number of pending installs or uninstalls has decreased
+        // To update the software library information
+        if (newPendingSet.size < pendingSoftwareSetRef.current.size) {
+          refetchHostDetails();
+        }
 
         // Compare new set with the previous set
         const setsAreEqual =
@@ -235,6 +364,139 @@ const SoftwareSelfService = ({
     refetchForPendingInstallsOrUninstalls();
   }, [refetchForPendingInstallsOrUninstalls]);
 
+  const isMountedRef = useRef(false);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const onClickInstallAction = useCallback(
+    async (softwareId: number) => {
+      try {
+        await deviceApi.installSelfServiceSoftware(deviceToken, softwareId);
+        if (isMountedRef.current) {
+          onInstallOrUninstall();
+        }
+      } catch (error) {
+        // We only show toast message if API returns an error
+        renderFlash("error", "Couldn't install. Please try again.");
+      }
+    },
+    [deviceToken, onInstallOrUninstall, renderFlash]
+  );
+
+  const onClickUninstallAction = useCallback(
+    (hostSW: IHostSoftwareWithUiStatus) => {
+      selectedSoftware.current = {
+        softwareId: hostSW.id,
+        softwareName: hostSW.name,
+        softwareInstallerType: getExtensionFromFileName(
+          hostSW.software_package?.name || ""
+        ),
+        version: hostSW.software_package?.version || "",
+      };
+      setShowUninstallSoftwareModal(true);
+    },
+    []
+  );
+
+  const onClickUpdateAction = useCallback(
+    async (id: number) => {
+      try {
+        await deviceApi.installSelfServiceSoftware(deviceToken, id);
+        onInstallOrUninstall();
+      } catch (error) {
+        // Only show toast message if API returns an error
+        renderFlash("error", "Couldn't update software. Please try again.");
+      }
+    },
+    [deviceToken, onInstallOrUninstall, renderFlash]
+  );
+
+  const onClickUpdateAll = useCallback(async () => {
+    const updateAvailableSoftware = enhancedSoftware.filter(
+      (software) =>
+        software.ui_status === "update_available" ||
+        software.ui_status === "failed_install_update_available" ||
+        software.ui_status === "failed_uninstall_update_available"
+    );
+
+    // This should not happen
+    if (!updateAvailableSoftware.length) {
+      renderFlash("success", "No updates available.");
+      return;
+    }
+
+    // Trigger updates
+    const promises = updateAvailableSoftware.map((software) =>
+      deviceApi.installSelfServiceSoftware(deviceToken, software.id)
+    );
+
+    const results = await Promise.allSettled(promises);
+
+    // Only show toast message for updates that API returns an error
+    const failedUpdates = results
+      .map((result, idx) =>
+        result.status === "rejected" ? updateAvailableSoftware[idx] : null
+      )
+      .filter(Boolean) as typeof updateAvailableSoftware;
+
+    if (failedUpdates.length > 0) {
+      const errorNotifications: INotification[] = failedUpdates.map(
+        (software) => ({
+          id: `update-error-${software.id}`,
+          alertType: "error",
+          isVisible: true,
+          message: `Couldn't update ${software.name}. Please try again.`,
+          persistOnPageChange: false,
+        })
+      );
+
+      renderMultiFlash({
+        notifications: errorNotifications,
+      });
+    }
+
+    // Refresh the data after updates triggered
+    onInstallOrUninstall();
+  }, [
+    deviceToken,
+    renderFlash,
+    renderMultiFlash,
+    enhancedSoftware,
+    onInstallOrUninstall,
+  ]);
+
+  const onShowUpdateDetails = useCallback(
+    (software?: IDeviceSoftware) => {
+      setSelectedUpdateDetails(software);
+    },
+    [setSelectedUpdateDetails]
+  );
+
+  const onShowInstallDetails = useCallback(
+    (hostSoftware?: IHostSoftware) => {
+      setSelectedHostSWInstallDetails(hostSoftware);
+    },
+    [setSelectedHostSWInstallDetails]
+  );
+
+  const onShowVPPInstallDetails = useCallback(
+    (s: IVPPHostSoftware) => {
+      setSelectedVPPInstallDetails(s);
+    },
+    [setSelectedVPPInstallDetails]
+  );
+
+  const onShowUninstallDetails = useCallback(
+    (uninstallModalDetails: ISWUninstallDetailsParentState) => {
+      setSelectedHostSWUninstallDetails(uninstallModalDetails);
+    },
+    [setSelectedHostSWUninstallDetails]
+  );
+
   const onSearchQueryChange = (value: string) => {
     router.push(
       getPathWithQueryParams(pathname, {
@@ -255,6 +517,25 @@ const SoftwareSelfService = ({
         page: 0, // Always reset to page 0 when searching
       })
     );
+  };
+
+  const onClickFailedUpdateStatus = (hostSoftware: IHostSoftware) => {
+    const lastInstall = getLastInstall(hostSoftware);
+
+    if (onShowInstallDetails && lastInstall) {
+      if ("command_uuid" in lastInstall) {
+        // vpp software
+        onShowVPPInstallDetails({
+          ...hostSoftware,
+          commandUuid: lastInstall.command_uuid,
+        });
+      } else if ("install_uuid" in lastInstall) {
+        // other software
+        onShowInstallDetails(hostSoftware);
+      } else {
+        onShowInstallDetails(undefined);
+      }
+    }
   };
 
   const onExitUninstallSoftwareModal = () => {
@@ -301,24 +582,61 @@ const SoftwareSelfService = ({
     queryParams.query !== "";
 
   const tableConfig = useMemo(() => {
-    return generateDeviceSoftwareTableConfig({
-      deviceToken,
-      onInstall: onInstallOrUninstall,
+    return generateSoftwareTableHeaders({
+      onShowUpdateDetails,
       onShowInstallDetails,
+      onShowVPPInstallDetails,
       onShowUninstallDetails,
-      onClickUninstallAction: (software) => {
-        selectedSoftware.current = {
-          softwareId: software.id,
-          softwareName: software.name,
-          softwareInstallerType: getExtensionFromFileName(
-            software.software_package?.name || ""
-          ),
-          version: software.software_package?.version || "",
-        };
-        setShowUninstallSoftwareModal(true);
-      },
+      onClickInstallAction,
+      onClickUninstallAction,
     });
-  }, [deviceToken, onInstallOrUninstall, onShowInstallDetails]);
+  }, [
+    onShowUpdateDetails,
+    onShowInstallDetails,
+    onShowVPPInstallDetails,
+    onShowUninstallDetails,
+    onClickInstallAction,
+    onClickUninstallAction,
+  ]);
+
+  const renderUpdatesCard = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (isError) {
+      return <DeviceUserError />;
+    }
+
+    return (
+      <>
+        <div className={`${baseClass}__items`}>
+          {paginatedUpdates.map((s) => {
+            return (
+              <UpdateSoftwareItem
+                key={s.id}
+                software={s}
+                onClickUpdateAction={onClickUpdateAction}
+                onShowInstallerDetails={() => {
+                  onClickFailedUpdateStatus(s);
+                }}
+              />
+            );
+          })}
+        </div>
+        <Pagination
+          disableNext={updatesPage >= totalUpdatesPages - 1}
+          disablePrev={updatesPage === 0}
+          hidePagination={
+            updatesPage >= totalUpdatesPages - 1 && updatesPage === 0
+          }
+          onNextPage={onNextUpdatesPage}
+          onPrevPage={onPreviousUpdatesPage}
+          className={`${baseClass}__pagination`}
+        />
+      </>
+    );
+  };
 
   const renderSelfServiceCard = () => {
     const renderHeaderFilters = () => (
@@ -377,7 +695,7 @@ const SoftwareSelfService = ({
           <TableContainer
             columnConfigs={tableConfig}
             data={filterSoftwareByCategory(
-              selfServiceData?.software || [],
+              enhancedSoftware || [],
               queryParams.category_id
             )}
             isLoading={isFetching}
@@ -387,7 +705,11 @@ const SoftwareSelfService = ({
             }
             pageIndex={0}
             disableNextPage={selfServiceData?.meta.has_next_results === false}
-            pageSize={DEFAULT_SELF_SERVICE_QUERY_PARAMS.per_page}
+            pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
+            searchQuery={queryParams.query} // Search is now client-side to reduce API calls
+            searchQueryColumn="name"
+            isClientSideFilter
+            isClientSidePagination
             emptyComponent={() => {
               return isEmptySearch ? (
                 <EmptyTable
@@ -410,7 +732,6 @@ const SoftwareSelfService = ({
             }}
             showMarkAllPages={false}
             isAllPagesSelected={false}
-            searchable={false}
             disableTableHeader
             disableCount
           />
@@ -432,9 +753,36 @@ const SoftwareSelfService = ({
   };
 
   return (
-    <>
+    <div className={baseClass}>
+      {paginatedUpdates.length > 0 && (
+        <Card
+          className={`${baseClass}__updates-card`}
+          borderRadiusSize="xxlarge"
+          paddingSize="xlarge"
+          includeShadow
+        >
+          <div className={`${baseClass}__header`}>
+            <CardHeader
+              header="Updates"
+              subheader={
+                <>
+                  Your device has outdated software. Update to address potential
+                  security vulnerabilities or compatibility issues.
+                </>
+              }
+            />
+            <Button
+              disabled={disableUpdateAllButton}
+              onClick={onClickUpdateAll}
+            >
+              Update all
+            </Button>
+          </div>
+          {renderUpdatesCard()}
+        </Card>
+      )}
       <Card
-        className={baseClass}
+        className={`${baseClass}__self-service-card`}
         borderRadiusSize="xxlarge"
         paddingSize="xlarge"
         includeShadow
@@ -466,7 +814,56 @@ const SoftwareSelfService = ({
           onSuccess={onSuccessUninstallSoftwareModal}
         />
       )}
-    </>
+      {selectedHostSWInstallDetails && (
+        <SoftwareInstallDetailsModal
+          hostSoftware={selectedHostSWInstallDetails}
+          details={{
+            host_display_name: hostDisplayName,
+            install_uuid:
+              selectedHostSWInstallDetails.software_package?.last_install
+                ?.install_uuid,
+          }}
+          onRetry={onClickInstallAction}
+          onCancel={() => setSelectedHostSWInstallDetails(undefined)}
+          deviceAuthToken={deviceToken}
+          contactUrl={contactUrl}
+        />
+      )}
+      {selectedVPPInstallDetails && (
+        <VppInstallDetailsModal
+          deviceAuthToken={deviceToken}
+          details={{
+            fleetInstallStatus:
+              selectedVPPInstallDetails.status || "pending_install",
+            hostDisplayName,
+            appName: selectedVPPInstallDetails.name,
+            commandUuid: selectedVPPInstallDetails.commandUuid,
+          }}
+          hostSoftware={selectedVPPInstallDetails}
+          onCancel={() => setSelectedVPPInstallDetails(null)}
+          onRetry={onClickInstallAction}
+        />
+      )}
+      {selectedHostSWUninstallDetails && (
+        <SoftwareUninstallDetailsModal
+          {...selectedHostSWUninstallDetails}
+          hostDisplayName={hostDisplayName}
+          onCancel={() => setSelectedHostSWUninstallDetails(undefined)}
+          onRetry={onClickUninstallAction}
+          deviceAuthToken={deviceToken}
+          contactUrl={contactUrl}
+        />
+      )}
+      {selectedUpdateDetails && (
+        <SoftwareUpdateModal
+          hostDisplayName={hostDisplayName}
+          software={selectedUpdateDetails}
+          onUpdate={onClickInstallAction}
+          onExit={() => setSelectedUpdateDetails(undefined)}
+          isDeviceUser
+        />
+      )}
+    </div>
   );
 };
 

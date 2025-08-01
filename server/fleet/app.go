@@ -78,6 +78,10 @@ type SSOSettings struct {
 	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
 	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
 	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
+	// SSOServerURL is an optional URL to use for SSO authentication.
+	// When set, SSO will only work from this URL, not from the server URL.
+	// This is useful for organizations with separate URLs for admin access vs agent/API access.
+	SSOServerURL string `json:"sso_server_url"`
 }
 
 // ConditionalAccessSettings holds the global settings for the "Conditional access" feature.
@@ -214,6 +218,8 @@ type MDM struct {
 	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+
+	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 

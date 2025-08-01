@@ -49,6 +49,7 @@ export interface ITeam extends ITeamSummary {
   role?: UserRole; // role value is included when the team is in the context of a user
   mdm?: {
     enable_disk_encryption: boolean;
+    windows_require_bitlocker_pin: boolean;
     macos_updates: IAppleDeviceUpdates;
     ios_updates: IAppleDeviceUpdates;
     ipados_updates: IAppleDeviceUpdates;

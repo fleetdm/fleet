@@ -1,21 +1,21 @@
 {
   "versions": [
     {
-      "version": "25.5.893.0",
+      "version": "25.5.943.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND publisher = 'Cloudflare, Inc.';"
       },
-      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.5.893.0",
+      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.5.943.0",
       "install_script_ref": "8959087b",
-      "uninstall_script_ref": "1d523e72",
-      "sha256": "ff77a76288adf412e819614795476b9b834b79e5a036aaa554c6e2eabd45c623",
+      "uninstall_script_ref": "0e3fb216",
+      "sha256": "1642f47f059952e6963456c449174d7eb048c5e55ad95750cc73dfe26701fd86",
       "default_categories": [
         "Productivity"
       ]
     }
   ],
   "refs": {
-    "1d523e72": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\nforeach ($product_code in $inst.RelatedProducts('{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}')) {\n    msiexec /quiet /x $product_code\n}\n\nExit $LASTEXITCODE\n",
+    "0e3fb216": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\nforeach ($product_code in $inst.RelatedProducts(\"{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}\")) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -Wait -PassThru\n\n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0",
     "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
   }
 }

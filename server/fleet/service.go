@@ -20,7 +20,7 @@ type EnterpriseOverrides struct {
 	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
 	// UpdateTeamMDMDiskEncryption is the team-specific service method for when
 	// a team ID is provided to the UpdateMDMDiskEncryption method.
-	UpdateTeamMDMDiskEncryption func(ctx context.Context, tm *Team, enable *bool) error
+	UpdateTeamMDMDiskEncryption func(ctx context.Context, tm *Team, enable *bool, requireBitLockerPIN *bool) error
 
 	// The next two functions are implemented by the ee/service, and called
 	// properly when called from an ee/service method (e.g. Modify Team), but
@@ -181,7 +181,7 @@ type Service interface {
 	// different from InitiateSSO because it receives a different
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
-	InitiateMDMAppleSSO(ctx context.Context) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+	InitiateMDMAppleSSO(ctx context.Context, initiator string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
 	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.
@@ -191,6 +191,9 @@ type Service interface {
 	// credentials are valid, then responds with a URL to the Fleet UI to
 	// handle next steps based on the query parameters provided.
 	MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string
+
+	// GetMDMAccountDrivenEnrollmentSSOURL returns the URL to redirect to for MDM Account Driven Enrollment SSO Authentication
+	GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error)
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
@@ -834,6 +837,10 @@ type Service interface {
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
 
+	// GetMDMAppleEnrollmentProfileByToken returns the Apple account-driven user enrollment profile for a given enrollment reference.
+	GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollReference string) (profile []byte, err error)
+	SkipAuth(ctx context.Context)
+
 	// ReconcileMDMAppleEnrollRef reconciles the enrollment reference for the
 	// specified device. It performs several related tasks:
 	//
@@ -948,7 +955,7 @@ type Service interface {
 
 	// UpdateMDMDiskEncryption updates the disk encryption setting for a
 	// specified team or for hosts with no team.
-	UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool) error
+	UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error
 
 	// VerifyMDMAppleConfigured verifies that the server is configured for
 	// Apple MDM. If an error is returned, authorization is skipped so the
