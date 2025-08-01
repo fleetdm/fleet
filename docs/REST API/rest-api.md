@@ -3017,7 +3017,6 @@ Returns the information of the specified host.
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
-        "browser": "",
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -3246,7 +3245,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "name": "Automat",
         "version": "0.8.0",
         "source": "python_packages",
-        "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null,
         "installed_paths": ["/usr/lib/some_path/"]
@@ -3438,7 +3436,6 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
-        "browser": "",
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -6338,7 +6335,6 @@ List software that can or will be automatically installed during macOS setup. If
       "app_store_app": null,
       "versions_count": 3,
       "source": "apps",
-      "browser": "",
       "hosts_count": 48,
       "versions": [
         {
@@ -9442,7 +9438,6 @@ Get a list of all software.
       "app_store_app": null,
       "versions_count": 3,
       "source": "apps",
-      "browser": "",
       "hosts_count": 48,
       "versions": [
         {
@@ -9470,7 +9465,6 @@ Get a list of all software.
       "app_store_app": null,
       "versions_count": 5,
       "source": "apps",
-      "browser": "",
       "hosts_count": 345,
       "versions": [
         {
@@ -9563,7 +9557,6 @@ Get a list of all software versions.
         "name": "glibc",
         "version": "2.12",
         "source": "rpm_packages",
-        "browser": "",
         "release": "1.212.el6",
         "vendor": "CentOS",
         "arch": "x86_64",
@@ -9747,7 +9740,6 @@ Returns information about the specified software. By default, `versions` are sor
     "app_store_app": null,
     "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
-    "browser": "",
     "hosts_count": 48,
     "versions": [
       {
@@ -9817,7 +9809,6 @@ Returns information about the specified software. By default, `versions` are sor
       }
     },
     "source": "apps",
-    "browser": "",
     "hosts_count": 48,
     "versions": [
       {
@@ -9861,7 +9852,6 @@ Returns information about the specified software version.
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
-    "browser": "",
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
     "vulnerabilities": [
       {
@@ -10761,7 +10751,6 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
       "name": "Docker Desktop",
       "version": "4.9.1",
       "source": "programs",
-      "browser": "",
       "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
       "hosts_count": 50,
       "resolved_in_version": "5.0.0"
