@@ -101,14 +101,17 @@ export const updateFormData = (
       };
     }
   } else if (isHydrantCertIntegration(certAuthority)) {
+    // for Hydrant, we reset clientId and clientSecret if name or url changes
+    // and the fields have not been updated. We do this to force users to send
+    // the correct clientId and clientSecret for the new name or url.
     const formData = prevFormData as IHydrantFormData;
-    if (
-      update.name === "name" ||
-      update.name === "url" ||
-      update.name === "clientId"
-    ) {
+    if (update.name === "name" || update.name === "url") {
       return {
         ...newData,
+        clientId:
+          formData.clientId === certAuthority.client_id
+            ? ""
+            : formData.clientId,
         clientSecret:
           formData.clientSecret === "********" ? "" : formData.clientSecret,
       };
