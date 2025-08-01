@@ -718,17 +718,8 @@ const SoftwareSelfService = ({
               header="Updates"
               subheader={
                 <>
-                  The following app require updating.{" "}
-                  {contactUrl && (
-                    <span>
-                      If you need help,{" "}
-                      <CustomLink
-                        url={contactUrl}
-                        text="reach out to IT"
-                        newTab
-                      />
-                    </span>
-                  )}
+                  Your device has outdated software. Update to address potential
+                  security vulnerabilities or compatibility issues.
                 </>
               }
             />
