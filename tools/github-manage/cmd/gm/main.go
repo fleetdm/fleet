@@ -150,6 +150,18 @@ func main() {
 				fmt.Printf("%v\n", fieldNames)
 			}
 
+			if !promptToContinue() {
+				return
+			}
+
+			// Bonus: Show cache statistics
+			fmt.Printf("8. Cache statistics...\n")
+			stats := ghapi.GetCacheStats()
+			fmt.Printf("✅ Cache statistics:\n")
+			for key, value := range stats {
+				fmt.Printf("  - %s: %v\n", key, value)
+			}
+
 			fmt.Printf("\n=== Test Complete ===\n")
 			fmt.Printf("Note: All functions now use actual GitHub CLI commands.\n")
 			fmt.Printf("All successful operations indicate the underlying 'gh' command executed correctly.\n")

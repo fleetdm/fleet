@@ -50,8 +50,6 @@ func getAliasKeys() []string {
 	return keys
 }
 
-var MapProjectFieldNameToField = map[int]map[string]ProjectField{}
-
 func ParseJSONtoProjectItems(jsonData []byte, limit int) ([]ProjectItem, error) {
 	var items ProjectItemsResponse
 	err := json.Unmarshal(jsonData, &items)
@@ -102,13 +100,16 @@ func GetProjectFields(projectID int) (map[string]ProjectField, error) {
 
 func LoadProjectFields(projectID int) (map[string]ProjectField, error) {
 	if fields, exists := MapProjectFieldNameToField[projectID]; exists {
+		log.Printf("Using cached project fields for project %d", projectID)
 		return fields, nil
 	}
+	log.Printf("Fetching project fields for project %d from API", projectID)
 	fields, err := GetProjectFields(projectID)
 	if err != nil {
 		return nil, err
 	}
 	MapProjectFieldNameToField[projectID] = fields
+	log.Printf("Cached %d project fields for project %d", len(fields), projectID)
 	return fields, nil
 }
 
@@ -232,9 +233,22 @@ func SetProjectItemFieldValue(itemID string, projectID int, fieldName, value str
 	return fmt.Errorf("itemID is required for SetProjectItemFieldValue")
 }
 
-// GetProjectItemID finds the project item ID for a given issue number in a project
+// GetProjectItemID finds the project item ID for a given issue number in a project with caching
 // Uses GitHub API directly for better performance and reliability
 func GetProjectItemID(issueNumber int, projectID int) (string, error) {
+	// Check cache first
+	cacheKey := generateProjectItemCacheKey(issueNumber, projectID)
+	projectItemIDMutex.RLock()
+	if itemID, exists := projectItemIDCache[cacheKey]; exists {
+		projectItemIDMutex.RUnlock()
+		log.Printf("Using cached project item ID for issue #%d in project %d", issueNumber, projectID)
+		return itemID, nil
+	}
+	projectItemIDMutex.RUnlock()
+
+	// Not in cache, fetch from API
+	log.Printf("Fetching project item ID for issue #%d in project %d from API", issueNumber, projectID)
+
 	// First, we need to get the project's node ID
 	projectNodeID, err := getProjectNodeID(projectID)
 	if err != nil {
@@ -298,20 +312,37 @@ func GetProjectItemID(issueNumber int, projectID int) (string, error) {
 	// Search through the items to find the matching issue number
 	for _, item := range response.Data.Node.Items.Nodes {
 		if item.Content.Number == issueNumber {
+			// Cache the result
+			projectItemIDMutex.Lock()
+			projectItemIDCache[cacheKey] = item.ID
+			projectItemIDMutex.Unlock()
+
+			log.Printf("Cached project item ID %s for issue #%d in project %d", item.ID, issueNumber, projectID)
 			return item.ID, nil
 		}
 	}
 
 	// If we have more pages, we should search them too
 	if response.Data.Node.Items.PageInfo.HasNextPage {
-		return getProjectItemIDWithPagination(issueNumber, projectNodeID, response.Data.Node.Items.PageInfo.EndCursor)
+		return getProjectItemIDWithPagination(issueNumber, projectNodeID, response.Data.Node.Items.PageInfo.EndCursor, cacheKey)
 	}
 
 	return "", fmt.Errorf("issue #%d not found in project %d", issueNumber, projectID)
 }
 
-// getProjectNodeID gets the GraphQL node ID for a project
+// getProjectNodeID gets the GraphQL node ID for a project with caching
 func getProjectNodeID(projectID int) (string, error) {
+	// Check cache first
+	projectNodeIDMutex.RLock()
+	if nodeID, exists := projectNodeIDCache[projectID]; exists {
+		projectNodeIDMutex.RUnlock()
+		log.Printf("Using cached project node ID for project %d", projectID)
+		return nodeID, nil
+	}
+	projectNodeIDMutex.RUnlock()
+
+	// Not in cache, fetch from API
+	log.Printf("Fetching project node ID for project %d from API", projectID)
 	command := fmt.Sprintf("gh project view --owner fleetdm --format json %d", projectID)
 	output, err := RunCommandAndReturnOutput(command)
 	if err != nil {
@@ -331,11 +362,17 @@ func getProjectNodeID(projectID int) (string, error) {
 		return "", fmt.Errorf("project ID not found in response for project %d", projectID)
 	}
 
+	// Cache the result
+	projectNodeIDMutex.Lock()
+	projectNodeIDCache[projectID] = response.ID
+	projectNodeIDMutex.Unlock()
+
+	log.Printf("Cached project node ID %s for project %d", response.ID, projectID)
 	return response.ID, nil
 }
 
-// getProjectItemIDWithPagination handles pagination when searching for project items
-func getProjectItemIDWithPagination(issueNumber int, projectNodeID, cursor string) (string, error) {
+// getProjectItemIDWithPagination handles pagination when searching for project items with caching
+func getProjectItemIDWithPagination(issueNumber int, projectNodeID, cursor, cacheKey string) (string, error) {
 	query := fmt.Sprintf(`{
 		node(id: "%s") {
 			... on ProjectV2 {
@@ -390,13 +427,19 @@ func getProjectItemIDWithPagination(issueNumber int, projectNodeID, cursor strin
 	// Search through this page of items
 	for _, item := range response.Data.Node.Items.Nodes {
 		if item.Content.Number == issueNumber {
+			// Cache the result
+			projectItemIDMutex.Lock()
+			projectItemIDCache[cacheKey] = item.ID
+			projectItemIDMutex.Unlock()
+
+			log.Printf("Cached project item ID %s for issue #%d (found via pagination)", item.ID, issueNumber)
 			return item.ID, nil
 		}
 	}
 
 	// If there are more pages, continue searching
 	if response.Data.Node.Items.PageInfo.HasNextPage {
-		return getProjectItemIDWithPagination(issueNumber, projectNodeID, response.Data.Node.Items.PageInfo.EndCursor)
+		return getProjectItemIDWithPagination(issueNumber, projectNodeID, response.Data.Node.Items.PageInfo.EndCursor, cacheKey)
 	}
 
 	return "", fmt.Errorf("issue #%d not found in project after searching all pages", issueNumber)
