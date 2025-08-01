@@ -34,6 +34,7 @@ func (ds *Datastore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) (
 func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
 	r := fleet.Vulnerabilities{}
 
+	// TODO(JVE): do we need to add the kernel check here? I think so
 	stmt := `
 			SELECT
 				osv.cve,
@@ -90,7 +91,6 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 			`
 	}
 
-	fmt.Println("running big select")
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, name, version, name); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
