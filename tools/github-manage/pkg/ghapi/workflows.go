@@ -123,6 +123,17 @@ func CreateBulkSetSprintAction(issues []Issue, projectID int) []Action {
 	return actions
 }
 
+func CreateBulkSprintKickoffActions(issues []Issue, sourceProjectID, projectID int) []Action {
+	actions := CreateBulkAddIssueToProjectAction(issues, projectID)
+	actions = append(actions, CreateBulkAddLableAction(issues, ":release")...)
+	actions = append(actions, CreateBulkSyncEstimateAction(issues, sourceProjectID, projectID)...)
+	actions = append(actions, CreateBulkSetSprintAction(issues, projectID)...)
+	actions = append(actions, CreateBulkRemoveLabelAction(issues, ":product")...)
+	actions = append(actions, CreateBulkRemoveIssueFromProjectAction(issues, Aliases["draft"])...)
+
+	return actions
+}
+
 // AsyncManager takes a list of actions and a channel to process them assynchronously.
 // This will allow to send status back on the channel for live updates. the channel must return index of the action
 // and the status of the action.

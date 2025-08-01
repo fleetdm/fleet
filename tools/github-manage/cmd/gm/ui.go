@@ -855,16 +855,17 @@ func (m *model) executeWorkflow() tea.Cmd {
 			projectID = resolvedID
 		}
 
-		m.tasks = []WorkflowTask{
-			{ID: 0, Description: fmt.Sprintf("Adding %d issues to project %d", len(selectedIssues), projectID), Status: TaskPending, Progress: 0.0},
-			{ID: 1, Description: "Adding ':release' label to issues", Status: TaskPending, Progress: 0.0},
-			{ID: 2, Description: "Syncing estimate fields", Status: TaskPending, Progress: 0.0},
-			{ID: 3, Description: "Setting current sprint", Status: TaskPending, Progress: 0.0},
-			{ID: 4, Description: "Removing ':product' label from issues", Status: TaskPending, Progress: 0.0},
-			{ID: 5, Description: "Removing issues from drafting project", Status: TaskPending, Progress: 0.0},
-		}
-		return func() tea.Msg {
-			return executeBulkSprintKickoff(selectedIssues, projectID)
+		actions = ghapi.CreateBulkSprintKickoffActions(selectedIssues, ghapi.Aliases["draft"], projectID)
+		for i, issue := range selectedIssues {
+			temptasks := []WorkflowTask{
+				{ID: (i * 6) + 0, Description: fmt.Sprintf("Adding #%d issue to project %d", issue.Number, projectID), Status: TaskPending, Progress: 0.0},
+				{ID: (i * 6) + 1, Description: fmt.Sprintf("Adding ':release' label to #%d issue", issue.Number), Status: TaskPending, Progress: 0.0},
+				{ID: (i * 6) + 2, Description: fmt.Sprintf("Syncing estimate fields for #%d issue", issue.Number), Status: TaskPending, Progress: 0.0},
+				{ID: (i * 6) + 3, Description: fmt.Sprintf("Setting current sprint for #%d issue", issue.Number), Status: TaskPending, Progress: 0.0},
+				{ID: (i * 6) + 4, Description: fmt.Sprintf("Removing ':product' label from #%d issue", issue.Number), Status: TaskPending, Progress: 0.0},
+				{ID: (i * 6) + 5, Description: fmt.Sprintf("Removing #%d issue from drafting project", issue.Number), Status: TaskPending, Progress: 0.0},
+			}
+			m.tasks = append(m.tasks, temptasks...)
 		}
 	case BulkMilestoneClose:
 		m.tasks = []WorkflowTask{
@@ -872,9 +873,6 @@ func (m *model) executeWorkflow() tea.Cmd {
 			{ID: 1, Description: "Adding ':product' label to issues", Status: TaskPending, Progress: 0.0},
 			{ID: 2, Description: "Setting status to 'confirm and celebrate'", Status: TaskPending, Progress: 0.0},
 			{ID: 3, Description: "Removing ':release' label from issues", Status: TaskPending, Progress: 0.0},
-		}
-		return func() tea.Msg {
-			return executeBulkMilestoneClose(selectedIssues)
 		}
 	}
 
