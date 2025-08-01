@@ -78,6 +78,9 @@ type SSOSettings struct {
 	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
 	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
 	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
+	// AlternateSSOURL is an optional URL to use for SSO callbacks when different from the server URL.
+	// This is useful when you have separate URLs for admin access vs agent/API access.
+	AlternateSSOURL string `json:"alternate_sso_url"`
 }
 
 // ConditionalAccessSettings holds the global settings for the "Conditional access" feature.

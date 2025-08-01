@@ -441,7 +441,12 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
-	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback"
+	// Use alternate SSO URL if configured, otherwise use the server URL
+	ssoURL := serverURL
+	if appConfig.SSOSettings != nil && appConfig.SSOSettings.AlternateSSOURL != "" {
+		ssoURL = appConfig.SSOSettings.AlternateSSOURL
+	}
+	acsURL := ssoURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback"
 
 	// If entityID is not explicitly set, default to host name.
 	//
@@ -650,7 +655,12 @@ func (svc *Service) InitSSOCallback(
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
-	acsURL, err := url.Parse(serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback")
+	// Use alternate SSO URL if configured, otherwise use the server URL
+	ssoURL := serverURL
+	if appConfig.SSOSettings != nil && appConfig.SSOSettings.AlternateSSOURL != "" {
+		ssoURL = appConfig.SSOSettings.AlternateSSOURL
+	}
+	acsURL, err := url.Parse(ssoURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback")
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
@@ -658,7 +668,14 @@ func (svc *Service) InitSSOCallback(
 	expectedAudiences := []string{
 		appConfig.SSOSettings.EntityID,
 		appConfig.ServerSettings.ServerURL,
-		appConfig.ServerSettings.ServerURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback", // ACS
+		appConfig.ServerSettings.ServerURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback", // ACS with server URL
+	}
+	// Add alternate SSO URL to expected audiences if configured
+	if appConfig.SSOSettings != nil && appConfig.SSOSettings.AlternateSSOURL != "" {
+		expectedAudiences = append(expectedAudiences,
+			appConfig.SSOSettings.AlternateSSOURL,
+			appConfig.SSOSettings.AlternateSSOURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS with alternate URL
+		)
 	}
 	samlProvider, requestID, redirectURL, err := sso.SAMLProviderFromSessionOrConfiguredMetadata(
 		ctx, sessionID, svc.ssoSessionStore, acsURL, appConfig.SSOSettings, expectedAudiences,
