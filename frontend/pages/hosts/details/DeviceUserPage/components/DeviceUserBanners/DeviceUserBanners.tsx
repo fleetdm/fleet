@@ -133,7 +133,7 @@ const DeviceUserBanners = ({
         <InfoBanner
           color="yellow"
           cta={
-            <Button variant="text-link" onClick={onClickCreatePIN}>
+            <Button variant="text-link-dark" onClick={onClickCreatePIN}>
               Create PIN
             </Button>
           }
