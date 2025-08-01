@@ -647,6 +647,7 @@ The `sso_settings` section lets you define [single sign-on (SSO)](https://fleetd
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
 - `enable_jit_provisioning` specifies whether or not to enable [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning) (default: `false`).
 - `enable_sso_idp_login` specifies whether or not to allow single sign-on login initiated by identity provider (default: `false`).
+- `sso_server_url` is used if the URL your Fleet users (admins, maintainers, observers) use to login to Fleet via SSO is different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance.
 
 Can only be configured for all teams (`org_settings`).
 
