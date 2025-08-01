@@ -664,6 +664,7 @@ org_settings:
     metadata: $SSO_METADATA
     enable_jit_provisioning: true # Available in Fleet Premium
     enable_sso_idp_login: true
+    sso_server_url: https://admin.example.com # Optional, SSO will only work from this URL
 ```
 
 ### integrations
