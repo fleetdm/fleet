@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/log"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -147,7 +148,17 @@ func TestDEPService_RunAssigner(t *testing.T) {
 				require.Equal(t, assignReq.ProfileUUID, "profile123")
 				require.ElementsMatch(t, []string{"a", "c"}, assignReq.Devices)
 
-				_, _ = w.Write([]byte(`{}`))
+				apiResp := godep.ProfileResponse{
+					ProfileUUID: "profile123",
+					Devices: map[string]string{
+						"a": string(fleet.DEPAssignProfileResponseSuccess),
+						"c": string(fleet.DEPAssignProfileResponseSuccess),
+					},
+				}
+				respBytes, err := json.Marshal(&apiResp)
+				require.NoError(t, err)
+
+				_, _ = w.Write(respBytes)
 			default:
 				t.Errorf("unexpected request to %s", r.URL.Path)
 			}
@@ -178,6 +189,14 @@ func TestDEPService_RunAssigner(t *testing.T) {
 			require.Nil(t, h.TeamID, h.HardwareSerial)
 		}
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id IN (?, ?) AND assign_profile_response = ?"
+			var result int
+			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, hosts[1].ID, fleet.DEPAssignProfileResponseSuccess))
+			require.Equal(t, 2, result, "expected two successful assignments for serials a and c")
+			return nil
+		})
 	})
 
 	t.Run("a custom profile, some devices", func(t *testing.T) {
@@ -231,7 +250,17 @@ func TestDEPService_RunAssigner(t *testing.T) {
 				require.Equal(t, assignReq.ProfileUUID, "profile456")
 				require.ElementsMatch(t, []string{"a", "c"}, assignReq.Devices)
 
-				_, _ = w.Write([]byte(`{}`))
+				apiResp := godep.ProfileResponse{
+					ProfileUUID: "profile456",
+					Devices: map[string]string{
+						"a": string(fleet.DEPAssignProfileResponseSuccess),
+						"c": string(fleet.DEPAssignProfileResponseSuccess),
+					},
+				}
+				respBytes, err := json.Marshal(&apiResp)
+				require.NoError(t, err)
+
+				_, _ = w.Write(respBytes)
 			default:
 				t.Errorf("unexpected request to %s", r.URL.Path)
 			}
@@ -293,5 +322,107 @@ func TestDEPService_RunAssigner(t *testing.T) {
 			require.Equal(t, tm.ID, *h.TeamID, h.HardwareSerial)
 		}
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id IN (?, ?) AND assign_profile_response = ?"
+			var result int
+			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, hosts[1].ID, fleet.DEPAssignProfileResponseSuccess))
+			require.Equal(t, 2, result, "expected two successful assignments for serials a and c")
+			return nil
+		})
+	})
+
+	t.Run("assign returns 5xx", func(t *testing.T) {
+		start := time.Now().Truncate(time.Second)
+
+		devices := []godep.Device{
+			{SerialNumber: "a", OpType: "added"},
+			{SerialNumber: "b", OpType: "ignore"},
+			{SerialNumber: "c", OpType: ""},
+		}
+
+		var assignCalled bool
+		svc := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/profile/devices" {
+				w.WriteHeader(http.StatusInternalServerError)
+			} else {
+				w.WriteHeader(http.StatusOK)
+			}
+			encoder := json.NewEncoder(w)
+			switch r.URL.Path {
+			case "/session":
+				_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+			case "/account":
+				_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, abmTokenOrgName)))
+			case "/profile":
+				err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"})
+				require.NoError(t, err)
+			case "/server/devices":
+				err := encoder.Encode(godep.DeviceResponse{Devices: devices})
+				require.NoError(t, err)
+			case "/devices/sync":
+				err := encoder.Encode(godep.DeviceResponse{Devices: devices})
+				require.NoError(t, err)
+			case "/profile/devices":
+				assignCalled = true
+
+				reqBody, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+
+				var assignReq godep.Profile
+				err = json.Unmarshal(reqBody, &assignReq)
+				require.NoError(t, err)
+				require.Equal(t, assignReq.ProfileUUID, "profile123")
+				require.ElementsMatch(t, []string{"a", "c"}, assignReq.Devices)
+				apiResp := godep.ProfileResponse{
+					ProfileUUID: "profile123",
+					Devices: map[string]string{
+						"a": string(fleet.DEPAssignProfileResponseSuccess),
+						"c": string(fleet.DEPAssignProfileResponseSuccess),
+					},
+				}
+				respBytes, err := json.Marshal(&apiResp)
+				require.NoError(t, err)
+
+				_, _ = w.Write(respBytes)
+			default:
+				t.Errorf("unexpected request to %s", r.URL.Path)
+			}
+		})
+		err := svc.RunAssigner(ctx)
+		require.NoError(t, err)
+		require.True(t, assignCalled)
+
+		// the default profile was created
+		defProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+		require.NoError(t, err)
+		require.NotNil(t, defProf)
+		require.NotEmpty(t, defProf.Token)
+
+		// a profile UUID was assigned to no-team
+		profUUID, modTime, err := ds.GetMDMAppleDefaultSetupAssistant(ctx, nil, abmTokenOrgName)
+		require.NoError(t, err)
+		require.Equal(t, "profile123", profUUID)
+		require.False(t, modTime.Before(start))
+
+		// a couple hosts were created (except the op_type ignored)
+		hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, hosts, 2)
+		serials := make([]string, len(hosts))
+		for i, h := range hosts {
+			serials[i] = h.HardwareSerial
+			require.Nil(t, h.TeamID, h.HardwareSerial)
+		}
+		require.ElementsMatch(t, []string{"a", "c"}, serials)
+
+		// tODO EJM
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id IN (?, ?) AND assign_profile_response = ?"
+			var result int
+			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, hosts[1].ID, fleet.DEPAssignProfileResponseFailed))
+			require.Equal(t, 2, result, "expected two failed assignments for serials a and c")
+			return nil
+		})
 	})
 }

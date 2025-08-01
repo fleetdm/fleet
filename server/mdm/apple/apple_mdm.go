@@ -844,6 +844,20 @@ func (d *DEPService) processDeviceResponse(
 					"err", err,
 				)
 			}
+			// Verify that all serials assigned get some sort of terminal status. Otherwise an error
+			// that returns no devices at all(i.e. a network error) could result in a serial being
+			// dropped on the floor. Failed may or may not be the right status here since it will
+			// cause cooldowns to be applied however it ensures we retry these assignments
+			implicitlyFailedAssignments := 0
+			if apiResp.Devices == nil {
+				apiResp.Devices = make(map[string]string)
+			}
+			for _, serial := range serials {
+				if _, ok := apiResp.Devices[serial]; !ok {
+					apiResp.Devices[serial] = string(fleet.DEPAssignProfileResponseFailed)
+					implicitlyFailedAssignments++
+				}
+			}
 
 			logs := []interface{}{
 				"msg", "profile assigned",
