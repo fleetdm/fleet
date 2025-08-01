@@ -264,7 +264,7 @@ describe("getSoftwareSubheader", () => {
       hostMdmEnrollmentStatus: "Off",
       isMyDevicePage: true,
     });
-    expect(result).toBe("Software installed on your device");
+    expect(result).toBe("Software installed on your device.");
   });
 
   test("iOS device, MDM status not special, NOT my device page", () => {
@@ -273,7 +273,7 @@ describe("getSoftwareSubheader", () => {
       hostMdmEnrollmentStatus: "Off",
       isMyDevicePage: false,
     });
-    expect(result).toBe("Software installed on this host");
+    expect(result).toBe("Software installed on this host.");
   });
 
   test("default (NOT iOS device) my device page", () => {
@@ -282,7 +282,7 @@ describe("getSoftwareSubheader", () => {
       hostMdmEnrollmentStatus: "Off",
       isMyDevicePage: true,
     });
-    expect(result).toBe("Software installed on your device");
+    expect(result).toBe("Software installed on your device.");
   });
 
   test("default (NOT iOS device) NOT my device page", () => {
@@ -291,6 +291,6 @@ describe("getSoftwareSubheader", () => {
       hostMdmEnrollmentStatus: "Off",
       isMyDevicePage: false,
     });
-    expect(result).toBe("Software installed on this host");
+    expect(result).toBe("Software installed on this host.");
   });
 });
