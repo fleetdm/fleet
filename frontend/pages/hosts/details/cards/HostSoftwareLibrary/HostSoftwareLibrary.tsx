@@ -534,7 +534,6 @@ const HostSoftwareLibrary = ({
     );
   };
 
-  console.log("selectedVPPInstallDetails", selectedVPPInstallDetails);
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__header`}>
