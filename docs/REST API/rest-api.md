@@ -1137,7 +1137,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_sso": false,
     "enable_sso_idp_login": false,
     "enable_jit_provisioning": false,
-    "sso_url": ""
+    "sso_server_url": "https://instance.fleet.com"
   },
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",
@@ -1427,7 +1427,7 @@ Modifies the Fleet's configuration with the supplied information.
 | metadata                          | string  |  Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided.                                                                   |
 | enable_sso_idp_login              | boolean | Determines whether Identity Provider (IdP) initiated login for Single sign-on (SSO) is enabled for the Fleet application.                                              |
 | enable_jit_provisioning           | boolean | _Available in Fleet Premium._ When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). |
-| sso_url                           | string  | An optional URL to use for SSO authentication. When set, SSO will only work from this URL. This is useful for organizations with separate URLs for admin access vs agent/API access. |
+| sso_server_url           | boolean | Update this URL if you want your Fleet users (admins, maintainers, observers) to login via SSO using a URL that's different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance. |
 
 <br/>
 
@@ -1445,7 +1445,7 @@ Modifies the Fleet's configuration with the supplied information.
     "idp_name": "",
     "enable_sso_idp_login": false,
     "enable_jit_provisioning": false,
-    "sso_url": ""
+    "sso_server_url": ""
   }
 }
 ```
