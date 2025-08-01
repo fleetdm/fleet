@@ -348,20 +348,30 @@ const InstallStatusCell = ({
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
   const onClickInstallStatus = () => {
-    if (lastInstall) {
-      if ("command_uuid" in lastInstall) {
+  // app store app –> vpp modal
+    if (software.app_store_app) {
         onShowVPPInstallDetails({
           ...software,
-          commandUuid: lastInstall.command_uuid,
+          // commandUuid: lastInstall.command_uuid,
         });
-      } else if ("install_uuid" in lastInstall) {
-        onShowInstallDetails(software);
-      }
-    } else {
-      // user-initiated install
-      onShowInstallDetails(software);
     }
-  };
+    // package -> install modal
+    //  neither -> install modal
+
+  //   if (lastInstall) {
+  //     if ("command_uuid" in lastInstall) {
+  //       onShowVPPInstallDetails({
+  //         ...software,
+  //         commandUuid: lastInstall.command_uuid,
+  //       });
+  //     } else if ("install_uuid" in lastInstall) {
+  //       onShowInstallDetails(software);
+  //     }
+  //   } else {
+  //     // user-initiated install
+  //     onShowInstallDetails(software);
+  //   }
+  // };
 
   const onClickUninstallStatus = () => {
     if (lastUninstall) {
