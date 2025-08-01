@@ -9,7 +9,7 @@ With Account-driven User Enrollment end users can separate work and personal dat
 - [Step 1: Connect Apple Business Manager (ABM) to Fleet](#step-1-connect-apple-business-manager-abm-to-fleet)
 - [Step 2: Add and verify your domain in Apple Business Manager (ABM)](#step-2-add-and-verify-your-domain-in-apple-business-manager-abm)
 - [Step 3: Federate your IdP accounts to Apple Business Manager (ABM)](#step-3-federate-your-idp-accounts-to-apple-business-manager-ab)
-- [Step 4: Host service discovery file (optional)](#step-4-host-service-discovery-file-optional)
+- [Step 4: Host a service discovery file](#step-4-host-service-discovery-file-optional)
 - [Step 5: Login to enroll to Fleet (end user experience)](#step-5-login-to-enroll-to-fleet-end-user-experience)
 
 
