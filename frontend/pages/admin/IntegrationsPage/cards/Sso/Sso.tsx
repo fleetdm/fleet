@@ -26,6 +26,7 @@ interface ISsoFormData {
   metadataUrl: string;
   enableSsoIdpLogin: boolean;
   enableJitProvisioning: boolean;
+  ssoUrl: string;
 }
 
 interface ISsoFormErrors {
@@ -34,6 +35,7 @@ interface ISsoFormErrors {
   metadata_url?: string | null;
   entity_id?: string | null;
   idp_name?: string | null;
+  sso_url?: string | null;
 }
 
 const validate = (formData: ISsoFormData) => {
@@ -46,11 +48,16 @@ const validate = (formData: ISsoFormData) => {
     metadataUrl,
     entityId,
     idpName,
+    ssoUrl,
   } = formData;
 
   if (enableSso) {
     if (idpImageUrl && !validUrl({ url: idpImageUrl })) {
       errors.idp_image_url = `${idpImageUrl} is not a valid URL`;
+    }
+
+    if (ssoUrl && !validUrl({ url: ssoUrl, protocols: ["http", "https"] })) {
+      errors.sso_url = `${ssoUrl} is not a valid URL`;
     }
 
     if (!metadata) {
@@ -100,6 +107,7 @@ const Sso = ({
     enableSsoIdpLogin: appConfig.sso_settings?.enable_sso_idp_login ?? false,
     enableJitProvisioning:
       appConfig.sso_settings?.enable_jit_provisioning ?? false,
+    ssoUrl: appConfig.sso_settings?.sso_url ?? "",
   });
 
   const {
@@ -111,6 +119,7 @@ const Sso = ({
     metadataUrl,
     enableSsoIdpLogin,
     enableJitProvisioning,
+    ssoUrl,
   } = formData;
 
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
@@ -159,6 +168,7 @@ const Sso = ({
         issuer_uri: appConfig.sso_settings?.issuer_uri ?? "",
         enable_jit_role_sync:
           appConfig.sso_settings?.enable_jit_role_sync ?? false,
+        sso_url: ssoUrl?.trim(),
       },
     };
 
@@ -243,6 +253,17 @@ const Sso = ({
               onBlur={onInputBlur}
               error={formErrors.metadata_url}
               tooltip="Metadata URL provided by the identity provider."
+            />
+            <InputField
+              label="SSO URL"
+              helpText="When provided, SSO will only work from this URL."
+              onChange={onInputChange}
+              name="ssoUrl"
+              value={ssoUrl}
+              parseTarget
+              onBlur={onInputBlur}
+              error={formErrors.sso_url}
+              tooltip="An optional URL for SSO authentication. Useful for organizations with multiple Fleet URLs."
             />
             <Checkbox
               onChange={onInputChange}
