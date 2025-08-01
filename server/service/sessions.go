@@ -441,10 +441,10 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
-	// Use alternate SSO URL if configured, otherwise use the server URL
+	// Use SSO URL if configured, otherwise use the server URL
 	ssoURL := serverURL
-	if appConfig.SSOSettings != nil && appConfig.SSOSettings.AlternateSSOURL != "" {
-		ssoURL = appConfig.SSOSettings.AlternateSSOURL
+	if appConfig.SSOSettings != nil && appConfig.SSOSettings.SSOURL != "" {
+		ssoURL = appConfig.SSOSettings.SSOURL
 	}
 	acsURL := ssoURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback"
 
@@ -655,10 +655,10 @@ func (svc *Service) InitSSOCallback(
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
-	// Use alternate SSO URL if configured, otherwise use the server URL
+	// Use SSO URL if configured, otherwise use the server URL
 	ssoURL := serverURL
-	if appConfig.SSOSettings != nil && appConfig.SSOSettings.AlternateSSOURL != "" {
-		ssoURL = appConfig.SSOSettings.AlternateSSOURL
+	if appConfig.SSOSettings != nil && appConfig.SSOSettings.SSOURL != "" {
+		ssoURL = appConfig.SSOSettings.SSOURL
 	}
 	acsURL, err := url.Parse(ssoURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback")
 	if err != nil {
@@ -670,11 +670,11 @@ func (svc *Service) InitSSOCallback(
 		appConfig.ServerSettings.ServerURL,
 		appConfig.ServerSettings.ServerURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback", // ACS with server URL
 	}
-	// Add alternate SSO URL to expected audiences if configured
-	if appConfig.SSOSettings != nil && appConfig.SSOSettings.AlternateSSOURL != "" {
+	// Add SSO URL to expected audiences if configured
+	if appConfig.SSOSettings != nil && appConfig.SSOSettings.SSOURL != "" {
 		expectedAudiences = append(expectedAudiences,
-			appConfig.SSOSettings.AlternateSSOURL,
-			appConfig.SSOSettings.AlternateSSOURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS with alternate URL
+			appConfig.SSOSettings.SSOURL,
+			appConfig.SSOSettings.SSOURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS with SSO URL
 		)
 	}
 	samlProvider, requestID, redirectURL, err := sso.SAMLProviderFromSessionOrConfiguredMetadata(

@@ -529,7 +529,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 	require.Contains(t, string(body), "/login?status=error")
 }
 
-func (s *integrationSSOTestSuite) TestAlternateSSOURL() {
+func (s *integrationSSOTestSuite) TestSSOURL() {
 	t := s.T()
 
 	// Use the test metadata instead of trying to fetch from localhost:9080
@@ -549,7 +549,7 @@ func (s *integrationSSOTestSuite) TestAlternateSSOURL() {
   </md:IDPSSODescriptor>
 </md:EntityDescriptor>`
 
-	// Configure SSO with an alternate URL and inline metadata
+	// Configure SSO with a specific SSO URL and inline metadata
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"sso_settings": {
@@ -558,21 +558,21 @@ func (s *integrationSSOTestSuite) TestAlternateSSOURL() {
 			"idp_name": "SimpleSAML",
 			"metadata": %q,
 			"enable_jit_provisioning": false,
-			"alternate_sso_url": "https://admin.localhost:8080"
+			"sso_url": "https://admin.localhost:8080"
 		}
 	}`, testMetadata)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
-	// Verify the alternate SSO URL is set
+	// Verify the SSO URL is set
 	require.NotNil(t, acResp.SSOSettings)
-	require.Equal(t, "https://admin.localhost:8080", acResp.SSOSettings.AlternateSSOURL)
+	require.Equal(t, "https://admin.localhost:8080", acResp.SSOSettings.SSOURL)
 
 	// Initiate SSO
 	var resIni initiateSSOResponse
 	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
 	require.NotEmpty(t, resIni.URL)
 
-	// Parse the auth request to verify it uses the alternate URL
+	// Parse the auth request to verify it uses the SSO URL
 	parsed, err := url.Parse(resIni.URL)
 	require.NoError(t, err)
 	q := parsed.Query()
@@ -580,7 +580,7 @@ func (s *integrationSSOTestSuite) TestAlternateSSOURL() {
 	assert.NotEmpty(t, encoded)
 	authReq := inflate(t, encoded)
 
-	// Check that the ACS URL in the auth request uses the alternate SSO URL
+	// Check that the ACS URL in the auth request uses the SSO URL
 	require.NotNil(t, authReq.AssertionConsumerServiceURL)
 	assert.Equal(t, "https://admin.localhost:8080/api/v1/fleet/sso/callback", authReq.AssertionConsumerServiceURL)
 }

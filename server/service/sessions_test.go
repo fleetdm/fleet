@@ -438,7 +438,7 @@ func TestGetSSOUser(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestInitiateSSOWithAlternateURL(t *testing.T) {
+func TestInitiateSSOWithSSOURL(t *testing.T) {
 	ds := new(mock.Store)
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
 
@@ -446,14 +446,14 @@ func TestInitiateSSOWithAlternateURL(t *testing.T) {
 		Pool: pool,
 	})
 
-	// Mock app config with alternate SSO URL
+	// Mock app config with SSO URL
 	appConfig := &fleet.AppConfig{
 		ServerSettings: fleet.ServerSettings{
 			ServerURL: "https://fleet.example.com",
 		},
 		SSOSettings: &fleet.SSOSettings{
-			EnableSSO:       true,
-			AlternateSSOURL: "https://admin.fleet.example.com",
+			EnableSSO: true,
+			SSOURL:    "https://admin.fleet.example.com",
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID: "fleet",
 				IDPName:  "TestIDP",
@@ -478,18 +478,18 @@ func TestInitiateSSOWithAlternateURL(t *testing.T) {
 		return appConfig, nil
 	}
 
-	// Test that ACS URL uses alternate SSO URL
+	// Test that ACS URL uses SSO URL
 	sessionID, _, idpURL, err := svc.InitiateSSO(ctx, "/dashboard")
 	require.NoError(t, err)
 	require.NotEmpty(t, sessionID)
 	require.NotEmpty(t, idpURL)
 
-	// The ACS URL should use the alternate SSO URL
+	// The ACS URL should use the SSO URL
 	// We can't directly test the ACS URL in the SAML request here since it's embedded in the XML,
 	// but the integration test verifies this works correctly
 }
 
-func TestInitiateSSOWithoutAlternateURL(t *testing.T) {
+func TestInitiateSSOWithoutSSOURL(t *testing.T) {
 	ds := new(mock.Store)
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
 
