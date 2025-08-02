@@ -619,6 +619,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if gitopsRepoURL == "" {
 			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
 		}
+		parsedURL, err := url.Parse(gitopsRepoURL)
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("UI Gitops Mode: ", "Repository URL is invalid")
+		}
+		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+			return nil, fleet.NewInvalidArgumentError("UI Gitops Mode: ", "Repository URL must begin with either http:// or https://")
+		}
 	}
 
 	if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
