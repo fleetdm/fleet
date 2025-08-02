@@ -5,6 +5,8 @@
 <!-- GIF Demo Space - Add your application demo GIF here -->
 ![GM Tool Demo](assets/gm-demo-labels.gif)
 
+![GM Kickoff / filter Demo](assets/gm-demo-kickoff-filter.gif)
+
 ---
 
 ## ✨ What is GM?
