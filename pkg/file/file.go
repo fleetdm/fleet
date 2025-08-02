@@ -246,6 +246,11 @@ func ExtractTarGz(path string, destDir string, maxFileSize int64) error {
 			}
 		case tar.TypeReg:
 			err := func() error {
+				// Make sure parent directory exists
+				if err := os.MkdirAll(filepath.Dir(targetPath), constant.DefaultDirMode); err != nil {
+					return fmt.Errorf("ensure parent dir exists %q: %w", header.Name, err)
+				}
+
 				outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, header.FileInfo().Mode())
 				if err != nil {
 					return fmt.Errorf("failed to create %q: %w", header.Name, err)
