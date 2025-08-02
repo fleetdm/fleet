@@ -319,6 +319,9 @@ func testListPendingScriptDEPRestoration(t *testing.T, ds *Datastore) {
 	require.Len(t, pending, 1)
 	require.Equal(t, createdScript.ID, pending[0].ID)
 
+	// Set LastEnrolledAt before deleting the host (simulating a DEP enrolled host)
+	host.LastEnrolledAt = time.Now()
+
 	err = ds.DeleteHost(ctx, host.ID)
 	require.NoError(t, err)
 

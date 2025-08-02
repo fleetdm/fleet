@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -798,7 +797,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestInvalidHost() {
 
 	liveQueryRequest := runLiveQueryRequest{
 		QueryIDs: []uint{q1.ID},
-		HostIDs:  []uint{math.MaxUint},
+		HostIDs:  []uint{999999999}, // Use large but valid integer instead of MaxUint
 	}
 	liveQueryResp := runLiveQueryResponse{}
 
@@ -810,7 +809,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestInvalidHost() {
 	assert.True(t, strings.Contains(*liveQueryResp.Results[0].Error, "no hosts targeted"))
 
 	oneLiveQueryRequest := runOneLiveQueryRequest{
-		HostIDs: []uint{math.MaxUint},
+		HostIDs: []uint{999999999}, // Use large but valid integer instead of MaxUint
 	}
 	oneLiveQueryResp := runOneLiveQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/queries/%d/run", q1.ID), oneLiveQueryRequest, http.StatusBadRequest, &oneLiveQueryResp)

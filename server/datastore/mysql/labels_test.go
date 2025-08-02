@@ -2080,8 +2080,8 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	var id uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		result, err := q.ExecContext(context.Background(),
-			"INSERT INTO labels (name, description, platform, label_type, label_membership_type) VALUES (?, ?, ?, ?, ?)",
-			"test host vitals label", "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals)
+			"INSERT INTO labels (name, description, platform, label_type, label_membership_type, query) VALUES (?, ?, ?, ?, ?, ?)",
+			"test host vitals label", "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals, "")
 		if err != nil {
 			return err
 		}

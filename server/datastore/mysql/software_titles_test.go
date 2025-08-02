@@ -1263,7 +1263,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	require.NotZero(t, macOSInstallerNoTeam)
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "Canva", BundleIdentifier: "com.example.canva",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_canva", Platform: fleet.IOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_canva", Platform: fleet.IOSPlatform}},
 	}, &team1.ID)
 	require.NoError(t, err)
 
@@ -1271,7 +1271,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	require.NotZero(t, macOSInstallerNoTeam)
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "Canva", BundleIdentifier: "com.example.canva",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_canva", Platform: fleet.MacOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_canva", Platform: fleet.MacOSPlatform}},
 	}, &team1.ID)
 	require.NoError(t, err)
 
@@ -1279,7 +1279,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	require.NotZero(t, macOSInstallerNoTeam)
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "Canva", BundleIdentifier: "com.example.canva",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_canva", Platform: fleet.IPadOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_canva", Platform: fleet.IPadOSPlatform}},
 	}, &team2.ID)
 	require.NoError(t, err)
 

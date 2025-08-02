@@ -101,6 +101,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				Identifier: "decl-1",
 				Name:       "decl-1",
 				TeamID:     &team.ID,
+				RawJSON:    json.RawMessage(`{"Type": "com.apple.configuration.test", "Identifier": "decl-1"}`),
 			})
 			require.NoError(t, err)
 

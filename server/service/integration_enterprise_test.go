@@ -7577,24 +7577,34 @@ VALUES
 		args := []interface{}{}
 		var scID uint
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-			res, err := tx.ExecContext(ctx, `
+			// First check if this script content already exists
+			row := tx.QueryRowxContext(ctx, `
+				SELECT id FROM script_contents WHERE md5_checksum = UNHEX(MD5(?))
+			`, script.ScriptContents)
+			err := row.Scan(&scID)
+
+			if errors.Is(err, sql.ErrNoRows) {
+				// Content doesn't exist, insert it
+				res, err := tx.ExecContext(ctx, `
 INSERT INTO
 	script_contents (md5_checksum, contents, created_at)
 VALUES
-	(?,?,?)`,
-				uuid.NewString(),
-				"echo test-script-details-timeout",
-				now.Add(-1*time.Hour),
-			)
-			if err != nil {
+	(UNHEX(MD5(?)),?,?)`,
+					script.ScriptContents,
+					script.ScriptContents,
+					createdAt,
+				)
+				if err != nil {
+					return err
+				}
+				id, err := res.LastInsertId()
+				if err != nil {
+					return err
+				}
+				scID = uint(id) //nolint:gosec // dismiss G115
+			} else if err != nil {
 				return err
 			}
-			id, err := res.LastInsertId()
-			if err != nil {
-				return err
-			}
-
-			scID = uint(id) //nolint:gosec // dismiss G115
 			return nil
 		})
 		if script.ID == 0 {
@@ -7819,9 +7829,8 @@ VALUES
 INSERT INTO
 	script_contents (md5_checksum, contents, created_at)
 VALUES
-	(?,?,?)`,
-
-				uuid.NewString(),
+	(UNHEX(MD5(?)),?,?)`,
+				"echo test-script-details-timeout",
 				"echo test-script-details-timeout",
 				now.Add(-1*time.Hour),
 			)
@@ -12495,13 +12504,23 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 			titleID, _ := res.LastInsertId()
 			softwareTitles[kind] = uint(titleID) //nolint:gosec // dismiss G115
 
+			platform := ""
+			switch kind {
+			case "deb":
+				platform = "linux"
+			case "msi", "exe":
+				platform = "windows"
+			case "pkg":
+				platform = "darwin"
+			}
+
 			_, err = q.ExecContext(ctx, `
 			INSERT INTO software_installers
-				(title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query)
+				(title_id, filename, extension, version, platform, install_script_content_id, uninstall_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query, package_ids)
 			VALUES
-				(?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?)`,
-				titleID, fmt.Sprintf("installer.%s", kind), kind, "v1.0.0", scriptContentID, uninstallScriptContentID,
-				hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo")
+				(?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?, ?)`,
+				titleID, fmt.Sprintf("installer.%s", kind), kind, "v1.0.0", platform, scriptContentID, uninstallScriptContentID,
+				hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo", "")
 			return err
 		})
 	}
@@ -14930,7 +14949,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 		BundleIdentifier: "bid_" + t.Name(),
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
-				AdamID:   "adam_" + t.Name(),
+				AdamID:   "adam_test_vpp1", // max 16 chars
 				Platform: fleet.MacOSPlatform,
 			},
 		},
@@ -15137,7 +15156,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		BundleIdentifier: "bid_" + t.Name(),
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
-				AdamID:   "adam_" + t.Name(),
+				AdamID:   "adam_test_vpp2", // max 16 chars
 				Platform: fleet.MacOSPlatform,
 			},
 		},

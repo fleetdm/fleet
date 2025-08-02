@@ -231,8 +231,9 @@ INSERT INTO host_mdm_apple_declarations (
 	status,
 	operation_type,
 	token,
-	declaration_uuid
-) VALUES (?,?,?,UNHEX(?),?)`
+	declaration_uuid,
+	declaration_identifier
+) VALUES (?,?,?,UNHEX(?),?,?)`
 
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), stmt,
@@ -241,6 +242,7 @@ INSERT INTO host_mdm_apple_declarations (
 				fleet.MDMOperationTypeInstall,
 				calcChecksum(decl.RawJSON),
 				decl.DeclarationUUID,
+				decl.Identifier,
 			)
 			return err
 		})
