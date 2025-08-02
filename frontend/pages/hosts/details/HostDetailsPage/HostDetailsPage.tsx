@@ -998,6 +998,7 @@ const HostDetailsPage = ({
                   onSetSelectedHostSWForInventoryVersions
                 }
                 hostTeamId={host.team_id || 0}
+                hostMdmEnrollmentStatus={host.mdm.enrollment_status}
               />
               {isDarwinHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard

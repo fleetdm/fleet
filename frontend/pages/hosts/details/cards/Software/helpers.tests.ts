@@ -2,7 +2,7 @@ import {
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { compareVersions, getUiStatus } from "./helpers";
+import { compareVersions, getUiStatus, getSoftwareSubheader } from "./helpers";
 
 describe("compareVersions", () => {
   it("correctly compares patch increments", () => {
@@ -210,5 +210,87 @@ describe("getUiStatus", () => {
       installed_versions: [],
     });
     expect(getUiStatus(sw, true)).toBe("uninstalled");
+  });
+});
+
+describe("getSoftwareSubheader", () => {
+  test("iOS device, MDM status 'On (personal)', my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (personal)",
+      isMyDevicePage: true,
+    });
+    expect(result).toBe(
+      "Software installed on your work profile (Managed Apple Account)."
+    );
+  });
+
+  test("iOS device, MDM status 'On (personal)', NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (personal)",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe(
+      "Software installed on work profile (Managed Apple Account)."
+    );
+  });
+
+  test("iOS device, MDM status 'On (manual)', my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (manual)",
+      isMyDevicePage: true,
+    });
+    expect(result).toBe(
+      "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
+    );
+  });
+
+  test("iOS device, MDM status 'On (manual)', NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (manual)",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe(
+      "Software installed on this host. Built-in apps (e.g. Calculator) aren't included."
+    );
+  });
+
+  test("iOS device, MDM status not special, my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "Off",
+      isMyDevicePage: true,
+    });
+    expect(result).toBe("Software installed on your device.");
+  });
+
+  test("iOS device, MDM status not special, NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "Off",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe("Software installed on this host.");
+  });
+
+  test("default (NOT iOS device) my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "windows",
+      hostMdmEnrollmentStatus: "Off",
+      isMyDevicePage: true,
+    });
+    expect(result).toBe("Software installed on your device.");
+  });
+
+  test("default (NOT iOS device) NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "windows",
+      hostMdmEnrollmentStatus: "Off",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe("Software installed on this host.");
   });
 });
