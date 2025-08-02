@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"path"
 	"slices"
 	"strings"
 	"time"
@@ -446,7 +447,13 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	if appConfig.SSOSettings != nil && appConfig.SSOSettings.SSOServerURL != "" {
 		ssoURL = appConfig.SSOSettings.SSOServerURL
 	}
-	acsURL := ssoURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback"
+	// Parse the URL and use path.Join to avoid double slashes
+	parsedURL, err := url.Parse(ssoURL)
+	if err != nil {
+		return "", 0, "", ctxerr.Wrap(ctx, badRequest("invalid SSO URL: "+err.Error()))
+	}
+	parsedURL.Path = path.Join(parsedURL.Path, svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback")
+	acsURL := parsedURL.String()
 
 	// If entityID is not explicitly set, default to host name.
 	//
@@ -660,7 +667,13 @@ func (svc *Service) InitSSOCallback(
 	if appConfig.SSOSettings != nil && appConfig.SSOSettings.SSOServerURL != "" {
 		ssoURL = appConfig.SSOSettings.SSOServerURL
 	}
-	acsURL, err := url.Parse(ssoURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback")
+	// Parse the URL and use path.Join to avoid double slashes
+	parsedURL, err := url.Parse(ssoURL)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, badRequest("invalid SSO URL: "+err.Error()))
+	}
+	parsedURL.Path = path.Join(parsedURL.Path, svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback")
+	acsURL, err := url.Parse(parsedURL.String())
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}

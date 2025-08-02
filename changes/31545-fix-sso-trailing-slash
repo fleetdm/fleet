@@ -1,0 +1,1 @@
+- Fixed an issue where SSO URLs with trailing slashes would cause authentication failures due to double slashes in the ACS URL. Both regular SSO and MDM SSO URLs now properly handle trailing slashes.
