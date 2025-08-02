@@ -7,7 +7,8 @@ import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
+import { IAppConfigFormProps } from "../constants";
 
 const baseClass = "app-config-form";
 
@@ -27,7 +28,7 @@ const Statistics = ({
 
   const { enableUsageStatistics } = formData;
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IParseTargetFormField) => {
     setFormData({ ...formData, [name]: value });
   };
 

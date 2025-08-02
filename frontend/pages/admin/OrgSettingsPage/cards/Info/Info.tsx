@@ -13,7 +13,8 @@ import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
+import { IAppConfigFormProps } from "../constants";
 
 interface IOrgInfoFormData {
   orgLogoURL: string;
@@ -62,7 +63,7 @@ const Info = ({
 
   const [formErrors, setFormErrors] = useState<IOrgInfoFormErrors>({});
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IParseTargetFormField) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };
