@@ -89,6 +89,9 @@ type model struct {
 	spinner       spinner.Model
 	totalCount    int
 	selectedCount int
+	// Scrolling support
+	viewOffset int // Offset for scrolling view
+	viewHeight int // Number of visible lines for issues
 	// Command-specific parameters
 	commandType CommandType
 	projectID   int
@@ -144,6 +147,8 @@ func initializeModel() model {
 		spinner:            s,
 		totalCount:         0,
 		selectedCount:      0,
+		viewOffset:         0,
+		viewHeight:         15, // Default height, will be adjusted based on screen size
 		commandType:        IssuesCommand,
 		workflowState:      Loading,
 		workflowCursor:     0,
@@ -276,11 +281,37 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "j", "down":
 				if m.cursor < len(m.choices)-1 {
 					m.cursor++
+					m.adjustViewForCursor()
 				}
 			case "k", "up":
 				if m.cursor > 0 {
 					m.cursor--
+					m.adjustViewForCursor()
 				}
+			case "pgdown", "ctrl+f":
+				// Page down - move cursor by view height
+				newCursor := m.cursor + m.viewHeight
+				if newCursor >= len(m.choices) {
+					newCursor = len(m.choices) - 1
+				}
+				m.cursor = newCursor
+				m.adjustViewForCursor()
+			case "pgup", "ctrl+b":
+				// Page up - move cursor by view height
+				newCursor := m.cursor - m.viewHeight
+				if newCursor < 0 {
+					newCursor = 0
+				}
+				m.cursor = newCursor
+				m.adjustViewForCursor()
+			case "home", "ctrl+a":
+				// Go to first issue
+				m.cursor = 0
+				m.adjustViewForCursor()
+			case "end", "ctrl+e":
+				// Go to last issue
+				m.cursor = len(m.choices) - 1
+				m.adjustViewForCursor()
 			case "enter", "x", " ":
 				if _, exists := m.selected[m.cursor]; exists {
 					delete(m.selected, m.cursor)
@@ -365,6 +396,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.choices = []ghapi.Issue(msg)
 		m.totalCount = len(m.choices)
 		m.workflowState = NormalMode
+		m.adjustViewForCursor() // Ensure view is properly initialized
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -605,6 +637,43 @@ func truncType(typename string) string {
 	return strings.TrimSpace(typename[:10])
 }
 
+func (m *model) adjustViewForCursor() {
+	// Ensure cursor is within bounds
+	if len(m.choices) == 0 {
+		m.cursor = 0
+		m.viewOffset = 0
+		return
+	}
+
+	if m.cursor < 0 {
+		m.cursor = 0
+	}
+	if m.cursor >= len(m.choices) {
+		m.cursor = len(m.choices) - 1
+	}
+
+	// Adjust view offset to keep cursor visible
+	if m.cursor < m.viewOffset {
+		// Cursor is above visible area, scroll up
+		m.viewOffset = m.cursor
+	} else if m.cursor >= m.viewOffset+m.viewHeight {
+		// Cursor is below visible area, scroll down
+		m.viewOffset = m.cursor - m.viewHeight + 1
+	}
+
+	// Ensure view offset doesn't go negative or beyond available items
+	if m.viewOffset < 0 {
+		m.viewOffset = 0
+	}
+	maxOffset := len(m.choices) - m.viewHeight
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+	if m.viewOffset > maxOffset {
+		m.viewOffset = maxOffset
+	}
+}
+
 func (m model) View() string {
 	s := ""
 	switch m.workflowState {
@@ -726,8 +795,27 @@ func (m model) View() string {
 		return s
 
 	case NormalMode:
-		s = fmt.Sprintf("GitHub Issues:\n\n %-2d/%-2d Number Estimate  Type       Labels                              Title\n", m.selectedCount, m.totalCount)
-		for i, issue := range m.choices {
+		currentPos := m.cursor + 1
+		totalItems := len(m.choices)
+		s = fmt.Sprintf("GitHub Issues (%d/%d):\n\n %-2d/%-2d Number Estimate  Type       Labels                              Title\n",
+			currentPos, totalItems, m.selectedCount, m.totalCount)
+
+		// Show indicator if there are issues above the visible area
+		if m.viewOffset > 0 {
+			s += fmt.Sprintf("  %s %-6s %s %s %s %s\n",
+				" ", "...", "         ", "          ", strings.Repeat(" ", 35), "More issues above")
+		}
+
+		// Calculate which issues to display
+		startIdx := m.viewOffset
+		endIdx := m.viewOffset + m.viewHeight
+		if endIdx > len(m.choices) {
+			endIdx = len(m.choices)
+		}
+
+		// Display visible issues
+		for i := startIdx; i < endIdx; i++ {
+			issue := m.choices[i]
 			cursor := " "
 			if i == m.cursor {
 				cursor = ">"
@@ -742,7 +830,15 @@ func (m model) View() string {
 				cursor, selected, fmt.Sprintf("%-6d", issue.Number), truncEstimate(issue.Estimate),
 				truncType(issue.Typename), truncLables(issue.Labels), truncTitle(issue.Title))
 		}
-		s += "\nPress 'j' or 'down' to move down, 'k' or 'up' to move up, 'enter' to select/deselect, 'w' to run workflow, and 'q' to quit.\n"
+
+		// Show indicator if there are issues below the visible area
+		if m.viewOffset+m.viewHeight < len(m.choices) {
+			s += fmt.Sprintf("  %s %-6s %s %s %s %s\n",
+				" ", "...", "         ", "          ", strings.Repeat(" ", 35), "More issues below")
+		}
+
+		s += "\nNavigation: ↑/↓ or j/k (line), PgUp/PgDn (page), Home/End (top/bottom)\n"
+		s += "Actions: enter/space (select), 'w' (workflow), 'q' (quit)\n"
 	case WorkflowSelection:
 		s = "\n--- Workflow Selection ---\n"
 		workflows := []string{
