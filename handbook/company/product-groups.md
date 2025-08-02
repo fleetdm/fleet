@@ -564,6 +564,8 @@ See [Writing](https://fleetdm.com/handbook/company/communications#writing) for w
 - **Engineering alerts**
 The on-call developer is responsible for triaging new alerts in the #help-engineering Slack channel, such as failing unit tests. If the on-call developer has the ability to make the fix, they should do so. Otherwise, they should request help from the appropriate team. Filing a bug is also an option if the issue is not urgent.
 
+The on-call developer will review the latest [sentry](https://fleet-cm.sentry.io/issues/) errors from our dogfood instance and triage any new cases since last week.
+
 ### Escalations
 
 When the on-call developer is unsure of the answer, they should follow this process for escalation.
