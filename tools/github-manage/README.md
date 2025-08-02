@@ -3,7 +3,7 @@
 > **Supercharge your GitHub workflow with bulk operations and beautiful terminal UI**
 
 <!-- GIF Demo Space - Add your application demo GIF here -->
-*Demo coming soon...*
+![GM Tool Demo](assets/gm-demo-labels.gif)
 
 ---
 
