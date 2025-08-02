@@ -1841,19 +1841,19 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	hostNoScriptsUpcoming, err := ds.listUpcomingHostScriptExecutions(ctx, hostNoScripts.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, hostNoScriptsUpcoming, 0)
-	// Host Windows should have an error in its `batch_script_execution_host_results` row
+	// Host Windows should have an error in its `batch_activity_host_results` row
 	var exec_error string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		db := q.(*sqlx.DB)
-		err := db.Get(&exec_error, "SELECT error FROM batch_script_execution_host_results WHERE host_id = ? AND batch_execution_id = ?", hostWindows.ID, execID)
+		err := db.Get(&exec_error, "SELECT error FROM batch_activity_host_results WHERE host_id = ? AND batch_execution_id = ?", hostWindows.ID, execID)
 		require.NoError(t, err)
 		return nil
 	})
 	require.Equal(t, fleet.BatchExecuteIncompatiblePlatform, exec_error)
-	// Host No Scripts should have an error in its `batch_script_execution_host_results` row
+	// Host No Scripts should have an error in its `batch_activity_host_results` row
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		db := q.(*sqlx.DB)
-		err := db.Get(&exec_error, "SELECT error FROM batch_script_execution_host_results WHERE host_id = ? AND batch_execution_id = ?", hostNoScripts.ID, execID)
+		err := db.Get(&exec_error, "SELECT error FROM batch_activity_host_results WHERE host_id = ? AND batch_execution_id = ?", hostNoScripts.ID, execID)
 		require.NoError(t, err)
 		return nil
 	})

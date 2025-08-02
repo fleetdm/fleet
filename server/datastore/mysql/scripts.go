@@ -1865,7 +1865,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		batchExecID = uuid.New().String()
 		_, err := tx.ExecContext(
 			ctx,
-			"INSERT INTO batch_script_executions (execution_id, script_id) VALUES (?, ?)",
+			"INSERT INTO batch_activities (execution_id, script_id) VALUES (?, ?)",
 			batchExecID,
 			script.ID,
 		)
@@ -1884,7 +1884,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		}
 
 		insertStmt := `
-INSERT INTO batch_script_execution_host_results (
+INSERT INTO batch_activity_host_results (
 	batch_execution_id,
 	host_id,
 	host_execution_id,
@@ -1917,7 +1917,7 @@ SELECT
 	COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) as num_failed,
 	COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END) as num_cancelled
 FROM
-	batch_script_execution_host_results bsehr
+	batch_activity_host_results bsehr
 LEFT JOIN
 	host_script_results hsr
 		ON bsehr.host_execution_id = hsr.execution_id
@@ -1931,7 +1931,7 @@ SELECT
 	s.team_id as team_id,
 	bse.created_at as created_at
 FROM
-	batch_script_executions bse
+	batch_activities bse
 JOIN
 	scripts s
 	ON bse.script_id = s.id

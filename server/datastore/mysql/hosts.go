@@ -544,7 +544,7 @@ var hostRefs = []string{
 	"host_certificates",
 	"android_devices",
 	"host_scim_user",
-	"batch_script_execution_host_results",
+	"batch_activity_host_results",
 	"host_mdm_commands",
 	"microsoft_compliance_partner_host_statuses",
 	"host_identity_scep_certificates",
@@ -1187,13 +1187,13 @@ func (ds *Datastore) applyHostFilters(
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
 	}
 
-	// Join on the batch_script_execution_host_results and host_script_results tables if the
+	// Join on the batch_activity_host_results and host_script_results tables if the
 	// BatchScriptExecutionIDFilter is set. This allows us to filter hosts based on the status of
 	// batch script executions.
 	batchScriptExecutionJoin := ""
 	batchScriptExecutionIDFilter := "TRUE"
 	if opt.BatchScriptExecutionIDFilter != nil {
-		batchScriptExecutionJoin = `LEFT JOIN batch_script_execution_host_results bsehr ON h.id = bsehr.host_id`
+		batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id`
 		batchScriptExecutionIDFilter = `bsehr.batch_execution_id = ?`
 		whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
 		if opt.BatchScriptExecutionStatusFilter.IsValid() {
