@@ -5,6 +5,7 @@
   "description": "a Sails application",
   "keywords": [],
   "dependencies": {
+    "@google-cloud/bigquery": "^8.1.1",
     "@sailshq/connect-redis": "^6.1.3",
     "@sailshq/lodash": "^3.10.7",
     "@sailshq/socket.io-redis": "^6.1.2",
