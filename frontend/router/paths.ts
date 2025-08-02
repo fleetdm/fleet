@@ -19,6 +19,8 @@ export default {
   CONTROLS_INSTALL_SOFTWARE: `${URL_PREFIX}/controls/setup-experience/install-software`,
   CONTROLS_RUN_SCRIPT: `${URL_PREFIX}/controls/setup-experience/run-script`,
   CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
+  CONTROLS_SCRIPTS_LIBRARY: `${URL_PREFIX}/controls/scripts/library`,
+  CONTROLS_SCRIPTS_PROGRESS: `${URL_PREFIX}/controls/scripts/progress`,
 
   // Dashboard pages
   DASHBOARD: `${URL_PREFIX}/dashboard`,
