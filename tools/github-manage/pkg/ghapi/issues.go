@@ -21,7 +21,7 @@ func ParseJSONtoIssues(jsonData []byte) ([]Issue, error) {
 func GetIssues(search string) ([]Issue, error) {
 	var issues []Issue
 
-	command := "gh issue list --json number,title,author,createdAt,updatedAt,state,labels"
+	command := "gh issue list --json number,title,author,createdAt,updatedAt,state,labels,body"
 	if search != "" {
 		command = fmt.Sprintf("%s -S '%s'", command, search)
 	}

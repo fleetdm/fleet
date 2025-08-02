@@ -9,7 +9,9 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -26,6 +28,7 @@ type WorkflowState int
 const (
 	Loading WorkflowState = iota
 	NormalMode
+	IssueDetail
 	WorkflowSelection
 	LabelInput
 	ProjectInput
@@ -92,6 +95,10 @@ type model struct {
 	// Scrolling support
 	viewOffset int // Offset for scrolling view
 	viewHeight int // Number of visible lines for issues
+	// Issue detail view
+	detailViewport  viewport.Model
+	glamourRenderer *glamour.TermRenderer
+	issueContent    string
 	// Command-specific parameters
 	commandType CommandType
 	projectID   int
@@ -140,6 +147,19 @@ func initializeModel() model {
 	p := progress.New(progress.WithDefaultGradient())
 	p.Width = 40
 
+	// Initialize glamour renderer
+	renderer, _ := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(80),
+	)
+
+	// Initialize viewport for issue details
+	vp := viewport.New(80, 20)
+	vp.Style = lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("62")).
+		Padding(1)
+
 	return model{
 		choices:            nil,
 		cursor:             0,
@@ -149,6 +169,9 @@ func initializeModel() model {
 		selectedCount:      0,
 		viewOffset:         0,
 		viewHeight:         15, // Default height, will be adjusted based on screen size
+		detailViewport:     vp,
+		glamourRenderer:    renderer,
+		issueContent:       "",
 		commandType:        IssuesCommand,
 		workflowState:      Loading,
 		workflowCursor:     0,
@@ -183,6 +206,73 @@ func initializeModelForEstimated(projectID, limit int) model {
 	m.projectID = projectID
 	m.limit = limit
 	return m
+}
+
+func (m *model) generateIssueContent(issue ghapi.Issue) string {
+	var content strings.Builder
+
+	// Title
+	content.WriteString(fmt.Sprintf("# %s\n\n", issue.Title))
+
+	// Metadata section
+	content.WriteString("## Issue Details\n\n")
+	content.WriteString(fmt.Sprintf("**Number:** #%d\n\n", issue.Number))
+	content.WriteString(fmt.Sprintf("**Type:** %s\n\n", issue.Typename))
+
+	// Estimate
+	if issue.Estimate > 0 {
+		content.WriteString(fmt.Sprintf("**Estimate:** %d\n\n", issue.Estimate))
+	} else {
+		content.WriteString("**Estimate:** Not set\n\n")
+	}
+
+	// Labels
+	if len(issue.Labels) > 0 {
+		content.WriteString("**Labels:** ")
+		var labelNames []string
+		for _, label := range issue.Labels {
+			labelNames = append(labelNames, label.Name)
+		}
+		content.WriteString(strings.Join(labelNames, ", "))
+		content.WriteString("\n\n")
+	} else {
+		content.WriteString("**Labels:** None\n\n")
+	}
+
+	// State and metadata
+	content.WriteString(fmt.Sprintf("**State:** %s\n\n", issue.State))
+	content.WriteString(fmt.Sprintf("**Created:** %s\n\n", issue.CreatedAt))
+	content.WriteString(fmt.Sprintf("**Updated:** %s\n\n", issue.UpdatedAt))
+
+	// Author
+	content.WriteString(fmt.Sprintf("**Author:** %s\n\n", issue.Author.Login))
+
+	// Assignees
+	if len(issue.Assignees) > 0 {
+		content.WriteString("**Assignees:** ")
+		var assigneeNames []string
+		for _, assignee := range issue.Assignees {
+			assigneeNames = append(assigneeNames, assignee.Login)
+		}
+		content.WriteString(strings.Join(assigneeNames, ", "))
+		content.WriteString("\n\n")
+	}
+
+	// Milestone
+	if issue.Milestone != nil {
+		content.WriteString(fmt.Sprintf("**Milestone:** %s\n\n", issue.Milestone.Title))
+	}
+
+	// Description
+	content.WriteString("## Description\n\n")
+	if issue.Body != "" {
+		content.WriteString(issue.Body)
+	} else {
+		content.WriteString("*No description provided.*")
+	}
+	content.WriteString("\n\n")
+
+	return content.String()
 }
 
 func fetchIssues(search string) tea.Cmd {
@@ -278,6 +368,27 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.workflowCursor = 0
 					m.errorMessage = ""
 				}
+			case "o":
+				if len(m.choices) > 0 && m.cursor < len(m.choices) {
+					// Generate and render issue content
+					issue := m.choices[m.cursor]
+					content := m.generateIssueContent(issue)
+
+					if m.glamourRenderer != nil {
+						rendered, err := m.glamourRenderer.Render(content)
+						if err != nil {
+							// Fallback to plain content if rendering fails
+							m.issueContent = content
+						} else {
+							m.issueContent = rendered
+						}
+					} else {
+						m.issueContent = content
+					}
+
+					m.detailViewport.SetContent(m.issueContent)
+					m.workflowState = IssueDetail
+				}
 			case "j", "down":
 				if m.cursor < len(m.choices)-1 {
 					m.cursor++
@@ -321,6 +432,25 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selectedCount = len(m.selected)
 			case "q", "ctrl+c":
 				return m, tea.Quit
+			}
+		case IssueDetail:
+			switch msg.String() {
+			case "q", "ctrl+c":
+				return m, tea.Quit
+			case "esc":
+				m.workflowState = NormalMode
+			case "j", "down":
+				m.detailViewport.LineDown(1)
+			case "k", "up":
+				m.detailViewport.LineUp(1)
+			case "pgdown", "ctrl+f":
+				m.detailViewport.HalfViewDown()
+			case "pgup", "ctrl+b":
+				m.detailViewport.HalfViewUp()
+			case "home", "ctrl+a":
+				m.detailViewport.GotoTop()
+			case "end", "ctrl+e":
+				m.detailViewport.GotoBottom()
 			}
 		case WorkflowSelection:
 			switch msg.String() {
@@ -406,6 +536,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		progressModel, cmd := m.overallProgress.Update(msg)
 		m.overallProgress = progressModel.(progress.Model)
 		cmds = append(cmds, cmd)
+	case tea.WindowSizeMsg:
+		// Update viewport size when window is resized
+		m.detailViewport.Width = msg.Width - 4
+		m.detailViewport.Height = msg.Height - 6
 	case processTaskMsg:
 		// This case is no longer used since we've moved to AsyncManager
 		// Ignore these messages
@@ -838,7 +972,17 @@ func (m model) View() string {
 		}
 
 		s += "\nNavigation: ↑/↓ or j/k (line), PgUp/PgDn (page), Home/End (top/bottom)\n"
-		s += "Actions: enter/space (select), 'w' (workflow), 'q' (quit)\n"
+		s += "Actions: enter/space/x (select), 'o' (view details), 'w' (workflow), 'q' (quit)\n"
+	case IssueDetail:
+		if len(m.choices) > 0 && m.cursor < len(m.choices) {
+			issue := m.choices[m.cursor]
+			s += fmt.Sprintf("Issue #%d Details\n\n", issue.Number)
+			s += m.detailViewport.View()
+			s += "\n\nNavigation: ↑/↓ or j/k (line), PgUp/PgDn (page), Home/End (top/bottom)\n"
+			s += "Actions: 'esc' (back to list), 'q' (quit)\n"
+		} else {
+			s = "No issue selected\n"
+		}
 	case WorkflowSelection:
 		s = "\n--- Workflow Selection ---\n"
 		workflows := []string{
