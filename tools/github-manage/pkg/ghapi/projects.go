@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"fleetdm/gm/pkg/logger"
 )
 
 var Aliases = map[string]int{
@@ -226,8 +228,8 @@ func SetProjectItemFieldValue(itemID string, projectID int, fieldName, value str
 				if err != nil {
 					return fmt.Errorf("failed to set current iteration: %v", err)
 				}
-				fmt.Println("command input: ", command)
-				fmt.Println("command output: ", string(out))
+				logger.Debugf("GraphQL command input: %s", command)
+				logger.Debugf("GraphQL command output: %s", string(out))
 				return nil
 			}
 
@@ -595,7 +597,7 @@ func getCurrentIterationID(projectNodeID, fieldID string) (string, error) {
 	}
 
 	// Debug: Let's see what the actual response looks like
-	fmt.Printf("Iterations query response: %s\n", string(output))
+	logger.Debugf("Iterations query response: %s", string(output))
 
 	// Parse the GraphQL response
 	var response struct {
@@ -654,7 +656,7 @@ func getCurrentIterationID(projectNodeID, fieldID string) (string, error) {
 	iterations := targetField.Configuration.Iterations
 	if len(iterations) > 0 {
 		// Return the first iteration (current active one)
-		fmt.Printf("Selected current iteration: %s (ID: %s)\n", iterations[0].Title, iterations[0].ID)
+		logger.Infof("Selected current iteration: %s (ID: %s)", iterations[0].Title, iterations[0].ID)
 		return iterations[0].ID, nil
 	}
 

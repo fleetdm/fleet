@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	"fleetdm/gm/pkg/ghapi"
+	"fleetdm/gm/pkg/logger"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // promptToContinue asks the user if they want to continue or quit
@@ -26,13 +28,30 @@ func promptToContinue() bool {
 }
 
 func main() {
+	// Initialize logger
+	if err := logger.Init(); err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+
 	rootCmd := &cobra.Command{
 		Use:   "gm",
 		Short: "GitHub Manage CLI",
 		Long:  "A CLI tool to manage GitHub repositories and workflows.",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			// Debug log the command and its arguments/flags before execution
+			logger.Debugf("Executing command: %s", cmd.CommandPath())
+			logger.Debugf("Command args: %v", args)
+
+			// Log all flags that were set for this command
+			cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+				if flag.Changed {
+					logger.Debugf("Flag --%s: %s", flag.Name, flag.Value.String())
+				}
+			})
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			// Placeholder for the default command behavior
-			log.Println("Welcome to GitHub Manage CLI!")
+			logger.Info("Welcome to GitHub Manage CLI!")
 		},
 	}
 
@@ -54,7 +73,7 @@ func main() {
 			fmt.Printf("Fetching available fields in MDM project (%d)...\n", mdmProjectID)
 			fields, err := ghapi.GetProjectFields(mdmProjectID)
 			if err != nil {
-				log.Printf("❌ Error fetching project fields: %v", err)
+				logger.Errorf("Error fetching project fields: %v", err)
 				return
 			}
 
@@ -68,12 +87,31 @@ func main() {
 			fmt.Printf("Setting current sprint for issue #%d in MDM project (%d)...\n", testIssueNumber, mdmProjectID)
 			err = ghapi.SetCurrentSprint(testIssueNumber, mdmProjectID)
 			if err != nil {
-				log.Printf("❌ Error setting current sprint: %v", err)
+				logger.Errorf("Error setting current sprint: %v", err)
 			} else {
 				fmt.Printf("✅ Successfully set current sprint\n")
 			}
 
 			fmt.Printf("\n=== Test Complete ===\n")
+
+			if err := rootCmd.Execute(); err != nil {
+				log.Fatalf("Error executing command: %v", err)
+			}
+
+			// Debug log the command and its arguments/flags before execution
+			logger.Debugf("Executing command: %s", rootCmd.CommandPath())
+			logger.Debugf("Command args: %v", os.Args[1:])
+
+			// Log all flags that were set across all commands
+			rootCmd.Flags().VisitAll(func(flag *pflag.Flag) {
+				if flag.Changed {
+					logger.Debugf("Global flag --%s: %s", flag.Name, flag.Value.String())
+				}
+			})
+
+			if err := rootCmd.Execute(); err != nil {
+				log.Fatalf("Error executing command: %v", err)
+			}
 		},
 	})
 

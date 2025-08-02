@@ -441,7 +441,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.tasks[msg.status.Index].Status = TaskError
 				m.tasks[msg.status.Index].Progress = 0.0
 			}
-			m.currentTask = msg.status.Index
+			m.currentTask = msg.status.Index + 1
 
 			// Update overall progress
 			completedTasks := 0
@@ -652,15 +652,7 @@ func (m model) View() string {
 				statusIcon = "🏃‍♀️"
 			}
 
-			progressBar := ""
-			if task.Status == TaskInProgress || task.Status == TaskSuccess {
-				// Create a simple progress bar
-				width := 20
-				filled := int(task.Progress * float64(width))
-				progressBar = "[" + strings.Repeat("█", filled) + strings.Repeat("░", width-filled) + "]"
-			}
-
-			s += fmt.Sprintf("%s %s %s %s", statusIcon, statusText, task.Description, progressBar)
+			s += fmt.Sprintf("%s %s %s", statusIcon, statusText, task.Description)
 
 			if task.Error != nil {
 				s += fmt.Sprintf(" - Error: %v", task.Error)
@@ -713,7 +705,7 @@ func (m model) View() string {
 				errorCount++
 			default:
 				statusIcon = "⚠️"
-				statusText = pendingStyle.Render("UNKNOWN")
+				statusText = pendingStyle.Render("PENDING")
 			}
 
 			s += fmt.Sprintf("%s %s %s", statusIcon, statusText, task.Description)
@@ -905,11 +897,38 @@ func (m *model) executeWorkflow() tea.Cmd {
 			})
 		}
 	case BulkMilestoneClose:
-		m.tasks = []WorkflowTask{
-			{ID: 0, Description: fmt.Sprintf("Adding %d issues to drafting project", len(selectedIssues)), Status: TaskPending, Progress: 0.0},
-			{ID: 1, Description: "Adding ':product' label to issues", Status: TaskPending, Progress: 0.0},
-			{ID: 2, Description: "Setting status to 'confirm and celebrate'", Status: TaskPending, Progress: 0.0},
-			{ID: 3, Description: "Removing ':release' label from issues", Status: TaskPending, Progress: 0.0},
+		actions = ghapi.CreateBulkMilestoneCloseActions(selectedIssues)
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          len(selectedIssues) + i,
+				Description: fmt.Sprintf("Adding #%d issue to drafting project", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          len(selectedIssues) + i,
+				Description: fmt.Sprintf("Adding ':product' label to #%d issue", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          len(selectedIssues) + i,
+				Description: fmt.Sprintf("Setting status to 'confirm and celebrate' for #%d issue", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          len(selectedIssues) + i,
+				Description: fmt.Sprintf("Removing ':release' label from #%d issue", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
 		}
 	}
 
