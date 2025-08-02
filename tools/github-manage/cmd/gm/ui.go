@@ -40,6 +40,7 @@ const (
 	BulkRemoveLabel
 	BulkSprintKickoff
 	BulkMilestoneClose
+	BulkKickOutOfSprint
 )
 
 type TaskStatus int
@@ -293,7 +294,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case WorkflowSelection:
 			switch msg.String() {
 			case "j", "down":
-				if m.workflowCursor < 3 {
+				if m.workflowCursor < 4 {
 					m.workflowCursor++
 				}
 			case "k", "up":
@@ -306,7 +307,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case BulkAddLabel, BulkRemoveLabel:
 					m.workflowState = LabelInput
 					m.labelInput = ""
-				case BulkSprintKickoff:
+				case BulkSprintKickoff, BulkKickOutOfSprint:
 					if m.projectID != 0 {
 						// Use the provided project ID
 						return m, m.executeWorkflow()
@@ -749,6 +750,7 @@ func (m model) View() string {
 			"Bulk Remove Label",
 			"Bulk Sprint Kickoff",
 			"Bulk Milestone Close",
+			"Bulk Kick Out Of Sprint",
 		}
 		for i, workflow := range workflows {
 			cursor := " "
@@ -771,8 +773,14 @@ func (m model) View() string {
 		s += fmt.Sprintf("Label: %s_\n", m.labelInput)
 		s += "Press 'enter' to execute, 'esc' to cancel.\n"
 	case ProjectInput:
-		s = "\n--- Sprint Kickoff ---\n"
-		s += fmt.Sprintf("Target Project (ID or alias): %s_\n", m.projectInput)
+		workflowTitle := "Sprint Kickoff"
+		promptText := "Target Project (ID or alias):"
+		if m.workflowType == BulkKickOutOfSprint {
+			workflowTitle = "Kick Out Of Sprint"
+			promptText = "Source Project (ID or alias):"
+		}
+		s = fmt.Sprintf("\n--- %s ---\n", workflowTitle)
+		s += fmt.Sprintf("%s %s_\n", promptText, m.projectInput)
 		s += "Press 'enter' to execute, 'esc' to cancel.\n"
 	}
 
@@ -930,6 +938,71 @@ func (m *model) executeWorkflow() tea.Cmd {
 				Progress:    0.0,
 			})
 		}
+	case BulkKickOutOfSprint:
+		projectID := m.projectID
+		if projectID == 0 && m.projectInput != "" {
+			// Try to resolve project ID
+			resolvedID, err := ghapi.ResolveProjectID(m.projectInput)
+			if err != nil {
+				return func() tea.Msg {
+					return workflowCompleteMsg{
+						success: false,
+						message: fmt.Sprintf("Failed to resolve project ID: %v", err),
+					}
+				}
+			}
+			projectID = resolvedID
+		}
+
+		actions = ghapi.CreateBulkKickOutOfSprintActions(selectedIssues, projectID)
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          i,
+				Description: fmt.Sprintf("Adding #%d issue to drafting project", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          len(selectedIssues) + i,
+				Description: fmt.Sprintf("Setting status to 'estimated' for #%d issue", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          (2 * len(selectedIssues)) + i,
+				Description: fmt.Sprintf("Syncing estimate from project %d for #%d issue", projectID, issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          (3 * len(selectedIssues)) + i,
+				Description: fmt.Sprintf("Adding ':product' label to #%d issue", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          (4 * len(selectedIssues)) + i,
+				Description: fmt.Sprintf("Removing ':release' label from #%d issue", issue.Number),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
+		for i, issue := range selectedIssues {
+			m.tasks = append(m.tasks, WorkflowTask{
+				ID:          (4 * len(selectedIssues)) + i,
+				Description: fmt.Sprintf("Removing #%d issue from project %d", issue.Number, projectID),
+				Status:      TaskPending,
+				Progress:    0.0,
+			})
+		}
 	}
 
 	// For BulkAddLabel and BulkRemoveLabel, start async workflow
@@ -1027,6 +1100,8 @@ func (m *model) runWorkflowTasks(selectedIssues []ghapi.Issue) tea.Cmd {
 			return executeBulkSprintKickoff(selectedIssues, projectID)
 		case BulkMilestoneClose:
 			return executeBulkMilestoneClose(selectedIssues)
+		case BulkKickOutOfSprint:
+			return executeBulkKickOutOfSprint(selectedIssues, projectID)
 		}
 
 		return workflowCompleteMsg{
@@ -1090,5 +1165,23 @@ func executeBulkMilestoneClose(selectedIssues []ghapi.Issue) tea.Msg {
 	return workflowCompleteMsg{
 		success: true,
 		message: fmt.Sprintf("Executed milestone close for %d issues", len(selectedIssues)),
+	}
+}
+
+func executeBulkKickOutOfSprint(selectedIssues []ghapi.Issue, sourceProjectID int) tea.Msg {
+	// Add a delay to ensure no overlap with other GitHub commands
+	time.Sleep(200 * time.Millisecond)
+
+	err := ghapi.BulkKickOutOfSprint(selectedIssues, sourceProjectID)
+	if err != nil {
+		return workflowCompleteMsg{
+			success: false,
+			message: fmt.Sprintf("Kick out of sprint failed: %v", err),
+		}
+	}
+
+	return workflowCompleteMsg{
+		success: true,
+		message: fmt.Sprintf("Executed kick out of sprint for %d issues from project %d", len(selectedIssues), sourceProjectID),
 	}
 }

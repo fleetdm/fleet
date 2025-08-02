@@ -151,6 +151,20 @@ func CreateBulkMilestoneCloseActions(issues []Issue) []Action {
 	return actions
 }
 
+func CreateBulkKickOutOfSprintActions(issues []Issue, sourceProjectID int) []Action {
+	logger.Infof("Creating kick out of sprint actions for %d issues (source project: %d)", len(issues), sourceProjectID)
+
+	actions := CreateBulkAddIssueToProjectAction(issues, Aliases["draft"])
+	actions = append(actions, CreateBulkSetStatusAction(issues, Aliases["draft"], "estimated")...)
+	actions = append(actions, CreateBulkSyncEstimateAction(issues, sourceProjectID, Aliases["draft"])...)
+	actions = append(actions, CreateBulkAddLableAction(issues, ":product")...)
+	actions = append(actions, CreateBulkRemoveLabelAction(issues, ":release")...)
+	actions = append(actions, CreateBulkRemoveIssueFromProjectAction(issues, sourceProjectID)...)
+
+	logger.Infof("Created %d kick out of sprint actions", len(actions))
+	return actions
+}
+
 // AsyncManager takes a list of actions and a channel to process them assynchronously.
 // This will allow to send status back on the channel for live updates. the channel must return index of the action
 // and the status of the action.
@@ -381,5 +395,63 @@ func BulkMilestoneClose(issues []Issue) error {
 	}
 
 	logger.Info("Milestone close workflow completed successfully")
+	return nil
+}
+
+// BulkKickOutOfSprint performs the kick out of sprint workflow for multiple issues.
+// This includes moving issues back to the drafting project, setting status to estimated,
+// syncing estimates from source project, and updating labels.
+func BulkKickOutOfSprint(issues []Issue, sourceProjectID int) error {
+	logger.Infof("Starting kick out of sprint workflow for %d issues (source: %d)", len(issues), sourceProjectID)
+
+	// Add issues to the drafting project
+	logger.Info("Step 1/5: Adding issues to drafting project")
+	draftingProjectID := Aliases["draft"]
+	for _, issue := range issues {
+		err := AddIssueToProject(issue.Number, draftingProjectID)
+		if err != nil {
+			logger.Errorf("Failed to add issue #%d to drafting project: %v", issue.Number, err)
+			return err
+		}
+		logger.Debugf("Added issue #%d to drafting project", issue.Number)
+	}
+
+	// Set the status to "estimated"
+	logger.Info("Step 2/5: Setting status to 'estimated'")
+	for _, issue := range issues {
+		err := SetIssueStatus(issue.Number, draftingProjectID, "estimated")
+		if err != nil {
+			logger.Errorf("Failed to set status for issue #%d: %v", issue.Number, err)
+			return err
+		}
+		logger.Debugf("Set status for issue #%d", issue.Number)
+	}
+
+	// Sync the Estimate field from source project to the drafting project
+	logger.Info("Step 3/5: Syncing estimates from source project")
+	for _, issue := range issues {
+		err := SyncEstimateField(issue.Number, sourceProjectID, draftingProjectID)
+		if err != nil {
+			logger.Errorf("Failed to sync estimate for issue #%d: %v", issue.Number, err)
+			return err
+		}
+		logger.Debugf("Synced estimate for issue #%d", issue.Number)
+	}
+
+	// Add the `:product` label to each issue
+	logger.Info("Step 4/5: Adding product labels")
+	err := BulkAddLabel(issues, ":product")
+	if err != nil {
+		return err
+	}
+
+	// Remove the `:release` label from each issue
+	logger.Info("Step 5/5: Removing release labels")
+	err = BulkRemoveLabel(issues, ":release")
+	if err != nil {
+		return err
+	}
+
+	logger.Info("Kick out of sprint workflow completed successfully")
 	return nil
 }
