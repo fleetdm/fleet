@@ -412,6 +412,7 @@ type enrollmentTokenResponse struct {
 	android.DefaultResponse
 }
 
+// TODO IB This endpoint should be authenticated by MDM SSO in some cases
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
 	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret)
