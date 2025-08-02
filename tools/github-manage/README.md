@@ -17,7 +17,8 @@ GM (GitHub Management) is a powerful command-line tool that brings **bulk operat
 - **Search Issues**: Powerful GitHub search syntax support
 - **Project Views**: Browse issues by project with estimates
 - **Scrollable Lists**: Navigate through hundreds of issues with ease
-- **Real-time Filtering**: Find exactly what you need, fast
+- **Live Filtering**: Press `/` to filter issues by number, title, labels, or description
+- **Real-time Filtering**: Filter updates instantly as you type
 
 ### 📋 **Detailed Issue Views**
 - **Full Issue Details**: Press `o` to view complete issue information
@@ -88,8 +89,18 @@ chmod +x gm
 | `PgUp/PgDn` or `Ctrl+b/f` | Page up/down |
 | `Home/End` or `Ctrl+a/e` | Jump to first/last issue |
 | `Space/Enter/x` | Toggle issue selection |
+| `/` | **Start filtering issues** |
 | `o` | **View full issue details** |
 | `w` | Open workflow menu |
+| `q` | Quit application |
+
+### 🔍 **Filter Mode**
+| Key | Action |
+|-----|--------|
+| `Type` | Filter by number, title, labels, description |
+| `Backspace` | Remove last character from filter |
+| `Enter` | **Apply filter and return to list** |
+| `Esc` | **Clear filter and return to list** |
 | `q` | Quit application |
 
 ### 📖 **Issue Detail View**
@@ -102,11 +113,12 @@ chmod +x gm
 | `q` | Quit application |
 
 ### ⚡ **Workflow Operations**
-1. **Select Issues**: Use `Space/Enter` to select multiple issues
-2. **Start Workflow**: Press `w` to open workflow menu
-3. **Choose Operation**: Navigate with `↑/↓`, confirm with `Enter`
-4. **Watch Progress**: Real-time progress bars and status updates
-5. **Review Results**: Success/failure summary with error details
+1. **Filter Issues**: Press `/` to narrow down the list by typing keywords
+2. **Select Issues**: Use `Space/Enter` to select multiple issues (selections persist across filters)
+3. **Start Workflow**: Press `w` to open workflow menu
+4. **Choose Operation**: Navigate with `↑/↓`, confirm with `Enter`
+5. **Watch Progress**: Real-time progress bars and status updates
+6. **Review Results**: Success/failure summary with error details
 
 ## 🔧 Advanced Features
 

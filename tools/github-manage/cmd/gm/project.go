@@ -31,12 +31,6 @@ var projectCmd = &cobra.Command{
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)
 		}
-		fmt.Printf("Selected issues: ")
-		for i := range model.selected {
-			if i < len(model.choices) {
-				fmt.Printf("#%d ", model.choices[i].Number)
-			}
-		}
 	},
 }
 
@@ -66,12 +60,6 @@ var estimatedCmd = &cobra.Command{
 		p := tea.NewProgram(&model)
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)
-		}
-		fmt.Printf("Selected issues: ")
-		for i := range model.selected {
-			if i < len(model.choices) {
-				fmt.Printf("#%d ", model.choices[i].Number)
-			}
 		}
 	},
 }

@@ -29,6 +29,7 @@ const (
 	Loading WorkflowState = iota
 	NormalMode
 	IssueDetail
+	FilterInput
 	WorkflowSelection
 	LabelInput
 	ProjectInput
@@ -95,6 +96,10 @@ type model struct {
 	// Scrolling support
 	viewOffset int // Offset for scrolling view
 	viewHeight int // Number of visible lines for issues
+	// Filtering support
+	filterInput     string
+	filteredChoices []ghapi.Issue
+	originalIndices []int // Maps filtered index to original index
 	// Issue detail view
 	detailViewport  viewport.Model
 	glamourRenderer *glamour.TermRenderer
@@ -169,6 +174,9 @@ func initializeModel() model {
 		selectedCount:      0,
 		viewOffset:         0,
 		viewHeight:         15, // Default height, will be adjusted based on screen size
+		filterInput:        "",
+		filteredChoices:    nil,
+		originalIndices:    nil,
 		detailViewport:     vp,
 		glamourRenderer:    renderer,
 		issueContent:       "",
@@ -275,6 +283,94 @@ func (m *model) generateIssueContent(issue ghapi.Issue) string {
 	return content.String()
 }
 
+func (m *model) applyFilter() {
+	if m.filterInput == "" {
+		// No filter, show all issues
+		m.filteredChoices = m.choices
+		m.originalIndices = make([]int, len(m.choices))
+		for i := range m.originalIndices {
+			m.originalIndices[i] = i
+		}
+		return
+	}
+
+	filter := strings.ToLower(m.filterInput)
+	m.filteredChoices = nil
+	m.originalIndices = nil
+
+	for i, issue := range m.choices {
+		if m.matchesFilter(issue, filter) {
+			m.filteredChoices = append(m.filteredChoices, issue)
+			m.originalIndices = append(m.originalIndices, i)
+		}
+	}
+
+	// Reset cursor if it's beyond the filtered results
+	if m.cursor >= len(m.filteredChoices) {
+		m.cursor = 0
+	}
+}
+
+func (m *model) matchesFilter(issue ghapi.Issue, filter string) bool {
+	// Check issue number
+	if strings.Contains(strings.ToLower(fmt.Sprintf("#%d", issue.Number)), filter) {
+		return true
+	}
+	if strings.Contains(strings.ToLower(fmt.Sprintf("%d", issue.Number)), filter) {
+		return true
+	}
+
+	// Check title
+	if strings.Contains(strings.ToLower(issue.Title), filter) {
+		return true
+	}
+
+	// Check body/description
+	if strings.Contains(strings.ToLower(issue.Body), filter) {
+		return true
+	}
+
+	// Check labels
+	for _, label := range issue.Labels {
+		if strings.Contains(strings.ToLower(label.Name), filter) {
+			return true
+		}
+	}
+
+	// Check type
+	if strings.Contains(strings.ToLower(issue.Typename), filter) {
+		return true
+	}
+
+	// Check author
+	if strings.Contains(strings.ToLower(issue.Author.Login), filter) {
+		return true
+	}
+
+	// Check assignees
+	for _, assignee := range issue.Assignees {
+		if strings.Contains(strings.ToLower(assignee.Login), filter) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (m *model) getCurrentChoices() []ghapi.Issue {
+	if m.filterInput != "" {
+		return m.filteredChoices
+	}
+	return m.choices
+}
+
+func (m *model) getOriginalIndex(filteredIndex int) int {
+	if m.filterInput != "" && filteredIndex < len(m.originalIndices) {
+		return m.originalIndices[filteredIndex]
+	}
+	return filteredIndex
+}
+
 func fetchIssues(search string) tea.Cmd {
 	return func() tea.Msg {
 		// Ensure GitHub API calls don't overlap
@@ -362,6 +458,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case NormalMode:
 			switch msg.String() {
+			case "/":
+				m.workflowState = FilterInput
+				m.filterInput = ""
+				m.applyFilter()
 			case "w":
 				if len(m.selected) > 0 {
 					m.workflowState = WorkflowSelection
@@ -369,28 +469,33 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.errorMessage = ""
 				}
 			case "o":
-				if len(m.choices) > 0 && m.cursor < len(m.choices) {
-					// Generate and render issue content
-					issue := m.choices[m.cursor]
-					content := m.generateIssueContent(issue)
+				currentChoices := m.getCurrentChoices()
+				if len(currentChoices) > 0 && m.cursor < len(currentChoices) {
+					// Get the original issue (not filtered)
+					originalIndex := m.getOriginalIndex(m.cursor)
+					if originalIndex < len(m.choices) {
+						issue := m.choices[originalIndex]
+						content := m.generateIssueContent(issue)
 
-					if m.glamourRenderer != nil {
-						rendered, err := m.glamourRenderer.Render(content)
-						if err != nil {
-							// Fallback to plain content if rendering fails
-							m.issueContent = content
+						if m.glamourRenderer != nil {
+							rendered, err := m.glamourRenderer.Render(content)
+							if err != nil {
+								// Fallback to plain content if rendering fails
+								m.issueContent = content
+							} else {
+								m.issueContent = rendered
+							}
 						} else {
-							m.issueContent = rendered
+							m.issueContent = content
 						}
-					} else {
-						m.issueContent = content
-					}
 
-					m.detailViewport.SetContent(m.issueContent)
-					m.workflowState = IssueDetail
+						m.detailViewport.SetContent(m.issueContent)
+						m.workflowState = IssueDetail
+					}
 				}
 			case "j", "down":
-				if m.cursor < len(m.choices)-1 {
+				currentChoices := m.getCurrentChoices()
+				if m.cursor < len(currentChoices)-1 {
 					m.cursor++
 					m.adjustViewForCursor()
 				}
@@ -401,9 +506,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "pgdown", "ctrl+f":
 				// Page down - move cursor by view height
+				currentChoices := m.getCurrentChoices()
 				newCursor := m.cursor + m.viewHeight
-				if newCursor >= len(m.choices) {
-					newCursor = len(m.choices) - 1
+				if newCursor >= len(currentChoices) {
+					newCursor = len(currentChoices) - 1
 				}
 				m.cursor = newCursor
 				m.adjustViewForCursor()
@@ -421,15 +527,20 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.adjustViewForCursor()
 			case "end", "ctrl+e":
 				// Go to last issue
-				m.cursor = len(m.choices) - 1
+				currentChoices := m.getCurrentChoices()
+				m.cursor = len(currentChoices) - 1
 				m.adjustViewForCursor()
 			case "enter", "x", " ":
-				if _, exists := m.selected[m.cursor]; exists {
-					delete(m.selected, m.cursor)
-				} else {
-					m.selected[m.cursor] = struct{}{}
+				currentChoices := m.getCurrentChoices()
+				if m.cursor < len(currentChoices) {
+					originalIndex := m.getOriginalIndex(m.cursor)
+					if _, exists := m.selected[originalIndex]; exists {
+						delete(m.selected, originalIndex)
+					} else {
+						m.selected[originalIndex] = struct{}{}
+					}
+					m.selectedCount = len(m.selected)
 				}
-				m.selectedCount = len(m.selected)
 			case "q", "ctrl+c":
 				return m, tea.Quit
 			}
@@ -451,6 +562,35 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.detailViewport.GotoTop()
 			case "end", "ctrl+e":
 				m.detailViewport.GotoBottom()
+			}
+		case FilterInput:
+			switch msg.String() {
+			case "esc":
+				m.workflowState = NormalMode
+				m.filterInput = ""
+				m.applyFilter()
+				m.cursor = 0
+				m.adjustViewForCursor()
+			case "enter":
+				m.workflowState = NormalMode
+				m.adjustViewForCursor()
+			case "backspace":
+				if len(m.filterInput) > 0 {
+					m.filterInput = m.filterInput[:len(m.filterInput)-1]
+					m.applyFilter()
+					m.cursor = 0
+					m.adjustViewForCursor()
+				}
+			case "q", "ctrl+c":
+				return m, tea.Quit
+			default:
+				// Add character to filter
+				if len(msg.String()) == 1 {
+					m.filterInput += msg.String()
+					m.applyFilter()
+					m.cursor = 0
+					m.adjustViewForCursor()
+				}
 			}
 		case WorkflowSelection:
 			switch msg.String() {
@@ -526,6 +666,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.choices = []ghapi.Issue(msg)
 		m.totalCount = len(m.choices)
 		m.workflowState = NormalMode
+		m.applyFilter()         // Initialize filter state
 		m.adjustViewForCursor() // Ensure view is properly initialized
 		return m, nil
 	case spinner.TickMsg:
@@ -772,8 +913,10 @@ func truncType(typename string) string {
 }
 
 func (m *model) adjustViewForCursor() {
+	currentChoices := m.getCurrentChoices()
+
 	// Ensure cursor is within bounds
-	if len(m.choices) == 0 {
+	if len(currentChoices) == 0 {
 		m.cursor = 0
 		m.viewOffset = 0
 		return
@@ -782,8 +925,8 @@ func (m *model) adjustViewForCursor() {
 	if m.cursor < 0 {
 		m.cursor = 0
 	}
-	if m.cursor >= len(m.choices) {
-		m.cursor = len(m.choices) - 1
+	if m.cursor >= len(currentChoices) {
+		m.cursor = len(currentChoices) - 1
 	}
 
 	// Adjust view offset to keep cursor visible
@@ -799,7 +942,7 @@ func (m *model) adjustViewForCursor() {
 	if m.viewOffset < 0 {
 		m.viewOffset = 0
 	}
-	maxOffset := len(m.choices) - m.viewHeight
+	maxOffset := len(currentChoices) - m.viewHeight
 	if maxOffset < 0 {
 		maxOffset = 0
 	}
@@ -929,10 +1072,19 @@ func (m model) View() string {
 		return s
 
 	case NormalMode:
+		currentChoices := m.getCurrentChoices()
 		currentPos := m.cursor + 1
-		totalItems := len(m.choices)
-		s = fmt.Sprintf("GitHub Issues (%d/%d):\n\n %-2d/%-2d Number Estimate  Type       Labels                              Title\n",
-			currentPos, totalItems, m.selectedCount, m.totalCount)
+		totalFiltered := len(currentChoices)
+
+		// Header with filter info
+		headerText := ""
+		if m.filterInput != "" {
+			headerText = fmt.Sprintf("GitHub Issues (%d/%d) - Filtered by: '%s':\n\n", currentPos, totalFiltered, m.filterInput)
+		} else {
+			headerText = fmt.Sprintf("GitHub Issues (%d/%d):\n\n", currentPos, m.totalCount)
+		}
+		s = headerText + fmt.Sprintf(" %-2d/%-2d Number Estimate  Type       Labels                              Title\n",
+			m.selectedCount, m.totalCount)
 
 		// Show indicator if there are issues above the visible area
 		if m.viewOffset > 0 {
@@ -943,19 +1095,20 @@ func (m model) View() string {
 		// Calculate which issues to display
 		startIdx := m.viewOffset
 		endIdx := m.viewOffset + m.viewHeight
-		if endIdx > len(m.choices) {
-			endIdx = len(m.choices)
+		if endIdx > len(currentChoices) {
+			endIdx = len(currentChoices)
 		}
 
 		// Display visible issues
 		for i := startIdx; i < endIdx; i++ {
-			issue := m.choices[i]
+			issue := currentChoices[i]
+			originalIndex := m.getOriginalIndex(i)
 			cursor := " "
 			if i == m.cursor {
 				cursor = ">"
 			}
 			selected := ""
-			if _, exists := m.selected[i]; exists {
+			if _, exists := m.selected[originalIndex]; exists {
 				selected = "[x] "
 			} else {
 				selected = "[ ] "
@@ -966,13 +1119,13 @@ func (m model) View() string {
 		}
 
 		// Show indicator if there are issues below the visible area
-		if m.viewOffset+m.viewHeight < len(m.choices) {
+		if m.viewOffset+m.viewHeight < len(currentChoices) {
 			s += fmt.Sprintf("  %s %-6s %s %s %s %s\n",
 				" ", "...", "         ", "          ", strings.Repeat(" ", 35), "More issues below")
 		}
 
 		s += "\nNavigation: ↑/↓ or j/k (line), PgUp/PgDn (page), Home/End (top/bottom)\n"
-		s += "Actions: enter/space/x (select), 'o' (view details), 'w' (workflow), 'q' (quit)\n"
+		s += "Actions: enter/space/x (select), 'o' (view details), '/' (filter), 'w' (workflow), 'q' (quit)\n"
 	case IssueDetail:
 		if len(m.choices) > 0 && m.cursor < len(m.choices) {
 			issue := m.choices[m.cursor]
@@ -983,6 +1136,38 @@ func (m model) View() string {
 		} else {
 			s = "No issue selected\n"
 		}
+	case FilterInput:
+		currentChoices := m.getCurrentChoices()
+		totalFiltered := len(currentChoices)
+
+		s = fmt.Sprintf("Filter Issues - %d results:\n", totalFiltered)
+		s += fmt.Sprintf("Filter: %s_\n\n", m.filterInput)
+
+		// Show a preview of filtered results (top 10)
+		previewCount := 10
+		if totalFiltered < previewCount {
+			previewCount = totalFiltered
+		}
+
+		s += "Preview:\n"
+		for i := 0; i < previewCount; i++ {
+			issue := currentChoices[i]
+			originalIndex := m.getOriginalIndex(i)
+			selected := ""
+			if _, exists := m.selected[originalIndex]; exists {
+				selected = "[x] "
+			} else {
+				selected = "[ ] "
+			}
+			s += fmt.Sprintf("  %s #%-6d %s\n", selected, issue.Number, truncTitle(issue.Title))
+		}
+
+		if totalFiltered > previewCount {
+			s += fmt.Sprintf("  ... and %d more\n", totalFiltered-previewCount)
+		}
+
+		s += "\nType to filter by number, title, labels, or description\n"
+		s += "Actions: 'enter' (apply filter), 'esc' (cancel), 'q' (quit)\n"
 	case WorkflowSelection:
 		s = "\n--- Workflow Selection ---\n"
 		workflows := []string{
