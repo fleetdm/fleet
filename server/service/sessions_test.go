@@ -458,7 +458,7 @@ func TestGetSSOUser(t *testing.T) {
 
 func TestInitiateSSOWithSSOServerURL(t *testing.T) {
 	ds := new(mock.Store)
-	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	pool := redistest.NopRedis()
 
 	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
 		Pool: pool,
@@ -497,7 +497,7 @@ func TestInitiateSSOWithSSOServerURL(t *testing.T) {
 
 func TestInitiateSSOWithTrailingSlash(t *testing.T) {
 	ds := new(mock.Store)
-	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	pool := redistest.NopRedis()
 
 	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
 		Pool: pool,
@@ -564,7 +564,7 @@ func TestInitiateSSOWithTrailingSlash(t *testing.T) {
 
 func TestInitiateSSOWithInvalidURL(t *testing.T) {
 	ds := new(mock.Store)
-	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	pool := redistest.NopRedis()
 
 	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
 		Pool: pool,
