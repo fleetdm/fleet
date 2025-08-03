@@ -3847,10 +3847,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 						INSERT INTO software_installers
 							(team_id, global_or_team_id, title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids)
 						VALUES
-							(?, ?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?)`,
+							(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), "pkg", fmt.Sprintf("v%d.0.0", i), scriptContentID,
 				uninstallScriptContentID,
-				hex.EncodeToString([]byte("test")), "darwin", i < 2, "[]")
+				[]byte("test"), "darwin", i < 2, "[]")
 			if err != nil {
 				return err
 			}
@@ -3894,8 +3894,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 		res, err = q.ExecContext(
 			ctx,
-			`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, UNHEX(?))`,
-			"foo2", "0.5", "bar2", &titleIDs[0], hex.EncodeToString([]byte("testb")),
+			`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+			"foo2", "0.5", "bar2", &titleIDs[0], []byte("testb"),
 		)
 		if err != nil {
 			return err
@@ -4719,10 +4719,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 							INSERT INTO software_installers
 								(team_id, global_or_team_id, title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids)
 							VALUES
-								(?, ?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?)`,
+								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			darwinHost.TeamID, 0, softwareAlreadyInstalled.TitleID, "DummyApp.pkg", "pkg", "2.0.0",
 			scriptContentID, uninstallScriptContentID,
-			hex.EncodeToString([]byte("test")), "darwin", true, "[]")
+			[]byte("test"), "darwin", true, "[]")
 		if err != nil {
 			return err
 		}
@@ -4842,10 +4842,10 @@ func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
 							INSERT INTO software_installers
 								(team_id, global_or_team_id, title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service, package_ids)
 							VALUES
-								(?, ?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?)`,
+								(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				nil, 0, titleID, installer.Filename, installer.Extension, "2.0.0",
 				scriptContentID, scriptContentID,
-				hex.EncodeToString([]byte("test")), "linux", true, "[]")
+				[]byte("test"), "linux", true, "[]")
 			require.NoError(t, err)
 		}
 
@@ -5329,9 +5329,9 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	// have the second host install a vpp app, but not by fleet
 	res, err = ds.writer(ctx).ExecContext(ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
-        VALUES (?, ?, ?, ?, ?, UNHEX(?))
+        VALUES (?, ?, ?, ?, ?, ?)
 	`,
-		vPPApp.Name, "0.1.0", "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1v0.1.0")),
+		vPPApp.Name, "0.1.0", "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, []byte("vpp1v0.1.0"),
 	)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
@@ -5507,8 +5507,8 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			INSERT INTO software_installers
 				(title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, package_ids)
 			VALUES
-				(?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
-			titleID, "installer.pkg", "pkg", "v1.0.0", scriptContentID, uninstallScriptContentID, hex.EncodeToString([]byte("test")), "darwin", "[]")
+				(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			titleID, "installer.pkg", "pkg", "v1.0.0", scriptContentID, uninstallScriptContentID, []byte("test"), "darwin", "[]")
 		if err != nil {
 			return err
 		}
@@ -6374,8 +6374,8 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		titleIDUint := titleID
 		softwareAlreadyInstalled.TitleID = &titleIDUint
-		res, err := q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, UNHEX(?))`,
-			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier, softwareAlreadyInstalled.Version, titleID, hex.EncodeToString([]byte("checksum")))
+		res, err := q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, ?)`,
+			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier, softwareAlreadyInstalled.Version, titleID, []byte("checksum"))
 		if err != nil {
 			return err
 		}
@@ -6806,8 +6806,8 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// insert vulnerable software with the same software title as c, but this version is not added to host
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
-		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, UNHEX(?))`,
-		"c", "0.0.1", "apps", &bTitleId, hex.EncodeToString([]byte("c.0.0.1apps")),
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"c", "0.0.1", "apps", &bTitleId, []byte("c.0.0.1apps"),
 	)
 	require.NoError(t, err)
 	insertedID, err := result.LastInsertId()
@@ -7009,15 +7009,15 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// insert non-vulnerable software without adding to host
 	_, err = ds.writer(ctx).ExecContext(
 		ctx,
-		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, UNHEX(?))`,
-		"foo", "1.0.0", "bar", &titleID, hex.EncodeToString([]byte("foo1.0")),
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo", "1.0.0", "bar", &titleID, []byte("foo1.0"),
 	)
 	require.NoError(t, err)
 	// insert vulnerable software with the same software title, but still not added to host
 	result, err = ds.writer(ctx).ExecContext(
 		ctx,
-		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, UNHEX(?))`,
-		"foo", "0.5", "bar", &titleID, hex.EncodeToString([]byte("foo0.5")),
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo", "0.5", "bar", &titleID, []byte("foo0.5"),
 	)
 	require.NoError(t, err)
 	insertedID, err = result.LastInsertId()
@@ -7054,8 +7054,8 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// insert into software without adding to host
 	_, err = ds.writer(ctx).ExecContext(
 		ctx,
-		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, UNHEX(?))`,
-		"foo2", "1.0.0", "bar2", &titleID, hex.EncodeToString([]byte("foo2")),
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo2", "1.0.0", "bar2", &titleID, []byte("foo2"),
 	)
 	require.NoError(t, err)
 	// pending install request
@@ -7108,9 +7108,9 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	res, err = ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
-		VALUES (?, ?, ?, ?, ?, UNHEX(?))
+		VALUES (?, ?, ?, ?, ?, ?)
 	`,
-		hostInstalledVpps.Name, "0.1.0", "apps", hostInstalledVpps.BundleIdentifier, hvpp.TitleID, hex.EncodeToString([]byte("vpp3v0.1.0")),
+		hostInstalledVpps.Name, "0.1.0", "apps", hostInstalledVpps.BundleIdentifier, hvpp.TitleID, []byte("vpp3v0.1.0"),
 	)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
@@ -7634,9 +7634,9 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	// have a pre-installed vpp app
 	res, err := ds.writer(ctx).ExecContext(ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
-        VALUES (?, ?, ?, ?, ?, UNHEX(?))
+        VALUES (?, ?, ?, ?, ?, ?)
 	`,
-		vppApp.Name, "0.1.10", "apps", vppApp.BundleIdentifier, vppApp.TitleID, hex.EncodeToString([]byte("vpp1v0.1.10")),
+		vppApp.Name, "0.1.10", "apps", vppApp.BundleIdentifier, vppApp.TitleID, []byte("vpp1v0.1.10"),
 	)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
@@ -7902,8 +7902,8 @@ func testListHostSoftwareSelfServiceWithLabelScopingHostInstalled(t *testing.T, 
 
 	// Install software on host
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, UNHEX(?))`,
-			selfServiceinstaller.Title, selfServiceinstaller.Source, selfServiceinstaller.BundleIdentifier, selfServiceinstaller.Version, selfServiceTitleID, hex.EncodeToString([]byte("checksum")))
+		res, err := q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, ?)`,
+			selfServiceinstaller.Title, selfServiceinstaller.Source, selfServiceinstaller.BundleIdentifier, selfServiceinstaller.Version, selfServiceTitleID, []byte("checksum"))
 		if err != nil {
 			return err
 		}
@@ -8176,8 +8176,8 @@ func testLabelScopingTimestampLogic(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		titleIDUint := selfServiceTitleID
 		softwareAlreadyInstalled.TitleID = &titleIDUint
-		res, err := q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, UNHEX(?))`,
-			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier, softwareAlreadyInstalled.Version, selfServiceTitleID, hex.EncodeToString([]byte("checksum")))
+		res, err := q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, ?)`,
+			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier, softwareAlreadyInstalled.Version, selfServiceTitleID, []byte("checksum"))
 		if err != nil {
 			return err
 		}
@@ -8452,13 +8452,13 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		res, err := q.ExecContext(ctx,
-			`INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, UNHEX(?))`,
+			`INSERT INTO software (name, source, bundle_identifier, version, title_id, checksum) VALUES (?, ?, ?, ?, ?, ?)`,
 			title.Name,
 			title.Source,
 			"title.com.example",
 			title.Version,
 			title.ID,
-			hex.EncodeToString([]byte("checksum")),
+			[]byte("checksum"),
 		)
 		require.NoError(t, err)
 
@@ -8526,8 +8526,8 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 	// has software installed, but not by Fleet, that matches the software installer available
 	res, err := ds.writer(ctx).ExecContext(
 		ctx,
-		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, UNHEX(?))`,
-		"foo2", "0.5", "bar2", &titleID, hex.EncodeToString([]byte("foo2")),
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo2", "0.5", "bar2", &titleID, []byte("foo2"),
 	)
 	require.NoError(t, err)
 	installedSoftwareID, err := res.LastInsertId()
