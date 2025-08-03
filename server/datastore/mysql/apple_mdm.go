@@ -6321,6 +6321,11 @@ WHERE
 }
 
 func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
+	// Check that RenewAt is not zero
+	if tok.RenewAt.IsZero() {
+		return nil, ctxerr.New(ctx, "ABM token RenewAt date cannot be zero")
+	}
+
 	const stmt = `
 INSERT INTO
 	abm_tokens
@@ -6330,11 +6335,6 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	doubleEncTok, err := encrypt(tok.EncryptedToken, ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "encrypt abm_token with datastore.serverPrivateKey")
-	}
-
-	// Check that RenewAt is not zero
-	if tok.RenewAt.IsZero() {
-		return nil, ctxerr.New(ctx, "ABM token RenewAt date cannot be zero")
 	}
 
 	res, err := ds.writer(ctx).ExecContext(
