@@ -1,17 +1,66 @@
+/**
+ * GitHub Projects v2 status change tracking
+ *
+ * This webhook tracks issue status changes in GitHub Projects v2 for engineering metrics.
+ *
+ * Tracked projects:
+ * - Orchestration
+ * - MDM
+ * - Software
+ *
+ * Status transitions tracked:
+ *
+ * 1. "In progress" status:
+ *    - Triggers when: Status changes TO "in progress"
+ *    - From states: "ready" or null (first time) OR any other state (if not already tracked)
+ *    - Saves to: github_metrics.issue_status_change
+ *    - Data: timestamp, repo, issue_number, status = 'in_progress'
+ *
+ * 2. "Awaiting QA" status:
+ *    - Triggers when: Status changes TO "awaiting qa"
+ *    - From states:
+ *      - "in progress" or "review" → Always creates new row
+ *      - Any other state → Creates row only if no QA ready row exists
+ *    - Saves to: github_metrics.issue_qa_ready
+ *    - Data: qa_ready time, assignee, issue details, time from in_progress to qa_ready
+ *    - Note: Requires an existing in_progress record to calculate time
+ *
+ * 3. "Release" status:
+ *    - Triggers when: Status changes TO "release"
+ *    - From states:
+ *      - "awaiting qa" → Always creates new row
+ *      - Any other state → Creates row only if issue has been in QA (exists in issue_qa_ready)
+ *    - Saves to: github_metrics.issue_release_ready
+ *    - Data: release_ready time, assignee, issue details, time from in_progress to release_ready
+ *    - Note: Requires an existing in_progress record to calculate time
+ *
+ * Time calculations:
+ * - All time calculations can optionally exclude weekends (controlled by EXCLUDE_WEEKENDS flag)
+ * - Weekend exclusion adjusts start/end times and subtracts weekend days from duration
+ * - Times are calculated from the webhook's updated_at timestamp for accuracy
+ *
+ * Issue type classification:
+ * - Based on GitHub issue labels:
+ *   - "bug" → type: "bug"
+ *   - "story" → type: "story"
+ *   - "~sub-task" → type: "sub-task"
+ *   - Otherwise → type: "other"
+ */
+
 // Dependencies
 const {BigQuery} = require('@google-cloud/bigquery');
 const crypto = require('crypto');
 
 // Project constants
 const PROJECTS = {
-  ORCHESTRATION: 1,
-  MDM: 2,
-  SOFTWARE: 3
+  ORCHESTRATION: 71,
+  MDM: 58,
+  SOFTWARE: 70
 };
 
 // Feature flag for excluding weekends in time calculations
 // Set to true to exclude weekends, false to include them
-const EXCLUDE_WEEKENDS = false;
+const EXCLUDE_WEEKENDS = true;
 
 // BigQuery client (initialized on first use)
 let bigqueryClient = null;
@@ -80,16 +129,6 @@ module.exports = {
 
     // Validations passed, process the webhook
     let payload = typeof this.req.body === 'string' ? JSON.parse(this.req.body) : this.req.body;
-
-    // TODO: remove this
-    // Pretty print the JSON to the console
-    console.log('\n========================================');
-    console.log('GitHub Projects v2 Item Webhook');
-    console.log('========================================');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Headers:', JSON.stringify(this.req.headers, null, 2));
-    console.log('Payload:', JSON.stringify(payload, null, 2));
-    console.log('========================================\n');
 
     // Process the webhook data
     try {
@@ -180,9 +219,12 @@ function parseGcpServiceAccountKey() {
       // Fix common JSON formatting issues before parsing
       let jsonString = sails.config.custom.engMetricsGcpServiceAccountKey;
 
-      // Replace actual newlines within the JSON string with escaped newlines
       // This handles cases where the private key has literal newlines
-      jsonString = jsonString.replace(/\n/g, '\\n');
+      jsonString = jsonString.replace(/"private_key":\s*"([^"]+)"/g, (match, key) => {
+        // Replace actual newlines with escaped newlines only within the private key value
+        const fixedKey = key.replace(/\n/g, '\\n');
+        return `"private_key": "${fixedKey}"`;
+      });
 
       // Parse the cleaned JSON
       gcpServiceAccountKey = JSON.parse(jsonString);
@@ -497,18 +539,19 @@ async function handleReleaseStatus(fieldValue, projectsV2Item, issueDetails, gcp
   const fromStatus = fieldValue.from ? fieldValue.from.name.toLowerCase() : '';
   const isFromAwaitingQa = fromStatus.includes('awaiting qa');
 
-  // Only save when transitioning from "awaiting qa" to "release"
+  // Check if we should save this release transition
   if (!isFromAwaitingQa) {
-    sails.log.verbose(`Status change to release not from "awaiting qa" (from: "${fromStatus}"), skipping`);
-    return null;
+    // Not directly from "awaiting qa", check if issue has ever been in QA
+    const hasBeenInQa = await checkIfQaReadyExists(issueDetails.repo, issueDetails.issueNumber, gcpServiceAccountKey);
+    if (!hasBeenInQa) {
+      sails.log.verbose(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} has never been in "awaiting qa", skipping release tracking`);
+      return null;
+    }
+    sails.log.info(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} transitioning to release (previously was in QA)`);
   }
 
-  // Check if row already exists
-  const releaseRowExists = await checkIfReleaseReadyExists(issueDetails.repo, issueDetails.issueNumber, gcpServiceAccountKey);
-  if (releaseRowExists) {
-    sails.log.verbose(`Release ready row already exists for ${issueDetails.repo}#${issueDetails.issueNumber}, skipping`);
-    return null;
-  }
+  // Always add a new row when transitioning to "release" if it has been through QA
+  // (Multiple transitions are allowed and tracked)
 
   // Get the latest in_progress status from BigQuery
   const inProgressData = await getLatestInProgressStatus(issueDetails.repo, issueDetails.issueNumber, gcpServiceAccountKey);
@@ -707,56 +750,6 @@ async function checkIfQaReadyExists(repo, issueNumber, gcpServiceAccountKey) {
 }
 
 /**
- * Checks if a release ready entry already exists in BigQuery
- *
- * @param {string} repo - The repository name (e.g., "fleetdm/fleet")
- * @param {number} issueNumber - The issue number
- * @param {Object} gcpServiceAccountKey - The GCP service account key
- * @returns {boolean} True if the entry exists, false otherwise
- */
-async function checkIfReleaseReadyExists(repo, issueNumber, gcpServiceAccountKey) {
-  try {
-    // Get BigQuery client
-    const bigquery = getBigQueryClient(gcpServiceAccountKey);
-
-    // Configure dataset and table names
-    const datasetId = 'github_metrics';
-    const tableId = 'issue_release_ready';
-
-    // Query to check if the release ready entry exists
-    const query = `
-      SELECT 1
-      FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
-      WHERE repo = @repo
-        AND issue_number = @issueNumber
-      LIMIT 1
-    `;
-
-    const options = {
-      query: query,
-      params: {
-        repo: repo,
-        issueNumber: issueNumber
-      }
-    };
-
-    // Run the query
-    const [rows] = await bigquery.query(options);
-
-    return rows.length > 0;
-  } catch (err) {
-    // If the table doesn't exist yet, it means no records exist
-    if (err.code === 404) {
-      return false;
-    }
-
-    sails.log.error('Error checking if release ready exists in BigQuery:', err);
-    // On error, assume it doesn't exist to avoid blocking new records
-    return false;
-  }
-}
-
-/**
  * Gets the latest in_progress status entry from BigQuery
  *
  * @param {string} repo - The repository name (e.g., "fleetdm/fleet")
@@ -881,7 +874,9 @@ async function saveReleaseReadyToBigQuery(data, gcpServiceAccountKey) {
 }
 
 /**
- * Calculates time difference excluding weekends if enabled
+ * Calculates time difference excluding weekends if enabled.
+ * This function is copied from https://github.com/fleetdm/fleet/blob/d20ddf33280464b1377aba8f755eb74df2f72724/.github/actions/eng-metrics/src/github-client.js#L512,
+ * where it is thoroughly unit tested.
  *
  * @param {Date} startTime - The start time
  * @param {Date} endTime - The end time
