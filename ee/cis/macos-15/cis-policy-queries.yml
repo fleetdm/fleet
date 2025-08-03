@@ -19,33 +19,6 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Auto Update Is Enabled (MDM Required)
-  platforms: macOS
-  platform: darwin
-  description: Checks that the system is configured via MDM to automatically install updates.
-  resolution: "Ask your system administrator to deploy an MDM profile that enables automatic updates."
-  query: |
-    SELECT 1 WHERE 
-      EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.SoftwareUpdate' AND 
-            name='AutomaticCheckEnabled' AND 
-            (value = 1 OR value = 'true')
-        )
-      AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.SoftwareUpdate' AND 
-            name='AutomaticCheckEnabled' AND 
-            (value != 1 AND value != 'true')
-        );  
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
 apiVersion: v1
 kind: policy
 spec:
@@ -546,36 +519,6 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure DVD or CD Sharing Is Disabled
-  platforms: macOS
-  platform: darwin
-  description: |
-    DVD or CD Sharing allows users to remotely access the system's optical drive.
-    Disabling DVD or CD Sharing minimizes the risk of an attacker using the optical drive as
-    a vector for attack and exposure of sensitive data.
-  resolution: |
-    Graphical Method:
-    1. Open System Settings
-    2. Select General
-    3. Select Sharing
-    4. Set CD/DVD Sharing to disabled
-  query: |
-    SELECT 1 WHERE NOT EXISTS (
-      SELECT * FROM plist WHERE
-        path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
-        key = 'com.apple.ODSAgent' AND
-        value = '0'
-    );
-  # We are not using the launchd table because it does not check if services
-  # are disabled via disabled.plist, which the preference pane uses whenever
-  # a service is disabled after it has been enabled in the past.
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: artemist-work
----
-apiVersion: v1
-kind: policy
-spec:
   name: CIS - Ensure Screen Sharing Is Disabled 
   platforms: macOS
   platform: darwin
@@ -829,9 +772,18 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    Bluetooth Sharing allows files to be exchanged with Bluetooth-enabled devices.
-    Disabling Bluetooth Sharing minimizes the risk of an attacker using Bluetooth
-    to remotely attack the system.
+    Bluetooth Sharing allows files to be exchanged with Bluetooth-enabled devices. This
+    setting only disables the receiving of files and requires both devices to be paired
+    through Bluetooth as well as accepted by the receiver. This setting does not disable the
+    ability to send files from the device to another paired Bluetooth device.
+    Bluetooth pairing only requires an acceptance dialog on either device attempting to pair.
+    It does require the Bluetooth pane in System Settings to be open for any macOS
+    device to be discoverable. While it does give a verification code, it does not require
+    either device to enter the code, but just accept the dialog box (on either device). At that
+    point, the two devices are paired and files can be shared through Bluetooth. To receive
+    files through Bluetooth File Exchange application, the user does have to accept the
+    file(s) through a dialog box.
+    Users should only pair to known trusted Bluetooth devices.
   resolution: |
     Graphical Method:
     1. Open System Settings
