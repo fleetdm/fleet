@@ -672,6 +672,8 @@ func (svc *Service) InitSSOCallback(
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, badRequest("invalid SSO URL: "+err.Error()))
 	}
+
+	// Now construct the ACS URL
 	parsedURL.Path = path.Join(parsedURL.Path, svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback")
 	acsURL, err := url.Parse(parsedURL.String())
 	if err != nil {
@@ -680,15 +682,8 @@ func (svc *Service) InitSSOCallback(
 
 	expectedAudiences := []string{
 		appConfig.SSOSettings.EntityID,
-		appConfig.ServerSettings.ServerURL,
-		appConfig.ServerSettings.ServerURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback", // ACS with server URL
-	}
-	// Add SSO server URL to expected audiences if configured
-	if appConfig.SSOSettings != nil && appConfig.SSOSettings.SSOServerURL != "" {
-		expectedAudiences = append(expectedAudiences,
-			appConfig.SSOSettings.SSOServerURL,
-			appConfig.SSOSettings.SSOServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS with SSO server URL
-		)
+		parsedURL.String(), // Base SSO URL
+		acsURL.String(),    // Use the already-constructed ACS URL
 	}
 	samlProvider, requestID, redirectURL, err := sso.SAMLProviderFromSessionOrConfiguredMetadata(
 		ctx, sessionID, svc.ssoSessionStore, acsURL, appConfig.SSOSettings, expectedAudiences,
