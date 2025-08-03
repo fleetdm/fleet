@@ -9,6 +9,10 @@ const PROJECTS = {
   SOFTWARE: 3
 };
 
+// Feature flag for excluding weekends in time calculations
+// Set to true to exclude weekends, false to include them
+const EXCLUDE_WEEKENDS = false;
+
 // BigQuery client (initialized on first use)
 let bigqueryClient = null;
 
@@ -235,12 +239,13 @@ async function processStatusChange(payload, gcpServiceAccountKey) {
   // Log the status change for debugging
   sails.log.verbose(`Status change detected: "${fromStatus || '(null)'}" -> "${toStatus}"`);
 
-  // Check if the "to" status includes "in progress" or "awaiting qa"
+  // Check if the "to" status includes "in progress", "awaiting qa", or "release"
   const isToInProgress = toStatus.includes('in progress');
   const isToAwaitingQa = toStatus.includes('awaiting qa');
+  const isToRelease = toStatus.includes('release');
 
-  if (!isToInProgress && !isToAwaitingQa) {
-    sails.log.verbose(`Ignoring status change - "to" status doesn't include "in progress" or "awaiting qa": ${toStatus}`);
+  if (!isToInProgress && !isToAwaitingQa && !isToRelease) {
+    sails.log.verbose(`Ignoring status change - "to" status doesn't include "in progress", "awaiting qa", or "release": ${toStatus}`);
     return null;
   }
 
@@ -265,6 +270,11 @@ async function processStatusChange(payload, gcpServiceAccountKey) {
   // Handle "awaiting qa" status changes
   if (isToAwaitingQa) {
     return await handleAwaitingQaStatus(fieldValue, projectsV2Item, issueDetails, gcpServiceAccountKey, projectNumber);
+  }
+
+  // Handle "release" status changes
+  if (isToRelease) {
+    return await handleReleaseStatus(fieldValue, projectsV2Item, issueDetails, gcpServiceAccountKey, projectNumber);
   }
 
   return null;
@@ -426,7 +436,7 @@ async function handleAwaitingQaStatus(fieldValue, projectsV2Item, issueDetails, 
     // Calculate time to QA ready
     const qaReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
     const inProgressTime = new Date(inProgressData.date);
-    const timeToQaReadySeconds = Math.floor((qaReadyTime - inProgressTime) / 1000);
+    const timeToQaReadySeconds = calculateTimeExcludingWeekends(inProgressTime, qaReadyTime);
 
     // Determine project name
     let projectName = '';
@@ -444,7 +454,7 @@ async function handleAwaitingQaStatus(fieldValue, projectsV2Item, issueDetails, 
 
     // Prepare QA ready data
     const qaReadyData = {
-      qa_ready: qaReadyTime.toISOString().split('T')[0],  // eslint-disable-line camelcase -- DATE format (YYYY-MM-DD)
+      qa_ready: qaReadyTime.toISOString().split('T')[0],  // eslint-disable-line camelcase
       assignee: issueDetails.assignee || '',  // Get assignee from issue details
       issue_url: `https://github.com/${issueDetails.repo}/issues/${issueDetails.issueNumber}`,  // eslint-disable-line camelcase
       time_to_qa_ready_seconds: timeToQaReadySeconds,  // eslint-disable-line camelcase
@@ -470,6 +480,118 @@ async function handleAwaitingQaStatus(fieldValue, projectsV2Item, issueDetails, 
   }
 
   return null;
+}
+
+/**
+ * Handles status changes to "release"
+ *
+ * @param {Object} fieldValue - The field value from the webhook payload
+ * @param {Object} projectsV2Item - The project item from the webhook payload
+ * @param {Object} issueDetails - The issue details from GitHub API
+ * @param {Object} gcpServiceAccountKey - The GCP service account key
+ * @param {number} projectNumber - The project number
+ * @returns {Object|null} Release ready data if saved, null otherwise
+ */
+async function handleReleaseStatus(fieldValue, projectsV2Item, issueDetails, gcpServiceAccountKey, projectNumber) {
+  // Check if from status is "awaiting qa"
+  const fromStatus = fieldValue.from ? fieldValue.from.name.toLowerCase() : '';
+  const isFromAwaitingQa = fromStatus.includes('awaiting qa');
+
+  // Only save when transitioning from "awaiting qa" to "release"
+  if (!isFromAwaitingQa) {
+    sails.log.verbose(`Status change to release not from "awaiting qa" (from: "${fromStatus}"), skipping`);
+    return null;
+  }
+
+  // Check if row already exists
+  const releaseRowExists = await checkIfReleaseReadyExists(issueDetails.repo, issueDetails.issueNumber, gcpServiceAccountKey);
+  if (releaseRowExists) {
+    sails.log.verbose(`Release ready row already exists for ${issueDetails.repo}#${issueDetails.issueNumber}, skipping`);
+    return null;
+  }
+
+  // Get the latest in_progress status from BigQuery
+  const inProgressData = await getLatestInProgressStatus(issueDetails.repo, issueDetails.issueNumber, gcpServiceAccountKey);
+
+  if (!inProgressData) {
+    sails.log.warn(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate release ready time`);
+    return null;
+  }
+
+  // Calculate time to release ready (from in_progress to release)
+  const releaseReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
+  const inProgressTime = new Date(inProgressData.date);
+  const timeToReleaseReadySeconds = calculateTimeExcludingWeekends(inProgressTime, releaseReadyTime);
+
+  // Determine project name
+  let projectName = '';
+  switch (projectNumber) {
+    case PROJECTS.ORCHESTRATION:
+      projectName = 'orchestration';
+      break;
+    case PROJECTS.MDM:
+      projectName = 'mdm';
+      break;
+    case PROJECTS.SOFTWARE:
+      projectName = 'software';
+      break;
+  }
+
+  // Prepare release ready data
+  const releaseReadyData = {
+    release_ready: releaseReadyTime.toISOString().split('T')[0],  // eslint-disable-line camelcase
+    assignee: issueDetails.assignee || '',  // Get assignee from issue details
+    issue_url: `https://github.com/${issueDetails.repo}/issues/${issueDetails.issueNumber}`,  // eslint-disable-line camelcase
+    time_to_release_ready_seconds: timeToReleaseReadySeconds,  // eslint-disable-line camelcase
+    repo: issueDetails.repo,
+    issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+    release_ready_time: releaseReadyTime.toISOString(),  // eslint-disable-line camelcase
+    in_progress_time: inProgressTime.toISOString(),  // eslint-disable-line camelcase
+    project: projectName,
+    type: issueDetails.type  // Issue type based on labels
+  };
+
+  // Save to BigQuery
+  await saveReleaseReadyToBigQuery(releaseReadyData, gcpServiceAccountKey);
+
+  sails.log.info('Saved release ready metrics:', {
+    repo: issueDetails.repo,
+    issueNumber: issueDetails.issueNumber,
+    timeToReleaseReadySeconds,
+    project: projectName
+  });
+
+  return releaseReadyData;
+}
+
+/**
+ * Handles common BigQuery errors
+ *
+ * @param {Error} err - The error object
+ * @param {string} operation - Description of the operation that failed
+ * @param {string} tableName - The table name for context
+ */
+function handleBigQueryError(err, operation, tableName) {
+  // If we get a connection error, reset the client so it will be recreated on next attempt
+  if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND') {
+    sails.log.warn('BigQuery connection error detected, resetting client:', err.code);
+    bigqueryClient = null;
+  }
+  // Handle specific BigQuery errors
+  if (err.name === 'PartialFailureError') {
+    // Log the specific rows that failed
+    sails.log.error(`Partial failure when ${operation}:`, err.errors);
+  } else if (err.code === 404) {
+    sails.log.error('BigQuery table or dataset not found. Please ensure the table exists:', {
+      dataset: 'github_metrics',
+      table: tableName,
+      fullError: err.message
+    });
+  } else if (err.code === 403) {
+    sails.log.error('Permission denied when accessing BigQuery. Check service account permissions.');
+  } else {
+    sails.log.error(`Error ${operation}:`, err);
+  }
 }
 
 /**
@@ -585,6 +707,56 @@ async function checkIfQaReadyExists(repo, issueNumber, gcpServiceAccountKey) {
 }
 
 /**
+ * Checks if a release ready entry already exists in BigQuery
+ *
+ * @param {string} repo - The repository name (e.g., "fleetdm/fleet")
+ * @param {number} issueNumber - The issue number
+ * @param {Object} gcpServiceAccountKey - The GCP service account key
+ * @returns {boolean} True if the entry exists, false otherwise
+ */
+async function checkIfReleaseReadyExists(repo, issueNumber, gcpServiceAccountKey) {
+  try {
+    // Get BigQuery client
+    const bigquery = getBigQueryClient(gcpServiceAccountKey);
+
+    // Configure dataset and table names
+    const datasetId = 'github_metrics';
+    const tableId = 'issue_release_ready';
+
+    // Query to check if the release ready entry exists
+    const query = `
+      SELECT 1
+      FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
+      WHERE repo = @repo
+        AND issue_number = @issueNumber
+      LIMIT 1
+    `;
+
+    const options = {
+      query: query,
+      params: {
+        repo: repo,
+        issueNumber: issueNumber
+      }
+    };
+
+    // Run the query
+    const [rows] = await bigquery.query(options);
+
+    return rows.length > 0;
+  } catch (err) {
+    // If the table doesn't exist yet, it means no records exist
+    if (err.code === 404) {
+      return false;
+    }
+
+    sails.log.error('Error checking if release ready exists in BigQuery:', err);
+    // On error, assume it doesn't exist to avoid blocking new records
+    return false;
+  }
+}
+
+/**
  * Gets the latest in_progress status entry from BigQuery
  *
  * @param {string} repo - The repository name (e.g., "fleetdm/fleet")
@@ -669,28 +841,149 @@ async function saveQaReadyToBigQuery(data, gcpServiceAccountKey) {
     });
 
   } catch (err) {
-    // If we get a connection error, reset the client so it will be recreated on next attempt
-    if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND') {
-      sails.log.warn('BigQuery connection error detected, resetting client:', err.code);
-      bigqueryClient = null;
-    }
-    // Handle specific BigQuery errors
-    if (err.name === 'PartialFailureError') {
-      // Log the specific rows that failed
-      sails.log.error('Partial failure when inserting QA ready to BigQuery:', err.errors);
-    } else if (err.code === 404) {
-      sails.log.error('BigQuery table or dataset not found. Please ensure the table exists:', {
-        dataset: 'github_metrics',
-        table: 'issue_qa_ready'
-      });
-    } else if (err.code === 403) {
-      sails.log.error('Permission denied when accessing BigQuery. Check service account permissions.');
-    } else {
-      sails.log.error('Error saving QA ready to BigQuery:', err);
-    }
-
+    handleBigQueryError(err, 'saving QA ready to BigQuery', 'issue_qa_ready');
     throw err;
   }
+}
+
+/**
+ * Saves release ready metrics to BigQuery
+ *
+ * @param {Object} data - The release ready data to save
+ * @param {Object} gcpServiceAccountKey - The GCP service account key
+ */
+async function saveReleaseReadyToBigQuery(data, gcpServiceAccountKey) {
+  try {
+    // Get BigQuery client
+    const bigquery = getBigQueryClient(gcpServiceAccountKey);
+
+    // Configure dataset and table names
+    const datasetId = 'github_metrics';
+    const tableId = 'issue_release_ready';
+
+    // Get reference to the table
+    const dataset = bigquery.dataset(datasetId);
+    const table = dataset.table(tableId);
+
+    // Insert the data
+    await table.insert([data]);
+
+    sails.log.debug('Successfully saved release ready metrics to BigQuery:', {
+      dataset: datasetId,
+      table: tableId,
+      data: data
+    });
+
+  } catch (err) {
+    handleBigQueryError(err, 'saving release ready to BigQuery', 'issue_release_ready');
+    throw err;
+  }
+}
+
+/**
+ * Calculates time difference excluding weekends if enabled
+ *
+ * @param {Date} startTime - The start time
+ * @param {Date} endTime - The end time
+ * @returns {number} Time difference in seconds
+ */
+function calculateTimeExcludingWeekends(startTime, endTime) {
+  if (!EXCLUDE_WEEKENDS) {
+    // If weekend exclusion is disabled, return simple time difference
+    return Math.floor((endTime - startTime) / 1000);
+  }
+
+  // Use the provided weekend exclusion logic
+  const startDay = startTime.getUTCDay();
+  const endDay = endTime.getUTCDay();
+
+  // Case: Both start time and end time are on the same weekend
+  if (
+    (startDay === 0 || startDay === 6) &&
+    (endDay === 0 || endDay === 6) &&
+    Math.floor(endTime / (24 * 60 * 60 * 1000)) -
+      Math.floor(startTime / (24 * 60 * 60 * 1000)) <=
+      2
+  ) {
+    // Return 0 seconds
+    return 0;
+  }
+
+  // Make copies to avoid modifying original dates
+  const adjustedStartTime = new Date(startTime);
+  const adjustedEndTime = new Date(endTime);
+
+  // Set to start of Monday if start time is on weekend
+  if (startDay === 0) {
+    // Sunday
+    adjustedStartTime.setUTCDate(adjustedStartTime.getUTCDate() + 1);
+    adjustedStartTime.setUTCHours(0, 0, 0, 0);
+  } else if (startDay === 6) {
+    // Saturday
+    adjustedStartTime.setUTCDate(adjustedStartTime.getUTCDate() + 2);
+    adjustedStartTime.setUTCHours(0, 0, 0, 0);
+  }
+
+  // Set to start of Saturday if end time is on Sunday
+  if (endDay === 0) {
+    // Sunday
+    adjustedEndTime.setUTCDate(adjustedEndTime.getUTCDate() - 1);
+    adjustedEndTime.setUTCHours(0, 0, 0, 0);
+  } else if (endDay === 6) {
+    // Saturday
+    adjustedEndTime.setUTCHours(0, 0, 0, 0);
+  }
+
+  // Calculate raw time difference in milliseconds
+  const weekendDays = countWeekendDays(adjustedStartTime, adjustedEndTime);
+  const diffMs = adjustedEndTime - adjustedStartTime - weekendDays * 24 * 60 * 60 * 1000;
+
+  // Ensure we don't return negative values
+  return Math.max(0, Math.floor(diffMs / 1000));
+}
+
+/**
+ * Counts the number of weekend days between two dates
+ *
+ * @param {Date} startDate - The start date
+ * @param {Date} endDate - The end date
+ * @returns {number} Number of weekend days
+ */
+function countWeekendDays(startDate, endDate) {
+  // Make local copies of dates
+  startDate = new Date(startDate);
+  endDate = new Date(endDate);
+
+  // Ensure startDate is before endDate
+  if (startDate > endDate) {
+    [startDate, endDate] = [endDate, startDate];
+  }
+
+  // Make sure start dates and end dates are not on weekends. We just want to count the weekend days between them.
+  if (startDate.getUTCDay() === 0) {
+    startDate.setUTCDate(startDate.getUTCDate() + 1);
+  } else if (startDate.getUTCDay() === 6) {
+    startDate.setUTCDate(startDate.getUTCDate() + 2);
+  }
+  if (endDate.getUTCDay() === 0) {
+    endDate.setUTCDate(endDate.getUTCDate() - 2);
+  } else if (endDate.getUTCDay() === 6) {
+    endDate.setUTCDate(endDate.getUTCDate() - 1);
+  }
+
+  let count = 0;
+  const current = new Date(startDate);
+
+  while (current <= endDate) {
+    const day = current.getUTCDay();
+    if (day === 0 || day === 6) {
+      // Sunday (0) or Saturday (6)
+      count++;
+    }
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return count;
 }
 
 /**
@@ -722,26 +1015,7 @@ async function saveToBigQuery(data, gcpServiceAccountKey) {
     });
 
   } catch (err) {
-    // If we get a connection error, reset the client so it will be recreated on next attempt
-    if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND') {
-      sails.log.warn('BigQuery connection error detected, resetting client:', err.code);
-      bigqueryClient = null;
-    }
-    // Handle specific BigQuery errors
-    if (err.name === 'PartialFailureError') {
-      // Log the specific rows that failed
-      sails.log.error('Partial failure when inserting to BigQuery:', err.errors);
-    } else if (err.code === 404) {
-      sails.log.error('BigQuery table or dataset not found. Please ensure the table exists:', {
-        dataset: 'engineering_metrics',
-        table: 'project_status_changes'
-      });
-    } else if (err.code === 403) {
-      sails.log.error('Permission denied when accessing BigQuery. Check service account permissions.');
-    } else {
-      sails.log.error('Error saving to BigQuery:', err);
-    }
-
+    handleBigQueryError(err, 'saving to BigQuery', 'issue_status_change');
     throw err;
   }
 }
