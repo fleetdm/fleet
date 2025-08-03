@@ -58,7 +58,7 @@ const PROJECTS = {
   SOFTWARE: 70
 };
 
-// Feature flag for excluding weekends in time calculations
+// Flag for excluding weekends in time calculations. Only used during dev.
 // Set to true to exclude weekends, false to include them
 const EXCLUDE_WEEKENDS = true;
 
@@ -654,6 +654,46 @@ function getBigQueryClient(gcpServiceAccountKey) {
 }
 
 /**
+ * Generic helper to check if a record exists in BigQuery
+ *
+ * @param {string} repo - The repository name
+ * @param {number} issueNumber - The issue number
+ * @param {Object} gcpServiceAccountKey - The GCP service account key
+ * @param {string} tableId - The table to check
+ * @param {string} additionalCondition - Optional additional WHERE clause condition
+ * @returns {boolean} True if the record exists, false otherwise
+ */
+async function checkIfRecordExists(repo, issueNumber, gcpServiceAccountKey, tableId, additionalCondition = '') {
+  try {
+    const bigquery = getBigQueryClient(gcpServiceAccountKey);
+    const datasetId = 'github_metrics';
+
+    const query = `
+      SELECT 1
+      FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
+      WHERE repo = @repo
+        AND issue_number = @issueNumber
+        ${additionalCondition}
+      LIMIT 1
+    `;
+
+    const options = {
+      query: query,
+      params: { repo, issueNumber }
+    };
+
+    const [rows] = await bigquery.query(options);
+    return rows.length > 0;
+  } catch (err) {
+    if (err.code === 404) {
+      return false;
+    }
+    sails.log.error(`Error checking if record exists in ${tableId}:`, err);
+    return false;
+  }
+}
+
+/**
  * Checks if an issue already exists in BigQuery with in_progress status
  *
  * @param {string} repo - The repository name (e.g., "fleetdm/fleet")
@@ -662,41 +702,7 @@ function getBigQueryClient(gcpServiceAccountKey) {
  * @returns {boolean} True if the issue exists, false otherwise
  */
 async function checkIfIssueExists(repo, issueNumber, gcpServiceAccountKey) {
-  try {
-    // Get BigQuery client
-    const bigquery = getBigQueryClient(gcpServiceAccountKey);
-
-    // Configure dataset and table names
-    const datasetId = 'github_metrics';
-    const tableId = 'issue_status_change';
-
-    // Query to check if the issue exists with in_progress status
-    const query = `
-      SELECT 1
-      FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
-      WHERE repo = @repo
-        AND issue_number = @issueNumber
-        AND status = 'in_progress'
-      LIMIT 1
-    `;
-
-    const options = {
-      query: query,
-      params: {
-        repo: repo,
-        issueNumber: issueNumber
-      }
-    };
-
-    // Run the query
-    const [rows] = await bigquery.query(options);
-
-    return rows.length > 0;
-  } catch (err) {
-    sails.log.error('Error checking if issue exists in BigQuery:', err);
-    // On error, assume it doesn't exist to avoid blocking new records
-    return false;
-  }
+  return checkIfRecordExists(repo, issueNumber, gcpServiceAccountKey, 'issue_status_change', 'AND status = \'in_progress\'');
 }
 
 /**
@@ -708,45 +714,7 @@ async function checkIfIssueExists(repo, issueNumber, gcpServiceAccountKey) {
  * @returns {boolean} True if the entry exists, false otherwise
  */
 async function checkIfQaReadyExists(repo, issueNumber, gcpServiceAccountKey) {
-  try {
-    // Get BigQuery client
-    const bigquery = getBigQueryClient(gcpServiceAccountKey);
-
-    // Configure dataset and table names
-    const datasetId = 'github_metrics';
-    const tableId = 'issue_qa_ready';
-
-    // Query to check if the QA ready entry exists
-    const query = `
-      SELECT 1
-      FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
-      WHERE repo = @repo
-        AND issue_number = @issueNumber
-      LIMIT 1
-    `;
-
-    const options = {
-      query: query,
-      params: {
-        repo: repo,
-        issueNumber: issueNumber
-      }
-    };
-
-    // Run the query
-    const [rows] = await bigquery.query(options);
-
-    return rows.length > 0;
-  } catch (err) {
-    // If the table doesn't exist yet, it means no records exist
-    if (err.code === 404) {
-      return false;
-    }
-
-    sails.log.error('Error checking if QA ready exists in BigQuery:', err);
-    // On error, assume it doesn't exist to avoid blocking new records
-    return false;
-  }
+  return checkIfRecordExists(repo, issueNumber, gcpServiceAccountKey, 'issue_qa_ready');
 }
 
 /**
