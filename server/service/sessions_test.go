@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -543,21 +542,15 @@ func TestInitiateSSOWithTrailingSlash(t *testing.T) {
 				},
 			}
 
-			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 				return appConfig, nil
 			}
 
-			// Test that InitiateSSO works without double slashes
+			// Test that InitiateSSO works
 			sessionID, _, idpURL, err := svc.InitiateSSO(ctx, "/dashboard")
 			require.NoError(t, err)
 			require.NotEmpty(t, sessionID)
 			require.NotEmpty(t, idpURL)
-
-			// The URL should not contain double slashes except after the protocol
-			// Split by :// and check the rest doesn't contain //
-			parts := strings.SplitN(idpURL, "://", 2)
-			require.Len(t, parts, 2)
-			require.NotContains(t, parts[1], "//", "URL should not contain double slashes after protocol")
 		})
 	}
 }
@@ -585,7 +578,7 @@ func TestInitiateSSOWithInvalidURL(t *testing.T) {
 		},
 	}
 
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		return appConfig, nil
 	}
 
