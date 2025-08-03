@@ -78,14 +78,18 @@ func TestAppleMDM(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex)
-				VALUES (?, ?, ?, ?, ?, ?)`, h.UUID, h.UUID, "device", "topic", "push_magic", "token_hex")
+			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`, h.UUID, h.UUID, "device", "topic", "push_magic", "token_hex", time.Now())
 			if err != nil {
 				return err
 			}
 
 			encTok := uuid.NewString()
-			abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+			abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+				OrganizationName: "unused",
+				EncryptedToken:   []byte(encTok),
+				RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+			})
 			abmTokenID = abmToken.ID
 
 			return err
