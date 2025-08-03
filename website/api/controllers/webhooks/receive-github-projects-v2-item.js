@@ -235,17 +235,13 @@ async function processStatusChange(payload, gcpServiceAccountKey) {
   // Log the status change for debugging
   sails.log.verbose(`Status change detected: "${fromStatus || '(null)'}" -> "${toStatus}"`);
 
-  // Check if the "to" status includes "in progress"
-  if (!toStatus.includes('in progress')) {
-    sails.log.verbose(`Ignoring status change - "to" status doesn't include "in progress": ${toStatus}`);
+  // Check if the "to" status includes "in progress" or "awaiting qa"
+  const isToInProgress = toStatus.includes('in progress');
+  const isToAwaitingQa = toStatus.includes('awaiting qa');
+
+  if (!isToInProgress && !isToAwaitingQa) {
+    sails.log.verbose(`Ignoring status change - "to" status doesn't include "in progress" or "awaiting qa": ${toStatus}`);
     return null;
-  }
-
-  // Check if the "from" status is null or includes "ready"
-  const isFromNullOrReady = fieldValue.from === null || fromStatus.includes('ready');
-
-  if (!isFromNullOrReady) {
-    sails.log.verbose(`Status change from "${fromStatus}" to "in progress" - will check if already tracked`);
   }
 
   // Get issue details from the payload
@@ -261,29 +257,17 @@ async function processStatusChange(payload, gcpServiceAccountKey) {
     return null;
   }
 
-  // If the "from" status is not null or ready, check if we already have this issue tracked
-  if (!isFromNullOrReady) {
-    const exists = await checkIfIssueExists(issueDetails.repo, issueDetails.issueNumber, gcpServiceAccountKey);
-    if (exists) {
-      sails.log.verbose(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} already tracked as in_progress, skipping`);
-      return null;
-    }
-    sails.log.info(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} not yet tracked, will save as in_progress`);
+  // Handle "in progress" status changes
+  if (isToInProgress) {
+    return await handleInProgressStatus(fieldValue, projectsV2Item, issueDetails, gcpServiceAccountKey);
   }
 
-  // Prepare data for BigQuery
-  // We already verified the status includes "in progress", so save it as "in_progress" in the DB
-  const statusChangeData = {
-    date: new Date().toISOString(),
-    repo: issueDetails.repo,
-    issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
-    status: 'in_progress'
-  };
+  // Handle "awaiting qa" status changes
+  if (isToAwaitingQa) {
+    return await handleAwaitingQaStatus(fieldValue, projectsV2Item, issueDetails, gcpServiceAccountKey, projectNumber);
+  }
 
-  // Save to BigQuery
-  await saveToBigQuery(statusChangeData, gcpServiceAccountKey);
-
-  return statusChangeData;
+  return null;
 }
 
 
@@ -303,6 +287,16 @@ async function fetchIssueDetails(nodeId) {
             number
             repository {
               nameWithOwner
+            }
+            assignees(first: 1) {
+              nodes {
+                login
+              }
+            }
+            labels(first: 20) {
+              nodes {
+                name
+              }
             }
           }
         }
@@ -324,14 +318,158 @@ async function fetchIssueDetails(nodeId) {
     }
 
     const node = response.data.node;
+    const assignee = node.assignees.nodes.length > 0 ? node.assignees.nodes[0].login : '';
+
+    // Extract label names
+    const labels = node.labels.nodes.map(label => label.name.toLowerCase());
+
+    // Determine issue type based on labels
+    let issueType = 'other';
+    if (labels.includes('bug')) {
+      issueType = 'bug';
+    } else if (labels.includes('story')) {
+      issueType = 'story';
+    } else if (labels.includes('~sub-task')) {
+      issueType = 'sub-task';
+    }
+
     return {
       repo: node.repository.nameWithOwner,
-      issueNumber: node.number
+      issueNumber: node.number,
+      assignee: assignee,
+      type: issueType
     };
   } catch (err) {
     sails.log.error('Error fetching issue details from GitHub:', err);
     return null;
   }
+}
+
+/**
+ * Handles status changes to "in progress"
+ *
+ * @param {Object} fieldValue - The field value from the webhook payload
+ * @param {Object} projectsV2Item - The project item from the webhook payload
+ * @param {Object} issueDetails - The issue details from GitHub API
+ * @param {Object} gcpServiceAccountKey - The GCP service account key
+ * @returns {Object|null} Status change data if saved, null otherwise
+ */
+async function handleInProgressStatus(fieldValue, projectsV2Item, issueDetails, gcpServiceAccountKey) {
+  // Check if the "from" status is null or includes "ready"
+  const fromStatus = fieldValue.from ? fieldValue.from.name.toLowerCase() : '';
+  const isFromNullOrReady = fieldValue.from === null || fromStatus.includes('ready');
+
+  if (!isFromNullOrReady) {
+    sails.log.verbose(`Status change from "${fromStatus}" to "in progress" - will check if already tracked`);
+    const exists = await checkIfIssueExists(issueDetails.repo, issueDetails.issueNumber, gcpServiceAccountKey);
+    if (exists) {
+      sails.log.verbose(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} already tracked as in_progress, skipping`);
+      return null;
+    }
+    sails.log.info(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} not yet tracked, will save as in_progress`);
+  }
+
+  // Prepare data for BigQuery
+  const statusChangeData = {
+    date: projectsV2Item.updated_at,  // Use the actual update time from webhook
+    repo: issueDetails.repo,
+    issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+    status: 'in_progress'
+  };
+
+  // Save to BigQuery
+  await saveToBigQuery(statusChangeData, gcpServiceAccountKey);
+  return statusChangeData;
+}
+
+/**
+ * Handles status changes to "awaiting qa"
+ *
+ * @param {Object} fieldValue - The field value from the webhook payload
+ * @param {Object} projectsV2Item - The project item from the webhook payload
+ * @param {Object} issueDetails - The issue details from GitHub API
+ * @param {Object} gcpServiceAccountKey - The GCP service account key
+ * @param {number} projectNumber - The project number
+ * @returns {Object|null} QA ready data if saved, null otherwise
+ */
+async function handleAwaitingQaStatus(fieldValue, projectsV2Item, issueDetails, gcpServiceAccountKey, projectNumber) {
+  // Check if from status is "in progress" or "review"
+  const fromStatus = fieldValue.from ? fieldValue.from.name.toLowerCase() : '';
+  const isFromInProgressOrReview = fromStatus.includes('in progress') || fromStatus.includes('review');
+
+  // Check if we should create a new QA ready row
+  let shouldCreateQaRow = false;
+
+  if (isFromInProgressOrReview) {
+    // Always create if transitioning from in progress or review
+    shouldCreateQaRow = true;
+  } else {
+    // Check if row already exists
+    const qaRowExists = await checkIfQaReadyExists(issueDetails.repo, issueDetails.issueNumber, gcpServiceAccountKey);
+    if (!qaRowExists) {
+      shouldCreateQaRow = true;
+    } else {
+      sails.log.verbose(`QA ready row already exists for ${issueDetails.repo}#${issueDetails.issueNumber}, skipping`);
+      return null;
+    }
+  }
+
+  if (shouldCreateQaRow) {
+    // Get the latest in_progress status from BigQuery
+    const inProgressData = await getLatestInProgressStatus(issueDetails.repo, issueDetails.issueNumber, gcpServiceAccountKey);
+
+    if (!inProgressData) {
+      sails.log.warn(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate QA ready time`);
+      return null;
+    }
+
+    // Calculate time to QA ready
+    const qaReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
+    const inProgressTime = new Date(inProgressData.date);
+    const timeToQaReadySeconds = Math.floor((qaReadyTime - inProgressTime) / 1000);
+
+    // Determine project name
+    let projectName = '';
+    switch (projectNumber) {
+      case PROJECTS.ORCHESTRATION:
+        projectName = 'orchestration';
+        break;
+      case PROJECTS.MDM:
+        projectName = 'mdm';
+        break;
+      case PROJECTS.SOFTWARE:
+        projectName = 'software';
+        break;
+    }
+
+    // Prepare QA ready data
+    const qaReadyData = {
+      qa_ready: qaReadyTime.toISOString().split('T')[0],  // eslint-disable-line camelcase -- DATE format (YYYY-MM-DD)
+      assignee: issueDetails.assignee || '',  // Get assignee from issue details
+      issue_url: `https://github.com/${issueDetails.repo}/issues/${issueDetails.issueNumber}`,  // eslint-disable-line camelcase
+      time_to_qa_ready_seconds: timeToQaReadySeconds,  // eslint-disable-line camelcase
+      repo: issueDetails.repo,
+      issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+      qa_ready_time: qaReadyTime.toISOString(),  // eslint-disable-line camelcase
+      in_progress_time: inProgressTime.toISOString(),  // eslint-disable-line camelcase
+      project: projectName,
+      type: issueDetails.type  // Issue type based on labels
+    };
+
+    // Save to BigQuery
+    await saveQaReadyToBigQuery(qaReadyData, gcpServiceAccountKey);
+
+    sails.log.info('Saved QA ready metrics:', {
+      repo: issueDetails.repo,
+      issueNumber: issueDetails.issueNumber,
+      timeToQaReadySeconds,
+      project: projectName
+    });
+
+    return qaReadyData;
+  }
+
+  return null;
 }
 
 /**
@@ -369,7 +507,7 @@ async function checkIfIssueExists(repo, issueNumber, gcpServiceAccountKey) {
 
     // Query to check if the issue exists with in_progress status
     const query = `
-      SELECT COUNT(*) as count
+      SELECT 1
       FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
       WHERE repo = @repo
         AND issue_number = @issueNumber
@@ -388,11 +526,170 @@ async function checkIfIssueExists(repo, issueNumber, gcpServiceAccountKey) {
     // Run the query
     const [rows] = await bigquery.query(options);
 
-    return rows[0].count > 0;
+    return rows.length > 0;
   } catch (err) {
     sails.log.error('Error checking if issue exists in BigQuery:', err);
     // On error, assume it doesn't exist to avoid blocking new records
     return false;
+  }
+}
+
+/**
+ * Checks if a QA ready entry already exists in BigQuery
+ *
+ * @param {string} repo - The repository name (e.g., "fleetdm/fleet")
+ * @param {number} issueNumber - The issue number
+ * @param {Object} gcpServiceAccountKey - The GCP service account key
+ * @returns {boolean} True if the entry exists, false otherwise
+ */
+async function checkIfQaReadyExists(repo, issueNumber, gcpServiceAccountKey) {
+  try {
+    // Get BigQuery client
+    const bigquery = getBigQueryClient(gcpServiceAccountKey);
+
+    // Configure dataset and table names
+    const datasetId = 'github_metrics';
+    const tableId = 'issue_qa_ready';
+
+    // Query to check if the QA ready entry exists
+    const query = `
+      SELECT 1
+      FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
+      WHERE repo = @repo
+        AND issue_number = @issueNumber
+      LIMIT 1
+    `;
+
+    const options = {
+      query: query,
+      params: {
+        repo: repo,
+        issueNumber: issueNumber
+      }
+    };
+
+    // Run the query
+    const [rows] = await bigquery.query(options);
+
+    return rows.length > 0;
+  } catch (err) {
+    // If the table doesn't exist yet, it means no records exist
+    if (err.code === 404) {
+      return false;
+    }
+
+    sails.log.error('Error checking if QA ready exists in BigQuery:', err);
+    // On error, assume it doesn't exist to avoid blocking new records
+    return false;
+  }
+}
+
+/**
+ * Gets the latest in_progress status entry from BigQuery
+ *
+ * @param {string} repo - The repository name (e.g., "fleetdm/fleet")
+ * @param {number} issueNumber - The issue number
+ * @param {Object} gcpServiceAccountKey - The GCP service account key
+ * @returns {Object|null} The latest in_progress entry or null if not found
+ */
+async function getLatestInProgressStatus(repo, issueNumber, gcpServiceAccountKey) {
+  try {
+    // Get BigQuery client
+    const bigquery = getBigQueryClient(gcpServiceAccountKey);
+
+    // Configure dataset and table names
+    const datasetId = 'github_metrics';
+    const tableId = 'issue_status_change';
+
+    // Query to get the latest in_progress status
+    const query = `
+      SELECT date, repo, issue_number
+      FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
+      WHERE repo = @repo
+        AND issue_number = @issueNumber
+        AND status = 'in_progress'
+      ORDER BY date DESC
+      LIMIT 1
+    `;
+
+    const options = {
+      query: query,
+      params: {
+        repo: repo,
+        issueNumber: issueNumber
+      }
+    };
+
+    // Run the query
+    const [rows] = await bigquery.query(options);
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    // Convert BigQueryTimestamp to string if needed
+    const result = rows[0];
+    if (result.date && result.date.value) {
+      result.date = result.date.value;
+    }
+
+    return result;
+  } catch (err) {
+    sails.log.error('Error getting latest in_progress status from BigQuery:', err);
+    return null;
+  }
+}
+
+/**
+ * Saves QA ready metrics to BigQuery
+ *
+ * @param {Object} data - The QA ready data to save
+ * @param {Object} gcpServiceAccountKey - The GCP service account key
+ */
+async function saveQaReadyToBigQuery(data, gcpServiceAccountKey) {
+  try {
+    // Get BigQuery client
+    const bigquery = getBigQueryClient(gcpServiceAccountKey);
+
+    // Configure dataset and table names
+    const datasetId = 'github_metrics';
+    const tableId = 'issue_qa_ready';
+
+    // Get reference to the table
+    const dataset = bigquery.dataset(datasetId);
+    const table = dataset.table(tableId);
+
+    // Insert the data
+    await table.insert([data]);
+
+    sails.log.debug('Successfully saved QA ready metrics to BigQuery:', {
+      dataset: datasetId,
+      table: tableId,
+      data: data
+    });
+
+  } catch (err) {
+    // If we get a connection error, reset the client so it will be recreated on next attempt
+    if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND') {
+      sails.log.warn('BigQuery connection error detected, resetting client:', err.code);
+      bigqueryClient = null;
+    }
+    // Handle specific BigQuery errors
+    if (err.name === 'PartialFailureError') {
+      // Log the specific rows that failed
+      sails.log.error('Partial failure when inserting QA ready to BigQuery:', err.errors);
+    } else if (err.code === 404) {
+      sails.log.error('BigQuery table or dataset not found. Please ensure the table exists:', {
+        dataset: 'github_metrics',
+        table: 'issue_qa_ready'
+      });
+    } else if (err.code === 403) {
+      sails.log.error('Permission denied when accessing BigQuery. Check service account permissions.');
+    } else {
+      sails.log.error('Error saving QA ready to BigQuery:', err);
+    }
+
+    throw err;
   }
 }
 
