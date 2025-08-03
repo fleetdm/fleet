@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"path"
 	"sort"
 	"strings"
 
@@ -710,7 +711,13 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 	}
 
 	serverURL := appConfig.MDMUrl()
-	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback"
+	// Parse the URL and use path.Join to avoid double slashes
+	parsedURL, err := url.Parse(serverURL)
+	if err != nil {
+		return "", 0, "", ctxerr.Wrap(ctx, err, "invalid MDM URL")
+	}
+	parsedURL.Path = path.Join(parsedURL.Path, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
+	acsURL := parsedURL.String()
 
 	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(ctx,
 		mdmSSOSettings.EntityID,
