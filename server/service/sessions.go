@@ -672,28 +672,25 @@ func (svc *Service) InitSSOCallback(
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, badRequest("invalid SSO URL: "+err.Error()))
 	}
+	baseSSO := parsedURL.String()
 
 	// Now construct the ACS URL
 	parsedURL.Path = path.Join(parsedURL.Path, svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback")
-	acsURL, err := url.Parse(parsedURL.String())
-	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
-	}
 
 	expectedAudiences := []string{
 		appConfig.SSOSettings.EntityID,
-		parsedURL.String(), // Base SSO URL
-		acsURL.String(),    // Use the already-constructed ACS URL
+		baseSSO,            // Base SSO URL
+		parsedURL.String(), // Use the already-constructed ACS URL
 	}
 	samlProvider, requestID, redirectURL, err := sso.SAMLProviderFromSessionOrConfiguredMetadata(
-		ctx, sessionID, svc.ssoSessionStore, acsURL, appConfig.SSOSettings, expectedAudiences,
+		ctx, sessionID, svc.ssoSessionStore, parsedURL, appConfig.SSOSettings, expectedAudiences,
 	)
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
 	// Parse and verify SAMLResponse (verifies fields, expected IDs and signature).
-	auth, err = sso.ParseAndVerifySAMLResponse(samlProvider, samlResponse, requestID, acsURL)
+	auth, err = sso.ParseAndVerifySAMLResponse(samlProvider, samlResponse, requestID, parsedURL)
 	if err != nil {
 		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
 		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
