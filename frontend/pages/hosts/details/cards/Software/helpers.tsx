@@ -1,6 +1,8 @@
 import { QueryParams } from "utilities/url";
 import { Row } from "react-table";
 import { flatMap } from "lodash";
+import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   IHostSoftware,
   IHostSoftwareUiStatus,
@@ -340,4 +342,36 @@ export const installStatusSortType = (
   if (safeIndexA < safeIndexB) return -1;
   if (safeIndexA > safeIndexB) return 1;
   return 0;
+};
+
+interface IGetSoftwareSubheader {
+  platform: HostPlatform;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
+  isMyDevicePage?: boolean;
+}
+
+/**
+ * Returns a subheader string for the software page based on platform and MDM enrollment status.
+ * Handles iOS-specific cases for personal and manual MDM enrollment.
+ */
+export const getSoftwareSubheader = ({
+  platform,
+  hostMdmEnrollmentStatus,
+  isMyDevicePage,
+}: IGetSoftwareSubheader): string => {
+  if (isIPadOrIPhone(platform)) {
+    if (hostMdmEnrollmentStatus === "On (personal)") {
+      return isMyDevicePage
+        ? "Software installed on your work profile (Managed Apple Account)."
+        : "Software installed on work profile (Managed Apple Account).";
+    }
+    if (hostMdmEnrollmentStatus === "On (manual)") {
+      return isMyDevicePage
+        ? "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
+        : "Software installed on this host. Built-in apps (e.g. Calculator) aren't included.";
+    }
+  }
+  return isMyDevicePage
+    ? "Software installed on your device."
+    : "Software installed on this host.";
 };
