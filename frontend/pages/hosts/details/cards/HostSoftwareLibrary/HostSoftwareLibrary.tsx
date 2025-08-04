@@ -15,7 +15,11 @@ import hostAPI, {
   IHostSoftwareQueryKey,
 } from "services/entities/hosts";
 import PATHS from "router/paths";
-import { IHostSoftware, ISoftware } from "interfaces/software";
+import {
+  IHostSoftware,
+  IVPPHostSoftware,
+  ISoftware,
+} from "interfaces/software";
 import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -29,7 +33,11 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
@@ -54,8 +62,7 @@ interface IHostSoftwareLibraryProps {
   pathname: string;
   hostTeamId: number;
   hostName: string;
-  onShowSoftwareDetails: (software?: IHostSoftware) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
+  onShowInventoryVersions: (software?: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   hostMDMEnrolled?: boolean;
@@ -108,8 +115,7 @@ const HostSoftwareLibrary = ({
   pathname,
   hostTeamId = 0,
   hostName,
-  onShowSoftwareDetails,
-  onShowUninstallDetails,
+  onShowInventoryVersions,
   isSoftwareEnabled = false,
   hostMDMEnrolled,
   isHostOnline = false,
@@ -136,6 +142,22 @@ const HostSoftwareLibrary = ({
     selectedSoftwareUpdates,
     setSelectedSoftwareUpdates,
   ] = useState<IHostSoftware | null>(null);
+  // these states and modal logic exist at this level intead of the page level to match the similar
+  // pattern on
+  // the device user page, which facilitates manipulating relevant UI states e.g.
+  // "updating..." when the user clicks "Retry" in the SoftwareInstallDetailsModal
+  const [
+    selectedHostSWInstallDetails,
+    setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedHostSWUninstallDetails,
+    setSelectedHostSWUninstallDetails,
+  ] = useState<ISWUninstallDetailsParentState | null>(null);
+  const [
+    selectedVPPInstallDetails,
+    setSelectedVPPInstallDetails,
+  ] = useState<IVPPHostSoftware | null>(null);
 
   const enhancedSoftware = useMemo(() => {
     if (!hostSoftwareLibraryRes) return [];
@@ -346,6 +368,33 @@ const HostSoftwareLibrary = ({
     [setSelectedSoftwareUpdates]
   );
 
+  const onSetSelectedHostSWInstallDetails = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWInstallDetails(hostSW);
+      }
+    },
+    [setSelectedHostSWInstallDetails]
+  );
+
+  const onSetSelectedHostSWUninstallDetails = useCallback(
+    (uninstallDetails?: ISWUninstallDetailsParentState) => {
+      if (uninstallDetails) {
+        setSelectedHostSWUninstallDetails(uninstallDetails);
+      }
+    },
+    [setSelectedHostSWUninstallDetails]
+  );
+
+  const onSetSelectedVPPInstallDetails = useCallback(
+    (s?: IVPPHostSoftware) => {
+      if (s) {
+        setSelectedVPPInstallDetails(s);
+      }
+    },
+    [setSelectedVPPInstallDetails]
+  );
+
   const onInstallOrUninstall = useCallback(() => {
     // For online hosts, poll for change in pending statuses
     // For offline hosts, refresh the data without polling
@@ -427,23 +476,27 @@ const HostSoftwareLibrary = ({
       teamId: hostTeamId,
       hostName,
       baseClass,
-      onShowSoftwareDetails,
+      onShowInventoryVersions,
       onShowUpdateDetails,
-      onShowUninstallDetails,
+      onSetSelectedHostSWInstallDetails,
+      onSetSelectedHostSWUninstallDetails,
+      onSetSelectedVPPInstallDetails,
       onClickInstallAction,
       onClickUninstallAction,
       isHostOnline,
     });
   }, [
-    router,
     userHasSWWritePermission,
     hostScriptsEnabled,
+    hostMDMEnrolled,
+    router,
     hostTeamId,
     hostName,
-    hostMDMEnrolled,
-    onShowSoftwareDetails,
+    onShowInventoryVersions,
     onShowUpdateDetails,
-    onShowUninstallDetails,
+    onSetSelectedHostSWInstallDetails,
+    onSetSelectedHostSWUninstallDetails,
+    onSetSelectedVPPInstallDetails,
     onClickInstallAction,
     onClickUninstallAction,
     isHostOnline,
@@ -499,6 +552,38 @@ const HostSoftwareLibrary = ({
           software={selectedSoftwareUpdates}
           onUpdate={onClickInstallAction}
           onExit={() => setSelectedSoftwareUpdates(null)}
+        />
+      )}
+      {selectedHostSWInstallDetails && (
+        <SoftwareInstallDetailsModal
+          details={{
+            host_display_name: hostDisplayName,
+            install_uuid:
+              selectedHostSWInstallDetails.software_package?.last_install
+                ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+          }}
+          hostSoftware={selectedHostSWInstallDetails}
+          onCancel={() => setSelectedHostSWInstallDetails(null)}
+        />
+      )}
+      {selectedHostSWUninstallDetails && (
+        <SoftwareUninstallDetailsModal
+          {...selectedHostSWUninstallDetails}
+          hostDisplayName={hostDisplayName}
+          onCancel={() => setSelectedHostSWUninstallDetails(null)}
+        />
+      )}
+      {selectedVPPInstallDetails && (
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus:
+              selectedVPPInstallDetails.status || "pending_install",
+            hostDisplayName,
+            appName: selectedVPPInstallDetails.name,
+            commandUuid: selectedVPPInstallDetails.commandUuid,
+          }}
+          hostSoftware={selectedVPPInstallDetails}
+          onCancel={() => setSelectedVPPInstallDetails(null)}
         />
       )}
     </div>

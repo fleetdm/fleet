@@ -374,6 +374,7 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 					break
 				}
 			}
+			time.Sleep(100 * time.Millisecond) // Add a small delay between checks
 		}
 	}()
 	select {

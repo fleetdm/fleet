@@ -61,6 +61,21 @@ func defaultHostColumnTableAlias(s string) string {
 //
 // Currently only used for testing.
 func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
+	// Set default values for zero timestamps to avoid MySQL strict mode errors
+	now := time.Now()
+	if host.DetailUpdatedAt.IsZero() {
+		host.DetailUpdatedAt = now
+	}
+	if host.LabelUpdatedAt.IsZero() {
+		host.LabelUpdatedAt = now
+	}
+	if host.PolicyUpdatedAt.IsZero() {
+		host.PolicyUpdatedAt = now
+	}
+	if host.SeenTime.IsZero() {
+		host.SeenTime = now
+	}
+
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		sqlStatement := `
 		INSERT INTO hosts (
