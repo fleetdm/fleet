@@ -249,7 +249,5 @@ Please see [handbook/people#convert-a-fleetie-to-a-consultant](https://fleetdm.c
 Please see [handbook/people#review-Fleets-us-company-benefits](https://fleetdm.com/handbook/people#review-Fleets-us-company-benefits)
 
 
-
-
 <meta name="maintainedBy" value="allenhouchins">
 <meta name="title" value="🌐 IT & Enablement">
