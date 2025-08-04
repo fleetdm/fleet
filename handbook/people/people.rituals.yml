@@ -14,7 +14,7 @@
   frequency: "Monthly"
   description: "Preparing the all hands deck"
   moreInfoUrl: "https://fleetdm.com/handbook/people#preparing-for-the-all-hands"
-  dri: [ "ireedy"
+  dri: "ireedy"
   autoIssue:
     labels: [ ":help-people" ]
     repo: "confidential"
