@@ -117,12 +117,6 @@ export const getOptions = (
     value: APP_CONTEXT_ALL_TEAMS_ID,
   };
 
-  // If another token already owns "All teams", return empty dropdown
-  const anotherTokenIsAllTeams = tokens.some(
-    (token) => isTokenAllTeams(token) && token.id !== currentToken.id
-  );
-  if (anotherTokenIsAllTeams) return [];
-
   // Filter for actual team options, add "All teams" to the front
   const allOptions = [
     allTeamsOption,
