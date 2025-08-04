@@ -35,29 +35,32 @@ describe("ScheduleBatchScriptModal", () => {
     });
     expect(heading).toBeInTheDocument();
   });
-    
+
   describe("run now", () => {
+    it("should call the API with no not_before param", () => {
+      render(<ScheduleBatchScriptModal />);
+    });
   });
-    
+
   describe("schedule for later", () => {
-    
     it("requires a valid date", () => {
-        render(<ScheduleBatchScriptModal />);
-        const heading = screen.getByRole("heading", {
+      render(<ScheduleBatchScriptModal />);
+      const heading = screen.getByRole("heading", {
         name: /Schedule Batch Script Modal/i,
-        });
-        expect(heading).toBeInTheDocument();
+      });
+      expect(heading).toBeInTheDocument();
     });
-      
+
     it("requires a valid time", () => {
-        render(<ScheduleBatchScriptModal />);
-        const heading = screen.getByRole("heading", {
+      render(<ScheduleBatchScriptModal />);
+      const heading = screen.getByRole("heading", {
         name: /Schedule Batch Script Modal/i,
-        });
-        expect(heading).toBeInTheDocument();
+      });
+      expect(heading).toBeInTheDocument();
     });
-      
-      
-    
-    
+
+    it("should call the API with a not_before param", () => {
+      render(<ScheduleBatchScriptModal />);
+    });
+  });
 });
