@@ -86,6 +86,23 @@ var (
 			Padding(0, 1)
 )
 
+type processTaskMsg struct {
+	taskID int
+}
+
+type actionStatusMsg struct {
+	index int
+	state string
+}
+
+type startAsyncWorkflowMsg struct {
+	actions []ghapi.Action
+}
+
+type asyncStatusMsg struct {
+	status ghapi.Status
+}
+
 type model struct {
 	choices       []ghapi.Issue
 	cursor        int
@@ -1418,54 +1435,8 @@ func (m *model) executeWorkflow() tea.Cmd {
 		}
 	}
 
-	// For BulkAddLabel and BulkRemoveLabel, start async workflow
+	// For all workflows, start async workflow
 	return m.executeAsyncWorkflow(actions)
-}
-
-func (m *model) processAction(actions []ghapi.Action, index int) tea.Cmd {
-	return func() tea.Msg {
-		if index >= len(actions) {
-			// All actions completed
-			return workflowCompleteMsg{
-				success: true,
-				message: fmt.Sprintf("Successfully processed %d actions", len(actions)),
-			}
-		}
-
-		action := actions[index]
-		// Process the action based on its type
-		var err error
-		switch action.Type {
-		case ghapi.ATAddLabel:
-			err = ghapi.AddLabelToIssue(action.Issue.Number, action.Label)
-		case ghapi.ATRemoveLabel:
-			err = ghapi.RemoveLabelFromIssue(action.Issue.Number, action.Label)
-		case ghapi.ATAddIssueToProject:
-			err = ghapi.AddIssueToProject(action.Issue.Number, action.Project)
-		case ghapi.ATRemoveIssueFromProject:
-			err = ghapi.RemoveIssueFromProject(action.Issue.Number, action.Project)
-		case ghapi.ATSetStatus:
-			err = ghapi.SetIssueStatus(action.Issue.Number, action.Project, action.Status)
-		case ghapi.ATSyncEstimate:
-			err = ghapi.SyncEstimateField(action.Issue.Number, action.SourceProject, action.Project)
-		case ghapi.ATSetSprint:
-			err = ghapi.SetCurrentSprint(action.Issue.Number, action.Project)
-		default:
-			err = fmt.Errorf("unknown action type: %s", action.Type)
-		}
-
-		if err != nil {
-			return actionStatusMsg{
-				index: index,
-				state: "error",
-			}
-		}
-
-		return actionStatusMsg{
-			index: index,
-			state: "success",
-		}
-	}
 }
 
 func (m *model) listenForAsyncStatus() tea.Cmd {
@@ -1482,106 +1453,5 @@ func (m *model) listenForAsyncStatus() tea.Cmd {
 func (m *model) executeAsyncWorkflow(actions []ghapi.Action) tea.Cmd {
 	return func() tea.Msg {
 		return startAsyncWorkflowMsg{actions: actions}
-	}
-}
-
-func (m *model) runWorkflowTasks(selectedIssues []ghapi.Issue) tea.Cmd {
-	return func() tea.Msg {
-		projectID := m.projectID
-		if projectID == 0 && m.projectInput != "" {
-			resolvedID, err := ghapi.ResolveProjectID(m.projectInput)
-			if err != nil {
-				return workflowCompleteMsg{
-					success: false,
-					message: fmt.Sprintf("Failed to resolve project ID: %v", err),
-				}
-			}
-			projectID = resolvedID
-		}
-
-		// Execute workflow with progress updates using AsyncManager
-		switch m.workflowType {
-		case BulkAddLabel:
-			return m.executeAsyncWorkflow(ghapi.CreateBulkAddLableAction(selectedIssues, m.labelInput))
-		case BulkRemoveLabel:
-			return m.executeAsyncWorkflow(ghapi.CreateBulkRemoveLabelAction(selectedIssues, m.labelInput))
-		case BulkSprintKickoff:
-			return executeBulkSprintKickoff(selectedIssues, projectID)
-		case BulkMilestoneClose:
-			return executeBulkMilestoneClose(selectedIssues)
-		case BulkKickOutOfSprint:
-			return executeBulkKickOutOfSprint(selectedIssues, projectID)
-		}
-
-		return workflowCompleteMsg{
-			success: false,
-			message: "Unknown workflow type",
-		}
-	}
-}
-
-type processTaskMsg struct {
-	taskID int
-}
-
-type actionStatusMsg struct {
-	index int
-	state string
-}
-
-type startAsyncWorkflowMsg struct {
-	actions []ghapi.Action
-}
-
-type asyncStatusMsg struct {
-	status ghapi.Status
-}
-
-func executeBulkSprintKickoff(selectedIssues []ghapi.Issue, projectID int) tea.Msg {
-	// Get the drafting project ID for source
-	draftingProjectID := 0 // You may need to resolve this from aliases
-
-	// This would be better implemented as a series of commands, but for now keep it simple
-	err := ghapi.BulkSprintKickoff(selectedIssues, draftingProjectID, projectID)
-	if err != nil {
-		return workflowCompleteMsg{
-			success: false,
-			message: fmt.Sprintf("Sprint kickoff failed: %v", err),
-		}
-	}
-
-	return workflowCompleteMsg{
-		success: true,
-		message: fmt.Sprintf("Executed sprint kickoff for %d issues to project %d", len(selectedIssues), projectID),
-	}
-}
-
-func executeBulkMilestoneClose(selectedIssues []ghapi.Issue) tea.Msg {
-	err := ghapi.BulkMilestoneClose(selectedIssues)
-	if err != nil {
-		return workflowCompleteMsg{
-			success: false,
-			message: fmt.Sprintf("Milestone close failed: %v", err),
-		}
-	}
-
-	return workflowCompleteMsg{
-		success: true,
-		message: fmt.Sprintf("Executed milestone close for %d issues", len(selectedIssues)),
-	}
-}
-
-func executeBulkKickOutOfSprint(selectedIssues []ghapi.Issue, sourceProjectID int) tea.Msg {
-	err := ghapi.BulkKickOutOfSprint(selectedIssues, sourceProjectID)
-	if err != nil {
-		return workflowCompleteMsg{
-			success: false,
-			message: fmt.Sprintf("Kick out of sprint failed: %v", err),
-		}
-	}
-
-	return workflowCompleteMsg{
-		success: true,
-		message: fmt.Sprintf("Executed kick out of sprint for %d issues from project %d", len(selectedIssues), sourceProjectID),
 	}
 }
