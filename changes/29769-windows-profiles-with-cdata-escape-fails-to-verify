@@ -1,0 +1,1 @@
+* Fixed an issue where windows configuration profiles fails to validate due to escaping data sequence with `<![CDATA[...]]>` and profile verifier not stripping this away.
