@@ -274,29 +274,30 @@ module.exports.custom = {
     // Handbook
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
-    'handbook/company/open-positions.yml': ['sampfluger88','mikermcneil'],
-    'handbook/company/communications.md': ['sampfluger88','mikermcneil'],
-    'handbook/company/leadership.md': ['sampfluger88','mikermcneil'],
-    'handbook/digital-experience': ['sampfluger88','mikermcneil'],
-    'handbook/finance': ['sampfluger88','mikermcneil'],
-    'handbook/sales': ['sampfluger88','mikermcneil'],
-    'handbook/marketing': ['sampfluger88','mikermcneil'],
-    'handbook/customer-success': ['sampfluger88','mikermcneil'],
+    'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/communications.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil'],
+    'handbook/finance': ['sampfluger88', 'mikermcneil'],
+    'handbook/sales': ['sampfluger88', 'mikermcneil'],
+    'handbook/marketing': ['sampfluger88', 'mikermcneil'],
+    'handbook/customer-success': ['sampfluger88', ' mikermcneil'],
 
     // 🫧 Pricing and features and dev process
     'handbook/company/pricing-features-table.yml': ['noahtalerman', 'mikermcneil'],
     'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'zayhanlon'],
 
     // Dev process
-    'handbook/company/product-groups.md': ['lukeheath','noahtalerman','sampfluger88','mikermcneil'],
+    'handbook/company/product-groups.md': ['lukeheath', 'noahtalerman', 'sampfluger88', 'mikermcneil'],
     'handbook/engineering': ['sampfluger88', 'lukeheath'],
     'handbook/product-design': ['sampfluger88', 'noahtalerman'],
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman'],
-    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'sampfluger88'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['lukeheath', 'xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['lukeheath', 'xpkoala', 'noahtalerman'],
+    '.github/ISSUE_TEMPLATE/release-qa.md': ['lukeheath', 'xpkoala', 'noahtalerman'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential

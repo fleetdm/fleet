@@ -10539,11 +10539,12 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 
 	// generate a mock token and encrypt it using the public key
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+		ConsumerKey:    "test_consumer",
+		ConsumerSecret: "test_secret",
+		AccessToken:    "test_access_token",
+		AccessSecret:   "test_access_secret",
+		// Use 2037 to avoid Y2K38 issues with 32-bit timestamps and potential MySQL date validation issues
+		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
 	rawToken, err := json.Marshal(testBMToken)
@@ -12390,7 +12391,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
 
 	// Spoof an expired VPP token and attempt to install VPP app
-	tokenJSONBad := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, "2099-06-24T15:50:50+0000", "badtoken", "Evil Fleet")
+	tokenJSONBad := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, "2030-06-24T15:50:50+0000", "badtoken", "Evil Fleet")
 	s.appleVPPConfigSrvConfig.Location = "Spooky Haunted House"
 	var vppRes uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSONBad))), http.StatusAccepted, "", &vppRes)
@@ -15623,7 +15624,7 @@ func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
 		BundleIdentifier: "bid_" + t.Name(),
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
-				AdamID:   "adam_" + t.Name(),
+				AdamID:   "adam_test_01",
 				Platform: fleet.MacOSPlatform,
 			},
 		},

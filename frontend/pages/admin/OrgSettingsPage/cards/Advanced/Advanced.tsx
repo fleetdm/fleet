@@ -18,6 +18,7 @@ import { IAppConfigFormProps, IFormField } from "../constants";
 const baseClass = "app-config-form";
 
 interface IAdvancedConfigFormData {
+  ssoUserURL: string;
   mdmAppleServerURL: string;
   domain: string;
   verifySSLCerts: boolean;
@@ -33,18 +34,26 @@ interface IAdvancedConfigFormData {
 }
 
 interface IAdvancedConfigFormErrors {
+  ssoUserURL?: string | null;
   mdmAppleServerURL?: string | null;
   domain?: string | null;
   hostExpiryWindow?: string | null;
 }
 
 const validateFormData = ({
+  ssoUserURL,
   mdmAppleServerURL,
   domain,
   hostExpiryWindow,
   enableHostExpiry,
 }: IAdvancedConfigFormData) => {
   const errors: Record<string, string> = {};
+
+  if (!ssoUserURL) {
+    delete errors.ssoUserURL;
+  } else if (!validUrl({ url: ssoUserURL })) {
+    errors.ssoUserURL = `${ssoUserURL} is not a valid URL`;
+  }
 
   if (!mdmAppleServerURL) {
     delete errors.mdmAppleServerURL;
@@ -75,6 +84,7 @@ const Advanced = ({
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<IAdvancedConfigFormData>({
+    ssoUserURL: appConfig.sso_settings?.sso_server_url || "",
     mdmAppleServerURL: appConfig.mdm?.apple_server_url || "",
     domain: appConfig.smtp_settings?.domain || "",
     verifySSLCerts: appConfig.smtp_settings?.verify_ssl_certs || false,
@@ -97,6 +107,7 @@ const Advanced = ({
   });
 
   const {
+    ssoUserURL,
     mdmAppleServerURL,
     domain,
     verifySSLCerts,
@@ -179,6 +190,9 @@ const Advanced = ({
       mdm: {
         apple_server_url: mdmAppleServerURL,
       },
+      sso_settings: {
+        sso_server_url: ssoUserURL,
+      },
     };
 
     handleSubmit(formDataToSubmit);
@@ -193,6 +207,25 @@ const Advanced = ({
             Most users do not need to modify these options.
           </p>
           <div className="form">
+            <GitOpsModeTooltipWrapper
+              position="left"
+              renderChildren={(disableChildren) => (
+                <InputField
+                  disabled={disableChildren}
+                  label="SSO user URL"
+                  onChange={onInputChange}
+                  onBlur={onInputBlur}
+                  name="ssoUserURL"
+                  value={ssoUserURL}
+                  parseTarget
+                  error={formErrors.ssoUserURL}
+                  tooltip={
+                    !disableChildren &&
+                    "Update this URL if you want your Fleet users (admins, maintainers, observers) to login via SSO using a URL that's different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance."
+                  }
+                />
+              )}
+            />
             {appConfig.mdm.enabled_and_configured && (
               <GitOpsModeTooltipWrapper
                 position="left"
