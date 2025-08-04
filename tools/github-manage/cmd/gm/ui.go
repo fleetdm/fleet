@@ -373,44 +373,32 @@ func (m *model) getOriginalIndex(filteredIndex int) int {
 
 func fetchIssues(search string) tea.Cmd {
 	return func() tea.Msg {
-		// Ensure GitHub API calls don't overlap
-		time.Sleep(100 * time.Millisecond)
-
 		issues, err := ghapi.GetIssues(search)
 		if err != nil {
 			return err
 		}
-		time.Sleep(1 * time.Second) // Simulate a delay for loading
 		return issuesLoadedMsg(issues)
 	}
 }
 
 func fetchProjectItems(projectID, limit int) tea.Cmd {
 	return func() tea.Msg {
-		// Ensure GitHub API calls don't overlap
-		time.Sleep(100 * time.Millisecond)
-
 		items, err := ghapi.GetProjectItems(projectID, limit)
 		if err != nil {
 			return err
 		}
 		issues := ghapi.ConvertItemsToIssues(items)
-		time.Sleep(500 * time.Millisecond) // Brief loading simulation
 		return issuesLoadedMsg(issues)
 	}
 }
 
 func fetchEstimatedItems(projectID, limit int) tea.Cmd {
 	return func() tea.Msg {
-		// Ensure GitHub API calls don't overlap
-		time.Sleep(100 * time.Millisecond)
-
 		items, err := ghapi.GetEstimatedTicketsForProject(projectID, limit)
 		if err != nil {
 			return err
 		}
 		issues := ghapi.ConvertItemsToIssues(items)
-		time.Sleep(500 * time.Millisecond) // Brief loading simulation
 		return issuesLoadedMsg(issues)
 	}
 }
@@ -1445,10 +1433,6 @@ func (m *model) processAction(actions []ghapi.Action, index int) tea.Cmd {
 		}
 
 		action := actions[index]
-
-		// Add delay to ensure no concurrent GitHub operations
-		time.Sleep(100 * time.Millisecond)
-
 		// Process the action based on its type
 		var err error
 		switch action.Type {
@@ -1554,9 +1538,6 @@ type asyncStatusMsg struct {
 }
 
 func executeBulkSprintKickoff(selectedIssues []ghapi.Issue, projectID int) tea.Msg {
-	// Add a delay to ensure no overlap with other GitHub commands
-	time.Sleep(200 * time.Millisecond)
-
 	// Get the drafting project ID for source
 	draftingProjectID := 0 // You may need to resolve this from aliases
 
@@ -1576,9 +1557,6 @@ func executeBulkSprintKickoff(selectedIssues []ghapi.Issue, projectID int) tea.M
 }
 
 func executeBulkMilestoneClose(selectedIssues []ghapi.Issue) tea.Msg {
-	// Add a delay to ensure no overlap with other GitHub commands
-	time.Sleep(200 * time.Millisecond)
-
 	err := ghapi.BulkMilestoneClose(selectedIssues)
 	if err != nil {
 		return workflowCompleteMsg{
@@ -1594,9 +1572,6 @@ func executeBulkMilestoneClose(selectedIssues []ghapi.Issue) tea.Msg {
 }
 
 func executeBulkKickOutOfSprint(selectedIssues []ghapi.Issue, sourceProjectID int) tea.Msg {
-	// Add a delay to ensure no overlap with other GitHub commands
-	time.Sleep(200 * time.Millisecond)
-
 	err := ghapi.BulkKickOutOfSprint(selectedIssues, sourceProjectID)
 	if err != nil {
 		return workflowCompleteMsg{
