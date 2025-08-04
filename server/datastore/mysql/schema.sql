@@ -120,6 +120,7 @@ CREATE TABLE `batch_activities` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_batch_script_executions_execution_id` (`execution_id`),
   KEY `batch_script_executions_script_id` (`script_id`),
+  KEY `idx_batch_activities_status` (`status`),
   CONSTRAINT `batch_script_executions_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE CASCADE
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
