@@ -374,7 +374,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 
 | Name | Platforms | Description |
 | ---- | --------- | ----------- |
-| `$FLEET_VAR_NDES_SCEP_CHALLENGE`                   | macOS, iOS, iPadOS | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment.        |
+| <span style="display: inline-block; min-width: 240px;">`$FLEET_VAR_NDES_SCEP_CHALLENGE`</span> | macOS, iOS, iPadOS | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_NDES_SCEP_PROXY_URL`                   | macOS, iOS, iPadOS | Fleet-managed NDES SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`            | macOS | Host's IdP username. When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
