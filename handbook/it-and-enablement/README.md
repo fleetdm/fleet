@@ -10,7 +10,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Head of IT & Enablement                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
 | Head of Digital Workplace & GTM Systems | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
 | Manager of Training and Enablement      | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
-| Solutions Consultant (SC)               | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
+| Solutions Consultant (SC)               | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)_
 
 
 ## Contact us
