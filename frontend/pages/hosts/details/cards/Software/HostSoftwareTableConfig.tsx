@@ -3,13 +3,12 @@ import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
 import {
-  IHostSoftware,
-  SoftwareSource,
   formatSoftwareType,
+  IHostSoftware,
   isIpadOrIphoneSoftwareSource,
+  SoftwareSource,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { IDropdownOption } from "interfaces/dropdownOption";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
@@ -137,11 +136,9 @@ export const generateSoftwareTableHeaders = ({
         if (dateStrings.length === 0) return null;
 
         // Find the most recent date string by comparing their Date values
-        const mostRecent = dateStrings.reduce((a, b) =>
+        return dateStrings.reduce((a, b) =>
           new Date(a).getTime() > new Date(b).getTime() ? a : b
-        );
-
-        return mostRecent; // cellProps.cell.value = mostRecent;
+        ); // cellProps.cell.value = mostRecent;
       },
       Cell: (cellProps: ITableStringCellProps) => {
         const { source } = cellProps.row.original;
@@ -153,10 +150,10 @@ export const generateSoftwareTableHeaders = ({
           displayValue = (
             <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
           );
-        } else if (shouldShowNever) {
-          displayValue = "Never";
-        } else {
+        } else if (!shouldShowNever) {
           displayValue = DEFAULT_EMPTY_CELL_VALUE;
+        } else {
+          return <TextCell value="Never" />;
         }
 
         return <TextCell value={displayValue} grey={!cellProps.cell.value} />;
