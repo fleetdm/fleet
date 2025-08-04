@@ -19,10 +19,18 @@ ALTER TABLE batch_script_executions RENAME TO batch_activities;
 
 	// Add new columns to the renamed table
 	if _, err := tx.Exec(`
-ALTER TABLE batch_activities 
-ADD COLUMN job_id int unsigned,
-ADD COLUMN status varchar(255),
-ADD COLUMN activity_type varchar(255);
+ALTER TABLE batch_activities
+ADD COLUMN job_id int unsigned AFTER user_id,
+ADD COLUMN num_canceled int unsigned NULL DEFAULT NULL AFTER job_id,
+ADD COLUMN num_incompatible int unsigned NULL DEFAULT NULL AFTER job_id,
+ADD COLUMN num_errored int unsigned NULL DEFAULT NULL AFTER job_id,
+ADD COLUMN num_ran int unsigned NULL DEFAULT NULL AFTER job_id,
+ADD COLUMN num_pending int unsigned NULL DEFAULT NULL AFTER job_id,
+ADD COLUMN num_targeted int unsigned NULL DEFAULT NULL AFTER job_id,
+ADD COLUMN activity_type varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci AFTER job_id,
+ADD COLUMN status varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci AFTER job_id,
+ADD COLUMN completed_at datetime NULL DEFAULT NULL AFTER updated_at,
+ADD COLUMN canceled_at datetime NULL DEFAULT NULL AFTER completed_at;
 `); err != nil {
 		return fmt.Errorf("failed to add columns to batch_activities: %w", err)
 	}

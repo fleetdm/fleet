@@ -15,6 +15,7 @@ func TestUp_20250801083116(t *testing.T) {
 		t.Fatalf("failed to insert script: %v", err)
 	}
 	scriptID, err := r.LastInsertId()
+	require.NoError(t, err)
 
 	stmt = `INSERT INTO batch_script_executions (script_id, execution_id, user_id) VALUES (?, ?, ?)`
 	r, err = db.Exec(stmt, scriptID, "abc123", 1)
