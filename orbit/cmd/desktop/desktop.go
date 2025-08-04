@@ -459,6 +459,8 @@ func main() {
 							migrateMDMItem.Enable()
 							migrateMDMItem.Show()
 							showMDMMigrator = true
+						} else {
+							showMDMMigrator = false
 						}
 
 						// if the device is unmanaged or we're in force mode and the device needs
