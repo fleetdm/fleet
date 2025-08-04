@@ -1,9 +1,10 @@
-## Fleet 4.71.1 (Aug 01, 2025)
+## Fleet 4.71.1 (Aug 04, 2025)
 
 ### Bug fixes
 
-Added `sso_server_url` configuration option to support SSO setups with separate URLs for admin access vs agent/API access. When set, SSO authentication will only work from the specified URL. This fixes SSO authentication errors for organizations using dual URL configurations.
-Added support for MS-MDE2 v7.0 Windows MDM Enrollments
+- Added `sso_server_url` configuration option to support SSO setups with separate URLs for admin access vs agent/API access. When set, SSO authentication will only work from the specified URL. This fixes SSO authentication errors for organizations using dual URL configurations.
+- Fixed an issue where SSO URLs with trailing slashes would cause authentication failures due to double slashes in the ACS URL. Both regular SSO and MDM SSO URLs now properly handle trailing slashes.
+- Added support for MS-MDE2 v7.0 Windows MDM Enrollments
 
 ## Fleet 4.71.0 (Jul 23, 2025)
 
