@@ -294,8 +294,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
 					Verb:   "Replace",
 					LocURI: "L1",
-					Data: `
-      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+					Data: `<![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
       <data id="Listbox_ModuleNames" value="*"/>
       <data id="OutputDirectory" value="false"/>
       <data id="EnableScriptBlockInvocationLogging" value="true"/>
@@ -304,7 +303,11 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			},
 			report: []osqueryReport{{
 				"N1", "200", "L1",
-				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+				`<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="Listbox_ModuleNames" value="*"/>
+      <data id="OutputDirectory" value="false"/>
+      <data id="EnableScriptBlockInvocationLogging" value="true"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>`,
 			}},
 			toVerify: []string{"N1"},
 			toFail:   []string{},
@@ -318,13 +321,14 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 					Verb:   "Replace",
 					LocURI: "L1",
 					Data: `
-      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+<![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
       <data id="SourcePathForUpdateHelp" value="false"/>]]>`,
 				}}), 0},
 			},
 			report: []osqueryReport{{
 				"N1", "200", "L1",
-				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+				`<disabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>`,
 			}},
 			toVerify: []string{},
 			toFail:   []string{},
