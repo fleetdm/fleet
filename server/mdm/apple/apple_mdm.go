@@ -206,6 +206,10 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 // has that team as default team for a platform, it will also be used to
 // register the profile.
 //
+// Note that this means that a team must either have DEP hosts associated with
+// it with corresponding host_dep_assignment records or be the default team for a
+// class of devices(see GetABMTokenOrgNamesAssociatedWithTeam)
+//
 // On success, it returns the profile uuid and timestamp for the specific token
 // of interest to the caller (identified by its organization name).
 func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) (string, time.Time, error) {
@@ -249,10 +253,6 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 		tmID = &team.ID
 	}
 
-	// TODO EJM if we have a host on this team
-	// and they're not MDM enrolled(i.e. they're on another MDM server)
-	// and we assign this host to fleet in ABM
-	// then this returns no orgNames and we hit the skip case below
 	orgNames, err := d.ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, tmID)
 	if err != nil {
 		return "", time.Time{}, ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
