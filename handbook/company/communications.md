@@ -27,7 +27,7 @@ You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market grou
 
 ## Security 
 
-Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/it-and-enablement/security#human-resources-security-policy), [carry Yubikeys](https://fleetdm.com/handbook/it-and-enablement/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/it-and-enablement/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/it-and-enablement/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/it-and-enablement/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
+Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/finance/security#human-resources-security-policy), [carry Yubikeys](https://fleetdm.com/handbook/finance/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/finance/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/finance/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/finance/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
 
 
 ## Trust
