@@ -649,7 +649,7 @@ We apply the following *Security/Password management* settings to all users as t
 | Allow password reuse                                                    | Disabled      |
 | Expiration                                                              | Never expires |
 
-We also configure [Password Alert](https://support.google.com/chrome/a/answer/9696707?visit_id=637806265550953415-394435698&rd=1#zippy=) to warn users of password re-use. See [How we protect end-user devices](https://fleetdm.com/handbook/it-and-enablement/security#how-we-protect-end-user-devices).
+We also configure [Password Alert](https://support.google.com/chrome/a/answer/9696707?visit_id=637806265550953415-394435698&rd=1#zippy=) to warn users of password re-use. See [How we protect end-user devices](https://fleetdm.com/handbook/finance/security#how-we-protect-end-user-devices).
 
 
 #### Account recovery
