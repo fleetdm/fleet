@@ -50,13 +50,13 @@ func LoopOverExpectedHostProfiles(
 		}
 		for _, rc := range prof.ReplaceCommands {
 			locURI := rc.GetTargetURI()
-			data := rc.GetTargetData()
+			data := rc.GetNormalizedTargetDataForVerification()
 			ref := HashLocURI(expectedProf.Name, locURI)
 			fn(expectedProf, ref, locURI, data)
 		}
 		for _, ac := range prof.AddCommands {
 			locURI := ac.GetTargetURI()
-			data := ac.GetTargetData()
+			data := ac.GetNormalizedTargetDataForVerification()
 			ref := HashLocURI(expectedProf.Name, locURI)
 			fn(expectedProf, ref, locURI, data)
 		}
