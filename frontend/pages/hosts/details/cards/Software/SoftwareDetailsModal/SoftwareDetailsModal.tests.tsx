@@ -177,7 +177,7 @@ describe("SoftwareDetailsModal", () => {
           last_opened_at: null,
           vulnerabilities: ["CVE-2020-0001"],
           installed_paths: ["C:\\Program Files\\mock.exe"],
-          bundle_identifier: undefined,
+          bundle_identifier: "",
           signature_information: [
             {
               installed_path: "C:\\Program Files\\mock.exe",
@@ -210,7 +210,7 @@ describe("SoftwareDetailsModal", () => {
           last_opened_at: null,
           vulnerabilities: ["CVE-2020-0001"],
           installed_paths: ["/usr/lib/package"],
-          bundle_identifier: undefined,
+          bundle_identifier: "",
           signature_information: undefined,
         },
       ],
