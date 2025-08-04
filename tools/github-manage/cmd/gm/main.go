@@ -64,54 +64,11 @@ func main() {
 		Use:   "test",
 		Short: "Test SetCurrentSprint functionality",
 		Run: func(cmd *cobra.Command, args []string) {
+			// Useful to test new custom functions
 			testIssueNumber := 31541
-			mdmProjectID := 58 // MDM project
-
-			fmt.Printf("=== Testing SetCurrentSprint with Issue #%d ===\n\n", testIssueNumber)
-
-			// First, let's see what fields are available in the project
-			fmt.Printf("Fetching available fields in MDM project (%d)...\n", mdmProjectID)
-			fields, err := ghapi.GetProjectFields(mdmProjectID)
-			if err != nil {
-				logger.Errorf("Error fetching project fields: %v", err)
-				return
-			}
-
-			fmt.Printf("✅ Available fields in project %d:\n", mdmProjectID)
-			for name, field := range fields {
-				fmt.Printf("  - Name: '%s', Type: '%s', ID: '%s'\n", name, field.Type, field.ID)
-			}
-			fmt.Printf("\n")
-
-			// Test SetCurrentSprint
-			fmt.Printf("Setting current sprint for issue #%d in MDM project (%d)...\n", testIssueNumber, mdmProjectID)
-			err = ghapi.SetCurrentSprint(testIssueNumber, mdmProjectID)
-			if err != nil {
-				logger.Errorf("Error setting current sprint: %v", err)
-			} else {
-				fmt.Printf("✅ Successfully set current sprint\n")
-			}
-
-			fmt.Printf("\n=== Test Complete ===\n")
-
-			if err := rootCmd.Execute(); err != nil {
-				log.Fatalf("Error executing command: %v", err)
-			}
-
-			// Debug log the command and its arguments/flags before execution
-			logger.Debugf("Executing command: %s", rootCmd.CommandPath())
-			logger.Debugf("Command args: %v", os.Args[1:])
-
-			// Log all flags that were set across all commands
-			rootCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-				if flag.Changed {
-					logger.Debugf("Global flag --%s: %s", flag.Name, flag.Value.String())
-				}
-			})
-
-			if err := rootCmd.Execute(); err != nil {
-				log.Fatalf("Error executing command: %v", err)
-			}
+			//mdmProjectID := 58 // MDM project
+			ghapi.GetIssues(fmt.Sprintf("%d", testIssueNumber))
+			return
 		},
 	})
 
