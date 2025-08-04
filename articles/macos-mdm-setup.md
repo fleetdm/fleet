@@ -23,7 +23,7 @@ Then click **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
 
 > Available in Fleet Premium
 
-Connect Fleet to your ABM to allow automatic enrollment for company-owned devices and personal (BYOD) enrollment with Managed Apple Account.
+Connect Fleet to your ABM to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
 
 To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token: 
 
