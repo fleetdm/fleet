@@ -101,6 +101,13 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
+		// TODO(mna): check if IdP is enabled for any team, and lookup team of the
+		// enroll secret to see if it must go through the IdP flow.
+
+		// TODO(mna): if IdP required, go through that flow with proper RelayState
+		// passed on, and store the email to save later on as SCIM username linked
+		// to that host.
+
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/enroll-ota.html")
 		if err != nil {
