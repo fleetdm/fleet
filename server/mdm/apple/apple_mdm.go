@@ -249,6 +249,10 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 		tmID = &team.ID
 	}
 
+	// TODO EJM if we have a host on this team
+	// and they're not MDM enrolled(i.e. they're on another MDM server)
+	// and we assign this host to fleet in ABM
+	// then this returns no orgNames and we hit the skip case below
 	orgNames, err := d.ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, tmID)
 	if err != nil {
 		return "", time.Time{}, ctxerr.Wrap(ctx, err, "getting org names for team to register profile")
@@ -762,7 +766,6 @@ func (d *DEPService) processDeviceResponse(
 			teamID = macOSTeamID
 		}
 		devicesByTeam[teamID] = append(devicesByTeam[teamID], newDevice)
-
 	}
 
 	// for all other hosts we received, find out the right DEP profile to
@@ -780,6 +783,14 @@ func (d *DEPService) processDeviceResponse(
 		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
 	}
 
+	// Upsert the host DEP assignment records now so that the team is properly linked to the ABM
+	// token if this is the first device DEP host for this token assigned to the team.
+	if len(existingHosts) > 0 {
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
+			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
+		}
+	}
+
 	// assign the profile to each device
 	for team, devices := range devicesByTeam {
 		profUUID, err := d.getProfileUUIDForTeam(ctx, team, abmOrganizationName)
@@ -788,12 +799,6 @@ func (d *DEPService) processDeviceResponse(
 		}
 
 		profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
-	}
-
-	if len(existingHosts) > 0 {
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
-			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
-		}
 	}
 
 	// keep track of the serials we're going to skip for all profiles in
