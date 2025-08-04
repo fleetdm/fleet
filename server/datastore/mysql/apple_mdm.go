@@ -148,7 +148,8 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 		}
 		if conflictingProfile != nil {
 			scopeImplicitlyChanged := false
-			getMobileconfigStmt := `
+			if isEdit {
+				getMobileconfigStmt := `
 			SELECT
 				mobileconfig
 			FROM
@@ -156,23 +157,23 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 			WHERE
 				profile_uuid = ?
 			`
-			if err = sqlx.GetContext(ctx, tx, &conflictingProfile.Mobileconfig, getMobileconfigStmt, conflictingProfile.ProfileUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "fetching contents of conflicting Apple profile")
+				if err = sqlx.GetContext(ctx, tx, &conflictingProfile.Mobileconfig, getMobileconfigStmt, conflictingProfile.ProfileUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "fetching contents of conflicting Apple profile")
+				}
+				parsedConflictingMobileConfig, err := conflictingProfile.Mobileconfig.ParseConfigProfile()
+				if err != nil {
+					level.Debug(ds.logger).Log("msg", "error parsing existing profile mobileconfig while checking for scope conflicts",
+						"profile_uuid", conflictingProfile.ProfileUUID,
+						"err", err,
+					)
+				}
+				// The existing profile has a different scope in the XML than in Fleet's DB, meaning
+				// it existed prior to User channel profiles support being added and this is an
+				// implicit change the user may not be aware of.
+				if err == nil && fleet.PayloadScope(parsedConflictingMobileConfig.PayloadScope) != conflictingProfile.Scope {
+					scopeImplicitlyChanged = true
+				}
 			}
-			parsedConflictingMobileConfig, err := conflictingProfile.Mobileconfig.ParseConfigProfile()
-			if err != nil {
-				level.Debug(ds.logger).Log("msg", "error parsing existing profile mobileconfig while checking for scope conflicts",
-					"profile_uuid", conflictingProfile.ProfileUUID,
-					"err", err,
-				)
-			}
-			// The existing profile has a different scope in the XML than in Fleet's DB, meaning
-			// it existed prior to User channel profiles support being added and this is an
-			// implicit change the user may not be aware of.
-			if err == nil && fleet.PayloadScope(parsedConflictingMobileConfig.PayloadScope) != conflictingProfile.Scope {
-				scopeImplicitlyChanged = true
-			}
-
 			var errorMessage string
 			// If you change this URL you may need to change the frontend code as well which adds a
 			// nicely formatted link to the error message.
