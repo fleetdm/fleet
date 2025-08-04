@@ -93,23 +93,21 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
+/handbook/README.md                                             @mikermcneil
 /handbook/company/README.md                                     @mikermcneil
+/handbook/company/why-this-way.md                               @mikermcneil
 /handbook/company/communications.md                             @sampfluger88
 /handbook/company/leadership.md                                 @sampfluger88
-/handbook/company/why-this-way.md                               @mikermcneil
-/handbook/README.md                                             @mikermcneil
 /handbook/company/open-positions.yml                            @sampfluger88
-#/handbook/company/product-groups.md                            🤡 Covered in custom.js
+#/handbook/company/product-groups.md                            Covered in custom.js
 /handbook/company/go-to-market-groups.md                        @sampfluger88
-/handbook/finance/README.md                   				          @sampfluger88
-/handbook/finance/finance.rituals.yml  						              @sampfluger88
-/handbook/digital-experience/security.md                        @sampfluger88
-/handbook/digital-experience                             	      @sampfluger88
-/handbook/customer-success                                		  @sampfluger88
-/handbook/marketing                                          	  @sampfluger88
-#/handbook/engineering                                     	  	🤡 Covered in custom.js
+/handbook/finance                   			        	    @sampfluger88
+/handbook/it-and-enablement                             	    @sampfluger88
+/handbook/customer-success                                  	@sampfluger88
+/handbook/marketing                                          	@sampfluger88
 /handbook/sales                                           	  	@sampfluger88
-#/handbook/product-design                                    	  🤡 Covered in custom.js
+#/handbook/product-design                                    	Covered in custom.js
+#/handbook/engineering                                     	    Covered in custom.js
 
 ##############################################################################################
 # 🌐 GitHub issue templates

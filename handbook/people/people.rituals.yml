@@ -1,0 +1,47 @@
+-
+  task: "Recognize and benchmark workiversaries"
+  startedOn: "2024-07-15"
+  frequency: "Monthly"
+  description: "Identify workiversaries coming up in the next two months and follow the steps to ensure they're recognized and benchmarked"
+  moreInfoUrl: "https://fleetdm.com/handbook/people#recognize-employee-workiversaries"
+  dri: "ireedy"
+  autoIssue:
+    labels: [ ":help-people" ]
+    repo: "confidential"
+-
+  task: "Prepare all hands deck"
+  startedOn: "2023-07-01"
+  frequency: "Monthly"
+  description: "Preparing the all hands deck"
+  moreInfoUrl: "https://fleetdm.com/handbook/people#preparing-for-the-all-hands"
+  dri: [ "ireedy","sampfluger88" ]
+  autoIssue:
+    labels: [ ":help-people" ]
+    repo: "confidential"
+-
+  task: "Share recording of all hands meeting"
+  startedOn: "2023-07-01"
+  frequency: "Monthly"
+  description: "Sharing the all hands recording"
+  moreInfoUrl: "https://fleetdm.com/handbook/people#share-recording-of-all-hands-meeting"
+  dri: "ireedy"
+-
+  task: "Run regular payroll"
+  startedOn: "2024-02-24"
+  frequency: "Monthly"
+  description: "Verify auto-populated payroll for all full time employees is accurate, and approve for processing."
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-payroll"
+  dri: "ireedy"
+  autoIssue:
+    labels: [ ":help-people" ]
+    repo: "confidential"
+-
+  task: "Run US contractor payroll"
+  startedOn: "2024-02-27"
+  frequency: "Monthly"
+  description: "Manually process US contractor payroll by verifying and syncing time contractor worked, then processing payment."
+  moreInfoUrl:  "https://fleetdm.com/handbook/finance#run-us-contractor-payroll"
+  dri: "ireedy"
+  autoIssue:
+    labels: [ ":help-people" ]
+    repo: "confidential"
