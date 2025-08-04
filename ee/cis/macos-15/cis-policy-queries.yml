@@ -815,40 +815,33 @@ spec:
     Disabling Media Sharing reduces the remote attack surface of the system
   resolution: |
     Profile Method:
-    Ask your administrator to deploy a profile that sets
-    homeSharingUIStatus, legacySharingUIStatus, and mediaSharingUIStatus to 0
-    for com.apple.preferences.sharing.SharingPrefsExtension
+    Ask your administrator to deploy a profile with the following configuration:
+    1. The PayloadType string is com.apple.applicationaccess
+    2. The key to include is allowMediaSharing
+    3. The key must be set to <false/>
+    4. The key to also include is allowMediaSharingModification
+    5. The key must be set to <false/>
   query: |
     SELECT 1 WHERE EXISTS(
       SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
-        name = 'homeSharingUIStatus' AND
-        value = '0'
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowMediaSharing' AND
+        (value = 0 OR value = 'false')
     ) AND EXISTS (
       SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
-        name = 'legacySharingUIStatus' AND
-        value = '0'
-    ) AND EXISTS (
-      SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
-        name = 'mediaSharingUIStatus' AND
-        value = '0'
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowMediaSharingModification' AND
+        (value = 0 OR value = 'false')
     ) AND NOT EXISTS (
       SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
-        name = 'homeSharingUIStatus' AND
-        value != '0'
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowMediaSharing' AND
+        (value != 0 AND value != 'false')
     ) AND NOT EXISTS (
       SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
-        name = 'legacySharingUIStatus' AND
-        value != '0'
-    ) AND NOT EXISTS (
-      SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
-        name = 'mediaSharingUIStatus' AND
-        value != '0'
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowMediaSharingModification' AND
+        (value != 0 AND value != 'false')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
