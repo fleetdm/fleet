@@ -48,6 +48,10 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 				{Verb: "Replace", LocURI: "L3", Data: "D3"},
 				{Verb: "Add", LocURI: "L3.1", Data: "D3.1"},
 			})},
+			"N4": {Name: "N4", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{
+				{Verb: "Replace", LocURI: "L4", Data: "<![CDATA[D4]]>"},
+				{Verb: "Add", LocURI: "L4.1", Data: "<![CDATA[D4.1]]>"},
+			})},
 		}, nil
 	}
 	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
@@ -77,6 +81,8 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 			{"L2", "D2", "N2", "2736786183"},
 			{"L3", "D3", "N3", "894211447"},
 			{"L3.1", "D3.1", "N3", "3410477854"},
+			{"L4", "D4", "N4", "4141459399"},
+			{"L4.1", "D4.1", "N4", "236794510"},
 		},
 		got,
 	)

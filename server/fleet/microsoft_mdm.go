@@ -1417,7 +1417,11 @@ func (cmd *SyncMLCmd) GetTargetData() string {
 	}
 
 	if cmd.Items[0].Data != nil {
-		return cmd.Items[0].Data.Content
+		content := cmd.Items[0].Data.Content
+		content = strings.TrimPrefix(content, "<![CDATA[")
+		content = strings.TrimSuffix(content, "]]>")
+
+		return content
 	}
 
 	return ""
