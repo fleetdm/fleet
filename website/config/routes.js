@@ -1057,5 +1057,5 @@ module.exports.routes = {
   // https://developer.apple.com/documentation/devicemanagement/implementing-the-simple-authentication-user-enrollment-flow#Send-the-well-known-request
   //
   // TODO(BMAA): Uncomment this when we are ready to dogfood the Apple account-driven enrollment flow.
-  'GET /.well-known/com.apple.remotemanagement': (req, res)=>{ return res.json({'Servers':[{'Version':'mdm-byod', 'BaseURL':'https://andrey.ngrok.app/api/mdm/apple/account_driven_enroll'}]});},
+  // 'GET /.well-known/com.apple.remotemanagement': (req, res)=>{ return res.json({'Servers':[{'Version':'mdm-byod', 'BaseURL':'https://dogfood.fleetdm.com/api/mdm/apple/account_driven_enroll'}]});},
 };
