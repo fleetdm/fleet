@@ -1038,6 +1038,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	neAppleMDM.WithCustomMiddleware(mdmSsoLimiter).
 		POST("/api/_version_/fleet/mdm/sso", initiateMDMAppleSSOEndpoint, initiateMDMAppleSSORequest{})
 	neAppleMDM.WithCustomMiddleware(mdmSsoLimiter).
+		GET("/api/_version_/fleet/mdm/sso", initiateMDMAppleGETSSOEndpoint, initiateMDMAppleGETSSORequest{})
+	neAppleMDM.WithCustomMiddleware(mdmSsoLimiter).
 		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMAppleSSOEndpoint, callbackMDMAppleSSORequest{})
 }
 

@@ -3220,6 +3220,43 @@ func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc f
 	}, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/sso (for IdP BYOD)
+////////////////////////////////////////////////////////////////////////////////
+
+type initiateMDMAppleGETSSORequest struct {
+	Initiator string `query:"initiator"` // required, set when redirecting from /enroll
+}
+
+type initiateMDMAppleGETSSOResponse struct {
+	URL string `json:"url,omitempty"`
+	Err error  `json:"error,omitempty"`
+
+	sessionID              string
+	sessionDurationSeconds int
+}
+
+func (r initiateMDMAppleGETSSOResponse) Error() error { return r.Err }
+
+func (r initiateMDMAppleGETSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	setSSOCookie(w, r.sessionID, r.sessionDurationSeconds)
+}
+
+func initiateMDMAppleGETSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*initiateMDMAppleGETSSORequest)
+	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx, req.Initiator)
+	if err != nil {
+		return initiateMDMAppleGETSSOResponse{Err: err}, nil
+	}
+
+	return initiateMDMAppleGETSSOResponse{
+		URL: idpProviderURL,
+
+		sessionID:              sessionID,
+		sessionDurationSeconds: sessionDurationSeconds,
+	}, nil
+}
+
 func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.

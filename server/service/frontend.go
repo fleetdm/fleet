@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
@@ -103,10 +104,17 @@ func ServeEndUserEnrollOTA(
 
 		// TODO(mna): check if IdP is enabled for any team, and lookup team of the
 		// enroll secret to see if it must go through the IdP flow.
-
-		// TODO(mna): if IdP required, go through that flow with proper RelayState
-		// passed on, and store the email to save later on as SCIM username linked
-		// to that host.
+		// For the POC, we do the IdP flow if the enroll_secret starts with idpteam.
+		enrollSecret := r.URL.Query().Get("enroll_secret")
+		if strings.HasPrefix(enrollSecret, "idpteam") {
+			// TODO(mna): if IdP required, go through that flow with proper RelayState
+			// passed on, and store the email to save later on as SCIM username linked
+			// to that host.
+			// TODO(mna): this requires a POST for some reason, use a temporary GET
+			// handler for the POC.
+			http.Redirect(w, r, "/api/latest/fleet/mdm/sso?initiator=ota_enroll", http.StatusSeeOther)
+			return
+		}
 
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/enroll-ota.html")

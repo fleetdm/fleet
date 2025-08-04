@@ -731,8 +731,11 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 	// however because we need slightly different behavior for account driven
 	// enrollment we use it to signal proper behavior on the callback.
 	originalURL := "/"
-	if initiator == "account_driven_enroll" {
+	switch initiator {
+	case "account_driven_enroll":
 		originalURL = appleMDMAccountDrivenEnrollmentUrl
+	case "ota_enroll":
+		originalURL = "/got-here-from-ota!"
 	}
 	sessionDurationSeconds = int(svc.config.Auth.SsoSessionValidityPeriod.Seconds())
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
