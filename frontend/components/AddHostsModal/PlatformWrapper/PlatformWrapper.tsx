@@ -368,7 +368,7 @@ const PlatformWrapper = ({
               This works for macOS, Windows, and Linux hosts. To add
               Chromebooks,{" "}
               <Button
-                variant="text-link"
+                variant="text-link-dark"
                 onClick={() => setSelectedTabIndex(4)}
               >
                 click here

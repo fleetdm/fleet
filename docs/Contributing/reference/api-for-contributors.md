@@ -3971,7 +3971,6 @@ Notifies the server about an agent error, resulting in two outcomes:
       "a129a440-4cfb-48af-804b-d52224a05e1b"
     ],
     "enforce_bitlocker_encryption": true,
-    "enable_bitlocker_pin_protector_config": false,
     "pending_software_installer_ids": [
       "2267a440-4cfb-48af-804b-d52224a05e1b"
     ],

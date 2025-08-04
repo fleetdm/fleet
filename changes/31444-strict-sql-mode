@@ -1,0 +1,1 @@
+Added missing checks for invalid values before trying to store them in DB.

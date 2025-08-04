@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "15.67.3",
+      "version": "15.68.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'TeamViewer' AND publisher = 'TeamViewer';"
       },
-      "installer_url": "https://download.teamviewer.com/download/version_15x/TeamViewer_Setup_x64_15.67.3.exe",
+      "installer_url": "https://download.teamviewer.com/download/version_15x/TeamViewer_Setup_x64_15.68.5.exe",
       "install_script_ref": "45f422bf",
       "uninstall_script_ref": "390c83e7",
-      "sha256": "1c4eef9a8fc046e690cb0f40feb946731787175332ae215509cd65e9d0628fd0",
+      "sha256": "60383890330fbae392f10548648e5a2bebc9deb9a6c4926f3e0c9d204d8e4a40",
       "default_categories": [
         "Communication"
       ]

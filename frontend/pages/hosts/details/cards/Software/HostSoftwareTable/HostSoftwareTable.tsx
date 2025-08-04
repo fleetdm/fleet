@@ -58,7 +58,7 @@ interface IHostSoftwareTableProps {
   vulnFilters: ISoftwareVulnFiltersParams;
   onAddFiltersClick: () => void;
   isMyDevicePage?: boolean;
-  onShowSoftwareDetails: (software: IHostSoftware) => void;
+  onShowInventoryVersions: (software: IHostSoftware) => void;
 }
 
 const HostSoftwareTable = ({
@@ -77,7 +77,7 @@ const HostSoftwareTable = ({
   vulnFilters,
   onAddFiltersClick,
   isMyDevicePage,
-  onShowSoftwareDetails,
+  onShowInventoryVersions,
 }: IHostSoftwareTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -170,9 +170,9 @@ const HostSoftwareTable = ({
 
   const onClickMyDeviceRow = useCallback(
     (row: IHostSoftwareRowProps) => {
-      onShowSoftwareDetails(row.original);
+      onShowInventoryVersions(row.original);
     },
-    [onShowSoftwareDetails]
+    [onShowInventoryVersions]
   );
 
   if (isAndroid(platform)) {
