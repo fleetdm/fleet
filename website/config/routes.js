@@ -580,7 +580,7 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/finance/security',
-  'GET /handbook/digital-experience/security':'/handbook/finance/security'
+  'GET /handbook/digital-experience/security':'/handbook/finance/security',
   'GET /handbook/business-operations/security-policies':'/handbook/finance/security',
   'GET /handbook/business-operations/application-security': '/handbook/finance/security',
   'GET /handbook/business-operations/security-audits': '/handbook/finance/security',
