@@ -118,7 +118,8 @@ func SetHostSoftwareUninstallResult(t *testing.T, ds fleet.Datastore, host *flee
 // VPP apps (create a VPP token).
 func CreateHostVPPAppInstallUpcomingActivity(t *testing.T, ds fleet.Datastore, host *fleet.Host) (execID, adamID string) {
 	ctx := context.Background()
-	adamID = uuid.NewString()
+	// Generate a short adamID that fits within the 16 character limit
+	adamID = uuid.NewString()[:16]
 	vppApp := &fleet.VPPApp{
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: adamID,

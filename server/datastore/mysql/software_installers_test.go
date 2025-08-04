@@ -250,6 +250,9 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host3.ID, installerID1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
+	// Set LastEnrolledAt before deleting the host (simulating a DEP enrolled host)
+	host3.LastEnrolledAt = time.Now()
+
 	err = ds.DeleteHost(ctx, host3.ID)
 	require.NoError(t, err)
 

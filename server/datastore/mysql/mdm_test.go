@@ -5737,6 +5737,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				ProfileName:        profiles[0].Name,
 				HostUUID:           host.UUID,
 				CommandUUID:        uuid.NewString(),
+				Checksum:           profiles[0].Checksum,
 				VariablesUpdatedAt: &overrideEarliestInstallDate,
 				Status:             &fleet.MDMDeliveryVerified,
 				OperationType:      fleet.MDMOperationTypeInstall,
@@ -5748,6 +5749,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				ProfileName:       profiles[1].Name,
 				HostUUID:          host.UUID,
 				CommandUUID:       uuid.NewString(),
+				Checksum:          profiles[1].Checksum,
 				Status:            &fleet.MDMDeliveryVerified,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Scope:             fleet.PayloadScopeSystem,
@@ -6844,7 +6846,8 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 			Subject: pkix.Name{
 				CommonName: "Fleet Identity",
 			},
-			NotAfter: notAfter,
+			NotBefore: time.Now().Add(-24 * time.Hour),
+			NotAfter:  notAfter,
 			// use a random value, just to make sure they're
 			// different from each other, we don't care about the
 			// DER contents here
@@ -7220,12 +7223,46 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 			default:
 				require.FailNow(t, "unknown profile type")
 			}
-			stmt := fmt.Sprintf(
-				`INSERT INTO %s (host_uuid, %s_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
-				table,
-				profType,
-			)
-			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+
+			var stmt string
+			var err error
+			switch {
+			case table == "host_mdm_apple_profiles":
+				// Apple profiles require profile_identifier, checksum, and command_uuid
+				commandUUID := "cmd-" + profUUID
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status, profile_identifier, checksum, command_uuid) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				testChecksum := test.MakeTestBytes() // 16 bytes for checksum
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, "com.test."+profUUID, testChecksum, commandUUID, status)
+			case table == "host_mdm_apple_declarations":
+				// Apple declarations require declaration_identifier and token
+				testToken := test.MakeTestBytes() // 16 bytes for token
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status, declaration_identifier, token) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, "com.test."+profUUID, testToken, status)
+			case strings.HasPrefix(profUUID, "w"):
+				// Windows profiles require command_uuid
+				commandUUID := "cmd-" + profUUID
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status, command_uuid) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, commandUUID, status)
+			default:
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			}
 			if err != nil {
 				require.NoError(t, err)
 				return err
@@ -7820,6 +7857,16 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, appleHost, false)
+
+	// Set LabelUpdatedAt to a time before labels were created to simulate hosts that haven't reported label membership
+	// Use a time in the past (2020) to ensure it's before any label created in this test
+	oldTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	winHost.LabelUpdatedAt = oldTime
+	appleHost.LabelUpdatedAt = oldTime
+	err = ds.UpdateHost(ctx, winHost)
+	require.NoError(t, err)
+	err = ds.UpdateHost(ctx, appleHost)
+	require.NoError(t, err)
 
 	// at this point the hosts have not reported any label results, so a sync
 	// does NOT install the exclude any profiles as we don't know yet if the
