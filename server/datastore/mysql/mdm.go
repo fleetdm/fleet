@@ -2002,8 +2002,6 @@ GROUP BY
 			counts.Verifying = row.Count
 		case "verified":
 			counts.Verified = row.Count
-		case "action_required":
-			counts.Pending += row.Count
 		case "":
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d windows hosts for profile %s with mdm turned on but no profiles", row.Count, profileUUID))
 		default:
