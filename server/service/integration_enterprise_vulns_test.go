@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,6 +49,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
 	})
 	require.Greater(t, osinfo.ID, uint(0))
+	require.Greater(t, osinfo.OSVersionID, uint(0))
 
 	software := []fleet.Software{
 		{Name: "linux-image-6.11.0-19-generic", Version: "6.11.0-19.19", Source: "deb_packages", IsKernel: true},
@@ -88,14 +90,27 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 
 	// Aggregate OS versions
 	require.NoError(t, s.ds.UpdateOSVersions(ctx))
+	require.NoError(t, s.ds.UpdateOSVersions(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
-	require.Len(t, osVersionsResp.OSVersions, 1)
-	require.Equal(t, 1, osVersionsResp.OSVersions[0].HostsCount)
-	require.Equal(t, fmt.Sprintf("%s %s", testOS.Name, testOS.Version), osVersionsResp.OSVersions[0].Name)
-	require.Equal(t, testOS.Name, osVersionsResp.OSVersions[0].NameOnly)
-	require.Equal(t, testOS.Version, osVersionsResp.OSVersions[0].Version)
-	require.Equal(t, testOS.Platform, osVersionsResp.OSVersions[0].Platform)
-	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 3)
+	assert.Len(t, osVersionsResp.OSVersions, 1)
+	assert.Equal(t, 1, osVersionsResp.OSVersions[0].HostsCount)
+	assert.Equal(t, fmt.Sprintf("%s %s", testOS.Name, testOS.Version), osVersionsResp.OSVersions[0].Name)
+	assert.Equal(t, testOS.Name, osVersionsResp.OSVersions[0].NameOnly)
+	assert.Equal(t, testOS.Version, osVersionsResp.OSVersions[0].Version)
+	assert.Equal(t, testOS.Platform, osVersionsResp.OSVersions[0].Platform)
+	assert.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 3)
+
+	// Test entity endpoint
+	var osVersionResp getOSVersionResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osVersionsResp.OSVersions[0].OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id", fmt.Sprintf("%d", 0))
+	assert.Len(t, osVersionResp.OSVersion.Kernels, 1)
+	assert.Equal(t, osVersionResp.OSVersion.Kernels[0].Version, software[0].Version)
+	assert.Equal(t, osVersionResp.OSVersion.Kernels[0].HostsCount, uint(1))
+	assert.Equal(t, osVersionResp.OSVersion.Kernels[0].Vulnerabilities, []string{vuln1.CVE, vuln2.CVE, vuln3.CVE})
+
 }
