@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"testing"
+	"strings"
 )
 
 func TestLogger(t *testing.T) {
@@ -32,36 +33,21 @@ func TestLogger(t *testing.T) {
 	}
 
 	// Check that all message types are present
-	if !contains(output, "INFO:") {
+	if !strings.Contains(output, "INFO:") {
 		t.Error("INFO message not found in output")
 	}
-	if !contains(output, "ERROR:") {
+	if !strings.Contains(output, "ERROR:") {
 		t.Error("ERROR message not found in output")
 	}
-	if !contains(output, "DEBUG:") {
+	if !strings.Contains(output, "DEBUG:") {
 		t.Error("DEBUG message not found in output")
 	}
 
 	// Check specific content
-	if !contains(output, "This is an info message") {
+	if !strings.Contains(output, "This is an info message") {
 		t.Error("Info message content not found")
 	}
-	if !contains(output, "value: 42") {
+	if !strings.Contains(output, "value: 42") {
 		t.Error("Formatted info message content not found")
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[len(s)-len(substr):] == substr ||
-		len(s) > len(substr) && s[:len(substr)] == substr ||
-		(len(s) > len(substr) && hasSubstring(s, substr))
-}
-
-func hasSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
