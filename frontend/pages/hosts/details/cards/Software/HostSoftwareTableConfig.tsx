@@ -151,7 +151,7 @@ export const generateSoftwareTableHeaders = ({
             <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
           );
         } else if (!shouldShowNever) {
-          displayValue = DEFAULT_EMPTY_CELL_VALUE;
+          displayValue = "Not supported";
         } else {
           return <TextCell value="Never" />;
         }
