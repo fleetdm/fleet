@@ -21,12 +21,6 @@ import {
 } from "../../helpers";
 import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
-export const isMdmProfileStatus = (
-  status: string
-): status is MdmProfileStatus => {
-  return status !== "action_required";
-};
-
 export interface IHostMdmProfileWithAddedStatus
   extends Omit<IHostMdmProfile, "status"> {
   status: OsSettingsTableStatusValue;
