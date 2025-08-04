@@ -76,6 +76,8 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 	for i := 0; i < len(cps); i++ {
 		incomingProfileIdentifiers = append(incomingProfileIdentifiers, cps[i].Identifier)
 	}
+	// Explicitly not fetching mobileconfig here for performance reasons. It is only used in
+	// the error path below where it is fetched separately for a single profile
 	stmt := `
 	SELECT
 		profile_uuid,
@@ -84,7 +86,6 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 		name,
 		scope,
 		identifier,
-		mobileconfig,
 		created_at,
 		uploaded_at,
 		checksum
@@ -111,7 +112,6 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 	for _, cp := range cps {
 		existingProfiles := existingProfilesByIdentifier[cp.Identifier]
 		isEdit := false
-		scopeImplicitlyChanged := false
 		var conflictingProfile *fleet.MDMAppleConfigProfile
 
 		// We have to look through all profiles with the same identifier(which is potentially number
@@ -143,24 +143,36 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 					break
 				}
 
-				parsedConflictingMobileConfig, err := existingProfile.Mobileconfig.ParseConfigProfile()
-				if err != nil {
-					level.Debug(ds.logger).Log("msg", "error parsing existing profile mobileconfig while checking for scope conflicts",
-						"profile_uuid", existingProfile.ProfileUUID,
-						"err", err,
-					)
-				}
-				// The existing profile has a different scope in the XML than in Fleet's DB, meaning
-				// it existed prior to User channel profiles support being added and this is an
-				// implicit change the user may not be aware of.
-				if err == nil && fleet.PayloadScope(parsedConflictingMobileConfig.PayloadScope) != existingProfile.Scope {
-					scopeImplicitlyChanged = true
-				}
-
 				conflictingProfile = existingProfile
 			}
 		}
 		if conflictingProfile != nil {
+			scopeImplicitlyChanged := false
+			getMobileconfigStmt := `
+			SELECT
+				mobileconfig
+			FROM
+				mdm_apple_configuration_profiles
+			WHERE
+				profile_uuid = ?
+			`
+			if err = sqlx.GetContext(ctx, tx, &conflictingProfile.Mobileconfig, getMobileconfigStmt, conflictingProfile.ProfileUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "fetching contents of conflicting Apple profile")
+			}
+			parsedConflictingMobileConfig, err := conflictingProfile.Mobileconfig.ParseConfigProfile()
+			if err != nil {
+				level.Debug(ds.logger).Log("msg", "error parsing existing profile mobileconfig while checking for scope conflicts",
+					"profile_uuid", conflictingProfile.ProfileUUID,
+					"err", err,
+				)
+			}
+			// The existing profile has a different scope in the XML than in Fleet's DB, meaning
+			// it existed prior to User channel profiles support being added and this is an
+			// implicit change the user may not be aware of.
+			if err == nil && fleet.PayloadScope(parsedConflictingMobileConfig.PayloadScope) != conflictingProfile.Scope {
+				scopeImplicitlyChanged = true
+			}
+
 			var errorMessage string
 			// If you change this URL you may need to change the frontend code as well which adds a
 			// nicely formatted link to the error message.
