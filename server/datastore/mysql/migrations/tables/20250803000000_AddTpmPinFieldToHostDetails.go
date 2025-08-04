@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250729161235, Down_20250729161235)
+	MigrationClient.AddMigration(Up_20250803000000, Down_20250803000000)
 }
 
-func Up_20250729161235(tx *sql.Tx) error {
+func Up_20250803000000(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 			ALTER TABLE host_disks
 			ADD COLUMN tpm_pin_set bool DEFAULT false
@@ -19,6 +19,6 @@ func Up_20250729161235(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250729161235(tx *sql.Tx) error {
+func Down_20250803000000(tx *sql.Tx) error {
 	return nil
 }
