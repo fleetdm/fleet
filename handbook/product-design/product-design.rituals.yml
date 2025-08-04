@@ -98,3 +98,17 @@
   autoIssue:   
     labels: [ ":product" ]
     repo: "fleet"
+-
+  task: "Regenerate messaging framework"
+  startedOn: "2024-07-15"
+  frequency: "Quarterly"
+  description: "Run through the entire website in `?utm_content=clear` mode and build a fresh outline of the headings to make sure they all still make sense."
+  moreInfoUrl: ""
+  dri: "mike-j-thomas"
+- 
+  task: "Check brand fronts are up to date"
+  startedOn: "2024-08-01"
+  frequency: "Quarterly"
+  description: "Check all brand fronts for consistancy and update as needed with the current product pitch and graphics."
+  moreInfoUrl: "https://fleetdm.com/handbook/product-design#update-a-company-brand-front"
+  dri: "mike-j-thomas"
