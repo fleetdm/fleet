@@ -861,7 +861,7 @@ func (d *DEPService) processDeviceResponse(
 			// We don't expect to see this but log here just in case
 			if err != nil && implicitlyFailedAssignments > 0 {
 				level.Warn(logger).Log(
-					"msg", "assign profile: no error but some devices were not assigned a status in the response",
+					"msg", "assign profile: no error was returned but some devices were not assigned a status in the response",
 					"devices", implicitlyFailedAssignments,
 				)
 			}
