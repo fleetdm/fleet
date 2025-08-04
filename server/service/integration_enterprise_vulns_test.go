@@ -89,12 +89,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 	// Aggregate OS versions
 	require.NoError(t, s.ds.UpdateOSVersions(ctx))
 
-	// TODO(JVE): remove this
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "software_titles")
-		return nil
-	})
-
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 1)

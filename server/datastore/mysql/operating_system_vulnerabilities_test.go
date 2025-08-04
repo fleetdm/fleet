@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"sort"
 	"testing"
 	"time"
 
@@ -354,57 +355,98 @@ func testDeleteOutOfDateOSVulnerabilities(t *testing.T, ds *Datastore) {
 func testListKernelsByOS(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("linux"))
-
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1_" + t.Name()})
-	require.NoError(t, err)
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID})))
-
-	testOS := fleet.OperatingSystem{Name: "Ubuntu", Version: "24.10", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"}
-
-	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host.ID, testOS))
-
-	os, err := ds.GetHostOperatingSystem(ctx, host.ID)
-	require.NoError(t, err)
-
-	kernel1 := fleet.Software{Name: "linux-image-6.11.0-9-generic", Version: "6.11.0-9.9", Source: "deb_packages", IsKernel: true}
-	kernel2 := fleet.Software{Name: "linux-image-7.11.0-10-generic", Version: "7.11.0-10.10", Source: "deb_packages", IsKernel: true}
-	kernel3 := fleet.Software{Name: "linux-image-8.11.0-11-generic", Version: "8.11.0-11.11", Source: "deb_packages", IsKernel: true}
-	software := []fleet.Software{
-		kernel1,
-		kernel2,
-		kernel3, // this one has 0 vulns
+	cases := []struct {
+		name string
+		team bool
+	}{
+		{
+			name: "no team",
+			team: false,
+		},
+		{
+			name: "with team",
+			team: true,
+		},
 	}
-	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
-	require.NoError(t, err)
-	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 
-	cpes := []fleet.SoftwareCPE{
-		{SoftwareID: host.Software[0].ID, CPE: "somecpe"},
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			host := test.NewHost(t, ds, "host"+tt.name, "", "hostkey"+tt.name, "hostuuid"+tt.name, time.Now(), test.WithPlatform("linux"))
+
+			var teamID uint
+			if tt.team {
+				team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_" + tt.name})
+				require.NoError(t, err)
+				require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID})))
+				teamID = team1.ID
+			}
+
+			testOS := fleet.OperatingSystem{Name: "Ubuntu", Version: "24.10", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"}
+
+			require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host.ID, testOS))
+
+			os, err := ds.GetHostOperatingSystem(ctx, host.ID)
+			require.NoError(t, err)
+
+			kernel1 := fleet.Software{Name: "linux-image-6.11.0-9-generic", Version: "6.11.0-9.9", Source: "deb_packages", IsKernel: true}
+			kernel2 := fleet.Software{Name: "linux-image-7.11.0-10-generic", Version: "7.11.0-10.10", Source: "deb_packages", IsKernel: true}
+			kernel3 := fleet.Software{Name: "linux-image-8.11.0-11-generic", Version: "8.11.0-11.11", Source: "deb_packages", IsKernel: true}
+			software := []fleet.Software{
+				kernel1,
+				kernel2,
+				kernel3, // this one has 0 vulns
+			}
+			_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+			require.NoError(t, err)
+			require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+			cpes := []fleet.SoftwareCPE{
+				{SoftwareID: host.Software[0].ID, CPE: "somecpe"},
+			}
+			_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
+			require.NoError(t, err)
+			require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+			// Sort the host software by name to enforce a deterministic order
+			sort.Slice(host.Software, func(i, j int) bool {
+				return host.Software[i].Name < host.Software[j].Name
+			})
+
+			vulns := []fleet.SoftwareVulnerability{
+				{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0001"},
+				{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0002"},
+				{SoftwareID: host.Software[1].ID, CVE: "CVE-2022-0003"},
+			}
+			vulnsByKernelVersion := map[string][]fleet.SoftwareVulnerability{
+				kernel1.Version: {vulns[0], vulns[1]},
+				kernel2.Version: {vulns[2]},
+				kernel3.Version: {},
+			}
+			for _, v := range vulns {
+				_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+				require.NoError(t, err)
+			}
+			require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+			require.NoError(t, ds.UpdateOSVersions(ctx))
+			require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+			require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+			require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+			kernels, err := ds.ListKernelsByOS(ctx, os.OSVersionID, &teamID)
+			require.NoError(t, err)
+
+			require.Len(t, kernels, 3)
+
+			for _, kernel := range kernels {
+				var expectedVulns []string
+				for _, v := range vulnsByKernelVersion[kernel.Version] {
+					expectedVulns = append(expectedVulns, v.CVE)
+				}
+				require.Equalf(t, expectedVulns, kernel.Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernel.Version)
+			}
+
+		})
 	}
-	_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
-	require.NoError(t, err)
-	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
-
-	vulns := []fleet.SoftwareVulnerability{
-		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0001"},
-		{SoftwareID: host.Software[1].ID, CVE: "CVE-2022-0002"},
-		// {SoftwareID: host.Software[2].ID, CVE: "CVE-2022-0002"},
-	}
-	for _, v := range vulns {
-		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
-		require.NoError(t, err)
-	}
-	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
-
-	require.NoError(t, ds.UpdateOSVersions(ctx))
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
-	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
-
-	kernels, err := ds.ListKernelsByOS(ctx, os.OSVersionID, &team1.ID)
-	require.NoError(t, err)
-
-	require.Len(t, kernels, 3)
 
 }

@@ -224,13 +224,19 @@ WHERE
 	operating_systems.os_version_id = ? AND
     software_host_counts.team_id = ?;
 	`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
 	var results []struct {
 		ID         uint    `db:"id"`
 		CVE        *string `db:"cve"`
 		Version    string  `db:"version"`
 		HostsCount uint    `db:"hosts_count"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, osID, *teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, osID, tmID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing kernels by OS name")
 	}
 

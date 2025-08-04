@@ -9,8 +9,10 @@ import (
 func TestUp_20250729143159(t *testing.T) {
 	db := applyUpToPrev(t)
 
+	// Name as reported for Ubuntu
 	kernelID1 := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, browser) VALUES ("linux-image-6.11.0-9-generic", "deb_packages", "")`)
-	kernelID2 := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, browser) VALUES ("linux-image-5.12.2-9-generic", "deb_packages", "")`)
+	// Name as reported for Debian
+	kernelID2 := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, browser) VALUES ("linux-image-6.1.0-37-cloud-arm64", "deb_packages", "")`)
 	otherLinuxAppID := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, browser) VALUES ("vim", "deb_packages", "")`)
 	otherAppMacOSID := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, browser) VALUES ("Calculator", "apps", "")`)
 	otherAppWindowsID := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, browser) VALUES ("Notepad", "programs", "")`)
