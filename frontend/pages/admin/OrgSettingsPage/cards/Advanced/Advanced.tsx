@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from "react";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
 import validUrl from "components/forms/validators/valid_url";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -13,7 +15,6 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
 import { getCustomDropdownOptions } from "utilities/helpers";
 
-import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
 import { IAppConfigFormProps } from "../constants";
 
 const baseClass = "app-config-form";
@@ -127,7 +128,7 @@ const Advanced = ({
     [deleteActivities]
   );
 
-  const onInputChange = ({ name, value }: IParseTargetFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validateFormData(newFormData);

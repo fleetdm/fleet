@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import SectionHeader from "components/SectionHeader";
@@ -7,7 +9,6 @@ import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
 import { IAppConfigFormProps } from "../constants";
 
 const baseClass = "app-config-form";
@@ -28,7 +29,7 @@ const Statistics = ({
 
   const { enableUsageStatistics } = formData;
 
-  const onInputChange = ({ name, value }: IParseTargetFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     setFormData({ ...formData, [name]: value });
   };
 

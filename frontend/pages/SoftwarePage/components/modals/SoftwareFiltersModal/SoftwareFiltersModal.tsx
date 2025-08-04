@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 
 import { SingleValue } from "react-select-5";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Modal from "components/Modal";
@@ -17,7 +19,6 @@ import {
   ISoftwareVulnFiltersParams,
   SEVERITY_DROPDOWN_OPTIONS,
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
-import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
 
 const baseClass = "software-filters-modal";
 
@@ -129,7 +130,7 @@ const SoftwareFiltersModal = ({
     }
   };
 
-  const onScoreChange = ({ name, value }: IParseTargetFormField) => {
+  const onScoreChange = ({ name, value }: IInputFieldParseTarget) => {
     // Prepare new form data
     const newFormData = { ...formData, [name]: value as string };
 

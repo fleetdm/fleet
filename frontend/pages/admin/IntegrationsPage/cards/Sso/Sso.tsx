@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
@@ -10,7 +12,6 @@ import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 
 const baseClass = "app-config-form";
@@ -113,7 +114,7 @@ const Sso = ({
 
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
 
-  const onInputChange = ({ name, value }: IParseTargetFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validate(newFormData);

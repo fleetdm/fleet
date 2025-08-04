@@ -4,6 +4,7 @@ import { AppContext } from "context/app";
 
 import { CONTACT_FLEET_LINK } from "utilities/constants";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -18,7 +19,6 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
 
-import { IParseTargetFormField } from "components/forms/fields/InputField/helpers";
 import {
   IAppConfigFormProps,
   authMethodOptions,
@@ -132,7 +132,7 @@ const Smtp = ({
 
   const sesConfigured = appConfig.email?.backend === "ses" || false;
 
-  const onInputChange = ({ name, value }: IParseTargetFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validateFormData(newFormData);
