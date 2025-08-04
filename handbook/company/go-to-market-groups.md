@@ -238,7 +238,7 @@ The SLA for contract signature is **2 business days**. Please do not follow up o
 
 First, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
-Then, at-mention the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) in the appropriate internal Slack channel (e.g. op channel, #g-unicorns, #help-it-and-enablement) with the following template:
+Then, at-mention the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) in the appropriate internal Slack channel (e.g. op channel, #g-unicorns) with the following template:
 
 ```
 @Sam Pfluger - :writing_hand Signature request
@@ -246,6 +246,18 @@ The following contract is ready to sign and has been routed to the CEO for signa
 ```
 
 Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, remove them before routing the agreement to the CEO for signature.
+
+
+### Fleet's vendor collateral
+
+Use the following steps to send Fleet's vendor collateral to a prospect or customer:
+1. Be sure that there's a signed NDA between Fleet and the requesting organization [saved in Google Drive](https://drive.google.com/drive/folders/1ee6E2wwhUL8F5qTRGUleJ9HeWjSRj5xm?usp=drive_link). If not, [send an NDA](https://fleetdm.com/handbook/sales#send-an-nda).
+2. Navigate to the ["🗃️ Vendor collateral" folder (confidential)](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive and to download the neccesary documents.
+
+> 🧑‍🚀 Attention Fleeties:
+>
+> Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🦄 #g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help.
+> Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🦄 #g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help. Any collateral documents (e.g. SOC2, Pen test, etc.) you send to a prospect or customer should be downloaded from the [🗃️ Vendor collateral folder](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive. If it's not in the "🗃️ Vendor collateral folder", it's not ready to be sent out.
 
 
 ### Vendor questionnaires 
