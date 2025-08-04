@@ -167,7 +167,11 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 		}
 		if endUserAuthEnabled {
-			jsonProf.ConfigurationWebURL = appCfg.MDMUrl() + "/mdm/sso"
+			mdmSSOURL, err := commonmdm.ResolveURL(appCfg.MDMUrl(), "/mdm/sso", false)
+			if err != nil {
+				return nil, fmt.Errorf("resolve MDM SSO URL: %w", err)
+			}
+			jsonProf.ConfigurationWebURL = mdmSSOURL
 		}
 	}
 
