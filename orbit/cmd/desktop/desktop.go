@@ -177,6 +177,8 @@ func main() {
 		migrateMDMItem.Disable()
 		// this item is only shown if certain conditions are met below.
 		migrateMDMItem.Hide()
+		// Track the current state of the MDM Migrate item so that on, e.g. token refreshes we can
+		// immediately begin showing the migrator again if we were showing it prior.
 		showMDMMigrator := false
 
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
