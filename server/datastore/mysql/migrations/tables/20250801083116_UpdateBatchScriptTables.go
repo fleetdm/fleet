@@ -51,6 +51,13 @@ SET activity_type = 'script' WHERE activity_type IS NULL;
 		return fmt.Errorf("failed to update activity_type in batch_activities: %w", err)
 	}
 
+	// Add an index on the new `status` column
+	if _, err := tx.Exec(`
+CREATE INDEX idx_batch_activities_status ON batch_activities (status);
+`); err != nil {
+		return fmt.Errorf("failed to create index on status in batch_activities: %w", err)
+	}
+
 	// Rename batch_script_execution_host_results to batch_activity_host_results
 	if _, err := tx.Exec(`
 ALTER TABLE batch_script_execution_host_results RENAME TO batch_activity_host_results;
