@@ -2,6 +2,7 @@ import { IHostScript, IScript } from "interfaces/script";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+import { PaginationMeta } from "./common";
 
 /** Single script response from GET /script/:id */
 export type IScriptResponse = IScript;
@@ -125,19 +126,35 @@ export interface IScriptBatchExecutionStatuses {
   ran: number;
   pending: number;
   errored: number;
+  incompatible: number;
+  canceled: number;
 }
 export type ScriptBatchExecutionStatus = keyof IScriptBatchExecutionStatuses;
 // 200 successful response
+
 export interface IScriptBatchSummaryResponse
   extends IScriptBatchExecutionStatuses {
   team_id: number;
   script_name: string;
   created_at: string;
   // below fields not yet used by the UI
-  canceled: number;
   targeted: number;
   script_id: number;
 }
+
+export type ScriptBatchSummariesStage = "started" | "scheduled" | "completed";
+export interface IScriptBatchSummariesParams {
+  team_id: number;
+  status: ScriptBatchSummariesStage; // may change to "stage"
+  page: number;
+  per_page: number;
+}
+
+export interface IScriptBatchSummariesResponse {
+  batch_executions: IScriptBatchSummaryResponse[];
+  meta: PaginationMeta;
+}
+
 export default {
   getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
     const { HOST_SCRIPTS } = endpoints;
@@ -220,5 +237,13 @@ export default {
       "GET",
       `${endpoints.SCRIPT_RUN_BATCH_SUMMARY(batch_execution_id)}`
     );
+  },
+  getRunScriptBatchSummaries(
+    params: IScriptBatchSummariesParams
+  ): Promise<IScriptBatchSummariesResponse> {
+    const path = `${
+      endpoints.SCRIPT_RUN_BATCH_SUMMARIES
+    }?${buildQueryStringFromParams({ ...params })}`;
+    return sendRequest("GET", path);
   },
 };

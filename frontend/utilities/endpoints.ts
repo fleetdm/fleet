@@ -276,6 +276,7 @@ export default {
   SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/run/batch`,
   SCRIPT_RUN_BATCH_SUMMARY: (id: string) =>
     `/${API_VERSION}/fleet/scripts/batch/summary/${id}`,
+  SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 
   // idp endpoints
