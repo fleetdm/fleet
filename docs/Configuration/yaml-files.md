@@ -86,7 +86,7 @@ Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, o
 
 ### Options
 
-[For possible options, see the parameters for the [Edit team policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#edit-team-policy). ](https://github.com/fleetdm/fleet/pull/31086/files#diff-b71104232d8fbaaf4bd537065533cbf39ec5f9bf028ec1d8083346953ed5178dR91-R94)
+For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy)
 
 In Fleet Premium you can trigger software installs or script runs on policy failure:
 
