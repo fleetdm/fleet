@@ -8829,8 +8829,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
 - [Batch-run script](#batch-run-script)
-- [Get batch script summary](#get-batch-script-summary)
 - [List batch scripts](#list-batch-scripts)
+- [Get batch script](#get-batch-script)
 - [List batch script results](#list-batch-script-results)
 - [Cancel batch script](#cancel-batch-script)
 - [Add script](#add-script)
@@ -8986,60 +8986,9 @@ Request (using `filters`):
 }
 ```
 
-### Get batch script summary
-
-Get statuses and host counts for a batch-run script.
-
-`GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                                                                    |
-| ----            | ------- | ---- | --------------------------------------------                                                   |
-| batch_execution_id | string | path | **Required**. The ID returned from a batch script run. |
-
-
-#### Example
-
-`GET /api/v1/fleet/scripts/batch/summary/abc-def`
-
-##### Request body
-
-```json
-{
-  "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-
-```json
-{
-  "ran": 12345,
-  "pending": 234,
-  "errored": 18,
-  "incompatible": 3,
-  "canceled": 2,
-  "targeted": 12599,
-  "script_id": 555,
-  "script_name": "my-script.sh",
-  "team_id": 123,
-  "not_before": "2025-07-01T15:00:00Z",
-  "completed_at": "2025-07-06T15:00:00Z",
-  "status": "completed",
-  "cancelled": false
-}
-```
-
-
 ### List batch scripts
 
-> TODO: API to list batch script executions. Paginated, with status filter (started, scheduled, completed).
-
-TODO: Description text here.
+Returns a list of batch script executions.
 
 `GET /api/v1/fleet/scripts/batch`
 
@@ -9074,25 +9023,68 @@ TODO: Description text here.
 {
   "batch_executions": [
     {
-      "ran": 12345,
-      "pending": 234,
-      "errored": 18,
-      "incompatible": 3,
-      "canceled": 2,
-      "targeted": 12599,
       "script_id": 555,
       "script_name": "my-script.sh",
       "team_id": 123,
       "not_before": "2025-07-01T15:00:00Z",
       "completed_at": "2025-07-06T15:00:00Z",
       "status": "completed",
-      "cancelled": false
+      "canceled": false,
+      "targeted_host_count": 12599,
+      "ran_host_count": 12345,
+      "pending_host_count": 234,
+      "errored_host_count": 18,
+      "incompatible_host_count": 3,
+      "canceled_host_count": 2
     }
   ],
   "meta": {
     "has_next_results": false,
     "has_previous_results": false
   }
+}
+```
+
+### Get batch script
+
+Returns a summary of a batch-run script, including host counts and current status.
+
+> The [Get batch script summary](https://github.com/fleetdm/fleet/blob/fleet-v4.71.1/docs/REST%20API/rest-api.md#get-batch-script-summary) endpoint is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use this endpoint instead.
+
+`GET /api/v1/fleet/scripts/batch/:batch_execution_id`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| batch_execution_id | string | path | **Required**. The ID returned from a batch script run. |
+
+
+#### Example
+
+`GET /api/v1/fleet/scripts/batch/abc-def`
+
+
+##### Default response
+
+`Status: 200`
+
+
+```json
+{
+  "script_id": 555,
+  "script_name": "my-script.sh",
+  "team_id": 123,
+  "not_before": "2025-07-01T15:00:00Z",
+  "completed_at": "2025-07-06T15:00:00Z",
+  "status": "completed",
+  "canceled": false,
+  "targeted_host_count": 12599,
+  "ran_host_count": 12345,
+  "pending_host_count": 234,
+  "errored_host_count": 18,
+  "incompatible_host_count": 3,
+  "canceled_host_count": 2,
 }
 ```
 
