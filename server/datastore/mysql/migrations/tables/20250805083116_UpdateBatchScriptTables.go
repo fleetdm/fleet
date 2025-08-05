@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250801083116, Down_20250801083116)
+	MigrationClient.AddMigration(Up_20250805083116, Down_20250805083116)
 }
 
-func Up_20250801083116(tx *sql.Tx) error {
+func Up_20250805083116(tx *sql.Tx) error {
 	// Rename the existing table from batch_script_executions to batch_activities
 	if _, err := tx.Exec(`
 ALTER TABLE batch_script_executions RENAME TO batch_activities; 
@@ -68,6 +68,6 @@ ALTER TABLE batch_script_execution_host_results RENAME TO batch_activity_host_re
 	return nil
 }
 
-func Down_20250801083116(tx *sql.Tx) error {
+func Down_20250805083116(tx *sql.Tx) error {
 	return nil
 }
