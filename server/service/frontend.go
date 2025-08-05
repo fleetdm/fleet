@@ -111,7 +111,10 @@ func ServeEndUserEnrollOTA(
 			// passed on, and store the email to save later on as SCIM username linked
 			// to that host.
 			// TODO(mna): this requires a POST for some reason, use a temporary GET
-			// handler for the POC.
+			// handler for the POC (the response also needs to be different - in our
+			// existing MDM SSO, we return JSON data from the initiator and this gets
+			// handled in the setup experience flow, but here we need to redirect to
+			// the IdP provider login page as this is in the browser).
 			http.Redirect(w, r, "/api/latest/fleet/mdm/sso?initiator=ota_enroll", http.StatusSeeOther)
 			return
 		}

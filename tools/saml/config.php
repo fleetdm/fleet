@@ -8,6 +8,15 @@ $metadata['https://localhost:8080'] = array(
     'simplesaml.nameidattribute' => 'email',
 );
 
+# For MDM SSO SAML behind ngrok
+$metadata['https://mnafleet.ngrok.app'] = array(
+    'AssertionConsumerService' => [
+        'https://mnafleet.ngrok.app/api/v1/fleet/mdm/sso/callback',
+    ],
+    'NameIDFormat' => 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddres',
+    'simplesaml.nameidattribute' => 'email',
+);
+
 # Used in integration tests and to validate SSO flows that use a
 # separate application for MDM SSO (with a single
 # AssertionConsumerService)

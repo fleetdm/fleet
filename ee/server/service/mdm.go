@@ -700,6 +700,8 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 
 	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
+	fmt.Println(">>>>>> INITIATE MDM SSO: ", mdmSSOSettings.EntityID, initiator)
+
 	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
 	//
 	// Note: enable_end_user_authentication is a team-specific setting,
@@ -756,11 +758,16 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 
 	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
+	fmt.Println(">>>>>> MDM APPLE SSO CALLBACK: ", sessionID, string(samlResponse))
+
 	profileToken, enrollmentRef, eulaToken, originalURL, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
+		fmt.Println(">>>>>> MDM APPLE SSO CALLBACK FAILED 1: ", err)
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
 	}
+
+	fmt.Println(">>>>>> MDM APPLE SSO CALLBACK CALLED FROM: ", originalURL)
 
 	// For account driven enrollment we have to use this special protocol URL scheme to pass the
 	// access token back to Apple which it will then use to request the enrollment profile.

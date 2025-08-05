@@ -3225,21 +3225,47 @@ func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc f
 ////////////////////////////////////////////////////////////////////////////////
 
 type initiateMDMAppleGETSSORequest struct {
-	Initiator string `query:"initiator"` // required, set when redirecting from /enroll
+	Initiator   string        `query:"initiator"` // required, set when redirecting from /enroll
+	httpRequest *http.Request // needs to be stored to redirect on the response, we should really have it available in some way for the response
+}
+
+func (initiateMDMAppleGETSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
+	initiator := r.URL.Query().Get("initiator")
+	if initiator == "" {
+		return nil, &fleet.BadRequestError{Message: "missing initiator query parameter"}
+	}
+	return &initiateMDMAppleGETSSORequest{
+		Initiator:   initiator,
+		httpRequest: r,
+	}, nil
 }
 
 type initiateMDMAppleGETSSOResponse struct {
-	URL string `json:"url,omitempty"`
-	Err error  `json:"error,omitempty"`
+	URL string
+	Err error `json:"error,omitempty"`
 
 	sessionID              string
 	sessionDurationSeconds int
+	httpRequest            *http.Request
 }
 
 func (r initiateMDMAppleGETSSOResponse) Error() error { return r.Err }
 
 func (r initiateMDMAppleGETSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	if r.Err != nil {
+		// use default error rendering of the framework
+		return
+	}
 	setSSOCookie(w, r.sessionID, r.sessionDurationSeconds)
+	// TODO(mna): actually this can be done more easily by just doing the set
+	// header and status code by hand, no need for the request since the redirect
+	// URL is absolute (see response rendering of MDM SSO callback as an example)
+	http.Redirect(w, r.httpRequest, r.URL, http.StatusSeeOther)
+}
+
+func (r initiateMDMAppleGETSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	// nothing to do, on success the rendering is fully done in SetCookies, this
+	// is just required to avoid the default rendering of the framework.
 }
 
 func initiateMDMAppleGETSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -3252,6 +3278,7 @@ func initiateMDMAppleGETSSOEndpoint(ctx context.Context, request interface{}, sv
 	return initiateMDMAppleGETSSOResponse{
 		URL: idpProviderURL,
 
+		httpRequest:            req.httpRequest,
 		sessionID:              sessionID,
 		sessionDurationSeconds: sessionDurationSeconds,
 	}, nil
@@ -3310,6 +3337,7 @@ func (r callbackMDMAppleSSOResponse) Error() error { return nil }
 func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	callbackRequest := request.(*callbackMDMAppleSSORequest)
 	redirectURL := svc.MDMAppleSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
+	fmt.Println(">>>>>> MDM APPLE SSO CALLBACK DONE: ", redirectURL)
 	return callbackMDMAppleSSOResponse{
 		redirectURL: redirectURL,
 	}, nil
