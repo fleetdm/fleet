@@ -584,10 +584,10 @@ describe("HostInstallerActionCell component", () => {
         software={{
           ...defaultSoftware,
           source: "tgz_packages",
-          ui_status: "installed", // could also use "pending_uninstall" or "failed_uninstall"
+          ui_status: "installed",
           status: "installed",
           software_package: mockSoftwarePackage,
-          installed_versions: [], // crucial: no versions, triggers the tgzPackageDetectedAsInstalled case
+          installed_versions: [], // no versions ever show for tgz packages
           app_store_app: null,
         }}
         onClickInstallAction={noop}
@@ -619,7 +619,7 @@ describe("HostInstallerActionCell component", () => {
           ui_status: "pending_uninstall",
           status: "pending_uninstall",
           software_package: mockSoftwarePackage,
-          installed_versions: [], // crucial: no versions, triggers the tgzPackageDetectedAsInstalled case
+          installed_versions: [], // no versions ever show for tgz packages
           app_store_app: null,
         }}
         onClickInstallAction={noop}
@@ -651,7 +651,7 @@ describe("HostInstallerActionCell component", () => {
           ui_status: "failed_uninstall",
           status: "failed_uninstall",
           software_package: mockSoftwarePackage,
-          installed_versions: [], // crucial: no versions, triggers the tgzPackageDetectedAsInstalled case
+          installed_versions: [], // no versions ever show for tgz packages
           app_store_app: null,
         }}
         onClickInstallAction={noop}
