@@ -4,6 +4,7 @@ import { NotificationContext } from "context/notification";
 import certificatesAPI from "services/entities/certificates";
 import {
   ICertificateAuthority,
+  ICertificateAuthorityPartial,
   ICertificateAuthorityType,
 } from "interfaces/certificates";
 import { AppContext } from "context/app";
@@ -33,7 +34,7 @@ export type ICertFormData =
 const baseClass = "add-cert-authority-modal";
 
 interface IAddCertAuthorityModalProps {
-  certAuthorities: ICertificateAuthority[];
+  certAuthorities: ICertificateAuthorityPartial[];
   onExit: () => void;
 }
 
