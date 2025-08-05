@@ -177,6 +177,9 @@ func main() {
 		migrateMDMItem.Disable()
 		// this item is only shown if certain conditions are met below.
 		migrateMDMItem.Hide()
+		// Track the current state of the MDM Migrate item so that on, e.g. token refreshes we can
+		// immediately begin showing the migrator again if we were showing it prior.
+		showMDMMigrator := false
 
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
@@ -321,6 +324,11 @@ func main() {
 							selfServiceItem.Show()
 						}
 
+						if showMDMMigrator {
+							migrateMDMItem.Enable()
+							migrateMDMItem.Show()
+						}
+
 						return
 					}
 
@@ -452,6 +460,11 @@ func main() {
 						if migrationType != constant.MDMMigrationTypeADE {
 							migrateMDMItem.Enable()
 							migrateMDMItem.Show()
+							showMDMMigrator = true
+						} else {
+							migrateMDMItem.Disable()
+							migrateMDMItem.Hide()
+							showMDMMigrator = false
 						}
 
 						// if the device is unmanaged or we're in force mode and the device needs
@@ -471,10 +484,12 @@ func main() {
 						}
 						migrateMDMItem.Disable()
 						migrateMDMItem.Hide()
+						showMDMMigrator = false
 					}
 				} else {
 					migrateMDMItem.Disable()
 					migrateMDMItem.Hide()
+					showMDMMigrator = false
 				}
 			}
 		}()
