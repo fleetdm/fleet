@@ -3,6 +3,8 @@ import { useQuery } from "react-query";
 
 import classnames from "classnames";
 
+import Radio from "components/forms/fields/Radio";
+
 import { NotificationContext } from "context/notification";
 
 import { addTeamIdCriteria, IScript } from "interfaces/script";
@@ -51,6 +53,7 @@ const RunScriptBatchModal = ({
 }: IRunScriptBatchModal) => {
   const { renderFlash } = useContext(NotificationContext);
 
+  const [runMode, setRunMode] = useState<"run_now" | "schedule">("run_now");
   const [selectedScript, setSelectedScript] = useState<IScript | undefined>(
     undefined
   );
@@ -166,26 +169,33 @@ const RunScriptBatchModal = ({
     const platforms =
       selectedScript.name.indexOf(".ps1") > 0 ? "windows" : "macOS/linux";
     return (
-      <div className={`${baseClass}__script-details`}>
+      <div className={`${baseClass}__script-schedule`}>
         <p>
           <b>{selectedScript.name}</b> will run on compatible hosts ({platforms}
           ).
         </p>
-        <div className={`${baseClass}__script-details-actions`}>
-          <Button
-            onClick={() => {
-              onRunScriptBatch(selectedScript);
-            }}
-            isLoading={isUpdating}
-          >
-            Run
-          </Button>
-          <Button
-            variant="inverse"
-            onClick={() => setSelectedScript(undefined)}
-          >
-            Cancel
-          </Button>
+        <div className={`${baseClass}__script-schedule-form`}>
+          <div className="form-field">
+            <div className="form-field__label">Schedule</div>
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Run now"
+              id="run-now-batch-scripts-radio-btn"
+              checked={runMode === "run_now"}
+              value="Run now"
+              name="run-mode"
+              onChange={() => setRunMode("run_now")}
+            />
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Schedule for later"
+              id="custom-target-radio-btn"
+              checked={runMode === "schedule"}
+              value="Custom"
+              name="target-type"
+              onChange={() => setRunMode("schedule")}
+            />
+          </div>
         </div>
       </div>
     );
@@ -206,14 +216,43 @@ const RunScriptBatchModal = ({
       >
         <>
           {renderModalContent()}
-          <div className="modal-cta-wrap">
-            <Button disabled={isUpdating} onClick={onCancel}>
-              Done
-            </Button>
-          </div>
+          {!selectedScript && !scriptForDetails && (
+            <div className="modal-cta-wrap">
+              <Button disabled={isUpdating} onClick={onCancel}>
+                Done
+              </Button>
+            </div>
+          )}
+          {selectedScript && (
+            <div className="modal-cta-wrap">
+              <Button
+                disabled={isUpdating}
+                onClick={() => onRunScriptBatch(selectedScript)}
+                isLoading={isUpdating}
+              >
+                Run
+              </Button>
+              <Button
+                disabled={isUpdating}
+                variant="inverse"
+                onClick={() => {
+                  setSelectedScript(undefined);
+                }}
+              >
+                Go back
+              </Button>
+              <Button
+                disabled={isUpdating}
+                variant="inverse"
+                onClick={onCancel}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </>
       </Modal>
-      {!!scriptForDetails && (
+      {!!scriptForDetails && !selectedScript && (
         <ScriptDetailsModal
           onCancel={() => setScriptForDetails(undefined)}
           selectedScriptDetails={scriptForDetails}
@@ -222,7 +261,8 @@ const RunScriptBatchModal = ({
             <div className="modal-cta-wrap">
               <Button
                 onClick={() => {
-                  onRunScriptBatch(scriptForDetails);
+                  setScriptForDetails(undefined);
+                  setSelectedScript(scriptForDetails);
                 }}
                 isLoading={isUpdating}
               >
