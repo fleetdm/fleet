@@ -1423,6 +1423,18 @@ func (cmd *SyncMLCmd) GetTargetData() string {
 	return ""
 }
 
+// GetNormalizedTargetDataForVerification returns the first protocol commands target data
+// and normalizes for verification processes
+func (cmd *SyncMLCmd) GetNormalizedTargetDataForVerification() string {
+	content := cmd.GetTargetData()
+
+	content = strings.TrimSpace(content)
+	content = strings.TrimPrefix(content, "<![CDATA[")
+	content = strings.TrimSuffix(content, "]]>")
+
+	return content
+}
+
 func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {
 	if (cmdVerb == "") || cmd.CmdRef == nil || *cmd.CmdRef == "0" {
 		return false
