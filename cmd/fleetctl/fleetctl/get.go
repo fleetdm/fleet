@@ -1553,8 +1553,8 @@ func getMDMCommandResultsCommand() *cli.Command {
 			}
 			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "PAYLOAD", "RESULTS"}
 			if c.Bool("line") {
-				for i, c := range columns {
-					for _, d := range data {
+				for _, d := range data {
+					for i, c := range columns {
 						fmt.Printf("%s:\n%s\n\n", c, d[i])
 					}
 				}
