@@ -686,7 +686,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 
 const appleMDMAccountDrivenEnrollmentUrl = "/api/mdm/apple/account_driven_enroll"
 
-func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator, relayState string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
@@ -700,7 +700,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 
 	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
-	fmt.Println(">>>>>> INITIATE MDM SSO: ", mdmSSOSettings.EntityID, initiator)
+	fmt.Println(">>>>>> INITIATE MDM SSO: ", mdmSSOSettings.EntityID, initiator, relayState)
 
 	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
 	//
@@ -737,12 +737,13 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 	case "account_driven_enroll":
 		originalURL = appleMDMAccountDrivenEnrollmentUrl
 	case "ota_enroll":
-		originalURL = "/got-here-from-ota!"
+		originalURL = relayState
 	}
 	sessionDurationSeconds = int(svc.config.Auth.SsoSessionValidityPeriod.Seconds())
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
 		samlProvider, svc.ssoSessionStore, originalURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		relayState,
 	)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateMDMAppleSSO creating authorization")
@@ -751,7 +752,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 	return sessionID, sessionDurationSeconds, idpURL, nil
 }
 
-func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
+func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte, relayState string) string {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -767,7 +768,10 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
 	}
 
-	fmt.Println(">>>>>> MDM APPLE SSO CALLBACK CALLED FROM: ", originalURL)
+	fmt.Println(">>>>>> MDM APPLE SSO CALLBACK CALLED FROM: ", originalURL, relayState)
+
+	// TODO(mna): at this point, enrollmentRef is the IdP account's UUID, which stores the user's email,
+	// and relayState is the enrollment secret used on the initial /enroll request.
 
 	// For account driven enrollment we have to use this special protocol URL scheme to pass the
 	// access token back to Apple which it will then use to request the enrollment profile.
@@ -880,6 +884,9 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	if originalURL == appleMDMAccountDrivenEnrollmentUrl {
 		return "", idpAcc.UUID, eulaToken, originalURL, nil
 	}
+
+	// TODO(mna): is this correct to get the "automatic" enrollment profile for BYOD?
+	// I think we may want some "manual" one if it exists?
 
 	// get the automatic profile to access the authentication token.
 	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)

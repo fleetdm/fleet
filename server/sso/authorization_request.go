@@ -35,6 +35,7 @@ func CreateAuthorizationRequest(
 	sessionStore SessionStore,
 	originalURL string,
 	sessionTTLSeconds uint,
+	relayState string,
 ) (sessionID string, idpURL string, err error) {
 	idpURL, err = getDestinationURL(samlProvider.IDPMetadata)
 	if err != nil {
@@ -81,7 +82,7 @@ func CreateAuthorizationRequest(
 		return "", "", fmt.Errorf("caching SSO session while creating auth request: %w", err)
 	}
 
-	relayState := "" // Fleet currently doesn't use/set RelayState
+	//relayState := "" // Fleet currently doesn't use/set RelayState
 	idpRedirectURL, err := samlAuthRequest.Redirect(relayState, samlProvider)
 	if err != nil {
 		return "", "", ctxerr.Wrap(ctx, err, "generating redirect")

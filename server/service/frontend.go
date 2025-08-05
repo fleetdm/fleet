@@ -115,7 +115,10 @@ func ServeEndUserEnrollOTA(
 			// existing MDM SSO, we return JSON data from the initiator and this gets
 			// handled in the setup experience flow, but here we need to redirect to
 			// the IdP provider login page as this is in the browser).
-			http.Redirect(w, r, "/api/latest/fleet/mdm/sso?initiator=ota_enroll", http.StatusSeeOther)
+			q := make(url.Values)
+			q.Set("RelayState", "/enroll?enrollment_secret="+enrollSecret)
+			q.Set("initiator", "ota_enroll")
+			http.Redirect(w, r, "/api/latest/fleet/mdm/sso?"+q.Encode(), http.StatusSeeOther)
 			return
 		}
 

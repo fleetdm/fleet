@@ -3207,7 +3207,7 @@ func (r initiateMDMAppleSSOResponse) SetCookies(_ context.Context, w http.Respon
 
 func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*initiateMDMAppleSSORequest)
-	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx, req.Initiator)
+	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx, req.Initiator, "")
 	if err != nil {
 		return initiateMDMAppleSSOResponse{Err: err}, nil
 	}
@@ -3225,17 +3225,26 @@ func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc f
 ////////////////////////////////////////////////////////////////////////////////
 
 type initiateMDMAppleGETSSORequest struct {
-	Initiator   string        `query:"initiator"` // required, set when redirecting from /enroll
+	Initiator   string        `query:"initiator"`  // required, set when redirecting from /enroll
+	RelayState  string        `query:"RelayState"` // required, set when redirecting from /enroll, the value of the enroll secret
 	httpRequest *http.Request // needs to be stored to redirect on the response, we should really have it available in some way for the response
 }
 
 func (initiateMDMAppleGETSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
+	// TODO(mna): this can be simplified, DecodeRequest not needed just to get
+	// the http request since we can redirect without it.
+
 	initiator := r.URL.Query().Get("initiator")
 	if initiator == "" {
 		return nil, &fleet.BadRequestError{Message: "missing initiator query parameter"}
 	}
+	relay := r.URL.Query().Get("RelayState")
+	if relay == "" {
+		return nil, &fleet.BadRequestError{Message: "missing RelayState query parameter"}
+	}
 	return &initiateMDMAppleGETSSORequest{
 		Initiator:   initiator,
+		RelayState:  relay,
 		httpRequest: r,
 	}, nil
 }
@@ -3270,10 +3279,12 @@ func (r initiateMDMAppleGETSSOResponse) HijackRender(ctx context.Context, w http
 
 func initiateMDMAppleGETSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*initiateMDMAppleGETSSORequest)
-	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx, req.Initiator)
+	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx, req.Initiator, req.RelayState)
 	if err != nil {
 		return initiateMDMAppleGETSSOResponse{Err: err}, nil
 	}
+
+	fmt.Println(">>>>> INITIATE MDM SSO REDIRECT TO: ", idpProviderURL)
 
 	return initiateMDMAppleGETSSOResponse{
 		URL: idpProviderURL,
@@ -3284,7 +3295,7 @@ func initiateMDMAppleGETSSOEndpoint(ctx context.Context, request interface{}, sv
 	}, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator, relayState string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -3299,6 +3310,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 type callbackMDMAppleSSORequest struct {
 	sessionID    string
 	samlResponse []byte
+	relayState   string
 }
 
 // TODO: these errors will result in JSON being returned, but we should
@@ -3306,13 +3318,14 @@ type callbackMDMAppleSSORequest struct {
 // rare enough (malformed data coming from the SSO provider) so they shouldn't
 // affect many users.
 func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	sessionID, samlResponse, err := decodeCallbackRequest(ctx, r)
+	sessionID, samlResponse, relayState, err := decodeCallbackRequest(ctx, r)
 	if err != nil {
 		return nil, err
 	}
 	return &callbackMDMAppleSSORequest{
 		sessionID:    sessionID,
 		samlResponse: samlResponse,
+		relayState:   relayState,
 	}, nil
 }
 
@@ -3336,14 +3349,14 @@ func (r callbackMDMAppleSSOResponse) Error() error { return nil }
 
 func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	callbackRequest := request.(*callbackMDMAppleSSORequest)
-	redirectURL := svc.MDMAppleSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
+	redirectURL := svc.MDMAppleSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse, callbackRequest.relayState)
 	fmt.Println(">>>>>> MDM APPLE SSO CALLBACK DONE: ", redirectURL)
 	return callbackMDMAppleSSOResponse{
 		redirectURL: redirectURL,
 	}, nil
 }
 
-func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
+func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte, relayState string) string {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
