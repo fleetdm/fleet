@@ -86,7 +86,14 @@ Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, o
 
 ### Options
 
-For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy).
+For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy)
+
+In Fleet Premium you can trigger software installs or script runs on policy failure:
+
+- For software installs, specify either `install_software.package_path` or `install_software.hash_sha256` in your YAML. If `install_software.package_path` only one package can be specified in the package YAML. _Available in Fleet Premium_
+- For script runs, specify `run_script.path`.
+
+> Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package. 
 
 ### Example
 
@@ -474,21 +481,21 @@ software:
 
 #### Example
 
-##### With URL
+##### URL
 
 `lib/software-name.package.yml`:
 
 ```yaml
-url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
-install_script:
-  path: ../lib/software/tailscale-install-script.ps1
-uninstall_script:
-  path: ../lib/software/tailscale-uninstall-script.ps1
-post_install_script:
-  path: ../lib/software/tailscale-config-script.ps1
+- url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
+  install_script:
+    path: ../lib/software/tailscale-install-script.ps1
+  uninstall_script:
+    path: ../lib/software/tailscale-uninstall-script.ps1
+  post_install_script:
+    path: ../lib/software/tailscale-config-script.ps1
 ```
 
-##### With hash
+##### Hash
 
 You can view the hash for existing software in the software detail page in the Fleet UI. It is also returned after uploading a new software item via the API.
 
