@@ -959,6 +959,8 @@ const HostDetailsPage = ({
 
   const showUsersCard =
     isDarwinHost ||
+    isIosOrIpadosHost ||
+    isAndroidHost ||
     generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
     generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;

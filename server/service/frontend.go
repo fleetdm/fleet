@@ -131,6 +131,7 @@ func ServeEndUserEnrollOTA(
 
 		if cookieIdPRef != "" && enrollRef != cookieIdPRef {
 			// TODO(mna): error, those values should match
+			fmt.Println(">>>> ERROR! EnrollRef != cookieIdPRef!")
 		}
 
 		fs := newBinaryFileSystem("/frontend")
@@ -152,7 +153,20 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
-		enrollURL, err := generateEnrollOTAURL(urlPrefix, r.URL.Query().Get("enroll_secret"))
+		// TODO(mna): there's more than the enroll secret that we need to pass down
+		// to the download URL, as we want the host to be linked to the IdP email
+		// on enrollment. Need to figure this out...
+		//
+		// The next steps are:
+		// * GET /enrollment_profiles/ota : downloads the profile, passing the enroll secret
+		//   (enrollment secret still not validated at this point)
+		// * POST /ota_enrollment : on install of the enrollment profile, calls this endpoint
+		//   with the enroll secret.
+		// * enroll secret gets validated at this stage, and the host entry gets created if there
+		//   is no match already on host serial.
+		// * that's probably where the IdP email should be linked to this host, with the enroll ref.
+
+		enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
 		if err != nil {
 			herr(w, "generate enroll ota url: "+err.Error())
 			return

@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -6875,12 +6876,28 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getOTAProfileRequest struct {
-	EnrollSecret string `query:"enroll_secret"`
+	EnrollSecret string
+	BYODIdPUUID  string // TODO(mna): let's come up with a good name for that...
+}
+
+func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	enrollSecret := r.URL.Query().Get("enroll_secret")
+	if enrollSecret == "" {
+		return nil, &fleet.BadRequestError{Message: "enroll_secret is required"}
+	}
+	var idpUUID string
+	if ck, _ := r.Cookie(cookieNameBYODAuthenticated); ck != nil {
+		idpUUID = ck.Value
+	}
+	return &getOTAProfileRequest{
+		EnrollSecret: enrollSecret,
+		BYODIdPUUID:  idpUUID,
+	}, nil
 }
 
 func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOTAProfileRequest)
-	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret)
+	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret, req.BYODIdPUUID)
 	if err != nil {
 		return &getMDMAppleConfigProfileResponse{Err: err}, err
 	}
@@ -6889,7 +6906,7 @@ func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "fleet-mdm-enrollment-profile"}, nil
 }
 
-func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error) {
+func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string) ([]byte, error) {
 	// Skip authz as this endpoint is used by end users from their iPhones or iPads; authz is done
 	// by the enroll secret verification below
 	svc.authz.SkipAuthorization(ctx)
@@ -6899,10 +6916,12 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]b
 		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
 	}
 
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret)
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, idpUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
 	}
+
+	fmt.Println(">>>>> DOWNLOAD OTA PROFILE: ", string(profBytes))
 
 	signed, err := mdmcrypto.Sign(ctx, profBytes, svc.ds)
 	if err != nil {
@@ -6918,6 +6937,7 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]b
 
 type mdmAppleOTARequest struct {
 	EnrollSecret string `query:"enroll_secret"`
+	BYODIdPUUID  string
 	Certificates []*x509.Certificate
 	RootSigner   *x509.Certificate
 	DeviceInfo   fleet.MDMAppleMachineInfo
@@ -6930,6 +6950,8 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 			InternalErr: errors.New("enroll_secret query parameter was empty"),
 		}
 	}
+
+	idpUUID := r.URL.Query().Get("idp_uuid")
 
 	rawData, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -6960,6 +6982,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	}
 
 	request.EnrollSecret = enrollSecret
+	request.BYODIdPUUID = idpUUID
 	request.Certificates = p7.Certificates
 	request.RootSigner = p7.GetOnlySigner()
 	return &request, nil
@@ -6984,7 +7007,7 @@ func (r mdmAppleOTAResponse) HijackRender(ctx context.Context, w http.ResponseWr
 
 func mdmAppleOTAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleOTARequest)
-	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.DeviceInfo)
+	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.DeviceInfo, req.BYODIdPUUID)
 	if err != nil {
 		return mdmAppleGetInstallerResponse{Err: err}, nil
 	}
@@ -6998,6 +7021,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	rootSigner *x509.Certificate,
 	enrollSecret string,
 	deviceInfo fleet.MDMAppleMachineInfo,
+	idpUUID string,
 ) ([]byte, error) {
 	// authorization is performed via the enroll secret and the provided certificates
 	svc.authz.SkipAuthorization(ctx)
@@ -7005,6 +7029,8 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	if len(certificates) == 0 {
 		return nil, authz.ForbiddenWithInternal("no certificates provided", nil, nil, nil)
 	}
+
+	fmt.Println(">>>>> OTA ENROLL: ", enrollSecret, idpUUID)
 
 	// first check is for the enroll secret, we'll only let the host
 	// through if it has a valid secret.
@@ -7082,6 +7108,18 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	err = svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, deviceInfo)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new host record")
+	}
+
+	if idpUUID != "" {
+		// TODO(mna): associate the host with the IdP UUID account if provided.
+		ctx = ctxdb.RequirePrimary(ctx, true)
+		h, err := svc.ds.HostLiteByIdentifier(ctx, deviceInfo.Serial)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load host record")
+		}
+		if err := svc.ds.AssociateHostMDMIdPAccount(ctx, h.UUID, idpUUID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "associate host with idp account")
+		}
 	}
 
 	// at this point we know the device can be enrolled, so we respond with

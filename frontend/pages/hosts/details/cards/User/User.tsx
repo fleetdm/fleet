@@ -50,11 +50,14 @@ const User = ({
   const otherEmailsDisplayValues = generateOtherEmailsValues(endUsers);
 
   const endUser = endUsers[0];
-  const showUsername = platform === "darwin";
-  const showFullName = showUsername && userNameDisplayValues.length > 0;
-  const showGroups = showUsername && userNameDisplayValues.length > 0;
+  const showUsername =
+    platform === "darwin" || platform === "ios" || platform === "ipados";
+  const showFullName =
+    platform === "darwin" && userNameDisplayValues.length > 0;
+  const showGroups = platform === "darwin" && userNameDisplayValues.length > 0;
   const showChromeProfiles = chromeProfilesDisplayValues.length > 0;
   const showOtherEmails = otherEmailsDisplayValues.length > 0;
+  const showDepartment = showGroups;
   const userDepartment = [];
   if (endUser?.idp_department) {
     userDepartment.push(endUser.idp_department);
@@ -122,7 +125,7 @@ const User = ({
             value={<UserValue values={generateGroupsValues(endUsers)} />}
           />
         )}
-        {showUsername && (
+        {showDepartment && (
           <DataSet
             title={
               <TooltipWrapper tipContent='This is the "department" collected from your IdP.'>

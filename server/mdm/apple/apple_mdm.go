@@ -1426,7 +1426,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	return nil
 }
 
-func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret string) ([]byte, error) {
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, byodIdPUUID string) ([]byte, error) {
 	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
 	if err != nil {
 		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
@@ -1439,6 +1439,11 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret st
 
 	q := enrollURL.Query()
 	q.Set("enroll_secret", enrollSecret)
+	if byodIdPUUID != "" {
+		// TODO(mna): is it ok to alter the URL stored in the enrollment profile?
+		// Will that cause unforeseen issues elsewhere?
+		q.Set("idp_uuid", byodIdPUUID)
+	}
 	enrollURL.RawQuery = q.Encode()
 
 	var profileBuf bytes.Buffer
