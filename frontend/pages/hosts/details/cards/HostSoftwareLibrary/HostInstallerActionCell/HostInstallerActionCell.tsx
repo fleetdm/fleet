@@ -201,11 +201,19 @@ export const HostInstallerActionCell = ({
     }
   }, [status, ui_status]);
 
+  const installedVersionsDetected =
+    installed_versions && installed_versions.length > 0;
+
+  const installedTgzPackageDetected =
+    software.source === "tgz_packages" &&
+    (ui_status === "installed" ||
+      ui_status === "pending_uninstall" ||
+      ui_status === "failed_uninstall");
+
   const canUninstallSoftware =
     !app_store_app &&
     !!software_package &&
-    installed_versions &&
-    installed_versions.length > 0;
+    (installedVersionsDetected || installedTgzPackageDetected);
 
   return (
     <div className={`${baseClass}__item-actions`}>

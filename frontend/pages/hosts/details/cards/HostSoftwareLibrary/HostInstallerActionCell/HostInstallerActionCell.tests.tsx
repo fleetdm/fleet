@@ -578,4 +578,102 @@ describe("HostInstallerActionCell component", () => {
     expect(screen.getByTestId("trash-icon")).toBeInTheDocument();
     expect(uninstallBtn.closest("button")).toBeDisabled();
   });
+  it("renders Reinstall and Uninstall buttons for tgz package with no installed_versions", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "tgz_packages",
+          ui_status: "installed", // could also use "pending_uninstall" or "failed_uninstall"
+          status: "installed",
+          software_package: mockSoftwarePackage,
+          installed_versions: [], // crucial: no versions, triggers the tgzPackageDetectedAsInstalled case
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
+    expect(installBtn).toHaveTextContent("Reinstall");
+    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(installBtn.closest("button")).toBeEnabled();
+
+    const uninstallBtn = screen.getByTestId(
+      `${baseClass}__uninstall-button--test`
+    );
+    expect(uninstallBtn).toHaveTextContent("Uninstall");
+    expect(screen.getByTestId("trash-icon")).toBeInTheDocument();
+    expect(uninstallBtn.closest("button")).toBeEnabled();
+  });
+  it("renders disabled Reinstall and disabled Uninstall buttons for tgz package with no installed_versions when uninstall pending", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "tgz_packages",
+          ui_status: "pending_uninstall",
+          status: "pending_uninstall",
+          software_package: mockSoftwarePackage,
+          installed_versions: [], // crucial: no versions, triggers the tgzPackageDetectedAsInstalled case
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
+    expect(installBtn).toHaveTextContent("Reinstall");
+    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(installBtn.closest("button")).toBeDisabled();
+
+    const uninstallBtn = screen.getByTestId(
+      `${baseClass}__uninstall-button--test`
+    );
+    expect(uninstallBtn).toHaveTextContent("Uninstall");
+    expect(screen.getByTestId("trash-icon")).toBeInTheDocument();
+    expect(uninstallBtn.closest("button")).toBeDisabled();
+  });
+  it("renders Reinstall and Retry uninstall buttons for tgz package with no installed_versions when uninstall failed", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "tgz_packages",
+          ui_status: "failed_uninstall",
+          status: "failed_uninstall",
+          software_package: mockSoftwarePackage,
+          installed_versions: [], // crucial: no versions, triggers the tgzPackageDetectedAsInstalled case
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
+    expect(installBtn).toHaveTextContent("Reinstall");
+    expect(installBtn.closest("button")).toBeEnabled();
+
+    const uninstallBtn = screen.getByTestId(
+      `${baseClass}__uninstall-button--test`
+    );
+    expect(uninstallBtn).toHaveTextContent("Retry uninstall");
+    expect(uninstallBtn.closest("button")).toBeEnabled();
+
+    // Both reinstall and retry uninstall have the same icon
+    const refreshIcons = screen.getAllByTestId("refresh-icon");
+    expect(refreshIcons).toHaveLength(2);
+  });
 });
