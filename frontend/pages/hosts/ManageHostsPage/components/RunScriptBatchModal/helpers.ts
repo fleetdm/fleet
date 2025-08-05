@@ -81,7 +81,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           }
           const parsedDate = parse(
             `1982-10-13 ${formData.time}`,
-            "yyyy-MM-dd kk:mm",
+            "yyyy-MM-dd HH:mm",
             new Date()
           );
           return isValid(parsedDate);

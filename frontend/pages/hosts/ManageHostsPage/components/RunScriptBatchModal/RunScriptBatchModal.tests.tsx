@@ -7,6 +7,8 @@ import { createCustomRenderer } from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 import RunScriptBatchModal from "./RunScriptBatchModal";
+import { format } from "date-fns";
+import { f } from "msw/lib/core/HttpResponse-DaYkf3ml";
 
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -85,9 +87,9 @@ const getScheduleUI = async () => {
   let dateInput;
   let timeInput;
   await waitFor(() => {
-    dateInput = screen.getByLabelText("Date");
+    dateInput = screen.getByLabelText("Date (UTC)");
     expect(dateInput).toBeInTheDocument();
-    timeInput = screen.getByLabelText("Time");
+    timeInput = screen.getByLabelText("Time (UTC)");
     expect(timeInput).toBeInTheDocument();
   });
   if (!dateInput || !timeInput) {
@@ -208,14 +210,102 @@ describe("RunScriptBatchModal", () => {
         expect(
           screen.getByText("Please enter a valid date.")
         ).toBeInTheDocument();
+        // Add a less wild, but still invalid date
+        await user.clear(dateInput);
+        await user.type(dateInput, "2023-99-99");
+        expect(dateInput).toHaveValue("2023-99-99");
+        expect(
+          screen.getByText("Please enter a valid date.")
+        ).toBeInTheDocument();
+        // Add a valid date, but in the past
+        await user.clear(dateInput);
+        await user.type(dateInput, "2023-01-01");
+        expect(dateInput).toHaveValue("2023-01-01");
+        expect(
+          screen.getByText("Date cannot be in the past.")
+        ).toBeInTheDocument();
+        // Add a valid date in the future
+        await user.clear(dateInput);
+        await user.type(dateInput, "2099-12-31");
+        expect(dateInput).toHaveValue("2099-12-31");
+        expect(
+          screen.queryByText("Please enter a valid date.")
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByText("Date cannot be in the past.")
+        ).not.toBeInTheDocument();
       });
 
       it("requires a valid time", async () => {
-        render(<RunScriptBatchModal {...defaultProps} />);
+        const { user } = render(<RunScriptBatchModal {...defaultProps} />);
+        await selectScript(user, "windows");
+        const { runNowButton, scheduleButton } = await getScheduleSelector();
+        expect(runNowButton).toBeChecked();
+        await user.click(scheduleButton);
+        const { dateInput, timeInput } = await getScheduleUI();
+        // Add a wildly invalid time
+        await user.type(timeInput, "professor churro");
+        expect(timeInput).toHaveValue("professor churro");
+        expect(
+          screen.getByText("Please enter a valid time.")
+        ).toBeInTheDocument();
+        // Add a less wild, but still invalid time
+        await user.clear(timeInput);
+        await user.type(timeInput, "99:99");
+        expect(timeInput).toHaveValue("99:99");
+        expect(
+          screen.getByText("Please enter a valid time.")
+        ).toBeInTheDocument();
+        // Add a valid time in the past (no date selected)
+        await user.clear(timeInput);
+        await user.type(timeInput, "00:00");
+        expect(timeInput).toHaveValue("00:00");
+        expect(
+          screen.queryByText("Please enter a valid date.")
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByText("Date cannot be in the past.")
+        ).not.toBeInTheDocument();
+        // Add a valid time in the past (future date selected)
+        await user.clear(timeInput);
+        await user.type(timeInput, "00:00");
+        await user.clear(dateInput);
+        await user.type(dateInput, "2099-12-31");
+        expect(timeInput).toHaveValue("00:00");
+        expect(
+          screen.queryByText("Please enter a valid date.")
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByText("Date cannot be in the past.")
+        ).not.toBeInTheDocument();
+        // Add a valid time in the past (today selected)
+        await user.clear(dateInput);
+        await user.type(dateInput, format(new Date(), "yyyy-MM-dd"));
+        await user.clear(timeInput);
+        await user.type(timeInput, "00:00");
+        expect(timeInput).toHaveValue("00:00");
+        expect(
+          screen.getByText("Time cannot be in the past.")
+        ).toBeInTheDocument();
       });
 
-      it("should call the API with a not_before param", async () => {
-        render(<RunScriptBatchModal {...defaultProps} />);
+      it("should call the API with a correct not_before param", async () => {
+        const { user } = render(<RunScriptBatchModal {...defaultProps} />);
+        const { runButton } = await selectScript(user, "windows");
+        const { runNowButton, scheduleButton } = await getScheduleSelector();
+        expect(runNowButton).toBeChecked();
+        await user.click(scheduleButton);
+        const { dateInput, timeInput } = await getScheduleUI();
+        await user.type(dateInput, "2099-12-31");
+        await user.type(timeInput, "23:59");
+        await user.click(runButton);
+        expect(runBatchFn.mock.calls.length).toBe(1);
+        const body = await runBatchFn.mock.calls[0][0].request.json();
+        expect(body).toEqual({
+          script_id: windowsScript.id,
+          host_ids: defaultProps.selectedHostIds,
+          not_before: "2099-12-31T23:59:00.000Z",
+        });
       });
     });
   });
