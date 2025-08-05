@@ -462,6 +462,8 @@ func main() {
 							migrateMDMItem.Show()
 							showMDMMigrator = true
 						} else {
+							migrateMDMItem.Disable()
+							migrateMDMItem.Hide()
 							showMDMMigrator = false
 						}
 
