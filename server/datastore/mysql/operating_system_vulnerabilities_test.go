@@ -446,7 +446,14 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 				require.Equalf(t, expectedVulns, kernel.Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernel.Version)
 			}
 
+			cves, err := ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, false)
+			require.NoError(t, err)
+			require.Len(t, cves, len(vulns))
+
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", false)
+			require.NoError(t, err)
+			require.Empty(t, cves)
+
 		})
 	}
-
 }
