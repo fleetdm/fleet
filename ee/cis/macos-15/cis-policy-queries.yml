@@ -197,7 +197,7 @@ spec:
     This query will check for the existance of the policy not its value (That should be set per organization's decision)
   resolution: |
     The administrator should configure this via MDM profile.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess.
       2. The key to include is allowCloudDocumentSync.
       3. The key must be set to <false/>.
@@ -233,7 +233,7 @@ spec:
     This query will check for the existance of the policy not its value (That should be set per organization's decision)
   resolution: |
     The administrator should configure this via MDM profile.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess.
       2. The key to include is allowCloudDocumentSync.
       3. The key must be set to <true/>.
@@ -270,7 +270,7 @@ spec:
     Ensure that the iCloud keychain is used consistently with organizational requirements.
   resolution: |
     The administrator should configure this via MDM profile.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess.
       2. The key to include is allowCloudKeychainSync.
       3. The key must be set to <false/>.
@@ -307,7 +307,7 @@ spec:
     Ensure that the iCloud keychain is used consistently with organizational requirements.
   resolution: |
     The administrator should configure this via MDM profile.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess.
       2. The key to include is allowCloudKeychainSync.
       3. The key must be set to <true/>.
@@ -340,7 +340,7 @@ spec:
   description: Automated Document synchronization should be planned and controlled to approved storage.
   resolution: |
     The administrator should configure this via MDM profile.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess.
       2. The key to include is allowCloudDesktopAndDocuments.
       3. The key must be set to <false/>.
@@ -407,7 +407,7 @@ spec:
     Contacts Only limits may expose personal information to devices in the same area.
   resolution: |
     Ask your system administrator to deploy an MDM profile that disables AirDrop.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess
       2. The key to include is allowAirDrop
       3. The key must be set to <false/>
@@ -446,7 +446,7 @@ spec:
     information to an attacker.
   resolution: |
     The administrator should configure this via MDM profile.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess
       2. The key to include is allowAirPlayIncomingRequests
       3. The key must be set to <false/>
@@ -477,7 +477,7 @@ spec:
   description: 
   resolution: |
       The administrator should configure this via MDM profile.
-      Create or edit a configuration profile with the following information:
+      Ask your administrator to deploy a profile with the following configuration:
         1. The PayloadType string is com.apple.applicationaccess.
         2. The key to include is forceAutomaticDateAndTime.
         3. The key must be set to <true/>.
@@ -743,7 +743,7 @@ spec:
         3. SelectSharing
         4. Set Content Caching to disabled
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess 
       2. The key to include is allowContentCaching
       3. The key must be set to <false/>
@@ -929,7 +929,7 @@ spec:
   resolution: |
     Automated method:
     Ask your system administrator to deploy an MDM profile that enables the Wi-Fi status in the menu bar.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
     1. The `PayloadType` string is `com.apple.controlcenter`.
     2. The key to include is `WiFi`.
     3. The key must be set to `<integer>18</integer>`.
@@ -964,7 +964,7 @@ spec:
   resolution: |
     Automated method:
     Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
     1. The `PayloadType` string is `com.apple.controlcenter`.
     2. The key to include is `Bluetooth`.
     3. The key must be set to `<integer>18</integer>`.
@@ -989,7 +989,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure external intelligence extensions is disabled
+  name: CIS - Ensure external intelligence extensions is disabled (MDM required)
   platforms: macOS
   platform: darwin
   description: |
@@ -997,7 +997,7 @@ spec:
     Organizations handling sensitive or confidential information should disable external intelligence extensions to prevent potential data leakage to third-party AI services.
   resolution: |
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
     1. The PayloadType string is com.apple.applicationaccess
     2. The key to include is allowIntelligenceExtensions
     3. The key must be set to <false/>
@@ -1020,7 +1020,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure writing tools is disabled
+  name: CIS - Ensure writing tools is disabled (MDM required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1028,7 +1028,7 @@ spec:
     Organizations handling sensitive documents should consider disabling Writing Tools to prevent potential exposure of confidential information through AI processing.
   resolution: |
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
     1. The PayloadType string is com.apple.applicationaccess
     2. The key to include is allowWritingTools
     3. The key must be set to <false/>
@@ -1051,7 +1051,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure mail summarization is disabled
+  name: CIS - Ensure mail summarization is disabled (MDM required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1059,7 +1059,7 @@ spec:
     Organizations should disable Mail Summarization to prevent AI processing of potentially sensitive email communications.
   resolution: |
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
     1. The PayloadType string is com.apple.mail
     2. The key to include is allowMailIntelligence
     3. The key must be set to <false/>
@@ -1082,7 +1082,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure notes summarization is disabled
+  name: CIS - Ensure notes summarization is disabled (MDM required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1090,7 +1090,7 @@ spec:
     Organizations should disable Notes Summarization to prevent AI processing of potentially sensitive notes and documentation.
   resolution: |
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
     1. The PayloadType string is com.apple.mobilenotes
     2. The key to include is allowNotesIntelligence
     3. The key must be set to <false/>
@@ -1109,61 +1109,22 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: getvictor
----
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Siri is enabled (Based on organization's policy) (MDM Required)
+  name: CIS - Ensure Siri is disabled (MDM required)
   platforms: macOS
   platform: darwin
   description: |
-    With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While there are data spillage concerns with the use of data-gathering personal assistant software, the risk here does not seem greater in sending queries to Apple through Siri than in sending search terms in a browser to Google or Microsoft. While it is possible that Siri will be used for local actions rather than Internet searches, Siri could, in theory, tell Apple about confidential Programs and Projects that should not be revealed. This appears be a usage edge case.
+    With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While there are data spillage concerns with the use of data-gathering personal assistant software, the risk here does not seem greater in sending queries to Apple through Siri than in sending search terms in a browser to Google or Microsoft. While it is possible that Siri will be used for local actions rather than Internet searches, Siri could, in theory, tell Apple about confidential Programs and Projects that should not be revealed. This appears to be a usage edge case.
     In cases where sensitive or protected data is processed and Siri could expose that information through assisting a user in navigating their machine, it should be disabled. Siri does need to phone home to Apple, so it should not be available from air-gapped networks as part of its requirements.
     Most of the use case data published has shown that Siri is a tremendous time saver on iOS where multiple screens and menus need to be navigated through. Information like sports scores, weather, movie times, and simple to-do items on existing calendars can be easily found with Siri. None of the standard use cases should be more risky than already approved activity.
   resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
-    Create or edit a configuration profile with the following information:
-    1. The `PayloadType` string is com.apple.applicationaccess.
-    2. The key to include is allowAssistant.
-    3. The key must be set to <true/>.
-  query: |
-    SELECT 1 WHERE 
-      EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' AND 
-            name='allowAssistant' AND 
-            (value = 1 OR value = 'true')
-        )
-      AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' AND 
-            name='allowAssistant' AND 
-            (value != 1 AND value != 'true')
-        );  
-     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
-      Depending on your organization's decision, you can delete this policy or its counterpart.*/
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Siri is disabled (Based on organization's policy) (MDM Required)
-  platforms: macOS
-  platform: darwin
-  description: |
-    With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While there are data spillage concerns with the use of data-gathering personal assistant software, the risk here does not seem greater in sending queries to Apple through Siri than in sending search terms in a browser to Google or Microsoft. While it is possible that Siri will be used for local actions rather than Internet searches, Siri could, in theory, tell Apple about confidential Programs and Projects that should not be revealed. This appears be a usage edge case.
-    In cases where sensitive or protected data is processed and Siri could expose that information through assisting a user in navigating their machine, it should be disabled. Siri does need to phone home to Apple, so it should not be available from air-gapped networks as part of its requirements.
-    Most of the use case data published has shown that Siri is a tremendous time saver on iOS where multiple screens and menus need to be navigated through. Information like sports scores, weather, movie times, and simple to-do items on existing calendars can be easily found with Siri. None of the standard use cases should be more risky than already approved activity.
-  resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
-    Create or edit a configuration profile with the following information:
-    1. The `PayloadType` string is com.apple.applicationaccess.
-    2. The key to include is allowAssistant.
-    3. The key must be set to <false/>.
+    Profile Method:
+    Ask your administrator to deploy a profile with the following configuration:
+    1. The PayloadType string is com.apple.applicationaccess
+    2. The key to include is allowAssistant
+    3. Set the key to <false/>
   query: |
     SELECT 1 WHERE 
       EXISTS (
@@ -1178,11 +1139,9 @@ spec:
             name='allowAssistant' AND 
             (value != 0 AND value != 'false')
         );  
-    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
-      Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, decision-needed
-  contributors: sharon-fdm
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm, getvictor
 ---
 apiVersion: v1
 kind: policy
@@ -1647,7 +1606,7 @@ spec:
   resolution: |
     Automated method:
     Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
     1. The `PayloadType` string is com.apple.universalcontrol.
     2. The key to include is 'Disable'.
     3. The key must be set to <false/>.
@@ -1683,7 +1642,7 @@ spec:
   resolution: |
     Automated method:
     Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
     1. The `PayloadType` string is com.apple.universalcontrol.
     2. The key to include is 'Disable'.
     3. The key must be set to <true/>.
@@ -2223,7 +2182,7 @@ spec:
         2. Select Users & Groups
         3. Set Automatic login in as... to Off
     Profile Method:
-        Create or edit a configuration profile with the following information:
+        Ask your administrator to deploy a profile with the following configuration:
         1. The Payload Type string is com.apple.loginwindow
         2. The key to include is com.apple.login.mcx.DisableAutoLoginClient 
         3. The key must be set to <true/>
@@ -2478,7 +2437,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables Bonjour advertising service.
     Profile Method:
-        Create or edit a configuration profile with the following information:
+        Ask your administrator to deploy a profile with the following configuration:
         1. The Payload Type string is `com.apple.mDNSResponder`.
         2. The key to include is `NoMulticastAdvertisements`.
         3. The key must be set to `<true/>`.
@@ -2726,7 +2685,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensure Password Account Lockout Threshold.
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is maxFailedAttempts
       3. The key must be set to <integer><value≤5></integer>
@@ -2747,7 +2706,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables Guest Account.
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is minLength
       3. The key must be set to <integer><value≥15></integer>
@@ -2854,7 +2813,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables Guest Account.
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is maxPINAgeInDays
       3. The key must be set to <integer><value<=365></integer>
@@ -3174,7 +3133,7 @@ spec:
   resolution: |
     Ask your system administrator to deploy an MDM profile that set the history per organization decision
     Profile Method:
-      Create or edit a configuration profile with the following information:
+      Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.Safari
       2. The key to include is HistoryAgeInDaysLimit
       3. The key must be set to: <integer><1,7,14,31,365,36500></integer>
@@ -3414,7 +3373,7 @@ spec:
       5. Set Show full website address to enabled
     Automated method:
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.Safari
       2. The key to include is ShowFullURLInSmartSearchField 
       3. The key must be set to: <true/>
@@ -3447,7 +3406,7 @@ spec:
   resolution: |
     Automated method:
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.Safari
       2. The key to include is ShowOverlayStatusBar 
       3. The key must be set to: <true/>
@@ -3471,7 +3430,7 @@ spec:
     Enabling Secure Keyboard Entry minimizes the risk of a key logger from detecting what is entered in Terminal.
   resolution: |
     Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.Terminal 
       2. The key to include is SecureKeyboardEntry
       3. The key must be set to
