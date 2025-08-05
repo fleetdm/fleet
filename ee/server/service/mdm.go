@@ -737,7 +737,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator, relaySta
 	case "account_driven_enroll":
 		originalURL = appleMDMAccountDrivenEnrollmentUrl
 	case "ota_enroll":
-		originalURL = relayState
+		originalURL = "/enroll"
 	}
 	sessionDurationSeconds = int(svc.config.Auth.SsoSessionValidityPeriod.Seconds())
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
@@ -773,12 +773,6 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 	// TODO(mna): at this point, enrollmentRef is the IdP account's UUID, which stores the user's email,
 	// and relayState is the /enroll?... with the enrollment secret used on the initial /enroll request.
 
-	// For account driven enrollment we have to use this special protocol URL scheme to pass the
-	// access token back to Apple which it will then use to request the enrollment profile.
-	if originalURL == appleMDMAccountDrivenEnrollmentUrl {
-		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef)
-	}
-
 	q := url.Values{
 		"profile_token":        {profileToken},
 		"enrollment_reference": {enrollmentRef},
@@ -788,7 +782,35 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 		q.Add("eula_token", eulaToken)
 	}
 
-	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
+	switch originalURL {
+	// For account driven enrollment we have to use this special protocol URL scheme to pass the
+	// access token back to Apple which it will then use to request the enrollment profile.
+	case appleMDMAccountDrivenEnrollmentUrl:
+		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef)
+	case "/enroll":
+		// the relayState is the full enroll URL with the enrollment secret, redirect there
+		// with a cookie that identifies this device as authenticated and links it to the
+		// authenticated email.
+		u, err := url.Parse(relayState)
+		if err != nil {
+			// TODO(mna): when doing /enroll-based SSO, error page should be the
+			// /enroll page with some error? Not the Fleet UI callback page.
+			logging.WithErr(ctx, err)
+			fmt.Println(">>>>>> MDM APPLE SSO CALLBACK FAILED 2: ", err)
+			return apple_mdm.FleetUISSOCallbackPath + "?error=true"
+		}
+		// port over the query string values, which will copy over the enrollment secret
+		for k, v := range u.Query() {
+			q.Add(k, v[0])
+		}
+		u.RawQuery = q.Encode()
+
+		// TODO(mna): create the cookie indicating that the user is authenticated
+		return u.String()
+
+	default:
+		return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
+	}
 }
 
 func (svc *Service) mdmSSOHandleCallbackAuth(
