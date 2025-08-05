@@ -1,5 +1,6 @@
 import { differenceWith, isArray, isEqual, isObject, map } from "lodash";
 
+/** Computes the deep difference between objects obj1 and obj2, returning a new object that contains only the values from obj1 that are not deeply equal to those in obj2. */
 const deepDifference = (obj1: any, obj2: any) => {
   const result: any = {};
 
