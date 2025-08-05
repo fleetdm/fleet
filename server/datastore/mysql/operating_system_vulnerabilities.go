@@ -222,13 +222,20 @@ FROM
 WHERE
 	software_titles.is_kernel = TRUE AND
 	operating_systems.os_version_id = ? AND
-    software_host_counts.team_id = ?;
+    software_host_counts.team_id = ? %s
 	`
 
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID
 	}
+
+	var globalStatsFilter string
+	if tmID == 0 {
+		globalStatsFilter = "AND software_host_counts.global_stats = 0"
+	}
+
+	stmt = fmt.Sprintf(stmt, globalStatsFilter)
 
 	var results []struct {
 		ID         uint    `db:"id"`

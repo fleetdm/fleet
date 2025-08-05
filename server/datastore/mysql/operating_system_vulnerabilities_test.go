@@ -480,6 +480,13 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 			require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
+			if !tt.team {
+				// Insert some fake counts, this should be ignored in ListKernelsByOS
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					q.ExecContext(ctx, "INSERT IGNORE INTO software_host_counts (software_id, hosts_count, team_id, global_stats) VALUES (?, ?, ?, ?)", tt.host.Software[0].ID, 999, 0, true)
+					return nil
+				})
+			}
 			kernels, err := ds.ListKernelsByOS(ctx, os.OSVersionID, &teamID)
 			require.NoError(t, err)
 
@@ -489,6 +496,7 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 				expectedVulns, ok := tt.vulnsByKernelVersion[kernel.Version]
 				require.True(t, ok)
 				require.ElementsMatchf(t, expectedVulns, kernel.Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernel.Version)
+				require.Equal(t, kernel.HostsCount, uint(1))
 			}
 
 			cves, err := ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, false)
