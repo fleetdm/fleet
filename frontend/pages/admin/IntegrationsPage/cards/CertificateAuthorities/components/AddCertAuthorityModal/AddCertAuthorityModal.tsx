@@ -3,11 +3,9 @@ import React, { useContext, useMemo, useState } from "react";
 import { NotificationContext } from "context/notification";
 import certificatesAPI from "services/entities/certificates";
 import {
-  ICertificateAuthority,
   ICertificateAuthorityPartial,
   ICertificateAuthorityType,
 } from "interfaces/certificates";
-import { AppContext } from "context/app";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -17,13 +15,13 @@ import { generateDropdownOptions, getErrorMessage } from "./helpers";
 
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
-import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
 import NDESForm from "../NDESForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import HydrantForm from "../HydrantForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import { generateAddCertAuthorityData } from "../DeleteCertificateAuthorityModal/helpers";
 
 export type ICertFormData =
   | IDigicertFormData
@@ -42,8 +40,8 @@ const AddCertAuthorityModal = ({
   certAuthorities,
   onExit,
 }: IAddCertAuthorityModalProps) => {
-  const { config, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
   const [
     certAuthorityType,
     setCertAuthorityType,
@@ -79,10 +77,6 @@ const AddCertAuthorityModal = ({
     challenge: "",
   });
 
-  const { generateAddPatchData } = useCertAuthorityDataGenerator(
-    certAuthorityType
-  );
-
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
   };
@@ -99,11 +93,11 @@ const AddCertAuthorityModal = ({
         setFormData = setHydrantFormData;
         formData = hydrantFormData;
         break;
-      case "ndes":
+      case "ndes_scep_proxy":
         setFormData = setNDESFormData;
         formData = ndesFormData;
         break;
-      case "custom":
+      case "custom_scep_proxy":
         setFormData = setCustomSCEPFormData;
         formData = customSCEPFormData;
         break;
@@ -126,25 +120,28 @@ const AddCertAuthorityModal = ({
       case "hydrant":
         formData = hydrantFormData;
         break;
-      case "ndes":
+      case "ndes_scep_proxy":
         formData = ndesFormData;
         break;
-      case "custom":
+      case "custom_scep_proxy":
         formData = customSCEPFormData;
         break;
       default:
         return;
     }
 
-    const addPatchData = generateAddPatchData(formData);
+    const addCertAuthorityData = generateAddCertAuthorityData(
+      certAuthorityType,
+      formData
+    );
+    if (!addCertAuthorityData) {
+      return;
+    }
     setIsAdding(true);
     try {
-      const newConfig = await certificatesAPI.addCertificateAuthority(
-        addPatchData
-      );
+      await certificatesAPI.addCertificateAuthority(addCertAuthorityData);
       renderFlash("success", "Successfully added your certificate authority.");
       onExit();
-      setConfig(newConfig);
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
     }
@@ -152,8 +149,10 @@ const AddCertAuthorityModal = ({
   };
 
   const dropdownOptions = useMemo(() => {
-    return generateDropdownOptions(!!config?.integrations.ndes_scep_proxy);
-  }, [config?.integrations.ndes_scep_proxy]);
+    return generateDropdownOptions(
+      certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
+    );
+  }, [certAuthorities]);
 
   const renderForm = () => {
     const submitBtnText = "Add CA";
@@ -181,7 +180,7 @@ const AddCertAuthorityModal = ({
             onCancel={onExit}
           />
         );
-      case "ndes":
+      case "ndes_scep_proxy":
         return (
           <NDESForm
             formData={ndesFormData}
@@ -192,7 +191,7 @@ const AddCertAuthorityModal = ({
             onCancel={onExit}
           />
         );
-      case "custom":
+      case "custom_scep_proxy":
         return (
           <CustomSCEPForm
             formData={customSCEPFormData}

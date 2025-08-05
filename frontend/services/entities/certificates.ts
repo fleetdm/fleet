@@ -19,7 +19,7 @@ interface IRequestCertAuthorityResponse {
   certificate: string;
 }
 
-type IAddCertAuthorityBody =
+export type IAddCertAuthorityBody =
   | { digicert: ICertificatesDigicert }
   | { ndes_scep_proxy: ICertificatesNDES }
   | { custom_scep_proxy: ICertificatesCustomSCEP }
