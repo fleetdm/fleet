@@ -137,9 +137,8 @@ describe("SoftwareDetailsModal", () => {
     });
 
     render(
-      <SoftwareDetailsModal
-        hostDisplayName="Test Host"
-        software={mockSoftware}
+      <InventoryVersionsModal
+        hostSoftware={mockSoftware}
         onExit={jest.fn()}
       />
     );
@@ -170,9 +169,8 @@ describe("SoftwareDetailsModal", () => {
     });
 
     render(
-      <SoftwareDetailsModal
-        hostDisplayName="Test Host"
-        software={mockSoftware}
+      <InventoryVersionsModal
+        hostSoftware={mockSoftware}
         onExit={jest.fn()}
       />
     );
@@ -197,9 +195,8 @@ describe("SoftwareDetailsModal", () => {
     });
 
     render(
-      <SoftwareDetailsModal
-        hostDisplayName="Test Host"
-        software={mockSoftware}
+      <InventoryVersionsModal
+        hostSoftware={mockSoftware}
         onExit={jest.fn()}
       />
     );
