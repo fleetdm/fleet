@@ -35,7 +35,7 @@
     ); // default: 2 cards (smallest screens)
     gap: $pad-large;
 
-    @media (min-width: $break-xs) {
+    @media (min-width: $break-sm) {
       grid-template-columns: repeat(3, 1fr); // 3 cards (medium screens)
     }
 
@@ -47,7 +47,6 @@
   &__table {
     display: flex;
     flex-direction: row;
-    gap: $pad-large;
 
     > *:nth-child(2) {
       flex-grow: 1;
@@ -95,7 +94,8 @@
     display: none;
   }
 
-  @media (min-width: $break-md) {
+  // Custom breakpoint to fit table with categories
+  @media (min-width: 1050px) {
     .categories-menu {
       display: flex;
     }
