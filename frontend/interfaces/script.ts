@@ -32,3 +32,5 @@ export interface IHostScript {
   name: string;
   last_execution: ILastExecution | null;
 }
+
+export type ScriptBatchStatus = "started" | "scheduled" | "completed";

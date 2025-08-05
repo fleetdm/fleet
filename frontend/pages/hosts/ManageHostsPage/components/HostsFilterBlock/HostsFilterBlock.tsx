@@ -25,7 +25,7 @@ import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
-import { ScriptBatchExecutionStatus } from "services/entities/scripts";
+import { ScriptBatchHostStatus } from "services/entities/scripts";
 
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
@@ -84,7 +84,7 @@ interface IHostsFilterBlockProps {
     configProfileStatus?: string;
     configProfileUUID?: string;
     configProfile?: IMdmProfile;
-    scriptBatchExecutionStatus?: ScriptBatchExecutionStatus;
+    scriptBatchExecutionStatus?: ScriptBatchHostStatus;
     scriptBatchExecutionId?: string;
     scriptBatchRanAt: string | null;
     scriptBatchScriptName: string | null;
@@ -106,9 +106,7 @@ interface IHostsFilterBlockProps {
     newStatus: SoftwareAggregateStatus
   ) => void;
   onChangeConfigProfileStatusFilter: (newStatus: string) => void;
-  onChangeScriptBatchStatusFilter: (
-    newStatus: ScriptBatchExecutionStatus
-  ) => void;
+  onChangeScriptBatchStatusFilter: (newStatus: ScriptBatchHostStatus) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
 }

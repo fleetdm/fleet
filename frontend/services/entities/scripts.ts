@@ -1,4 +1,4 @@
-import { IHostScript, IScript } from "interfaces/script";
+import { IHostScript, IScript, ScriptBatchStatus } from "interfaces/script";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -122,18 +122,17 @@ export interface IScriptBatchSummaryQueryKey extends IScriptBatchSummaryParams {
   scope: "script_batch_summary";
 }
 
-export interface IScriptBatchExecutionStatuses {
+export interface IScriptBatchHostStatuses {
   ran: number;
   pending: number;
   errored: number;
   incompatible: number;
   canceled: number;
 }
-export type ScriptBatchExecutionStatus = keyof IScriptBatchExecutionStatuses;
+export type ScriptBatchHostStatus = keyof IScriptBatchHostStatuses;
 // 200 successful response
 
-export interface IScriptBatchSummaryResponse
-  extends IScriptBatchExecutionStatuses {
+export interface IScriptBatchSummaryResponse extends IScriptBatchHostStatuses {
   team_id: number;
   script_name: string;
   created_at: string;
@@ -141,13 +140,15 @@ export interface IScriptBatchSummaryResponse
   targeted: number;
   script_id: number;
 }
-
-export type ScriptBatchSummariesStage = "started" | "scheduled" | "completed";
 export interface IScriptBatchSummariesParams {
   team_id: number;
-  status: ScriptBatchSummariesStage; // may change to "stage"
+  status: ScriptBatchStatus;
   page: number;
   per_page: number;
+}
+export interface IScriptBatchSummariesQueryKey
+  extends IScriptBatchSummariesParams {
+  scope: "script_batch_summaries";
 }
 
 export interface IScriptBatchSummariesResponse {
