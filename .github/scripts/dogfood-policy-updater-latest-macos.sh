@@ -53,14 +53,14 @@ fetch_file_content() {
 # Function to extract current minimum version from team file content
 extract_minimum_version() {
     local content="$1"
-    local minimum_version=$(echo "$content" | grep -A 1 "macos_updates:" | grep "minimum_version:" | sed 's/.*minimum_version: *"\([^"]*\)".*/\1/')
+    local minimum_version=$(echo "$content" | grep -A 5 "macos_updates:" | grep "minimum_version:" | sed 's/.*minimum_version: *"\([^"]*\)".*/\1/')
     echo "$minimum_version"
 }
 
 # Function to extract current deadline from team file content
 extract_deadline() {
     local content="$1"
-    local deadline=$(echo "$content" | grep -A 2 "macos_updates:" | grep "deadline:" | sed 's/.*deadline: *"\([^"]*\)".*/\1/')
+    local deadline=$(echo "$content" | grep -A 5 "macos_updates:" | grep "deadline:" | sed 's/.*deadline: *"\([^"]*\)".*/\1/')
     echo "$deadline"
 }
 
