@@ -159,8 +159,12 @@ const RunScriptBatchModal = ({
             runByFilters
               ? totalFilteredHostsCount.toLocaleString()
               : selectedHostIds.length.toLocaleString()
-          } hosts, or will run as each host comes online. See host details for individual results.`
+          } host${selectedHostIds.length === 1 ? "" : "s"}, or will run ${
+            selectedHostIds.length === 1 ? "when the" : "as each"
+          } host comes online. See host details for individual results.`
         );
+        onCancel();
+        // TODO -- redirect to the batch scripts page.
       } catch (error) {
         let errorMessage = "Could not run script.";
         if (getErrorReason(error).includes("too many hosts")) {
