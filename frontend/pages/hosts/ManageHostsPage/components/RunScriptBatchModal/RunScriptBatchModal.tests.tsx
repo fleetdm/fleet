@@ -354,7 +354,7 @@ describe("RunScriptBatchModal", () => {
         expect(body).toEqual({
           script_id: windowsScript.id,
           not_before: "2099-12-31 23:59:00.000Z",
-          filters: { query: "hi", label_id: 16, status: "" },
+          filters: { query: "hi", label_id: 16, status: "", team_id: 1 },
         });
       });
     });
