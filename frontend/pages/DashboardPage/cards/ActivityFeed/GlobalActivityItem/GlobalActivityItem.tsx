@@ -1356,6 +1356,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  escrowedDiskEncryptionKey: (activity: IActivity) => {
+    return (
+      <>
+        escrowed a disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1664,6 +1672,10 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedPolicy: {
       return TAGGED_TEMPLATES.deletedPolicy(activity);
+    }
+
+    case ActivityType.EscrowedDiskEncryptionKey: {
+      return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
     }
 
     default: {

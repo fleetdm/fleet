@@ -347,6 +347,13 @@ type Host struct {
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
 
+	// DiskEncryptionKeyEscrowed is set to signal that a FileVault disk encryption key was escrowed.
+	// We need this because the escrow process for macOS is driven by detail queries
+	// (see 'mdm_disk_encryption_key_file_darwin' and 'mdm_disk_encryption_key_file_lines_darwin' queries) and
+	// we want to be able to record an activity whenever a disk encryption key is escrowed (which is handled at the
+	// service layer).
+	DiskEncryptionKeyEscrowed bool `json:"-" db:"-" csv:"-"`
+
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
 	// DeviceMapping is in fact included in the CSV export, but it is not directly

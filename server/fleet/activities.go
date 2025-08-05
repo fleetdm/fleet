@@ -212,6 +212,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeEnabledConditionalAccessAutomations{},
 	ActivityTypeDisabledConditionalAccessAutomations{},
+
+	ActivityTypeEscrowedDiskEncryptionKey{},
 }
 
 type ActivityDetails interface {
@@ -2623,5 +2625,28 @@ func (a ActivityTypeDisabledConditionalAccessAutomations) Documentation() (strin
 - "team_name": The name of the team (empty for "No team").`, `{
   "team_id": 5,
   "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEscrowedDiskEncryptionKey struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeEscrowedDiskEncryptionKey) ActivityName() string {
+	return "escrowed_disk_encryption_key"
+}
+
+func (a ActivityTypeEscrowedDiskEncryptionKey) WasFromAutomation() bool {
+	return true
+}
+
+func (a ActivityTypeEscrowedDiskEncryptionKey) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a disk encryption key is escrowed.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+	"host_id": "123",
+	"host_display_name": "PWNED-VM-123"
 }`
 }
