@@ -9055,9 +9055,9 @@ Returns a summary of a batch-run script, including host counts and current statu
 
 #### Parameters
 
-| Name            | Type    | In   | Description                                                                                    |
-| ----            | ------- | ---- | --------------------------------------------                                                   |
-| batch_execution_id | string | path | **Required**. The ID returned from a batch script run. |
+| Name               | Type    | In   | Description                                 |
+| ------------------ | ------- | ---- | --------------------------------------------|
+| batch_execution_id | string  | path | **Required**. The ID returned from a batch script run. |
 
 
 #### Example
@@ -9088,9 +9088,49 @@ Returns a summary of a batch-run script, including host counts and current statu
 }
 ```
 
-### List batch script results
+### List hosts targeted in batch script
 
-> TODO: API to list hosts & their results. Paginated, with status filter (ran, pending, errored, incompatible, canceled).
+Returns a list hosts targeted in a batch script run, along with their script execution status.
+
+`GET /api/v1/fleet/scripts/batch/:batch_execution_id/results`
+
+#### Parameters
+
+| Name                | Type    | In    | Description                                                                                    |
+| --------------------| ------- | ----- | --------------------------------------------                                                   |
+| batch_execution_id  | string  | path  | **Required**. The ID returned from a batch script run. |
+| status              | string  | query | Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
+| page                | integer | query | Page number of the results to fetch. |
+| per_page            | integer | query | Results per page. |
+
+#### Example
+
+`GET /api/v1/fleet/scripts/batch/abc-def/results?status=completed`
+
+
+##### Default response
+
+`Status: 200`
+
+
+```json
+{
+  "hosts": [
+    {
+      "id": 123,
+      "display_name": "Anna's MacBook Pro",
+      "script_status": "ran",
+      "script_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "script_executed_at": "2024-09-11T20:30:24Z",
+      "script_output_preview": "hello world"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
 
 ### Cancel batch script
 
