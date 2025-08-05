@@ -1289,6 +1289,30 @@ the way that the Fleet server works.
 					}
 				}
 
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") {
+					// For customers using large profiles and/or large numbers of profiles, the
+					// server needs time to completely read the request body and also to process
+					// all the side effects of a potentially large number of profiles being changed
+					// across a large number of hosts, so set the timeouts a bit higher than default
+					rc := http.NewResponseController(rw)
+					if err := rc.SetWriteDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint write timeout for MDM profiles batch endpoint",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
+					}
+					if err := rc.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint read timeout for MDM profiles batch endpoint",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
+					}
+				}
+
 				apiHandler.ServeHTTP(rw, req)
 			})
 			// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
