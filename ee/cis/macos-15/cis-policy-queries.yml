@@ -2708,13 +2708,17 @@ spec:
     Note: Applications that are not following standard practices, and have world-writable files in /System/Volumes/Data/Library may not launch or operate correctly after the remediation has been run.
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM file 
+      SELECT 1 FROM file f
       WHERE 
-        path LIKE '/Library/%'
-        AND type = 'directory'
-        AND (mode LIKE '%2' OR mode LIKE '%3' OR mode LIKE '%6' OR mode LIKE '%7')
-        AND NOT (mode LIKE '1%')
-        AND xattr NOT LIKE '%com.apple.rootless%'
+        f.path LIKE '/Library/%'
+        AND f.type = 'directory'
+        AND (f.mode LIKE '%2' OR f.mode LIKE '%3' OR f.mode LIKE '%6' OR f.mode LIKE '%7')
+        AND NOT (f.mode LIKE '1%')
+        AND NOT EXISTS (
+          SELECT 1 FROM extended_attributes ea
+          WHERE ea.path = f.path
+          AND ea.key = 'com.apple.rootless'
+        )
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
