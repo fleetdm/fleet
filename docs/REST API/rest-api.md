@@ -8831,7 +8831,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Batch-run script](#batch-run-script)
 - [List batch scripts](#list-batch-scripts)
 - [Get batch script](#get-batch-script)
-- [List batch script results](#list-batch-script-results)
+- [List hosts targeted in batch script](#list-hosts-targeted-in-batch-script)
 - [Cancel batch script](#cancel-batch-script)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
