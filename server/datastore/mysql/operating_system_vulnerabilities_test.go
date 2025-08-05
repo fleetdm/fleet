@@ -355,78 +355,125 @@ func testDeleteOutOfDateOSVulnerabilities(t *testing.T, ds *Datastore) {
 func testListKernelsByOS(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
+	kernel1 := fleet.Software{Name: "linux-image-6.11.0-9-generic", Version: "6.11.0-9.9", Source: "deb_packages", IsKernel: true}
+	kernel2 := fleet.Software{Name: "linux-image-7.11.0-10-generic", Version: "7.11.0-10.10", Source: "deb_packages", IsKernel: true}
+	kernel3 := fleet.Software{Name: "linux-image-8.11.0-11-generic", Version: "8.11.0-11.11", Source: "deb_packages", IsKernel: true}
+	software := []fleet.Software{
+		kernel1,
+		kernel2,
+		kernel3, // this one will have 0 vulns
+	}
+
 	cases := []struct {
-		name string
-		team bool
+		name                 string
+		team                 bool
+		host                 *fleet.Host
+		software             []fleet.Software
+		vulns                []fleet.SoftwareVulnerability
+		vulnsByKernelVersion map[string][]string
+		os                   fleet.OperatingSystem
 	}{
 		{
-			name: "no team",
-			team: false,
+			name:  "ubuntu no team",
+			team:  false,
+			host:  test.NewHost(t, ds, "host_ubuntu2410", "", "hostkey_ubuntu2410", "hostuuid_ubuntu2410", time.Now(), test.WithPlatform("linux")),
+			vulns: []fleet.SoftwareVulnerability{{CVE: "CVE-2025-0001"}, {CVE: "CVE-2025-0002"}, {CVE: "CVE-2025-0003"}},
+			vulnsByKernelVersion: map[string][]string{
+				kernel1.Version: {"CVE-2025-0001", "CVE-2025-0002"},
+				kernel2.Version: {"CVE-2025-0003"},
+				kernel3.Version: nil,
+			},
+			software: software,
+			os:       fleet.OperatingSystem{Name: "Ubuntu", Version: "24.10", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"},
 		},
 		{
-			name: "with team",
-			team: true,
+			name:     "ubuntu with team",
+			team:     true,
+			host:     test.NewHost(t, ds, "host_ubuntu2404", "", "hostkey_ubuntu2404", "hostuuid_ubuntu2404", time.Now(), test.WithPlatform("linux")),
+			software: software[1:],
+			vulns:    []fleet.SoftwareVulnerability{{CVE: "CVE-2025-0004"}, {CVE: "CVE-2025-0005"}, {CVE: "CVE-2025-0003"}}, // Note the overlap; kernel2 has 0003 from the previous test
+			vulnsByKernelVersion: map[string][]string{
+				kernel2.Version: {"CVE-2025-0004", "CVE-2025-0005", "CVE-2025-0003"},
+				kernel3.Version: nil,
+			},
+			os: fleet.OperatingSystem{Name: "Ubuntu", Version: "24.04", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"},
+		},
+		{
+			name:     "amazon linux with team",
+			team:     true,
+			host:     test.NewHost(t, ds, "host_amzn2023", "", "hostkey_amzn2023", "hostuuid_amzn2023", time.Now(), test.WithPlatform("fedora")),
+			software: []fleet.Software{{Name: "Amazon Linux", Version: "2023", Arch: "x86_64", Source: "rpm_packages", IsKernel: true}},
+			vulns:    []fleet.SoftwareVulnerability{{CVE: "CVE-2025-0006"}},
+			vulnsByKernelVersion: map[string][]string{
+				"2023": {"CVE-2025-0006"},
+			},
+			os: fleet.OperatingSystem{Name: "Amazon Linux", Version: "2023.0.0", Arch: "x86_64", KernelVersion: "6.1.144-170.251.amzn2023.x86_64", Platform: "amzn"},
+		},
+		{
+			name:     "RHEL with team",
+			team:     true,
+			host:     test.NewHost(t, ds, "host_fedora41", "", "hostkey_fedora41", "hostuuid_fedora41", time.Now(), test.WithPlatform("rhel")),
+			software: []fleet.Software{{Name: "kernel-core", Version: "6.11.4", Arch: "aarch64", Source: "rpm_packages", IsKernel: true}},
+			vulns:    []fleet.SoftwareVulnerability{{CVE: "CVE-2025-0007"}},
+			vulnsByKernelVersion: map[string][]string{
+				"6.11.4": {"CVE-2025-0007"},
+			},
+			os: fleet.OperatingSystem{Name: "Fedora Linux", Version: "41.0.0", Arch: "aarch64", KernelVersion: "6.11.4-301.fc41.aarch64", Platform: "rhel"},
 		},
 	}
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			host := test.NewHost(t, ds, "host"+tt.name, "", "hostkey"+tt.name, "hostuuid"+tt.name, time.Now(), test.WithPlatform("linux"))
 
 			var teamID uint
 			if tt.team {
 				team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_" + tt.name})
 				require.NoError(t, err)
-				require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID})))
+				require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{tt.host.ID})))
 				teamID = team1.ID
 			}
 
-			testOS := fleet.OperatingSystem{Name: "Ubuntu", Version: "24.10", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"}
+			require.NoError(t, ds.UpdateHostOperatingSystem(ctx, tt.host.ID, tt.os))
 
-			require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host.ID, testOS))
-
-			os, err := ds.GetHostOperatingSystem(ctx, host.ID)
+			os, err := ds.GetHostOperatingSystem(ctx, tt.host.ID)
 			require.NoError(t, err)
 
-			kernel1 := fleet.Software{Name: "linux-image-6.11.0-9-generic", Version: "6.11.0-9.9", Source: "deb_packages", IsKernel: true}
-			kernel2 := fleet.Software{Name: "linux-image-7.11.0-10-generic", Version: "7.11.0-10.10", Source: "deb_packages", IsKernel: true}
-			kernel3 := fleet.Software{Name: "linux-image-8.11.0-11-generic", Version: "8.11.0-11.11", Source: "deb_packages", IsKernel: true}
-			software := []fleet.Software{
-				kernel1,
-				kernel2,
-				kernel3, // this one has 0 vulns
+			_, err = ds.UpdateHostSoftware(ctx, tt.host.ID, tt.software)
+			require.NoError(t, err)
+			require.NoError(t, ds.LoadHostSoftware(ctx, tt.host, false))
+
+			// Sort the host software by name to enforce a deterministic order
+			sort.Slice(tt.host.Software, func(i, j int) bool {
+				return tt.host.Software[i].Name < tt.host.Software[j].Name
+			})
+
+			softwareIDByVersion := make(map[string]uint)
+			for _, s := range tt.host.Software {
+				softwareIDByVersion[s.Version] = s.ID
 			}
-			_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
-			require.NoError(t, err)
-			require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 
 			cpes := []fleet.SoftwareCPE{
-				{SoftwareID: host.Software[0].ID, CPE: "somecpe"},
+				{SoftwareID: tt.host.Software[0].ID, CPE: "somecpe"},
 			}
 			_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
 			require.NoError(t, err)
-			require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+			require.NoError(t, ds.LoadHostSoftware(ctx, tt.host, false))
 
-			// Sort the host software by name to enforce a deterministic order
-			sort.Slice(host.Software, func(i, j int) bool {
-				return host.Software[i].Name < host.Software[j].Name
-			})
+			var vulnsToInsert []fleet.SoftwareVulnerability
+			for k, v := range tt.vulnsByKernelVersion {
+				for _, s := range v {
+					vulnsToInsert = append(vulnsToInsert, fleet.SoftwareVulnerability{
+						SoftwareID: softwareIDByVersion[k],
+						CVE:        s,
+					})
+				}
+			}
 
-			vulns := []fleet.SoftwareVulnerability{
-				{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0001"},
-				{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0002"},
-				{SoftwareID: host.Software[1].ID, CVE: "CVE-2022-0003"},
-			}
-			vulnsByKernelVersion := map[string][]fleet.SoftwareVulnerability{
-				kernel1.Version: {vulns[0], vulns[1]},
-				kernel2.Version: {vulns[2]},
-				kernel3.Version: {},
-			}
-			for _, v := range vulns {
+			for _, v := range vulnsToInsert {
 				_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
 				require.NoError(t, err)
 			}
-			require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+			require.NoError(t, ds.LoadHostSoftware(ctx, tt.host, false))
 
 			require.NoError(t, ds.UpdateOSVersions(ctx))
 			require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -436,19 +483,17 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			kernels, err := ds.ListKernelsByOS(ctx, os.OSVersionID, &teamID)
 			require.NoError(t, err)
 
-			require.Len(t, kernels, 3)
+			require.Len(t, kernels, len(tt.software))
 
 			for _, kernel := range kernels {
-				var expectedVulns []string
-				for _, v := range vulnsByKernelVersion[kernel.Version] {
-					expectedVulns = append(expectedVulns, v.CVE)
-				}
-				require.Equalf(t, expectedVulns, kernel.Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernel.Version)
+				expectedVulns, ok := tt.vulnsByKernelVersion[kernel.Version]
+				require.True(t, ok)
+				require.ElementsMatchf(t, expectedVulns, kernel.Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernel.Version)
 			}
 
 			cves, err := ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, false)
 			require.NoError(t, err)
-			require.Len(t, cves, len(vulns))
+			require.Len(t, cves, len(tt.vulns))
 
 			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", false)
 			require.NoError(t, err)
@@ -456,7 +501,7 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 
 			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, true)
 			require.NoError(t, err)
-			require.Len(t, cves, len(vulns))
+			require.Len(t, cves, len(tt.vulns))
 
 			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", true)
 			require.NoError(t, err)
