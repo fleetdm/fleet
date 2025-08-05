@@ -324,6 +324,7 @@ func (s *integrationLoggerTestSuite) TestSetupExperienceEULAMetadataDoesNotLogEr
 	appConf.MDM.WindowsEnabledAndConfigured = true
 	appConf.MDM.AppleBMEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
 
 	s.token = getTestAdminToken(t, s.server)
 	s.Do("GET", "/api/v1/fleet/setup_experience/eula/metadata", nil, http.StatusNotFound)
@@ -340,4 +341,5 @@ func (s *integrationLoggerTestSuite) TestSetupExperienceEULAMetadataDoesNotLogEr
 
 	// restore app config
 	err = s.ds.SaveAppConfig(context.Background(), &originalAppConf)
+	require.NoError(t, err)
 }
