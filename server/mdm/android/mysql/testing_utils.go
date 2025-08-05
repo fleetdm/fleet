@@ -39,7 +39,11 @@ func InitializeDatabase(t testing.TB, testName string, opts *testing_utils.Datas
 }
 
 func connectMySQL(t testing.TB, testName string) *Datastore {
-	dbWriter, err := common_mysql.NewDB(testing_utils.MysqlTestConfig(testName), &common_mysql.DBOptions{}, "")
+	// Import TestSQLMode from main MySQL testing utils to ensure consistent SQL modes across all tests
+	// This ensures Android tests catch the same data integrity issues as other MySQL tests
+	dbWriter, err := common_mysql.NewDB(testing_utils.MysqlTestConfig(testName), &common_mysql.DBOptions{
+		SqlMode: common_mysql.TestSQLMode,
+	}, "")
 	require.NoError(t, err)
 	ds := New(log.NewLogfmtLogger(os.Stdout), dbWriter, dbWriter)
 	return ds.(*Datastore)

@@ -1,0 +1,1 @@
+* Made sure that if disk encryption is enabled and a TPM PIN is required, the user is able to set a TPM PIN protector.

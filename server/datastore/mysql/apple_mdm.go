@@ -182,6 +182,12 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
+
+	// Set default scope if not provided
+	if cp.Scope == "" {
+		cp.Scope = fleet.PayloadScopeSystem
+	}
+
 	stmt := `
 INSERT INTO
     mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at)
@@ -2140,14 +2146,23 @@ INSERT INTO hosts (
 	team_id
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
+		// Handle zero time values by converting them to nil for SQL NULL
+		var lastEnrolledAt, detailUpdatedAt interface{}
+		if !host.LastEnrolledAt.IsZero() {
+			lastEnrolledAt = host.LastEnrolledAt
+		}
+		if !host.DetailUpdatedAt.IsZero() {
+			detailUpdatedAt = host.DetailUpdatedAt
+		}
+
 		args := []interface{}{
 			host.ID,
 			host.UUID,
 			host.HardwareSerial,
 			host.HardwareModel,
 			host.Platform,
-			host.LastEnrolledAt,
-			host.DetailUpdatedAt,
+			lastEnrolledAt,
+			detailUpdatedAt,
 			nil, // osquery_host_id is not restored
 			host.RefetchRequested,
 			host.TeamID,
@@ -6306,6 +6321,11 @@ WHERE
 }
 
 func (ds *Datastore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
+	// Check that RenewAt is not zero
+	if tok.RenewAt.IsZero() {
+		return nil, ctxerr.New(ctx, "ABM token RenewAt date cannot be zero")
+	}
+
 	const stmt = `
 INSERT INTO
 	abm_tokens

@@ -12,7 +12,12 @@ import { AxiosError } from "axios";
 
 import { NotificationContext } from "context/notification";
 import { INotification } from "interfaces/notification";
-import { IDeviceSoftware, IHostSoftware } from "interfaces/software";
+import {
+  IDeviceSoftware,
+  IHostSoftware,
+  IHostSoftwareWithUiStatus,
+  IVPPHostSoftware,
+} from "interfaces/software";
 
 import deviceApi, {
   IDeviceSoftwareQueryKey,
@@ -38,12 +43,17 @@ import SearchField from "components/forms/fields/SearchField";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
+
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
-import { InstallOrCommandUuid } from "../InstallStatusCell/InstallStatusCell";
 import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
 
 import {
@@ -75,8 +85,6 @@ export interface ISoftwareSelfServiceProps {
   pathname: string;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
-  onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
   refetchHostDetails: () => void;
   isHostDetailsPolling: boolean;
   hostDisplayName: string;
@@ -95,8 +103,6 @@ const SoftwareSelfService = ({
   pathname,
   queryParams,
   router,
-  onShowInstallDetails,
-  onShowUninstallDetails,
   refetchHostDetails,
   isHostDetailsPolling,
   hostDisplayName,
@@ -109,6 +115,18 @@ const SoftwareSelfService = ({
   const [selectedUpdateDetails, setSelectedUpdateDetails] = useState<
     IDeviceSoftware | undefined
   >(undefined);
+  const [
+    selectedHostSWInstallDetails,
+    setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | undefined>(undefined);
+  const [
+    selectedVPPInstallDetails,
+    setSelectedVPPInstallDetails,
+  ] = useState<IVPPHostSoftware | null>(null);
+  const [
+    selectedHostSWUninstallDetails,
+    setSelectedHostSWUninstallDetails,
+  ] = useState<ISWUninstallDetailsParentState | undefined>(undefined);
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
@@ -369,6 +387,21 @@ const SoftwareSelfService = ({
     [deviceToken, onInstallOrUninstall, renderFlash]
   );
 
+  const onClickUninstallAction = useCallback(
+    (hostSW: IHostSoftwareWithUiStatus) => {
+      selectedSoftware.current = {
+        softwareId: hostSW.id,
+        softwareName: hostSW.name,
+        softwareInstallerType: getExtensionFromFileName(
+          hostSW.software_package?.name || ""
+        ),
+        version: hostSW.software_package?.version || "",
+      };
+      setShowUninstallSoftwareModal(true);
+    },
+    []
+  );
+
   const onClickUpdateAction = useCallback(
     async (id: number) => {
       try {
@@ -443,6 +476,27 @@ const SoftwareSelfService = ({
     [setSelectedUpdateDetails]
   );
 
+  const onShowInstallDetails = useCallback(
+    (hostSoftware?: IHostSoftware) => {
+      setSelectedHostSWInstallDetails(hostSoftware);
+    },
+    [setSelectedHostSWInstallDetails]
+  );
+
+  const onShowVPPInstallDetails = useCallback(
+    (s: IVPPHostSoftware) => {
+      setSelectedVPPInstallDetails(s);
+    },
+    [setSelectedVPPInstallDetails]
+  );
+
+  const onShowUninstallDetails = useCallback(
+    (uninstallModalDetails: ISWUninstallDetailsParentState) => {
+      setSelectedHostSWUninstallDetails(uninstallModalDetails);
+    },
+    [setSelectedHostSWUninstallDetails]
+  );
+
   const onSearchQueryChange = (value: string) => {
     router.push(
       getPathWithQueryParams(pathname, {
@@ -465,14 +519,19 @@ const SoftwareSelfService = ({
     );
   };
 
-  const onClickFailedUpdateStatus = (s: IHostSoftware) => {
-    const lastInstall = getLastInstall(s);
+  const onClickFailedUpdateStatus = (hostSoftware: IHostSoftware) => {
+    const lastInstall = getLastInstall(hostSoftware);
 
     if (onShowInstallDetails && lastInstall) {
       if ("command_uuid" in lastInstall) {
-        onShowInstallDetails({ command_uuid: lastInstall.command_uuid });
+        // vpp software
+        onShowVPPInstallDetails({
+          ...hostSoftware,
+          commandUuid: lastInstall.command_uuid,
+        });
       } else if ("install_uuid" in lastInstall) {
-        onShowInstallDetails({ install_uuid: lastInstall.install_uuid });
+        // other software
+        onShowInstallDetails(hostSoftware);
       } else {
         onShowInstallDetails(undefined);
       }
@@ -524,31 +583,20 @@ const SoftwareSelfService = ({
 
   const tableConfig = useMemo(() => {
     return generateSoftwareTableHeaders({
-      deviceToken,
-      onInstallOrUninstall,
       onShowUpdateDetails,
       onShowInstallDetails,
+      onShowVPPInstallDetails,
       onShowUninstallDetails,
       onClickInstallAction,
-      onClickUninstallAction: (software) => {
-        selectedSoftware.current = {
-          softwareId: software.id,
-          softwareName: software.name,
-          softwareInstallerType: getExtensionFromFileName(
-            software.software_package?.name || ""
-          ),
-          version: software.software_package?.version || "",
-        };
-        setShowUninstallSoftwareModal(true);
-      },
+      onClickUninstallAction,
     });
   }, [
-    deviceToken,
-    onInstallOrUninstall,
-    onClickInstallAction,
     onShowUpdateDetails,
     onShowInstallDetails,
+    onShowVPPInstallDetails,
     onShowUninstallDetails,
+    onClickInstallAction,
+    onClickUninstallAction,
   ]);
 
   const renderUpdatesCard = () => {
@@ -764,6 +812,46 @@ const SoftwareSelfService = ({
           token={deviceToken}
           onExit={onExitUninstallSoftwareModal}
           onSuccess={onSuccessUninstallSoftwareModal}
+        />
+      )}
+      {selectedHostSWInstallDetails && (
+        <SoftwareInstallDetailsModal
+          hostSoftware={selectedHostSWInstallDetails}
+          details={{
+            host_display_name: hostDisplayName,
+            install_uuid:
+              selectedHostSWInstallDetails.software_package?.last_install
+                ?.install_uuid,
+          }}
+          onRetry={onClickInstallAction}
+          onCancel={() => setSelectedHostSWInstallDetails(undefined)}
+          deviceAuthToken={deviceToken}
+          contactUrl={contactUrl}
+        />
+      )}
+      {selectedVPPInstallDetails && (
+        <VppInstallDetailsModal
+          deviceAuthToken={deviceToken}
+          details={{
+            fleetInstallStatus:
+              selectedVPPInstallDetails.status || "pending_install",
+            hostDisplayName,
+            appName: selectedVPPInstallDetails.name,
+            commandUuid: selectedVPPInstallDetails.commandUuid,
+          }}
+          hostSoftware={selectedVPPInstallDetails}
+          onCancel={() => setSelectedVPPInstallDetails(null)}
+          onRetry={onClickInstallAction}
+        />
+      )}
+      {selectedHostSWUninstallDetails && (
+        <SoftwareUninstallDetailsModal
+          {...selectedHostSWUninstallDetails}
+          hostDisplayName={hostDisplayName}
+          onCancel={() => setSelectedHostSWUninstallDetails(undefined)}
+          onRetry={onClickUninstallAction}
+          deviceAuthToken={deviceToken}
+          contactUrl={contactUrl}
         />
       )}
       {selectedUpdateDetails && (

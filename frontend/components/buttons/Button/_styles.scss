@@ -181,6 +181,36 @@ $base-class: "button";
     }
   }
 
+  &--text-link-dark {
+    @include button-variant(transparent);
+    border: 0;
+    box-shadow: none;
+    color: $core-fleet-black;
+    font-size: $x-small;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    height: auto;
+    line-height: normal;
+    text-align: left;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:hover,
+    &:focus {
+      background-color: transparent;
+      box-shadow: none;
+      text-decoration: underline;
+    }
+
+    &:active {
+      box-shadow: none;
+      top: 0;
+    }
+  }
+
   // &--icon is used for svg icon buttons without text
   &--text-icon,
   &--icon {
