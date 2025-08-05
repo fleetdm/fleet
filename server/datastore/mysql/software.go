@@ -844,7 +844,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			// Insert into software_titles
 			totalTitlesToProcess := len(newTitlesNeeded)
 			if totalTitlesToProcess > 0 {
-				const numberOfArgsPerSoftwareTitles = 4 // number of ? in each VALUES clause
+				const numberOfArgsPerSoftwareTitles = 5 // number of ? in each VALUES clause
 				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", totalTitlesToProcess), ",")
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel) VALUES %s", titlesValues)

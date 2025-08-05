@@ -56,7 +56,7 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
 				JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
 			WHERE
-				operating_systems.name = ? AND software_titles.is_kernel = TRUE
+				operating_systems.name = ? AND operating_systems.version = ? AND software_titles.is_kernel = TRUE
 			GROUP BY software_cve.cve
 
 			`
@@ -100,14 +100,14 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 					JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
 					JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
 				WHERE
-					operating_systems.name = ? AND software_titles.is_kernel = TRUE
+					operating_systems.name = ? AND operating_systems.version = ? AND software_titles.is_kernel = TRUE
 				GROUP BY software_cve.cve
 			) osv
 			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
 			`
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, name, version, name); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, name, version, name, version); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 

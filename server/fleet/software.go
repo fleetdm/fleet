@@ -210,7 +210,8 @@ type SoftwareTitle struct {
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
-	IsKernel         bool    `json:"is_kernel" db:"is_kernel"`
+	// IsKernel indicates if the software title is a Linux kernel.
+	IsKernel bool `json:"-" db:"is_kernel"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that

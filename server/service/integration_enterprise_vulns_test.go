@@ -19,7 +19,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 	t := s.T()
 	ctx := context.Background()
 
-	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),

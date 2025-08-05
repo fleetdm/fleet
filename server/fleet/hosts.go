@@ -1301,6 +1301,7 @@ type VulnerableOS struct {
 	ResolvedInVersion *string `json:"resolved_in_version"`
 }
 
+// Kernel represents a Linux kernel found on a host.
 type Kernel struct {
 	ID              uint     `json:"id"`
 	Version         string   `json:"version"`
@@ -1330,8 +1331,12 @@ type OSVersion struct {
 	// in NVD (macOS only)
 	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
 	// Vulnerabilities are the vulnerabilities associated with the operating system.
+	// For Linux-based operating systems, these are vulnerabilities associated with the Linux kernel.
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
-	Kernels         []*Kernel       `json:"kernels"`
+	// Kernels is a list of Linux kernels found on this operating system.
+	// This list is only populated for Linux-based operating systems.
+	// Vulnerabilities are pulled based on the software entries for the kernels.
+	Kernels []*Kernel `json:"kernels"`
 }
 
 type HostDetailOptions struct {
