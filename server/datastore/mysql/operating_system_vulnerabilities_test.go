@@ -483,8 +483,8 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			if !tt.team {
 				// Insert some fake counts, this should be ignored in ListKernelsByOS
 				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					q.ExecContext(ctx, "INSERT IGNORE INTO software_host_counts (software_id, hosts_count, team_id, global_stats) VALUES (?, ?, ?, ?)", tt.host.Software[0].ID, 999, 0, true)
-					return nil
+					_, err := q.ExecContext(ctx, "INSERT IGNORE INTO software_host_counts (software_id, hosts_count, team_id, global_stats) VALUES (?, ?, ?, ?)", tt.host.Software[0].ID, 999, 0, true)
+					return err
 				})
 			}
 			kernels, err := ds.ListKernelsByOS(ctx, os.OSVersionID, &teamID)
