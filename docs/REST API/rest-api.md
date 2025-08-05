@@ -5279,6 +5279,7 @@ Deletes the label specified by ID.
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
 - [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
+- [Batch-modify custom OS settings(configuration profiles)](#batch-modify-custom-os-settings-configuration-profiles)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
 - [Get OS settings summary](#get-os-settings-summary)
@@ -5585,6 +5586,49 @@ Resends a configuration profile for the specified host.
 
 `Status: 202`
 
+### Batch-modify custom OS settings(configuration profiles)
+
+Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are not assigned to "No team" (Fleet Premium).
+
+For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list. 
+
+`POST /api/v1/fleet/configuration_profiles/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                       |
+| --------- | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the configuration profiles to. Only one of `team_name` or `team_id` may be included in the request.          |
+| team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name` or `team_id` may be included in the request. |
+| dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
+| configuration_profiles  | json   | body  | An array of objects, consisting of a `profile` Base64 encoded .mobileconfig or JSON profile for Apple (macOS, iOS, iPadOS) hosts or XML profile for Windows hosts, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` array of label names, and a `display_name` (required). |
+
+For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified platform are targeted.
+
+#### Example
+
+`POST /api/v1/fleet/configuration_profiles/batch`
+
+##### Request body
+
+```json
+{
+  "team_id": 1,
+  "configuration_profiles": [
+    {
+      "profile": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KCTxrZXk+UGF5bG9hZENvbnRlbnQ8L2tleT4KCTxhcnJheT4KCQk8ZGljdD4KCQkJPGtleT5BbGxvd1ByZVJlbGVhc2VJbnN0YWxsYXRpb248L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkF1dG9tYXRpY0NoZWNrRW5hYmxlZDwva2V5PgoJCQk8dHJ1ZS8+CgkJCTxrZXk+QXV0b21hdGljRG93bmxvYWQ8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkF1dG9tYXRpY2FsbHlJbnN0YWxsQXBwVXBkYXRlczwva2V5PgoJCQk8dHJ1ZS8+CgkJCTxrZXk+QXV0b21hdGljYWxseUluc3RhbGxNYWNPU1VwZGF0ZXM8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PkNvbmZpZ0RhdGFJbnN0YWxsPC9rZXk+CgkJCTx0cnVlLz4KCQkJPGtleT5Dcml0aWNhbFVwZGF0ZUluc3RhbGw8L2tleT4KCQkJPHRydWUvPgoJCQk8a2V5PlBheWxvYWREZXNjcmlwdGlvbjwva2V5PgoJCQk8c3RyaW5nPkNvbmZpZ3VyZXMgU29mdHdhcmUgVXBkYXRlIHNldHRpbmdzPC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+CgkJCTxzdHJpbmc+U29mdHdhcmUgVXBkYXRlPC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZElkZW50aWZpZXI8L2tleT4KCQkJPHN0cmluZz5jb20uZ2l0aHViLmVyaWtiZXJnbHVuZC5Qcm9maWxlQ3JlYXRvci5CRUJBMDc0MC00RERCLTRBQzQtODVEQy1CQTQ4Qjk2QzBEQzguY29tLmFwcGxlLlNvZnR3YXJlVXBkYXRlLkE4Qjk3MDMyLTc2NDUtNDA2OC1CNDU3LTAxREU1QzZCMzNGNzwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRPcmdhbml6YXRpb248L2tleT4KCQkJPHN0cmluZz48L3N0cmluZz4KCQkJPGtleT5QYXlsb2FkVHlwZTwva2V5PgoJCQk8c3RyaW5nPmNvbS5hcHBsZS5Tb2Z0d2FyZVVwZGF0ZTwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRVVUlEPC9rZXk+CgkJCTxzdHJpbmc+QThCOTcwMzItNzY0NS00MDY4LUI0NTctMDFERTVDNkIzM0Y3PC9zdHJpbmc+CgkJCTxrZXk+UGF5bG9hZFZlcnNpb248L2tleT4KCQkJPGludGVnZXI+MTwvaW50ZWdlcj4KCQk8L2RpY3Q+Cgk8L2FycmF5PgoJPGtleT5QYXlsb2FkRGVzY3JpcHRpb248L2tleT4KCTxzdHJpbmc+RW5hYmxlcyBhdXRvbWF0aWMgdXBkYXRlczwvc3RyaW5nPgoJPGtleT5QYXlsb2FkRGlzcGxheU5hbWU8L2tleT4KCTxzdHJpbmc+VHVybiBvbiBhdXRvbWF0aWMgdXBkYXRlczwvc3RyaW5nPgoJPGtleT5QYXlsb2FkSWRlbnRpZmllcjwva2V5PgoJPHN0cmluZz5jb20uZ2l0aHViLmVyaWtiZXJnbHVuZC5Qcm9maWxlQ3JlYXRvci5CRUJBMDc0MC00RERCLTRBQzQtODVEQy1CQTQ4Qjk2QzBEQzg8L3N0cmluZz4KCTxrZXk+UGF5bG9hZE9yZ2FuaXphdGlvbjwva2V5PgoJPHN0cmluZz5GbGVldERNPC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRSZW1vdmFsRGlzYWxsb3dlZDwva2V5PgoJPHRydWUvPgoJPGtleT5QYXlsb2FkU2NvcGU8L2tleT4KCTxzdHJpbmc+U3lzdGVtPC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRUeXBlPC9rZXk+Cgk8c3RyaW5nPkNvbmZpZ3VyYXRpb248L3N0cmluZz4KCTxrZXk+UGF5bG9hZFVVSUQ8L2tleT4KCTxzdHJpbmc+QkVCQTA3NDAtNEREQi00QUM0LTg1REMtQkE0OEI5NkMwREM4PC9zdHJpbmc+Cgk8a2V5PlBheWxvYWRWZXJzaW9uPC9rZXk+Cgk8aW50ZWdlcj4xPC9pbnRlZ2VyPgo8L2RpY3Q+CjwvcGxpc3Q+",
+      "labels_include_any": [
+        "Apple Silicon macOS hosts"
+      ],
+      "display_name": "Software update"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`204`
 
 ### Batch-resend custom OS setting (configuration profile)
 
