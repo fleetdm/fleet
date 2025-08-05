@@ -1,25 +1,17 @@
 import endpoints from "utilities/endpoints";
 import sendRequest from "services";
 import {
+  ICertificateAuthorityPartial,
   ICertificateAuthority,
-  ICertificateAuthorityType,
   ICertificatesCustomSCEP,
   ICertificatesDigicert,
   ICertificatesHydrant,
   ICertificatesNDES,
 } from "interfaces/certificates";
 
-/** This interface represent the smaller subset of data that is returned for
-some of the cert authority endpoints */
-interface ICertAuthPartialResponse {
-  id: number;
-  name: string;
-  type: ICertificateAuthorityType;
-}
+type IGetCertAuthoritiesListResponse = ICertificateAuthorityPartial[];
 
-type IGetCertAuthoritiesListResponse = ICertAuthPartialResponse[];
-
-type IAddCertAuthorityResponse = ICertAuthPartialResponse;
+type IAddCertAuthorityResponse = ICertificateAuthorityPartial;
 
 type IGetCertAuthorityResponse = ICertificateAuthority;
 

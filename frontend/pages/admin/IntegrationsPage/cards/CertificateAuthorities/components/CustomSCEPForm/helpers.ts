@@ -1,4 +1,4 @@
-import { ICertificatesIntegrationCustomSCEP } from "interfaces/integration";
+import { ICertificatesCustomSCEP } from "interfaces/certificates";
 
 import valid_url from "components/forms/validators/valid_url";
 
