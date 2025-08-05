@@ -38,6 +38,7 @@ func (ds *Datastore) NewActivity(
 	var userName *string
 	var userEmail *string
 	var fleetInitiated bool
+	var hostOnly bool
 	if user != nil {
 		// To support creating activities with users that were deleted. This can happen
 		// for automatically installed software which uses the author of the upload as the author of
@@ -53,7 +54,11 @@ func (ds *Datastore) NewActivity(
 		fleetInitiated = true
 	}
 
-	cols := []string{"fleet_initiated", "user_id", "user_name", "activity_type", "details", "created_at"}
+	if hostOnlyActivity, ok := activity.(fleet.ActivityHostOnly); ok && hostOnlyActivity.HostOnly() {
+		hostOnly = true
+	}
+
+	cols := []string{"fleet_initiated", "user_id", "user_name", "activity_type", "details", "created_at", "host_only"}
 	args := []any{
 		fleetInitiated,
 		userID,
@@ -61,6 +66,7 @@ func (ds *Datastore) NewActivity(
 		activity.ActivityName(),
 		details,
 		createdAt,
+		hostOnly,
 	}
 	if userEmail != nil {
 		args = append(args, userEmail)
@@ -153,7 +159,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			a.user_email,
 			a.fleet_initiated
 		FROM activities a
-		WHERE true`
+		WHERE a.host_only = false`
 
 	var args []interface{}
 	if opt.Streamed != nil {
@@ -327,6 +333,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'script_name', COALESCE(ses.name, scr.name, ''),
 				'script_execution_id', ua.execution_id,
+				'batch_execution_id', bsehr.batch_execution_id,
 				'async', NOT ua.payload->'$.sync_request',
 				'policy_id', sua.policy_id,
 				'policy_name', p.name
@@ -348,6 +355,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			scripts scr ON scr.id = sua.script_id
 		LEFT OUTER JOIN
 			setup_experience_scripts ses ON ses.id = sua.setup_experience_script_id
+		LEFT OUTER JOIN
+			batch_script_execution_host_results bsehr ON ua.execution_id = bsehr.host_execution_id
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'script'
