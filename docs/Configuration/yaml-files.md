@@ -91,7 +91,7 @@ For possible options, see the parameters for the [Edit team policy API endpoint]
 In Fleet Premium you can trigger software installs or script runs on policy failure:
 
 - For software installs, specify either `install_software.package_path` or `install_software.hash_sha256` in your YAML. If `install_software.package_path` only one package can be specified in the package YAML. _Available in Fleet Premium_
-- For script runs, replace `script_id` (API parameter) with `run_script.path`.
+- For script runs, specify `run_script.path`.
 
 > Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package. 
 
