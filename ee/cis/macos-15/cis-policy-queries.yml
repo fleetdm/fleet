@@ -2751,8 +2751,6 @@ spec:
     A minimum password length is the fewest number of characters a password can contain to meet a system's requirements. Ensure that a minimum of a 15-character password is part of the password policy on the computer. Where the confidentiality of encrypted information in FileVault is more of a concern, requiring a longer password or passphrase may be sufficient rather than imposing additional complexity requirements that may be self-defeating.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy an MDM profile that disables Guest Account.
-    Profile Method:
     Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is minLength
