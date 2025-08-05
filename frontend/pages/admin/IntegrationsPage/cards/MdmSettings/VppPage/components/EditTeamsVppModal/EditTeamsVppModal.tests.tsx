@@ -2,6 +2,7 @@ import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
+import { IMdmVppToken } from "interfaces/mdm";
 import {
   getOptions,
   selectedValueFromToken,
@@ -69,11 +70,11 @@ describe("EditTeamsVppModal", () => {
 
   describe("getOptions", () => {
     // Helper for getting a pendingTeamIds array from a token
-    const asArr = (token) =>
+    const asArr = (token: IMdmVppToken) =>
       selectedValueFromToken(token)
         ? selectedValueFromToken(token)
             .split(",")
-            .map((s) => s.trim())
+            .map((v) => v.trim())
             .filter(Boolean)
         : [];
 
