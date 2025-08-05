@@ -2532,14 +2532,14 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    MacOS can act as an NFS fileserver. NFS sharing could be enabled to allow someone on another computer to mount
-    shares and gain access to information from the user's computer.
+    macOS can act as an NFS fileserver. NFS sharing could be enabled to allow someone on another computer to mount shares and gain access to information from the user's computer. File sharing from a user endpoint has long been considered questionable, and Apple has removed that capability from the GUI. NFSD is still part of the Operating System and can be easily turned on to export shares and provide remote connectivity to an end-user computer. The etc/exports file contains the list of NFS shared directories. If the file exists, it is likely that NFS sharing has been enabled in the past or may be available periodically.
   resolution: |
     Automated method:
     Ask your system administrator to deploy the following script which will disable the NFS service
     and its directory listing:
     /usr/bin/sudo /bin/launchctl disable system/com.apple.nfsd
-    /usr/bin/sudo /bin/rm /etc/exports
+    /usr/bin/sudo /bin/rm -rf /etc/exports
+    Note: Removing /etc/exports also stops the NFS service if it was running.
   query: |
     SELECT 1 WHERE
     NOT EXISTS(SELECT 1 FROM processes WHERE path = '/sbin/nfsd')
@@ -2547,7 +2547,7 @@ spec:
     NOT EXISTS(SELECT 1 FROM file WHERE path = '/etc/exports');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: lucasmrod
+  contributors: lucasmrod, getvictor
 ---
 apiVersion: v1
 kind: policy
