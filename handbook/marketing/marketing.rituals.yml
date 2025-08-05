@@ -84,3 +84,13 @@
   autoIssue:  
     labels: [ ":help-marketing" ] 
     repo: "confidential"
+-
+  task: "Update content calendar"
+  startedOn: "2025-08-05"
+  frequency: "Biweekly"
+  description: "Every two weeks, Content Specialist plans out the content for the next two weeks and updates the conent calendar."
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=390351382#gid=390351382"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing" ] 
+    repo: "confidential"
