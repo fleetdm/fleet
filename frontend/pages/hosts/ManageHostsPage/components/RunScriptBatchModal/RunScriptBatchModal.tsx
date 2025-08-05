@@ -27,10 +27,17 @@ import Button from "components/buttons/Button";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
 import { IPaginatedListScript } from "../RunScriptBatchPaginatedList/RunScriptBatchPaginatedList";
-import { set } from "lodash";
+import {
+  validateFormData,
+  IRunScriptBatchModalFormValidation,
+} from "./helpers";
 
 const baseClass = "run-script-batch-modal";
 
+export interface IRunScriptBatchModalScheduleFormData {
+  date: string;
+  time: string;
+}
 interface IRunScriptBatchModal {
   runByFilters: boolean; // otherwise, by selectedHostIds
   // since teamId has multiple uses in this component, it's passed in as its own prop and added to
@@ -57,6 +64,13 @@ const RunScriptBatchModal = ({
 
   const [batchRunDate, setBatchRunDate] = useState<string>("");
   const [batchRunTime, setBatchRunTime] = useState<string>("");
+  const [
+    formValidation,
+    setFormValidation,
+  ] = useState<IRunScriptBatchModalFormValidation>(() =>
+    validateFormData({ date: batchRunDate, time: batchRunTime })
+  );
+
   const [runMode, setRunMode] = useState<"run_now" | "schedule">("run_now");
   const [selectedScript, setSelectedScript] = useState<IScript | undefined>(
     undefined
@@ -84,6 +98,21 @@ const RunScriptBatchModal = ({
       },
     }
   );
+
+  const onInputChange = (update: { name: string; value: string }) => {
+    if (update.name === "date") {
+      setBatchRunDate(update.value);
+    } else if (update.name === "time") {
+      setBatchRunTime(update.value);
+    }
+    setFormValidation(
+      validateFormData({
+        date: batchRunDate,
+        time: batchRunTime,
+        [update.name]: update.value,
+      })
+    );
+  };
 
   const onRunScriptBatch = useCallback(
     async (script: IScript) => {
@@ -204,18 +233,22 @@ const RunScriptBatchModal = ({
             <div className={`${baseClass}__script-schedule-form`}>
               <span className="date-time-inputs">
                 <InputField
-                  onChange={setBatchRunDate}
+                  onChange={onInputChange}
                   value={batchRunDate}
                   label="Date (UTC)"
                   name="date"
+                  parseTarget
                   helpText='YYYY-MM-DD format (e.g., "2024-07-01").'
+                  error={formValidation.date?.message}
                 />
                 <InputField
-                  onChange={setBatchRunTime}
+                  onChange={onInputChange}
                   value={batchRunTime}
                   label="Time (UTC)"
                   name="time"
+                  parseTarget
                   helpText='HH:MM 24-hour format (e.g., "13:37").'
+                  error={formValidation.time?.message}
                 />
               </span>
             </div>
