@@ -10,7 +10,7 @@ import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
 
 import { IConfig } from "interfaces/config";
-import { IFormField } from "interfaces/form_field";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import { getErrorReason } from "interfaces/errors";
 
 // @ts-ignore
@@ -122,7 +122,7 @@ const ChangeManagement = () => {
     }
   };
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validate(newFormData);
