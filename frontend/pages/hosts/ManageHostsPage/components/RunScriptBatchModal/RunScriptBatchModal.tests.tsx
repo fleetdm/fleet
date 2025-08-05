@@ -44,6 +44,8 @@ jest.mock("../RunScriptBatchPaginatedList", () => {
   };
 });
 
+// Utility to validate that the script list is rendered, select a script,
+// and return the run and cancel buttons.
 const selectScript = async (user: UserEvent, platform: string) => {
   let el;
   await waitFor(async () => {
@@ -68,6 +70,8 @@ const selectScript = async (user: UserEvent, platform: string) => {
   return { runButton, cancelButton };
 };
 
+// Utility to validate that the "schedule for later" and "run now" buttons are present
+// and return them.
 const getScheduleSelector = async () => {
   let scheduleButton;
   let runNowButton;
@@ -83,6 +87,7 @@ const getScheduleSelector = async () => {
   return { scheduleButton, runNowButton };
 };
 
+// Utility to validate that the scheduling UI is present and return the date and time inputs.
 const getScheduleUI = async () => {
   let dateInput;
   let timeInput;
@@ -99,12 +104,15 @@ const getScheduleUI = async () => {
 };
 
 describe("RunScriptBatchModal", () => {
+  // Mock the scripts endpoint to return our two test scripts.
   const scriptsHandler = http.get(baseUrl("/scripts"), () => {
     return HttpResponse.json({
       scripts: [windowsScript, linuxScript],
     });
   });
 
+  // Mock the run batch endpoint to simulate running a batch script,
+  // and provide a mock function we can use to validate the API call.
   const runBatchFn = jest.fn(async () => {
     return HttpResponse.json({});
   });
@@ -120,13 +128,11 @@ describe("RunScriptBatchModal", () => {
     withBackendMock: true,
   });
 
+  // Standard props to use for most tests.
   const defaultProps = {
     runByFilters: false,
-    // since teamId has multiple uses in this component, it's passed in as its own prop and added to
-    // `filters` as needed
     filters: { team_id: 1, status: "" },
     teamId: 1,
-    // If we are on the free tier, we don't want to apply any kind of team filters (since the feature is Premium only).
     isFreeTier: false,
     totalFilteredHostsCount: 2,
     selectedHostIds: [1, 2],

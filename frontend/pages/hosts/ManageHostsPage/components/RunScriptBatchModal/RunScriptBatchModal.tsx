@@ -102,6 +102,7 @@ const RunScriptBatchModal = ({
     }
   );
 
+  // Handle switching between "run now" and "schedule" modes.
   const onChangeRunMode = (mode: "run_now" | "schedule") => {
     setRunMode(mode);
     setFormValidation(
@@ -109,6 +110,7 @@ const RunScriptBatchModal = ({
     );
   };
 
+  // Handle changes to the date and time inputs.
   const onInputChange = (update: { name: string; value: string }) => {
     if (update.name === "date") {
       setBatchRunDate(update.value);
