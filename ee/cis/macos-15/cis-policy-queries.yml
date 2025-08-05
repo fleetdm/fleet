@@ -1701,6 +1701,53 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure sleep and display sleep is enabled on Apple Silicon devices (Fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    MacBooks should be set so that the sleep is 15 minutes or less and the display should sleep at 10 minutes or less. This setting should allow laptop users in most cases to stay within physically secured areas while going to a conference room, auditorium, or other internal location without having to unlock the encryption. When the user goes home at night, the laptop will auto-sleep after 15 minutes and to log back into the system when it resumes.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy a script that runs the following commands to set the sleep time and display sleep:
+    /usr/bin/sudo /usr/bin/pmset -a sleep 15
+    /usr/bin/sudo /usr/bin/pmset -a displaysleep 10
+  query: |
+    SELECT 1 AS result
+    WHERE
+      -- Pass if not Apple Silicon
+      NOT EXISTS (
+        SELECT 1 FROM system_info WHERE cpu_type = 'arm64e'
+      )
+      OR
+      -- For Apple Silicon, check sleep settings (Battery Power if available, otherwise AC Power)
+      EXISTS (
+        SELECT 1
+        FROM (
+          SELECT 
+            CASE 
+              WHEN JSON_EXTRACT(json_result, '$.Battery Power:') IS NOT NULL 
+              THEN JSON_EXTRACT(json_result, '$.Battery Power:')
+              ELSE JSON_EXTRACT(json_result, '$.AC Power:')
+            END AS power_settings
+          FROM pmset
+          WHERE getting = 'custom'
+        )
+        WHERE
+          -- Require sleep setting to be 15 minutes or less
+          CAST(JSON_EXTRACT(power_settings, '$.sleep') AS INTEGER) <= 15
+          AND
+          -- Require display sleep to be 10 minutes or less AND less than or equal to sleep value
+          CAST(JSON_EXTRACT(power_settings, '$.displaysleep') AS INTEGER) <= 10
+          AND
+          CAST(JSON_EXTRACT(power_settings, '$.displaysleep') AS INTEGER) <= CAST(JSON_EXTRACT(power_settings, '$.sleep') AS INTEGER)
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+  contributors: getvictor
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Wake for Network Access Is Disabled (Fleetd Required)
   platforms: macOS
   platform: darwin
