@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
@@ -42,8 +43,15 @@ func (s *integrationLoggerTestSuite) SetupSuite() {
 	s.buf = new(bytes.Buffer)
 	logger := log.NewJSONLogger(s.buf)
 	logger = level.NewFilter(logger, level.AllowDebug())
+	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Logger: logger})
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
+		Logger: logger,
+		Pool:   redisPool,
+	})
 	s.server = server
 	s.users = users
 }
@@ -303,4 +311,33 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	assert.Equal(t, `"error"`, string(logData["level"]))
 	assert.Contains(t, string(logData["err"]), `"enroll failed:`)
 	assert.Contains(t, string(logData["err"]), `no matching secret found`)
+}
+
+func (s *integrationLoggerTestSuite) TestSetupExperienceEULAMetadataDoesNotLogErrorIfNotFound() {
+	t := s.T()
+
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	originalAppConf := *appConf
+
+	appConf.MDM.EnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	appConf.MDM.AppleBMEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+
+	s.token = getTestAdminToken(t, s.server)
+	s.Do("GET", "/api/v1/fleet/setup_experience/eula/metadata", nil, http.StatusNotFound)
+
+	logs := strings.Split(strings.TrimSpace(s.buf.String()), "\n")
+	require.Len(t, logs, 2) // Login and not found
+
+	logData := make(map[string]json.RawMessage)
+	log := logs[1]
+
+	assert.NoError(t, json.Unmarshal([]byte(log), &logData))
+	assert.Equal(t, `"info"`, string(logData["level"]))
+	assert.Equal(t, string(logData["err"]), `"not found"`)
+
+	// restore app config
+	err = s.ds.SaveAppConfig(context.Background(), &originalAppConf)
 }
