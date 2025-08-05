@@ -395,6 +395,20 @@ func deleteSSOCookie(w http.ResponseWriter) {
 	})
 }
 
+const cookieNameBYODAuthenticated = "__Host-FLEETSSOBYOD"
+
+func setBYODCookie(w http.ResponseWriter, value string, cookieDurationSeconds int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieNameBYODAuthenticated,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   cookieDurationSeconds,
+		Secure:   cookieSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode, // should be fine for this use-case
+	})
+}
+
 func (r initiateSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	setSSOCookie(w, r.sessionID, r.sessionDurationSeconds)
 }

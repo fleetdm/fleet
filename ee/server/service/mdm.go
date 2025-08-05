@@ -790,7 +790,7 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 	case "/enroll":
 		// the relayState is the full enroll URL with the enrollment secret, redirect there
 		// with a cookie that identifies this device as authenticated and links it to the
-		// authenticated email.
+		// authenticated email (the enrollment reference).
 		u, err := url.Parse(relayState)
 		if err != nil {
 			// TODO(mna): when doing /enroll-based SSO, error page should be the

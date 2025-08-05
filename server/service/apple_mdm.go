@@ -3330,7 +3330,8 @@ func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Req
 }
 
 type callbackMDMAppleSSOResponse struct {
-	redirectURL string
+	redirectURL           string
+	byodEnrollCookieValue string
 }
 
 func (r callbackMDMAppleSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -3340,6 +3341,10 @@ func (r callbackMDMAppleSSOResponse) HijackRender(ctx context.Context, w http.Re
 
 func (r callbackMDMAppleSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	deleteSSOCookie(w)
+	if r.byodEnrollCookieValue != "" {
+		setBYODCookie(w, r.byodEnrollCookieValue, 30*60) // valid for 30 minutes
+		fmt.Println(">>>>> SETTING BYOD COOKIE")
+	}
 }
 
 // Error will always be nil because errors are handled by sending a query
@@ -3350,9 +3355,18 @@ func (r callbackMDMAppleSSOResponse) Error() error { return nil }
 func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	callbackRequest := request.(*callbackMDMAppleSSORequest)
 	redirectURL := svc.MDMAppleSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse, callbackRequest.relayState)
-	fmt.Println(">>>>>> MDM APPLE SSO CALLBACK DONE: ", redirectURL)
+
+	// TODO(mna): for actual implementation, should probably be a return value from the callback.
+	var byodCookie string
+	u, _ := url.Parse(redirectURL)
+	if u.Path == "/enroll" {
+		byodCookie = u.Query().Get("enrollment_reference")
+	}
+
+	fmt.Println(">>>>>> MDM APPLE SSO CALLBACK DONE: ", redirectURL, " setting cookie? ", byodCookie)
 	return callbackMDMAppleSSOResponse{
-		redirectURL: redirectURL,
+		redirectURL:           redirectURL,
+		byodEnrollCookieValue: byodCookie,
 	}, nil
 }
 

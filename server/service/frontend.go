@@ -106,7 +106,14 @@ func ServeEndUserEnrollOTA(
 		// enroll secret to see if it must go through the IdP flow.
 		// For the POC, we do the IdP flow if the enroll_secret starts with idpteam.
 		enrollSecret := r.URL.Query().Get("enroll_secret")
-		if strings.HasPrefix(enrollSecret, "idpteam") {
+		enrollRef := r.URL.Query().Get("enrollment_reference")
+		var cookieIdPRef string
+		if byodCookie, _ := r.Cookie(cookieNameBYODAuthenticated); byodCookie != nil {
+			cookieIdPRef = byodCookie.Value
+		}
+		fmt.Println(">>>>> GOT BYOD COOKIE VALUE: ", cookieIdPRef, enrollRef)
+
+		if cookieIdPRef == "" && strings.HasPrefix(enrollSecret, "idpteam") {
 			// TODO(mna): if IdP required, go through that flow with proper RelayState
 			// passed on, and store the email to save later on as SCIM username linked
 			// to that host.
@@ -116,10 +123,14 @@ func ServeEndUserEnrollOTA(
 			// handled in the setup experience flow, but here we need to redirect to
 			// the IdP provider login page as this is in the browser).
 			q := make(url.Values)
-			q.Set("RelayState", "/enroll?enrollment_secret="+enrollSecret)
+			q.Set("RelayState", "/enroll?enroll_secret="+enrollSecret)
 			q.Set("initiator", "ota_enroll")
 			http.Redirect(w, r, "/api/latest/fleet/mdm/sso?"+q.Encode(), http.StatusSeeOther)
 			return
+		}
+
+		if cookieIdPRef != "" && enrollRef != cookieIdPRef {
+			// TODO(mna): error, those values should match
 		}
 
 		fs := newBinaryFileSystem("/frontend")
