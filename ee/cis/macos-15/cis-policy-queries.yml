@@ -3513,30 +3513,19 @@ spec:
   description: |
     In order to properly monitor the use of the sudo command, logs events for any use of sudo should be captured in the unified log.
   resolution: |
-    Ask your system administrator to deploy a script that will configure:
-      /usr/bin/sudo /usr/sbin/visudo -f /etc/sudoers
-      Remove the line, or comment out with # before the line, 'Defaults !log_allowed'
+    Automated method:
+    Ask your administrator to deploy a script that will configure:
+    /usr/bin/sudo /usr/sbin/visudo -f /etc/sudoers.d/10_cissudoconfiguration
+    Add the line to the file: 'Defaults log_allowed'
+    Note: Unlike other Unix/Linux distros, macOS will ignore configuration files in the sudoers.d folder that contain a period, so do not add a file extension to the configuration file. The 'Defaults log_allowed' line can be added to an existing configuration file or a new one.
   query: |
-    SELECT 1 
-    FROM file_lines 
-    WHERE path = '/etc/sudoers' 
-      AND (
-          -- No matching line
-          NOT EXISTS (
-              SELECT 1 
-              FROM file_lines 
-              WHERE path = '/etc/sudoers' 
-                AND line LIKE '%!log_allowed%'
-          ) 
-          -- OR line exists but is commented
-          AND NOT EXISTS (
-              SELECT 1 
-              FROM file_lines 
-              WHERE path = '/etc/sudoers' 
-                AND line LIKE '%#%Defaults%!log_allowed%'
-          )
-      ) 
-    LIMIT 1;
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM file_lines 
+      WHERE (path = '/etc/sudoers' OR path LIKE '/etc/sudoers.d/%')
+        AND line LIKE '%Defaults%log_allowed%'
+        AND line NOT LIKE '%!log_allowed%'
+        AND line NOT LIKE '#%'
+    );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: defensivedepth
+  contributors: getvictor
