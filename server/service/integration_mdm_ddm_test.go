@@ -55,7 +55,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}}, http.StatusUnprocessableEntity)
 
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration) are supported")
+	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration.) are supported")
 
 	// "com.apple.configuration.softwareupdate.enforcement.specific" type should fail
 	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
