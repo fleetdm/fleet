@@ -811,6 +811,11 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	_, err := svc.NewMDMAppleDeclaration(ctx, 0, bytes.NewReader(b), nil, "name", fleet.LabelsIncludeAll)
 	assert.ErrorContains(t, err, "Fleet variable")
 
+	// decl type missing actual type
+	b = declarationForTestWithType("D1", "com.apple.configuration")
+	_, err = svc.NewMDMAppleDeclaration(ctx, 0, bytes.NewReader(b), nil, "name", fleet.LabelsIncludeAll)
+	assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) are supported")
+
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		return d, nil
 	}
