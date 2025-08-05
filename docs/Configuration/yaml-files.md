@@ -382,6 +382,8 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (c
 - `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
 - `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`
 
+The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
+
 ### macos_setup
 
 The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
@@ -722,8 +724,6 @@ At the team level, there is the additional option to enable conditional access, 
 integrations:
   conditional_access_enabled: true
 ```
-
-For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
 
 #### google_calendar
 
