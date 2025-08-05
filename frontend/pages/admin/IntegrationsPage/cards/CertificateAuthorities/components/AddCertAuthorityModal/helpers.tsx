@@ -14,14 +14,18 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
   },
   {
     label: "Microsoft NDES (Network Device Enrollment Service)",
-    value: "ndes",
+    value: "ndes_scep_proxy",
   },
   {
     label: "Custom SCEP (Simple Certificate Enrollment Protocol)",
-    value: "custom",
+    value: "custom_scep_proxy",
   },
 ];
 
+/**
+ * conditionally generates the dropdown options disabling the ndes option
+ * if one already exists
+ */
 export const generateDropdownOptions = (hasNDESCert: boolean) => {
   if (!hasNDESCert) {
     return DEFAULT_CERT_AUTHORITY_OPTIONS;
@@ -30,7 +34,7 @@ export const generateDropdownOptions = (hasNDESCert: boolean) => {
   // We only allow one NDES configuration, if ones exists disable the option and
   // add a tooltip.
   const ndesOption = DEFAULT_CERT_AUTHORITY_OPTIONS.find((option) => {
-    return option.value === "ndes";
+    return option.value === "ndes_scep_proxy";
   });
   if (ndesOption) {
     ndesOption.disabled = true;
