@@ -8833,6 +8833,9 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Get script result](#get-script-result)
 - [Batch-run script](#batch-run-script)
 - [Get batch script summary](#get-batch-script-summary)
+- [List batch scripts](#list-batch-scripts)
+- [List batch script results](#list-batch-script-results)
+- [Cancel batch script](#cancel-batch-script)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
@@ -8933,6 +8936,7 @@ The script will be added to each host's list of upcoming activities.
 | script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
 | host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
 | filters | object  | body | See [filters](#filters3). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
+| not_before       | string  | body | UTC time when the script run is scheduled to begin. |
 
 
 ##### Filters
@@ -8943,6 +8947,8 @@ The script will be added to each host's list of upcoming activities.
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
 | team_id                           | number  | ID of the team to filter by. |
+
+> Note that if a batch script is scheduled for the future using `not_before`, and hosts are targeted using `filters`, the script will run on any hosts matching the filters _at the time the batch script was added_. To see all targeted hosts, use the [List batch script results](#list-batch-script-results) endpoint.
 
 
 #### Example
@@ -8956,7 +8962,8 @@ Request (using `host_ids`):
 ```json
 {
   "script_id": 123,
-  "host_ids": [1, 2, 3]
+  "host_ids": [1, 2, 3],
+  "not_before": "2025-07-01T15:00:00Z"
 }
 ```
 
@@ -9017,13 +9024,88 @@ Get statuses and host counts for a batch-run script.
   "ran": 12345,
   "pending": 234,
   "errored": 18,
+  "incompatible": 3,
   "canceled": 2,
   "targeted": 12599,
   "script_id": 555,
   "script_name": "my-script.sh",
-  "team_id": 123
+  "team_id": 123,
+  "not_before": "2025-07-01T15:00:00Z",
+  "completed_at": "2025-07-06T15:00:00Z",
+  "status": "completed",
+  "cancelled": false
 }
 ```
+
+
+### List batch scripts
+
+> TODO: API to list batch script executions. Paginated, with status filter (started, scheduled, completed).
+
+TODO: Description text here.
+
+`GET /api/v1/fleet/scripts/batch`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| team_id         | integer | query | _Available in Fleet Premium_. Filters to batch script runs for the specified team. |
+| status          | string  | query | Filters to batch script runs with this status. Either `"started"`, `"scheduled"`, or "`completed`". |
+| page            | integer | query | Page number of the results to fetch. |
+| per_page        | integer | query | Results per page. |
+
+
+#### Example
+
+`GET /api/v1/fleet/scripts/batch`
+
+##### Request body
+
+```json
+{
+  "team_id": 123,
+  "status": "completed"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "batch_executions": [
+    {
+      "ran": 12345,
+      "pending": 234,
+      "errored": 18,
+      "incompatible": 3,
+      "canceled": 2,
+      "targeted": 12599,
+      "script_id": 555,
+      "script_name": "my-script.sh",
+      "team_id": 123,
+      "not_before": "2025-07-01T15:00:00Z",
+      "completed_at": "2025-07-06T15:00:00Z",
+      "status": "completed",
+      "cancelled": false
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### List batch script results
+
+> TODO: API to list hosts & their results. Paginated, with status filter (ran, pending, errored, incompatible, canceled).
+
+### Cancel batch script
+
+> TODO: API to cancel all pending script executions from a batch run script.
 
 ### Add script
 
