@@ -110,6 +110,7 @@ spec:
         Ask your system administrator to deploy a script that will configure:
         /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist
         /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist
+        /usr/bin/sudo /usr/bin/xprotect update
   query: |
       SELECT 1
       WHERE (
@@ -122,7 +123,7 @@ spec:
       ) = 2;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: defensivedepth
+  contributors: defensivedepth, getvictor
 ---
 apiVersion: v1
 kind: policy
