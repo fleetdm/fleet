@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import classnames from "classnames";
 
 import Radio from "components/forms/fields/Radio";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -20,6 +21,7 @@ import scriptsAPI, {
   IListScriptsQueryKey,
   IScriptBatchSupportedFilters,
   IScriptsResponse,
+  IRunScriptBatchRequest,
 } from "services/entities/scripts";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import Spinner from "components/Spinner";
@@ -128,13 +130,27 @@ const RunScriptBatchModal = ({
   const onRunScriptBatch = useCallback(
     async (script: IScript) => {
       setIsUpdating(true);
-      const body = runByFilters
-        ? // satisfy IScriptBatchSupportedFilters
-          {
-            script_id: script.id,
-            filters: addTeamIdCriteria(filters, teamId, isFreeTier),
-          }
-        : { script_id: script.id, host_ids: selectedHostIds };
+
+      // Create the base request.
+      let body: IRunScriptBatchRequest;
+
+      if (runByFilters) {
+        body = {
+          script_id: script.id,
+          filters: addTeamIdCriteria(filters, teamId, isFreeTier),
+        };
+      } else {
+        body = {
+          script_id: script.id,
+          host_ids: selectedHostIds,
+        };
+      }
+
+      // Add not_before if scheduling
+      if (runMode === "schedule") {
+        body.not_before = `${batchRunDate} ${batchRunTime}:00.000Z`;
+      }
+
       try {
         await scriptsAPI.runScriptBatch(body);
         renderFlash(
@@ -157,7 +173,7 @@ const RunScriptBatchModal = ({
         setIsUpdating(false);
       }
     },
-    [renderFlash, selectedHostIds]
+    [renderFlash, selectedHostIds, runMode, batchRunDate, batchRunTime]
   );
 
   const renderModalContent = () => {

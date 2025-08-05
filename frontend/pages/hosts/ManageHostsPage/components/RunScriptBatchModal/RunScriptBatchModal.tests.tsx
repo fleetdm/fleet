@@ -6,9 +6,9 @@ import { IScript } from "interfaces/script";
 import { createCustomRenderer } from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
-import RunScriptBatchModal from "./RunScriptBatchModal";
 import { format } from "date-fns";
-import { f } from "msw/lib/core/HttpResponse-DaYkf3ml";
+
+import RunScriptBatchModal from "./RunScriptBatchModal";
 
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -105,7 +105,7 @@ describe("RunScriptBatchModal", () => {
     });
   });
 
-  const runBatchFn = jest.fn(async (req) => {
+  const runBatchFn = jest.fn(async () => {
     return HttpResponse.json({});
   });
   const runBatchHandler = http.post(baseUrl("/scripts/run/batch"), runBatchFn);
@@ -192,6 +192,29 @@ describe("RunScriptBatchModal", () => {
         expect(body).toEqual({
           script_id: windowsScript.id,
           host_ids: defaultProps.selectedHostIds,
+        });
+      });
+
+      it("should call the API with filters if supplied", async () => {
+        const props = {
+          ...defaultProps,
+          runByFilters: true,
+          filters: { query: "hi", label_id: 16, status: "" },
+        };
+        props.selectedHostIds = [];
+        const { user } = render(<RunScriptBatchModal {...props} />);
+        const { runButton } = await selectScript(user, "windows");
+        await user.click(runButton);
+        expect(runBatchFn.mock.calls.length).toBe(1);
+        const body = await runBatchFn.mock.calls[0][0].request.json();
+        expect(body).toEqual({
+          script_id: windowsScript.id,
+          filters: {
+            query: "hi",
+            label_id: 16,
+            team_id: 1,
+            status: "",
+          },
         });
       });
     });
@@ -295,6 +318,7 @@ describe("RunScriptBatchModal", () => {
         const { runNowButton, scheduleButton } = await getScheduleSelector();
         expect(runNowButton).toBeChecked();
         await user.click(scheduleButton);
+        expect(scheduleButton).toBeChecked();
         const { dateInput, timeInput } = await getScheduleUI();
         await user.type(dateInput, "2099-12-31");
         await user.type(timeInput, "23:59");
@@ -304,7 +328,33 @@ describe("RunScriptBatchModal", () => {
         expect(body).toEqual({
           script_id: windowsScript.id,
           host_ids: defaultProps.selectedHostIds,
-          not_before: "2099-12-31T23:59:00.000Z",
+          not_before: "2099-12-31 23:59:00.000Z",
+        });
+      });
+
+      it("should call the API with a correct not_before param and filters if provided", async () => {
+        const props = {
+          ...defaultProps,
+          runByFilters: true,
+          filters: { query: "hi", label_id: 16, status: "" },
+        };
+        props.selectedHostIds = [];
+        const { user } = render(<RunScriptBatchModal {...props} />);
+        const { runButton } = await selectScript(user, "windows");
+        const { runNowButton, scheduleButton } = await getScheduleSelector();
+        expect(runNowButton).toBeChecked();
+        await user.click(scheduleButton);
+        expect(scheduleButton).toBeChecked();
+        const { dateInput, timeInput } = await getScheduleUI();
+        await user.type(dateInput, "2099-12-31");
+        await user.type(timeInput, "23:59");
+        await user.click(runButton);
+        expect(runBatchFn.mock.calls.length).toBe(1);
+        const body = await runBatchFn.mock.calls[0][0].request.json();
+        expect(body).toEqual({
+          script_id: windowsScript.id,
+          not_before: "2099-12-31 23:59:00.000Z",
+          filters: { query: "hi", label_id: 16, status: "" },
         });
       });
     });

@@ -96,6 +96,7 @@ export interface IScriptBatchSupportedFilters {
 }
 interface IRunScriptBatchRequestBase {
   script_id: number;
+  not_before?: string; // ISO 8601 date-time string
 }
 
 interface IByFilters extends IRunScriptBatchRequestBase {
