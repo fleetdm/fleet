@@ -208,6 +208,7 @@ export const HostInstallerActionCell = ({
     software.source === "tgz_packages" &&
     (ui_status === "installed" ||
       ui_status === "pending_uninstall" ||
+      ui_status === "uninstalling" ||
       ui_status === "failed_uninstall");
 
   const canUninstallSoftware =
