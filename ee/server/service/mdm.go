@@ -771,7 +771,7 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 	fmt.Println(">>>>>> MDM APPLE SSO CALLBACK CALLED FROM: ", originalURL, relayState)
 
 	// TODO(mna): at this point, enrollmentRef is the IdP account's UUID, which stores the user's email,
-	// and relayState is the enrollment secret used on the initial /enroll request.
+	// and relayState is the /enroll?... with the enrollment secret used on the initial /enroll request.
 
 	// For account driven enrollment we have to use this special protocol URL scheme to pass the
 	// access token back to Apple which it will then use to request the enrollment profile.
