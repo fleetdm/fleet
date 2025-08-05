@@ -2878,21 +2878,21 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Password History Is Configured (Fleetd Required)
+  name: CIS - Ensure password history is set to at least 24 (MDM required)
   platforms: macOS
   platform: darwin
   description: |
-    Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users must reset passwords periodically. This control ensures that previous passwords are not reused immediately by keeping a history of previous password hashes. Ensure that password history checks are part of the password policy on the computer. This control checks whether a new password is different than the previous 15. The latest NIST guidance based on exploit research referenced in this section details how one of the greatest risks is password exposure rather than password cracking. Passwords should be changed to a new unique value whenever a password might have been exposed to anyone other than the account holder. Attackers have maintained persistent control based on predictable password change patterns and substantially different patterns should be used in case of a leak.
+    Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users must reset passwords periodically. This control ensures that previous passwords are not reused immediately by keeping a history of previous password hashes. Ensure that password history checks are part of the password policy on the computer. This control checks whether a new password is different than the previous 24. The latest NIST guidance based on exploit research referenced in this section details how one of the greatest risks is password exposure rather than password cracking. Passwords should be changed to a new unique value whenever a password might have been exposed to anyone other than the account holder. Attackers have maintained persistent control based on predictable password change patterns and substantially different patterns should be used in case of a leak.
   resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile with the following information:
+    Profile method:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is pinHistory
-      3. The key must be set to <integer><value≥15></integer>
-  query: SELECT 1 FROM  pwd_policy where history_depth >= 15;
+      3. The key must be set to <integer><value≥24></integer>
+  query: SELECT 1 FROM pwd_policy WHERE history_depth >= 24;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
+  contributors: sharon-fdm, getvictor
 ---
 apiVersion: v1
 kind: policy
