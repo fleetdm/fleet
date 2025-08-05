@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20250801083116(t *testing.T) {
+func TestUp_20250805083116(t *testing.T) {
 	db := applyUpToPrev(t)
 	stmt := `INSERT INTO scripts (name) VALUES ('Test Script')`
 	r, err := db.Exec(stmt)
