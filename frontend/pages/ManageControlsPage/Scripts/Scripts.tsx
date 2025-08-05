@@ -14,20 +14,18 @@ import SCRIPTS_NAV_ITEMS from "./ScriptsNavItems";
 
 const baseClass = "scripts";
 
+export interface ScriptsLocation {
+  search: string;
+  pathname: string;
+  query: {
+    team_id?: string;
+    status?: string;
+  };
+}
 interface IScriptsProps {
   params: Params;
   router: InjectedRouter;
-  location: {
-    search: string;
-    pathname: string;
-    query: {
-      team_id?: string;
-      query?: string;
-      order_key?: string;
-      order_direction?: "asc" | "desc";
-      page?: string;
-    };
-  };
+  location: ScriptsLocation;
 }
 
 const Scripts = ({ router, location, params }: IScriptsProps) => {
@@ -73,6 +71,7 @@ const Scripts = ({ router, location, params }: IScriptsProps) => {
             key={teamIdForApi ?? API_NO_TEAM_ID}
             teamId={teamIdForApi ?? API_NO_TEAM_ID} // Scripts must be scoped to a team
             router={router}
+            location={location}
           />
         }
       />
