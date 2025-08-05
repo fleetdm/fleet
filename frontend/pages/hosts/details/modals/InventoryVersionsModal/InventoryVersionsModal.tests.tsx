@@ -137,10 +137,7 @@ describe("SoftwareDetailsModal", () => {
     });
 
     render(
-      <InventoryVersionsModal
-        hostSoftware={mockSoftware}
-        onExit={jest.fn()}
-      />
+      <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
 
     expect(screen.getByText("Last opened")).toBeVisible();
@@ -169,10 +166,7 @@ describe("SoftwareDetailsModal", () => {
     });
 
     render(
-      <InventoryVersionsModal
-        hostSoftware={mockSoftware}
-        onExit={jest.fn()}
-      />
+      <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
 
     expect(screen.getByText("Last opened")).toBeVisible();
@@ -195,10 +189,7 @@ describe("SoftwareDetailsModal", () => {
     });
 
     render(
-      <InventoryVersionsModal
-        hostSoftware={mockSoftware}
-        onExit={jest.fn()}
-      />
+      <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
 
     expect(screen.queryByText("Last opened")).not.toBeInTheDocument();
