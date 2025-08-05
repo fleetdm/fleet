@@ -8999,14 +8999,6 @@ Get statuses and host counts for a batch-run script.
 
 `GET /api/v1/fleet/scripts/batch/summary/abc-def`
 
-##### Request body
-
-```json
-{
-  "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-}
-```
-
 ##### Default response
 
 `Status: 200`
