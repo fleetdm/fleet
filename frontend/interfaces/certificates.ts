@@ -32,6 +32,14 @@ export const CERTIFICATES_DEFAULT_SORT: IListSort = {
   order_direction: "asc",
 } as const;
 
+/** This interface represent the smaller subset of cert authority data that is
+returned for some of the cert authority endpoints */
+export interface ICertificateAuthorityPartial {
+  id: number;
+  name: string;
+  type: ICertificateAuthorityType;
+}
+
 export interface ICertificatesNDES {
   url: string;
   admin_url: string;

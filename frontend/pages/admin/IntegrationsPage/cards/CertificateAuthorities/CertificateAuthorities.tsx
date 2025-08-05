@@ -1,9 +1,12 @@
 import React, { useContext, useMemo, useState } from "react";
 import { Link } from "react-router";
+import { useQuery } from "react-query";
 
 import paths from "router/paths";
 import { AppContext } from "context/app";
-import { ICertificateIntegration } from "interfaces/integration";
+import { ICertificateAuthority } from "interfaces/certificates";
+import certificatesAPI from "services/entities/certificates";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
@@ -43,7 +46,17 @@ const CertificateAuthorities = () => {
   const [
     selectedCertAuthority,
     setSelectedCertAuthority,
-  ] = useState<ICertificateIntegration | null>(null);
+  ] = useState<ICertificateAuthority | null>(null);
+
+  const { data: certAuthorities, isLoading, isError } = useQuery(
+    "certAuthorities",
+    () => {
+      return certificatesAPI.getCertificateAuthoritiesList();
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
 
   const certificateAuthorities = useMemo(() => {
     if (!config) return [];
@@ -131,6 +144,7 @@ const CertificateAuthorities = () => {
       {renderContent()}
       {showAddCertAuthorityModal && (
         <AddCertAuthorityModal
+          certAuthorities={certificateAuthorities}
           onExit={() => setShowAddCertAuthorityModal(false)}
         />
       )}

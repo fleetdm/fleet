@@ -2,7 +2,10 @@ import React, { useContext, useMemo, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import certificatesAPI from "services/entities/certificates";
-import { ICertificateAuthorityType } from "interfaces/integration";
+import {
+  ICertificateAuthority,
+  ICertificateAuthorityType,
+} from "interfaces/certificates";
 import { AppContext } from "context/app";
 
 // @ts-ignore
@@ -30,10 +33,14 @@ export type ICertFormData =
 const baseClass = "add-cert-authority-modal";
 
 interface IAddCertAuthorityModalProps {
+  certAuthorities: ICertificateAuthority[];
   onExit: () => void;
 }
 
-const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
+const AddCertAuthorityModal = ({
+  certAuthorities,
+  onExit,
+}: IAddCertAuthorityModalProps) => {
   const { config, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [
