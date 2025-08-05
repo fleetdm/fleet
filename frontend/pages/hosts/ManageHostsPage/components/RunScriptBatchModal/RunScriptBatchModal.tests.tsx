@@ -194,6 +194,7 @@ describe("RunScriptBatchModal", () => {
         const { runButton } = await selectScript(user, "windows");
         await user.click(runButton);
         expect(runBatchFn.mock.calls.length).toBe(1);
+        // @ts-ignore
         const body = await runBatchFn.mock.calls[0][0].request.json();
         expect(body).toEqual({
           script_id: windowsScript.id,
@@ -212,6 +213,7 @@ describe("RunScriptBatchModal", () => {
         const { runButton } = await selectScript(user, "windows");
         await user.click(runButton);
         expect(runBatchFn.mock.calls.length).toBe(1);
+        // @ts-ignore
         const body = await runBatchFn.mock.calls[0][0].request.json();
         expect(body).toEqual({
           script_id: windowsScript.id,
@@ -330,6 +332,7 @@ describe("RunScriptBatchModal", () => {
         await user.type(timeInput, "23:59");
         await user.click(runButton);
         expect(runBatchFn.mock.calls.length).toBe(1);
+        // @ts-ignore
         const body = await runBatchFn.mock.calls[0][0].request.json();
         expect(body).toEqual({
           script_id: windowsScript.id,
@@ -356,6 +359,7 @@ describe("RunScriptBatchModal", () => {
         await user.type(timeInput, "23:59");
         await user.click(runButton);
         expect(runBatchFn.mock.calls.length).toBe(1);
+        // @ts-ignore
         const body = await runBatchFn.mock.calls[0][0].request.json();
         expect(body).toEqual({
           script_id: windowsScript.id,
