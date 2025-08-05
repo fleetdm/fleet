@@ -3103,14 +3103,11 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    A filename extension is a suffix added to a base filename that indicates the base filename's
-    file format. Visible filename extensions allow the user to identify the file type and the
-    application it is associated with which leads to quick identification of misrepresented malicious files.
+    A filename extension is a suffix added to a base filename that indicates the base filename's file format. This is intended for any user that logs into the GUI and has a home folder and not for service accounts. For the audit, we will continue to verify that every account with a home folder has filename extensions enabled. Visible filename extensions allow the user to identify the file type and the application it is associated with which leads to quick identification of misrepresented malicious files.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy a script that will ensure Show All Filename Extensions Setting is Enabled
-        For each user run:
-        /usr/bin/sudo -u <username> /usr/bin/defaults write /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
+    Ask your administrator to deploy a script that runs the following command for each user:
+    /usr/bin/sudo -u <username> /usr/bin/defaults write /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM users AS u
@@ -3125,7 +3122,7 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: artemist-work
+  contributors: artemist-work, getvictor
 ---
 apiVersion: v1
 kind: policy
@@ -3507,7 +3504,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS -  Ensure Logging Is Enabled for Sudo (MDM Required)
+  name: CIS -  Ensure Logging Is Enabled for Sudo (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -3519,13 +3516,23 @@ spec:
     Add the line to the file: 'Defaults log_allowed'
     Note: Unlike other Unix/Linux distros, macOS will ignore configuration files in the sudoers.d folder that contain a period, so do not add a file extension to the configuration file. The 'Defaults log_allowed' line can be added to an existing configuration file or a new one.
   query: |
-    SELECT 1 WHERE EXISTS (
-      SELECT 1 FROM file_lines 
-      WHERE (path = '/etc/sudoers' OR path LIKE '/etc/sudoers.d/%')
+    SELECT 1 AS result
+    FROM (
+      SELECT 1 FROM file_lines
+      WHERE path = '/etc/sudoers'
         AND line LIKE '%Defaults%log_allowed%'
         AND line NOT LIKE '%!log_allowed%'
         AND line NOT LIKE '#%'
-    );
+  
+      UNION ALL
+  
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/sudoers.d/%'
+        AND line LIKE '%Defaults%log_allowed%'
+        AND line NOT LIKE '%!log_allowed%'
+        AND line NOT LIKE '#%'
+    ) AS matches
+    LIMIT 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: getvictor
