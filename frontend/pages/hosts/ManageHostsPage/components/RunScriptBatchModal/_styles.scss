@@ -6,9 +6,17 @@
     font-size: $x-small;
   }
 
-  &__script-schedule-form {
+  &__script-run-mode-form {
     margin-top: 1.5rem;
   } 
+
+  &__script-schedule-form {
+    .date-time-inputs {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+  }
 }
 
 // since this modal shows only while anotheris also showing, suppress background for one of them to

@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import classnames from "classnames";
 
 import Radio from "components/forms/fields/Radio";
+import InputField from "components/forms/fields/InputField";
 
 import { NotificationContext } from "context/notification";
 
@@ -26,6 +27,7 @@ import Button from "components/buttons/Button";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
 import { IPaginatedListScript } from "../RunScriptBatchPaginatedList/RunScriptBatchPaginatedList";
+import { set } from "lodash";
 
 const baseClass = "run-script-batch-modal";
 
@@ -53,6 +55,8 @@ const RunScriptBatchModal = ({
 }: IRunScriptBatchModal) => {
   const { renderFlash } = useContext(NotificationContext);
 
+  const [batchRunDate, setBatchRunDate] = useState<string>("");
+  const [batchRunTime, setBatchRunTime] = useState<string>("");
   const [runMode, setRunMode] = useState<"run_now" | "schedule">("run_now");
   const [selectedScript, setSelectedScript] = useState<IScript | undefined>(
     undefined
@@ -174,7 +178,7 @@ const RunScriptBatchModal = ({
           <b>{selectedScript.name}</b> will run on compatible hosts ({platforms}
           ).
         </p>
-        <div className={`${baseClass}__script-schedule-form`}>
+        <div className={`${baseClass}__script-run-mode-form`}>
           <div className="form-field">
             <div className="form-field__label">Schedule</div>
             <Radio
@@ -196,6 +200,26 @@ const RunScriptBatchModal = ({
               onChange={() => setRunMode("schedule")}
             />
           </div>
+          {runMode === "schedule" && (
+            <div className={`${baseClass}__script-schedule-form`}>
+              <span className="date-time-inputs">
+                <InputField
+                  onChange={setBatchRunDate}
+                  value={batchRunDate}
+                  label="Date (UTC)"
+                  name="date"
+                  helpText='YYYY-MM-DD format (e.g., "2024-07-01").'
+                />
+                <InputField
+                  onChange={setBatchRunTime}
+                  value={batchRunTime}
+                  label="Time (UTC)"
+                  name="time"
+                  helpText='HH:MM 24-hour format (e.g., "13:37").'
+                />
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );
