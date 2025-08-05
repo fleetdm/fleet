@@ -454,6 +454,14 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.Empty(t, cves)
 
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, true)
+			require.NoError(t, err)
+			require.Len(t, cves, len(vulns))
+
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", true)
+			require.NoError(t, err)
+			require.Empty(t, cves)
+
 		})
 	}
 }
