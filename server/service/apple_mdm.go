@@ -6443,7 +6443,7 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 
 // Checks the active, valid and first reason to verify if it is an unknown declaration type error
 func isUnknownDeclarationType(declarationResponse fleet.MDMAppleDDMStatusDeclaration) bool {
-	return declarationResponse.Active == false &&
+	return !declarationResponse.Active &&
 		declarationResponse.Valid == fleet.MDMAppleDeclarationUnknown &&
 		len(declarationResponse.Reasons) > 0 &&
 		declarationResponse.Reasons[0].Code == "Error.UnknownDeclarationType"
