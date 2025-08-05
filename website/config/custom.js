@@ -410,7 +410,7 @@ module.exports.custom = {
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
 
-  // Engineering metrics:
+  // Metrics:
   // engMetricsGcpServiceAccountKey: '…',
   // datadogApiKey: '…',
 
