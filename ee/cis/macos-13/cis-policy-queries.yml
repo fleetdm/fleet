@@ -2714,8 +2714,8 @@ spec:
       WHERE 
         f.path LIKE '/Library/%'
         AND f.type = 'directory'
-        AND (f.mode LIKE '%2' OR f.mode LIKE '%3' OR f.mode LIKE '%6' OR f.mode LIKE '%7')
-        AND NOT (f.mode LIKE '1%')
+        AND (CAST(SUBSTR(f.mode,-1) AS INTEGER) & 2) = 2
+        AND NOT ((CAST(f.mode AS INTEGER) & 01000) = 01000)
         AND NOT EXISTS (
           SELECT 1 FROM extended_attributes ea
           WHERE ea.path = f.path
