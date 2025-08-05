@@ -373,6 +373,7 @@ func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fl
 	}
 
 	if eula == nil {
+		// We return the error here not as part of the response object, to signal an error to the server, but avoid logging it as an error.
 		return nil, newNotFoundError()
 	}
 
