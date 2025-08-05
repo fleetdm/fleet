@@ -1637,14 +1637,12 @@ func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerab
 	return nil
 }
 
-func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
-	sql := `DELETE FROM software_cve WHERE source = ? AND updated_at < ?`
-
-	var args []interface{}
-	cutPoint := time.Now().UTC().Add(-1 * duration)
-	args = append(args, source, cutPoint)
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
+func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+	if _, err := ds.writer(ctx).ExecContext(
+		ctx,
+		`DELETE FROM software_cve WHERE source = ? AND updated_at < ?`,
+		source, olderThan,
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting out of date vulnerabilities")
 	}
 	return nil
@@ -3647,7 +3645,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 			for _, s := range installedVPPAppIDs {
 				if s.VPPAppAdamID != nil {
-					tmpByVPPAdamID[*s.VPPAppAdamID] = s
+					if tmpByVPPAdamID[*s.VPPAppAdamID] == nil {
+						// inventoried by osquery, but not installed by fleet
+						tmpByVPPAdamID[*s.VPPAppAdamID] = s
+					} else {
+						// inventoried by osquery, but installed by fleet
+						// We want to preserve the install information from host_vpp_software_installs
+						// so don't overwrite the existing record
+						tmpByVPPAdamID[*s.VPPAppAdamID].VPPAppVersion = s.VPPAppVersion
+						tmpByVPPAdamID[*s.VPPAppAdamID].VPPAppPlatform = s.VPPAppPlatform
+						tmpByVPPAdamID[*s.VPPAppAdamID].VPPAppIconURL = s.VPPAppIconURL
+					}
 				}
 				if VPPAppByFleet, ok := hostVPPInstalledTitles[s.ID]; ok {
 					// Vpp app installed by fleet, so we need to copy over the status,
@@ -3794,8 +3802,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 
 	var vppAdamIDs []string
-	for key := range byVPPAdamID {
+	var vppTitleIds []uint
+	for key, v := range byVPPAdamID {
 		vppAdamIDs = append(vppAdamIDs, key)
+		vppTitleIds = append(vppTitleIds, v.ID)
 	}
 
 	var titleCount uint
@@ -4128,6 +4138,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			vulnerabilitiesBySoftwareID[cve.SoftwareID] = append(vulnerabilitiesBySoftwareID[cve.SoftwareID], cve.CVE)
 		}
 
+		// Grab the automatic install policies, if any exist
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, append(vppTitleIds, softwareTitleIds...), host.TeamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
+		}
+
+		policiesBySoftwareTitleId := make(map[uint][]fleet.AutomaticInstallPolicy, len(policies))
+		for _, p := range policies {
+			policiesBySoftwareTitleId[p.TitleID] = append(policiesBySoftwareTitleId[p.TitleID], p)
+		}
+
 		indexOfSoftwareTitle := make(map[uint]uint)
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
@@ -4267,6 +4288,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if softwareTitleRecord.VPPAppAdamID != nil {
 				if _, ok := filteredByVPPAdamID[*softwareTitleRecord.VPPAppAdamID]; ok {
 					promoteSoftwareTitleVPPApp(softwareTitleRecord)
+				}
+			}
+
+			if policies, ok := policiesBySoftwareTitleId[softwareTitleRecord.ID]; ok {
+				if softwareTitleRecord.AppStoreApp != nil {
+					softwareTitleRecord.AppStoreApp.AutomaticInstallPolicies = policies
+				} else {
+					softwareTitleRecord.SoftwarePackage.AutomaticInstallPolicies = policies
 				}
 			}
 

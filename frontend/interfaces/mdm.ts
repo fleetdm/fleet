@@ -272,3 +272,10 @@ export const isEnrolledInMdm = (
     hostMdmEnrollmentStatus
   );
 };
+
+/** determines if the host enrolled in mdm is a personal device */
+export const isPersonalEnrollmentInMdm = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return enrollmentStatus === "On (personal)";
+};

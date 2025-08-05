@@ -26,13 +26,21 @@ Using Fleet, you can require end users to authenticate with your identity provid
 
 1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL. If this URL is set incorrectly, end users won't be able to enroll. On iOS hosts, they'll see a "This screen size is not supported yet" error message.
 
-2. In your new SAML app, set **Name ID** to email (required). Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
+2. In your new SAML app, set **Name ID** to email (required). Fleet will trim this email and use it
+   to populate and lock the macOS local account **Account Name**. For example, a
+   "johndoe@example.com" email will turn into a "johndoe" account name.
+
+> **NOTE**  If the host is restarted during the mdm enrollment process, there may be an issue with populating the macOS local account creation screen. The fields are not guaranteed to be populated with the user's IDP email and username.
 
 3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
 
 4. In Fleet, configure your IdP by heading to **Settings > Integrations > Mobile device management (MDM) > End user authentication**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
 
-> If you've already configured [single sign-on (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a new SAML app for end user authentication. This way, only Fleet users can log in to Fleet.
+> If you've already configured [single sign-on
+> (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
+> new SAML app for end user authentication. This way, only Fleet users can log in to Fleet.
+
+
 
 ### End user license agreement (EULA)
 
@@ -195,7 +203,7 @@ To configure software to be installed during setup experience:
 
 1. Click on the "Controls" tab in the main navigation bar. Click on "Setup experience", and then on "4. Install software".
 
-2. Click the "Add software" button. In the modal, select the software that you want to have installed during the setup experience. You can search the list of software by using the search bar in the modal. Click "Save" to save your selection and close the modal. 
+2. Click the "Add software" button. In the modal, select the software that you want to have installed during the setup experience. You can search the list of software by using the search bar in the modal. Click "Save" to save your selection and close the modal.
 
 ### Run script
 
@@ -221,7 +229,8 @@ By default, Fleet's agent (fleetd) is automatically installed during automatic e
 
 How to deploy a custom fleetd:
 
-1. Generate your fleetd package by running the command `fleetctl package`, ensuring you do **not** use the `--use-system-configuration` flag. 
+1. Generate your fleetd package by running the command `fleetctl package`, ensuring you do **not**
+   use the `--use-system-configuration` flag.
 
 2. Add fleetd to your bootstrap package. To customize fleetd further, you can also add a script to modify fleetd's [launchd template](https://github.com/fleetdm/fleet/blob/fleet-v4.66.0/orbit/pkg/packaging/macos_templates.go#L96).
 

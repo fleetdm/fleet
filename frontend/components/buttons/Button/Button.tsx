@@ -10,6 +10,7 @@ export type ButtonVariant =
   | "alert"
   | "pill"
   | "text-link" // Underlines on hover
+  | "text-link-dark" // underline on hover, dark text
   | "text-icon"
   | "icon" // Buttons without text
   | "inverse"

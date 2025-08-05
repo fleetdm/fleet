@@ -263,8 +263,10 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status fleet.MDMDeliveryStatus) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
-			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			// Generate a command UUID for the profile
+			commandUUID := "cmd-" + profUUID
+			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status, command_uuid) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
+			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, commandUUID, status)
 			return err
 		})
 	}
@@ -663,8 +665,10 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 
 	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
-			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			// Generate a command UUID for the profile
+			commandUUID := "cmd-" + profUUID
+			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status, command_uuid) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
+			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, commandUUID, status)
 			if err != nil {
 				return err
 			}

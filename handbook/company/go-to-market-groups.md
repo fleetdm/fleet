@@ -9,18 +9,18 @@ When communicating with future or current customers, hand-offs [between departme
 
 
 > Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
-> Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), [🌐 Digital Experience](https://fleetdm.com/handbook/digital-experience), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
+> Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
 
 
 ## Current GTM groups
 
 | GTM group                            | Goal |
 |:-------------------------------------|:------------------------------------|
-| [🦄Unicorns](https://fleetdm.com/handbook/company/go-to-market-groups#unicorns)             | Provide the best possible customer experience for organizations with 700+ hosts. 
-| [🌐Buy online](https://fleetdm.com/handbook/company/go-to-market-groups#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
+| [🦄Unicorns](https://fleetdm.com/handbook/company/go-to-market-groups#unicorns-group)             | Provide the best possible customer experience for organizations with 700+ hosts. 
+| [🌐Buy online](https://fleetdm.com/handbook/company/go-to-market-groups#buy-online-group)         | Provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
 
 
-### 🦄 Unicorns
+### 🦄 Unicorns group
 
 The goal of the 🦄 Unicorns group is to provide the best possible customer experience for organizations with 700+ hosts.
 
@@ -38,7 +38,7 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 > The [Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR), [kanban release board](https://github.com/fleetdm/confidential/issues#workspaces/g-unicorns-67b0e98321bc780010a6e78e/board), and [GitHub label](https://github.com/fleetdm/confidential/labels/%23g-unicorns) for this GTM group is `#g-unicorns`.
 
 
-### 🌐 Buy online
+### 🌐 Buy online group
 
 The goal of the 🌐 Buy online group is to provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
 
@@ -47,7 +47,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | Revenue DRI                       | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 | Pipeline DRI                      | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Customer Success DRI              | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_
-| Customer Support Engineer (CSE)   |[Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_
+| Customer Support Engineer (CSE)   | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://github.com/orgs/fleetdm/projects/65), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
 
@@ -112,7 +112,7 @@ When you reach out to a prospect or customer, make sure you're the right person:
 
 ### Programs
 
-Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/company/go-to-market-groups#video), and articles.
+Fleet's community programs are rooted in several areas created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/company/go-to-market-groups#video), and articles.
 
 
 #### Social media
@@ -162,7 +162,7 @@ Often, Fleeties will engage with new contacts from current and future customers.
   - LinkedIn profile URL (this is the best option)
   - Company name
   - Company website
-  - email
+  - Email
 
 > Please use the following guidelines when posting in the channel:
 >   - Use only one top-level message per contact. Don't batch contacts inside one message, and don't create multiple messages for a single person. Use thread replies to add context.
@@ -223,11 +223,11 @@ You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts,
 
 ### Getting a contract reviewed
 
-The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) will review all contracts within **2 business days**. 
+The [Digital Experience team](https://fleetdm.com/handbook/it-and-enablement#team) will review all contracts within **2 business days**. 
 
-> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and [get the contract signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed). Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
+> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and [get the contract signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed). Please submit other legal questions and requests to 💸 [Finance](https://fleetdm.com/handbook/finance#contact-us).
 
-To get a contract reviewed, complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%23g-digital-experience&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________). Upload the docx version whenever possible and be sure to include the link to the document in the issue. Follow-up comments should be made in the GitHub issue and in the document itself to avoid losing context.
+To get a contract reviewed, complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%3Ahelp-finance&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________). Upload the docx version whenever possible and be sure to include the link to the document in the issue. Follow-up comments should be made in the GitHub issue and in the document itself to avoid losing context.
 
 If an agreement requires additional review during the negotiation process, the requestor will need to upload the new draft agreement and repeat the process. When no further review or action is required, the requestor is responsible for [routing the document](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed) for signature.
 
@@ -238,7 +238,7 @@ The SLA for contract signature is **2 business days**. Please do not follow up o
 
 First, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
-Then, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) in the appropriate internal Slack channel (e.g. op channel, #g-digital-experience) with the following template:
+Then, at-mention the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) in the appropriate internal Slack channel (e.g. op channel, #g-unicorns) with the following template:
 
 ```
 @Sam Pfluger - :writing_hand Signature request
@@ -248,9 +248,20 @@ The following contract is ready to sign and has been routed to the CEO for signa
 Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, remove them before routing the agreement to the CEO for signature.
 
 
+### Fleet's vendor collateral
+
+Use the following steps to send Fleet's vendor collateral to a prospect or customer:
+1. Be sure that there's a signed NDA between Fleet and the requesting organization [saved in Google Drive](https://drive.google.com/drive/folders/1ee6E2wwhUL8F5qTRGUleJ9HeWjSRj5xm?usp=drive_link). If not, [send an NDA](https://fleetdm.com/handbook/sales#send-an-nda).
+2. Navigate to the ["🗃️ Vendor collateral" folder (confidential)](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive and to download the neccesary documents.
+
+> 🧑‍🚀 Attention Fleeties:
+>
+> Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🦄 #g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help. Any collateral documents (e.g. SOC2, Pen test, etc.) you send to a prospect or customer should be downloaded from the [🗃️ Vendor collateral folder](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive. If it's not in the "🗃️ Vendor collateral folder", it's not ready to be sent out.
+
+
 ### Vendor questionnaires 
 
-Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/digital-experience/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/digital-experience/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/digital-experience//security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
+Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/finance/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/finance/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/finance/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 
 

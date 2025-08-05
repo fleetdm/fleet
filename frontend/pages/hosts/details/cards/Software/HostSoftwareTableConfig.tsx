@@ -39,7 +39,7 @@ type IInstalledPathCellProps = IInstalledVersionsCellProps;
 interface ISoftwareTableHeadersProps {
   router: InjectedRouter;
   teamId: number;
-  onClickMoreDetails: (software: IHostSoftware) => void;
+  onShowInventoryVersions: (software: IHostSoftware) => void;
 }
 
 // NOTE: cellProps come from react-table
@@ -47,7 +47,7 @@ interface ISoftwareTableHeadersProps {
 export const generateSoftwareTableHeaders = ({
   router,
   teamId,
-  onClickMoreDetails,
+  onShowInventoryVersions,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -181,7 +181,7 @@ export const generateSoftwareTableHeaders = ({
         }
 
         const onClickMultiplePaths = () => {
-          onClickMoreDetails(cellProps.row.original);
+          onShowInventoryVersions(cellProps.row.original);
         };
 
         return (
@@ -202,7 +202,7 @@ export const generateSoftwareTableHeaders = ({
         }
 
         const onClickMultipleHashes = () => {
-          onClickMoreDetails(cellProps.row.original);
+          onShowInventoryVersions(cellProps.row.original);
         };
 
         return (

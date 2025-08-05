@@ -102,13 +102,17 @@ const InventoryVersion = ({
 
 interface IInventoryVersionsProps {
   hostSoftware: IHostSoftware;
+  showLabel?: boolean;
 }
-const InventoryVersions = ({ hostSoftware }: IInventoryVersionsProps) => {
+const InventoryVersions = ({
+  hostSoftware,
+  showLabel = true,
+}: IInventoryVersionsProps) => {
   const installedVersions = hostSoftware.installed_versions;
 
   if (!installedVersions || installedVersions.length === 0) {
     return (
-      <div className={`${baseClass}__software-details`}>
+      <div className={baseClass}>
         <Card
           className={`${baseClass}__version-details`}
           color="grey"
@@ -127,16 +131,23 @@ const InventoryVersions = ({ hostSoftware }: IInventoryVersionsProps) => {
 
   return (
     <div className={baseClass}>
-      {installedVersions.map((installedVersion) => {
-        return (
-          <InventoryVersion
-            key={installedVersion.version}
-            version={installedVersion}
-            source={hostSoftware.source}
-            bundleIdentifier={hostSoftware.bundle_identifier}
-          />
-        );
-      })}
+      {showLabel && (
+        <div className={`${baseClass}__label`}>
+          Current version{installedVersions.length > 1 && "s"}:
+        </div>
+      )}
+      <div className={`${baseClass}__versions`}>
+        {installedVersions.map((installedVersion) => {
+          return (
+            <InventoryVersion
+              key={installedVersion.version}
+              version={installedVersion}
+              source={hostSoftware.source}
+              bundleIdentifier={hostSoftware.bundle_identifier}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 };

@@ -475,6 +475,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		isConnectedToFleetMDM,
 		mdmInfo,
 	)
+
 	if err != nil {
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting no-team disk encryption notifications")
 	}
