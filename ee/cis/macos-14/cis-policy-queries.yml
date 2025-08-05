@@ -1707,7 +1707,7 @@ spec:
     WHERE
       -- Pass if not Apple Silicon
       NOT EXISTS (
-        SELECT 1 FROM system_info WHERE cpu_type = 'arm64e'
+        SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%'
       )
       OR
       -- For Apple Silicon, check sleep settings (Battery Power if available, otherwise AC Power)
@@ -1828,7 +1828,7 @@ spec:
           )
         ) OR EXISTS(
           SELECT 1 WHERE EXISTS(
-            SELECT 1 FROM system_info WHERE cpu_type = 'arm64e'
+            SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%'
           ) AND EXISTS (
             SELECT
                 CAST(JSON_EXTRACT(battery, '$.standby') AS INTEGER) AS standby
