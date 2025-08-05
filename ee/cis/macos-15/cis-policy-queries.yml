@@ -19,6 +19,7 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
+---
 apiVersion: v1
 kind: policy
 spec:
@@ -986,129 +987,6 @@ spec:
   tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure external intelligence extensions is disabled (MDM required)
-  platforms: macOS
-  platform: darwin
-  description: |
-    In macOS 15.0 Sequoia, Apple has introduced what it calls Apple Intelligence, which includes new capabilities for processing language and images with AI technologies. While Apple Intelligence integrates deeply with personal context and generally runs on-device, external intelligence extensions are able to connect to external services like ChatGPT or other third-party AI providers. These external connections may send user data to third-party servers outside of Apple's control.
-    Organizations handling sensitive or confidential information should disable external intelligence extensions to prevent potential data leakage to third-party AI services.
-  resolution: |
-    Profile Method:
-    Ask your administrator to deploy a profile with the following configuration:
-    1. The PayloadType string is com.apple.applicationaccess
-    2. The key to include is allowIntelligenceExtensions
-    3. The key must be set to <false/>
-  query: |
-    SELECT 1 WHERE EXISTS(
-      SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.applicationaccess' AND
-        name = 'allowIntelligenceExtensions' AND
-        (value = 0 OR value = 'false')
-    ) AND NOT EXISTS (
-      SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.applicationaccess' AND
-        name = 'allowIntelligenceExtensions' AND
-        (value != 0 AND value != 'false')
-    );
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: getvictor
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure writing tools is disabled (MDM required)
-  platforms: macOS
-  platform: darwin
-  description: |
-    Writing Tools is a feature of Apple Intelligence that provides AI-powered writing assistance including proofreading, rewriting, and summarization capabilities. While these features process text on-device when possible, they may still process sensitive or confidential information that organizations need to control.
-    Organizations handling sensitive documents should consider disabling Writing Tools to prevent potential exposure of confidential information through AI processing.
-  resolution: |
-    Profile Method:
-    Ask your administrator to deploy a profile with the following configuration:
-    1. The PayloadType string is com.apple.applicationaccess
-    2. The key to include is allowWritingTools
-    3. The key must be set to <false/>
-  query: |
-    SELECT 1 WHERE EXISTS(
-      SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.applicationaccess' AND
-        name = 'allowWritingTools' AND
-        (value = 0 OR value = 'false')
-    ) AND NOT EXISTS (
-      SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.applicationaccess' AND
-        name = 'allowWritingTools' AND
-        (value != 0 AND value != 'false')
-    );
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: getvictor
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure mail summarization is disabled (MDM required)
-  platforms: macOS
-  platform: darwin
-  description: |
-    Mail Summarization is a feature of Apple Intelligence that uses AI to automatically generate summaries of email content. This feature processes email content through AI models which may include sensitive or confidential information.
-    Organizations should disable Mail Summarization to prevent AI processing of potentially sensitive email communications.
-  resolution: |
-    Profile Method:
-    Ask your administrator to deploy a profile with the following configuration:
-    1. The PayloadType string is com.apple.mail
-    2. The key to include is allowMailIntelligence
-    3. The key must be set to <false/>
-  query: |
-    SELECT 1 WHERE EXISTS(
-      SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.mail' AND
-        name = 'allowMailIntelligence' AND
-        (value = 0 OR value = 'false')
-    ) AND NOT EXISTS (
-      SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.mail' AND
-        name = 'allowMailIntelligence' AND
-        (value != 0 AND value != 'false')
-    );
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: getvictor
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure notes summarization is disabled (MDM required)
-  platforms: macOS
-  platform: darwin
-  description: |
-    Notes Summarization is a feature of Apple Intelligence that uses AI to automatically generate summaries of notes content. This feature processes notes through AI models which may include sensitive or confidential information.
-    Organizations should disable Notes Summarization to prevent AI processing of potentially sensitive notes and documentation.
-  resolution: |
-    Profile Method:
-    Ask your administrator to deploy a profile with the following configuration:
-    1. The PayloadType string is com.apple.mobilenotes
-    2. The key to include is allowNotesIntelligence
-    3. The key must be set to <false/>
-  query: |
-    SELECT 1 WHERE EXISTS(
-      SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.mobilenotes' AND
-        name = 'allowNotesIntelligence' AND
-        (value = 0 OR value = 'false')
-    ) AND NOT EXISTS (
-      SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.mobilenotes' AND
-        name = 'allowNotesIntelligence' AND
-        (value != 0 AND value != 'false')
-    );
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: getvictor
 apiVersion: v1
 kind: policy
 spec:
@@ -3533,6 +3411,130 @@ spec:
         AND line NOT LIKE '#%'
     ) AS matches
     LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: getvictor
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure external intelligence extensions is disabled (MDM required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    In macOS 15.0 Sequoia, Apple has introduced what it calls Apple Intelligence, which includes new capabilities for processing language and images with AI technologies. While Apple Intelligence integrates deeply with personal context and generally runs on-device, external intelligence extensions are able to connect to external services like ChatGPT or other third-party AI providers. These external connections may send user data to third-party servers outside of Apple's control.
+    Organizations handling sensitive or confidential information should disable external intelligence extensions to prevent potential data leakage to third-party AI services.
+  resolution: |
+    Profile Method:
+    Ask your administrator to deploy a profile with the following configuration:
+    1. The PayloadType string is com.apple.applicationaccess
+    2. The key to include is allowIntelligenceExtensions
+    3. The key must be set to <false/>
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowIntelligenceExtensions' AND
+        (value = 0 OR value = 'false')
+    ) AND NOT EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowIntelligenceExtensions' AND
+        (value != 0 AND value != 'false')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: getvictor
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure writing tools is disabled (MDM required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Writing Tools is a feature of Apple Intelligence that provides AI-powered writing assistance including proofreading, rewriting, and summarization capabilities. While these features process text on-device when possible, they may still process sensitive or confidential information that organizations need to control.
+    Organizations handling sensitive documents should consider disabling Writing Tools to prevent potential exposure of confidential information through AI processing.
+  resolution: |
+    Profile Method:
+    Ask your administrator to deploy a profile with the following configuration:
+    1. The PayloadType string is com.apple.applicationaccess
+    2. The key to include is allowWritingTools
+    3. The key must be set to <false/>
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowWritingTools' AND
+        (value = 0 OR value = 'false')
+    ) AND NOT EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowWritingTools' AND
+        (value != 0 AND value != 'false')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: getvictor
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure mail summarization is disabled (MDM required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Mail Summarization is a feature of Apple Intelligence that uses AI to automatically generate summaries of email content. This feature processes email content through AI models which may include sensitive or confidential information.
+    Organizations should disable Mail Summarization to prevent AI processing of potentially sensitive email communications.
+  resolution: |
+    Profile Method:
+    Ask your administrator to deploy a profile with the following configuration:
+    1. The PayloadType string is com.apple.mail
+    2. The key to include is allowMailIntelligence
+    3. The key must be set to <false/>
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.mail' AND
+        name = 'allowMailIntelligence' AND
+        (value = 0 OR value = 'false')
+    ) AND NOT EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.mail' AND
+        name = 'allowMailIntelligence' AND
+        (value != 0 AND value != 'false')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: getvictor
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure notes summarization is disabled (MDM required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Notes Summarization is a feature of Apple Intelligence that uses AI to automatically generate summaries of notes content. This feature processes notes through AI models which may include sensitive or confidential information.
+    Organizations should disable Notes Summarization to prevent AI processing of potentially sensitive notes and documentation.
+  resolution: |
+    Profile Method:
+    Ask your administrator to deploy a profile with the following configuration:
+    1. The PayloadType string is com.apple.mobilenotes
+    2. The key to include is allowNotesIntelligence
+    3. The key must be set to <false/>
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.mobilenotes' AND
+        name = 'allowNotesIntelligence' AND
+        (value = 0 OR value = 'false')
+    ) AND NOT EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.mobilenotes' AND
+        name = 'allowNotesIntelligence' AND
+        (value != 0 AND value != 'false')
+    );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: getvictor
