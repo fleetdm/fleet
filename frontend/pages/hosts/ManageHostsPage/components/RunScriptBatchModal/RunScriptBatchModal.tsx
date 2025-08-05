@@ -5,6 +5,7 @@ import classnames from "classnames";
 
 import Radio from "components/forms/fields/Radio";
 import InputField from "components/forms/fields/InputField";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import { NotificationContext } from "context/notification";
 
@@ -99,6 +100,13 @@ const RunScriptBatchModal = ({
     }
   );
 
+  const onChangeRunMode = (mode: "run_now" | "schedule") => {
+    setRunMode(mode);
+    setFormValidation(
+      validateFormData({ date: batchRunDate, time: batchRunTime }, mode)
+    );
+  };
+
   const onInputChange = (update: { name: string; value: string }) => {
     if (update.name === "date") {
       setBatchRunDate(update.value);
@@ -106,11 +114,14 @@ const RunScriptBatchModal = ({
       setBatchRunTime(update.value);
     }
     setFormValidation(
-      validateFormData({
-        date: batchRunDate,
-        time: batchRunTime,
-        [update.name]: update.value,
-      })
+      validateFormData(
+        {
+          date: batchRunDate,
+          time: batchRunTime,
+          [update.name]: update.value,
+        },
+        runMode
+      )
     );
   };
 
@@ -217,7 +228,7 @@ const RunScriptBatchModal = ({
               checked={runMode === "run_now"}
               value="Run now"
               name="run-mode"
-              onChange={() => setRunMode("run_now")}
+              onChange={() => onChangeRunMode("run_now")}
             />
             <Radio
               className={`${baseClass}__radio-input`}
@@ -226,7 +237,7 @@ const RunScriptBatchModal = ({
               checked={runMode === "schedule"}
               value="Custom"
               name="target-type"
-              onChange={() => setRunMode("schedule")}
+              onChange={() => onChangeRunMode("schedule")}
             />
           </div>
           {runMode === "schedule" && (
@@ -282,13 +293,21 @@ const RunScriptBatchModal = ({
           )}
           {selectedScript && (
             <div className="modal-cta-wrap">
-              <Button
-                disabled={isUpdating}
-                onClick={() => onRunScriptBatch(selectedScript)}
-                isLoading={isUpdating}
+              <TooltipWrapper
+                tipContent="Enter a date and time to schedule this script."
+                underline={false}
+                position="top"
+                disableTooltip={formValidation.isValid}
+                showArrow
               >
-                Run
-              </Button>
+                <Button
+                  disabled={isUpdating || !formValidation.isValid}
+                  onClick={() => onRunScriptBatch(selectedScript)}
+                  isLoading={isUpdating}
+                >
+                  Run
+                </Button>
+              </TooltipWrapper>
               <Button
                 disabled={isUpdating}
                 variant="inverse"

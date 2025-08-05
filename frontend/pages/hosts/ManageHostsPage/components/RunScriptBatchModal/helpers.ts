@@ -1,3 +1,4 @@
+import { parse, isValid } from "date-fns";
 import { IRunScriptBatchModalScheduleFormData } from "./RunScriptBatchModal";
 
 // TODO: create a validator abstraction for this and the other form validation files
@@ -17,7 +18,10 @@ type IFormValidationKey = keyof Omit<
 
 interface IValidation {
   name: string;
-  isValid: (formData: IRunScriptBatchModalScheduleFormData) => boolean;
+  isValid: (
+    formData: IRunScriptBatchModalScheduleFormData,
+    validations?: IRunScriptBatchModalFormValidation
+  ) => boolean;
   message?: IValidationMessage;
 }
 
@@ -36,12 +40,28 @@ const FORM_VALIDATIONS: IFormValidations = {
         },
       },
       {
-        name: "invalidCharacters",
+        name: "validDate",
         isValid: (formData: IRunScriptBatchModalScheduleFormData) => {
-          return /^[a-zA-Z0-9_]+$/.test(formData.date);
+          if (!formData.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            return false;
+          }
+          const parsedDate = parse(formData.date, "yyyy-MM-dd", new Date());
+          return isValid(parsedDate);
         },
-        message:
-          "Invalid characters. Only letters, numbers and underscores allowed.",
+        message: "Please enter a valid date.",
+      },
+      {
+        name: "notInPast",
+        isValid: (formData: IRunScriptBatchModalScheduleFormData) => {
+          const now = new Date();
+          const parsedDate = parse(
+            `${formData.date} 23:59:59.999`,
+            "yyyy-MM-dd HH:mm:ss.SSS",
+            now
+          );
+          return parsedDate >= now;
+        },
+        message: `Date cannot be in the past.`,
       },
     ],
   },
@@ -52,6 +72,39 @@ const FORM_VALIDATIONS: IFormValidations = {
         isValid: (formData: IRunScriptBatchModalScheduleFormData) => {
           return formData.time.length > 0;
         },
+      },
+      {
+        name: "validTime",
+        isValid: (formData: IRunScriptBatchModalScheduleFormData) => {
+          if (!formData.time.match(/^\d{2}:\d{2}$/)) {
+            return false;
+          }
+          const parsedDate = parse(
+            `1982-10-13 ${formData.time}`,
+            "yyyy-MM-dd kk:mm",
+            new Date()
+          );
+          return isValid(parsedDate);
+        },
+        message: "Please enter a valid time.",
+      },
+      {
+        name: "notInPast",
+        isValid: (
+          formData: IRunScriptBatchModalScheduleFormData,
+          validations?: IRunScriptBatchModalFormValidation
+        ) => {
+          if (validations?.date?.isValid === false) {
+            return true; // If date is invalid, skip time validation
+          }
+          const parsedDate = parse(
+            `${formData.date} ${formData.time}`,
+            "yyyy-MM-dd kk:mm",
+            new Date()
+          );
+          return parsedDate >= new Date();
+        },
+        message: `Time cannot be in the past.`,
       },
     ],
   },
@@ -68,16 +121,20 @@ const getErrorMessage = (
 };
 
 export const validateFormData = (
-  formData: IRunScriptBatchModalScheduleFormData
+  formData: IRunScriptBatchModalScheduleFormData,
+  runMode: "run_now" | "schedule" = "run_now"
 ) => {
   const formValidation: IRunScriptBatchModalFormValidation = {
     isValid: true,
   };
+  if (runMode === "run_now") {
+    return formValidation; // No validation needed for run now
+  }
 
   Object.keys(FORM_VALIDATIONS).forEach((key) => {
     const objKey = key as keyof typeof FORM_VALIDATIONS;
     const failedValidation = FORM_VALIDATIONS[objKey].validations.find(
-      (validation) => !validation.isValid(formData)
+      (validation) => !validation.isValid(formData, formValidation)
     );
 
     if (!failedValidation) {

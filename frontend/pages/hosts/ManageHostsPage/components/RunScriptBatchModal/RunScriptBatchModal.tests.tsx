@@ -177,8 +177,7 @@ describe("RunScriptBatchModal", () => {
       const { runNowButton, scheduleButton } = await getScheduleSelector();
       expect(runNowButton).toBeChecked();
       await user.click(scheduleButton);
-      expect(screen.queryByLabelText(/Date/)).toBeInTheDocument();
-      expect(screen.queryByLabelText(/Time/)).toBeInTheDocument();
+      await getScheduleUI();
     });
 
     describe("run now", () => {
@@ -197,7 +196,18 @@ describe("RunScriptBatchModal", () => {
 
     describe("schedule for later", () => {
       it("requires a valid date", async () => {
-        render(<RunScriptBatchModal {...defaultProps} />);
+        const { user } = render(<RunScriptBatchModal {...defaultProps} />);
+        await selectScript(user, "windows");
+        const { runNowButton, scheduleButton } = await getScheduleSelector();
+        expect(runNowButton).toBeChecked();
+        await user.click(scheduleButton);
+        const { dateInput } = await getScheduleUI();
+        // Add a wildly invalid date
+        await user.type(dateInput, "u up?");
+        expect(dateInput).toHaveValue("u up?");
+        expect(
+          screen.getByText("Please enter a valid date.")
+        ).toBeInTheDocument();
       });
 
       it("requires a valid time", async () => {
