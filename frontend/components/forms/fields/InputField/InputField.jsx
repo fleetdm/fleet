@@ -47,12 +47,13 @@ class InputField extends Component {
     enableShowSecret: PropTypes.bool,
     enableCopy: PropTypes.bool,
     ignore1password: PropTypes.bool,
-    /** Only effective on number inputs */
-    step: PropTypes.string,
-    /** Only effective on number inputs */
-    min: PropTypes.number,
-    /** Only effective on number inputs */
-    max: PropTypes.number,
+    // Accepts string or number for HTML compatibility, (e.g., step="0.1", step={0.1})
+    /** Only effective on input type number */
+    step: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    /** Only effective on input type number */
+    min: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    /** Only effective on input type number */
+    max: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   };
 
   static defaultProps = {

@@ -226,7 +226,7 @@ const SoftwareFiltersModal = ({
                 type="number"
                 min={0}
                 max={10}
-                step="0.1"
+                step={0.1}
                 parseTarget
                 error={formErrors.minScore}
               />
@@ -239,7 +239,7 @@ const SoftwareFiltersModal = ({
                 type="number"
                 min={0}
                 max={10}
-                step="0.1"
+                step={0.1}
                 parseTarget
                 error={formErrors.maxScore}
               />
