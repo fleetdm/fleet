@@ -51,6 +51,9 @@ const RunScriptBatchModal = ({
 }: IRunScriptBatchModal) => {
   const { renderFlash } = useContext(NotificationContext);
 
+  const [selectedScript, setSelectedScript] = useState<IScript | undefined>(
+    undefined
+  );
   const [isUpdating, setIsUpdating] = useState(false);
   const [scriptForDetails, setScriptForDetails] = useState<
     IPaginatedListScript | undefined
@@ -69,7 +72,9 @@ const RunScriptBatchModal = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
-      select: (data) => data.scripts || [],
+      select: (data) => {
+        return data.scripts || [];
+      },
     }
   );
 
@@ -134,27 +139,55 @@ const RunScriptBatchModal = ({
         />
       );
     }
-    const targetCount = runByFilters
-      ? totalFilteredHostsCount
-      : selectedHostIds.length;
+    if (!selectedScript) {
+      const targetCount = runByFilters
+        ? totalFilteredHostsCount
+        : selectedHostIds.length;
+      return (
+        <>
+          <p>
+            Will run on{" "}
+            <b>
+              {targetCount.toLocaleString()} host{targetCount > 1 ? "s" : ""}
+            </b>
+            . You can see individual script results on the host details page.
+          </p>
+          <RunScriptBatchPaginatedList
+            onRunScript={(script) => setSelectedScript(script)}
+            isUpdating={isUpdating}
+            teamId={teamId}
+            isFreeTier={isFreeTier}
+            scriptCount={scripts.length}
+            setScriptForDetails={setScriptForDetails}
+          />
+        </>
+      );
+    }
+    const platforms =
+      selectedScript.name.indexOf(".ps1") > 0 ? "windows" : "macOS/linux";
     return (
-      <>
+      <div className={`${baseClass}__script-details`}>
         <p>
-          Will run on{" "}
-          <b>
-            {targetCount.toLocaleString()} host{targetCount > 1 ? "s" : ""}
-          </b>
-          . You can see individual script results on the host details page.
+          <b>{selectedScript.name}</b> will run on compatible hosts ({platforms}
+          ).
         </p>
-        <RunScriptBatchPaginatedList
-          onRunScript={onRunScriptBatch}
-          isUpdating={isUpdating}
-          teamId={teamId}
-          isFreeTier={isFreeTier}
-          scriptCount={scripts.length}
-          setScriptForDetails={setScriptForDetails}
-        />
-      </>
+        <div className={`${baseClass}__script-details-actions`}>
+          <Button
+            onClick={() => {
+              onRunScriptBatch(selectedScript);
+            }}
+            isLoading={isUpdating}
+          >
+            Run
+          </Button>
+          <Button
+            variant="inverse"
+            onClick={() => setSelectedScript(undefined)}
+          >
+            Cancel
+          </Button>
+        </div>
+      </div>
     );
   };
 

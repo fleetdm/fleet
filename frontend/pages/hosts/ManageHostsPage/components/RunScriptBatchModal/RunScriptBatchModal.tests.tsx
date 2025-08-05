@@ -1,12 +1,12 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 
+import { UserEvent } from "@testing-library/user-event";
 import { IScript } from "interfaces/script";
 import { createCustomRenderer } from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 import RunScriptBatchModal from "./RunScriptBatchModal";
-import { UserEvent } from "@testing-library/user-event";
 
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -42,25 +42,76 @@ jest.mock("../RunScriptBatchPaginatedList", () => {
   };
 });
 
-const scriptsHandler = http.get(baseUrl("/scripts"), () => {
-  return HttpResponse.json({
-    data: {
-      scripts: [windowsScript, linuxScript],
-    },
-  });
-});
-
-const selectScript = (user: UserEvent, platform: string) => {
-  waitFor(async () => {
-    const el = screen.getByText(`${platform} script`);
+const selectScript = async (user: UserEvent, platform: string) => {
+  let el;
+  await waitFor(async () => {
+    el = screen.getByText(`${platform} script`);
     expect(el).toBeInTheDocument();
-    await user.click(el);
   });
+  if (!el) {
+    throw new Error("Script element not found");
+  }
+  await user.click(el);
+  let runButton;
+  let cancelButton;
+  await waitFor(() => {
+    runButton = screen.getByRole("button", { name: "Run" });
+    expect(runButton).toBeInTheDocument();
+    cancelButton = screen.getByRole("button", { name: "Cancel" });
+    expect(cancelButton).toBeInTheDocument();
+  });
+  if (!runButton || !cancelButton) {
+    throw new Error("Run or Cancel button not found");
+  }
+  return { runButton, cancelButton };
+};
+
+const getScheduleSelector = async () => {
+  let scheduleButton;
+  let runNowButton;
+  await waitFor(() => {
+    scheduleButton = screen.getByLabelText("Schedule for later");
+    expect(scheduleButton).toBeInTheDocument();
+    runNowButton = screen.getByLabelText("Run now");
+    expect(runNowButton).toBeInTheDocument();
+  });
+  if (!scheduleButton || !runNowButton) {
+    throw new Error("Schedule or Run Now button not found");
+  }
+  return { scheduleButton, runNowButton };
+};
+
+const getScheduleUI = async () => {
+  let dateInput;
+  let timeInput;
+  await waitFor(() => {
+    dateInput = screen.getByLabelText("Date");
+    expect(dateInput).toBeInTheDocument();
+    timeInput = screen.getByLabelText("Time");
+    expect(timeInput).toBeInTheDocument();
+  });
+  if (!dateInput || !timeInput) {
+    throw new Error("Date or Time input not found");
+  }
+  return { dateInput, timeInput };
 };
 
 describe("RunScriptBatchModal", () => {
+  const scriptsHandler = http.get(baseUrl("/scripts"), () => {
+    return HttpResponse.json({
+      scripts: [windowsScript, linuxScript],
+    });
+  });
+
+  const runBatchFn = jest.fn(async (req) => {
+    return HttpResponse.json({});
+  });
+  const runBatchHandler = http.post(baseUrl("/scripts/run/batch"), runBatchFn);
+
   beforeEach(() => {
     mockServer.use(scriptsHandler);
+    runBatchFn.mockReset();
+    mockServer.use(runBatchHandler);
   });
 
   const render = createCustomRenderer({
@@ -93,50 +144,67 @@ describe("RunScriptBatchModal", () => {
   describe("after clicking run script", () => {
     it("shows the correct heading for linux/macos scripts", async () => {
       const { user } = render(<RunScriptBatchModal {...defaultProps} />);
-
       await selectScript(user, "linux");
-      expect(
-        screen.getByText(
-          /linuxscript\.sh will run on compatible hosts (macOS and Linux)/i
-        )
-      ).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByText("linuxscript.sh")).toBeInTheDocument();
+        expect(screen.getByText(/macOS\/linux/)).toBeInTheDocument();
+      });
     });
 
     it("shows the correct heading for windows", async () => {
       const { user } = render(<RunScriptBatchModal {...defaultProps} />);
-
       await selectScript(user, "windows");
-      expect(
-        screen.getByText(
-          /windowscript\.ps1 will run on compatible hosts (Windows)/i
-        )
-      ).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByText("winscript.ps1")).toBeInTheDocument();
+        expect(screen.getByText(/windows/)).toBeInTheDocument();
+      });
     });
 
-    it("does not show the scheduling UI if 'run now' is selected", () => {
-      render(<RunScriptBatchModal {...defaultProps} />);
+    it("does not show the scheduling UI if 'run now' is selected", async () => {
+      const { user } = render(<RunScriptBatchModal {...defaultProps} />);
+      await selectScript(user, "windows");
+      const { runNowButton } = await getScheduleSelector();
+      expect(runNowButton).toBeChecked();
+      expect(screen.queryByLabelText(/Date/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Time/)).not.toBeInTheDocument();
     });
 
-    it("shows the scheduling UI if 'schedule for later' is selected", () => {
-      render(<RunScriptBatchModal {...defaultProps} />);
+    it("shows the scheduling UI if 'schedule for later' is selected", async () => {
+      const { user } = render(<RunScriptBatchModal {...defaultProps} />);
+      await selectScript(user, "windows");
+      const { runNowButton, scheduleButton } = await getScheduleSelector();
+      expect(runNowButton).toBeChecked();
+      await user.click(scheduleButton);
+      expect(screen.queryByLabelText(/Date/)).toBeInTheDocument();
+      expect(screen.queryByLabelText(/Time/)).toBeInTheDocument();
     });
 
     describe("run now", () => {
-      it("should call the API with no not_before param", () => {
-        render(<RunScriptBatchModal {...defaultProps} />);
+      it("should call the API with no not_before param", async () => {
+        const { user } = render(<RunScriptBatchModal {...defaultProps} />);
+        const { runButton } = await selectScript(user, "windows");
+        await user.click(runButton);
+        expect(runBatchFn.mock.calls.length).toBe(1);
+        const body = await runBatchFn.mock.calls[0][0].request.json();
+        expect(body).toEqual({
+          script_id: windowsScript.id,
+          host_ids: defaultProps.selectedHostIds,
+        });
       });
     });
 
     describe("schedule for later", () => {
-      it("requires a valid date", () => {
+      it("requires a valid date", async () => {
         render(<RunScriptBatchModal {...defaultProps} />);
       });
 
-      it("requires a valid time", () => {
+      it("requires a valid time", async () => {
         render(<RunScriptBatchModal {...defaultProps} />);
       });
 
-      it("should call the API with a not_before param", () => {
+      it("should call the API with a not_before param", async () => {
         render(<RunScriptBatchModal {...defaultProps} />);
       });
     });
