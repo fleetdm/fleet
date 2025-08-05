@@ -249,11 +249,9 @@ WHERE
 				Version:    result.Version,
 				HostsCount: result.HostsCount,
 			}
-			if result.CVE != nil {
-				kernel.Vulnerabilities = append(kernel.Vulnerabilities, *result.CVE)
-			}
+
 			kernelSet[kernel.ID] = kernel
-			continue
+			k = kernel
 		}
 
 		if result.CVE != nil {
