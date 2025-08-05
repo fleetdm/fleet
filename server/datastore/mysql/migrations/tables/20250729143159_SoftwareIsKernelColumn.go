@@ -20,11 +20,20 @@ ALTER TABLE software_titles
 	if _, err := tx.Exec(`
 UPDATE software_titles
 SET is_kernel =
+	-- Debian/Ubuntu
 	CASE WHEN name REGEXP '^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+' THEN
+		1
+	-- Amazon Linux
+	WHEN name = 'kernel' THEN
+		1
+	-- RHEL
+	WHEN name = 'kernel-core' THEN
 		1
 	ELSE
 		0
-	END`); err != nil {
+	END
+WHERE source IN ('rpm_packages', 'deb_packages')
+	`); err != nil {
 		return fmt.Errorf("failed to backfill software_titles.is_kernel column: %w", err)
 	}
 
