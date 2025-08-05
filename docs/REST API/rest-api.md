@@ -5620,7 +5620,6 @@ For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `
       "labels_include_any": [
         "Apple Silicon macOS hosts"
       ],
-      "display_name": "Software update"
     }
   ]
 }
