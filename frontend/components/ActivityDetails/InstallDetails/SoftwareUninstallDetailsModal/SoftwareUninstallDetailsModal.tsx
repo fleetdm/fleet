@@ -211,13 +211,17 @@ const SoftwareUninstallDetailsModal = ({
             onClick={toggleDetails}
           />
         )}
-        {uninstallStatus !== "pending_uninstall" &&
-          showDetails &&
-          uninstallResult?.output && (
-            <Textarea label="Uninstall script output:" variant="code">
-              {uninstallResult.output}
-            </Textarea>
-          )}
+        {/* Tarballs only has script_contents, not output */}
+        {showDetails && uninstallResult?.script_contents && (
+          <Textarea label="Uninstall script content:" variant="code">
+            {uninstallResult.script_contents}
+          </Textarea>
+        )}
+        {showDetails && uninstallResult?.output && (
+          <Textarea label="Uninstall script output:" variant="code">
+            {uninstallResult.output}
+          </Textarea>
+        )}
       </div>
     );
   };
