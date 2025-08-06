@@ -59,7 +59,9 @@ const InventoryVersion = ({
         )}
         {version.last_opened_at ||
         source === "programs" ||
-        source === "apps" ? (
+        source === "apps" ||
+        source === "deb_packages" ||
+        source === "rpm_packages" ? (
           <DataSet
             title="Last opened"
             value={

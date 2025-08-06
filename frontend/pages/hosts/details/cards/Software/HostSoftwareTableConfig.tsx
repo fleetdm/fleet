@@ -143,7 +143,11 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: ITableStringCellProps) => {
         const { source } = cellProps.row.original;
         const shouldShowNever =
-          !cellProps.cell.value && (source === "programs" || source === "apps");
+          !cellProps.cell.value &&
+          (source === "programs" ||
+            source === "apps" ||
+            source === "deb_packages" ||
+            source === "rpm_packages");
 
         let displayValue;
         if (cellProps.cell.value) {
