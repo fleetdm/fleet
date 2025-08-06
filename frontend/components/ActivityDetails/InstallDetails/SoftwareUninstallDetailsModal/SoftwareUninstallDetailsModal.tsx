@@ -211,7 +211,6 @@ const SoftwareUninstallDetailsModal = ({
             onClick={toggleDetails}
           />
         )}
-        {/* Tarballs only has script_contents, not output */}
         {showDetails && uninstallResult?.script_contents && (
           <Textarea label="Uninstall script content:" variant="code">
             {uninstallResult.script_contents}
