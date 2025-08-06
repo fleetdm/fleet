@@ -469,7 +469,7 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
-- `icon` is the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service**. It must be a square PNG with dimensions ranging from 120x120 px to 1024x1024 px.
+- `custom_icon` is the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service**. It must be a square PNG with dimensions ranging from 120x120 px to 1024x1024 px. In the UI Fleet, display icons for the most popular titles across all teams and versions. Custom icons will only override the icon for the software title and team where they are added.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 - `categories` is an array of categories. See [supported categories](#labels-and-categories).
   
@@ -489,7 +489,7 @@ uninstall_script:
   path: ../lib/software/tailscale-uninstall-script.ps1
 post_install_script:
   path: ../lib/software/tailscale-config-script.ps1
-icon:
+custom_icon:
   path: ../lib/software/icons/tailscale-icon.png  
 categories:
   - Browsers

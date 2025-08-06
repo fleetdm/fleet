@@ -3196,10 +3196,10 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
       "software_package": {
-        "name": "GoogleChrome.pkg"
-        "version": "125.12.2"
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.2",
+        "custom_icon_url":"https://fleet.server.com/software_icons/google-chrome-512x512.png",
         "self_service": true,
         "categories": ["Browsers"],
      	"last_install": {
@@ -3230,7 +3230,6 @@ Lists the software installed on the current device.
     {
       "id": 143,
       "name": "Firefox.app",
-      "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
       "software_package": null,
       "source": "apps",
       "status": null,
@@ -3244,10 +3243,12 @@ Lists the software installed on the current device.
       ],
       "software_package": null,
       "app_store_app": {
-        "app_store_id": "12345",
-        "categories": ["Browsers"],
-        "version": "125.6",
+        "app_store_id": "18783545",
+        "categories": ["Communication"],
+        "version": "25.07.50",
         "self_service": false,
+        "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
+        "custom_icon_url":"https://fleet.server.com/software_icons/google-chrome-512x512.png",
         "last_install": null
       },
     }
