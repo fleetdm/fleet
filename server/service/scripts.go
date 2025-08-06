@@ -1102,17 +1102,15 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 		Offset: &offset,
 		Limit:  req.PerPage,
 	}
-	// // Get the count first.
-	// count, err := svc.ds.BatchExecuteStatusCount(ctx, filter)
-	// if err != nil {
-	// 	return batchScriptExecutionListResponse{Err: err}, nil
-	// }
-	list, err := svc.BatchScriptExecutionList(ctx, filter)
+	list, count, err := svc.BatchScriptExecutionList(ctx, filter)
 	if err != nil {
 		return batchScriptExecutionStatusResponse{Err: err}, nil
 	}
 	return batchScriptExecutionListResponse{
 		BatchScriptExecutions: list,
+		Count:                 uint(count),
+		PaginationMetadata: fleet.PaginationMetadata{
+			HasNextResults: ,
 	}, nil
 }
 
@@ -1163,16 +1161,22 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 	return &summary, nil
 }
 
-func (svc *Service) BatchScriptExecutionList(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchExecutionSummary, error) {
+func (svc *Service) BatchScriptExecutionList(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchExecutionSummary, int64, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: filter.TeamID}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, filter)
+	// Get the count first.
+	count, err := svc.ds.CountBatchScriptExecutions(ctx, filter)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get batch script list")
+		return nil, 0, nil
 	}
 
-	return summaryList, nil
+	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, filter)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "get batch script list")
+	}
+
+	return summaryList, count, nil
 }
 
 func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {

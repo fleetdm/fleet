@@ -2054,3 +2054,34 @@ OFFSET %d
 
 	return summary, nil
 }
+
+func (ds *Datastore) CountBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error) {
+	stmtExecutions := `
+SELECT
+	COUNT(*)
+FROM	
+	batch_activities ba
+WHERE
+	%s
+GROUP BY
+	`
+	args := []any{}
+	whereClauses := make([]string, 0, 2)
+	if filter.Status != nil && *filter.Status != "" {
+		whereClauses = append(whereClauses, "ba.status = ?")
+		args = append(args, *filter.Status)
+	}
+	if filter.TeamID != nil {
+		whereClauses = append(whereClauses, "s.global_or_team_id = ?")
+		args = append(args, *filter.TeamID)
+	}
+	where := strings.Join(whereClauses, " AND ")
+	stmtExecutions = fmt.Sprintf(stmtExecutions, where)
+
+	var count int64
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, stmtExecutions, args...); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
+	}
+
+	return count, nil
+}

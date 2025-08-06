@@ -1811,8 +1811,11 @@ type Datastore interface {
 	// BatchExecuteSummary returns the summary of a batch script execution
 	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)
 
-	// ListBatchScriptExecutions returns the status of a batch script execution
+	// ListBatchScriptExecutions returns a filtered list of batch script executions, with summaries.
 	ListBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchExecutionSummary, error)
+
+	// CountBatchScriptExecutions returns the number of batch script executions matching the filter.
+	CountBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) (int64, error)
 
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)

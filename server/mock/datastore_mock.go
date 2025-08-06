@@ -1171,6 +1171,8 @@ type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fle
 
 type ListBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchExecutionSummary, error)
 
+type CountBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error)
+
 type GetHostLockWipeStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error)
 
 type LockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
@@ -3155,6 +3157,9 @@ type DataStore struct {
 
 	LastBatchScriptExecutionsFunc        ListBatchScriptExecutionsFunc
 	LastBatchScriptExecutionsFuncInvoked bool
+
+	CountBatchScriptExecutionsFunc        CountBatchScriptExecutionsFunc
+	CountBatchScriptExecutionsFuncInvoked bool
 
 	GetHostLockWipeStatusFunc        GetHostLockWipeStatusFunc
 	GetHostLockWipeStatusFuncInvoked bool
@@ -7568,6 +7573,13 @@ func (s *DataStore) ListBatchScriptExecutions(ctx context.Context, filter fleet.
 	s.LastBatchScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.LastBatchScriptExecutionsFunc(ctx, filter)
+}
+
+func (s *DataStore) CountBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error) {
+	s.mu.Lock()
+	s.CountBatchScriptExecutionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountBatchScriptExecutionsFunc(ctx, filter)
 }
 
 func (s *DataStore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
