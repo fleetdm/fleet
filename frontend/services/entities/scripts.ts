@@ -122,23 +122,46 @@ export interface IScriptBatchSummaryQueryKey extends IScriptBatchSummaryParams {
   scope: "script_batch_summary";
 }
 
-export interface IScriptBatchHostStatuses {
+export interface IScriptBatchHostCountsV1 {
   ran: number;
   pending: number;
   errored: number;
   incompatible: number;
   canceled: number;
 }
-export type ScriptBatchHostStatus = keyof IScriptBatchHostStatuses;
+export type ScriptBatchHostCountV1 = keyof IScriptBatchHostCountsV1;
 // 200 successful response
 
-export interface IScriptBatchSummaryResponse extends IScriptBatchHostStatuses {
+export interface IScriptBatchSummaryResponseV1
+  extends IScriptBatchHostCountsV1 {
   team_id: number;
   script_name: string;
   created_at: string;
   // below fields not yet used by the UI
   targeted: number;
   script_id: number;
+}
+
+export interface IScriptBatchHostCountsV2 {
+  targeted_host_count: number;
+  ran_host_count: number;
+  pending_host_count: number;
+  errored_host_count: number;
+  incompatible_host_count: number;
+  canceled_host_count: number;
+}
+
+// TODO - use THIS response type for the new summary endpoint
+export interface IScriptBatchSummaryResponseV2
+  extends IScriptBatchHostCountsV2 {
+  script_id: number;
+  script_name: string;
+  team_id: number;
+  /** if present, this script was scheduled ahead of time */
+  not_before?: string; // ISO 8601 date-time string
+  completed_at?: string; // ISO 8601 date-time string
+  status: ScriptBatchStatus;
+  canceled: boolean;
 }
 export interface IScriptBatchSummariesParams {
   team_id: number;
@@ -152,8 +175,10 @@ export interface IScriptBatchSummariesQueryKey
 }
 
 export interface IScriptBatchSummariesResponse {
-  batch_executions: IScriptBatchSummaryResponse[];
+  batch_executions: IScriptBatchSummaryResponseV2[];
   meta: PaginationMeta;
+  /** total number of batch executions matching filters */
+  count: number;
 }
 
 export default {
@@ -231,9 +256,10 @@ export default {
     const { SCRIPT_RUN_BATCH } = endpoints;
     return sendRequest("POST", SCRIPT_RUN_BATCH, request);
   },
+  /** calls the deprecated endpoint */
   getRunScriptBatchSummary({
     batch_execution_id,
-  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryResponse> {
+  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryResponseV1> {
     return sendRequest(
       "GET",
       `${endpoints.SCRIPT_RUN_BATCH_SUMMARY(batch_execution_id)}`

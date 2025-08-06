@@ -15,8 +15,8 @@ import FileSaver from "file-saver";
 
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryResponse,
-  ScriptBatchHostStatus,
+  IScriptBatchSummaryResponseV1,
+  ScriptBatchHostCountV1,
 } from "services/entities/scripts";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import usersAPI from "services/entities/users";
@@ -306,7 +306,7 @@ const ManageHostsPage = ({
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID];
-  const scriptBatchExecutionStatus: ScriptBatchHostStatus =
+  const scriptBatchExecutionStatus: ScriptBatchHostCountV1 =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
     (scriptBatchExecutionId ? "ran" : undefined);
 
@@ -472,9 +472,9 @@ const ManageHostsPage = ({
     isLoading: isLoadingScriptBatchSummary,
     isError: isErrorScriptBatchSummary,
   } = useQuery<
-    IScriptBatchSummaryResponse,
+    IScriptBatchSummaryResponseV1,
     Error,
-    IScriptBatchSummaryResponse,
+    IScriptBatchSummaryResponseV1,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -922,7 +922,7 @@ const ManageHostsPage = ({
   };
 
   const handleChangeScriptBatchStatusFilter = (
-    newStatus: ScriptBatchHostStatus
+    newStatus: ScriptBatchHostCountV1
   ) => {
     router.replace(
       getNextLocationPath({

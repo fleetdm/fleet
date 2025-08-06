@@ -26,7 +26,7 @@ import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
 import { IHostCertificate } from "interfaces/certificates";
 import { IListOptions } from "interfaces/list_options";
 
-import { ScriptBatchHostStatus } from "./scripts";
+import { ScriptBatchHostCountV1 } from "./scripts";
 
 export interface ISortOption {
   key: string;
@@ -96,7 +96,7 @@ export interface ILoadHostsOptions {
   bootstrapPackageStatus?: BootstrapPackageStatus;
   configProfileStatus?: string;
   configProfileUUID?: string;
-  scriptBatchExecutionStatus?: ScriptBatchHostStatus;
+  scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
 }
 
@@ -132,7 +132,7 @@ export interface IExportHostsOptions {
   diskEncryptionStatus?: DiskEncryptionStatus;
   configProfileUUID?: string;
   configProfileStatus?: string;
-  scriptBatchExecutionStatus?: ScriptBatchHostStatus;
+  scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
 }
 
@@ -160,7 +160,7 @@ export interface IActionByFilter {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   vulnerability?: string;
-  scriptBatchExecutionStatus?: ScriptBatchHostStatus;
+  scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
 }
 

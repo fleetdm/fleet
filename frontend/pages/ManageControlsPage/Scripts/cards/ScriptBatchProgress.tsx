@@ -5,8 +5,8 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import PATHS from "router/paths";
 
 import scriptsAPI, {
-  IScriptBatchSummariesResponse,
-  IScriptBatchSummaryResponse,
+  IScriptBatchSummaryResponseV1,
+  IScriptBatchSummaryResponseV2,
 } from "services/entities/scripts";
 
 import { isValidScriptBatchStatus, ScriptBatchStatus } from "interfaces/script";
@@ -81,11 +81,12 @@ const ScriptBatchProgress = ({
   }, []);
 
   const renderPaginatedList = () => (
-    <PaginatedList<IScriptBatchSummaryResponse>
+    <PaginatedList<IScriptBatchSummaryResponseV2>
       fetchPage={fetchPage}
-      // onClickRow={() => {
-      //   // TODO
-      // }}
+      onClickRow={(r: IScriptBatchSummaryResponseV2) => {
+        // TODO
+        return r;
+      }}
     />
   );
 
