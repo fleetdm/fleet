@@ -1349,7 +1349,6 @@ This activity contains the following fields:
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "custom_icon_url": URL of the icon that's added to the software title.
 
-
 #### Example
 
 ```json
