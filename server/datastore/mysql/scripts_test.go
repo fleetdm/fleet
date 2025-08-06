@@ -1953,7 +1953,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	summaryList, err := ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+	summaryList, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &execID,
 	})
 	require.NoError(t, err)
@@ -2023,7 +2023,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Get the summary again
-	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &execID,
 	})
 	require.NoError(t, err)
@@ -2047,7 +2047,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Get the summary again
-	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &execID,
 	})
 	require.NoError(t, err)
@@ -2064,7 +2064,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	_, err = ds.CancelHostUpcomingActivity(ctx, host3.ID, host3Upcoming[0].ExecutionID)
 	require.NoError(t, err)
 	// Get the summary again
-	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &execID,
 	})
 	require.NoError(t, err)
@@ -2078,7 +2078,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, summary.NumCanceled, uint(1))
 
 	// The summary should be returned when filtering by status "scheduled".
-	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		Status: ptr.String("scheduled"),
 	})
 	require.NoError(t, err)
@@ -2092,7 +2092,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, summary.NumCanceled, uint(1))
 
 	// The summary should be returned when filtering by team 1.
-	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		TeamID: ptr.Uint(0),
 	})
 	require.NoError(t, err)

@@ -1974,7 +1974,7 @@ WHERE
 	return &summary, nil
 }
 
-func (ds *Datastore) BatchExecuteStatus(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchExecutionSummary, error) {
+func (ds *Datastore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchExecutionSummary, error) {
 	stmtExecutions := `
 SELECT
 	COUNT(*) as num_targeted,

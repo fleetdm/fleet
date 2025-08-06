@@ -1130,7 +1130,7 @@ func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecut
 }
 
 func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionSummary, error) {
-	summaryList, err := svc.ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &batchExecutionID,
 	})
 	if err != nil {
@@ -1167,7 +1167,7 @@ func (svc *Service) BatchScriptExecutionList(ctx context.Context, filter fleet.B
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: filter.TeamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	summaryList, err := svc.ds.BatchExecuteStatus(ctx, filter)
+	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, filter)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get batch script list")
 	}
