@@ -406,6 +406,8 @@ Gets the current SSO configuration.
 
 `POST /api/v1/fleet/sso`
 
+A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that needs to be sent on the `POST /api/v1/fleet/sso/callback` request (this HTTP cookie is used to identify the SSO login session).
+
 #### Parameters
 
 | Name      | Type   | In   | Description                                                                 |
@@ -427,6 +429,11 @@ Gets the current SSO configuration.
 ##### Default response
 
 `Status: 200`
+
+Example response cookie in the HTTP `Set-Cookie` header:
+```
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=300; HttpOnly; Secure
+```
 
 ##### Unknown error
 
@@ -450,11 +457,15 @@ This is the callback endpoint that the identity provider will use to send securi
 
 `POST /api/v1/fleet/sso/callback`
 
+The `__Host-FLEETSSOSESSIONID` HTTP cookie must be set for non-IdP initiated SSO login requests. The value for this cookie is returned in the `POST /api/v1/fleet/sso` request.
+For IdP-initiated SSO logins the cookie doesn't need to be set.
+
 #### Parameters
 
-| Name         | Type   | In   | Description                                                 |
-| ------------ | ------ | ---- | ----------------------------------------------------------- |
-| SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
+| Name                     | Type   | In     | Description                                                                                                         |
+| ------------------------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| SAMLResponse             | string | body   | **Required**. The SAML response from the identity provider.                                                         |
+| __Host-FLEETSSOSESSIONID | string | cookie | HTTP Cookie returned in the `POST /api/v1/fleet/sso` request. This is not set/required for IdP initiated SSO logins |
 
 #### Example
 
@@ -466,6 +477,11 @@ This is the callback endpoint that the identity provider will use to send securi
 {
   "SAMLResponse": "<SAML response from IdP>"
 }
+```
+
+Example session cookie set in the `Cookie` request header:
+```
+Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 ```
 
 ##### Default response

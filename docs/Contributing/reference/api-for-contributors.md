@@ -1052,6 +1052,8 @@ This endpoint initiates the SSO flow, the response contains an URL that the clie
 
 `POST /api/v1/fleet/mdm/sso`
 
+A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that needs to be sent on the `POST /api/v1/fleet/mdm/sso/callback` request (this HTTP cookie is used to identify the SSO login session).
+
 #### Parameters
 
 | Name | Type | In | Description |
@@ -1070,17 +1072,25 @@ This endpoint initiates the SSO flow, the response contains an URL that the clie
 }
 ```
 
+Example response cookie in the HTTP `Set-Cookie` header:
+```
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=300; HttpOnly; Secure
+```
+
 ### Complete SSO during DEP or Account Driven enrollment
 
 This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
 
 `POST /api/v1/fleet/mdm/sso/callback`
 
+The `__Host-FLEETSSOSESSIONID` HTTP cookie must be set for MDM SSO login requests. The value for this cookie is returned in the `POST /api/v1/fleet/mdm/sso` request.
+
 #### Parameters
 
-| Name         | Type   | In   | Description                                                 |
-| ------------ | ------ | ---- | ----------------------------------------------------------- |
-| SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
+| Name                     | Type   | In     | Description                                                                                                         |
+| ------------------------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| SAMLResponse             | string | body   | **Required**. The SAML response from the identity provider.                                                         |
+| __Host-FLEETSSOSESSIONID | string | cookie | **Required**. HTTP Cookie returned in the `POST /api/v1/fleet/mdm/sso` request.                                     |
 
 #### Example
 
@@ -1092,6 +1102,11 @@ This is the callback endpoint that the identity provider will use to send securi
 {
   "SAMLResponse": "<SAML response from IdP>"
 }
+```
+
+Example session cookie set in the `Cookie` request header:
+```
+Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 ```
 
 ##### Default response
