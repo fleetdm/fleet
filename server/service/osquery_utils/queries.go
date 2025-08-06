@@ -1351,9 +1351,66 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			return mainSoftwareResults
 		},
 	},
+	// deb_last_opened_at collects last opened at information from DEB package files on Linux
+	// hosts. Joining this within the main software query is not performant enough to do on the
+	// device, so we do it on the server instead.
+	"deb_last_opened_at": {
+		Query: `
+		SELECT package, MAX(atime) AS last_opened_at
+		FROM deb_package_files 
+		CROSS JOIN file USING (path) 
+		WHERE type = 'regular' AND regex_match(file.mode, '[1357]', 0)
+		GROUP BY package
+	`,
+		Description:            "A software override query[^1] to append last_opened_at information to Linux DEB software entries.",
+		Platforms:              fleet.HostLinuxOSs,
+		Discovery:              discoveryTable("deb_package_files"),
+		SoftwareProcessResults: processPackageLastOpenedAt,
+	},
+	// rpm_last_opened_at collects last opened at information from RPM package files on Linux
+	// hosts. Joining this within the main software query is not performant enough to do on the
+	// device, so we do it on the server instead.
+	"rpm_last_opened_at": {
+		Query: // rpm_package_files has a mode column that allows an optimization by filtering before joining to the file table
+		`
+		SELECT package, MAX(atime) AS last_opened_at
+		FROM (SELECT package, path FROM rpm_package_files WHERE regex_match(mode, '[1357]', 0))
+		CROSS JOIN file USING (path)
+		WHERE type = 'regular'
+		GROUP BY package
+	`,
+		Description:            "A software override query[^1] to append last_opened_at information to Linux RPM software entries.",
+		Platforms:              fleet.HostLinuxOSs,
+		Discovery:              discoveryTable("rpm_package_files"),
+		SoftwareProcessResults: processPackageLastOpenedAt,
+	},
 }
 
-// Convert the strings to integers and return the larger one.
+// processPackageLastOpenedAt is a shared function that processes package last_opened_at information
+// for both DEB and RPM packages. It takes the expected source name as a parameter.
+func processPackageLastOpenedAt(mainSoftwareResults, pkgFileResults []map[string]string) []map[string]string {
+	if len(pkgFileResults) == 0 {
+		return mainSoftwareResults
+	}
+
+	// Create a map of package name to last_opened_at for quick lookup
+	packageLastOpened := make(map[string]string)
+	for _, result := range pkgFileResults {
+		packageLastOpened[result["package"]] = result["last_opened_at"]
+	}
+
+	for _, result := range mainSoftwareResults {
+		packageName := result["name"]
+		if lastOpened, exists := packageLastOpened[packageName]; exists {
+			// Some packages will have multiple file entries, so we compare the last_opened_at
+			// values and keep the more recent.
+			result["last_opened_at"] = maxString(result["last_opened_at"], lastOpened)
+		}
+	}
+
+	return mainSoftwareResults
+}
+
 func maxString(a, b string) string {
 	intA, _ := strconv.Atoi(a)
 	intB, _ := strconv.Atoi(b)
