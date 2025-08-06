@@ -1719,6 +1719,12 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 	return nil
 }
 
+const linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
+const amazonLinuxKernelName = "kernel"
+const rhelKernelName = "kernel-core"
+
+var kernelRegex = regexp.MustCompile(linuxImageRegex)
+
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
 	sPaths := map[string]struct{}{}
@@ -1754,6 +1760,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 				"err", err,
 			)
 			continue
+		}
+
+		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == amazonLinuxKernelName || s.Name == rhelKernelName) {
+			s.IsKernel = true
 		}
 
 		MutateSoftwareOnIngestion(s, logger)

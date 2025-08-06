@@ -424,7 +424,7 @@ func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 	updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.bundle_identifier = ?`
 
 	hostSoftwareStmt := `
-		INSERT IGNORE INTO host_software 
+		INSERT IGNORE INTO host_software
 			(host_id, software_id, last_opened_at)
 		VALUES
 			(?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1), ?)`
@@ -820,9 +820,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					titleID = &title.ID
 				} else if _, ok := newTitlesNeeded[checksum]; !ok {
 					st := fleet.SoftwareTitle{
-						Name:    sw.Name,
-						Source:  sw.Source,
-						Browser: sw.Browser,
+						Name:     sw.Name,
+						Source:   sw.Source,
+						Browser:  sw.Browser,
+						IsKernel: sw.IsKernel,
 					}
 
 					if sw.BundleIdentifier != "" {
@@ -843,14 +844,14 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			// Insert into software_titles
 			totalTitlesToProcess := len(newTitlesNeeded)
 			if totalTitlesToProcess > 0 {
-				const numberOfArgsPerSoftwareTitles = 4 // number of ? in each VALUES clause
-				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", totalTitlesToProcess), ",")
+				const numberOfArgsPerSoftwareTitles = 5 // number of ? in each VALUES clause
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", totalTitlesToProcess), ",")
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
-				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel) VALUES %s", titlesValues)
 				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
 				titleChecksums := make([]string, 0, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
-					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier)
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel)
 					titleChecksums = append(titleChecksums, checksum)
 				}
 				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
@@ -2063,8 +2064,8 @@ DELETE st FROM software_titles st
 				id DESC
 			LIMIT 1
 		)
-		WHERE 
-			st.bundle_identifier IS NOT NULL AND 
+		WHERE
+			st.bundle_identifier IS NOT NULL AND
 			st.bundle_identifier != '' AND
 			s.name_source = 'bundle_4.67'
 		`
@@ -2426,7 +2427,7 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			software.source AS software_source,
 			software.version AS version,
 			software.bundle_identifier AS bundle_identifier
-		FROM 
+		FROM
 			host_software
 		INNER JOIN
 			software ON host_software.software_id = software.id
@@ -3900,7 +3901,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			FROM
 				software_titles
 			LEFT JOIN
-				software_installers ON software_titles.id = software_installers.title_id 
+				software_installers ON software_titles.id = software_installers.title_id
 				AND software_installers.global_or_team_id = :global_or_team_id
 			LEFT JOIN
 				software ON software_titles.id = software.title_id ` + installedSoftwareJoinsCondition + `

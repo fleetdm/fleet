@@ -2155,7 +2155,7 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	for i := range osVersions.OSVersions {
-		if err := svc.populateOSVersionDetails(ctx, &osVersions.OSVersions[i], includeCVSS); err != nil {
+		if err := svc.populateOSVersionDetails(ctx, &osVersions.OSVersions[i], includeCVSS, teamID, false); err != nil {
 			return nil, count, nil, err
 		}
 	}
@@ -2269,7 +2269,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	}
 
 	if osVersion != nil {
-		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
+		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS, teamID, true); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -2278,7 +2278,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 }
 
 // PopulateOSVersionDetails populates the GeneratedCPEs and Vulnerabilities for an OSVersion.
-func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool) error {
+func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool, teamID *uint, includeKernels bool) error {
 	// Populate GeneratedCPEs
 	if osVersion.Platform == "darwin" {
 		osVersion.GeneratedCPEs = []string{
@@ -2294,10 +2294,21 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 	}
 
 	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
+	osVersion.Kernels = make([]*fleet.Kernel, 0)               // avoid null in JSON
 	for _, vuln := range vulns {
 		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
 		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
+
 	}
+
+	if fleet.IsLinux(osVersion.Platform) && includeKernels {
+		kernels, err := svc.ds.ListKernelsByOS(ctx, osVersion.OSVersionID, teamID)
+		if err != nil {
+			return err
+		}
+		osVersion.Kernels = kernels
+	}
+
 	return nil
 }
 

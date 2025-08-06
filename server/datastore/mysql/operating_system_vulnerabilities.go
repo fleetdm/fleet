@@ -42,6 +42,23 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 			JOIN operating_systems os ON os.id = osv.operating_system_id
 				AND os.name = ? AND os.version = ?
 			GROUP BY osv.cve
+
+			UNION
+
+			SELECT DISTINCT
+				software_cve.cve,
+				MIN(software_cve.created_at) created_at
+			FROM
+				software_cve
+				JOIN software ON software.id = software_cve.software_id
+				JOIN software_titles ON software_titles.id = software.title_id
+				JOIN host_software ON host_software.software_id = software.id
+				JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
+				JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
+			WHERE
+				operating_systems.name = ? AND operating_systems.version = ? AND software_titles.is_kernel = TRUE
+			GROUP BY software_cve.cve
+
 			`
 
 	if includeCVSS {
@@ -68,12 +85,29 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				JOIN operating_systems os ON os.id = v.operating_system_id
 					AND os.name = ? AND os.version = ?
 				GROUP BY v.cve
+
+				UNION
+
+				SELECT DISTINCT
+					software_cve.cve,
+					MIN(software_cve.created_at) created_at,
+					GROUP_CONCAT(DISTINCT software_cve.resolved_in_version SEPARATOR ',') resolved_in_version
+				FROM
+					software_cve
+					JOIN software ON software.id = software_cve.software_id
+					JOIN software_titles ON software_titles.id = software.title_id
+					JOIN host_software ON host_software.software_id = software.id
+					JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
+					JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
+				WHERE
+					operating_systems.name = ? AND operating_systems.version = ? AND software_titles.is_kernel = TRUE
+				GROUP BY software_cve.cve
 			) osv
 			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
 			`
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, name, version); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, name, version, name, version); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
@@ -167,4 +201,73 @@ func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src f
 		return ctxerr.Wrap(ctx, err, "deleting out of date operating system vulnerabilities")
 	}
 	return nil
+}
+
+func (ds *Datastore) ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error) {
+	var kernels []*fleet.Kernel
+	stmt := `
+SELECT DISTINCT
+	software.id AS id,
+	software_cve.cve AS cve,
+	software.version AS version,
+    software_host_counts.hosts_count AS hosts_count
+FROM
+	software
+	LEFT JOIN software_cve ON software.id = software_cve.software_id
+	JOIN software_titles ON software_titles.id = software.title_id
+	JOIN host_software ON host_software.software_id = software.id
+	JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
+	JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
+    JOIN software_host_counts ON software_host_counts.software_id = software.id
+WHERE
+	software_titles.is_kernel = TRUE AND
+	operating_systems.os_version_id = ? AND
+    software_host_counts.team_id = ? %s
+	`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var globalStatsFilter string
+	if tmID == 0 {
+		globalStatsFilter = "AND software_host_counts.global_stats = 0"
+	}
+
+	stmt = fmt.Sprintf(stmt, globalStatsFilter)
+
+	var results []struct {
+		ID         uint    `db:"id"`
+		CVE        *string `db:"cve"`
+		Version    string  `db:"version"`
+		HostsCount uint    `db:"hosts_count"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, osID, tmID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing kernels by OS name")
+	}
+
+	kernelSet := make(map[uint]*fleet.Kernel)
+	for _, result := range results {
+		k, ok := kernelSet[result.ID]
+		if !ok {
+			kernel := &fleet.Kernel{
+				ID:         result.ID,
+				Version:    result.Version,
+				HostsCount: result.HostsCount,
+			}
+
+			kernelSet[kernel.ID] = kernel
+			k = kernel
+		}
+
+		if result.CVE != nil {
+			k.Vulnerabilities = append(k.Vulnerabilities, *result.CVE)
+		}
+
+	}
+	for _, kernel := range kernelSet {
+		kernels = append(kernels, kernel)
+	}
+	return kernels, nil
 }
