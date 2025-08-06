@@ -67,7 +67,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			vulnsByKernelVersion: map[string][]string{
 				"6.11.4": {"CVE-2025-0007"},
 			},
-			os: fleet.OperatingSystem{Name: "kernel-core", Version: "41.0.0", Arch: "aarch64", KernelVersion: "6.11.4-301.fc41.aarch64", Platform: "rhel"},
+			os: fleet.OperatingSystem{Name: "Fedora Linux", Version: "41.0.0", Arch: "aarch64", KernelVersion: "6.11.4-301.fc41.aarch64", Platform: "rhel"},
 		},
 	}
 
