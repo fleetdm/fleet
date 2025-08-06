@@ -48,11 +48,6 @@ func TestUp_20250729143159(t *testing.T) {
 			shouldBeKernel: true,
 		},
 		{
-			name:           "amazon linux kernel",
-			titleID:        amazonKernelID,
-			shouldBeKernel: true,
-		},
-		{
 			name:           "other linux title",
 			titleID:        otherLinuxAppID,
 			shouldBeKernel: false,

@@ -52,10 +52,10 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 		{
 			name:     "amazon linux",
 			host:     test.NewHost(t, s.ds, "host_amzn2023", "", "hostkey_amzn2023", "hostuuid_amzn2023", time.Now(), test.WithPlatform("fedora")),
-			software: []fleet.Software{{Name: "Amazon Linux", Version: "2023", Arch: "x86_64", Source: "rpm_packages", IsKernel: true}},
+			software: []fleet.Software{{Name: "kernel", Version: "6.1.144", Arch: "x86_64", Source: "rpm_packages", IsKernel: true}},
 			vulns:    []fleet.SoftwareVulnerability{{CVE: "CVE-2025-0006"}},
 			vulnsByKernelVersion: map[string][]string{
-				"2023": {"CVE-2025-0006"},
+				"6.1.144": {"CVE-2025-0006"},
 			},
 			os: fleet.OperatingSystem{Name: "Amazon Linux", Version: "2023.0.0", Arch: "x86_64", KernelVersion: "6.1.144-170.251.amzn2023.x86_64", Platform: "amzn"},
 		},
@@ -67,7 +67,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			vulnsByKernelVersion: map[string][]string{
 				"6.11.4": {"CVE-2025-0007"},
 			},
-			os: fleet.OperatingSystem{Name: "Fedora Linux", Version: "41.0.0", Arch: "aarch64", KernelVersion: "6.11.4-301.fc41.aarch64", Platform: "rhel"},
+			os: fleet.OperatingSystem{Name: "kernel-core", Version: "41.0.0", Arch: "aarch64", KernelVersion: "6.11.4-301.fc41.aarch64", Platform: "rhel"},
 		},
 	}
 
@@ -100,7 +100,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			_, err = s.ds.UpsertSoftwareCPEs(ctx, cpes)
 			require.NoError(t, err)
 
-			// Reload software so that 'GeneratedCPEID is set.
+			// Reload software so that GeneratedCPEID is set.
 			require.NoError(t, s.ds.LoadHostSoftware(ctx, tt.host, false))
 
 			var vulnsToInsert []fleet.SoftwareVulnerability

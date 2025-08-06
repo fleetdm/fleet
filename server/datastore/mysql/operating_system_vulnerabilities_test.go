@@ -402,10 +402,10 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			name:     "amazon linux with team",
 			team:     true,
 			host:     test.NewHost(t, ds, "host_amzn2023", "", "hostkey_amzn2023", "hostuuid_amzn2023", time.Now(), test.WithPlatform("fedora")),
-			software: []fleet.Software{{Name: "Amazon Linux", Version: "2023", Arch: "x86_64", Source: "rpm_packages", IsKernel: true}},
+			software: []fleet.Software{{Name: "kernel", Version: "6.1.144", Arch: "x86_64", Source: "rpm_packages", IsKernel: true}},
 			vulns:    []fleet.SoftwareVulnerability{{CVE: "CVE-2025-0006"}},
 			vulnsByKernelVersion: map[string][]string{
-				"2023": {"CVE-2025-0006"},
+				"6.1.144": {"CVE-2025-0006"},
 			},
 			os: fleet.OperatingSystem{Name: "Amazon Linux", Version: "2023.0.0", Arch: "x86_64", KernelVersion: "6.1.144-170.251.amzn2023.x86_64", Platform: "amzn"},
 		},
