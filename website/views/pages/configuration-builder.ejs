@@ -43,13 +43,19 @@
         <p class="mb-0">Choose an operating system to continue.</p>
         <ajax-form :handle-submitting="handleSubmittingPlatformSelectForm" :form-errors.sync="formErrors" :form-data="platformSelectFormData" :form-rules="platformSelectFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
           <div purpose="platforms" id="platform" class="d-flex flex-row">
-            <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'macos' ? 'selected' : '' ]"  style="margin-right: 10px;" @click="platformSelectFormData.platform = 'macos'">
+            <div purpose="platform-button" class="mb-3" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'macos' ? 'selected' : '' ]"  style="margin-right: 10px;" @click="platformSelectFormData.platform = 'macos'">
               <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
               macOS
             </div>
-            <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'windows' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'windows'">
+            <div purpose="platform-button" class="mb-0" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'windows' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'windows'">
               <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
               Windows
+            </div>
+          </div>
+          <div purpose="platforms" id="platform" class="d-flex flex-row">
+            <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'android' ? 'selected' : '' ]" class="mt-0"  @click="platformSelectFormData.platform = 'android'">
+              <img src="/images/icon-android-16x16@2x.png" alt="Android" class="d-inline">
+              Android
             </div>
           </div>
           <div class="invalid-feedback" v-if="formErrors.platform">Please select an option</div>
@@ -82,6 +88,14 @@
         </div>
         <div purpose="category-options" v-if="selectedPlatform === 'macos'">
           <div v-for="category in macosCategoriesAndPayloads">
+            <a @click="clickExpandCategory(category.categorySlug)" :class="[expandedCategory === category.categorySlug ? 'selected' : '' ]" >{{category.categoryName}}</a>
+            <div purpose="subcategories" v-if="expandedCategory === category.categorySlug">
+              <a @click="clickSelectPayloadCategory(subcategory)" v-for="subcategory in category.subcategories">{{subcategory.subcategoryName}}</a>
+            </div>
+          </div>
+        </div>
+        <div purpose="category-options" v-if="selectedPlatform === 'android'">
+          <div v-for="category in androidCategoriesAndPayloads">
             <a @click="clickExpandCategory(category.categorySlug)" :class="[expandedCategory === category.categorySlug ? 'selected' : '' ]" >{{category.categoryName}}</a>
             <div purpose="subcategories" v-if="expandedCategory === category.categorySlug">
               <a @click="clickSelectPayloadCategory(subcategory)" v-for="subcategory in category.subcategories">{{subcategory.subcategoryName}}</a>
@@ -354,6 +368,11 @@
             <label for="profile-uuid">UUID <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="A unique identifier for this payload, used to track and update the payload during profile replacements. Must be globally unique."></label>
             <input type="text" :class="[formErrors.uuid ? 'is-invalid' : '']" class="form-control" id="uuid" v-model="downloadProfileFormData.uuid">
             <div class="invalid-feedback">Please enter a UUID for this profile.</div>
+          </div>
+          <div purpose="modal-form-option" v-if="selectedPlatform === 'android'">
+            <label for="profile-version">Version</label>
+            <input type="text" :class="[formErrors.version ? 'is-invalid' : '']" class="form-control" id="version" v-model="downloadProfileFormData.version">
+            <div class="invalid-feedback">Please enter a version for this profile.</div>
           </div>
           <div purpose="modal-form-option"  v-if="selectedPlatform === 'macos'">
             <label for="profile-description">Description <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="A unique identifier for this payload, used to track and update the payload during profile replacements. Must be globally unique."></label>

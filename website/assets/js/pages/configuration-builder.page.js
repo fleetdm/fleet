@@ -65,7 +65,7 @@ parasails.registerPage('configuration-builder', {
     downloadProfileFormData: {},
     profileFilename: undefined,
     profileDescription: undefined,
-    // mac OS payloads.
+    // macOS payloads.
     macosCategoriesAndPayloads: [
       {
         categoryName: 'Privacy & security',
@@ -92,8 +92,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'forcePIN',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -111,8 +109,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'allowSimple',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
@@ -2681,6 +2677,394 @@ parasails.registerPage('configuration-builder', {
         ],
       }
     ],
+    // Android payloads
+    androidCategoriesAndPayloads: [
+      {
+        categoryName: 'Privacy & security',
+        categorySlug: 'android-privacy-and-security',
+        subcategories: [
+          {
+            subcategoryName: 'Device lock',
+            subcategorySlug: 'android-device-lock',
+            description: 'Settings related to screen lock and passwords.',
+            learnMoreLinkUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
+            payloads: [
+              {
+                name: 'Max inactivity time before device locks',
+                uniqueSlug: 'android-max-inactivity',
+                tooltip: 'Maximum time in milliseconds for user activity until the device locks. A value of 0 means there is no restriction.',
+                category: 'Device lock',
+                payloadGroup: 'Screen lock',// determines the
+
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'milliseconds'
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'maximumTimeToLock',
+                },
+              },
+              {
+                name: 'Password history length',
+                uniqueSlug: 'android-min-password-numeric',
+                tooltip: `The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'characters'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'PasswordRequirements.passwordHistoryLength',
+                },
+              },
+              {
+                name: 'Maximum number of failed attempts before device locks.',
+                uniqueSlug: 'android-password-max-failed-attempts',
+                tooltip: `Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'characters'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'PasswordRequirements.maximumFailedPasswordsForWipe',
+                },
+              },
+              {
+                name: 'Password scope',
+                uniqueSlug: 'android-password-scope',
+                tooltip: `The scope that the password requirement applies to.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'SCOPE_UNSPECIFIED'
+                    },
+                    {
+                      name: 'Device',
+                      value: 'SCOPE_DEVICE'
+                    },
+                    {
+                      name: 'Work profile',
+                      value: 'SCOPE_PROFILE',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'PasswordRequirements.passwordScope',
+                },
+              },
+              {
+                name: 'Amount of time after unlocking before a password is required again',
+                uniqueSlug: 'android-password-scope',
+                tooltip: `The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED'
+                    },
+                    {
+                      name: `Device's default`,
+                      value: 'USE_DEFAULT_DEVICE_TIMEOUT'
+                    },
+                    {
+                      name: 'Every 24 hours',
+                      value: 'REQUIRE_EVERY_DAY',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'PasswordRequirements.requirePasswordUnlock',
+                },
+              },
+              {
+                name: 'Enforce password complexity',
+                uniqueSlug: 'android-password-complexity',
+                tooltip: 'The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when passwordQuality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'The device must be secured with a low-security biometric recognition technology, at minimum. This includes technologies that can recognize the identity of an individual that are roughly equivalent to a 3-digit PIN',
+                      value: 'BIOMETRIC_WEAK'
+                    },
+                    {
+                      name: 'A password is required, but there are no restrictions on what the password must contain.',
+                      value: 'SOMETHING'
+                    },
+                    {
+                      name: 'The password must contain numeric characters.',
+                      value: 'NUMERIC',
+                    },
+                    {
+                      name: 'The password must contain numeric characters with no repeating (4444) or ordered (1234, 4321, 2468) sequences.',
+                      value: 'NUMERIC_COMPLEX',
+                    },
+                    {
+                      name: 'The password must contain alphabetic (or symbol) characters.',
+                      value: 'ALPHABETIC',
+                    },
+                    {
+                      name: 'The password must contain both numeric and alphabetic (or symbol) characters.',
+                      value: 'ALPHANUMERIC',
+                    },
+                    {
+                      name: 'The password must contain both numeric and alphabetic (or symbol) characters.',
+                      value: 'COMPLEX',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'PasswordRequirements.passwordQuality',
+                },
+              },
+              {
+                name: 'Minimum password length',
+                uniqueSlug: 'android-min-password-length',
+                tooltip: 'The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when passwordQuality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'characters'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'PasswordRequirements.passwordMinimumLength',
+                },
+              },
+              {
+                name: 'Minimum number of letters in password',
+                uniqueSlug: 'android-min-password-letters',
+                tooltip: 'Minimum number of letters required in the password. Only enforced when passwordQuality is COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'letters'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'PasswordRequirements.passwordMinimumLetters',
+                },
+              },
+              {
+                name: 'Minimum number of lower case letters in password',
+                uniqueSlug: 'android-min-password-letters-lower-case',
+                tooltip: 'Minimum number of lower case letters required in the password. Only enforced when passwordQuality is COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'lower case letters'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'PasswordRequirements.passwordMinimumLowerCase',
+                },
+              },
+              {
+                name: 'Minimum number of upper case letters in password',
+                uniqueSlug: 'android-min-password-letters-upper-case',
+                tooltip: 'Minimum number of upper case letters required in the password. Only enforced when passwordQuality is COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'lower case letters'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'PasswordRequirements.passwordMinimumUpperCase',
+                },
+              },
+              {
+                name: 'Minimum number of non-letter characters in password',
+                uniqueSlug: 'android-min-password-non-letters',
+                tooltip: 'Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when passwordQuality is COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'characters'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'PasswordRequirements.passwordMinimumNonLetter',
+                },
+              },
+              {
+                name: 'Minimum number of numerical digits in password',
+                uniqueSlug: 'android-min-password-numeric',
+                tooltip: 'Minimum number of numerical digits required in the password. Only enforced when passwordQuality is COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'digits'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'PasswordRequirements.passwordMinimumNumeric',
+                },
+              },
+              {
+                name: 'Minimum number of symbols in password',
+                uniqueSlug: 'android-min-password-numeric',
+                tooltip: 'Minimum number of symbols required in the password. Only enforced when passwordQuality is COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'characters'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'PasswordRequirements.passwordMinimumSymbols',
+                },
+              },
+            ],
+          },
+        ]
+      },
+      {
+        categoryName: 'Software & updates',
+        categorySlug: 'android-software-and-updates',
+        subcategories: [
+          {
+            subcategoryName: 'Applications',
+            subcategorySlug: 'android-applications',
+            description: 'Settings related to Applications and the Google play store on Android devices.',
+            learnMoreLinkUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
+            payloads: [
+              {
+                name: 'Apply device-wide app update policy',
+                uniqueSlug: 'android-app-auto-update-policy',
+                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'APP_AUTO_UPDATE_POLICY_UNSPECIFIED'
+                    },
+                    {
+                      name: 'The user can control auto-updates.',
+                      value: 'CHOICE_TO_THE_USER'
+                    },
+                    {
+                      name: 'Apps are never auto-updated',
+                      value: 'NEVER',
+                    },
+                    {
+                      name: 'Apps are auto-updated over Wi-Fi only.',
+                      value: 'WIFI_ONLY',
+                    },
+                    {
+                      name: 'Apps are auto-updated at any time.',
+                      value: 'ALWAYS',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'AppAutoUpdatePolicy',
+                },
+              },
+              {
+                name: 'Disable app installation',
+                uniqueSlug: 'android-disable-app-install',
+                tooltip: `Whether user installation of apps is disabled.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'AppAutoUpdatePolicy',
+                },
+              },
+              {
+                name: 'Allow installation of untrusted applications',
+                uniqueSlug: 'android-untrusted-apps',
+                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'UNTRUSTED_APPS_POLICY_UNSPECIFIED'
+                    },
+                    {
+                      name: 'Disallow untrusted app installs on entire device.',
+                      value: 'DISALLOW_INSTALL'
+                    },
+                    {
+                      name: 'For devices with work profiles, allow untrusted app installs in the device\'s personal profile only.',
+                      value: 'ALLOW_INSTALL_IN_PERSONAL_PROFILE_ONLY',
+                    },
+                    {
+                      name: 'Allow untrusted app installs on entire device.',
+                      value: 'ALLOW_INSTALL_DEVICE_WIDE',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'AdvancedSecurityOverrides.untrustedAppsPolicy',
+                },
+              },
+              {
+                name: 'Enforce Google Play protect verification',
+                uniqueSlug: 'android-google-play-protect',
+                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'GOOGLE_PLAY_PROTECT_VERIFY_APPS_UNSPECIFIED'
+                    },
+                    {
+                      name: 'Force-enables app verification.',
+                      value: 'VERIFY_APPS_ENFORCED'
+                    },
+                    {
+                      name: 'Allows the user to choose whether to enable app verification.',
+                      value: 'VERIFY_APPS_USER_CHOICE',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'AdvancedSecurityOverrides.untrustedAppsPolicy',
+                },
+              },
+            ]
+          }
+        ]
+      }
+    ]
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -2727,6 +3111,8 @@ parasails.registerPage('configuration-builder', {
           await this.buildWindowsProfile(this.selectedPayloads);
         } else if(this.selectedPlatform === 'macos') {
           await this.buildMacOSProfile(this.selectedPayloads);
+        } else if(this.selectedPlatform === 'android') {
+          await this.buildAndroidProfile(this.selectedPayloads);
         }
       }
     },
@@ -2739,6 +3125,24 @@ parasails.registerPage('configuration-builder', {
       } else if(this.selectedPlatform === 'macos') {
         await this.buildMacOSProfile(this.selectedPayloads);
       }
+    },
+    buildAndroidProfile: function(selectedPayloads) {
+      let thisProfile = {
+        name: this.downloadProfileFormData.name,
+        version: this.downloadProfileFormData.version,
+      };
+      let payloadsToUse = _.clone(selectedPayloads);
+      for(let payload of payloadsToUse ){
+        _.set(thisProfile, payload.formOutput.settingTargetPath, this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
+
+      }
+      let profileDownloadUrl = URL.createObjectURL(new Blob([JSON.stringify(thisProfile)], { type: 'text/json;' }));
+      let exportDownloadLink = document.createElement('a');
+      exportDownloadLink.href = profileDownloadUrl;
+      exportDownloadLink.download = `${this.downloadProfileFormData.name}.json`;
+      exportDownloadLink.click();
+      URL.revokeObjectURL(profileDownloadUrl);
+      this.syncing = false;
     },
     buildWindowsProfile: function(payloadsToUse) {
       let xmlString = '';
@@ -2936,7 +3340,7 @@ parasails.registerPage('configuration-builder', {
     },
     // When users click the download all button.
     handleSubmittingConfigurationBuilderForm: function() {
-      if(_.keysIn(this.selectedPayloadsGroupedByCategory).length > 1) {
+      if(_.keysIn(this.selectedPayloadsGroupedByCategory).length > 1 && this.selectedPlatform !== 'android') {
         // If there is more than one payload in this profile, show a warning in a modal.
         this.modal = 'multiple-payloads-selected';
       } else {
@@ -2953,7 +3357,7 @@ parasails.registerPage('configuration-builder', {
     },
     openDownloadModal: function() {
       this.modal = 'download-profile';
-      if(this.selectedPlatform === 'macos'){
+      if(this.selectedPlatform === 'macos') {
         this.downloadProfileFormRules = {
           name: {required: true},
           uuid: {required: true},
@@ -2961,6 +3365,11 @@ parasails.registerPage('configuration-builder', {
         };
         // Generate a uuid to prefill for the download profile form.
         this.downloadProfileFormData.uuid = crypto.randomUUID();
+      } else if(this.selectedPlatform === 'android') {
+        this.downloadProfileFormRules = {
+          name: {required: true},
+          version: { required: true }
+        };
       }
       this._enableToolTips();
     },
@@ -3060,7 +3469,7 @@ parasails.registerPage('configuration-builder', {
         }
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
         this.selectedPayloadSettings[payloadSlug] = true;
-        // console.log(this.configurationBuilderFormData);
+
       } else {
         // Remove the payload option and all dependencies
         let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: payloadSlug});
