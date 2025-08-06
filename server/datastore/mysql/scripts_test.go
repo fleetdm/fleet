@@ -1949,7 +1949,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	// Update the batch to have a pending status
 	// TODO -- remove this when status is set automatically
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE batch_activities SET status = 'pending' WHERE execution_id = ?", execID)
+		_, err := tx.ExecContext(ctx, "UPDATE batch_activities SET status = 'scheduled' WHERE execution_id = ?", execID)
 		return err
 	})
 
@@ -2077,9 +2077,9 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, summary.NumRan, uint(1))
 	require.Equal(t, summary.NumCanceled, uint(1))
 
-	// The summary should be returned when filtering by status "pending".
+	// The summary should be returned when filtering by status "scheduled".
 	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
-		Status: ptr.String("pending"),
+		Status: ptr.String("scheduled"),
 	})
 	require.NoError(t, err)
 	require.Len(t, *summaryList, 1)
