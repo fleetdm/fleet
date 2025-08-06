@@ -91,6 +91,34 @@
     }
   }
 
+  /* Ensures table doesn't bleed over 100% */
+  .data-table__table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  /* Override any defaults for fixed column width */
+  .data-table__table th.ui_status__header,
+  .data-table__table td.ui_status__cell {
+    width: 140px;
+    max-width: 140px;
+    min-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Override any defaults for fixed column width */
+  .data-table__table th.status__header,
+  .data-table__table td.status__cell {
+    width: 230px;
+    max-width: 230px;
+    min-width: 230px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .data-table-block .data-table tbody {
     .self-service-table__item-action {
       min-width: 82px; // Second action buttons align between rows
