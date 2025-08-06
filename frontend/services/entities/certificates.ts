@@ -34,7 +34,23 @@ export type IEditCertAuthorityBody =
 export default {
   getCertificateAuthoritiesList: (): Promise<IGetCertAuthoritiesListResponse> => {
     const { CERTIFICATE_AUTHORITIES } = endpoints;
-    return sendRequest("GET", CERTIFICATE_AUTHORITIES);
+    // return sendRequest("GET", CERTIFICATE_AUTHORITIES);
+    return new Promise((resolve) => {
+      resolve([
+        {
+          id: 1,
+          name: "Example CA",
+          type: "ndes_scep_proxy",
+        },
+        {
+          id: 2,
+          name: "DigiCert CA",
+          type: "digicert",
+        },
+        { id: 3, name: "Custom SCEP CA", type: "custom_scep_proxy" },
+        { id: 4, name: "Hydrant CA", type: "hydrant" },
+      ]);
+    });
   },
 
   getCertificateAuthority: (id: number): Promise<IGetCertAuthorityResponse> => {
