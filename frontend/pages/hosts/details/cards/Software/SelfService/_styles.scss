@@ -12,6 +12,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: $pad-medium;
 
     .button {
       margin-bottom: $pad-large;
@@ -29,25 +30,34 @@
 
   &__items {
     display: grid;
+
+    // Small screens (default)
     grid-template-columns: repeat(
       2,
-      1fr
-    ); // default: 2 cards (smallest screens)
+      minmax(250px, 1fr)
+    ); // 2 cards, max ensures long name truncation
     gap: $pad-large;
 
-    @media (min-width: $break-xs) {
-      grid-template-columns: repeat(3, 1fr); // 3 cards (medium screens)
+    // Medium screens
+    @media (min-width: $break-sm) {
+      grid-template-columns: repeat(
+        3,
+        minmax(220px, 1fr)
+      ); // 3 cards, max ensures long name truncation
     }
 
+    // Large screens
     @media (min-width: $break-lg) {
-      grid-template-columns: repeat(4, 1fr); // 4 cards (large screens)
+      grid-template-columns: repeat(
+        4,
+        minmax(250px, 1fr)
+      ); // 4 cards, max ensures long name truncation
     }
   }
 
   &__table {
     display: flex;
     flex-direction: row;
-    gap: $pad-large;
 
     > *:nth-child(2) {
       flex-grow: 1;
@@ -81,6 +91,34 @@
     }
   }
 
+  /* Ensures table doesn't bleed over 100% */
+  .data-table__table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  /* Override any defaults for fixed column width */
+  .data-table__table th.ui_status__header,
+  .data-table__table td.ui_status__cell {
+    width: 140px;
+    max-width: 140px;
+    min-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Override any defaults for fixed column width */
+  .data-table__table th.status__header,
+  .data-table__table td.status__cell {
+    width: 230px;
+    max-width: 230px;
+    min-width: 230px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .data-table-block .data-table tbody {
     .self-service-table__item-action {
       min-width: 82px; // Second action buttons align between rows
@@ -95,7 +133,8 @@
     display: none;
   }
 
-  @media (min-width: $break-md) {
+  // Custom breakpoint to fit table with categories
+  @media (min-width: 1070px) {
     .categories-menu {
       display: flex;
     }
