@@ -13,7 +13,5 @@ reviews:
   collapse_walkthrough: false
   auto_review:
     enabled: false
-    drafts: false
 chat:
   auto_reply: false
-  
