@@ -208,6 +208,14 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 		return
 	}
 
+	// Check if pool is nil to prevent panic
+	if h.pool == nil {
+		if h.testOnStore != nil {
+			h.testOnStore(fmt.Errorf("redis pool is nil"))
+		}
+		return
+	}
+
 	// not using a connection that follows redirections here
 	// in order to do pipeline commands
 	conn := h.pool.Get()
