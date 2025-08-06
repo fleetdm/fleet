@@ -2536,3 +2536,143 @@ func TestWindowsLastOpenedAt(t *testing.T) {
 		}
 	}
 }
+
+func TestDebLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["deb_last_opened_at"].SoftwareProcessResults
+	debPackageResults := []map[string]string{
+		{"package": "accountsservice", "last_opened_at": "1753287489"},
+		{"package": "acl", "last_opened_at": "1752178409"},
+		{"package": "adduser", "last_opened_at": "1753287887"},
+		{"package": "alsa-base", "last_opened_at": "1752178572"},
+		{"package": "alsa-utils", "last_opened_at": "1753806108"},
+		{"package": "anacron", "last_opened_at": "1754439481"},
+		{"package": "apg", "last_opened_at": "1752178498"},
+		{"package": "apparmor", "last_opened_at": "1753978475"},
+		{"package": "apport", "last_opened_at": "1754439481"},
+		{"package": "apport-core-dump-handler", "last_opened_at": "1752791628"},
+		{"package": "apport-gtk", "last_opened_at": "1752791824"},
+		{"package": "appstream", "last_opened_at": "1754361022"},
+		{"package": "apt", "last_opened_at": "1754439481"},
+		{"package": "apt-file", "last_opened_at": "1753293736"},
+		{"package": "apt-utils", "last_opened_at": "1753978482"},
+		{"package": "aptdaemon", "last_opened_at": "1752791767"},
+		{"package": "aspell", "last_opened_at": "1752178619"},
+		{"package": "at-spi2-core", "last_opened_at": "1753806242"},
+		{"package": "avahi-daemon", "last_opened_at": "1753806108"},
+		{"package": "baobab", "last_opened_at": "1753806594"},
+	}
+	softwareResults := []map[string]string{
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "accountsservice", "source": "deb_packages", "vendor": "", "version": "23.13.9-2ubuntu6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "acl", "source": "deb_packages", "vendor": "", "version": "2.3.2-1build1.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "adduser", "source": "deb_packages", "vendor": "", "version": "3.137ubuntu1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "adwaita-icon-theme", "source": "deb_packages", "vendor": "", "version": "46.0-1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-base", "source": "deb_packages", "vendor": "", "version": "1.0.25+dfsg-0ubuntu7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-topology-conf", "source": "deb_packages", "vendor": "", "version": "1.2.5.1-2"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-ucm-conf", "source": "deb_packages", "vendor": "", "version": "1.2.10-1ubuntu5.7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-utils", "source": "deb_packages", "vendor": "", "version": "1.2.9-1ubuntu5"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "anacron", "source": "deb_packages", "vendor": "", "version": "2.3-39ubuntu2"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apg", "source": "deb_packages", "vendor": "", "version": "2.2.3.dfsg.1-5build3"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apparmor", "source": "deb_packages", "vendor": "", "version": "4.0.1really4.0.1-0ubuntu0.24.04.4"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport-core-dump-handler", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport-gtk", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport-symptoms", "source": "deb_packages", "vendor": "", "version": "0.25"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "appstream", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt", "source": "deb_packages", "vendor": "", "version": "2.8.3"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt-config-icons", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt-config-icons-hidpi", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt-file", "source": "deb_packages", "vendor": "", "version": "3.3"},
+		// Add some non-deb_packages software to test filtering
+		{"browser": "firefox", "extension_id": "test-extension", "installed_path": "", "name": "Firefox Extension", "source": "firefox_addons", "vendor": "", "version": "1.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "chrome-extension", "source": "chrome_extensions", "vendor": "", "version": "1.0"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, debPackageResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "deb_packages" {
+			// Last opened at should only be set for deb_packages
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "accountsservice" {
+			assert.Equal(t, "1753287489", software["last_opened_at"])
+		}
+
+		if software["name"] == "acl" {
+			assert.Equal(t, "1752178409", software["last_opened_at"])
+		}
+
+		if software["name"] == "adduser" {
+			assert.Equal(t, "1753287887", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-base" {
+			assert.Equal(t, "1752178572", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-utils" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "anacron" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apg" {
+			assert.Equal(t, "1752178498", software["last_opened_at"])
+		}
+
+		if software["name"] == "apparmor" {
+			assert.Equal(t, "1753978475", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-core-dump-handler" {
+			assert.Equal(t, "1752791628", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-gtk" {
+			assert.Equal(t, "1752791824", software["last_opened_at"])
+		}
+
+		if software["name"] == "appstream" {
+			assert.Equal(t, "1754361022", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-file" {
+			assert.Equal(t, "1753293736", software["last_opened_at"])
+		}
+
+		// Test packages that don't have last_opened_at data
+		if software["name"] == "adwaita-icon-theme" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-topology-conf" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-ucm-conf" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-symptoms" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-config-icons" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-config-icons-hidpi" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+	}
+}
