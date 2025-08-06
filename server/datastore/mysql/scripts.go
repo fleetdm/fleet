@@ -1913,13 +1913,14 @@ INSERT INTO batch_activity_host_results (
 func (ds *Datastore) BatchScheduleScript(ctx context.Context, scriptID uint, userID *uint, hostIDs []uint, notBefore time.Time) (string, error) {
 	batchExecID := uuid.New().String()
 
-	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, job_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?)`
+	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, job_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?, ?)`
 	const batchHostsStmt = `INSERT INTO batch_activity_host_results (batch_execution_id, host_id) VALUES (:exec_id, :host_id)`
 
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		job, err := ds.NewJob(ctx, &fleet.Job{
 			Name:      fleet.BatchActivityJobName,
-			NotBefore: notBefore,
+			State:     fleet.JobStateQueued,
+			NotBefore: notBefore.UTC(),
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "creating new job")
@@ -1959,6 +1960,60 @@ func (ds *Datastore) BatchScheduleScript(ctx context.Context, scriptID uint, use
 	}
 
 	return batchExecID, nil
+}
+
+func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
+	const stmt = `
+		SELECT
+			id,
+			script_id,
+			execution_id,
+			user_id,
+			job_id,
+			status,
+			activity_type,
+			num_targeted,
+			num_pending,
+			num_ran,
+			num_errored,
+			num_incompatible,
+			num_canceled,
+			created_at,
+			updated_at,
+			completed_at,
+			canceled_at
+		FROM
+			batch_activities
+		WHERE
+			execution_id = ?`
+
+	batchActivity := &fleet.BatchActivity{}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), batchActivity, stmt, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity")
+	}
+
+	return batchActivity, nil
+}
+
+func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error) {
+	const stmt = `
+		SELECT
+			id,
+			batch_execution_id,
+			host_id,
+			host_execution_id,
+			error
+			FROM
+			batch_activity_host_results
+		WHERE
+			batch_execution_id = ?`
+
+	results := []*fleet.BatchActivityHostResult{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity host results")
+	}
+
+	return results, nil
 }
 
 func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {

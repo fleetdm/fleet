@@ -1812,6 +1812,12 @@ type Datastore interface {
 	// batch execution ID.
 	BatchScheduleScript(ctx context.Context, scriptID uint, userID *uint, hostIDs []uint, notBefore time.Time) (string, error)
 
+	// GetBatchActivity returns a batch activity with executionID
+	GetBatchActivity(ctx context.Context, executionID string) (*BatchActivity, error)
+
+	// GetBatchActivityHostResults returns all host results associated with batch executionID
+	GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*BatchActivityHostResult, error)
+
 	// BatchExecuteSummary returns the summary of a batch script execution
 	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)
 

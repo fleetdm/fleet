@@ -589,6 +589,34 @@ type BatchExecutionHost struct {
 	Error           *string `json:"error,omitempty" db:"error"`
 }
 
+type BatchActivity struct {
+	ID              uint                       `db:"id"`
+	ScriptID        *uint                      `db:"script_id"`
+	ExecutionID     string                     `db:"execution_id"`
+	UserID          *uint                      `db:"user_id"`
+	JobID           *uint                      `db:"job_id"`
+	Status          BatchExecutionStatus       `db:"status"`
+	ActivityType    BatchExecutionActivityType `db:"activity_type"`
+	NumTargeted     *uint                      `db:"num_targeted"`
+	NumPending      *uint                      `db:"num_pending"`
+	NumRan          *uint                      `db:"num_ran"`
+	NumErrored      *uint                      `db:"num_errored"`
+	NumIncompatible *uint                      `db:"num_incompatible"`
+	NumCanceled     *uint                      `db:"num_canceled"`
+	CreatedAt       time.Time                  `db:"created_at"`
+	UpdatedAt       time.Time                  `db:"updated_at"`
+	CompletedAt     *time.Time                 `db:"completed_at"`
+	CanceledAt      *time.Time                 `db:"canceled_at"`
+}
+
+type BatchActivityHostResult struct {
+	ID               uint    `db:"id"`
+	BatchExecutionID string  `db:"batch_execution_id"`
+	HostID           uint    `db:"host_id"`
+	HostExecutionID  *string `db:"host_execution_id"`
+	Error            *string `db:"error"`
+}
+
 type BatchExecutionStatus string
 
 var (
