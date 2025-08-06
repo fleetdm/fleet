@@ -10123,6 +10123,7 @@ Content-Type: application/octet-stream
   "software_package": {
     "name": "FalconSensor-6.44.pkg",
     "categories": [],
+    "custom_icon_url": null,
     "version": "6.44",
     "platform": "darwin",
     "fleet_maintained_app_id": 42,
