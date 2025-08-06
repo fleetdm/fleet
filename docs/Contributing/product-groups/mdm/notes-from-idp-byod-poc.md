@@ -47,7 +47,7 @@ I tested with an iPhone device and an Android device.
 
 For iOS/iPadOS, the flow is as follows:
 
-1. `GET /enroll?enroll_secret=...` gets requested (implemented in `server/service/frontend.go`, `ServeEndUserEnrollOTA`). 
+1. `GET /enroll?enroll_secret=...` gets requested (implemented in `server/service/frontend.go`, `ServeEndUserEnrollOTA`).
 	* In the actual implementation, this is where the team lookup for the enroll secret would happen: if the team has IdP enabled, redirect to SSO, if not, proceed without SSO, and if the enroll secret is invalid, redirect to SSO if any team has IdP enabled, otherwise proceed without SSO.
 	* For the POC, if the enroll secret starts with `idpteam`, it starts the SSO flow with an HTTP redirect.
 	* Redirect to `/api/latest/fleet/mdm/sso` with `initiator=ota_enroll` and `RelayState=/enroll?enroll_secret=...` as query strings.
@@ -63,11 +63,11 @@ For Android, the flow is the same for steps 1-4. Since we don't associate the ne
 
 It is a bit tricky to update the sub-tasks of this story as they have already been defined and estimated, so any important change could change the estimation. We can worry about this if we feel like the estimation is no longer valid, but regarding the sub-tasks I'll go with some recommendations here:
 
-* There are two main parts on the backend: the pre-enroll-OTA logic (steps 1-4 above) and the OTA profile generation/enrollment/IdP association steps (5-6). 
+* There are two main parts on the backend: the pre-enroll-OTA logic (steps 1-4 above) and the OTA profile generation/enrollment/IdP association steps (5-6).
 	* I'd suggest merging [#30659](https://github.com/fleetdm/fleet/issues/30659) with [#30660](https://github.com/fleetdm/fleet/issues/30660) and make that the pre-enroll-OTA sub-task (biggest sub-task of the story).
 	* I'd keep [#30661](https://github.com/fleetdm/fleet/issues/30661) as the OTA generation/enrollment sub-task. We only need to agree on the cookie name for both tasks to be addressed in parallel.
 	* I'd delete [#30663](https://github.com/fleetdm/fleet/issues/30663), I don't see a need for it anymore (covered in the other two backend tasks).
-* For the frontend, update [#30662](https://github.com/fleetdm/fleet/issues/30662) to include changes required to show the IdP Users card and Username information for iDevices.
+* For the frontend, update [#30662](https://github.com/fleetdm/fleet/issues/30662) to include changes required to show the IdP Users card and Username information for iDevices (and make sure we don't forget about the move of the MDM IdP configuration from Integrations -> MDM to Integrations -> IdP).
 * Add a new backend/frontend sub-task to cover the validations and frontend pages required for the various error states described in the Figma.
 * Use the existing Guide updates ticket [#30684](https://github.com/fleetdm/fleet/issues/30684) to document the various enrollment flows as [suggested by Jordan](https://github.com/fleetdm/fleet/issues/30692#issuecomment-3140594238).
 
