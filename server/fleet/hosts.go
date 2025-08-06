@@ -1336,6 +1336,7 @@ type OSVersion struct {
 	// Kernels is a list of Linux kernels found on this operating system.
 	// This list is only populated for Linux-based operating systems.
 	// Vulnerabilities are pulled based on the software entries for the kernels.
+	// Kernels are associated based on enrolled hosts with the selected OS version.
 	Kernels []*Kernel `json:"kernels"`
 }
 
