@@ -6607,8 +6607,8 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	var batchStatusResp batchScriptExecutionSummaryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, batchStatusResp.ScriptID, script.ID)
-	require.Equal(t, batchStatusResp.NumTargeted, 2)
-	require.Equal(t, batchStatusResp.NumPending, 2)
+	require.Equal(t, batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, batchStatusResp.NumPending, uint(2))
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),

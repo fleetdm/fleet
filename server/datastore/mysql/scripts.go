@@ -1908,7 +1908,7 @@ INSERT INTO batch_activity_host_results (
 	return batchExecID, nil
 }
 
-func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionStatus, error) {
+func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
 	stmtExecutions := `
 SELECT
 	COUNT(*) as num_targeted,
@@ -1938,7 +1938,7 @@ JOIN
 WHERE
 	bse.execution_id = ?`
 
-	var summary fleet.BatchExecutionStatus
+	var summary fleet.BatchExecutionSummary
 	var temp_summary struct {
 		NumTargeted  uint `db:"num_targeted"`
 		NumDidNotRun uint `db:"num_did_not_run"`
@@ -1974,7 +1974,7 @@ WHERE
 	return &summary, nil
 }
 
-func (ds *Datastore) BatchExecuteStatus(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (*[]fleet.BatchExecutionStatus, error) {
+func (ds *Datastore) BatchExecuteStatus(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (*[]fleet.BatchExecutionSummary, error) {
 	stmtExecutions := `
 SELECT
 	COUNT(*) as num_targeted,
@@ -2042,8 +2042,7 @@ OFFSET %d
 	where := strings.Join(whereClauses, " AND ")
 	stmtExecutions = fmt.Sprintf(stmtExecutions, where, limit, offset)
 
-	var summary []fleet.BatchExecutionStatus
-	fmt.Println(stmtExecutions, args)
+	var summary []fleet.BatchExecutionSummary
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
 	}
