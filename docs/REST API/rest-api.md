@@ -9361,7 +9361,6 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List software versions](#list-software-versions)
 - [List operating systems](#list-operating-systems)
 - [Get software](#get-software)
-- [Edit software](#edit-software)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
@@ -9423,11 +9422,11 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
-      "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
         "name": "FirefoxInsall.pkg",
+        "custom_icon_url":"https://fleet.server.com/software_icons/firefox-512x512.png",
         "version": "125.6",
         "self_service": true,
         "automatic_install_policies": [
@@ -9465,7 +9464,6 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
-      "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 5,
@@ -9701,7 +9699,6 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Falcon.app",
-    "icon_url":"https://fleet.server.com/software_icons/mac_app.png",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "available_software": {
       "fleet_maintained_app": {
@@ -9711,6 +9708,7 @@ Returns information about the specified software. By default, `versions` are sor
     },
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
+      "custom_icon_url":"https://fleet.server.com/software_icons/falcon-256x256.png",
       "version": "6.44",
       "categories": ["Productivity"],
       "platform": "darwin",
@@ -9787,7 +9785,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
-    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+
     "bundle_identifier": "com.apple.logic10",
     "available_software": {
       "fleet_maintained_app": null,
@@ -9803,6 +9801,8 @@ Returns information about the specified software. By default, `versions` are sor
       "platform": "darwin",
       "latest_version": "2.04",
       "created_at": "2024-04-01T14:22:58Z",
+      "custom_icon_url":"https://fleet.server.com/software_icons/logic-pro-512x512.png",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
       "automatic_install_policies": [
         {
@@ -9831,42 +9831,6 @@ Returns information about the specified software. By default, `versions` are sor
   }
 }
 ```
-
-### Edit software
-
-Edit software icon. Uploaded icon will be applied across all teams.
-
-`PATCH /api/v1/fleet/software/titles/:id`
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| id   | integer | path | **Required.** The software title's ID. |
-| icon | file | form | PNG icon in square format with dimensions between 120x120 px and 1024x1024 px.  |
-
-#### Example
-
-`PATCH /api/v1/fleet/software/titles/1`
-
-##### Request header
-
-```http
-Content-Length: 8500
-Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
-```
-
-##### Request body
-
-```http
-Content-Disposition: form-data; name="icon"; filename="zoom-icon-512x512.png"
-Content-Type: application/octet-stream
-<BINARY_DATA>
---------------------------d8c247122f594ba0
-```
-
-##### Default response
-
-`Status: 200`
-
 
 ### Get software version
 
@@ -10100,6 +10064,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
+| custom_icon | file | form | PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service**. It must be a square PNG with dimensions ranging from 120x120 px to 1024x1024 px. In the UI Fleet, display icons for the most popular titles across all teams and versions. Custom icons will only override the icon for the software title and team where they are added. |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
