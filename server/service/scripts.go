@@ -955,6 +955,13 @@ type batchScriptExecutionStatusRequest struct {
 	BatchExecutionID string `url:"batch_execution_id"`
 }
 
+type batchScriptExecutionListRequest struct {
+	TeamID  uint    `query:"team_id,required"`
+	Status  *string `query:"status,optional"`
+	Page    *uint   `query:"page,optional"`
+	PerPage *uint   `query:"per_page,optional"`
+}
+
 type batchScriptExecutionStatusResponse struct {
 	fleet.BatchExecutionSummary
 	Err error `json:"error,omitempty"`
@@ -965,6 +972,15 @@ type (
 	batchScriptExecutionSummaryRequest  batchScriptExecutionStatusRequest
 	batchScriptExecutionSummaryResponse batchScriptExecutionStatusResponse
 )
+
+type batchScriptExecutionListResponse struct {
+	BatchScriptExecutions []fleet.BatchExecutionSummary `json:"batch_executions"`
+	Count                 uint                          `json:"count"`
+	Err                   error                         `json:"error,omitempty"`
+	fleet.PaginationMetadata
+}
+
+func (r batchScriptExecutionListResponse) Error() error { return r.Err }
 
 func (r batchSetScriptsResponse) Error() error { return r.Err }
 
@@ -1073,6 +1089,33 @@ func batchScriptExecutionStatusEndpoint(ctx context.Context, request interface{}
 	return batchScriptExecutionStatusResponse{BatchExecutionSummary: *status}, nil
 }
 
+func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptExecutionListRequest)
+
+	offset := uint(0)
+	if req.Page != nil && req.PerPage != nil {
+		offset = *req.Page * *req.PerPage
+	}
+	filter := fleet.BatchExecutionStatusFilter{
+		TeamID: &req.TeamID,
+		Status: req.Status,
+		Offset: &offset,
+		Limit:  req.PerPage,
+	}
+	// // Get the count first.
+	// count, err := svc.ds.BatchExecuteStatusCount(ctx, filter)
+	// if err != nil {
+	// 	return batchScriptExecutionListResponse{Err: err}, nil
+	// }
+	list, err := svc.BatchScriptExecutionList(ctx, filter)
+	if err != nil {
+		return batchScriptExecutionStatusResponse{Err: err}, nil
+	}
+	return batchScriptExecutionListResponse{
+		BatchScriptExecutions: list,
+	}, nil
+}
+
 func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionSummary, error) {
 	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
 	if err != nil {
@@ -1095,7 +1138,7 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 	}
 
 	// If the list is empty, it means the batch execution does not exist.
-	if summaryList == nil || len(*summaryList) == 0 {
+	if summaryList == nil || len(summaryList) == 0 {
 		// We can't know what team this batch is for, so we authorize with a no-team
 		// script as a fallback - the requested batch does not exist so there's
 		// no way to know what team it would be for, and returning a 404 without
@@ -1107,17 +1150,29 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 		return nil, ctxerr.Wrap(ctx, err, "get batch script status")
 	}
 
-	if len(*summaryList) > 1 {
+	if len(summaryList) > 1 {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("batch_execution_id", "expected a single batch execution status, got multiple"))
 	}
 
-	summary := (*summaryList)[0]
+	summary := (summaryList)[0]
 
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	return &summary, nil
+}
+
+func (svc *Service) BatchScriptExecutionList(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchExecutionSummary, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: filter.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	summaryList, err := svc.ds.BatchExecuteStatus(ctx, filter)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get batch script list")
+	}
+
+	return summaryList, nil
 }
 
 func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {

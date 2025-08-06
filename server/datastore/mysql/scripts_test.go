@@ -1957,8 +1957,8 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		ExecutionID: &execID,
 	})
 	require.NoError(t, err)
-	require.Len(t, *summaryList, 1)
-	summary := (*summaryList)[0]
+	require.Len(t, summaryList, 1)
+	summary := (summaryList)[0]
 	require.Equal(t, script.ID, summary.ScriptID)
 	require.Equal(t, script.Name, summary.ScriptName)
 	require.Equal(t, uint(0), *summary.TeamID)
@@ -2027,8 +2027,8 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		ExecutionID: &execID,
 	})
 	require.NoError(t, err)
-	require.Len(t, *summaryList, 1)
-	summary = (*summaryList)[0]
+	require.Len(t, summaryList, 1)
+	summary = (summaryList)[0]
 	// The summary should have one pending host, one run host and two errored ones.
 	require.Equal(t, summary.NumTargeted, uint(5))
 	require.Equal(t, summary.NumPending, uint(2))
@@ -2051,8 +2051,8 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		ExecutionID: &execID,
 	})
 	require.NoError(t, err)
-	require.Len(t, *summaryList, 1)
-	summary = (*summaryList)[0] // The summary should have one pending host, one run host and two errored ones.
+	require.Len(t, summaryList, 1)
+	summary = (summaryList)[0] // The summary should have one pending host, one run host and two errored ones.
 	require.Equal(t, summary.NumTargeted, uint(5))
 	require.Equal(t, summary.NumPending, uint(1))
 	require.Equal(t, summary.NumIncompatible, uint(2))
@@ -2068,8 +2068,8 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		ExecutionID: &execID,
 	})
 	require.NoError(t, err)
-	require.Len(t, *summaryList, 1)
-	summary = (*summaryList)[0]
+	require.Len(t, summaryList, 1)
+	summary = (summaryList)[0]
 	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
 	require.Equal(t, summary.NumPending, uint(0))
 	require.Equal(t, summary.NumIncompatible, uint(2))
@@ -2082,8 +2082,22 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		Status: ptr.String("scheduled"),
 	})
 	require.NoError(t, err)
-	require.Len(t, *summaryList, 1)
-	summary = (*summaryList)[0]
+	require.Len(t, summaryList, 1)
+	summary = (summaryList)[0]
+	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
+	require.Equal(t, summary.NumPending, uint(0))
+	require.Equal(t, summary.NumIncompatible, uint(2))
+	require.Equal(t, summary.NumErrored, uint(1))
+	require.Equal(t, summary.NumRan, uint(1))
+	require.Equal(t, summary.NumCanceled, uint(1))
+
+	// The summary should be returned when filtering by team 1.
+	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+		TeamID: ptr.Uint(0),
+	})
+	require.NoError(t, err)
+	require.Len(t, summaryList, 1)
+	summary = (summaryList)[0]
 	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
 	require.Equal(t, summary.NumPending, uint(0))
 	require.Equal(t, summary.NumIncompatible, uint(2))

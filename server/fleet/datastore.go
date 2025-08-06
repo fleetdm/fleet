@@ -1812,7 +1812,7 @@ type Datastore interface {
 	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)
 
 	// BatchExecuteStatus returns the status of a batch script execution
-	BatchExecuteStatus(ctx context.Context, filter BatchExecutionStatusFilter) (*[]BatchExecutionSummary, error)
+	BatchExecuteStatus(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchExecutionSummary, error)
 
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)

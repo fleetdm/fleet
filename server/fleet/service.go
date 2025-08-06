@@ -1192,6 +1192,8 @@ type Service interface {
 
 	BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*BatchExecutionSummary, error)
 
+	BatchScriptExecutionList(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchExecutionSummary, error)
+
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)

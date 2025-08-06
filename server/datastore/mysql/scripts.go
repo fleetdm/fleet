@@ -1974,7 +1974,7 @@ WHERE
 	return &summary, nil
 }
 
-func (ds *Datastore) BatchExecuteStatus(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (*[]fleet.BatchExecutionSummary, error) {
+func (ds *Datastore) BatchExecuteStatus(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchExecutionSummary, error) {
 	stmtExecutions := `
 SELECT
 	COUNT(*) as num_targeted,
@@ -2028,16 +2028,21 @@ OFFSET %d
 	if filter.ExecutionID != nil && *filter.ExecutionID != "" {
 		whereClauses = append(whereClauses, "ba.execution_id = ?")
 		args = append(args, *filter.ExecutionID)
-	}
-	if filter.Status != nil && *filter.Status != "" {
-		whereClauses = append(whereClauses, "ba.status = ?")
-		args = append(args, *filter.Status)
+	} else {
+		if filter.Status != nil && *filter.Status != "" {
+			whereClauses = append(whereClauses, "ba.status = ?")
+			args = append(args, *filter.Status)
+		}
+		if filter.TeamID != nil {
+			whereClauses = append(whereClauses, "s.global_or_team_id = ?")
+			args = append(args, *filter.TeamID)
+		}
 	}
 	if filter.Limit != nil {
-		limit = *filter.Limit
+		limit = int(*filter.Limit)
 	}
 	if filter.Offset != nil {
-		offset = *filter.Offset
+		offset = int(*filter.Offset)
 	}
 	where := strings.Join(whereClauses, " AND ")
 	stmtExecutions = fmt.Sprintf(stmtExecutions, where, limit, offset)
@@ -2047,5 +2052,5 @@ OFFSET %d
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
 	}
 
-	return &summary, nil
+	return summary, nil
 }

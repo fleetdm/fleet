@@ -589,15 +589,16 @@ type BatchExecutionSummary struct {
 
 type BatchExecutionStatusFilter struct {
 	ScriptID *uint   `json:"script_id,omitempty"`
-	Status   *string `json:"status,omitempty"` // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
+	TeamID   *uint   `json:"team_id,omitempty"` // if nil, it is scoped to hosts that are assigned to "No team"
+	Status   *string `json:"status,omitempty"`  // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
 	// ExecutionID is the unique identifier for a single execution of the script.
 	ExecutionID *string `json:"execution_id,omitempty"`
 	// Limit is the maximum number of results to return.
 	// If not set, it defaults to 100.
-	Limit *int `json:"limit,omitempty"`
+	Limit *uint `json:"limit,omitempty"`
 	// Offset is the number of results to skip before returning results.
 	// If not set, it defaults to 0.
-	Offset *int `json:"offset,omitempty"`
+	Offset *uint `json:"offset,omitempty"`
 }
 
 type BatchExecutionHost struct {
