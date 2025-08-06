@@ -3231,6 +3231,7 @@ Lists the software installed on the current device.
       "id": 143,
       "name": "Firefox.app",
       "software_package": null,
+      "app_store_app": null,
       "source": "apps",
       "status": null,
       "installed_versions": [
