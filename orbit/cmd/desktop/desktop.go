@@ -181,13 +181,13 @@ func main() {
 		// immediately begin showing the migrator again if we were showing it prior.
 		showMDMMigrator := false
 
-		myDeviceItem := systray.AddMenuItem("Connecting...", "")
+		myDeviceItem := systray.AddMenuItem("My device", "")
 		myDeviceItem.Disable()
 		myDeviceItem.Hide()
 
 		// We are doing this using two menu items because line breaks
 		// are not rendered correctly on Windows and MacOS.
-		hostOfflineItemOne := systray.AddMenuItem("🛜🚫 Your computer is offline.", "")
+		hostOfflineItemOne := systray.AddMenuItem("🛜🚫 Your computer is not connected to Fleet.", "")
 		hostOfflineItemTwo := systray.AddMenuItem("It might take up to 5 minutes to reconnect to Fleet.", "")
 		hostOfflineItemOne.Disable()
 		hostOfflineItemTwo.Disable()
@@ -234,8 +234,8 @@ func main() {
 			return newToken
 		})
 
-		disableTray := func() {
-			log.Debug().Msg("disabling tray items")
+		showConnecting := func() {
+			log.Debug().Msg("displaying Connecting...")
 			myDeviceItem.SetTitle("Connecting...")
 			myDeviceItem.Show()
 			myDeviceItem.Disable()
@@ -296,6 +296,7 @@ func main() {
 		// checkToken performs API test calls to enable the "My device" item as
 		// soon as the device auth token is registered by Fleet.
 		checkToken := func() <-chan interface{} {
+			showConnecting()
 			done := make(chan interface{})
 
 			go func() {
@@ -364,27 +365,45 @@ func main() {
 				case err != nil:
 					log.Error().Err(err).Msg("check token file")
 				case expired:
-					log.Info().Msg("token file changed, rechecking")
-					disableTray()
+					log.Info().Msg("token file expired or invalid, rechecking")
 					<-checkToken()
 				}
 			}
 		}()
+
+		showOffline := func() {
+			myDeviceItem.Hide()
+			transparencyItem.Disable()
+			transparencyItem.Hide()
+			migrateMDMItem.Disable()
+			migrateMDMItem.Hide()
+			hostOfflineItemOne.Show()
+			hostOfflineItemTwo.Show()
+		}
 
 		// poll the server to check the policy status of the host and update the
 		// tray icon accordingly
 		go func() {
 			<-deviceEnabledChan
 
+			errCount := 0
+
 			for {
 				<-summaryTicker.C
-				// Reset the ticker to the intended interval, in case we reset it to 1ms
+
+				// Reset the ticker to the intended interval, in case we reset it to 1ms (when clicking on "My device").
 				summaryTicker.Reset(checkInterval)
+
 				sum, err := client.DesktopSummary(tokenReader.GetCached())
+
+				if err == nil || errors.Is(err, service.ErrMissingLicense) || errors.Is(err, service.ErrUnauthenticated) {
+					// If we were able to connect to Fleet, let's reset the error count to 0.
+					errCount = 0
+				}
+
 				switch {
 				case err == nil:
-					hostOfflineItemOne.Hide()
-					hostOfflineItemTwo.Hide()
+					// OK, continue.
 				case errors.Is(err, service.ErrMissingLicense):
 					myDeviceItem.SetTitle("My device")
 					myDeviceItem.Show()
@@ -392,22 +411,28 @@ func main() {
 					hostOfflineItemTwo.Hide()
 					continue
 				case errors.Is(err, service.ErrUnauthenticated):
-					disableTray()
-					hostOfflineItemOne.Hide()
-					hostOfflineItemTwo.Hide()
+					// This usually happens every ~1 hour when the token expires.
 					<-checkToken()
 					continue
 				default:
-					myDeviceItem.Hide()
-					transparencyItem.Disable()
-					transparencyItem.Hide()
-					migrateMDMItem.Disable()
-					migrateMDMItem.Hide()
-					hostOfflineItemOne.Show()
-					hostOfflineItemTwo.Show()
-					log.Error().Err(err).Msg("get desktop summary")
+					// We consider any other error as temporary, and we will retry a
+					// couple of times before showing the offline indicator (to not be over-sensitive to just
+					// one request failing to reach Fleet).
+					log.Error().Err(err).Int("count", errCount).Msg("get desktop summary failed")
+
+					// Upon failures we want to retry faster for better UX when connectivity to Fleet is restored.
+					summaryTicker.Reset(10 * time.Second)
+
+					errCount++
+					if errCount >= 6 {
+						// It might take up to 6m (5m + 6 * 10s) for Fleet Desktop to show the offline indicator.
+						showOffline()
+					}
 					continue
 				}
+
+				hostOfflineItemOne.Hide()
+				hostOfflineItemTwo.Hide()
 
 				refreshMenuItems(sum.DesktopSummary, selfServiceItem, myDeviceItem)
 				myDeviceItem.Enable()
