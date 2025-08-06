@@ -11,7 +11,11 @@ import {
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 
-import { generateDropdownOptions, getErrorMessage } from "./helpers";
+import {
+  generateAddCertAuthorityData,
+  generateDropdownOptions,
+  getErrorMessage,
+} from "./helpers";
 
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
@@ -21,7 +25,6 @@ import CustomSCEPForm from "../CustomSCEPForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import HydrantForm from "../HydrantForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
-import { generateAddCertAuthorityData } from "../DeleteCertificateAuthorityModal/helpers";
 
 export type ICertFormData =
   | IDigicertFormData
