@@ -402,6 +402,7 @@ func main() {
 					transparencyItem.Disable()
 					transparencyItem.Hide()
 					migrateMDMItem.Disable()
+					migrateMDMItem.Hide()
 					hostOfflineItemOne.Show()
 					hostOfflineItemTwo.Show()
 					log.Error().Err(err).Msg("get desktop summary")
