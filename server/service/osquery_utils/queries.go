@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -25,10 +23,12 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"github.com/spf13/cast"
 )
 
@@ -1412,6 +1412,7 @@ func processPackageLastOpenedAt(mainSoftwareResults, pkgFileResults []map[string
 	return mainSoftwareResults
 }
 
+// Convert the strings to integers and return the larger one.
 func maxString(a, b string) string {
 	intA, _ := strconv.Atoi(a)
 	intB, _ := strconv.Atoi(b)
