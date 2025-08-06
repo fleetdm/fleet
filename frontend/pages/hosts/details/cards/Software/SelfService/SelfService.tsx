@@ -76,7 +76,7 @@ const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   category_id: undefined,
 } as const;
 
-const DEFAULT_CLIENT_SIDE_PAGINATION = 10;
+const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
 
 export interface ISoftwareSelfServiceProps {
   contactUrl: string;
