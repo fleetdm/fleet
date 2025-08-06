@@ -144,38 +144,40 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("Never")).toBeVisible();
   });
 
-  it("renders 'Never' for last opened when last_opened_at is null and source is programs", () => {
-    const mockSoftware = createMockHostSoftware({
-      source: "programs",
-      installed_versions: [
-        {
-          version: "1.0.0",
-          last_opened_at: null,
-          vulnerabilities: ["CVE-2020-0001"],
-          installed_paths: ["C:\\Program Files\\mock.exe"],
-          bundle_identifier: "",
-          signature_information: [
-            {
-              installed_path: "C:\\Program Files\\mock.exe",
-              team_identifier: "",
-              hash_sha256: "mockhashhere",
-            },
-          ],
-        },
-      ],
+  for (const source of ["apps", "programs", "deb_packages", "rpm_packages"]) {
+    it("renders 'Never' for last opened when last_opened_at is null and source is " + source, () => {
+      const mockSoftware = createMockHostSoftware({
+        source,
+        installed_versions: [
+          {
+            version: "1.0.0",
+            last_opened_at: null,
+            vulnerabilities: ["CVE-2020-0001"],
+            installed_paths: ["C:\\Program Files\\mock.exe"],
+            bundle_identifier: "",
+            signature_information: [
+              {
+                installed_path: "C:\\Program Files\\mock.exe",
+                team_identifier: "",
+                hash_sha256: "mockhashhere",
+              },
+            ],
+          },
+        ],
+      });
+
+      render(
+          <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()}/>
+      );
+
+      expect(screen.getByText("Last opened")).toBeVisible();
+      expect(screen.getByText("Never")).toBeVisible();
     });
+  }
 
-    render(
-      <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
-    );
-
-    expect(screen.getByText("Last opened")).toBeVisible();
-    expect(screen.getByText("Never")).toBeVisible();
-  });
-
-  it("does not render last opened field when last_opened_at is null and source is not apps or programs", () => {
+  it("does not render last opened field when last_opened_at is null and source is not supported", () => {
     const mockSoftware = createMockHostSoftware({
-      source: "deb_packages",
+      source: "vscode_extensions",
       installed_versions: [
         {
           version: "1.0.0",
