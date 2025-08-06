@@ -26,14 +26,14 @@ export const getCertificateAuthorityType = (
 export const generateDefaultFormData = (
   certAuthority: ICertificateIntegration
 ): ICertFormData => {
-  if (isNDESCertIntegration(certAuthority)) {
+  if (certAuthority.type === "ndes_scep_proxy") {
     return {
       scepURL: certAuthority.url,
       adminURL: certAuthority.admin_url,
       username: certAuthority.username,
       password: certAuthority.password,
     };
-  } else if (isDigicertCertIntegration(certAuthority)) {
+  } else if (certAuthority.type === "digicert") {
     return {
       name: certAuthority.name,
       url: certAuthority.url,
@@ -44,7 +44,7 @@ export const generateDefaultFormData = (
         certAuthority.certificate_user_principal_names?.[0] ?? "",
       certificateSeatId: certAuthority.certificate_seat_id,
     };
-  } else if (isHydrantCertIntegration(certAuthority)) {
+  } else if (certAuthority.type === "hydrant") {
     return {
       name: certAuthority.name,
       url: certAuthority.url,
@@ -60,6 +60,21 @@ export const generateDefaultFormData = (
     challenge: customSCEPcert.challenge,
   };
 };
+
+export const generateEditCertAuthorityData = (
+  type: ICertificateAuthorityType,
+  formData: ICertFormData
+): IAddCertAuthorityBody => {
+  switch (type) {
+    case "ndes_scep_proxy":
+      // eslint-disable-next-line no-case-declarations
+      const {
+        scepURL,
+        adminURL,
+        username,
+        password,
+      } = formData as INDESFormData;
+
 
 export const updateFormData = (
   certAuthority: ICertificateIntegration,

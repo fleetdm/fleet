@@ -49,7 +49,7 @@ export default {
     return sendRequest("POST", CERTIFICATE_AUTHORITIES, certData);
   },
 
-  editCertAuthorityModal: (
+  editCertificateAuthority: (
     id: number,
     updateData: IEditCertAuthorityBody
   ): Promise<void> => {
