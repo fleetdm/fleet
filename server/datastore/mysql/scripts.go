@@ -1865,9 +1865,11 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		batchExecID = uuid.New().String()
 		_, err := tx.ExecContext(
 			ctx,
-			"INSERT INTO batch_activities (execution_id, script_id) VALUES (?, ?)",
+			"INSERT INTO batch_activities (execution_id, script_id, status, activity_type) VALUES (?, ?, ?, ?)",
 			batchExecID,
 			script.ID,
+			fleet.BatchExecutionStarted,
+			fleet.BatchExecutionActivityScript,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to insert new batch execution")
@@ -1903,6 +1905,57 @@ INSERT INTO batch_activity_host_results (
 		return nil
 	}); err != nil {
 		return "", fmt.Errorf("creating bulk execution order: %w", err)
+	}
+
+	return batchExecID, nil
+}
+
+func (ds *Datastore) BatchScheduleScript(ctx context.Context, scriptID uint, userID *uint, hostIDs []uint, notBefore time.Time) (string, error) {
+	batchExecID := uuid.New().String()
+
+	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, job_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?)`
+	const batchHostsStmt = `INSERT INTO batch_activity_host_results (batch_execution_id, host_id) VALUES (:exec_id, :host_id)`
+
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		job, err := ds.NewJob(ctx, &fleet.Job{
+			Name:      fleet.BatchActivityJobName,
+			NotBefore: notBefore,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating new job")
+		}
+
+		_, err = tx.ExecContext(
+			ctx,
+			batchActivitiesStmt,
+			batchExecID,
+			job.ID,
+			scriptID,
+			userID,
+			fleet.BatchExecutionScheduled,
+			fleet.BatchExecutionActivityScript,
+			len(hostIDs),
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting new batch activity")
+		}
+
+		args := make([]map[string]any, 0, len(hostIDs))
+
+		for _, hostID := range hostIDs {
+			args = append(args, map[string]any{
+				"exec_id": batchExecID,
+				"host_id": hostID,
+			})
+		}
+
+		if _, err := sqlx.NamedExecContext(ctx, tx, batchHostsStmt, args); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting batch host results")
+		}
+
+		return nil
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating scheduled script execution")
 	}
 
 	return batchExecID, nil
