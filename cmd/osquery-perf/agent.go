@@ -2126,7 +2126,10 @@ func (a *agent) certificates() []map[string]string {
 	// on dogfood gives between 4-7)
 	count := rand.Intn(9) + 2
 
+	sources := []string{"system", "user"}
+	users := a.hostUsers()
 	const day = 24 * time.Hour
+
 	results := make([]map[string]string, count)
 	for i := range count {
 		m := make(map[string]string, 12)
@@ -2146,6 +2149,13 @@ func (a *agent) certificates() []map[string]string {
 		rawHash := sha1.Sum([]byte(m["serial"])) //nolint: gosec
 		hash := hex.EncodeToString(rawHash[:])
 		m["sha1"] = hash
+		m["source"] = sources[rand.Intn(2)]
+
+		if m["source"] == "user" {
+			// Set username for user keychain certificates
+			user := users[rand.Intn(len(users))]
+			m["path"] = fmt.Sprintf(`/Users/%s/Library/Keychains/login.keychain-db`, user["username"])
+		}
 
 		results[i] = m
 	}
