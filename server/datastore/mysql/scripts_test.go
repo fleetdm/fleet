@@ -1033,6 +1033,14 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
 
 	hostID := uint(1)
+	hostUUID := "uuid"
+	hostPlatform := "windows"
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		ID:       hostID,
+		UUID:     hostUUID,
+		Platform: hostPlatform,
+	})
+	require.NoError(t, err)
 
 	script := "unlock"
 
@@ -1041,14 +1049,14 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 		ScriptContents: script,
 		UserID:         &user.ID,
 		SyncRequest:    false,
-	}, "windows")
+	}, hostPlatform)
 
 	require.NoError(t, err)
 
 	// verify that we have created entries in host_mdm_actions and host_script_results
-	status, err := ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: "windows", UUID: "uuid"})
+	status, err := ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
-	require.Equal(t, "windows", status.HostFleetPlatform)
+	require.Equal(t, hostPlatform, status.HostFleetPlatform)
 	require.NotNil(t, status.UnlockScript)
 
 	s := status.UnlockScript
@@ -1059,6 +1067,28 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 
 	require.True(t, status.IsPendingUnlock())
 
+	// simulate a cancel while it's pending unlock
+	_, err = ds.CancelHostUpcomingActivity(ctx, s.HostID, s.ExecutionID)
+	require.NoError(t, err)
+
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	require.False(t, status.IsPendingUnlock())
+
+	// add a new unlock script execution
+	err = ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hostID,
+		ScriptContents: script,
+		UserID:         &user.ID,
+		SyncRequest:    false,
+	}, hostPlatform)
+	require.NoError(t, err)
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	require.Equal(t, hostPlatform, status.HostFleetPlatform)
+	require.NotNil(t, status.UnlockScript)
+	s = status.UnlockScript
+
 	// simulate a successful result for the unlock script execution
 	_, action, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      s.HostID,
@@ -1068,7 +1098,7 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, "unlock_ref", action)
 
-	status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: "windows", UUID: "uuid"})
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
 	require.True(t, status.IsUnlocked())
 	require.False(t, status.IsPendingUnlock())
