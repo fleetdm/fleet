@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/google/uuid"
 	"net"
 	"net/url"
 	"regexp"
@@ -14,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1364,7 +1365,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	`,
 		Description:            "A software override query[^1] to append last_opened_at information to Linux DEB software entries.",
 		Platforms:              fleet.HostLinuxOSs,
-		Discovery:              discoveryTable("deb_package_files"),
+		Discovery:              discoveryTable("deb_package_files"), // Table should ship in osquery 5.19.0: https://github.com/osquery/osquery/pull/8657
 		SoftwareProcessResults: processPackageLastOpenedAt,
 	},
 	// rpm_last_opened_at collects last opened at information from RPM package files on Linux
@@ -1381,7 +1382,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	`,
 		Description:            "A software override query[^1] to append last_opened_at information to Linux RPM software entries.",
 		Platforms:              fleet.HostLinuxOSs,
-		Discovery:              discoveryTable("rpm_package_files"),
+		Discovery:              discoveryTable("rpm_package_files"), // Available since osquery 1.4.5
 		SoftwareProcessResults: processPackageLastOpenedAt,
 	},
 }
