@@ -2676,3 +2676,160 @@ func TestDebLastOpenedAt(t *testing.T) {
 		}
 	}
 }
+
+func TestRpmLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["rpm_last_opened_at"].SoftwareProcessResults
+	rpmPackageResults := []map[string]string{
+		{"package": "bash", "last_opened_at": "1753287489"},
+		{"package": "coreutils", "last_opened_at": "1752178409"},
+		{"package": "curl", "last_opened_at": "1753287887"},
+		{"package": "firewalld", "last_opened_at": "1752178572"},
+		{"package": "git", "last_opened_at": "1753806108"},
+		{"package": "httpd", "last_opened_at": "1754439481"},
+		{"package": "java-11-openjdk", "last_opened_at": "1752178498"},
+		{"package": "kernel", "last_opened_at": "1753978475"},
+		{"package": "libcurl", "last_opened_at": "1754439481"},
+		{"package": "mysql-server", "last_opened_at": "1752791628"},
+		{"package": "nginx", "last_opened_at": "1752791824"},
+		{"package": "nodejs", "last_opened_at": "1754361022"},
+		{"package": "openssh-server", "last_opened_at": "1754439481"},
+		{"package": "postgresql", "last_opened_at": "1753293736"},
+		{"package": "python3", "last_opened_at": "1753978482"},
+		{"package": "redis", "last_opened_at": "1752791767"},
+		{"package": "systemd", "last_opened_at": "1752178619"},
+		{"package": "vim", "last_opened_at": "1753806242"},
+		{"package": "wget", "last_opened_at": "1753806108"},
+		{"package": "yum", "last_opened_at": "1753806594"},
+	}
+	softwareResults := []map[string]string{
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "bash", "source": "rpm_packages", "vendor": "", "version": "4.2.46-35.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "coreutils", "source": "rpm_packages", "vendor": "", "version": "8.22-24.el7_9.2"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "curl", "source": "rpm_packages", "vendor": "", "version": "7.29.0-59.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "firewalld", "source": "rpm_packages", "vendor": "", "version": "0.6.3-13.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "git", "source": "rpm_packages", "vendor": "", "version": "1.8.3.1-25.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "httpd", "source": "rpm_packages", "vendor": "", "version": "2.4.6-97.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "java-11-openjdk", "source": "rpm_packages", "vendor": "", "version": "11.0.21.0.9-1.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "kernel", "source": "rpm_packages", "vendor": "", "version": "3.10.0-1160.105.1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "libcurl", "source": "rpm_packages", "vendor": "", "version": "7.29.0-59.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "mysql-server", "source": "rpm_packages", "vendor": "", "version": "5.7.44-1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "nginx", "source": "rpm_packages", "vendor": "", "version": "1.20.1-9.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "nodejs", "source": "rpm_packages", "vendor": "", "version": "16.20.2-1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "openssh-server", "source": "rpm_packages", "vendor": "", "version": "7.4p1-23.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "postgresql", "source": "rpm_packages", "vendor": "", "version": "13.14-1.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "python3", "source": "rpm_packages", "vendor": "", "version": "3.6.8-18.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "redis", "source": "rpm_packages", "vendor": "", "version": "5.0.3-1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "systemd", "source": "rpm_packages", "vendor": "", "version": "219-78.el7_9.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "vim", "source": "rpm_packages", "vendor": "", "version": "7.4.629-8.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "wget", "source": "rpm_packages", "vendor": "", "version": "1.14-18.el7_6.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "yum", "source": "rpm_packages", "vendor": "", "version": "3.4.3-168.el7_9"},
+		// Add some packages that don't have last_opened_at data
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "glibc", "source": "rpm_packages", "vendor": "", "version": "2.17-325.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "openssl", "source": "rpm_packages", "vendor": "", "version": "1.0.2k-26.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "zlib", "source": "rpm_packages", "vendor": "", "version": "1.2.7-18.el7"},
+		// Add some non-rpm_packages software to test filtering
+		{"browser": "firefox", "extension_id": "test-extension", "installed_path": "", "name": "Firefox Extension", "source": "firefox_addons", "vendor": "", "version": "1.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "chrome-extension", "source": "chrome_extensions", "vendor": "", "version": "1.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "deb-package", "source": "deb_packages", "vendor": "", "version": "1.0"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, rpmPackageResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "rpm_packages" {
+			// Last opened at should only be set for rpm_packages
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "bash" {
+			assert.Equal(t, "1753287489", software["last_opened_at"])
+		}
+
+		if software["name"] == "coreutils" {
+			assert.Equal(t, "1752178409", software["last_opened_at"])
+		}
+
+		if software["name"] == "curl" {
+			assert.Equal(t, "1753287887", software["last_opened_at"])
+		}
+
+		if software["name"] == "firewalld" {
+			assert.Equal(t, "1752178572", software["last_opened_at"])
+		}
+
+		if software["name"] == "git" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "httpd" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "java-11-openjdk" {
+			assert.Equal(t, "1752178498", software["last_opened_at"])
+		}
+
+		if software["name"] == "kernel" {
+			assert.Equal(t, "1753978475", software["last_opened_at"])
+		}
+
+		if software["name"] == "libcurl" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "mysql-server" {
+			assert.Equal(t, "1752791628", software["last_opened_at"])
+		}
+
+		if software["name"] == "nginx" {
+			assert.Equal(t, "1752791824", software["last_opened_at"])
+		}
+
+		if software["name"] == "nodejs" {
+			assert.Equal(t, "1754361022", software["last_opened_at"])
+		}
+
+		if software["name"] == "openssh-server" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "postgresql" {
+			assert.Equal(t, "1753293736", software["last_opened_at"])
+		}
+
+		if software["name"] == "python3" {
+			assert.Equal(t, "1753978482", software["last_opened_at"])
+		}
+
+		if software["name"] == "redis" {
+			assert.Equal(t, "1752791767", software["last_opened_at"])
+		}
+
+		if software["name"] == "systemd" {
+			assert.Equal(t, "1752178619", software["last_opened_at"])
+		}
+
+		if software["name"] == "vim" {
+			assert.Equal(t, "1753806242", software["last_opened_at"])
+		}
+
+		if software["name"] == "wget" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "yum" {
+			assert.Equal(t, "1753806594", software["last_opened_at"])
+		}
+
+		// Test packages that don't have last_opened_at data
+		if software["name"] == "glibc" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "openssl" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "zlib" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+	}
+}
