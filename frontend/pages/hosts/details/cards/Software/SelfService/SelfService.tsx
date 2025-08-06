@@ -76,7 +76,7 @@ const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   category_id: undefined,
 } as const;
 
-const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
+const DEFAULT_CLIENT_SIDE_PAGINATION = 10;
 
 export interface ISoftwareSelfServiceProps {
   contactUrl: string;
@@ -211,12 +211,12 @@ const SoftwareSelfService = ({
       {
         scope: "device_software",
         id: deviceToken,
-        page: queryParams.page,
+        page: 0, // Pagination is clientside
         query: "", // Search is now client-side to reduce API calls
         ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
       },
     ];
-  }, [deviceToken, queryParams.page]);
+  }, [deviceToken]);
 
   // Fetch self-service software (regular API call)
   const {
@@ -549,25 +549,18 @@ const SoftwareSelfService = ({
     onInstallOrUninstall();
   };
 
-  const onNextPage = useCallback(() => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        query: queryParams.query,
-        category_id: queryParams.category_id,
-        page: queryParams.page + 1,
-      })
-    );
-  }, [pathname, queryParams, router]);
-
-  const onPrevPage = useCallback(() => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        query: queryParams.query,
-        category_id: queryParams.category_id,
-        page: queryParams.page - 1,
-      })
-    );
-  }, [pathname, queryParams, router]);
+  const onClientSidePaginationChange = useCallback(
+    (page: number) => {
+      router.push(
+        getPathWithQueryParams(pathname, {
+          query: queryParams.query,
+          category_id: queryParams.category_id,
+          page,
+        })
+      );
+    },
+    [pathname, queryParams.query, queryParams.category_id, router]
+  );
 
   // TODO: handle empty state better, this is just a placeholder for now
   // TODO: what should happen if query params are invalid (e.g., page is negative or exceeds the
@@ -703,13 +696,14 @@ const SoftwareSelfService = ({
             defaultSortDirection={
               DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_direction
             }
-            pageIndex={0}
+            pageIndex={queryParams.page ?? 0} // Client-side pagination with URL source of truth
             disableNextPage={selfServiceData?.meta.has_next_results === false}
             pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
             searchQuery={queryParams.query} // Search is now client-side to reduce API calls
             searchQueryColumn="name"
             isClientSideFilter
             isClientSidePagination
+            onClientSidePaginationChange={onClientSidePaginationChange}
             emptyComponent={() => {
               return isEmptySearch ? (
                 <EmptyTable
@@ -736,18 +730,6 @@ const SoftwareSelfService = ({
             disableCount
           />
         </div>
-
-        <Pagination
-          disableNext={selfServiceData?.meta.has_next_results === false}
-          disablePrev={selfServiceData?.meta.has_previous_results === false}
-          hidePagination={
-            selfServiceData?.meta.has_next_results === false &&
-            selfServiceData?.meta.has_previous_results === false
-          }
-          onNextPage={onNextPage}
-          onPrevPage={onPrevPage}
-          className={`${baseClass}__pagination`}
-        />
       </>
     );
   };
