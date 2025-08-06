@@ -89,6 +89,29 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       );
     },
   },
+  updated: {
+    iconName: "success",
+    displayText: "Updated",
+    tooltip: ({ isSelfService, isAppStoreApp, lastInstalledAt }) => {
+      if (!lastInstalledAt) {
+        return undefined;
+      }
+
+      return isAppStoreApp ? (
+        <>
+          The host acknowledged the MDM
+          <br />
+          command to install the app.
+        </>
+      ) : (
+        <>
+          Software was updated{" "}
+          {!isSelfService && "(install script finished with exit code 0) "}
+          {dateAgo(lastInstalledAt)}.
+        </>
+      );
+    },
+  },
   installing: {
     iconName: "pending-outline",
     displayText: ({ isSelfService, isHostOnline }) =>

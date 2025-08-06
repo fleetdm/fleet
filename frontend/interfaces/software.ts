@@ -431,6 +431,7 @@ export type IHostSoftwareUiStatus =
   | "uninstalled"
   | "installing"
   | "uninstalling"
+  | "updated"
   | "updating"
   | "pending_install"
   | "pending_uninstall"

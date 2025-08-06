@@ -180,12 +180,18 @@ const InstallerStatusAction = ({
   return (
     <div className={`${baseClass}__item-action-status`}>
       <div className={`${baseClass}__item-action`}>
-        {ui_status === "updating" ? (
+        {ui_status === "updating" && (
           <>
             <Spinner size="x-small" includeContainer={false} centered={false} />{" "}
             Updating...{" "}
           </>
-        ) : (
+        )}
+        {ui_status === "updated" && (
+          <>
+            <Icon name="success" /> Updated
+          </>
+        )}
+        {ui_status !== "updating" && ui_status !== "updated" && (
           <HostInstallerActionButton
             baseClass={baseClass}
             disabled={false}

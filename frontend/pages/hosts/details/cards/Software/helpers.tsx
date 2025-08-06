@@ -9,6 +9,7 @@ import {
   IHostSoftwareWithUiStatus,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
+import { getLastInstall } from "../HostSoftwareLibrary/helpers";
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams
 export const getHostSoftwareFilterFromQueryParams = (
@@ -158,12 +159,19 @@ const getInstallerVersion = (software: IHostSoftware) => {
 };
 
 // UI_STATUS UTILITIES
+
+const getNewerDate = (dateStr1: string, dateStr2: string) => {
+  return dateStr1 > dateStr2 ? dateStr1 : dateStr2;
+};
+
 export const getUiStatus = (
   software: IHostSoftware,
-  isHostOnline: boolean
+  isHostOnline: boolean,
+  hostSoftwareUpdatedAt?: string | null
 ): IHostSoftwareUiStatus => {
   const { status, installed_versions } = software;
 
+  const lastInstallDate = getLastInstall(software)?.installed_at;
   const installerVersion = getInstallerVersion(software);
 
   // If the installation has failed, return 'failed_install'
@@ -229,7 +237,12 @@ export const getUiStatus = (
       (iv) => compareVersions(iv.version, installerVersion) === -1
     )
   ) {
-    return "update_available";
+    const newerDate =
+      hostSoftwareUpdatedAt && lastInstallDate
+        ? getNewerDate(hostSoftwareUpdatedAt, lastInstallDate)
+        : lastInstallDate;
+
+    return newerDate === lastInstallDate ? "updated" : "update_available";
   }
 
   // Tgz packages that are installed via Fleet should return 'installed' as they
