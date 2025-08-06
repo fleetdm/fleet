@@ -571,6 +571,26 @@ SELECT
 FROM chrome_extensions
 ```
 
+## software_deb_last_opened_at
+
+- Description: A software override query[^1] to append last_opened_at information to Linux DEB software entries.
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'deb_package_files'
+```
+
+- Query:
+```sql
+SELECT package, MAX(atime) AS last_opened_at
+		FROM deb_package_files 
+		CROSS JOIN file USING (path) 
+		WHERE type = 'regular' AND regex_match(file.mode, '[1357]', 0)
+		GROUP BY package
+```
+
 ## software_linux
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
@@ -859,6 +879,26 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 		  '' AS vendor,
 		  path AS installed_path
 		FROM cached_users CROSS JOIN python_packages USING (uid)
+```
+
+## software_rpm_last_opened_at
+
+- Description: A software override query[^1] to append last_opened_at information to Linux RPM software entries.
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'rpm_package_files'
+```
+
+- Query:
+```sql
+SELECT package, MAX(atime) AS last_opened_at
+		FROM (SELECT package, path FROM rpm_package_files WHERE regex_match(mode, '[1357]', 0))
+		CROSS JOIN file USING (path)
+		WHERE type = 'regular'
+		GROUP BY package
 ```
 
 ## software_vscode_extensions
