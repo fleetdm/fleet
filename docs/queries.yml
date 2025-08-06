@@ -110,12 +110,13 @@ spec:
   platform: linux, darwin
   description: Retrieves total amount of free disk space on a host.
   query: |
-    SELECT 
-      (blocks_available * 100 / blocks) AS percent_disk_space_available,
-      round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-      round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
+    SELECT
+      ROUND(SUM(blocks_available * blocks_size) * 1.0 / SUM(blocks * blocks_size) * 100, 2) AS percent_disk_space_available,
+      ROUND(SUM(blocks_available * blocks_size * 1.0) / (1024 * 1024 * 1024), 2) AS gigs_disk_space_available,
+      ROUND(SUM(blocks * blocks_size * 1.0) / (1024 * 1024 * 1024), 2) AS gigs_total_disk_space
     FROM mounts
-    WHERE path = '/' LIMIT 1
+    WHERE blocks IS NOT NULL AND blocks_size IS NOT NULL;
+
   bash: df -P / | awk 'NR==2 { blocks=$2; blocks_available=$4; blocks_size=$2/$3 } END { printf "percent_disk_space_available=%.2f\n", (blocks_available * 100 / blocks); printf "gigs_disk_space_available=%.2f\n", (blocks_available * blocks_size * 10e-10); printf "gigs_total_disk_space=%.2f\n", (blocks * blocks_size * 10e-10) }'
   purpose: Informational
   tags: built-in
