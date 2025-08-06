@@ -152,8 +152,7 @@ export interface IScriptBatchHostCountsV2 {
 }
 
 // TODO - use THIS response type for the new summary endpoint
-export interface IScriptBatchSummaryResponseV2
-  extends IScriptBatchHostCountsV2 {
+export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
   script_id: number;
   script_name: string;
   team_id: number;
@@ -175,7 +174,7 @@ export interface IScriptBatchSummariesQueryKey
 }
 
 export interface IScriptBatchSummariesResponse {
-  batch_executions: IScriptBatchSummaryResponseV2[];
+  batch_executions: IScriptBatchSummaryV2[];
   meta: PaginationMeta;
   /** total number of batch executions matching filters */
   count: number;
@@ -265,12 +264,35 @@ export default {
       `${endpoints.SCRIPT_RUN_BATCH_SUMMARY(batch_execution_id)}`
     );
   },
-  getRunScriptBatchSummaries(
+  async getRunScriptBatchSummaries(
     params: IScriptBatchSummariesParams
   ): Promise<IScriptBatchSummariesResponse> {
     const path = `${
       endpoints.SCRIPT_RUN_BATCH_SUMMARIES
     }?${buildQueryStringFromParams({ ...params })}`;
-    return sendRequest("GET", path);
+    // TODO - swap
+    // return sendRequest("GET", path);
+    // await new Promise((resolve) => setTimeout(() => null, 2000));
+    return Promise.resolve({
+      batch_executions: [
+        {
+          batch_execution_id: "fake-id",
+          script_id: 1,
+          script_name: "Fake Script",
+          team_id: 0,
+          targeted_host_count: 10,
+          ran_host_count: 8,
+          pending_host_count: 1,
+          errored_host_count: 1,
+          incompatible_host_count: 0,
+          canceled_host_count: 0,
+          status: "completed" as ScriptBatchStatus,
+          completed_at: new Date().toISOString(),
+          canceled: false,
+        },
+      ],
+      meta: { has_next_results: false, has_previous_results: false },
+      count: 1,
+    });
   },
 };
