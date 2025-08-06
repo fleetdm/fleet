@@ -29,7 +29,7 @@ import {
 
 interface IGetStatusMessageProps {
   isDUP?: boolean;
-  displayStatus: SoftwareInstallStatus | "pending";
+  displayStatus: SoftwareInstallStatus;
   isMDMStatusNotNow: boolean;
   isMDMStatusAcknowledged: boolean;
   appName: string;
@@ -55,6 +55,16 @@ export const getStatusMessage = ({
           addSuffix: true,
         })})`
       : null;
+
+  // Handles the case where software is installed manually by the user and not through Fleet
+  // This app_store_app modal matches software_packages installed manually shown with SoftwareInstallDetailsModal
+  if (displayStatus === "installed" && !commandUpdatedAt) {
+    return (
+      <>
+        <b>{appName}</b> is installed.
+      </>
+    );
+  }
 
   // Handle NotNow case separately
   if (isMDMStatusNotNow) {
@@ -216,8 +226,9 @@ export const VppInstallDetailsModal = ({
     }
   );
 
+  // Fallback to "installed" if no status is provided as Installed
   const displayStatus =
-    (fleetInstallStatus as SoftwareInstallStatus) || "pending_install";
+    (fleetInstallStatus as SoftwareInstallStatus) || "installed";
   const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
 
   // Note: We need to reconcile status values from two different sources. From props, we
