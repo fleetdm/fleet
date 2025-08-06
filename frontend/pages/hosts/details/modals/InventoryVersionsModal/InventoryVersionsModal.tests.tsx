@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 import { createMockHostSoftware } from "__mocks__/hostMock";
 import InventoryVersionsModal from "./InventoryVersionsModal";
+import { SoftwareSource } from "../../../../../interfaces/software";
 
 // Mock current time for time stamp test
 beforeAll(() => {
@@ -144,8 +145,13 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("Never")).toBeVisible();
   });
 
-  for (const source of ["apps", "programs", "deb_packages", "rpm_packages"]) {
-    it("renders 'Never' for last opened when last_opened_at is null and source is " + source, () => {
+  ([
+    "apps",
+    "programs",
+    "deb_packages",
+    "rpm_packages",
+  ] as SoftwareSource[]).forEach((source) => {
+    it(`renders 'Never' for last opened when last_opened_at is null and source is ${source}`, () => {
       const mockSoftware = createMockHostSoftware({
         source,
         installed_versions: [
@@ -167,13 +173,16 @@ describe("SoftwareDetailsModal", () => {
       });
 
       render(
-          <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()}/>
+        <InventoryVersionsModal
+          hostSoftware={mockSoftware}
+          onExit={jest.fn()}
+        />
       );
 
       expect(screen.getByText("Last opened")).toBeVisible();
       expect(screen.getByText("Never")).toBeVisible();
     });
-  }
+  });
 
   it("does not render last opened field when last_opened_at is null and source is not supported", () => {
     const mockSoftware = createMockHostSoftware({
