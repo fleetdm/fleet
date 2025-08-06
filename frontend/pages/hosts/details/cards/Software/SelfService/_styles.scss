@@ -12,6 +12,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: $pad-medium;
 
     .button {
       margin-bottom: $pad-large;
@@ -29,18 +30,28 @@
 
   &__items {
     display: grid;
+
+    // Small screens (default)
     grid-template-columns: repeat(
       2,
-      1fr
-    ); // default: 2 cards (smallest screens)
+      minmax(250px, 1fr)
+    ); // 2 cards, max ensures long name truncation
     gap: $pad-large;
 
+    // Medium screens
     @media (min-width: $break-sm) {
-      grid-template-columns: repeat(3, 1fr); // 3 cards (medium screens)
+      grid-template-columns: repeat(
+        3,
+        minmax(220px, 1fr)
+      ); // 3 cards, max ensures long name truncation
     }
 
+    // Large screens
     @media (min-width: $break-lg) {
-      grid-template-columns: repeat(4, 1fr); // 4 cards (large screens)
+      grid-template-columns: repeat(
+        4,
+        minmax(250px, 1fr)
+      ); // 4 cards, max ensures long name truncation
     }
   }
 
@@ -95,7 +106,7 @@
   }
 
   // Custom breakpoint to fit table with categories
-  @media (min-width: 1050px) {
+  @media (min-width: 1070px) {
     .categories-menu {
       display: flex;
     }
