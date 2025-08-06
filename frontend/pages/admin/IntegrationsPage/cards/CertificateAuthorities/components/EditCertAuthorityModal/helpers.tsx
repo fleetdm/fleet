@@ -1,12 +1,6 @@
-import {
-  ICertificateAuthorityType,
-  ICertificateIntegration,
-  ICertificatesIntegrationCustomSCEP,
-  isCustomSCEPCertIntegration,
-  isDigicertCertIntegration,
-  isHydrantCertIntegration,
-  isNDESCertIntegration,
-} from "interfaces/integration";
+import { IEditCertAuthorityBody } from "services/entities/certificates";
+import { ICertificateAuthority } from "interfaces/certificates";
+import deepDifference from "utilities/deep_difference";
 
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { getDisplayErrMessage } from "../AddCertAuthorityModal/helpers";
@@ -15,16 +9,8 @@ import { INDESFormData } from "../NDESForm/NDESForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 
-export const getCertificateAuthorityType = (
-  certAuthority: ICertificateIntegration
-): ICertificateAuthorityType => {
-  if (isNDESCertIntegration(certAuthority)) return "ndes";
-  if (isCustomSCEPCertIntegration(certAuthority)) return "custom";
-  return "digicert";
-};
-
 export const generateDefaultFormData = (
-  certAuthority: ICertificateIntegration
+  certAuthority: ICertificateAuthority
 ): ICertFormData => {
   if (certAuthority.type === "ndes_scep_proxy") {
     return {
@@ -62,10 +48,13 @@ export const generateDefaultFormData = (
 };
 
 export const generateEditCertAuthorityData = (
-  type: ICertificateAuthorityType,
+  certAuthority: ICertificateIntegration,
   formData: ICertFormData
-): IAddCertAuthorityBody => {
-  switch (type) {
+): IEditCertAuthorityBody => {
+  const certAuthWithoutType = Object.assign({}, certAuthority);
+  delete certAuthWithoutType.type;
+
+  switch (certAuthority.type) {
     case "ndes_scep_proxy":
       // eslint-disable-next-line no-case-declarations
       const {
@@ -74,7 +63,69 @@ export const generateEditCertAuthorityData = (
         username,
         password,
       } = formData as INDESFormData;
-
+      return {
+        ndes_scep_proxy: deepDifference(certAuthWithoutType, {
+          url: scepURL,
+          admin_url: adminURL,
+          username,
+          password,
+        }),
+      };
+    case "digicert":
+      // eslint-disable-next-line no-case-declarations
+      const {
+        name,
+        url: digicertUrl,
+        apiToken,
+        profileId,
+        commonName,
+        userPrincipalName,
+        certificateSeatId,
+      } = formData as IDigicertFormData;
+      return {
+        digicert: deepDifference(certAuthWithoutType, {
+          name,
+          url: digicertUrl,
+          api_token: apiToken,
+          profile_id: profileId,
+          certificate_common_name: commonName,
+          certificate_user_principal_names: [userPrincipalName],
+          certificate_seat_id: certificateSeatId,
+        }),
+      };
+    case "hydrant":
+      // eslint-disable-next-line no-case-declarations
+      const {
+        name: hydrantName,
+        url: hydrantUrl,
+        clientId,
+        clientSecret,
+      } = formData as IHydrantFormData;
+      return {
+        hydrant: deepDifference(certAuthWithoutType, {
+          name: hydrantName,
+          url: hydrantUrl,
+          client_id: clientId,
+          client_secret: clientSecret,
+        }),
+      };
+    default:
+      // custom_scep_proxy
+      // eslint-disable-next-line no-case-declarations
+      const {
+        name: customSCEPName,
+        scepURL: customSCEPUrl,
+        challenge,
+      } = formData as ICustomSCEPFormData;
+      return {
+        custom_scep_proxy: deepDifference(certAuthWithoutType, {
+          name: customSCEPName,
+          url: customSCEPUrl,
+          challenge,
+        }),
+      };
+  }
+};
 
 export const updateFormData = (
   certAuthority: ICertificateIntegration,

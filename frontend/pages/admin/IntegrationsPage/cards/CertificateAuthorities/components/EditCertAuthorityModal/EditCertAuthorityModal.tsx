@@ -10,6 +10,7 @@ import Modal from "components/Modal";
 
 import {
   generateDefaultFormData,
+  generateEditCertAuthorityData,
   getErrorMessage,
   updateFormData,
 } from "./helpers";
@@ -54,8 +55,11 @@ const EditCertAuthorityModal = ({
   };
 
   const onEditCertAuthority = async () => {
+    if (!fullCertAuthority) {
+      return;
+    }
     const editPatchData = generateEditCertAuthorityData(
-      certAuthority.type,
+      fullCertAuthority,
       formData
     );
     setIsUpdating(true);

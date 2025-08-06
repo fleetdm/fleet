@@ -25,7 +25,7 @@ export type IAddCertAuthorityBody =
   | { custom_scep_proxy: ICertificatesCustomSCEP }
   | { hydrant: ICertificatesHydrant };
 
-type IEditCertAuthorityBody =
+export type IEditCertAuthorityBody =
   | { digicert: Partial<ICertificatesDigicert> }
   | { ndes_scep_proxy: Partial<ICertificatesNDES> }
   | { custom_scep_proxy: Partial<ICertificatesCustomSCEP> }
