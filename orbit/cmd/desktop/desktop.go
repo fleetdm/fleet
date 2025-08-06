@@ -245,7 +245,11 @@ func main() {
 			selfServiceItem.Hide()
 
 			migrateMDMItem.Disable()
-			migrateMDMItem.Hide()
+			if showMDMMigrator {
+				migrateMDMItem.Show()
+			} else {
+				migrateMDMItem.Hide()
+			}
 
 			hostOfflineItemOne.Hide()
 			hostOfflineItemTwo.Hide()
@@ -397,6 +401,7 @@ func main() {
 					myDeviceItem.Hide()
 					transparencyItem.Disable()
 					transparencyItem.Hide()
+					migrateMDMItem.Disable()
 					hostOfflineItemOne.Show()
 					hostOfflineItemTwo.Show()
 					log.Error().Err(err).Msg("get desktop summary")
