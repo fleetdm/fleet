@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -33,29 +33,30 @@ const EditCertAuthorityModal = ({
   onExit,
 }: IEditCertAuthorityModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [formData, setFormData] = useState<ICertFormData | undefined>();
 
   const { data: fullCertAuthority, isLoading, isError } = useQuery(
     ["cert-authority", certAuthority.id],
     () => certificatesAPI.getCertificateAuthority(certAuthority.id),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      onSuccess: (data) => {
+        setFormData(generateDefaultFormData(data));
+      },
     }
   );
 
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [formData, setFormData] = useState<ICertFormData>(() =>
-    generateDefaultFormData(fullCertAuthority)
-  );
-
   const onChangeForm = (update: { name: string; value: string }) => {
+    if (!fullCertAuthority) return;
     setFormData((prevFormData) => {
       if (!prevFormData) return prevFormData;
-      return updateFormData(certAuthority, prevFormData, update);
+      return updateFormData(fullCertAuthority, prevFormData, update);
     });
   };
 
   const onEditCertAuthority = async () => {
-    if (!fullCertAuthority) {
+    if (!fullCertAuthority || !formData) {
       return;
     }
     const editPatchData = generateEditCertAuthorityData(
