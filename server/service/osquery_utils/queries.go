@@ -1356,6 +1356,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	// hosts. Joining this within the main software query is not performant enough to do on the
 	// device, so we do it on the server instead.
 	"deb_last_opened_at": {
+		// regex_match on the mode to look for only files with execute permissions
+		// deb_package_files does not have a mode column, so we need to join to the file table and filter there
 		Query: `
 		SELECT package, MAX(atime) AS last_opened_at
 		FROM deb_package_files 
@@ -1363,26 +1365,29 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		WHERE type = 'regular' AND regex_match(file.mode, '[1357]', 0)
 		GROUP BY package
 	`,
-		Description:            "A software override query[^1] to append last_opened_at information to Linux DEB software entries.",
-		Platforms:              fleet.HostLinuxOSs,
-		Discovery:              discoveryTable("deb_package_files"), // Table should ship in osquery 5.19.0: https://github.com/osquery/osquery/pull/8657
+		Description: "A software override query[^1] to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.",
+		Platforms:   fleet.HostLinuxOSs,
+		// Table should ship in osquery 5.19.0: https://github.com/osquery/osquery/pull/8657
+		Discovery:              discoveryTable("deb_package_files"),
 		SoftwareProcessResults: processPackageLastOpenedAt("deb_packages"),
 	},
 	// rpm_last_opened_at collects last opened at information from RPM package files on Linux
 	// hosts. Joining this within the main software query is not performant enough to do on the
 	// device, so we do it on the server instead.
 	"rpm_last_opened_at": {
-		Query: // rpm_package_files has a mode column that allows an optimization by filtering before joining to the file table
-		`
+		// regex_match on the mode to look for only files with execute permissions
+		// rpm_package_files has a mode column that allows an optimization by filtering before joining to the file table
+		Query: `
 		SELECT package, MAX(atime) AS last_opened_at
 		FROM (SELECT package, path FROM rpm_package_files WHERE regex_match(mode, '[1357]', 0))
 		CROSS JOIN file USING (path)
 		WHERE type = 'regular'
 		GROUP BY package
 	`,
-		Description:            "A software override query[^1] to append last_opened_at information to Linux RPM software entries.",
-		Platforms:              fleet.HostLinuxOSs,
-		Discovery:              discoveryTable("rpm_package_files"), // Available since osquery 1.4.5
+		Description: "A software override query[^1] to append last_opened_at information to Linux RPM software entries.  The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.",
+		Platforms:   fleet.HostLinuxOSs,
+		// Available since osquery 1.4.5
+		Discovery:              discoveryTable("rpm_package_files"),
 		SoftwareProcessResults: processPackageLastOpenedAt("rpm_packages"),
 	},
 }
@@ -1409,9 +1414,7 @@ func processPackageLastOpenedAt(source string) func(mainSoftwareResults, pkgFile
 
 			packageName := result["name"]
 			if lastOpened, exists := packageLastOpened[packageName]; exists {
-				// Some packages will have multiple file entries, so we compare the last_opened_at
-				// values and keep the more recent.
-				result["last_opened_at"] = maxString(result["last_opened_at"], lastOpened)
+				result["last_opened_at"] = lastOpened
 			}
 		}
 
