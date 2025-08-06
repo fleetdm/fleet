@@ -24,7 +24,7 @@ const SCRIPTS_NAV_ITEMS: ISideNavItem<IScriptsCardProps>[] = [
   {
     title: "Batch progress",
     urlSection: "progress",
-    path: `${PATHS.CONTROLS_SCRIPTS_PROGRESS}`,
+    path: `${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}`,
     Card: ScriptBatchProgress,
   },
 ];
