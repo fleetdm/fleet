@@ -9785,7 +9785,6 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
-
     "bundle_identifier": "com.apple.logic10",
     "available_software": {
       "fleet_maintained_app": null,
