@@ -1366,7 +1366,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Description:            "A software override query[^1] to append last_opened_at information to Linux DEB software entries.",
 		Platforms:              fleet.HostLinuxOSs,
 		Discovery:              discoveryTable("deb_package_files"), // Table should ship in osquery 5.19.0: https://github.com/osquery/osquery/pull/8657
-		SoftwareProcessResults: processPackageLastOpenedAt,
+		SoftwareProcessResults: processPackageLastOpenedAt("deb_packages"),
 	},
 	// rpm_last_opened_at collects last opened at information from RPM package files on Linux
 	// hosts. Joining this within the main software query is not performant enough to do on the
@@ -1383,33 +1383,40 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Description:            "A software override query[^1] to append last_opened_at information to Linux RPM software entries.",
 		Platforms:              fleet.HostLinuxOSs,
 		Discovery:              discoveryTable("rpm_package_files"), // Available since osquery 1.4.5
-		SoftwareProcessResults: processPackageLastOpenedAt,
+		SoftwareProcessResults: processPackageLastOpenedAt("rpm_packages"),
 	},
 }
 
 // processPackageLastOpenedAt is a shared function that processes package last_opened_at information
 // for both DEB and RPM packages. It takes the expected source name as a parameter.
-func processPackageLastOpenedAt(mainSoftwareResults, pkgFileResults []map[string]string) []map[string]string {
-	if len(pkgFileResults) == 0 {
+func processPackageLastOpenedAt(source string) func(mainSoftwareResults, pkgFileResults []map[string]string) []map[string]string {
+	return func(mainSoftwareResults, pkgFileResults []map[string]string) []map[string]string {
+		if len(pkgFileResults) == 0 {
+			return mainSoftwareResults
+		}
+
+		// Create a map of package name to last_opened_at for quick lookup
+		packageLastOpened := make(map[string]string)
+		for _, result := range pkgFileResults {
+			packageLastOpened[result["package"]] = result["last_opened_at"]
+		}
+
+		for _, result := range mainSoftwareResults {
+			// Only process software entries that match the expected source
+			if result["source"] != source {
+				continue
+			}
+
+			packageName := result["name"]
+			if lastOpened, exists := packageLastOpened[packageName]; exists {
+				// Some packages will have multiple file entries, so we compare the last_opened_at
+				// values and keep the more recent.
+				result["last_opened_at"] = maxString(result["last_opened_at"], lastOpened)
+			}
+		}
+
 		return mainSoftwareResults
 	}
-
-	// Create a map of package name to last_opened_at for quick lookup
-	packageLastOpened := make(map[string]string)
-	for _, result := range pkgFileResults {
-		packageLastOpened[result["package"]] = result["last_opened_at"]
-	}
-
-	for _, result := range mainSoftwareResults {
-		packageName := result["name"]
-		if lastOpened, exists := packageLastOpened[packageName]; exists {
-			// Some packages will have multiple file entries, so we compare the last_opened_at
-			// values and keep the more recent.
-			result["last_opened_at"] = maxString(result["last_opened_at"], lastOpened)
-		}
-	}
-
-	return mainSoftwareResults
 }
 
 // Convert the strings to integers and return the larger one.
