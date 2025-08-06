@@ -1110,7 +1110,9 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 		BatchScriptExecutions: list,
 		Count:                 uint(count),
 		PaginationMetadata: fleet.PaginationMetadata{
-			HasNextResults: ,
+			HasNextResults:     false,
+			HasPreviousResults: false,
+		},
 	}, nil
 }
 
