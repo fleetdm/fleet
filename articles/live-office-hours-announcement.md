@@ -35,7 +35,7 @@ Whether you're deploying Fleet for thousands of hosts or just exploring what's p
 
 No question is too technical or too basic. We're here to help you succeed with Fleet.
 
-## Join us live
+## Watch anytime
 
 Can't make it live? No problem. All sessions are recorded and available on our [YouTube playlist](https://www.youtube.com/playlist?list=PL5xgWxGTJxk26cVSudOyhaSyT_rNqIYu9).
 
