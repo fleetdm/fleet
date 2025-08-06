@@ -2048,7 +2048,6 @@ OFFSET %d
 	stmtExecutions = fmt.Sprintf(stmtExecutions, where, limit, offset)
 
 	var summary []fleet.BatchExecutionSummary
-	fmt.Println("Executing query:", stmtExecutions, "with args:", args)
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
 	}
