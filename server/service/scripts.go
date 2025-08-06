@@ -1092,10 +1092,15 @@ func batchScriptExecutionStatusEndpoint(ctx context.Context, request interface{}
 func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptExecutionListRequest)
 
-	offset := uint(0)
-	if req.Page != nil && req.PerPage != nil {
-		offset = *req.Page * *req.PerPage
+	page := 0
+	pageSize := 0
+	if req.Page != nil {
+		page = int(*req.Page)
 	}
+	if req.PerPage != nil {
+		pageSize = int(*req.PerPage)
+	}
+	offset := uint(page * pageSize)
 	filter := fleet.BatchExecutionStatusFilter{
 		TeamID: &req.TeamID,
 		Status: req.Status,
@@ -1106,12 +1111,16 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 	if err != nil {
 		return batchScriptExecutionStatusResponse{Err: err}, nil
 	}
+	listSize := len(list)
+	hasPreviousResults := req.Page != nil && *req.Page > 0
+	resultsSeen := (page * pageSize) + listSize
+	hasNextResults := resultsSeen < int(count)
 	return batchScriptExecutionListResponse{
 		BatchScriptExecutions: list,
 		Count:                 uint(count),
 		PaginationMetadata: fleet.PaginationMetadata{
-			HasNextResults:     false,
-			HasPreviousResults: false,
+			HasNextResults:     hasNextResults,
+			HasPreviousResults: hasPreviousResults,
 		},
 	}, nil
 }

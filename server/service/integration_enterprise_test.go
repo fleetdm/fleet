@@ -6616,6 +6616,33 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		0,
 	)
 
+	// Another request so we can check the list endpoint
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID},
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	// Check with the list endpoint
+	var batchListResp batchScriptExecutionListResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
+	require.Len(t, batchListResp.BatchScriptExecutions, 1)
+	require.Equal(t, batchListResp.Count, uint(2))
+	require.Equal(t, batchListResp.HasNextResults, true)
+	require.Equal(t, batchListResp.HasPreviousResults, false)
+	require.Equal(t, batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
+	require.Equal(t, batchListResp.BatchScriptExecutions[0].NumTargeted, uint(1))
+	require.Equal(t, batchListResp.BatchScriptExecutions[0].NumPending, uint(1))
+
+	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&page=1&per_page=1", nil, http.StatusOK, &batchListResp)
+	require.Len(t, batchListResp.BatchScriptExecutions, 1)
+	require.Equal(t, batchListResp.Count, uint(2))
+	require.Equal(t, batchListResp.HasNextResults, false)
+	require.Equal(t, batchListResp.HasPreviousResults, true)
+	require.Equal(t, batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
+	require.Equal(t, batchListResp.BatchScriptExecutions[0].NumTargeted, uint(2))
+	require.Equal(t, batchListResp.BatchScriptExecutions[0].NumPending, uint(2))
+
 	// verify that script was queued for orbit
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
