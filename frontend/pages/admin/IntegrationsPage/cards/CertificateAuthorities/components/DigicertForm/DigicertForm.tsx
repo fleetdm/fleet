@@ -1,6 +1,7 @@
 import React, { useContext, useMemo, useState } from "react";
 
 import { AppContext } from "context/app";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -26,6 +27,7 @@ export interface IDigicertFormData {
 }
 
 interface IDigicertFormProps {
+  certAuthorities?: ICertificateAuthorityPartial[];
   formData: IDigicertFormData;
   submitBtnText: string;
   isSubmitting: boolean;
@@ -36,6 +38,7 @@ interface IDigicertFormProps {
 }
 
 const DigicertForm = ({
+  certAuthorities,
   formData,
   submitBtnText,
   isSubmitting,
@@ -46,9 +49,8 @@ const DigicertForm = ({
 }: IDigicertFormProps) => {
   const { config } = useContext(AppContext);
   const validations = useMemo(
-    () =>
-      generateFormValidations(config?.integrations.digicert ?? [], isEditing),
-    [config?.integrations.digicert, isEditing]
+    () => generateFormValidations(certAuthorities ?? [], isEditing),
+    [certAuthorities, isEditing]
   );
 
   const [formValidation, setFormValidation] = useState<IDigicertFormValidation>(

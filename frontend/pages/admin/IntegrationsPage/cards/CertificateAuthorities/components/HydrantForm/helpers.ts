@@ -1,4 +1,4 @@
-import { ICertificatesIntegrationHydrant } from "interfaces/integration";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 import valid_url from "components/forms/validators/valid_url";
 
@@ -33,7 +33,7 @@ type IFormValidations = Record<
 >;
 
 export const generateFormValidations = (
-  hydrantIntegrations: ICertificatesIntegrationHydrant[],
+  certAuthorities: ICertificateAuthorityPartial[],
   isEditing: boolean
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
@@ -58,9 +58,8 @@ export const generateFormValidations = (
           isValid: (formData: IHydrantFormData) => {
             return (
               isEditing ||
-              hydrantIntegrations.find(
-                (cert) => cert.name === formData.name
-              ) === undefined
+              certAuthorities.find((cert) => cert.name === formData.name) ===
+                undefined
             );
           },
           message: "Name is already used by another Hydrant CA.",

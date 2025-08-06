@@ -41,6 +41,7 @@ export interface ICertificateAuthorityPartial {
 }
 
 export interface ICertificatesNDES {
+  type?: "ndes_scep_proxy";
   url: string;
   admin_url: string;
   username: string;
@@ -48,6 +49,7 @@ export interface ICertificatesNDES {
 }
 
 export interface ICertificatesDigicert {
+  type?: "digicert";
   name: string;
   url: string;
   api_token: string;
@@ -58,6 +60,7 @@ export interface ICertificatesDigicert {
 }
 
 export interface ICertificatesHydrant {
+  type?: "hydrant";
   name: string;
   url: string;
   client_id: string;
@@ -65,6 +68,7 @@ export interface ICertificatesHydrant {
 }
 
 export interface ICertificatesCustomSCEP {
+  type?: "custom_scep_proxy";
   name: string;
   url: string;
   challenge: string;
@@ -82,3 +86,43 @@ export type ICertificateAuthority =
   | ICertificatesDigicert
   | ICertificatesHydrant
   | ICertificatesCustomSCEP;
+
+export const isNDESCertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesNDES => {
+  return (
+    "admin_url" in integration &&
+    "username" in integration &&
+    "password" in integration
+  );
+};
+
+export const isDigicertCertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesDigicert => {
+  return (
+    "profile_id" in integration &&
+    "certificate_common_name" in integration &&
+    "certificate_user_principal_names" in integration &&
+    "certificate_seat_id" in integration
+  );
+};
+
+export const isHydrantCertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesHydrant => {
+  return (
+    "name" in integration &&
+    "url" in integration &&
+    "client_id" in integration &&
+    "client_secret" in integration
+  );
+};
+
+export const isCustomSCEPCertAuthority = (
+  integration: ICertificateAuthority
+): integration is ICertificatesCustomSCEP => {
+  return (
+    "name" in integration && "url" in integration && "challenge" in integration
+  );
+};

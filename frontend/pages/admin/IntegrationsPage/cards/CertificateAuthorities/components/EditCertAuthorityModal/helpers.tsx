@@ -1,5 +1,8 @@
 import { IEditCertAuthorityBody } from "services/entities/certificates";
-import { ICertificateAuthority } from "interfaces/certificates";
+import {
+  ICertificateAuthority,
+  ICertificatesCustomSCEP,
+} from "interfaces/certificates";
 import deepDifference from "utilities/deep_difference";
 
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
@@ -39,7 +42,7 @@ export const generateDefaultFormData = (
     };
   }
 
-  const customSCEPcert = certAuthority as ICertificatesIntegrationCustomSCEP;
+  const customSCEPcert = certAuthority as ICertificatesCustomSCEP;
   return {
     name: customSCEPcert.name,
     scepURL: customSCEPcert.url,
@@ -48,7 +51,7 @@ export const generateDefaultFormData = (
 };
 
 export const generateEditCertAuthorityData = (
-  certAuthority: ICertificateIntegration,
+  certAuthority: ICertificateAuthority,
   formData: ICertFormData
 ): IEditCertAuthorityBody => {
   const certAuthWithoutType = Object.assign({}, certAuthority);
@@ -128,7 +131,7 @@ export const generateEditCertAuthorityData = (
 };
 
 export const updateFormData = (
-  certAuthority: ICertificateIntegration,
+  certAuthority: ICertificateAuthority,
   prevFormData: ICertFormData,
   update: { name: string; value: string }
 ) => {
@@ -138,7 +141,7 @@ export const updateFormData = (
   // and force users to re-enter it. we only want to clear these values if it
   // has not been updated. The characters "********" is the value the API sends
   // back so we check for that value to determine if its been changed or not.
-  if (isDigicertCertIntegration(certAuthority)) {
+  if (certAuthority.type === "digicert") {
     const formData = prevFormData as IDigicertFormData;
     if (
       update.name === "name" ||
@@ -150,7 +153,7 @@ export const updateFormData = (
         apiToken: formData.apiToken === "********" ? "" : formData.apiToken,
       };
     }
-  } else if (isNDESCertIntegration(certAuthority)) {
+  } else if (certAuthority.type === "ndes_scep_proxy") {
     const formData = prevFormData as INDESFormData;
     if (update.name === "adminURL" || update.name === "username") {
       return {
@@ -158,7 +161,7 @@ export const updateFormData = (
         password: formData.password === "********" ? "" : formData.password,
       };
     }
-  } else if (isCustomSCEPCertIntegration(certAuthority)) {
+  } else if (certAuthority.type === "custom_scep_proxy") {
     const formData = prevFormData as ICustomSCEPFormData;
     if (update.name === "name" || update.name === "scepURL") {
       return {
@@ -166,7 +169,7 @@ export const updateFormData = (
         challenge: formData.challenge === "********" ? "" : formData.challenge,
       };
     }
-  } else if (isHydrantCertIntegration(certAuthority)) {
+  } else if (certAuthority.type === "hydrant") {
     // for Hydrant, we reset clientId and clientSecret if name or url changes
     // and the fields have not been updated. We do this to force users to send
     // the correct clientId and clientSecret for the new name or url.
