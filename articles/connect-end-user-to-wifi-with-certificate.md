@@ -31,7 +31,7 @@ To connect end users to Wi-Fi or VPN with DigiCert certificates, we'll do the fo
 3. Select your **Business unit** and **Issuing CA**.
 4. Select **REST API** from **Enrollment method**. Then select **3rd party app** from the **Authentication method** dropdown and select **Next**.
 5. Configure the certificate expiration. At most organizations, this is set to 90 days.
-6. In the **Flow options** section, make sure that **Allow dupliate certificates** is checked.
+6. In the **Flow options** section, make sure that **Allow duplicate certificates** is checked.
 7. In the **Subject DN and SAN fields** section, make sure to add **Common name**. **Other name (UPN)** is optional. For **Common name**, select **REST request** from **Source for the field's value** dropdown and check **Required**. If you use **Other name (UPN)**, select **REST Request** and check both **Required** and **Multiple**. Organizations usually use device's serial number or user's email, you can use Fleet variables in the next section, and Fleet will replace these variables with the actual values before certificate is delivered to a device.
 8. Click **Next** and leave all default options. We'll come back to this later.
 
@@ -218,7 +218,7 @@ To connect end users to W-Fi or VPN with a custom SCEP server, we'll do the foll
 
 2. Replace the `<CA_NAME>`, with name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION" the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
-3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication]((https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping)) enabled. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
 4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 

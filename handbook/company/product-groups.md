@@ -358,7 +358,7 @@ When a release is in testing, QA should use the Slack channel #help-qa to keep e
 
 When a critical bug is found, the Fleetie who labels the bug as critical is responsible for following the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug) below.
 
-All unreleased bugs are addressed before publishing a release. Released bugs that are not critical may be addressed during the next release per the standard [bug process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md#bug-process).
+All unreleased bugs are addressed before publishing a release. Released bugs that are not critical may be addressed during the next release per the standard [bug process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md#bug-process).
 
  - **Release blockers:** Product may add the `~release blocker` label to user stories to indicate that the story must be completed to publish the next version of Fleet. Bugs are never labeled as release blockers.
 
@@ -381,7 +381,7 @@ Once the critical bug is confirmed, a [priority label](https://fleetdm.com/handb
 
 The relevant release page on GitHub is updated to indicate that the release contains a critical bug, as shown on the [fleet-v4.45.0 release page](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.45.0).
 
-When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md#patch-releases).
+When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md#prepare-a-patch-release).
 
 > After a critical bug is fixed, [an incident postmortem](https://fleetdm.com/handbook/engineering#perform-an-incident-postmortem) is scheduled by the EM of the product group that fixed the bug.
 
