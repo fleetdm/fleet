@@ -1,7 +1,7 @@
 # Fleet 4.72.0 | Account-based user enrollment, smarter self-service, and more...
 
 <div purpose="embedded-content">
-   <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/-N1eZ-nw59A?si=QYbQtTBazOjHR0PG" frameborder="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.72.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.72.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
