@@ -1908,7 +1908,7 @@ INSERT INTO batch_activity_host_results (
 	return batchExecID, nil
 }
 
-func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionStatus, error) {
 	stmtExecutions := `
 SELECT
 	COUNT(*) as num_targeted,
@@ -1938,7 +1938,7 @@ JOIN
 WHERE
 	bse.execution_id = ?`
 
-	var summary fleet.BatchExecutionSummary
+	var summary fleet.BatchExecutionStatus
 	var temp_summary struct {
 		NumTargeted  uint `db:"num_targeted"`
 		NumDidNotRun uint `db:"num_did_not_run"`
@@ -1969,6 +1969,83 @@ WHERE
 
 	if summary.TeamID == nil {
 		summary.TeamID = ptr.Uint(0)
+	}
+
+	return &summary, nil
+}
+
+func (ds *Datastore) BatchExecuteStatus(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (*[]fleet.BatchExecutionStatus, error) {
+	stmtExecutions := `
+SELECT
+	COUNT(*) as num_targeted,
+	COUNT(bahr.error) as num_incompatible,
+	COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) as num_ran,
+	COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) as num_errored,
+	COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END) as num_canceled,
+	(
+		COUNT(*) -
+		(
+			COUNT(bahr.error) +
+			COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) +
+			COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) +
+			COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END)
+		)
+	) AS num_pending,
+	ba.script_id,
+	ba.status as status,
+	ba.canceled_at as canceled_at,
+	ba.completed_at as completed_at,
+	s.name as script_name,
+	IF(ISNULL(s.team_id), 0, s.team_id) as team_id,
+	ba.created_at as created_at,
+	j.not_before as not_before
+FROM
+	batch_activity_host_results bahr
+LEFT JOIN
+	host_script_results hsr
+		ON bahr.host_execution_id = hsr.execution_id
+JOIN
+	batch_activities ba
+		ON ba.execution_id = bahr.batch_execution_id		
+JOIN
+	scripts s
+		ON ba.script_id = s.id
+LEFT JOIN jobs j
+		ON j.id = ba.job_id
+WHERE
+	%s
+GROUP BY
+	ba.id
+ORDER BY
+	j.not_before ASC, ba.created_at DESC, ba.id DESC
+LIMIT %d
+OFFSET %d
+	`
+	limit := 10
+	offset := 0
+	args := []any{}
+	whereClauses := make([]string, 0, 2)
+	if filter.ExecutionID != nil && *filter.ExecutionID != "" {
+		whereClauses = append(whereClauses, "ba.execution_id = ?")
+		args = append(args, *filter.ExecutionID)
+	}
+	if filter.Status != nil && *filter.Status != "" {
+		whereClauses = append(whereClauses, "ba.status = ?")
+		args = append(args, *filter.Status)
+	}
+	if filter.Limit != nil {
+		limit = *filter.Limit
+	}
+	if filter.Offset != nil {
+		offset = *filter.Offset
+	}
+	where := strings.Join(whereClauses, " AND ")
+	stmtExecutions = fmt.Sprintf(stmtExecutions, where, limit, offset)
+
+	var summary []fleet.BatchExecutionStatus
+	fmt.Println(stmtExecutions, args)
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
 	}
 
 	return &summary, nil

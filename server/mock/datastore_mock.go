@@ -1167,7 +1167,9 @@ type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.
 
 type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
-type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error)
+type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchExecutionStatus, error)
+
+type BatchExecuteStatusFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (*[]fleet.BatchExecutionStatus, error)
 
 type GetHostLockWipeStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error)
 
@@ -3150,6 +3152,9 @@ type DataStore struct {
 
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
+
+	BatchExecuteStatusFunc        BatchExecuteStatusFunc
+	BatchExecuteStatusFuncInvoked bool
 
 	GetHostLockWipeStatusFunc        GetHostLockWipeStatusFunc
 	GetHostLockWipeStatusFuncInvoked bool
@@ -7551,11 +7556,18 @@ func (s *DataStore) BatchExecuteScript(ctx context.Context, userID *uint, script
 	return s.BatchExecuteScriptFunc(ctx, userID, scriptID, hostIDs)
 }
 
-func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionStatus, error) {
 	s.mu.Lock()
 	s.BatchExecuteSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchExecuteSummaryFunc(ctx, executionID)
+}
+
+func (s *DataStore) BatchExecuteStatus(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (*[]fleet.BatchExecutionStatus, error) {
+	s.mu.Lock()
+	s.BatchExecuteStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchExecuteStatusFunc(ctx, filter)
 }
 
 func (s *DataStore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {

@@ -43,7 +43,7 @@ func TestScripts(t *testing.T) {
 		{"TestDeletePendingHostScriptExecutionsForPolicy", testDeletePendingHostScriptExecutionsForPolicy},
 		{"UpdateScriptContents", testUpdateScriptContents},
 		{"UpdateDeletingUpcomingScriptExecutions", testUpdateDeletingUpcomingScriptExecutions},
-		{"BatchExecute", testBatchExecute},
+		{"BatchExecute", testBatchExecuteWithStatus},
 		{"DeleteScriptActivatesNextActivity", testDeleteScriptActivatesNextActivity},
 		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
 	}
@@ -1906,6 +1906,188 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
 	require.Equal(t, summary.NumPending, uint(0))
 	require.Equal(t, summary.NumErrored, uint(3))
+	require.Equal(t, summary.NumRan, uint(1))
+	require.Equal(t, summary.NumCanceled, uint(1))
+}
+
+func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "user1", "user@example.com", true)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	hostNoScripts := test.NewHost(t, ds, "hostNoScripts", "10.0.0.1", "hostnoscripts", "hostnoscriptsuuid", time.Now())
+	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"))
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now())
+	hostTeam1 := test.NewHost(t, ds, "hostTeam1", "10.0.0.5", "hostTeam1key", "hostTeam1uuid", time.Now(), test.WithTeamID(team1.ID))
+
+	test.SetOrbitEnrollment(t, hostWindows, ds)
+	test.SetOrbitEnrollment(t, host1, ds)
+	test.SetOrbitEnrollment(t, host2, ds)
+	test.SetOrbitEnrollment(t, host3, ds)
+	test.SetOrbitEnrollment(t, hostTeam1, ds)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo hi",
+	})
+	require.NoError(t, err)
+
+	// Hosts all have to be on the same team as the script
+	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostTeam1.ID})
+	require.Empty(t, execID)
+	require.ErrorContains(t, err, "same team")
+
+	// Actual good execution
+	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+
+	// Update the batch to have a pending status
+	// TODO -- remove this when status is set automatically
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE batch_activities SET status = 'pending' WHERE execution_id = ?", execID)
+		return err
+	})
+
+	summaryList, err := ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &execID,
+	})
+	require.NoError(t, err)
+	require.Len(t, *summaryList, 1)
+	summary := (*summaryList)[0]
+	require.Equal(t, script.ID, summary.ScriptID)
+	require.Equal(t, script.Name, summary.ScriptName)
+	require.Equal(t, uint(0), *summary.TeamID)
+	require.NotNil(t, summary.CreatedAt)
+
+	// The summary should have two pending hosts and two errored ones, because
+	// the script is not compatible with the hostNoScripts and hostWindows.
+	require.Equal(t, summary.NumTargeted, uint(5))
+	require.Equal(t, summary.NumPending, uint(3))
+	require.Equal(t, summary.NumIncompatible, uint(2))
+	require.Equal(t, summary.NumErrored, uint(0))
+	require.Equal(t, summary.NumRan, uint(0))
+	require.Equal(t, summary.NumCanceled, uint(0))
+	// Host 1 should have an upcoming execution
+	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, host1Upcoming, 1)
+	require.Equal(t, &summary.ScriptID, host1Upcoming[0].ScriptID)
+	// Host 2 should have an upcoming execution
+	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, host2Upcoming, 1)
+	require.Equal(t, &summary.ScriptID, host2Upcoming[0].ScriptID)
+	// Host 3 should have an upcoming execution
+	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, host3Upcoming, 1)
+	require.Equal(t, &summary.ScriptID, host3Upcoming[0].ScriptID)
+	// Host Windows should not have an upcoming execution
+	hostWindowsUpcoming, err := ds.listUpcomingHostScriptExecutions(ctx, hostWindows.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, hostWindowsUpcoming, 0)
+	// Host No Scripts should not have an upcoming execution
+	hostNoScriptsUpcoming, err := ds.listUpcomingHostScriptExecutions(ctx, hostNoScripts.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, hostNoScriptsUpcoming, 0)
+	// Host Windows should have an error in its `batch_activity_host_results` row
+	var exec_error string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		db := q.(*sqlx.DB)
+		err := db.Get(&exec_error, "SELECT error FROM batch_activity_host_results WHERE host_id = ? AND batch_execution_id = ?", hostWindows.ID, execID)
+		require.NoError(t, err)
+		return nil
+	})
+	require.Equal(t, fleet.BatchExecuteIncompatiblePlatform, exec_error)
+	// Host No Scripts should have an error in its `batch_activity_host_results` row
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		db := q.(*sqlx.DB)
+		err := db.Get(&exec_error, "SELECT error FROM batch_activity_host_results WHERE host_id = ? AND batch_execution_id = ?", hostNoScripts.ID, execID)
+		require.NoError(t, err)
+		return nil
+	})
+	require.Equal(t, fleet.BatchExecuteIncompatibleFleetd, exec_error)
+
+	// Set host 1 to have a successful script result
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host1.ID,
+		ExecutionID: host1Upcoming[0].ExecutionID,
+		Output:      "foo",
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
+
+	// Get the summary again
+	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &execID,
+	})
+	require.NoError(t, err)
+	require.Len(t, *summaryList, 1)
+	summary = (*summaryList)[0]
+	// The summary should have one pending host, one run host and two errored ones.
+	require.Equal(t, summary.NumTargeted, uint(5))
+	require.Equal(t, summary.NumPending, uint(2))
+	require.Equal(t, summary.NumIncompatible, uint(2))
+	require.Equal(t, summary.NumErrored, uint(0))
+	require.Equal(t, summary.NumRan, uint(1))
+	require.Equal(t, summary.NumCanceled, uint(0))
+
+	// Set host 1 to have a failed script result
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host2.ID,
+		ExecutionID: host2Upcoming[0].ExecutionID,
+		Output:      "bar",
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+
+	// Get the summary again
+	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &execID,
+	})
+	require.NoError(t, err)
+	require.Len(t, *summaryList, 1)
+	summary = (*summaryList)[0] // The summary should have one pending host, one run host and two errored ones.
+	require.Equal(t, summary.NumTargeted, uint(5))
+	require.Equal(t, summary.NumPending, uint(1))
+	require.Equal(t, summary.NumIncompatible, uint(2))
+	require.Equal(t, summary.NumErrored, uint(1))
+	require.Equal(t, summary.NumRan, uint(1))
+	require.Equal(t, summary.NumCanceled, uint(0))
+
+	// Cancel the execution
+	_, err = ds.CancelHostUpcomingActivity(ctx, host3.ID, host3Upcoming[0].ExecutionID)
+	require.NoError(t, err)
+	// Get the summary again
+	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &execID,
+	})
+	require.NoError(t, err)
+	require.Len(t, *summaryList, 1)
+	summary = (*summaryList)[0]
+	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
+	require.Equal(t, summary.NumPending, uint(0))
+	require.Equal(t, summary.NumIncompatible, uint(2))
+	require.Equal(t, summary.NumErrored, uint(1))
+	require.Equal(t, summary.NumRan, uint(1))
+	require.Equal(t, summary.NumCanceled, uint(1))
+
+	// The summary should be returned when filtering by status "pending".
+	summaryList, err = ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+		Status: ptr.String("pending"),
+	})
+	require.NoError(t, err)
+	require.Len(t, *summaryList, 1)
+	summary = (*summaryList)[0]
+	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
+	require.Equal(t, summary.NumPending, uint(0))
+	require.Equal(t, summary.NumIncompatible, uint(2))
+	require.Equal(t, summary.NumErrored, uint(1))
 	require.Equal(t, summary.NumRan, uint(1))
 	require.Equal(t, summary.NumCanceled, uint(1))
 }

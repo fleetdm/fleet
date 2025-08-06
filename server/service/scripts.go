@@ -951,14 +951,20 @@ type batchSetScriptsResponse struct {
 	Err     error                  `json:"error,omitempty"`
 }
 
-type batchScriptExecutionSummaryRequest struct {
+type batchScriptExecutionStatusRequest struct {
 	BatchExecutionID string `url:"batch_execution_id"`
 }
 
-type batchScriptExecutionSummaryResponse struct {
-	fleet.BatchExecutionSummary
+type batchScriptExecutionStatusResponse struct {
+	fleet.BatchExecutionStatus
 	Err error `json:"error,omitempty"`
 }
+
+// TODO - remove these once we retire batch script summary endpoint and code.
+type (
+	batchScriptExecutionSummaryRequest  batchScriptExecutionStatusRequest
+	batchScriptExecutionSummaryResponse batchScriptExecutionStatusResponse
+)
 
 func (r batchSetScriptsResponse) Error() error { return r.Err }
 
@@ -1054,10 +1060,19 @@ func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{
 	if err != nil {
 		return batchScriptExecutionSummaryResponse{Err: err}, nil
 	}
-	return batchScriptExecutionSummaryResponse{BatchExecutionSummary: *summary}, nil
+	return batchScriptExecutionSummaryResponse{BatchExecutionStatus: *summary}, nil
 }
 
-func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionSummary, error) {
+func batchScriptExecutionStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptExecutionStatusRequest)
+	status, err := svc.BatchScriptExecutionStatus(ctx, req.BatchExecutionID)
+	if err != nil {
+		return batchScriptExecutionSummaryResponse{Err: err}, nil
+	}
+	return batchScriptExecutionSummaryResponse{BatchExecutionStatus: *status}, nil
+}
+
+func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionStatus, error) {
 	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
@@ -1068,6 +1083,40 @@ func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecut
 	}
 
 	return summary, nil
+}
+
+func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionStatus, error) {
+	summaryList, err := svc.ds.BatchExecuteStatus(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &batchExecutionID,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
+	}
+
+	// If the list is empty, it means the batch execution does not exist.
+	if summaryList == nil || len(*summaryList) == 0 {
+		// We can't know what team this batch is for, so we authorize with a no-team
+		// script as a fallback - the requested batch does not exist so there's
+		// no way to know what team it would be for, and returning a 404 without
+		// authorization would leak the existing/non existing ids.
+		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get batch script status")
+	}
+
+	if len(*summaryList) > 1 {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("batch_execution_id", "expected a single batch execution status, got multiple"))
+	}
+
+	summary := (*summaryList)[0]
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return &summary, nil
 }
 
 func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {
