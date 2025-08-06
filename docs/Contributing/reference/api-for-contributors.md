@@ -632,7 +632,7 @@ Status: 200
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| certificate | file | form | *Required* The file conataining the APNS certificate (.pem) |
+| certificate | file | form | *Required* The file containing the APNS certificate (.pem) |
 
 #### Example
 
@@ -4425,7 +4425,7 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 
 | Name              | Type    | In   | Description                                        |
 |-------------------|---------|------|----------------------------------------------------|
-| team_name | string | query | The name of the team to filter the check to. If not supplied, the user must haave global access, and hashes are checked across the entire instance. |
+| team_name | string | query | The name of the team to filter the check to. If not supplied, the user must have global access, and hashes are checked across the entire instance. |
 | sha256              | string  | query | **Required**. A comma-separated list of SHA256 hashes, (64 hex characters apiece) to check. Endpoint returns 200 if all specified hashes exist, 404 otherwise. |
 
 #### Example
@@ -4528,7 +4528,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
 | Name         | Type   | In    | Description                                                                                                                                                           |
 | ------------ | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | request_uuid | string | query | The request_uuid returned by the `POST /api/v1/fleet/software/batch` endpoint. |
-| team_name    | string | query | The name of the team to add the software package to. Ommitting these parameters will add software to 'No Team'. |
+| team_name    | string | query | The name of the team to add the software package to. Omitting these parameters will add software to 'No Team'. |
 | dry_run      | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 
 ##### Default responses
@@ -4577,7 +4577,7 @@ _Available in Fleet Premium._
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_name | string | query | The name of the team to add the software package to. Ommitting this parameter will add software to "No team". |
+| team_name | string | query | The name of the team to add the software package to. Omitting this parameter will add software to "No team". |
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
 | app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |

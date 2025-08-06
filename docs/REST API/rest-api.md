@@ -505,7 +505,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
+| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
 #### Example
@@ -6346,7 +6346,7 @@ List software that can or will be automatically installed during macOS setup. If
       "id": 12,
       "name": "Firefox.app",
       "software_package": {
-        "name": "FirefoxInsall.pkg",
+        "name": "FirefoxInstall.pkg",
         "platform": "darwin",
         "version": "125.6",
         "self_service": true,
@@ -6571,11 +6571,11 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 ### Get MDM command results
 
-> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [[Archived docuemntation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
+> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [[Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
 
 This endpoint returns the results for a specific custom MDM command.
 
-In the reponse, the possible `status` values for macOS, iOS, and iPadOS hosts are the following:
+In the response, the possible `status` values for macOS, iOS, and iPadOS hosts are the following:
 
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
 * NotNow: the host responded with "NotNow" status via the MDM protocol: the host received the command, but couldn’t execute it. The host will try to run the command the next time it comes online.
@@ -7970,7 +7970,7 @@ Returns the query report specified by ID.
       "host_name": "bar",
       "last_fetched": "2021-01-19T17:20:00Z",
       "columns": {
-        "model": "USB Reciever",
+        "model": "USB Receiver",
         "vendor": "Logitech"
       }
     },
@@ -7979,7 +7979,7 @@ Returns the query report specified by ID.
       "host_name": "bar",
       "last_fetched": "2021-01-19T17:20:00Z",
       "columns": {
-        "model": "USB Reciever",
+        "model": "USB Receiver",
         "vendor": "Logitech"
       }
     },
@@ -8050,7 +8050,7 @@ Returns a query report for a single host.
     },
     {
       "columns": {
-        "model": "USB Reciever",
+        "model": "USB Receiver",
         "vendor": "Logitech"
       }
     }
@@ -8638,7 +8638,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 | id              | integer | path  | **Required**. The team's ID.                                                                                                  |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
+| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
 #### Example
@@ -9436,7 +9436,7 @@ Get a list of all software.
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
-        "name": "FirefoxInsall.pkg",
+        "name": "FirefoxInstall.pkg",
         "version": "125.6",
         "self_service": true,
         "automatic_install_policies": [
