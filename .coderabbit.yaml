@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# Human view: https://docs.coderabbit.ai/getting-started/configure-coderabbit/
+language: "en-US"
+early_access: true
+enable_free_tier: true
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: false
+  collapse_walkthrough: false
+  auto_review:
+    enabled: false
+chat:
+  auto_reply: false
