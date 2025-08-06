@@ -908,7 +908,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	}
 
 	// TODO(mna): is this correct to get the "automatic" enrollment profile for BYOD?
-	// I think we may want some "manual" one if it exists?
+	// I think we may want some "manual" one if it exists? Or none at all?
 
 	// get the automatic profile to access the authentication token.
 	depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
