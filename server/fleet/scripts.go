@@ -580,6 +580,7 @@ type BatchActivity struct {
 	TeamID           *uint      `json:"team_id" db:"team_id"`
 	CreatedAt        time.Time  `json:"created_at" db:"created_at"`
 	NotBefore        *time.Time `json:"not_before,omitempty" db:"not_before"`
+	StartedAt        *time.Time `json:"started_at,omitempty" db:"started_at"`
 	CompletedAt      *time.Time `json:"completed_at,omitempty" db:"completed_at"`
 	CanceledAt       *time.Time `json:"canceled_at,omitempty" db:"canceled_at"`
 	Status           *string    `json:"status" db:"status"`
