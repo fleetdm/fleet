@@ -56,6 +56,7 @@ export const generateEditCertAuthorityData = (
 ): IEditCertAuthorityBody => {
   const certAuthWithoutType = Object.assign({}, certAuthority);
   delete certAuthWithoutType.type;
+  delete certAuthWithoutType.id;
 
   switch (certAuthority.type) {
     case "ndes_scep_proxy":
@@ -67,12 +68,15 @@ export const generateEditCertAuthorityData = (
         password,
       } = formData as INDESFormData;
       return {
-        ndes_scep_proxy: deepDifference(certAuthWithoutType, {
-          url: scepURL,
-          admin_url: adminURL,
-          username,
-          password,
-        }),
+        ndes_scep_proxy: deepDifference(
+          {
+            url: scepURL,
+            admin_url: adminURL,
+            username,
+            password,
+          },
+          certAuthWithoutType
+        ),
       };
     case "digicert":
       // eslint-disable-next-line no-case-declarations
@@ -86,15 +90,18 @@ export const generateEditCertAuthorityData = (
         certificateSeatId,
       } = formData as IDigicertFormData;
       return {
-        digicert: deepDifference(certAuthWithoutType, {
-          name,
-          url: digicertUrl,
-          api_token: apiToken,
-          profile_id: profileId,
-          certificate_common_name: commonName,
-          certificate_user_principal_names: [userPrincipalName],
-          certificate_seat_id: certificateSeatId,
-        }),
+        digicert: deepDifference(
+          {
+            name,
+            url: digicertUrl,
+            api_token: apiToken,
+            profile_id: profileId,
+            certificate_common_name: commonName,
+            certificate_user_principal_names: [userPrincipalName],
+            certificate_seat_id: certificateSeatId,
+          },
+          certAuthWithoutType
+        ),
       };
     case "hydrant":
       // eslint-disable-next-line no-case-declarations
@@ -105,12 +112,15 @@ export const generateEditCertAuthorityData = (
         clientSecret,
       } = formData as IHydrantFormData;
       return {
-        hydrant: deepDifference(certAuthWithoutType, {
-          name: hydrantName,
-          url: hydrantUrl,
-          client_id: clientId,
-          client_secret: clientSecret,
-        }),
+        hydrant: deepDifference(
+          {
+            name: hydrantName,
+            url: hydrantUrl,
+            client_id: clientId,
+            client_secret: clientSecret,
+          },
+          certAuthWithoutType
+        ),
       };
     default:
       // custom_scep_proxy
@@ -121,11 +131,14 @@ export const generateEditCertAuthorityData = (
         challenge,
       } = formData as ICustomSCEPFormData;
       return {
-        custom_scep_proxy: deepDifference(certAuthWithoutType, {
-          name: customSCEPName,
-          url: customSCEPUrl,
-          challenge,
-        }),
+        custom_scep_proxy: deepDifference(
+          {
+            name: customSCEPName,
+            url: customSCEPUrl,
+            challenge,
+          },
+          certAuthWithoutType
+        ),
       };
   }
 };

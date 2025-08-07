@@ -41,6 +41,7 @@ export interface ICertificateAuthorityPartial {
 }
 
 export interface ICertificatesNDES {
+  id?: number;
   type?: "ndes_scep_proxy";
   url: string;
   admin_url: string;
@@ -49,6 +50,7 @@ export interface ICertificatesNDES {
 }
 
 export interface ICertificatesDigicert {
+  id?: number;
   type?: "digicert";
   name: string;
   url: string;
@@ -60,6 +62,7 @@ export interface ICertificatesDigicert {
 }
 
 export interface ICertificatesHydrant {
+  id?: number;
   type?: "hydrant";
   name: string;
   url: string;
@@ -68,6 +71,7 @@ export interface ICertificatesHydrant {
 }
 
 export interface ICertificatesCustomSCEP {
+  id?: number;
   type?: "custom_scep_proxy";
   name: string;
   url: string;

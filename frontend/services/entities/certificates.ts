@@ -39,13 +39,13 @@ export default {
       resolve([
         {
           id: 1,
-          name: "Example CA",
-          type: "ndes_scep_proxy",
+          name: "DigiCert CA",
+          type: "digicert",
         },
         {
           id: 2,
-          name: "DigiCert CA",
-          type: "digicert",
+          name: "Example CA",
+          type: "ndes_scep_proxy",
         },
         { id: 3, name: "Custom SCEP CA", type: "custom_scep_proxy" },
         { id: 4, name: "Hydrant CA", type: "hydrant" },
@@ -55,7 +55,20 @@ export default {
 
   getCertificateAuthority: (id: number): Promise<IGetCertAuthorityResponse> => {
     const { CERTIFICATE_AUTHORITY } = endpoints;
-    return sendRequest("GET", CERTIFICATE_AUTHORITY(id));
+    // return sendRequest("GET", CERTIFICATE_AUTHORITY(id));
+    return new Promise((resolve) => {
+      resolve({
+        id: 1,
+        name: "Example_CA",
+        type: "digicert",
+        url: "https://example.com",
+        api_token: "********",
+        profile_id: "profile123",
+        certificate_common_name: "example.com",
+        certificate_user_principal_names: ["test@example.com"],
+        certificate_seat_id: "seat123",
+      } as ICertificatesDigicert);
+    });
   },
 
   addCertificateAuthority: (
