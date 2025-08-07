@@ -1,5 +1,7 @@
 # Updating software in Fleet: Admin and Fleet Desktop workflows
 
+_Fleet Premium_
+
 Fleet streamlines software updates with two parallel workflows: admins can update installed apps directly from the Fleet web UI, and end users can update select apps themselves from the Fleet Desktop Self-service section.
 
 It’s important to note:

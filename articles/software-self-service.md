@@ -1,74 +1,87 @@
 # Software self-service
 
-![Software self-service](../website/assets/images/articles/software-self-service-1600x900@2x.png)
+![Software self-service](../website/assets/images/articles/software-self-service-2670x1514.png)
 
 _Available in Fleet Premium_
 
-Fleet’s self-service software feature empowers end users by allowing them to independently install approved software packages from a curated list through the Fleet Desktop “My device” page. This not only reduces the administrative burden on IT teams but also enhances user productivity and satisfaction. In this guide, we will walk you through the process of uploading, editing, and managing self-service software packages in Fleet, enabling seamless software distribution and management.
+Fleet’s self-service software lets end users update and install approved apps from a curated list on the **Fleet Desktop > Self-service** page—no IT ticket required. This reduces overhead for IT and keeps teams productive. This guide covers how to add, install, and update self-service software in Fleet.
 
-> Software packages can be added to a specific team or to "No team." "No team" is the default assignment for hosts that are not part of any specific team.
+## Add software
 
-## Step-by-step instructions
-
-### Add self-service software
-
-1. Select the team to which you want to add the software package from the dropdown in the upper left corner of the page.
+1. Select the team to which you want to add the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
-3. Press the **Add software** button in the upper right corner of the page.
-4. Stay on the **Fleet-maintained** tab to add a Fleet-maintained App, or select one of the other tabs if you want to add an App Store (VPP) app or upload a custom software package.
-5. Based on the type of software you would like to add, follow instructions for adding a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app), a [VPP app](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#add-the-app-to-fleet), or a [custom package](https://fleetdm.com/guides/deploy-software-packages#add-a-custom-package). In each case, you can check the **Self-service** box when adding software to make it immediately available for self-service installation once added.
+3. Select the **Add software** button in the upper right corner of the page.
+4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [App Store (VPP) app](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
+5. Check **Self-service** to make it immediately available for self-service.
 
-### Enable self-service on existing software
+You can also add the software and later make it available in self-serivce:
 
 1. Select the team to which you added the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
 3. To make it easier to find your software, select the **All software** dropdown and choose **Available for install.** This filters the results in the table to show only software that can be installed on hosts. If you don’t see your software, page through the results or search for your software's name in the search bar. Once you find the software, select its title.
-4. Press the ✏️ icon, then check **Self-service** in the **Options** section. You can also assign categories to your software, which will organize the display of software to end users on the **My device > Self-service** page.
-5. Press the **Save** button.
+4. Select the pencil (edit) icon, then check **Self-service** in the **Options** section. You can also assign categories to your software, which will organize the display of software to end users on the **My device > Self-service** page.
+5. Select the **Save** button.
 
-### Download a self-service software package
+If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
 
-1. Select the team to which you added the software from the dropdown in the upper left corner of the page.
-2. Select **Software** in the main navigation menu.
-3. Select the **All software** dropdown and choose **Self-service.** Page through the results to find your software or search for the software package name in the search bar.
-4. Select the row containing the software’s name.
-5. Press the **Download** icon (next to the ✏️ icon) to the right of the software package's filename.
+## IT admin experience
 
-### Delete self-service software
+How to view, update, install, or uninstall self-service software:
 
-1. Select the team to which you added the software from the dropdown in the upper left corner of the page.
-2. Select **Software** in the main navigation menu.
-3. Select the **All software** dropdown and choose **Self-service.** Page through the results to find your software or search for the software package name in the search bar.
-4. Select the row containing the software’s name.
-5. Press the 🗑️ icon to the right of the software package's filename, then press the "Delete" button to confirm.
+1. Go to **Hosts**.
+2. Select a host to go to the Host details page
+3. Open the **Software > Library** tab and select **Self-service** in the dropdown.
+4. To update, install, or uninstall, select **Update**, **Install**, or **Uninstall**.
 
-### Install self-service software
+**Update** appears for [eligible updates](#how-updates-works), regardless of whether the app is set to self-service.
 
-To install self-service software on a host:
+Tips:
 
-1. From the Fleet desktop icon in the OS menu bar, select **Self-service.** This will open your default web browser to the list of self-service software packages available to install.
-2. Select **Install** to the right of the software title you'd like to install.
+- Use the **Software > Library** table to quickly identify and action pending updates.
+- When a software install or uninstall fails, select **Failed** to see error details that can help with troubleshooting.
+- To automatically install software, you can use Fleet's policy automations. [Learn how](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
-### Uninstall self-service software
+## End user experience
 
-To uninstall self-service software on a host:
+How to update, install, or uninstall self-service software:
 
-1. From the Fleet desktop icon in the OS menu bar, select **Self-service.** This will open your default web browser to the list of self-service software packages available to uninstall.
-2. Select **Uninstall** to the right of the software title you'd like to uninstall.
+1. Find the Fleet icon in your menu bar and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
+2. If updates are available, end users can update one or all available self-service software. They can also can view update progress and error info directly.
 
-### Use the REST API for self-service software
+## API
 
 Fleet provides a REST API for managing software, including self-service software packages.  Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#software).
 
-### Manage self-service software with GitOps
+## GitOps
 
 To manage self-service software using GitOps, check out the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/using-fleet/gitops#software).
 
 > Note: When managing Fleet via GitOps, software packages uploaded using the web UI will not persist unless they are also added in GitOps using the `hash_sha256` field.
 
-## Conclusion
+## Advanced
 
-Fleet’s self-service software feature not only simplifies software management for IT administrators but also empowers end users by giving them access to necessary software on demand. This feature ensures that your hosts remain secure while improving overall user experience. For further information and advanced management techniques, refer to Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#software) and [GitOps](https://fleetdm.com/docs/using-fleet/gitops#software) documentation. 
+### How updates works
+
+When Fleet shows **Update** instead of **Install**:
+
+- The the software is already detected in Fleet's software inventory (software installed on the host).
+- A newer software version was added to Fleet. This version is newer than at least one version of the software in Fleet's software inventory.
+- **Update** isn't shown if Fleet can't detect the version info for the added software or the software detected by Fleet in software inventory.
+
+Currently, if host has two versions of the software installed, with each version installed in different locations, Fleet can only upgrade one version. In this scenario, Fleet will still show **Update**. If this happens, the best practice is to run a custom script to uninstall the old version. Here's an example script that removes a copy of Google Chrome present in a macOS host's Downloads/ folder:
+
+```
+TODO
+```
+
+For more technical detail and edge cases, checkout to the [software self-service diagram](TODO).
+
+### Statuses
+
+When an install, uninstall, or update is triggered by an IT admin or end user in the Fleet UI or by an end user—Fleet continuously monitors (["polls"](https://en.wikipedia.org/wiki/Polling_(computer_science))] and surfaces a loading status (ex. "Installing...").
+
+- If the host is online, Fleet will poll automatically every 5 seconds to check for completion. When the install, uninstall, or update completes or fails, the status will update without the IT admin or end user having to reload the page.
+- If the host is offline, IT admins see an pending status. When pending, the action has not started on the host. IT admins can cancel pending actions on **Host details > Acvitity > Upcoming** tab.
 
 <meta name="articleTitle" value="Software self-service">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
