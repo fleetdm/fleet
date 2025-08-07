@@ -1226,7 +1226,8 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return batchID, nil
 	}
 
-	batchID, err := svc.ds.BatchScheduleScript(ctx, *userId, userId, hostIDs, *notBefore)
+	notBeforeUTC := notBefore.UTC()
+	batchID, err := svc.ds.BatchScheduleScript(ctx, *userId, userId, hostIDs, notBeforeUTC)
 	if err != nil {
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
@@ -1237,7 +1238,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		BatchExecutionID: batchID,
 		HostCount:        uint(len(hostIDsToExecute)),
 		TeamID:           script.TeamID,
-		NotBefore:        notBefore,
+		NotBefore:        &notBeforeUTC,
 	}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "creating activity for scheduled batch run scripts")
 	}
