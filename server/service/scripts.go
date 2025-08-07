@@ -1082,6 +1082,8 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 func (r batchScriptExecutionSummaryResponse) Error() error { return r.Err }
 func (r batchScriptExecutionStatusResponse) Error() error  { return r.Err }
 
+// Deprecated summary endpoint, to be removed in favor of the status endpoint
+// once the batch script details page is ready.
 func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptExecutionSummaryRequest)
 	summary, err := svc.BatchScriptExecutionSummary(ctx, req.BatchExecutionID)
