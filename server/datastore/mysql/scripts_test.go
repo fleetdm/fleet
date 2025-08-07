@@ -1849,10 +1849,10 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 
 	// The summary should have two pending hosts and two errored ones, because
 	// the script is not compatible with the hostNoScripts and hostWindows.
-	require.Equal(t, summary.NumPending, uint(3))
-	require.Equal(t, summary.NumErrored, uint(2))
-	require.Equal(t, summary.NumRan, uint(0))
-	require.Equal(t, summary.NumCanceled, uint(0))
+	require.Equal(t, *summary.NumPending, uint(3))
+	require.Equal(t, *summary.NumErrored, uint(2))
+	require.Equal(t, *summary.NumRan, uint(0))
+	require.Equal(t, *summary.NumCanceled, uint(0))
 	// Host 1 should have an upcoming execution
 	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
 	require.NoError(t, err)
@@ -1906,10 +1906,10 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	summary, err = ds.BatchExecuteSummary(ctx, execID)
 	require.NoError(t, err)
 	// The summary should have one pending host, one run host and two errored ones.
-	require.Equal(t, summary.NumPending, uint(2))
-	require.Equal(t, summary.NumErrored, uint(2))
-	require.Equal(t, summary.NumRan, uint(1))
-	require.Equal(t, summary.NumCanceled, uint(0))
+	require.Equal(t, *summary.NumPending, uint(2))
+	require.Equal(t, *summary.NumErrored, uint(2))
+	require.Equal(t, *summary.NumRan, uint(1))
+	require.Equal(t, *summary.NumCanceled, uint(0))
 
 	// Set host 1 to have a failed script result
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
@@ -1924,10 +1924,10 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	summary, err = ds.BatchExecuteSummary(ctx, execID)
 	require.NoError(t, err)
 	// The summary should have one pending host, one run host and two errored ones.
-	require.Equal(t, summary.NumPending, uint(1))
-	require.Equal(t, summary.NumErrored, uint(3))
-	require.Equal(t, summary.NumRan, uint(1))
-	require.Equal(t, summary.NumCanceled, uint(0))
+	require.Equal(t, *summary.NumPending, uint(1))
+	require.Equal(t, *summary.NumErrored, uint(3))
+	require.Equal(t, *summary.NumRan, uint(1))
+	require.Equal(t, *summary.NumCanceled, uint(0))
 
 	// Cancel the execution
 	_, err = ds.CancelHostUpcomingActivity(ctx, host3.ID, host3Upcoming[0].ExecutionID)
@@ -1936,10 +1936,10 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	summary, err = ds.BatchExecuteSummary(ctx, execID)
 	require.NoError(t, err)
 	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
-	require.Equal(t, summary.NumPending, uint(0))
-	require.Equal(t, summary.NumErrored, uint(3))
-	require.Equal(t, summary.NumRan, uint(1))
-	require.Equal(t, summary.NumCanceled, uint(1))
+	require.Equal(t, *summary.NumPending, uint(0))
+	require.Equal(t, *summary.NumErrored, uint(3))
+	require.Equal(t, *summary.NumRan, uint(1))
+	require.Equal(t, *summary.NumCanceled, uint(1))
 }
 
 func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
@@ -2137,6 +2137,25 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumErrored, uint(1))
 	require.Equal(t, *summary.NumRan, uint(1))
 	require.Equal(t, *summary.NumCanceled, uint(1))
+
+	// Mark the execution as completed, and make up some host numbers
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE batch_activities SET status = 'finished', num_pending = 4, num_ran = 5, num_errored = 6, num_canceled = 7, num_incompatible = 8, num_targeted = 9 WHERE execution_id = ?", execID)
+		return err
+	})
+	// Get the summary again
+	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &execID,
+	})
+	require.NoError(t, err)
+	require.Len(t, summaryList, 1)
+	summary = (summaryList)[0] // The summary should have one pending host, one run host and two errored ones.
+	require.Equal(t, *summary.NumPending, uint(4))
+	require.Equal(t, *summary.NumRan, uint(5))
+	require.Equal(t, *summary.NumErrored, uint(6))
+	require.Equal(t, *summary.NumCanceled, uint(7))
+	require.Equal(t, *summary.NumIncompatible, uint(8))
+	require.Equal(t, *summary.NumTargeted, uint(9))
 }
 
 func testBatchScriptSchedule(t *testing.T, ds *Datastore) {

@@ -2086,18 +2086,22 @@ WHERE
 func (ds *Datastore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
 	stmtExecutions := `
 SELECT
-	COUNT(*) as num_targeted,
-	COUNT(bahr.error) as num_incompatible,
-	COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) as num_ran,
-	COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) as num_errored,
-	COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END) as num_canceled,
-	(
-		COUNT(*) -
+	IF(ba.status = 'finished', ba.num_targeted, COUNT(*)) AS num_targeted,
+	IF(ba.status = 'finished', ba.num_incompatible, COUNT(bahr.error)) AS num_incompatible,
+	IF(ba.status = 'finished', ba.num_ran, COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END)) AS num_ran,
+	IF(ba.status = 'finished', ba.num_errored, COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END)) AS num_errored,
+	IF(ba.status = 'finished', ba.num_canceled, COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END)) AS num_canceled,
+	IF(
+		ba.status = 'finished',
+		ba.num_pending,
 		(
-			COUNT(bahr.error) +
-			COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) +
-			COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) +
-			COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END)
+			COUNT(*) -
+			(
+				COUNT(bahr.error) +
+				COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) +
+				COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) +
+				COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END)
+			)
 		)
 	) AS num_pending,
 	ba.execution_id,
