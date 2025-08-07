@@ -4191,7 +4191,7 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 func (ds *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET tpm_pin_set = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE host_id = ?`,
+		`UPDATE host_disks SET tpm_pin_set = ? WHERE host_id = ?`,
 		`INSERT INTO host_disks (tpm_pin_set, host_id) VALUES (?, ?)`,
 		pinSet, hostID,
 	)
