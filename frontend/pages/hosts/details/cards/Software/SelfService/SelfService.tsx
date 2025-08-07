@@ -48,6 +48,7 @@ import SoftwareUninstallDetailsModal, {
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
@@ -108,6 +109,9 @@ const SoftwareSelfService = ({
   hostDisplayName,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
+
+  const initialSortHeader = queryParams.order_key || "name";
+  const initialSortDirection = queryParams.order_direction || "asc";
 
   const [selfServiceData, setSelfServiceData] = useState<
     IGetDeviceSoftwareResponse | undefined
@@ -502,7 +506,25 @@ const SoftwareSelfService = ({
       getPathWithQueryParams(pathname, {
         query: value,
         category_id: queryParams.category_id,
+        order_key: initialSortHeader,
+        order_direction: initialSortDirection,
         page: 0, // Always reset to page 0 when searching
+      })
+    );
+  };
+
+  const onSortChange = ({ sortHeader, sortDirection }: ITableQueryData) => {
+    router.push(
+      getPathWithQueryParams(pathname, {
+        ...queryParams,
+        order_key: sortHeader,
+        order_direction: sortDirection,
+        query: queryParams.query !== undefined ? queryParams.query : undefined,
+        category_id:
+          queryParams.category_id !== undefined
+            ? queryParams.category_id
+            : undefined,
+        page: 0, // Always reset to page 0 when sorting
       })
     );
   };
@@ -514,6 +536,8 @@ const SoftwareSelfService = ({
       getPathWithQueryParams(pathname, {
         category_id: option?.value !== "undefined" ? option?.value : undefined,
         query: queryParams.query,
+        order_key: initialSortHeader,
+        order_direction: initialSortDirection,
         page: 0, // Always reset to page 0 when searching
       })
     );
@@ -555,11 +579,20 @@ const SoftwareSelfService = ({
         getPathWithQueryParams(pathname, {
           query: queryParams.query,
           category_id: queryParams.category_id,
+          order_key: initialSortHeader,
+          order_direction: initialSortDirection,
           page,
         })
       );
     },
-    [pathname, queryParams.query, queryParams.category_id, router]
+    [
+      pathname,
+      queryParams.query,
+      queryParams.category_id,
+      initialSortDirection,
+      initialSortHeader,
+      router,
+    ]
   );
 
   // TODO: handle empty state better, this is just a placeholder for now
@@ -692,10 +725,9 @@ const SoftwareSelfService = ({
               queryParams.category_id
             )}
             isLoading={isFetching}
-            defaultSortHeader={DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_key}
-            defaultSortDirection={
-              DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_direction
-            }
+            defaultSortHeader={initialSortHeader}
+            defaultSortDirection={initialSortDirection}
+            onQueryChange={onSortChange} // Only used for sort
             pageIndex={queryParams.page ?? 0} // Client-side pagination with URL source of truth
             disableNextPage={selfServiceData?.meta.has_next_results === false}
             pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
