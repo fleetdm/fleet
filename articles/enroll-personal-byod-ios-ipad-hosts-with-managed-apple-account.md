@@ -74,7 +74,7 @@ Make sure the `Content-Type` header is set to `application/json`.
 - Fleet does not have access to the serial numbers of personal hosts due to Apple's privacy limitations.
 - For personal hosts, Fleet can only inventory applications installed by Fleet.
 
-<meta name="articleTitle" value="Enroll personal (BYOD) iPhones and iPads with Managed Apple Account">
+<meta name="articleTitle" value="Account-drive User Enrollment for personal Apple devices (BYOD)">
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
