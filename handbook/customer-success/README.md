@@ -27,20 +27,18 @@ This handbook page details processes specific to working [with](#contact-us) and
 The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 
 
-### Respond to a "Contact us" submission
+### Respond to a "Contact us" job application submission
 
-1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
-2. Mark submission as seen with the "👀" emoji.
-3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/spreadsheets/d/1-wsYunAfr-BQZMBYizY4TMavi3X071D5KZ3mCYX4Uqs/edit?gid=0#gid=0) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
-4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
-5. Mark the Slack message as complete with the "✅" emoji.
-
-> For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+1. Applications for open roles at Fleet come through the "Contact us" form.
+2. The contact form generates a new ticket in Unthread. 
+3. Within 4 business hours, the assigned CSE sends an email from their gmail account to the applicant using the suggested response template under "Applying for open position" [here](https://docs.google.com/spreadsheets/d/1-wsYunAfr-BQZMBYizY4TMavi3X071D5KZ3mCYX4Uqs/edit?gid=695748028#gid=695748028). Remember that contact form messages cannot be replied to in Unthread. 
+5. CC the Interim Head of People on all job application emails.
+6. Remember to include the title of the position being applied for, as is requested in the response template.
 
 
 ### Assign a customer codename
 
-Occasionally, we will need to track public issues for customers and prospects who wish to remain anonymous on our public issue tracker. To do this: 
+We track public issues for customers and prospects who wish to remain anonymous on our public issue tracker. To do this: 
 
 1. The team member creating the issue will choose an appropriate minor planet name from this [minor planets page](https://minorplanetcenter.net//iau/lists/MPNames.html) (alphabetical).
 2. Create a label in the fleetdm/fleet and fleetdm/confidential repos which can be attached to current and future issues for the customer or prospect. As part of the label description in the fleetdm/confidential repo, add the customer or prospect name. This way, we maintain a confidential mapping of codename to customer or prospect.
@@ -49,22 +47,28 @@ Occasionally, we will need to track public issues for customers and prospects wh
 
 ### Prepare for routine customer meeting
 
+#### CSM responsibility
 Before a routine customer call, the CSM prepares an agenda including the following items:
 1. Customer and Fleet expected attendees
 2. Release notes for the latest version of Fleet
 3. Update notes for which version of Fleet the customer is running (if self-hosted)
 4. Follow ups to the agenda from the previous call or Slack
 5. Provide updates to open feature requests (can be done monthly or quarterly)
-6. Provide updates to open bug reports
 
+#### CSE or CSA responsibility 
+On call days, have a morning ritual to gather status updates for open issues:
+1. Search Unthread for open conversations by the Customer name
+2. Search GitHub issues for label:bug and label:customer-codename
+3. Debrief with any internal resources in order to gather information if needed
+4. Be prepared to provide a status update
 
- ### Invite new customer DRI
+### Invite new customer DRI
 
 Sometimes there is a change in the champion within the customer's organization.
 1. Get an introduction to the new DRIs including names, roles, contact information.
 2. Make sure they're in the Slack channel.
 3. Invite them to the *Success* meetings.
-4. In the first meeting understand their proficiency level of osquery.
+4. In the first meeting understand their proficiency level with Fleet.
     1. Make sure the meeting time is still convenient for their team. 
     2. Understand their needs and goals for visibility.
     3. Offer training to get them up to speed.
@@ -106,13 +110,12 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
 
-### Create customer support issue
+### File a customer bug report
 
-Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:
-- Make sure the issue has a "customer request" label or "customer-codename" label.
-  - Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
-- "+" prefixed labels (e.g., "+more info please") indicate we are waiting on an answer from an external community member who does not work at Fleet or that no further action is needed from the Fleet team until an external community member, who doesn't work at Fleet, replies with a comment. At this point, our bot will automatically remove the +-prefixed label.
-1. Required details that will help speed up time to resolution:
+Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure to do the following:
+- Include a "customer-codename" label
+  - Search the confidential repo labels for an existing codename [here](https://github.com/fleetdm/confidential/labels) or create a new one if one does not exist. See [here](https://github.com/fleetdm/confidential/labels) for instructions to create a new codename.
+- Include required details that will help speed up time to resolution:
     - Fleet server version
     - Agent version 
         - Osquery or fleetd?
@@ -120,7 +123,8 @@ Locate the relevant issue or create it if it doesn't already exist (to avoid dup
     - Web browser
     - Expected behavior
     - Actual behavior
-2. Details that are nice to have but not required. These may be requested by Fleet support as needed:
+- Mandatory to include reproduction steps. If a Fleet team member is unable to reproduce the issue, include the steps that were taken by the customer that resulted in the issue occurring. It is also helpful to grab a Gong snippet of the issue as experienced by the customer. 
+- Include additional details that are nice to have but not required. These may be requested by Fleet engineering as needed:
     - Amount of total hosts
     - Amount of online hosts
     - Amount of scheduled queries
@@ -135,6 +139,23 @@ Locate the relevant issue or create it if it doesn't already exist (to avoid dup
     - Redis CPU and Memory usage while the issue has been happening
     - The output of fleetctl debug archive
 - Have we provided a link to that issue for the customer to remind everyone of the plan and for the sake of visibility, so other folks who weren't directly involved are up to speed  (e.g., "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")?
+
+### Escalating customer bug reports
+
+1. When a CSE suspects that a customer is impacted by a bug, a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) is filed immediately.
+2. Remove `:incoming` and `:reproduce` labels, and include the `~investigate` [label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A~investigate) and the `:help-customers` label.
+3. All suspected bug reports with the `~investigate` label are reviewed on the `:help-customers` stand-up daily. The Manager of CSE/CSA will acknowledge the bug report with a comment in the issue. 
+4. If a bug appears on stand-up for a second business day, the label is removed. Any available logs, reproduction steps, and details are updated on the issue.
+    1. If we are able to reproduce the bug, the issue can be sent straight to the `:product` drafting board for review and triage by the Head of Product Design.
+    2. If we are unable to reproduce the bug, the `:incoming` and `:reproduce` labels should be added back in so the bug can be triaged by the QA team.
+
+#### Timeboxing an investigation
+During the window of time available to investigate an issue, use the resources at your disposal such as:
+  - Request applicable logs from the customer
+  - Jump on a Zoom call with the customer if it would help gather reproduction steps (coordinate with the CSM)
+  - Block time on your calendar (maximum 1 hour at a time) to dig into the issue further
+  - Escalate to other CSE's or CSA's
+  - Contact the developer on-call
 
 
 ### Contact the developer on-call
