@@ -6645,8 +6645,8 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.NotEmpty(t, batchRes.BatchExecutionID)
 
 	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeBatchActivityScheduled{}.ActivityName(),
-		fmt.Sprintf(`{"activity_type": "script", "batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
+		fleet.ActivityTypeBatchScriptScheduled{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
 		0,
 	)
 }

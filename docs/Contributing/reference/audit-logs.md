@@ -1835,10 +1835,9 @@ This activity contains the following fields:
 
 ## batch_activity_scheduled
 
-Generated when a batch activity is scheduled.
+Generated when a batch script is scheduled.
 
 This activity contains the following fields:
-- "activity_type": The type of batch acticity that was scheduled.
 - "batch_execution_id": Execution ID of the batch script run.
 - "script_name": Name of the script.
 - "host_count": Number of hosts in the batch.
@@ -1848,7 +1847,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "activity_type": "script",
   "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "script_name": "set-timezones.sh",
   "host_count": 12,
