@@ -90,7 +90,7 @@ const getUninstallScriptTooltip = (pkgType: PackageType) => {
 
 const getUninstallHelpText = (pkgType: PackageType) => {
   if (isFleetMaintainedPackageType(pkgType)) {
-    return "Currently, shell scripts are supported.";
+    return "Currently, only shell scripts are supported.";
   }
 
   if (pkgType === "exe") {
@@ -112,7 +112,7 @@ const getUninstallHelpText = (pkgType: PackageType) => {
   if (pkgType === "tar.gz") {
     return (
       <>
-        Currently, shell scripts are supported.{" "}
+        Currently, only shell scripts are supported.{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-scripts`}
           text="Learn more about uninstall scripts"
