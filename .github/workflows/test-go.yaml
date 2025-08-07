@@ -52,8 +52,8 @@ jobs:
         isCron:
           - ${{ github.event_name == 'schedule' }}
         exclude:
-          - isCron: false
-            mysql: "mysql:8.4.6" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
+          # - isCron: false
+          #   mysql: "mysql:8.4.6" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
           - isCron: false
             mysql: "mysql:8.0.32" # Run MySQL 8.0.32 tests on cron schedule and not every time.
           # The suites below do not need MySQL, so we exclude additional MySQL options from the above matrix.
