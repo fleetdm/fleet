@@ -1,6 +1,5 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
-import { AppContext } from "context/app";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 // @ts-ignore
@@ -47,7 +46,6 @@ const DigicertForm = ({
   onSubmit,
   onCancel,
 }: IDigicertFormProps) => {
-  const { config } = useContext(AppContext);
   const validations = useMemo(
     () => generateFormValidations(certAuthorities ?? [], isEditing),
     [certAuthorities, isEditing]
