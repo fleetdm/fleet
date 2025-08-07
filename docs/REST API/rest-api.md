@@ -9094,7 +9094,7 @@ Returns a summary of a batch-run script, including host counts and current statu
 
 Returns a list hosts targeted in a batch script run, along with their script execution status.
 
-`GET /api/v1/fleet/scripts/batch/:batch_execution_id/results`
+`GET /api/v1/fleet/scripts/batch/:batch_execution_id/host-results`
 
 #### Parameters
 
