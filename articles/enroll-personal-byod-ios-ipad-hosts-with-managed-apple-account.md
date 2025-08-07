@@ -47,7 +47,6 @@ When they login, their iOS/iPadOS host will enroll to Fleet.
 
 ## Self-host a service discovery file (well-known resource)
 
-
 If your iOS/iPadOS hosts are running iOS 18.2/iPadOS 18.2 and later, you can skip need this. Fleet manages service discovery for hosts running iOS 18.2/iPadOS 18.2 and later. 
 
 If your iOS/iPadOS hosts are below iOS 18.2/iPadOS 18.2 or you're trying Fleet, you have to self-host a [service discovery JSON file](https://support.apple.com/en-gb/guide/deployment/dep4d9e9cd26/web#depcae01b5df).
