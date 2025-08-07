@@ -1,4 +1,4 @@
-# Account-drive User Enrollment for personal Apple devices (BYOD)
+# Account-driven User Enrollment for personal Apple devices (BYOD)
 
 ![Apple Account-driven User Enrollment (BYOD)](../website/assets/images/articles/apple-account-driven-user-enrollment.png)
 
