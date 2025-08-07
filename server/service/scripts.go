@@ -1153,10 +1153,8 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 
 	// If the list is empty, it means the batch execution does not exist.
 	if summaryList == nil || len(summaryList) == 0 {
-		// We can't know what team this batch is for, so we authorize with a no-team
-		// script as a fallback - the requested batch does not exist so there's
-		// no way to know what team it would be for, and returning a 404 without
-		// authorization would leak the existing/non existing ids.
+		// If the user can see a no-team script, we can return a 404 because they have global access.
+		// Otherwise, we return a 403 to avoid leaking info about which IDs exist.
 		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
