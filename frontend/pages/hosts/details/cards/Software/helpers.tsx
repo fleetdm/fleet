@@ -237,6 +237,14 @@ export const getUiStatus = (
       (iv) => compareVersions(iv.version, installerVersion) === -1
     )
   ) {
+    if (!lastInstallDate) {
+      return "update_available";
+    }
+
+    // Compares lastInstallDate and hostSoftwareUpdatedAt (inventory refresh)
+    // If lastInstallDate is more recent, it means the update was applied
+    // but the host's installed_versions info hasn't updated yet. In that case,
+    //  return 'updated' status in the UI. Otherwise, the update is still available.
     const newerDate =
       hostSoftwareUpdatedAt && lastInstallDate
         ? getNewerDate(hostSoftwareUpdatedAt, lastInstallDate)
