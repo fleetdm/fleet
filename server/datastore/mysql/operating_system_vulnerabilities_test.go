@@ -479,6 +479,7 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 			require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 			require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+			require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
 
 			if !tt.team {
 				// Insert some fake counts, this should be ignored in ListKernelsByOS

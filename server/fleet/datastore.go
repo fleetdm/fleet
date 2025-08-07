@@ -1104,6 +1104,8 @@ type Datastore interface {
 
 	ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*Kernel, error)
 
+	InsertKernelSoftwareMapping(ctx context.Context) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
