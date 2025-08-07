@@ -14,7 +14,7 @@ Fleet’s self-service software lets end users update and install approved apps 
 4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [App Store (VPP) app](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
 5. Check **Self-service** to make it immediately available for self-service.
 
-You can also add the software and later make it available in self-serivce:
+You can also add the software and later make it available in self-service:
 
 1. Select the team to which you added the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
@@ -29,7 +29,7 @@ If a software item isn't made available in self-service, end users will not see 
 How to view, update, install, or uninstall self-service software:
 
 1. Go to **Hosts**.
-2. Select a host to go to the Host details page
+2. Select a host to go to the Host details page.
 3. Open the **Software > Library** tab and select **Self-service** in the dropdown.
 4. To update, install, or uninstall, select **Update**, **Install**, or **Uninstall**.
 
@@ -46,11 +46,11 @@ Tips:
 How to update, install, or uninstall self-service software:
 
 1. Find the Fleet icon in your menu bar and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
-2. If updates are available, end users can update one or all available self-service software. They can also can view update progress and error info directly.
+2. If updates are available, end users can update one or all available self-service software. They can also view update progress and error info directly.
 
 ## API
 
-Fleet provides a REST API for managing software, including self-service software packages.  Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#software).
+Fleet provides a REST API for managing software, including self-service software packages. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#software).
 
 ## GitOps
 
@@ -60,28 +60,27 @@ To manage self-service software using GitOps, check out the `software` key in th
 
 ## Advanced
 
-### How updates works
+### How updates work
 
 When Fleet shows **Update** instead of **Install**:
 
-- The the software is already detected in Fleet's software inventory (software installed on the host).
+- The the software is detected in Fleet's software inventory (software installed on the host).
 - A newer software version was added to Fleet. This version is newer than at least one version of the software in Fleet's software inventory.
-- **Update** isn't shown if Fleet can't detect the version info for the added software or the software detected by Fleet in software inventory.
 
-Currently, if host has two versions of the software installed, with each version installed in different locations, Fleet can only upgrade one version. In this scenario, Fleet will still show **Update**. If this happens, the best practice is to run a custom script to uninstall the old version. Here's an example script that removes a copy of Google Chrome present in a macOS host's `Downloads/` folder:
+Currently, if a host has two versions of the software installed, with each version installed in different locations, Fleet can only upgrade one version. In this scenario, Fleet will still show **Update**. If this happens, the best practice is to run a custom script to uninstall the old version. Here's an example script that removes a copy of Google Chrome present in a macOS host's `Downloads/` folder:
 
 ```sh
 rm -r /Users/noahtalerman/Downloads/Google\ Chrome.app
 ```
 
-For more technical detail and edge cases, checkout to the [software self-service diagram](https://drive.google.com/file/d/1dtCo-CzVIcJkk1GIDHMKflqu6mSNyzfw/view).
+For more technical detail and edge cases, checkout the [software self-service diagram](https://drive.google.com/file/d/1dtCo-CzVIcJkk1GIDHMKflqu6mSNyzfw/view).
 
 ### Statuses
 
 When an install, uninstall, or update is triggered by an IT admin or end user in the Fleet UI or by an end user—Fleet continuously monitors (["polls"](https://en.wikipedia.org/wiki/Polling_(computer_science))] and surfaces a loading status (ex. "Installing...").
 
 - If the host is online, Fleet will poll automatically every 5 seconds to check for completion. When the install, uninstall, or update completes or fails, the status will update without the IT admin or end user having to reload the page.
-- If the host is offline, IT admins see an pending status. When pending, the action has not started on the host. IT admins can cancel pending actions on **Host details > Acvitity > Upcoming** tab.
+- If the host is offline, IT admins see a pending status. When pending, the action has not started on the host. IT admins can cancel pending actions on **Host details > Activity > Upcoming** tab.
 
 <meta name="articleTitle" value="Software self-service">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
