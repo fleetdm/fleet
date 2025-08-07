@@ -1232,6 +1232,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	}
 
 	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchActivityScheduled{
+		ActivityType:     string(fleet.BatchExecutionActivityScript),
 		ScriptName:       &script.Name,
 		BatchExecutionID: batchID,
 		HostCount:        uint(len(hostIDsToExecute)),

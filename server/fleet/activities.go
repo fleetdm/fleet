@@ -208,6 +208,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCanceledUninstallSoftware{},
 	ActivityTypeCanceledInstallAppStoreApp{},
 
+	ActivityTypeBatchActivityScheduled{},
+
 	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeEnabledConditionalAccessAutomations{},
@@ -2567,8 +2569,9 @@ func (a ActivityTypeRanScriptBatch) Documentation() (string, string, string) {
 }
 
 type ActivityTypeBatchActivityScheduled struct {
-	ScriptName       *string    `json:"script_name,omitempty"`
+	ActivityType     string     `json:"activity_type"`
 	BatchExecutionID string     `json:"batch_execution_id"`
+	ScriptName       *string    `json:"script_name,omitempty"`
 	HostCount        uint       `json:"host_count"`
 	TeamID           *uint      `json:"team_id"`
 	NotBefore        *time.Time `json:"not_before"`
@@ -2581,12 +2584,14 @@ func (a ActivityTypeBatchActivityScheduled) ActivityName() string {
 func (a ActivityTypeBatchActivityScheduled) Documentation() (string, string, string) {
 	return "Generated when a batch activity is scheduled.",
 		`This activity contains the following fields:
-- "script_name": Name of the script.
+- "activity_type": The type of batch acticity that was scheduled.
 - "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
 - "host_count": Number of hosts in the batch.
 - "not_before": Time that the batch activity is scheduled to launch.`, `{
-  "script_name": "set-timezones.sh",
+  "activity_type": "script",
   "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
   "host_count": 12,
   "not_before": "2025-08-06T17:49:21.810204Z"
 }`
