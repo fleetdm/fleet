@@ -29,12 +29,8 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
     {
       accessor: (data) => data.issuer.common_name,
       id: "issuer",
-      Header: (cellProps) => (
-        <HeaderCell
-          value="Issuer"
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
+      disableSortBy: true,
+      Header: "Issuer",
       Cell: (cellProps: IIssuerCellProps) => (
         <TooltipTruncatedTextCell
           value={cellProps.cell.value}
@@ -60,6 +56,19 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
       },
     },
     {
+      accessor: "not_valid_before",
+      disableSortBy: true,
+      Header: "Issued",
+      Cell: (cellProps) => {
+        return (
+          <TextCell
+            value={monthDayYearFormat(cellProps.value)}
+            className="text-nowrap"
+          />
+        );
+      },
+    },
+    {
       accessor: "not_valid_after",
       Header: (cellProps) => (
         <HeaderCell
@@ -76,6 +85,7 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
         }
         return (
           <StatusIndicator
+            className="cert-table__status-indicator"
             value={monthDayYearFormat(cellProps.value)}
             indicator={status}
           />
