@@ -37,6 +37,17 @@ WHERE source IN ('rpm_packages', 'deb_packages')
 		return fmt.Errorf("failed to backfill software_titles.is_kernel column: %w", err)
 	}
 
+	if _, err := tx.Exec(`
+CREATE TABLE kernels (
+  id int NOT NULL AUTO_INCREMENT,
+  software_title_id int DEFAULT NULL,
+  software_id int DEFAULT NULL,
+  os_version_id int DEFAULT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`); err != nil {
+		return fmt.Errorf("failed to create kernels table: %w", err)
+	}
+
 	return nil
 }
 
