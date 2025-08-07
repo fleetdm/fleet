@@ -12,8 +12,10 @@ import StatusIndicator from "components/StatusIndicator";
 import { IIndicatorValue } from "components/StatusIndicator/StatusIndicator";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import { IStringCellProps } from "interfaces/datatable_config";
 
 type IHostCertificatesTableConfig = Column<IHostCertificate>;
+type IIssuerCellProps = IStringCellProps<IHostCertificate>;
 
 const generateTableConfig = (): IHostCertificatesTableConfig[] => {
   return [
@@ -23,6 +25,22 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
         <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
       ),
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
+    {
+      accessor: (data) => data.issuer.common_name,
+      id: "issuer",
+      Header: (cellProps) => (
+        <HeaderCell
+          value="Issuer"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      Cell: (cellProps: IIssuerCellProps) => (
+        <TooltipTruncatedTextCell
+          value={cellProps.cell.value}
+          tooltip={cellProps.cell.value}
+        />
+      ),
     },
     {
       accessor: "source",
