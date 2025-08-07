@@ -2200,7 +2200,7 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 // preprocessWindowsProfileContents processes Windows configuration profiles to replace Fleet variables
 // with their actual values for each host.
 //
-// Why we don't use Go templates:
+// Why we don't use Go templates here:
 //  1. Error handling: Go templates don't provide fine-grained error handling for individual variable
 //     replacements. We need to handle failures per-host and per-variable gracefully.
 //  2. Variable dependencies: Some variables may be related or have dependencies on each other. With
@@ -2210,7 +2210,7 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 //  4. XML escaping: We need XML-specific escaping for values, which is simpler to control with direct
 //     string replacement rather than template functions.
 //
-// Note: When addition support for additional variables here, consider refactoring this variable replacement logic into its own package.
+// Note: When adding support for additional variables here, consider refactoring this variable replacement logic into its own package.
 func preprocessWindowsProfileContents(
 	hostUUID string,
 	profileContents string,
@@ -2228,7 +2228,7 @@ func preprocessWindowsProfileContents(
 		switch fleetVar {
 		case fleet.FleetVarHostUUID:
 			// Replace HOST_UUID with the actual host UUID
-			// Use XML escaping for the replacement value to be safe
+			// Use XML escaping for the replacement value to be safe and prevent XML injection
 			b := make([]byte, 0, len(hostUUID))
 			buf := bytes.NewBuffer(b)
 			_ = xml.EscapeText(buf, []byte(hostUUID))
