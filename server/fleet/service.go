@@ -1039,6 +1039,9 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM
 
+	// ProcessMDMMicrosoftDiscovery handles the Discovery message validation and response
+	ProcessMDMMicrosoftDiscovery(ctx context.Context, req *SoapRequest) (*SoapResponse, error)
+
 	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
 	GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*DiscoverResponse, error)
 

@@ -26,6 +26,15 @@ func (ds *Datastore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*
 	return info, nil
 }
 
+func (ds *Datastore) GetCurrentTime(ctx context.Context) (time.Time, error) {
+	now := time.Now() // fall back to server time if we get an error
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &now, `SELECT NOW()`)
+	if err != nil {
+		return now, ctxerr.Wrap(ctx, err, "getting current time")
+	}
+	return now, nil
+}
+
 func (ds *Datastore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	return appConfigDB(ctx, ds.reader(ctx))
 }
@@ -331,19 +340,25 @@ func (ds *Datastore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet
 	return secrets, nil
 }
 
-func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 	if teamID != nil && *teamID > 0 {
 		tc, err := ds.TeamMDMConfig(ctx, *teamID)
 		if err != nil {
-			return false, err
+			return fleet.DiskEncryptionConfig{}, err
 		}
-		return tc.EnableDiskEncryption, nil
+		return fleet.DiskEncryptionConfig{
+			Enabled:              tc.EnableDiskEncryption,
+			BitLockerPINRequired: tc.RequireBitLockerPIN,
+		}, nil
 	}
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
-		return false, err
+		return fleet.DiskEncryptionConfig{}, err
 	}
-	return ac.MDM.EnableDiskEncryption.Value, nil
+	return fleet.DiskEncryptionConfig{
+		Enabled:              ac.MDM.EnableDiskEncryption.Value,
+		BitLockerPINRequired: ac.MDM.RequireBitLockerPIN.Value,
+	}, nil
 }
 
 func (ds *Datastore) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule) error {

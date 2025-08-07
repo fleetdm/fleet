@@ -2,8 +2,8 @@
   task: "Rotate the TUF root keys"
   startedOn: "2024-09-01" 
   frequency: "Annually"
-  description: https://fleetdm.com/handbook/engineering/tuf#rotate-the-root-keys
-  moreInfoUrl: https://fleetdm.com/handbook/engineering/tuf#rotate-the-root-keys
+  description: "https://fleetdm.com/handbook/engineering/tuf#rotate-the-root-keys"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/tuf#rotate-the-root-keys"
   dri: "lukeheath"
   autoIssue: 
     labels: [ "~engineering-initiated", "P2" ]
@@ -12,8 +12,8 @@
   task: "Renew Apple certificate signing request (CSR)"
   startedOn: "2024-09-01" 
   frequency: "Annually"
-  description: https://fleetdm.com/handbook/engineering#renew-mdm-certificate-signing-request-csr
-  moreInfoUrl: https://fleetdm.com/handbook/engineering#renew-mdm-certificate-signing-request-csr
+  description: "https://fleetdm.com/handbook/engineering#renew-mdm-certificate-signing-request-csr"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#renew-mdm-certificate-signing-request-csr"
   dri: "lukeheath"
   autoIssue: 
     labels: [ "~engineering-initiated" ]
@@ -99,13 +99,66 @@
   moreInfoUrl:
   dri: "xpkoala"
 -
+  task: "Submit test coverage requests to QA Wolf"
+  startedOn: "2025-07-29" 
+  frequency: "Triweekly"
+  description: "After each sprint, review merged work and submit automation candidates to QA Wolf using the coverage request form."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#submit-test-coverage-requests-to-qa-wolf"
+  dri: "AndreyKizimenko"
+-
   task: "Review ongoing articles"
   startedOn: "2023-10-02"
   frequency: "Daily"
   description: "Check 📃 Planned articles and complete steps in each issue"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#review-ongoing-articles"
   dri: "rachaelshaw"
-
+- 
+  task: "Check production dependencies of fleetdm.com"
+  startedOn: "2023-11-10" 
+  frequency: "Weekly"
+  description: "Check for vulnerabilities on the production dependencies of fleetdm.com."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#check-production-dependencies-of-fleetdm-com"
+  dri: "eashaw"
+  autoIssue:  
+    labels: [ "#g-website" ] 
+    repo: "fleet"
+- 
+  task: "Check browser compatibility for fleetdm.com"
+  startedOn: "2024-03-06" 
+  frequency: "Monthly"
+  description: "Use Browserstack to manually QA pages on fleetdm.com in each of the earliest supported browser versions"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#check-browser-compatibility-for-fleetdm-com"
+  dri: "eashaw"
+  autoIssue:   
+    labels: [ "#g-website" ]
+    repo: "fleet"  
+- 
+  task: "Check osquery Slack invitation"
+  startedOn: "2023-11-10" 
+  frequency: "Monthly"
+  description: "Check the osquery Slack invitation that is linked to from Fleet and the Fleet website to make sure it is valid."
+  moreInfoUrl: "https://fleetdm.com/slack"
+  dri: "eashaw"
+  autoIssue:   
+    labels: [ "#g-website" ] 
+    repo: "fleet"
+-
+  task: "Check for new versions of osquery schema"
+  startedOn: "2025-06-03"
+  frequency: "Monthly"
+  description: "Make sure the website is using the latest version of the osquery schema."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#check-for-new-versions-of-osquery-schema"
+  dri: "eashaw"
+  autoIssue:  
+    labels: [ "#g-website" ] 
+    repo: "fleet"
+-
+  task: "Change password of \"Integrations admin\" Salesforce account"
+  startedOn: "2024-09-10"
+  frequency: "Quarterly"
+  description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#change-the-integrations-admin-salesforce-account-password"
+  dri: "eashaw"
 
 
 

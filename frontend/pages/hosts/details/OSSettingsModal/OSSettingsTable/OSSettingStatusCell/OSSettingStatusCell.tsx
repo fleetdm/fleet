@@ -11,10 +11,7 @@ import {
 } from "interfaces/mdm";
 import { COLORS } from "styles/var/colors";
 
-import {
-  isMdmProfileStatus,
-  OsSettingsTableStatusValue,
-} from "../OSSettingsTableConfig";
+import { OsSettingsTableStatusValue } from "../OSSettingsTableConfig";
 import TooltipContent from "./components/Tooltip/TooltipContent";
 import {
   isDiskEncryptionProfile,
@@ -48,7 +45,11 @@ const OSSettingStatusCell = ({
 
   // windows hosts do not have an operation type at the moment and their display options are
   // different than mac hosts.
-  else if (!operationType && isMdmProfileStatus(status)) {
+  else if (
+    !operationType &&
+    status !== "success" &&
+    status !== "acknowledged"
+  ) {
     displayOption = WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG[status];
   } else if (operationType) {
     displayOption = PROFILE_DISPLAY_CONFIG[operationType]?.[status];

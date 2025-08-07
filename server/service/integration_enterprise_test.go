@@ -7577,24 +7577,34 @@ VALUES
 		args := []interface{}{}
 		var scID uint
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-			res, err := tx.ExecContext(ctx, `
+			// First check if this script content already exists
+			row := tx.QueryRowxContext(ctx, `
+				SELECT id FROM script_contents WHERE md5_checksum = UNHEX(MD5(?))
+			`, script.ScriptContents)
+			err := row.Scan(&scID)
+
+			if errors.Is(err, sql.ErrNoRows) {
+				// Content doesn't exist, insert it
+				res, err := tx.ExecContext(ctx, `
 INSERT INTO
 	script_contents (md5_checksum, contents, created_at)
 VALUES
-	(?,?,?)`,
-				uuid.NewString(),
-				"echo test-script-details-timeout",
-				now.Add(-1*time.Hour),
-			)
-			if err != nil {
+	(UNHEX(MD5(?)),?,?)`,
+					script.ScriptContents,
+					script.ScriptContents,
+					createdAt,
+				)
+				if err != nil {
+					return err
+				}
+				id, err := res.LastInsertId()
+				if err != nil {
+					return err
+				}
+				scID = uint(id) //nolint:gosec // dismiss G115
+			} else if err != nil {
 				return err
 			}
-			id, err := res.LastInsertId()
-			if err != nil {
-				return err
-			}
-
-			scID = uint(id) //nolint:gosec // dismiss G115
 			return nil
 		})
 		if script.ID == 0 {
@@ -7819,9 +7829,8 @@ VALUES
 INSERT INTO
 	script_contents (md5_checksum, contents, created_at)
 VALUES
-	(?,?,?)`,
-
-				uuid.NewString(),
+	(UNHEX(MD5(?)),?,?)`,
+				"echo test-script-details-timeout",
 				"echo test-script-details-timeout",
 				now.Add(-1*time.Hour),
 			)
@@ -11350,6 +11359,38 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
 		require.NoError(t, err)
 
+		// Update DB by clearing package ids and swapping extension to one we skip
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if _, err = q.ExecContext(context.Background(), `UPDATE software_installers SET package_ids = '', extension = 'tar.gz' WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			return nil
+		})
+
+		// Running the migration again causes no issues.
+		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
+		require.NoError(t, err)
+
+		// Package ID and extension should not have been modified
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var packageIDs string
+			if err := sqlx.GetContext(context.Background(), q, &packageIDs, `SELECT package_ids FROM software_installers WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			assert.Empty(t, packageIDs)
+
+			var extension string
+			if err := sqlx.GetContext(context.Background(), q, &extension, `SELECT extension FROM software_installers WHERE id = ?`,
+				installerID); err != nil {
+				return err
+			}
+			assert.Equal(t, "tar.gz", extension)
+
+			return nil
+		})
+
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent,
 			"team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -11658,17 +11699,29 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	errMsg := extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
 
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Empty(t, errMsg)
+
 	softwareToInstallBadSecret[0].InstallScript = ""
 	softwareToInstallBadSecret[0].PostInstallScript = "echo $FLEET_SECRET_ALSO_INVALID"
 	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_ALSO_INVALID")
 
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Empty(t, errMsg)
+
 	softwareToInstallBadSecret[0].PostInstallScript = ""
 	softwareToInstallBadSecret[0].UninstallScript = "echo $FLEET_SECRET_THIRD_INVALID"
 	resp = s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 	errMsg = extractServerErrorText(resp.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_THIRD_INVALID")
+
+	resp = s.Do("POST", "/api/latest/fleet/software/batch?dry_run=true", batchSetSoftwareInstallersRequest{Software: softwareToInstallBadSecret}, http.StatusAccepted, "team_name", tm.Name)
+	errMsg = extractServerErrorText(resp.Body)
+	require.Empty(t, errMsg)
 
 	// TODO(roberto): test with a variety of response codes
 
@@ -12451,13 +12504,23 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 			titleID, _ := res.LastInsertId()
 			softwareTitles[kind] = uint(titleID) //nolint:gosec // dismiss G115
 
+			platform := ""
+			switch kind {
+			case "deb":
+				platform = "linux"
+			case "msi", "exe":
+				platform = "windows"
+			case "pkg":
+				platform = "darwin"
+			}
+
 			_, err = q.ExecContext(ctx, `
 			INSERT INTO software_installers
-				(title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query)
+				(title_id, filename, extension, version, platform, install_script_content_id, uninstall_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query, package_ids)
 			VALUES
-				(?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?)`,
-				titleID, fmt.Sprintf("installer.%s", kind), kind, "v1.0.0", scriptContentID, uninstallScriptContentID,
-				hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo")
+				(?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?, ?)`,
+				titleID, fmt.Sprintf("installer.%s", kind), kind, "v1.0.0", platform, scriptContentID, uninstallScriptContentID,
+				hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo", "")
 			return err
 		})
 	}
@@ -14886,7 +14949,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 		BundleIdentifier: "bid_" + t.Name(),
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
-				AdamID:   "adam_" + t.Name(),
+				AdamID:   "adam_test_vpp1", // max 16 chars
 				Platform: fleet.MacOSPlatform,
 			},
 		},
@@ -15093,7 +15156,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		BundleIdentifier: "bid_" + t.Name(),
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID: fleet.VPPAppID{
-				AdamID:   "adam_" + t.Name(),
+				AdamID:   "adam_test_vpp2", // max 16 chars
 				Platform: fleet.MacOSPlatform,
 			},
 		},
@@ -16990,8 +17053,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// check that we created an activity for the policy creation
 	wantAct := fleet.ActivityTypeCreatedPolicy{
-		ID:   gotPolicy.ID,
-		Name: gotPolicy.Name,
+		ID:       gotPolicy.ID,
+		Name:     gotPolicy.Name,
+		TeamID:   0,
+		TeamName: ptr.String("No Team"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 

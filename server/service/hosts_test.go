@@ -431,8 +431,8 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
-	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
-		return false, nil
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
@@ -577,9 +577,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
 			return &hmdm, nil
 		}
-		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 			// testing API response when not enabled
-			return false, nil
+			return fleet.DiskEncryptionConfig{}, nil
 		}
 		ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 			return false, nil
@@ -1906,12 +1906,14 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.LockHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload, platform string) error {
 		return nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+	// Some functions use Host, others HostLite. For our purposes either is fine
+	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		if hostID == teamHostID {
 			return teamHost, nil
 		}
 		return globalHost, nil
 	}
+	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 		return nil, nil
 	}
@@ -2438,7 +2440,16 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			}
 
 			notifs := &fleet.OrbitConfigNotifications{}
-			err := svc.setDiskEncryptionNotifications(ctx, notifs, tt.host, tt.appConfig, tt.diskEncryptionConfigured, tt.isConnectedToFleetMDM, tt.mdmInfo)
+			err := svc.setDiskEncryptionNotifications(
+				ctx,
+				notifs,
+				tt.host,
+				tt.appConfig,
+				tt.diskEncryptionConfigured,
+				tt.isConnectedToFleetMDM,
+				tt.mdmInfo,
+			)
+
 			if tt.expectedError {
 				require.Error(t, err)
 			} else {

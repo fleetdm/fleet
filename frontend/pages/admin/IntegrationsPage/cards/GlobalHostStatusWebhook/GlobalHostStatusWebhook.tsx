@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import {
   HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
   HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
 } from "utilities/constants";
-
 import { getCustomDropdownOptions } from "utilities/helpers";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
@@ -19,10 +19,7 @@ import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-import {
-  IAppConfigFormProps,
-  IFormField,
-} from "../../../OrgSettingsPage/cards/constants";
+import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 
 interface IGlobalHostStatusWebhookFormData {
   enableHostStatusWebhook: boolean;
@@ -71,7 +68,7 @@ const GlobalHostStatusWebhook = ({
     setFormErrors,
   ] = useState<IGlobalHostStatusWebhookFormErrors>({});
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };

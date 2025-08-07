@@ -177,6 +177,7 @@ func TestHosts(t *testing.T) {
 		{"GetHostEmails", testGetHostEmails},
 		{"TestGetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
 		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
+		{"SetOrUpdateHostDiskTpmPIN", testSetOrUpdateHostDiskTpmPIN},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -940,7 +941,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			CommandUUID:       "command-uuid-3",
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryPending,
-			Checksum:          []byte("disk-encryption-csum"),
+			Checksum:          test.MakeTestBytes(), // 16 bytes
 			Scope:             fleet.PayloadScopeSystem,
 		},
 	}))
@@ -1348,7 +1349,7 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	}
 
 	encTok := uuid.NewString()
-	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
@@ -4563,7 +4564,7 @@ func testDEPHostsExpiration(t *testing.T, ds *Datastore) {
 		{SerialNumber: "def", Model: "iPad", OS: "iOS", OpType: "added"},
 	}
 
-	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte(uuid.NewString())})
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
@@ -7397,8 +7398,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
-          INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid)
-          VALUES (?, uuid())
+          INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid, token, declaration_identifier, declaration_name)
+          VALUES (?, uuid(), UNHEX(REPLACE(UUID(), '-', '')), 'test-identifier', 'test-name')
 	`, host.UUID)
 	require.NoError(t, err)
 
@@ -7434,8 +7435,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	// Add a calendar event for the host.
 	_, err = ds.writer(context.Background()).Exec(`
-		          INSERT INTO calendar_events (email, start_time, end_time, event)
-		          VALUES ('foobar@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, '{}');
+		          INSERT INTO calendar_events (email, start_time, end_time, event, uuid_bin)
+		          VALUES ('foobar@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, '{}', UNHEX(REPLACE(UUID(), '-', '')));
 			`)
 	require.NoError(t, err)
 	var calendarEventID int
@@ -7474,17 +7475,23 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	// Add a host certificate
 	sha1Sum := sha1.Sum([]byte("foo"))
+	now := time.Now()
 	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{{
-		HostID:     host.ID,
-		CommonName: "foo",
-		SHA1Sum:    sha1Sum[:],
+		HostID:         host.ID,
+		CommonName:     "foo",
+		SHA1Sum:        sha1Sum[:],
+		NotValidBefore: now,
+		NotValidAfter:  now.Add(365 * 24 * time.Hour),
+		Source:         fleet.SystemHostCertificate,
+		Username:       "test-user",
 	}}))
 
 	// create an android device from this host
+	deviceID := strings.ReplaceAll(uuid.NewString(), "-", "")
 	_, err = ds.writer(context.Background()).Exec(`
 	INSERT INTO android_devices (host_id, device_id)
 	VALUES (?, ?);
-	`, host.ID, uuid.NewString())
+	`, host.ID, deviceID)
 	require.NoError(t, err)
 
 	// Create a SCIM user and link it to host
@@ -8321,7 +8328,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	encTok := uuid.NewString()
-	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
@@ -8381,7 +8388,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	encTok := uuid.NewString()
-	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
@@ -10819,7 +10826,7 @@ func testGetMatchingHostSerialsMarkedDeleted(t *testing.T, ds *Datastore) {
 		Name: "team1",
 	})
 	require.NoError(t, err)
-	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte("token")})
+	abmTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte("token"), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	var hosts []fleet.Host
 	for i, serial := range serials {
@@ -10889,5 +10896,60 @@ func testGetMatchingHostSerialsMarkedDeleted(t *testing.T, ds *Datastore) {
 			}
 			require.Equal(t, tt.want, got)
 		})
+	}
+}
+
+func testSetOrUpdateHostDiskTpmPIN(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var hosts []*fleet.Host
+	for _, id := range []string{"1", "2"} {
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(id),
+			UUID:            id,
+			OsqueryHostID:   ptr.String(id),
+			Hostname:        fmt.Sprintf("foo.local.%s", id),
+			PrimaryIP:       fmt.Sprintf("192.168.1.%s", id),
+			PrimaryMac:      fmt.Sprintf("30-65-EC-6F-C4-1%s", id),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, host)
+	}
+
+	testCases := map[uint]bool{
+		hosts[0].ID: true,
+		hosts[1].ID: false,
+	}
+
+	for hostID, expected := range testCases {
+		require.NoError(t, ds.SetOrUpdateHostDiskTpmPIN(ctx, hostID, expected))
+
+		var tpmPINSet bool
+
+		require.NoError(t,
+			sqlx.GetContext(
+				ctx,
+				ds.writer(ctx),
+				&tpmPINSet,
+				`SELECT tpm_pin_set FROM host_disks WHERE host_id = ?`, hostID,
+			),
+		)
+		require.Equal(t, expected, tpmPINSet)
+
+		require.NoError(t, ds.SetOrUpdateHostDiskTpmPIN(ctx, hostID, !expected))
+
+		require.NoError(t,
+			sqlx.GetContext(
+				ctx,
+				ds.writer(ctx),
+				&tpmPINSet,
+				`SELECT tpm_pin_set FROM host_disks WHERE host_id = ?`, hostID,
+			),
+		)
+		require.NotEqual(t, expected, tpmPINSet)
 	}
 }

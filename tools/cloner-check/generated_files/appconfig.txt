@@ -53,6 +53,7 @@ github.com/fleetdm/fleet/v4/server/fleet/SSOSettings	EnableSSO	bool
 github.com/fleetdm/fleet/v4/server/fleet/SSOSettings	EnableSSOIdPLogin	bool
 github.com/fleetdm/fleet/v4/server/fleet/SSOSettings	EnableJITProvisioning	bool
 github.com/fleetdm/fleet/v4/server/fleet/SSOSettings	EnableJITRoleSync	bool
+github.com/fleetdm/fleet/v4/server/fleet/SSOSettings	SSOServerURL	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	FleetDesktop	fleet.FleetDesktopSettings
 github.com/fleetdm/fleet/v4/server/fleet/FleetDesktopSettings	TransparencyURL	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	VulnerabilitySettings	fleet.VulnerabilitySettings

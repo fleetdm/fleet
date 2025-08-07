@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import { pick } from "lodash";
+import Modal from "components/Modal";
 
 import { NotificationContext } from "context/notification";
 
@@ -20,12 +21,12 @@ import {
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
-import { IDeviceSoftware, IHostSoftware } from "interfaces/software";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
 import { isAppleDevice } from "interfaces/platform";
+import { IHostSoftware } from "interfaces/software";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -36,9 +37,6 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
-import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
-import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -67,7 +65,6 @@ import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
-import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
@@ -77,8 +74,8 @@ import {
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
-import { InstallOrCommandUuid } from "../cards/Software/InstallStatusCell/InstallStatusCell";
-import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
+import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
 
 const baseClass = "device-user";
 
@@ -127,6 +124,7 @@ const DeviceUserPage = ({
     NotificationContext
   );
 
+  const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
@@ -135,13 +133,6 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
-  const [selectedSelfServiceUuid, setSelectedSelfServiceUuid] = useState<
-    InstallOrCommandUuid | undefined
-  >(undefined);
-  const [
-    selectedSelfServiceScriptDetails,
-    setSelectedSelfServiceScriptDetails,
-  ] = useState<ISoftwareUninstallDetails | undefined>(undefined);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
@@ -151,8 +142,8 @@ const DeviceUserPage = ({
     false
   );
   const [
-    selectedSoftwareDetails,
-    setSelectedSoftwareDetails,
+    hostSWForInventoryVersions,
+    setHostSWForInventoryVersions,
   ] = useState<IHostSoftware | null>(null);
 
   // certificates states
@@ -217,6 +208,15 @@ const DeviceUserPage = ({
     deviceCertificates && refetchDeviceCertificates();
   };
 
+  /**
+   * Hides refetch spinner and resets refetch timer,
+   * ensuring no stale timeout triggers on new requests.
+   */
+  const resetHostRefetchStates = () => {
+    setShowRefetchSpinner(false);
+    setRefetchStartTime(null);
+  };
+
   const isRefetching = ({
     refetch_requested,
     refetch_critical_queries_until,
@@ -251,25 +251,24 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       onSuccess: ({ host: responseHost }) => {
-        setShowRefetchSpinner(isRefetching(responseHost));
+        // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
-          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
-          // host details. Here we set a one second timeout and poll the API again using
-          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
-          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
-          // or that the host has gone offline.
+          setShowRefetchSpinner(true);
+
+          // Only set timer if not already running
           if (!refetchStartTime) {
-            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
-            // the first page loads), we start it now if the host is online. If the host is offline,
-            // we skip the refetch on page load.
             if (responseHost.status === "online") {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchHostDetails();
                 refetchExtensions();
-              }, 1000);
+              }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
-              setShowRefetchSpinner(false);
+              resetHostRefetchStates();
+              renderFlash(
+                "error",
+                `This host is offline. Please try refetching host vitals later.`
+              );
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
@@ -278,23 +277,25 @@ const DeviceUserPage = ({
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
-                }, 1000);
+                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
+                resetHostRefetchStates();
                 renderFlash(
                   "error",
                   `This host is offline. Please try refetching host vitals later.`
                 );
-                setShowRefetchSpinner(false);
               }
             } else {
+              resetHostRefetchStates();
               renderFlash(
                 "error",
                 "We're having trouble fetching fresh vitals for this host. Please try again later."
               );
-              setShowRefetchSpinner(false);
             }
           }
-          // exit early because refectch is pending so we can avoid unecessary steps below
+        } else {
+          // Not refetching: reset spinner and timer
+          resetHostRefetchStates();
         }
       },
     }
@@ -341,38 +342,25 @@ const DeviceUserPage = ({
     setShowOSSettingsModal(!showOSSettingsModal);
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
-  const onShowInstallDetails = useCallback(
-    (uuid?: InstallOrCommandUuid) => {
-      setSelectedSelfServiceUuid(uuid);
-    },
-    [setSelectedSelfServiceUuid]
-  );
-
-  const onShowUninstallDetails = useCallback(
-    (details?: ISoftwareUninstallDetails) => {
-      setSelectedSelfServiceScriptDetails(details);
-    },
-    [setSelectedSelfServiceScriptDetails]
-  );
-
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
   }, [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]);
 
+  // User-initiated refetch always starts a new timer!
   const onRefetchHost = async () => {
     if (host) {
       setShowRefetchSpinner(true);
       try {
         await deviceUserAPI.refetch(deviceAuthToken);
-        setRefetchStartTime(Date.now());
+        setRefetchStartTime(Date.now()); // Always reset on user action
         setTimeout(() => {
           refetchHostDetails();
           refetchExtensions();
-        }, 1000);
+        }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
       } catch (error) {
         renderFlash("error", getErrorMessage(error, host.display_name));
-        setShowRefetchSpinner(false);
+        resetHostRefetchStates();
       }
     }
   };
@@ -480,6 +468,7 @@ const DeviceUserPage = ({
                 host.mdm.macos_settings?.action_required ?? null
               }
               onTurnOnMdm={toggleEnrollMdmModal}
+              onClickCreatePIN={() => setShowBitLockerPINModal(true)}
               onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
               diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
               diskIsEncrypted={host.disk_encryption_enabled}
@@ -528,8 +517,6 @@ const DeviceUserPage = ({
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
                       router={router}
-                      onShowInstallDetails={onShowInstallDetails}
-                      onShowUninstallDetails={onShowUninstallDetails}
                       refetchHostDetails={refetchHostDetails}
                       isHostDetailsPolling={showRefetchSpinner}
                       hostDisplayName={host?.hostname || ""}
@@ -595,7 +582,7 @@ const DeviceUserPage = ({
                       platform={host.platform}
                       hostTeamId={host.team_id || 0}
                       isSoftwareEnabled={isSoftwareEnabled}
-                      onShowSoftwareDetails={setSelectedSoftwareDetails}
+                      onShowInventoryVersions={setHostSWForInventoryVersions}
                     />
                   </TabPanel>
                 )}
@@ -627,6 +614,43 @@ const DeviceUserPage = ({
                   token={deviceAuthToken}
                 />
               ))}
+            {showBitLockerPINModal && (
+              <Modal
+                title="Create PIN"
+                onExit={() => setShowBitLockerPINModal(false)}
+                onEnter={() => setShowBitLockerPINModal(false)}
+                className={baseClass}
+                width="large"
+              >
+                <div>
+                  <p>
+                    <ol>
+                      <li>
+                        <p>
+                          Open the <b>Start menu</b>.
+                        </p>
+                      </li>
+                      <li>
+                        <p>Type &ldquo;Manage BitLocker&rdquo; and launch.</p>
+                      </li>
+                      <li>
+                        <p>
+                          <b>Choose Enter a PIN (recommended)</b> and follow the
+                          prompts to create a PIN.
+                        </p>
+                      </li>
+                      <li>
+                        <p>
+                          Close this window and select <b>Refetch</b> on your{" "}
+                          <b>My device</b> page. This informs your organization
+                          that you have set a BitLocker PIN.
+                        </p>
+                      </li>
+                    </ol>
+                  </p>
+                </div>
+              </Modal>
+            )}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (
@@ -661,48 +685,10 @@ const DeviceUserPage = ({
             }}
           />
         )}
-        {selectedSelfServiceUuid &&
-          "install_uuid" in selectedSelfServiceUuid &&
-          !!host && (
-            <SoftwareInstallDetailsModal
-              details={{
-                host_display_name: host.display_name,
-                install_uuid: selectedSelfServiceUuid.install_uuid,
-              }}
-              onCancel={() => setSelectedSelfServiceUuid(undefined)}
-              deviceAuthToken={deviceAuthToken}
-            />
-          )}
-        {selectedSelfServiceScriptDetails && !!host && (
-          <SoftwareUninstallDetailsModal
-            details={{
-              ...selectedSelfServiceScriptDetails,
-              host_display_name: host.display_name,
-            }}
-            onCancel={() => setSelectedSelfServiceScriptDetails(undefined)}
-            deviceAuthToken={deviceAuthToken}
-          />
-        )}
-        {selectedSelfServiceUuid &&
-          "command_uuid" in selectedSelfServiceUuid &&
-          !!host && (
-            <AppInstallDetailsModal
-              details={{
-                software_title: selectedSelfServiceUuid.software_title,
-                status: selectedSelfServiceUuid.status,
-                host_display_name: host.display_name,
-                command_uuid: selectedSelfServiceUuid.command_uuid,
-              }}
-              onCancel={() => setSelectedSelfServiceUuid(undefined)}
-              deviceAuthToken={deviceAuthToken}
-            />
-          )}
-        {selectedSoftwareDetails && !!host && (
-          <SoftwareDetailsModal
-            hostDisplayName={host.display_name}
-            software={selectedSoftwareDetails}
-            onExit={() => setSelectedSoftwareDetails(null)}
-            isDeviceUser
+        {hostSWForInventoryVersions && !!host && (
+          <InventoryVersionsModal
+            hostSoftware={hostSWForInventoryVersions}
+            onExit={() => setHostSWForInventoryVersions(null)}
           />
         )}
         {selectedCertificate && (

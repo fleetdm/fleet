@@ -1,5 +1,11 @@
 # API for contributors
 
+This document includes the internal (service) Fleet API routes that are helpful when developing or contributing to Fleet.
+
+These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. 
+
+If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
+
 - [Authentication](#authentication)
 - [Packs](#packs)
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
@@ -15,12 +21,6 @@
 - [Users](#users)
 - [Conditional access](#conditional-access)
 - [Host identity](#host-identity)
-
-> These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
-
-This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
-
-If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
 
 ## Authentication
 
@@ -1046,7 +1046,7 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 
 `204`
 
-### Initiate SSO during DEP enrollment
+### Initiate SSO during DEP or Account Driven MDM enrollment
 
 This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
 
@@ -1054,7 +1054,9 @@ This endpoint initiates the SSO flow, the response contains an URL that the clie
 
 #### Parameters
 
-None.
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter |
 
 #### Example
 
@@ -1068,7 +1070,7 @@ None.
 }
 ```
 
-### Complete SSO during DEP enrollment
+### Complete SSO during DEP or Account Driven enrollment
 
 This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
 
@@ -1096,11 +1098,22 @@ This is the callback endpoint that the identity provider will use to send securi
 
 `Status: 302`
 
-If the credentials are valid, the server redirects the client to the Fleet UI. The URL contains the following query parameters that can be used to complete the DEP enrollment flow:
+If the credentials are valid and no value was passed for the `initiator` parameter during initiation
+of SSO, the server redirects the client to the Fleet UI. The URL contains the
+following query parameters that can be used to complete the DEP enrollment flow:
 
 - `enrollment_reference` a reference that must be passed along with `profile_token` to the endpoint to download an enrollment profile.
 - `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
 - `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
+
+If the credentials are valid and `account_driven_enroll` was passed for the `initiator` parameter
+during initiation of SSO, the server redirects the client to
+apple-remotemanagement-user-login://authentication-results . The URL contains the following query
+parameter which is used by the Apple MDM client on the device to complete the account driven
+enrollment flow:
+
+ - `access-token` a token that is passed by the device in the Authorization header on the second call to the Account Driven
+   Enrollment endpoint to download an enrollment profile.
 
 ### Over the air enrollment
 
@@ -1416,6 +1429,50 @@ This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 
 `POST /api/v1/fleet/android_enterprise/pubsub`
 
+### Get Apple Account Driven User Enrollment Profile
+
+This endpoint initiates Account Driven User Enrollment on iOS and iPadOS devices and is used by the
+Apple. Devices are directed to this endpoint via Apple Account Driven Enrollment service discovery.
+The first request made to this endpoint is unauthenticated and will return a 401 Unauthorized
+including a Www-Authenticate header with a URL redirecting them to /mdm/sso. After authentication,
+the client will return to this endpoint and make a second request including the returned token in
+the Authorization header and an enrollment profile will be returned. Devices that fail to identify
+via plist or that identify as other than iPhone or iPad will return a 400 Bad Request.
+
+`POST /api/mdm/apple/account_driven_enroll`
+
+#### Parameters
+
+A plist including LANGUAGE, VERSION, PRODUCT, SOFTWARE_UPDATE_DEVICE_ID, SUPPLEMENTAL_BUILD_VERSION
+and VERSION
+
+### Get Apple Account Driven User Enrollment service discovery payload
+
+This endpoint will be used by devices to get the data needed to initiate an account driven user
+enrollment into MDM. The devices will get the URL for the mdm server and will call that endpoint
+while passing the `mdm-byod` enrollment type.
+
+`GET /api/mdm/apple/service_discovery`
+
+#### Example
+
+`GET /api/mdm/apple/service_discovery`
+
+##### Response
+
+`Status 200`
+
+```json
+{
+  "Servers": [
+    {
+      "Version": "mdm-byod",
+      "BaseURL": "<fleet_server_url>/api/mdm/apple/account_driven_enroll"
+    }
+  ]
+}
+
+```
 
 ## Get or apply configuration files
 
@@ -4419,7 +4476,8 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | software.packages.pre_install_query   | string   | body  | Condition query that determines if the install will proceed.                                                                                                                                                                |
 | software.packages.post_install_script | string   | body  | Script that runs after software install.                                                                                                                                                                                    |
 | software.packages.uninstall_script    | string   | body  | Command that Fleet runs to uninstall software.                                                                                                                                                                              |
-| software.packages.self_service        | boolean  | body  | Specifies whether or not end users can install self-service.                                                                                                                                                                |
+| software.packages.self_service        | boolean  | body  | Specifies whether end users can install self-service.                                                                                                                                                                |
+| software.packages.install_during_setup | boolean  | body  | Specifies whether the package is included in Setup experience.                                                                                                                                                                |
 | software.packages.labels_include_any  | array    | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted.                                                   |
 | software.packages.labels_exclude_any  | array    | body  | Target hosts that don't have any labels in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted.                                            |
 
@@ -4510,7 +4568,8 @@ _Available in Fleet Premium._
 | app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the app. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
-| app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
+| app_store_apps.self_service | boolean   | body  | Whether the VPP app is available for install via the My device UI on macOS hosts. |
+| app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
@@ -4525,6 +4584,7 @@ _Available in Fleet Premium._
       "app_store_id": "597799333",
       "categories": ["Browsers"],
       "self_service": false,
+      "install_during_setup": false,
       "labels_include_any": [
         "Engineering",
         "Customer Support"

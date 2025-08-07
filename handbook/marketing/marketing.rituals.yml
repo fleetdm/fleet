@@ -13,7 +13,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#refresh-event-calendar"
   dri: "irenareedy"
   autoIssue:   
-    labels: [ "#g-digital-experience" ]
+    labels: [ ":help-marketing" ]
     repo: fleet
 -
   task: "Settle event strategy"
@@ -64,4 +64,33 @@
   description: "Check event issues and complete steps."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#book-an-event"
   dri: "irenareedy"
-
+-
+  task: "Check that there is sufficient availability for scheduling demos via fleetdm.com/contact"
+  startedOn: "2024-10-25"
+  frequency: "Weekly"
+  description: "Check out the meeting booking flow that you get when you schedule a demo from Fleet's contact form, and make sure there is plenty of availability for the rest of the day in US PT thru ET, with significant spots open in the morning (US time) for folks in EMEA and at least one or two spots open in the evening (US time) for folks in APAC / Hawaii."
+  moreInfoUrl: ""
+  dri: "onasismunro"
+  autoIssue:   
+    labels: [ ":help-marketing" ]
+    repo: "confidential"
+-
+  task: "Prepare Let's get you set up meeting notes"
+  startedOn: "2025-05-30"
+  frequency: "Weekly"
+  description: "Before each group call, copy the attendees from the Lets get you set up! (group office hours) calendar event and paste them into the correct section of the [Let's get you set up! meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#prepare-lets-get-you-set-up-meeting-notes"
+  dri: "onasismunro"
+  autoIssue:  
+    labels: [ ":help-marketing" ] 
+    repo: "confidential"
+-
+  task: "Update content calendar"
+  startedOn: "2025-08-04"
+  frequency: "Weekly"
+  description: "Every Monday, the Content Specialist will verify that the next two weeks of content is completely planed and the conent calendar is updated."
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=390351382#gid=390351382"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing" ] 
+    repo: "confidential"

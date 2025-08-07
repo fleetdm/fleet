@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# Human view: https://docs.coderabbit.ai/getting-started/configure-coderabbit/
+language: "en-US"
+early_access: true
+enable_free_tier: true
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: false
+  collapse_walkthrough: false
+  auto_review:
+    enabled: false
+  path_instructions:
+    - path: "**/*.go"
+      instructions: "When reviewing SQL queries that are added or modified, ensure that appropriate filtering criteria are applied—especially when a query is intended to return data for a specific entity (e.g., a single host). Check for missing WHERE clauses or incorrect filtering that could lead to incorrect or non-deterministic results (e.g., returning the first row instead of the correct one). Flag any queries that may return unintended results due to lack of precise scoping."
+chat:
+  auto_reply: false

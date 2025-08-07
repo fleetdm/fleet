@@ -263,8 +263,10 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status fleet.MDMDeliveryStatus) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
-			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			// Generate a command UUID for the profile
+			commandUUID := "cmd-" + profUUID
+			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status, command_uuid) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
+			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, commandUUID, status)
 			return err
 		})
 	}
@@ -479,6 +481,54 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			cleanupHostProfiles(t)
 		})
 
+		t.Run("BitLocker profile status with PIN required", func(t *testing.T) {
+			// Turn on Bitlocker requirement
+			ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+			require.NoError(t, ds.SaveAppConfig(ctx, ac))
+			ac, err = ds.AppConfig(ctx)
+			require.NoError(t, err)
+			require.True(t, ac.MDM.RequireBitLockerPIN.Value)
+
+			// Expect that the host that would be "verified"
+			// is now in "action required" status.
+			// This will also verify that when filtering by profile status,
+			// the "verified" host is now counted as "pending".
+			expected := hostIDsByDEStatus{
+				fleet.DiskEncryptionActionRequired: []uint{hosts[0].ID},
+				fleet.DiskEncryptionFailed:         []uint{hosts[1].ID},
+				fleet.DiskEncryptionEnforcing:      []uint{hosts[2].ID, hosts[3].ID, hosts[4].ID},
+			}
+
+			checkExpected(t, nil, expected)
+
+			// Set the "tpm_pin_set" to true for the host that would be "verified"
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE host_disks SET tpm_pin_set = true WHERE host_id = ?`, hosts[0].ID)
+				return err
+			})
+
+			expected = hostIDsByDEStatus{
+				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+				fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+				fleet.DiskEncryptionEnforcing: []uint{hosts[2].ID, hosts[3].ID, hosts[4].ID},
+			}
+
+			checkExpected(t, nil, expected)
+
+			// Reset the "tpm_pin_set" to false for the host.
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE host_disks SET tpm_pin_set = false WHERE host_id = ?`, hosts[0].ID)
+				return err
+			})
+
+			// Reset "RequireBitLockerPIN" to false
+			ac.MDM.RequireBitLockerPIN = optjson.SetBool(false)
+			require.NoError(t, ds.SaveAppConfig(ctx, ac))
+			ac, err = ds.AppConfig(ctx)
+			require.NoError(t, err)
+			require.False(t, ac.MDM.RequireBitLockerPIN.Value)
+		})
+
 		t.Run("BitLocker team filtering", func(t *testing.T) {
 			// Test team filtering
 			team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
@@ -663,8 +713,10 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 
 	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
-			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			// Generate a command UUID for the profile
+			commandUUID := "cmd-" + profUUID
+			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status, command_uuid) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
+			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, commandUUID, status)
 			if err != nil {
 				return err
 			}
