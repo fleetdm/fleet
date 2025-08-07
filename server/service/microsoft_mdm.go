@@ -2197,6 +2197,56 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
+// preprocessWindowsProfileContents processes Windows configuration profiles to replace Fleet variables
+// with their actual values for each host.
+//
+// Why we don't use Go templates:
+//  1. Error handling: Go templates don't provide fine-grained error handling for individual variable
+//     replacements. We need to handle failures per-host and per-variable gracefully.
+//  2. Variable dependencies: Some variables may be related or have dependencies on each other. With
+//     manual processing, we can control the order of variable replacement precisely.
+//  3. Performance: Templates must be compiled every time they're used, adding overhead when processing
+//     thousands of host profiles. Direct string replacement is more efficient for our use case.
+//  4. XML escaping: We need XML-specific escaping for values, which is simpler to control with direct
+//     string replacement rather than template functions.
+//
+// Note: When addition support for additional variables here, consider refactoring this variable replacement logic into its own package.
+func preprocessWindowsProfileContents(
+	hostUUID string,
+	profileContents string,
+) (string, error) {
+	// Check if Fleet variables are present
+	fleetVars := findFleetVariables(profileContents)
+	if len(fleetVars) == 0 {
+		// No variables to replace, return original content
+		return profileContents, nil
+	}
+
+	// Process each Fleet variable
+	result := profileContents
+	for fleetVar := range fleetVars {
+		switch fleetVar {
+		case fleet.FleetVarHostUUID:
+			// Replace HOST_UUID with the actual host UUID
+			// Use XML escaping for the replacement value to be safe
+			b := make([]byte, 0, len(hostUUID))
+			buf := bytes.NewBuffer(b)
+			_ = xml.EscapeText(buf, []byte(hostUUID))
+			escapedUUID := buf.String()
+
+			// Replace both braced and non-braced versions
+			result = strings.ReplaceAll(result, fmt.Sprintf("$FLEET_VAR_%s", fleetVar), escapedUUID)
+			result = strings.ReplaceAll(result, fmt.Sprintf("${FLEET_VAR_%s}", fleetVar), escapedUUID)
+		default:
+			// This should not happen as validation should have caught unsupported variables
+			// but we handle it gracefully by skipping the variable
+			continue
+		}
+	}
+
+	return result, nil
+}
+
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -2226,6 +2276,10 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	// with the new status, operation_type, etc.
 	hostProfilesToUpdate := make([]*fleet.MDMWindowsBulkUpsertHostProfilePayload, 0, len(toInstall))
 
+	// hostProfilesMap provides O(1) lookup for host profiles by host UUID and profile UUID
+	// Key format: "hostUUID|profileUUID"
+	hostProfilesMap := make(map[string]*fleet.MDMWindowsBulkUpsertHostProfilePayload, len(toInstall))
+
 	// install are maps from profileUUID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
 	// multiple hosts at the same time. Note that the same command uuid is used
@@ -2249,7 +2303,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
 
-		hostProfilesToUpdate = append(hostProfilesToUpdate, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+		hp := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
 			ProfileUUID:   p.ProfileUUID,
 			HostUUID:      p.HostUUID,
 			ProfileName:   p.ProfileName,
@@ -2257,7 +2311,10 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			OperationType: fleet.MDMOperationTypeInstall,
 			Status:        &fleet.MDMDeliveryPending,
 			Checksum:      p.Checksum,
-		})
+		}
+		hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
+		// Add to map for fast lookup
+		hostProfilesMap[p.HostUUID+"|"+p.ProfileUUID] = hp
 		level.Debug(logger).Log("msg", "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
@@ -2278,13 +2335,67 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
 		}
 
-		command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
-		if err != nil {
-			level.Info(logger).Log("err", err, "profile_uuid", profUUID)
-			continue
-		}
-		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
+		// Check if the profile contains Fleet variables
+		profileStr := string(p.SyncML)
+		fleetVars := findFleetVariables(profileStr)
+
+		if len(fleetVars) == 0 {
+			// No Fleet variables, send the same command to all hosts
+			command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
+			if err != nil {
+				level.Info(logger).Log("err", err, "profile_uuid", profUUID)
+				continue
+			}
+			if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
+			}
+		} else {
+			// Profile contains Fleet variables, process each host individually
+			for _, hostUUID := range target.hostUUIDs {
+				mapKey := hostUUID + "|" + profUUID
+				hp := hostProfilesMap[mapKey]
+				if hp == nil {
+					// This should never happen, but handle gracefully
+					level.Error(logger).Log("msg", "host profile not found in map", "profile_uuid", profUUID, "host_uuid", hostUUID)
+					continue
+				}
+
+				// Preprocess the profile content for this specific host
+				processedContent, err := preprocessWindowsProfileContents(hostUUID, profileStr)
+				if err != nil {
+					level.Error(logger).Log("err", err, "msg", "preprocessing Windows profile", "profile_uuid", profUUID, "host_uuid", hostUUID)
+					// Mark this host's profile as failed
+					hp.Status = &fleet.MDMDeliveryFailed
+					hp.Detail = fmt.Sprintf("Fleet couldn't populate variables. %s", err.Error())
+					// Continue with other hosts even if one fails
+					continue
+				}
+
+				// Create a unique command UUID for this host since the content is unique
+				hostCmdUUID := uuid.New().String()
+
+				// Build the command with the processed content
+				command, err := buildCommandFromProfileBytes([]byte(processedContent), hostCmdUUID)
+				if err != nil {
+					level.Info(logger).Log("err", err, "profile_uuid", profUUID, "host_uuid", hostUUID)
+					// Mark this host's profile as failed
+					hp.Status = &fleet.MDMDeliveryFailed
+					hp.Detail = fmt.Sprintf("Failed to build command from profile: %s", err.Error())
+					continue
+				}
+
+				// Insert the command for this specific host
+				if err := ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, command); err != nil {
+					level.Error(logger).Log("err", err, "msg", "inserting command for host", "host_uuid", hostUUID)
+					// Mark this host's profile as failed
+					hp.Status = &fleet.MDMDeliveryFailed
+					hp.Detail = fmt.Sprintf("Failed to insert command for host: %s", err.Error())
+					continue
+				}
+
+				// Update the command UUID for this specific host
+				hp.CommandUUID = hostCmdUUID
+			}
 		}
 	}
 
