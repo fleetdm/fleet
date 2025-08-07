@@ -1,5 +1,8 @@
-import { IScriptResultResponse } from "services/entities/scripts";
-import { IScript, IHostScript } from "interfaces/script";
+import {
+  IScriptBatchSummaryV2,
+  IScriptResultResponse,
+} from "services/entities/scripts";
+import { IScript, IHostScript, ScriptBatchStatus } from "interfaces/script";
 
 const DEFAULT_SCRIPT_MOCK: IScript = {
   id: 1,
@@ -47,4 +50,28 @@ export const createMockHostScript = (
   overrides?: Partial<IHostScript>
 ): IHostScript => {
   return { ...DEFAULT_HOST_SCRIPT_MOCK, ...overrides };
+};
+
+const DEFAULT_SCRIPT_BATCH_SUMMARY_MOCK: IScriptBatchSummaryV2 = {
+  batch_execution_id: "abc-def",
+  script_id: 1,
+  script_name: "fake_batch_script.sh",
+  team_id: 0,
+  targeted_host_count: 10,
+  ran_host_count: 6,
+  pending_host_count: 1,
+  errored_host_count: 1,
+  incompatible_host_count: 1,
+  canceled_host_count: 1,
+  status: "finished" as ScriptBatchStatus,
+  not_before: "2023-07-10T18:30:08Z",
+  started_at: "2023-07-10T18:31:08Z",
+  finished_at: "2023-07-10T18:32:08Z",
+  canceled: false,
+};
+
+export const createMockBatchScriptSummary = (
+  overrides?: Partial<IScriptBatchSummaryV2>
+): IScriptBatchSummaryV2 => {
+  return { ...DEFAULT_SCRIPT_BATCH_SUMMARY_MOCK, ...overrides };
 };

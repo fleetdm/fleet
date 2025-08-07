@@ -3,10 +3,12 @@ import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
 
-import ScriptLibrary, { IScriptLibraryProps } from "./cards/ScriptLibrary";
 import ScriptBatchProgress, {
   IScriptBatchProgressProps,
-} from "./cards/ScriptBatchProgress";
+} from "./cards/ScriptBatchProgress/ScriptBatchProgress";
+import ScriptLibrary, {
+  IScriptLibraryProps,
+} from "./cards/ScriptLibrary/ScriptLibrary";
 
 export interface IScriptsCommonProps {
   router: InjectedRouter;

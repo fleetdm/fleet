@@ -33,7 +33,7 @@ export interface IHostScript {
   last_execution: ILastExecution | null;
 }
 
-const SCRIPT_BATCH_STATUSES = ["started", "scheduled", "completed"] as const;
+const SCRIPT_BATCH_STATUSES = ["started", "scheduled", "finished"] as const;
 export type ScriptBatchStatus = typeof SCRIPT_BATCH_STATUSES[number];
 
 export const isValidScriptBatchStatus = (

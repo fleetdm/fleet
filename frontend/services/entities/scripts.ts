@@ -1,9 +1,11 @@
 import { IHostScript, IScript, ScriptBatchStatus } from "interfaces/script";
 import sendRequest from "services";
+
+import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
+
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 import { PaginationMeta } from "./common";
-
 /** Single script response from GET /script/:id */
 export type IScriptResponse = IScript;
 
@@ -151,16 +153,19 @@ export interface IScriptBatchHostCountsV2 {
   canceled_host_count: number;
 }
 
-// TODO - use THIS response type for the new summary endpoint
 export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
+  batch_execution_id: string;
   script_id: number;
   script_name: string;
   team_id: number;
-  /** if present, this script was scheduled ahead of time */
-  not_before?: string; // ISO 8601 date-time string
-  completed_at?: string; // ISO 8601 date-time string
   status: ScriptBatchStatus;
   canceled: boolean;
+  /** ISO 8601 date-time string. Always present as of Fleet 4.73.0 - `null`able for backwards compatibility with older batch runs. */
+  not_before: string | null;
+  // /** ISO 8601 date-time string. If present, this script batch run has started. */
+  started_at: string | null;
+  /** ISO 8601 date-time string. If present, this script has completed running. */
+  finished_at: string | null;
 }
 export interface IScriptBatchSummariesParams {
   team_id: number;
@@ -176,7 +181,6 @@ export interface IScriptBatchSummariesQueryKey
 export interface IScriptBatchSummariesResponse {
   batch_executions: IScriptBatchSummaryV2[];
   meta: PaginationMeta;
-  /** total number of batch executions matching filters */
   count: number;
 }
 
@@ -273,26 +277,49 @@ export default {
     // TODO - swap
     // return sendRequest("GET", path);
     // await new Promise((resolve) => setTimeout(() => null, 2000));
-    return Promise.resolve({
-      batch_executions: [
-        {
-          batch_execution_id: "fake-id",
-          script_id: 1,
-          script_name: "Fake Script",
-          team_id: 0,
-          targeted_host_count: 10,
-          ran_host_count: 8,
-          pending_host_count: 1,
-          errored_host_count: 1,
-          incompatible_host_count: 0,
-          canceled_host_count: 0,
-          status: "completed" as ScriptBatchStatus,
-          completed_at: new Date().toISOString(),
-          canceled: false,
-        },
-      ],
-      meta: { has_next_results: false, has_previous_results: false },
-      count: 1,
-    });
+
+    // remove:
+    switch (params.status) {
+      case "started":
+        return Promise.resolve({
+          batch_executions: [
+            createMockBatchScriptSummary({
+              status: "started",
+              finished_at: null,
+            }),
+          ],
+          meta: { has_next_results: false, has_previous_results: false },
+          count: 1,
+        });
+      case "scheduled":
+        return Promise.resolve({
+          batch_executions: [
+            createMockBatchScriptSummary({
+              status: "scheduled",
+              not_before: "2026-07-10T18:30:08Z",
+              started_at: null,
+              finished_at: null,
+            }),
+            createMockBatchScriptSummary({
+              batch_execution_id: "bbb-ccc",
+              script_id: 2,
+              script_name: "another_fake_batch_script.sh",
+              status: "scheduled",
+              not_before: "2026-07-10T18:30:08Z",
+              started_at: null,
+              finished_at: null,
+            }),
+          ],
+          meta: { has_next_results: false, has_previous_results: false },
+          count: 2,
+        });
+      case "finished":
+      default:
+        return Promise.resolve({
+          batch_executions: [createMockBatchScriptSummary()],
+          meta: { has_next_results: false, has_previous_results: false },
+          count: 0,
+        });
+    }
   },
 };
