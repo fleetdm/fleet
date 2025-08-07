@@ -9030,7 +9030,7 @@ Returns a list of batch script executions.
       "not_before": "2025-07-01T15:00:00Z",
       "finished_at": "2025-07-06T15:00:00Z",
       "started_at": "2025-07-06T14:00:00Z",
-      "status": "completed",
+      "status": "finished",
       "canceled": false,
       "targeted_host_count": 12599,
       "ran_host_count": 12345,
@@ -9043,8 +9043,8 @@ Returns a list of batch script executions.
   "meta": {
     "has_next_results": false,
     "has_previous_results": false,
+    },
     "count": 1
-  }
 }
 ```
 
@@ -9079,8 +9079,9 @@ Returns a summary of a batch-run script, including host counts and current statu
   "script_name": "my-script.sh",
   "team_id": 123,
   "not_before": "2025-07-01T15:00:00Z",
-  "completed_at": "2025-07-06T15:00:00Z",
-  "status": "completed",
+  "finished_at": "2025-07-06T15:00:00Z",
+  "started_at": "2025-07-06T14:00:00Z",
+  "status": "finished",
   "canceled": false,
   "targeted_host_count": 12599,
   "ran_host_count": 12345,
@@ -9108,7 +9109,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 
 #### Example
 
-`GET /api/v1/fleet/scripts/batch/abc-def/host-results?status=completed`
+`GET /api/v1/fleet/scripts/batch/abc-def/host-results?status=ran`
 
 
 ##### Default response
@@ -9131,13 +9132,14 @@ Returns a list hosts targeted in a batch script run, along with their script exe
   "meta": {
     "has_next_results": false,
     "has_previous_results": false
-  }
+  },
+  "count": 1
 }
 ```
 
 ### Cancel batch script
 
-> TODO: API to cancel all pending script executions from a batch run script.
+`POST /scripts/batch/abc-def/cancel`
 
 ### Add script
 
