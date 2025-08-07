@@ -9037,7 +9037,8 @@ Returns a list of batch script executions.
       "pending_host_count": 234,
       "errored_host_count": 18,
       "incompatible_host_count": 3,
-      "canceled_host_count": 2
+      "canceled_host_count": 2,
+      "created_at": "2025-07-01T10:00:00Z"
     }
   ],
   "meta": {
@@ -9089,6 +9090,7 @@ Returns a summary of a batch-run script, including host counts and current statu
   "errored_host_count": 18,
   "incompatible_host_count": 3,
   "canceled_host_count": 2,
+  "created_at": "2025-07-01T10:00:00Z"
 }
 ```
 
