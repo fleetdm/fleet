@@ -9025,6 +9025,7 @@ Returns a list of batch script executions.
     {
       "script_id": 555,
       "script_name": "my-script.sh",
+      "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
       "team_id": 123,
       "not_before": "2025-07-01T15:00:00Z",
       "completed_at": "2025-07-06T15:00:00Z",
