@@ -812,6 +812,15 @@ type CAConfigAsset struct {
 	Type  CAConfigAssetType `db:"type"`
 }
 
+type CAType string
+
+const (
+	CATypeNDESSCEPProxy   CAType = "ndes_scep_proxy"
+	CATypeDigiCert        CAType = "digicert"
+	CATypeCustomSCEPProxy CAType = "custom_scep_proxy"
+	CATypeHydrant         CAType = "hydrant"
+)
+
 // MDMPlatform returns "darwin" or "windows" as MDM platforms
 // derived from a host's platform (hosts.platform field).
 //
