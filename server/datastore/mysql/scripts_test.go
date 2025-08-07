@@ -44,6 +44,7 @@ func TestScripts(t *testing.T) {
 		{"UpdateScriptContents", testUpdateScriptContents},
 		{"UpdateDeletingUpcomingScriptExecutions", testUpdateDeletingUpcomingScriptExecutions},
 		{"BatchExecute", testBatchExecute},
+		{"BatchScriptSchedule", testBatchScriptSchedule},
 		{"DeleteScriptActivatesNextActivity", testDeleteScriptActivatesNextActivity},
 		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
 	}
@@ -1938,6 +1939,65 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.Equal(t, summary.NumErrored, uint(3))
 	require.Equal(t, summary.NumRan, uint(1))
 	require.Equal(t, summary.NumCanceled, uint(1))
+}
+
+func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "user1", "user@example.com", true)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now())
+	hostTeam1 := test.NewHost(t, ds, "hostTeam1", "10.0.0.5", "hostTeam1key", "hostTeam1uuid", time.Now(), test.WithTeamID(team1.ID))
+
+	test.SetOrbitEnrollment(t, host1, ds)
+	test.SetOrbitEnrollment(t, host2, ds)
+	test.SetOrbitEnrollment(t, host3, ds)
+	test.SetOrbitEnrollment(t, hostTeam1, ds)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo hi",
+	})
+	require.NoError(t, err)
+
+	scheduledTime := time.Now().Add(10 * time.Hour).UTC()
+	execID, err := ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID, host3.ID}, scheduledTime)
+	require.NoError(t, err)
+	require.NotEmpty(t, execID)
+
+	jobs, err := ds.GetQueuedJobs(ctx, 10, scheduledTime.Add(10*time.Minute))
+	require.NoError(t, err)
+	// Should have scheduled one job
+	require.NotZero(t, jobs)
+	// find our job
+	var job *fleet.Job
+	for _, j := range jobs {
+		if j.Name == fleet.BatchActivityJobName {
+			job = j
+		}
+	}
+	require.NotNil(t, job)
+	require.Equal(t, fleet.BatchActivityJobName, job.Name)
+	// Time from DB isn't super accurate
+	require.Equal(t, scheduledTime.Truncate(time.Minute), job.NotBefore.Truncate(time.Minute))
+
+	batchActivity, err := ds.GetBatchActivity(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, execID, batchActivity.ExecutionID)
+	require.Equal(t, user.ID, *batchActivity.UserID)
+	require.Equal(t, fleet.BatchExecutionActivityScript, batchActivity.ActivityType)
+	require.Equal(t, job.ID, *batchActivity.JobID)
+	require.Equal(t, fleet.BatchExecutionScheduled, batchActivity.Status)
+	require.Equal(t, uint(3), *batchActivity.NumTargeted)
+
+	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
+	require.NoError(t, err)
+	require.Len(t, hostResults, 3)
 }
 
 func testDeleteScriptActivatesNextActivity(t *testing.T, ds *Datastore) {

@@ -208,6 +208,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCanceledUninstallSoftware{},
 	ActivityTypeCanceledInstallAppStoreApp{},
 
+	ActivityTypeBatchScriptScheduled{},
+
 	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeEnabledConditionalAccessAutomations{},
@@ -2545,7 +2547,7 @@ func (a ActivityTypeCanceledInstallAppStoreApp) Documentation() (string, string,
 
 type ActivityTypeRanScriptBatch struct {
 	ScriptName       string `json:"script_name"`
-	BatchExeuctionID string `json:"batch_execution_id"`
+	BatchExecutionID string `json:"batch_execution_id"`
 	HostCount        uint   `json:"host_count"`
 	TeamID           *uint  `json:"team_id"`
 }
@@ -2563,6 +2565,32 @@ func (a ActivityTypeRanScriptBatch) Documentation() (string, string, string) {
   "script_name": "set-timezones.sh",
   "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "host_count": 12
+}`
+}
+
+type ActivityTypeBatchScriptScheduled struct {
+	BatchExecutionID string     `json:"batch_execution_id"`
+	ScriptName       *string    `json:"script_name,omitempty"`
+	HostCount        uint       `json:"host_count"`
+	TeamID           *uint      `json:"team_id"`
+	NotBefore        *time.Time `json:"not_before"`
+}
+
+func (a ActivityTypeBatchScriptScheduled) ActivityName() string {
+	return "batch_script_scheduled"
+}
+
+func (a ActivityTypeBatchScriptScheduled) Documentation() (string, string, string) {
+	return "Generated when a batch script is scheduled.",
+		`This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+- "not_before": Time that the batch activity is scheduled to launch.`, `{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
+  "host_count": 12,
+  "not_before": "2025-08-06T17:49:21.810204Z"
 }`
 }
 
