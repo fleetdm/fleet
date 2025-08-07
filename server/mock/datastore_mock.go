@@ -1167,7 +1167,7 @@ type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.
 
 type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
-type BatchScheduleScriptFunc func(ctx context.Context, scriptID uint, userID *uint, hostIDs []uint, notBefore time.Time) (string, error)
+type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
 
 type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
@@ -7566,11 +7566,11 @@ func (s *DataStore) BatchExecuteScript(ctx context.Context, userID *uint, script
 	return s.BatchExecuteScriptFunc(ctx, userID, scriptID, hostIDs)
 }
 
-func (s *DataStore) BatchScheduleScript(ctx context.Context, scriptID uint, userID *uint, hostIDs []uint, notBefore time.Time) (string, error) {
+func (s *DataStore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
 	s.mu.Lock()
 	s.BatchScheduleScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchScheduleScriptFunc(ctx, scriptID, userID, hostIDs, notBefore)
+	return s.BatchScheduleScriptFunc(ctx, userID, scriptID, hostIDs, notBefore)
 }
 
 func (s *DataStore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {

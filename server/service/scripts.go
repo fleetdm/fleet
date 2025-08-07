@@ -1227,7 +1227,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	}
 
 	notBeforeUTC := notBefore.UTC()
-	batchID, err := svc.ds.BatchScheduleScript(ctx, *userId, userId, hostIDs, notBeforeUTC)
+	batchID, err := svc.ds.BatchScheduleScript(ctx, userId, scriptID, hostIDs, notBeforeUTC)
 	if err != nil {
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}

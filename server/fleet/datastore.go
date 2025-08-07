@@ -1810,7 +1810,7 @@ type Datastore interface {
 
 	// BatchExecuteScript queued a script to run on a set of hosts after notBefore and returns the
 	// batch execution ID.
-	BatchScheduleScript(ctx context.Context, scriptID uint, userID *uint, hostIDs []uint, notBefore time.Time) (string, error)
+	BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
 
 	// GetBatchActivity returns a batch activity with executionID
 	GetBatchActivity(ctx context.Context, executionID string) (*BatchActivity, error)

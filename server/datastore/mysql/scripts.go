@@ -1910,7 +1910,7 @@ INSERT INTO batch_activity_host_results (
 	return batchExecID, nil
 }
 
-func (ds *Datastore) BatchScheduleScript(ctx context.Context, scriptID uint, userID *uint, hostIDs []uint, notBefore time.Time) (string, error) {
+func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
 	batchExecID := uuid.New().String()
 
 	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, job_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?, ?)`
