@@ -60,6 +60,9 @@ func ParseJSONtoProjectItems(jsonData []byte, limit int) ([]ProjectItem, error) 
 	if err != nil {
 		return nil, err
 	}
+	if items.TotalCount > limit {
+		logger.Infof("Project item limit less than total, could be missing items - l: %d, t: %d", limit, items.TotalCount)
+	}
 	return items.Items, nil
 }
 

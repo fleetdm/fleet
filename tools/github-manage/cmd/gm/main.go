@@ -38,20 +38,21 @@ func main() {
 		Short: "GitHub Manage CLI",
 		Long:  "A CLI tool to manage GitHub repositories and workflows.",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			cmdSent := fmt.Sprintf("Command: %s Args: %v Flags: ", cmd.CommandPath(), args)
 			// Debug log the command and its arguments/flags before execution
-			logger.Debugf("Executing command: %s", cmd.CommandPath())
-			logger.Debugf("Command args: %v", args)
 
 			// Log all flags that were set for this command
 			cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 				if flag.Changed {
-					logger.Debugf("Flag --%s: %s", flag.Name, flag.Value.String())
+					cmdSent = fmt.Sprintf("%s --%s: %s", cmdSent, flag.Name, flag.Value.String())
 				}
 			})
+			logger.Debugf(cmdSent)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			// Placeholder for the default command behavior
 			logger.Info("Welcome to GitHub Manage CLI!")
+			cmd.Usage()
 		},
 	}
 
