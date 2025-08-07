@@ -15,11 +15,6 @@ export interface IAppConfigFormProps {
   handleSubmit: (formUpdates: DeepPartial<IConfig>) => false | undefined;
 }
 
-export interface IFormField {
-  name: string;
-  value: string | boolean | number;
-}
-
 export const authMethodOptions = [
   { label: "Plain", value: "authmethod_plain" },
   { label: "Cram MD5", value: "authmethod_cram_md5" },

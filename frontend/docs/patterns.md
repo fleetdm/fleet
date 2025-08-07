@@ -241,7 +241,7 @@ away from a field or hit enter, actions which imply they are finished editing th
 an error as soon as possible, that is, as soon as they make the fixing change. e.g.
 
 ```tsx
-const onInputChange = ({ name, value }: IFormField) => {
+const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
   const newFormData = { ...formData, [name]: value };
   setFormData(newFormData);
   const newErrs = validateFormData(newFormData);

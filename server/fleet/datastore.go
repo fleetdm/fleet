@@ -969,6 +969,7 @@ type Datastore interface {
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
+	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
@@ -1065,6 +1066,10 @@ type Datastore interface {
 	// GetQueuedJobs gets queued jobs from the jobs table (queue) ready to be
 	// processed. If now is the zero time, the current time will be used.
 	GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*Job, error)
+
+	// GetFilteredQueuedJobs gets queued jobs from the jobs table (queue) ready to be
+	// processed, filtered by job names.
+	GetFilteredQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*Job, error)
 
 	// UpdateJobs updates an existing job. Call this after processing a job.
 	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)

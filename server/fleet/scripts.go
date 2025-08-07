@@ -504,8 +504,8 @@ func (s *HostLockWipeStatus) IsPendingLock() bool {
 		// pending lock if an MDM command is queued but no result received yet
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult == nil
 	}
-	// pending lock if script execution request is queued but no result yet
-	return s.LockScript != nil && s.LockScript.ExitCode == nil
+	// pending lock if script execution request is queued but no result yet and not canceled
+	return s.LockScript != nil && s.LockScript.ExitCode == nil && !s.LockScript.Canceled
 }
 
 func (s HostLockWipeStatus) IsPendingUnlock() bool {
@@ -513,14 +513,14 @@ func (s HostLockWipeStatus) IsPendingUnlock() bool {
 		// Apple MDM does not have a concept of pending unlock.
 		return false
 	}
-	// pending unlock if script execution request is queued but no result yet
-	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil
+	// pending unlock if script execution request is queued but no result yet and not canceled
+	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil && !s.UnlockScript.Canceled
 }
 
 func (s HostLockWipeStatus) IsPendingWipe() bool {
 	if s.HostFleetPlatform == "linux" {
-		// pending wipe if script execution request is queued but no result yet
-		return s.WipeScript != nil && s.WipeScript.ExitCode == nil
+		// pending wipe if script execution request is queued but no result yet and not canceled
+		return s.WipeScript != nil && s.WipeScript.ExitCode == nil && !s.WipeScript.Canceled
 	}
 	// pending wipe if an MDM command is queued but no result received yet
 	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult == nil
