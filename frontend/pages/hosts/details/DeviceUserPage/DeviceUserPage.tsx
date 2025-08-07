@@ -516,6 +516,7 @@ const DeviceUserPage = ({
                       router={router}
                       refetchHostDetails={refetchHostDetails}
                       isHostDetailsPolling={showRefetchSpinner}
+                      hostSoftwareUpdatedAt={host.software_updated_at}
                       hostDisplayName={host?.hostname || ""}
                     />
                   </TabPanel>
