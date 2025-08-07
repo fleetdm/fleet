@@ -52,6 +52,10 @@ func (eq *evictionQueue) push(key string) int {
 
 // touch updates the access time of the item at index, returns the new index of that item.
 func (eq *evictionQueue) touch(index int) int {
+	// Check if index is valid - it may have become stale due to evictions
+	if index < 0 || index >= len(eq.q) {
+		return -1
+	}
 	ed := eq.q[index]
 	ed.access = time.Now()
 	heap.Fix(&eq.q, index)

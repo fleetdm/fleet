@@ -155,7 +155,14 @@ func (c *Cache) Get(cpes []*wfn.Attributes) []MatchResult {
 		c.mu.Unlock()
 		<-cves.ready
 		c.mu.Lock() // TODO: XXX: ugly, consider using atomic.Value instead
-		cves.evictionIndex = c.evictionQ.touch(cves.evictionIndex)
+		// Check if the item still exists in cache (it may have been evicted)
+		if _, exists := c.data[key]; exists {
+			// Only update evictionIndex if the item is still in the queue
+			newIndex := c.evictionQ.touch(cves.evictionIndex)
+			if newIndex >= 0 {
+				cves.evictionIndex = newIndex
+			}
+		}
 		c.mu.Unlock()
 		return cves.res
 	}
