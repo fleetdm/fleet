@@ -1,4 +1,4 @@
-# Enroll personal (BYOD) iPhones and iPads with Managed Apple Account
+# Account-drive User Enrollment for personal Apple devices (BYOD)
 
 ![Apple Account-driven User Enrollment (BYOD)](../website/assets/images/articles/apple-account-driven-user-enrollment.png)
 
