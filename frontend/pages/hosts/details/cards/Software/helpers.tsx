@@ -248,7 +248,7 @@ export const getUiStatus = (
       return "update_available";
     }
     const newerDate =
-      hostSoftwareUpdatedAt && lastInstallDate
+      hostSoftwareUpdatedAt
         ? getNewerDate(hostSoftwareUpdatedAt, lastInstallDate)
         : lastInstallDate;
     return newerDate === lastInstallDate
