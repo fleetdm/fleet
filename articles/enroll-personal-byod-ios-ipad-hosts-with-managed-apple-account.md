@@ -19,7 +19,7 @@ With Account-driven User Enrollment, end users can separate work and personal da
 
 1. Follow the [instructions](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) to connect ABM to Fleet.
 2. If you have already connected ABM to enable automatic enrollment, skip the previous step. 
-3. For User Enrollment to work, ensure that personal (BYOD) iOS and iPadOS hosts are associated with Fleet in the **Default Server Assignment** section. If you're trying Fleet and testing Account-driven enrollment, [self-host a service discovery file](#self-host-service-discovery-file-well-known-resource) instead. That way, hosts keep enrolling to your current MDM solution instead of Fleet.
+3. For User Enrollment to work, ensure that personal (BYOD) iOS and iPadOS hosts are associated with Fleet in the **Default Server Assignment** section. If you're trying Fleet and testing Account-driven enrollment, [self-host a service discovery file](#self-host-a-service-discovery-file-well-known-resource) instead. That way, hosts keep enrolling to your current MDM solution instead of Fleet.
 
 ## Step 2: Add and verify your domain in Apple Business Manager (ABM)
 
