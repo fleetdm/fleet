@@ -1197,16 +1197,6 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", fleet.NewInvalidArgumentError("filters", "too_many_hosts")
 	}
 
-	// All hosts must be on the same team as the script
-	for _, host := range hosts {
-		sameTeamNoTeam := host.TeamID == nil && script.TeamID == nil
-		sameTeamNumber := host.TeamID != nil && script.TeamID != nil && *host.TeamID == *script.TeamID
-		sameTeam := sameTeamNoTeam || sameTeamNumber
-		if !sameTeam {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
-		}
-	}
-
 	hostIDsToExecute := make([]uint, 0, len(hosts))
 	for _, host := range hosts {
 		hostIDsToExecute = append(hostIDsToExecute, host.ID)
