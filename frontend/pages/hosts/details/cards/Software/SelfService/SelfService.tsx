@@ -148,7 +148,7 @@ const SoftwareSelfService = ({
   const updateSoftware = enhancedSoftware.filter(
     (software) =>
       software.ui_status === "updating" ||
-      software.ui_status === "updated" ||
+      software.ui_status === "recently_updated" ||
       software.ui_status === "pending_update" || // Should never show as self-service = host online
       software.ui_status === "update_available" ||
       software.ui_status === "failed_install_update_available" ||
@@ -191,12 +191,13 @@ const SoftwareSelfService = ({
   };
 
   const disableUpdateAllButton = useMemo(() => {
-    // Disable if all statuses are "updating" or "updated"
+    // Disable if all statuses are "updating" or "recently_updated"
     return (
       updateSoftware.length > 0 &&
       updateSoftware.every(
         (software) =>
-          software.ui_status === "updating" || software.ui_status === "updated"
+          software.ui_status === "updating" ||
+          software.ui_status === "recently_updated"
       )
     );
   }, [updateSoftware]);

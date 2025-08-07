@@ -441,7 +441,9 @@ export type IHostSoftwareUiStatus =
   | "uninstalled" // Not present in inventory (tarballs: successful uninstall or never installed)
   | "installing" // ONLINE; fleet-initiated install in progress
   | "uninstalling" // ONLINE; fleet-initiated uninstall in progress
-  | "updated" // Update applied (installer newer than inventory), but inventory not yet refreshed
+  | "recently_updated" // Update applied (installer newer than inventory), but inventory not yet refreshed
+  | "recently_installed" // Install applied (installer NOT newer than inventory), but inventory not yet refreshed
+  | "recently_uninstalled" // Uninstall applied, but inventory not yet refreshed
   | "updating" // ONLINE; update (install) in progress with newer fleet installer
   | "pending_install" // OFFLINE; install scheduled (no newer installer version)
   | "pending_uninstall" // OFFLINE; uninstall scheduled
