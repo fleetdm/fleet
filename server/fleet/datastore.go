@@ -1809,10 +1809,10 @@ type Datastore interface {
 	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
 	// BatchExecuteSummary returns the summary of a batch script execution
-	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)
+	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchActivity, error)
 
 	// ListBatchScriptExecutions returns a filtered list of batch script executions, with summaries.
-	ListBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchExecutionSummary, error)
+	ListBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchActivity, error)
 
 	// CountBatchScriptExecutions returns the number of batch script executions matching the filter.
 	CountBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) (int64, error)

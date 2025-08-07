@@ -963,7 +963,7 @@ type batchScriptExecutionListRequest struct {
 }
 
 type batchScriptExecutionStatusResponse struct {
-	fleet.BatchExecutionSummary
+	fleet.BatchActivity
 	Err error `json:"error,omitempty"`
 }
 
@@ -974,9 +974,9 @@ type (
 )
 
 type batchScriptExecutionListResponse struct {
-	BatchScriptExecutions []fleet.BatchExecutionSummary `json:"batch_executions"`
-	Count                 uint                          `json:"count"`
-	Err                   error                         `json:"error,omitempty"`
+	BatchScriptExecutions []fleet.BatchActivity `json:"batch_executions"`
+	Count                 uint                  `json:"count"`
+	Err                   error                 `json:"error,omitempty"`
 	fleet.PaginationMetadata
 }
 
@@ -1077,7 +1077,7 @@ func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{
 	if err != nil {
 		return batchScriptExecutionSummaryResponse{Err: err}, nil
 	}
-	return batchScriptExecutionSummaryResponse{BatchExecutionSummary: *summary}, nil
+	return batchScriptExecutionSummaryResponse{BatchActivity: *summary}, nil
 }
 
 func batchScriptExecutionStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -1086,7 +1086,7 @@ func batchScriptExecutionStatusEndpoint(ctx context.Context, request interface{}
 	if err != nil {
 		return batchScriptExecutionStatusResponse{Err: err}, nil
 	}
-	return batchScriptExecutionStatusResponse{BatchExecutionSummary: *status}, nil
+	return batchScriptExecutionStatusResponse{BatchActivity: *status}, nil
 }
 
 func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -1130,7 +1130,7 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionSummary, error) {
+func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
 	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
@@ -1143,7 +1143,7 @@ func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecut
 	return summary, nil
 }
 
-func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionSummary, error) {
+func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
 	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &batchExecutionID,
 	})
@@ -1175,7 +1175,7 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 	return &summary, nil
 }
 
-func (svc *Service) BatchScriptExecutionList(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchExecutionSummary, int64, error) {
+func (svc *Service) BatchScriptExecutionList(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, int64, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: filter.TeamID}, fleet.ActionRead); err != nil {
 		return nil, 0, err
 	}

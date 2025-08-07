@@ -570,7 +570,7 @@ var (
 	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
 )
 
-type BatchExecutionSummary struct {
+type BatchActivity struct {
 	BatchExecutionID string     `json:"batch_execution_id" db:"execution_id"`
 	ScriptID         uint       `json:"script_id" db:"script_id"`
 	ScriptName       string     `json:"script_name" db:"script_name"`
