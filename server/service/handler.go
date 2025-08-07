@@ -804,68 +804,68 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// properly
 	desktopQuota := throttled.RateQuota{MaxRate: throttled.PerHour(720), MaxBurst: desktopRateLimitMaxBurst}
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_host", desktopQuota),
+		errorLimiter.Limit("get_device_host", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_fleet_desktop", desktopQuota),
+		errorLimiter.Limit("get_fleet_desktop", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("ping_device_auth", desktopQuota),
+		errorLimiter.Limit("ping_device_auth", desktopQuota, logger),
 	).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("refetch_device_host", desktopQuota),
+		errorLimiter.Limit("refetch_device_host", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_mapping", desktopQuota),
+		errorLimiter.Limit("get_device_mapping", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_macadmins", desktopQuota),
+		errorLimiter.Limit("get_device_macadmins", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_policies", desktopQuota),
+		errorLimiter.Limit("get_device_policies", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_transparency", desktopQuota),
+		errorLimiter.Limit("get_device_transparency", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("send_device_error", desktopQuota),
+		errorLimiter.Limit("send_device_error", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software", desktopQuota),
+		errorLimiter.Limit("get_device_software", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/software", getDeviceSoftwareEndpoint, getDeviceSoftwareRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("install_self_service", desktopQuota),
+		errorLimiter.Limit("install_self_service", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("uninstall_self_service", desktopQuota),
+		errorLimiter.Limit("uninstall_self_service", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/software/uninstall/{software_title_id}", submitDeviceSoftwareUninstall, fleetDeviceSoftwareUninstallRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software_install_results", desktopQuota),
+		errorLimiter.Limit("get_device_software_install_results", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/software/install/{install_uuid}/results", getDeviceSoftwareInstallResultsEndpoint,
 		getDeviceSoftwareInstallResultsRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software_uninstall_results", desktopQuota),
+		errorLimiter.Limit("get_device_software_uninstall_results", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/software/uninstall/{execution_id}/results", getDeviceSoftwareUninstallResultsEndpoint, getDeviceSoftwareUninstallResultsRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_certificates", desktopQuota),
+		errorLimiter.Limit("get_device_certificates", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/certificates", listDeviceCertificatesEndpoint, listDeviceCertificatesRequest{})
 
 	// mdm-related endpoints available via device authentication
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_mdm", desktopQuota),
+		errorLimiter.Limit("get_device_mdm", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software_mdm_command_results", desktopQuota),
+		errorLimiter.Limit("get_device_software_mdm_command_results", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint,
 		getDeviceMDMCommandResultsRequest{})
 
 	demdm.WithCustomMiddleware(
-		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota),
+		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
 
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("post_device_trigger_linux_escrow", desktopQuota),
+		errorLimiter.Limit("post_device_trigger_linux_escrow", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
 
 	// host-authenticated endpoints

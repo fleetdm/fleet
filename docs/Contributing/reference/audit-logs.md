@@ -1833,6 +1833,27 @@ This activity contains the following fields:
 }
 ```
 
+## batch_script_scheduled
+
+Generated when a batch script is scheduled.
+
+This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+- "not_before": Time that the batch activity is scheduled to launch.
+
+#### Example
+
+```json
+{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
+  "host_count": 12,
+  "not_before": "2025-08-06T17:49:21.810204Z"
+}
+```
+
 ## added_conditional_access_integration_microsoft
 
 Generated when Microsoft Entra is connected for conditonal access.

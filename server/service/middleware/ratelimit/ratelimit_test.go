@@ -3,10 +3,14 @@ package ratelimit
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
@@ -50,9 +54,13 @@ func TestLimit(t *testing.T) {
 	_, err = wrapped(ctx, struct{}{})
 	assert.Error(t, err)
 	var rle Error
-
 	assert.True(t, errors.As(err, &rle))
 	assert.True(t, authzCtx.Checked())
+	require.Contains(t, rle.Error(), "limit exceeded, retry after: ")
+	rle_, ok := rle.(*rateLimitError)
+	require.True(t, ok)
+	require.NotZero(t, rle_.RetryAfter())
+	require.Equal(t, http.StatusTooManyRequests, rle_.StatusCode())
 
 	// ensure that the same endpoint wrapped with a different limiter doesn't hit the error
 	_, err = wrapped2(ctx, struct{}{})
@@ -85,27 +93,58 @@ func TestLimitOnlyWhenError(t *testing.T) {
 	limiter := NewErrorMiddleware(store)
 	endpoint := func(context.Context, interface{}) (interface{}, error) { return struct{}{}, nil }
 	wrapped := limiter.Limit(
-		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0},
+		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0}, kitlog.NewNopLogger(),
 	)(endpoint)
 
 	// Does NOT hit any rate limits because the endpoint doesn't fail
-	_, err := wrapped(context.Background(), struct{}{})
+	ctx := publicip.NewContext(context.Background(), "0.0.0.0")
+	_, err := wrapped(ctx, struct{}{})
 	assert.NoError(t, err)
-	_, err = wrapped(context.Background(), struct{}{})
+	_, err = wrapped(ctx, struct{}{})
 	assert.NoError(t, err)
 
 	expectedError := errors.New("error")
 	failingEndpoint := func(context.Context, interface{}) (interface{}, error) { return nil, expectedError }
 	wrappedFailer := limiter.Limit(
-		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0},
+		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0}, kitlog.NewNopLogger(),
 	)(failingEndpoint)
 
-	_, err = wrappedFailer(context.Background(), struct{}{})
+	// First request that fails should be allowed.
+	_, err = wrappedFailer(ctx, struct{}{})
 	assert.ErrorIs(t, err, expectedError)
 
-	// Hits rate limit now that it fails
-	_, err = wrappedFailer(context.Background(), struct{}{})
+	// Second request that fails should not be allowed.
+	_, err = wrappedFailer(ctx, struct{}{})
 	assert.Error(t, err)
 	var rle Error
-	assert.True(t, errors.As(err, &rle))
+	require.True(t, errors.As(err, &rle))
+	// github.com/throttled/throttled has a bug where "peeking" with RateLimit(key, 0)
+	// always returns a RetryAfter=-1. So I'll just leave this here but in the future
+	// we could return the correct Retry-After. Also, we are not making use of "Retry-After"
+	// on the agent side yet.
+	require.EqualValues(t, rle.Result().RetryAfter, -1)
+	require.Equal(t, "limit exceeded", rle.Error())
+}
+
+func TestNoRateLimitWithoutPublicIP(t *testing.T) {
+	t.Parallel()
+
+	store, _ := memstore.New(1)
+	limiter := NewErrorMiddleware(store)
+
+	expectedError := errors.New("error")
+	failingEndpoint := func(context.Context, interface{}) (interface{}, error) {
+		return nil, expectedError
+	}
+	wrappedFailer := limiter.Limit(
+		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0}, kitlog.NewNopLogger(),
+	)(failingEndpoint)
+
+	ctx := context.Background()
+
+	// Requests should not be rate limited because there's no "Public IP" identifier in the request.
+	_, err := wrappedFailer(ctx, struct{}{})
+	assert.ErrorIs(t, err, expectedError)
+	_, err = wrappedFailer(ctx, struct{}{})
+	assert.ErrorIs(t, err, expectedError)
 }
