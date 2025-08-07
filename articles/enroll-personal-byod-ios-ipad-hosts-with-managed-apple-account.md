@@ -52,7 +52,6 @@ If your iOS/iPadOS hosts are running iOS 18.2/iPadOS 18.2 and later, you can ski
 
 If your iOS/iPadOS hosts are below iOS 18.2/iPadOS 18.2 or you're trialing Fleet and testing Account-driven enrollment you want to self-host a [service discovery JSON file](https://support.apple.com/en-gb/guide/deployment/dep4d9e9cd26/web#depcae01b5df) on your company domain. You added your domain to ABM in a [previous step](http://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account#step-2-add-and-verify-your-domain-in-apple-business-manager-abm). This file directs personal hosts to the Fleet.
 
-
 The server must return JSON file below with `Content-Type` header set to `application/json`.
 
 ```json
