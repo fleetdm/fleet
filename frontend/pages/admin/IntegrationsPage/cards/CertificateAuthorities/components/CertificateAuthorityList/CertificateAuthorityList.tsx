@@ -32,7 +32,7 @@ export const generateListData = (
         description = "Custom Simple Certificate Enrollment Protocol (SCEP)";
         break;
       case "hydrant":
-        description = "Hydrant";
+        description = "Hydrant (EST - Enrollment Over Secure Transport) ";
         break;
       default:
         description = "Unknown Certificate Authority Type";
