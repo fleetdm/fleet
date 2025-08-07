@@ -17,6 +17,7 @@ import validUrl from "components/forms/validators/valid_url";
 import Spinner from "components/Spinner";
 import { COLORS } from "styles/var/colors";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 const baseClass = "integration-form";
 
@@ -39,11 +40,6 @@ interface IIntegrationFormProps {
   destination?: string;
   testingConnection?: boolean;
   gitOpsModeEnabled?: boolean;
-}
-
-interface IFormField {
-  name: string;
-  value: string;
 }
 
 const IntegrationForm = ({
@@ -85,7 +81,7 @@ const IntegrationForm = ({
 
   const { url, username, email, apiToken, projectKey, groupId } = formData;
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     setFormData({ ...formData, [name]: value });
   };
 

@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -37,6 +38,10 @@ VALUES (?, ?, ?, ?, ?, COALESCE(?, NOW()))
 }
 
 func (ds *Datastore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
+	return ds.GetFilteredQueuedJobs(ctx, maxNumJobs, now, nil)
+}
+
+func (ds *Datastore) GetFilteredQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
 	query := `
 SELECT
     id, created_at, updated_at, name, args, state, retries, error, not_before
@@ -45,6 +50,7 @@ FROM
 WHERE
     state = ? AND
     not_before <= ?
+	%s
 ORDER BY
     updated_at ASC
 LIMIT ?
@@ -54,8 +60,23 @@ LIMIT ?
 		now = time.Now().UTC()
 	}
 
+	args := []interface{}{fleet.JobStateQueued, now}
+
+	// Add job name filter if needed
+	var nameClause string
+	if len(jobNames) > 0 {
+		clause, nameArgs, err := sqlx.In("AND name IN (?)", jobNames)
+		if err != nil {
+			return nil, err
+		}
+		nameClause = clause
+		args = append(args, nameArgs...)
+	}
+
+	query = fmt.Sprintf(query, nameClause)
+	args = append(args, maxNumJobs)
 	var jobs []*fleet.Job
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &jobs, query, fleet.JobStateQueued, now, maxNumJobs)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &jobs, query, args...)
 	if err != nil {
 		return nil, err
 	}

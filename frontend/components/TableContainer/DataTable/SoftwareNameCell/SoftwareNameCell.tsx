@@ -8,6 +8,7 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import LinkCell from "../LinkCell";
+import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
 
 const baseClass = "software-name-cell";
 
@@ -167,8 +168,11 @@ const SoftwareNameCell = ({
   if (!router || !path) {
     return (
       <div className={baseClass}>
-        <SoftwareIcon name={name} source={source} url={iconUrl} />
-        <span className="software-name">{name}</span>
+        <TooltipTruncatedTextCell
+          prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
+          value={name}
+          className="software-name"
+        />
       </div>
     );
   }

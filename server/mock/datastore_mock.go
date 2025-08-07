@@ -697,7 +697,7 @@ type GetHostEmailsFunc func(ctx context.Context, hostUUID string, source string)
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
 
-type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (bool, error)
+type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error)
 
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
@@ -762,6 +762,8 @@ type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
 
 type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error)
+
+type GetFilteredQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error)
 
 type UpdateJobFunc func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error)
 
@@ -2541,6 +2543,9 @@ type DataStore struct {
 
 	GetQueuedJobsFunc        GetQueuedJobsFunc
 	GetQueuedJobsFuncInvoked bool
+
+	GetFilteredQueuedJobsFunc        GetFilteredQueuedJobsFunc
+	GetFilteredQueuedJobsFuncInvoked bool
 
 	UpdateJobFunc        UpdateJobFunc
 	UpdateJobFuncInvoked bool
@@ -5906,7 +5911,7 @@ func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, 
 	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable, gigsTotal)
 }
 
-func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 	s.mu.Lock()
 	s.GetConfigEnableDiskEncryptionFuncInvoked = true
 	s.mu.Unlock()
@@ -6135,6 +6140,13 @@ func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.
 	s.GetQueuedJobsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetQueuedJobsFunc(ctx, maxNumJobs, now)
+}
+
+func (s *DataStore) GetFilteredQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
+	s.mu.Lock()
+	s.GetFilteredQueuedJobsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetFilteredQueuedJobsFunc(ctx, maxNumJobs, now, jobNames)
 }
 
 func (s *DataStore) UpdateJob(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error) {

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import isDataURI from "validator/lib/isDataURI";
 
 import Button from "components/buttons/Button";
@@ -13,7 +14,7 @@ import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import { IAppConfigFormProps } from "../constants";
 
 interface IOrgInfoFormData {
   orgLogoURL: string;
@@ -62,7 +63,7 @@ const Info = ({
 
   const [formErrors, setFormErrors] = useState<IOrgInfoFormErrors>({});
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };
