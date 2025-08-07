@@ -112,6 +112,7 @@ const SoftwareSelfService = ({
 
   const initialSortHeader = queryParams.order_key || "name";
   const initialSortDirection = queryParams.order_direction || "asc";
+  const initialSortPage = queryParams.page || 0;
 
   const [selfServiceData, setSelfServiceData] = useState<
     IGetDeviceSoftwareResponse | undefined
@@ -728,7 +729,7 @@ const SoftwareSelfService = ({
             defaultSortHeader={initialSortHeader}
             defaultSortDirection={initialSortDirection}
             onQueryChange={onSortChange} // Only used for sort
-            pageIndex={queryParams.page ?? 0} // Client-side pagination with URL source of truth
+            pageIndex={initialSortPage} // Client-side pagination with URL source of truth
             disableNextPage={selfServiceData?.meta.has_next_results === false}
             pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
             searchQuery={queryParams.query} // Search is now client-side to reduce API calls
