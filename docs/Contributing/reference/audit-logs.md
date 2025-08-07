@@ -1833,7 +1833,7 @@ This activity contains the following fields:
 }
 ```
 
-## batch_activity_scheduled
+## batch_script_scheduled
 
 Generated when a batch script is scheduled.
 
