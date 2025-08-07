@@ -1,8 +1,11 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
+
+import { format } from "date-fns";
 
 import classnames from "classnames";
 
+import { Link } from "react-router";
 import Radio from "components/forms/fields/Radio";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -64,6 +67,19 @@ const RunScriptBatchModal = ({
   onCancel,
 }: IRunScriptBatchModal) => {
   const { renderFlash } = useContext(NotificationContext);
+
+  const [currentTimeUTC, setCurrentTimeUTC] = useState<string>("");
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const now = new Date();
+      const hours = now.getUTCHours().toString().padStart(2, "0");
+      const minutes = now.getUTCMinutes().toString().padStart(2, "0");
+      setCurrentTimeUTC(`The current time in UTC is ${hours}:${minutes}`);
+    }, 1000);
+
+    // Cleanup function to clear the interval
+    return () => clearInterval(intervalId);
+  }, []);
 
   const [batchRunDate, setBatchRunDate] = useState<string>("");
   const [batchRunTime, setBatchRunTime] = useState<string>("");
@@ -155,16 +171,23 @@ const RunScriptBatchModal = ({
 
       try {
         await scriptsAPI.runScriptBatch(body);
-        renderFlash(
-          "success",
-          `Script is running on ${
-            runByFilters
-              ? totalFilteredHostsCount.toLocaleString()
-              : selectedHostIds.length.toLocaleString()
-          } host${selectedHostIds.length === 1 ? "" : "s"}, or will run ${
-            selectedHostIds.length === 1 ? "when the" : "as each"
-          } host comes online. See host details for individual results.`
-        );
+        if (runMode === "schedule") {
+          renderFlash(
+            "success",
+            <span className={`${baseClass}__success-message`}>
+              <span>Successfully scheduled script.</span>
+              <Link to="#">Show schedule</Link>
+            </span>
+          );
+        } else {
+          renderFlash(
+            "success",
+            <span className={`${baseClass}__success-message`}>
+              <span>Successfully ran script.</span>
+              {/* <Link to="#">Show script activity</Link> */}
+            </span>
+          );
+        }
         onCancel();
         // TODO -- redirect to the batch scripts page.
       } catch (error) {
@@ -215,11 +238,11 @@ const RunScriptBatchModal = ({
       return (
         <>
           <p>
-            Will run on{" "}
+            Run a script on{" "}
             <b>
               {targetCount.toLocaleString()} host{targetCount > 1 ? "s" : ""}
             </b>
-            . You can see individual script results on the host details page.
+            , or schedule a script to run on targeted hosts in the future.
           </p>
           <RunScriptBatchPaginatedList
             onRunScript={(script) => setSelectedScript(script)}
@@ -233,7 +256,7 @@ const RunScriptBatchModal = ({
       );
     }
     const platforms =
-      selectedScript.name.indexOf(".ps1") > 0 ? "windows" : "macOS/linux";
+      selectedScript.name.indexOf(".ps1") > 0 ? "Windows" : "macOS and Linux";
     return (
       <div className={`${baseClass}__script-schedule`}>
         <p>
@@ -282,6 +305,7 @@ const RunScriptBatchModal = ({
                   parseTarget
                   helpText='HH:MM 24-hour format (e.g., "13:37").'
                   error={formValidation.time?.message}
+                  tooltip={currentTimeUTC}
                 />
               </span>
             </div>
@@ -336,13 +360,6 @@ const RunScriptBatchModal = ({
                 onClick={() => {
                   setSelectedScript(undefined);
                 }}
-              >
-                Go back
-              </Button>
-              <Button
-                disabled={isUpdating}
-                variant="inverse"
-                onClick={onCancel}
               >
                 Cancel
               </Button>

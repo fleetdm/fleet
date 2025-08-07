@@ -48,7 +48,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           const parsedDate = parse(formData.date, "yyyy-MM-dd", new Date());
           return isValid(parsedDate);
         },
-        message: "Please enter a valid date.",
+        message: "Date (UTC) must have valid format",
       },
       {
         name: "notInPast",
@@ -61,7 +61,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           );
           return parsedDate >= now;
         },
-        message: `Date cannot be in the past.`,
+        message: `Date (UTC) cannot be in the past`,
       },
     ],
   },
@@ -86,7 +86,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           );
           return isValid(parsedDate);
         },
-        message: "Please enter a valid time.",
+        message: "Time (UTC) must have valid format",
       },
       {
         name: "notInPast",
@@ -104,7 +104,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           );
           return parsedDate >= new Date();
         },
-        message: `Time cannot be in the past.`,
+        message: `Time (UTC) cannot be in the past.`,
       },
     ],
   },

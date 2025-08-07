@@ -17,6 +17,13 @@
       margin-top: 1.5rem;
     }
   }
+
+}
+
+.flash-message__content {
+  .run-script-batch-modal__success-message {
+    margin: 0;
+  }
 }
 
 // since this modal shows only while anotheris also showing, suppress background for one of them to
