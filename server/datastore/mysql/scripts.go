@@ -1997,7 +1997,7 @@ SELECT
 	ba.canceled_at as canceled_at,
 	ba.completed_at as completed_at,
 	s.name as script_name,
-	IF(ISNULL(s.team_id), 0, s.team_id) as team_id,
+	s.global_or_team_id as team_id,
 	ba.created_at as created_at,
 	j.not_before as not_before
 FROM
