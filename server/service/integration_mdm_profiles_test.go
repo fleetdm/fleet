@@ -7163,3 +7163,113 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesWithFleetVariables() {
 		})
 	}
 }
+
+func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team"})
+	require.NoError(t, err)
+
+	// Create and enroll three Windows hosts (two global, one in team)
+	hostGlobal1, device1 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	hostGlobal2, device2 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	hostTeam, deviceTeam := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// Add the team host to the team
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hostTeam.ID}))
+	require.NoError(t, err)
+
+	// Create profiles with HOST_UUID variable for global and team
+	globalProfile := syncml.ForTestWithData([]syncml.TestCommand{
+		{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "Device ID: $FLEET_VAR_HOST_UUID"},
+	})
+	teamProfile := syncml.ForTestWithData([]syncml.TestCommand{
+		{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/TeamDevice/ID", Data: "Team Device: ${FLEET_VAR_HOST_UUID}"},
+	})
+
+	// Upload global profile
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "GlobalProfileWithVar", Contents: globalProfile},
+		}},
+		http.StatusNoContent)
+
+	// Upload team profile
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "TeamProfileWithVar", Contents: teamProfile},
+		}},
+		http.StatusNoContent,
+		"team_id", fmt.Sprint(tm.ID))
+
+	// Helper to verify profile contains substituted UUID
+	verifyProfileSubstitution := func(device *mdmtest.TestWindowsMDMClient, expectedUUID string, expectedData string) {
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := device.StartManagementSession()
+		require.NoError(t, err)
+
+		// Find the Atomic command containing the profile
+		var foundProfile bool
+		msgID, err := device.GetCurrentMsgID()
+		require.NoError(t, err)
+
+		for _, cmd := range cmds {
+			// Send status response for each command
+			device.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmd.Cmd.CmdID.Value,
+				Cmd:     ptr.String(cmd.Verb),
+				Data:    ptr.String(syncml.CmdStatusOK),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+
+			if cmd.Verb == "Atomic" {
+				// Check if the command contains our expected data with UUID substituted
+				for _, replaceCmd := range cmd.Cmd.ReplaceCommands {
+					for _, item := range replaceCmd.Items {
+						if item.Data != nil && item.Data.Content != "" {
+							if strings.Contains(item.Data.Content, expectedData) {
+								// Verify the UUID was substituted correctly
+								require.Contains(t, item.Data.Content, expectedUUID)
+								require.NotContains(t, item.Data.Content, "$FLEET_VAR_HOST_UUID")
+								require.NotContains(t, item.Data.Content, "${FLEET_VAR_HOST_UUID}")
+								foundProfile = true
+							}
+						}
+					}
+				}
+			}
+		}
+		require.True(t, foundProfile, "Expected profile with UUID substitution not found")
+
+		// Send the response to complete the session
+		cmds, err = device.SendResponse()
+		require.NoError(t, err)
+		// the ack of the message should be the only returned command
+		require.Len(t, cmds, 1)
+	}
+
+	// Verify global hosts receive profile with their UUID substituted
+	verifyProfileSubstitution(device1, hostGlobal1.UUID, "Device ID: "+hostGlobal1.UUID)
+	verifyProfileSubstitution(device2, hostGlobal2.UUID, "Device ID: "+hostGlobal2.UUID)
+
+	// Verify team host receives team profile with UUID substituted
+	verifyProfileSubstitution(deviceTeam, hostTeam.UUID, "Team Device: "+hostTeam.UUID)
+
+	// Check that profile statuses are updated correctly in the database
+	checkHostProfileStatus := func(hostUUID string, expectedStatus fleet.MDMDeliveryStatus) {
+		profiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Len(t, profiles, 1)
+		require.NotNil(t, profiles[0].Status)
+		require.Equal(t, expectedStatus, *profiles[0].Status)
+	}
+
+	checkHostProfileStatus(hostGlobal1.UUID, fleet.MDMDeliveryVerifying)
+	checkHostProfileStatus(hostGlobal2.UUID, fleet.MDMDeliveryVerifying)
+	checkHostProfileStatus(hostTeam.UUID, fleet.MDMDeliveryVerifying)
+
+}

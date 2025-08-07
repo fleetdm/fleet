@@ -1531,11 +1531,7 @@ func validateWindowsProfileFleetVariables(contents string) error {
 	// Check if all found variables are supported
 	for varName := range foundVars {
 		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, varName) {
-			supportedMsg := ""
-			if len(fleetVarsSupportedInWindowsProfiles) > 0 {
-				supportedMsg = fmt.Sprintf(" Only $FLEET_VAR_%s is currently supported.", strings.Join(fleetVarsSupportedInWindowsProfiles, ", $FLEET_VAR_"))
-			}
-			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.%s", varName, supportedMsg)}
+			return fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
 		}
 	}
 	return nil
