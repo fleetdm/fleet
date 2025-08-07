@@ -9043,8 +9043,8 @@ Returns a list of batch script executions.
   "meta": {
     "has_next_results": false,
     "has_previous_results": false,
-    },
-    "count": 1
+  },
+  "count": 1
 }
 ```
 
