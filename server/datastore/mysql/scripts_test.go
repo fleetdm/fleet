@@ -1966,7 +1966,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	scheduledTime := time.Now().Add(10 * time.Hour).UTC()
-	execID, err := ds.BatchScheduleScript(ctx, script.ID, &user.ID, []uint{host1.ID, host2.ID, host3.ID}, scheduledTime)
+	execID, err := ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID, host3.ID}, scheduledTime)
 	require.NoError(t, err)
 	require.NotEmpty(t, execID)
 
