@@ -52,7 +52,7 @@ If your iOS/iPadOS hosts are running iOS 18.2/iPadOS 18.2 and later, you can ski
 
 If your iOS/iPadOS hosts are below iOS 18.2/iPadOS 18.2 or you're trying Fleet, you have to self-host a [service discovery JSON file](https://support.apple.com/en-gb/guide/deployment/dep4d9e9cd26/web#depcae01b5df).
 
-If you're trying Fleet and using a different MDM solution in production, hosting this file will direct only Account-driven user enrollments to the Fleet. iOS/iPadOS hosts purchased in ABM and hosts that use an enrollment profile will still enroll to your current MDM solution.
+If you're trying Fleet and using a different MDM solution in production, hosting this file will direct only Account-driven User Enrollments to the Fleet. iOS/iPadOS hosts purchased in ABM and hosts that use an enrollment profile will still enroll to your current MDM solution.
 
 Host this JSON file below at the following URL: `https://<company_domain>/.well-known/com.apple.remotemanagement.`
 
