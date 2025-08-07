@@ -9107,7 +9107,7 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 
 #### Example
 
-`GET /api/v1/fleet/scripts/batch/abc-def/results?status=completed`
+`GET /api/v1/fleet/scripts/batch/abc-def/host-results?status=completed`
 
 
 ##### Default response
