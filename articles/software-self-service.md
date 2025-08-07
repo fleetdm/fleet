@@ -68,13 +68,13 @@ When Fleet shows **Update** instead of **Install**:
 - A newer software version was added to Fleet. This version is newer than at least one version of the software in Fleet's software inventory.
 - **Update** isn't shown if Fleet can't detect the version info for the added software or the software detected by Fleet in software inventory.
 
-Currently, if host has two versions of the software installed, with each version installed in different locations, Fleet can only upgrade one version. In this scenario, Fleet will still show **Update**. If this happens, the best practice is to run a custom script to uninstall the old version. Here's an example script that removes a copy of Google Chrome present in a macOS host's Downloads/ folder:
+Currently, if host has two versions of the software installed, with each version installed in different locations, Fleet can only upgrade one version. In this scenario, Fleet will still show **Update**. If this happens, the best practice is to run a custom script to uninstall the old version. Here's an example script that removes a copy of Google Chrome present in a macOS host's `Downloads/` folder:
 
-```
-TODO
+```sh
+rm -r /Users/noahtalerman/Downloads/Google\ Chrome.app
 ```
 
-For more technical detail and edge cases, checkout to the [software self-service diagram](TODO).
+For more technical detail and edge cases, checkout to the [software self-service diagram](https://drive.google.com/file/d/1dtCo-CzVIcJkk1GIDHMKflqu6mSNyzfw/view).
 
 ### Statuses
 
