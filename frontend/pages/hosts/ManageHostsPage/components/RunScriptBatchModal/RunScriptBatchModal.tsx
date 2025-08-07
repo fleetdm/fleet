@@ -166,7 +166,7 @@ const RunScriptBatchModal = ({
 
       // Add not_before if scheduling
       if (runMode === "schedule") {
-        body.not_before = `${batchRunDate} ${batchRunTime}:00.000Z`;
+        body.not_before = `${batchRunDate}T${batchRunTime}:00.000Z`;
       }
 
       try {

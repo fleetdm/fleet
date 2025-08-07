@@ -99,7 +99,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           }
           const parsedDate = parse(
             `${formData.date} ${formData.time}`,
-            "yyyy-MM-dd kk:mm",
+            "yyyy-MM-dd HH:mm",
             new Date()
           );
           return parsedDate >= new Date();
