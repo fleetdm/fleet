@@ -1100,6 +1100,7 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 	if req.PerPage != nil {
 		pageSize = int(*req.PerPage)
 	}
+	// Set query offset based on the specified page and page size.
 	offset := uint(page * pageSize)
 	filter := fleet.BatchExecutionStatusFilter{
 		TeamID: &req.TeamID,
@@ -1111,9 +1112,13 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 	if err != nil {
 		return batchScriptExecutionStatusResponse{Err: err}, nil
 	}
+	// Get the # of results returned by this query.
 	listSize := len(list)
+	// We have previous results if we're not on the first page.
 	hasPreviousResults := req.Page != nil && *req.Page > 0
+	// Calculate the number of results on this page + all previous pages.
 	resultsSeen := (page * pageSize) + listSize
+	// If it's less than the total count, we have more results.
 	hasNextResults := resultsSeen < int(count)
 	return batchScriptExecutionListResponse{
 		BatchScriptExecutions: list,

@@ -2026,10 +2026,12 @@ OFFSET %d
 	offset := 0
 	args := []any{}
 	whereClauses := make([]string, 0, 2)
+	// If an execution ID is provided, use it to filter the results.
 	if filter.ExecutionID != nil && *filter.ExecutionID != "" {
 		whereClauses = append(whereClauses, "ba.execution_id = ?")
 		args = append(args, *filter.ExecutionID)
 	} else {
+		// Otherwise filter by status and/or team ID.
 		if filter.Status != nil && *filter.Status != "" {
 			whereClauses = append(whereClauses, "ba.status = ?")
 			args = append(args, *filter.Status)
@@ -2039,6 +2041,7 @@ OFFSET %d
 			args = append(args, *filter.TeamID)
 		}
 	}
+	// Use pagination parameters if provided.
 	if filter.Limit != nil {
 		limit = int(*filter.Limit)
 	}
