@@ -572,6 +572,9 @@ var (
 
 type BatchActivity struct {
 	BatchExecutionID string     `json:"batch_execution_id" db:"execution_id"`
+	UserID           *uint      `json:"user_id" db:"user_id"`
+	JobID            *uint      `json:"-" db:"job_id"`
+	ActivityType     *string    `json:"-" db:"activity_type"`
 	ScriptID         uint       `json:"script_id" db:"script_id"`
 	ScriptName       string     `json:"script_name" db:"script_name"`
 	TeamID           *uint      `json:"team_id" db:"team_id"`
