@@ -77,5 +77,5 @@ Apple limits the amount of host vitals Fleet can collect on personal iOS/iPadOS 
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-08-01">
+<meta name="publishedOn" value="2025-08-08">
 <meta name="description" value="Enroll personal (BYOD) iPhones and iPads with Managed Apple Account">
