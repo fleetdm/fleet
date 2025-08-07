@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -8,11 +10,7 @@ import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
 
-import {
-  DEFAULT_TRANSPARENCY_URL,
-  IAppConfigFormProps,
-  IFormField,
-} from "../constants";
+import { DEFAULT_TRANSPARENCY_URL, IAppConfigFormProps } from "../constants";
 
 interface IFleetDesktopFormData {
   transparencyUrl: string;
@@ -37,7 +35,7 @@ const FleetDesktop = ({
 
   const [formErrors, setFormErrors] = useState<IFleetDesktopFormErrors>({});
 
-  const onInputChange = ({ value }: IFormField) => {
+  const onInputChange = ({ value }: IInputFieldParseTarget) => {
     setFormData({ transparencyUrl: value.toString() });
     setFormErrors({});
   };

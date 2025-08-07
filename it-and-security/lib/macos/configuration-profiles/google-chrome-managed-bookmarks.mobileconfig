@@ -1,0 +1,808 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadDescription</key>
+            <string>Google Chrome managed bookmarks</string>
+            <key>PayloadDisplayName</key>
+            <string>Google Chrome managed bookmarks</string>
+            <key>PayloadIdentifier</key>
+            <string>com.google.Chrome.Fleet.ManagedBookmarks</string>
+            <key>PayloadType</key>
+            <string>com.google.Chrome</string>
+            <key>PayloadUUID</key>
+            <string>BCEC63A3-F17A-4F73-8521-6E54927B3537</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>ManagedBookmarks</key>
+            <array>
+                <dict>
+                    <key>name</key>
+                    <string>👋 New Fleeties | Fleet handbook</string>
+                    <key>url</key>
+                    <string>https://fleetdm.com/handbook/company/communications#new-fleeties</string>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>📖 The handbook</string>
+                    <key>children</key>
+                    <array>
+                        <dict>
+                            <key>name</key>
+                            <string>📖 The handbook (fleetdm.com)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🔭 Values 🔴🟠🟢🔵🟣 (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company#values</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🔭 Org chart (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company#org-chart</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🔭 Company (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>💭 Why this way? (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company/why-this-way</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🔐 Security (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/finance/security#security</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🛰️ Communications (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company/communications</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🛰️ Writing (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company/communications#writing</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🛰️ Writing in Fleet-flavored markdown (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company/communications#writing-in-fleet-flavored-markdown</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🛠️ Leadership (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company/leadership</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🦄 Getting a contract reviewed (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company/go-to-market-groups#getting-a-contract-reviewed</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🦄 Getting a contract signed (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company/go-to-market-groups#getting-a-contract-signed</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>📓 Releases notes (Fleet Docs)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/releases</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>📓 Get started (Fleet Docs)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/docs/get-started/why-fleet</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>📓 Tutorials and guides (Fleet Docs)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/docs/get-started/tutorials-and-guides</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>The Handbook | The GitLab Handbook</string>
+                            <key>url</key>
+                            <string>https://handbook.gitlab.com/handbook/</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Security Tools Terms - Google Sheets</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/spreadsheets/d/1bF7ct4Ibyo-GPaehFRwZrlN2PQqQmyi1D1gx-gqNlpc/edit?gid=0#gid=0</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>fleetdm.com</string>
+                            <key>children</key>
+                            <array>
+                                <dict>
+                                    <key>name</key>
+                                    <string>Query generator</string>
+                                    <key>url</key>
+                                    <string>https://fleetdm.com/query-generator</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>License key tool</string>
+                                    <key>url</key>
+                                    <string>https://fleetdm.com/admin/generate-license#login</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>🏷️ Pricing (fleetdm.com)</string>
+                                    <key>url</key>
+                                    <string>https://fleetdm.com/pricing</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>🎙️ Announcements (fleetdm.com)</string>
+                                    <key>url</key>
+                                    <string>https://fleetdm.com/announcements</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>🧑‍🚀 Open positions (Handbook)</string>
+                                    <key>url</key>
+                                    <string>https://fleetdm.com/handbook/company#open-positions</string>
+                                </dict>
+                            </array>
+                        </dict>
+                    </array>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string> The ABCs</string>
+                    <key>children</key>
+                    <array>
+                        <dict>
+                            <key>name</key>
+                            <string>🗂️</string>
+                            <key>children</key>
+                            <array>
+                                <dict>
+                                    <key>name</key>
+                                    <string>All hands - ask me anything (AMA) - Google Docs</string>
+                                    <key>url</key>
+                                    <string>https://docs.google.com/document/d/1tKsaZmJ7BP8arWia_CUerbQY4p20O-oBABjG2aDmC0w/edit?tab=t.0</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>+new whiteboard</string>
+                                    <key>url</key>
+                                    <string>https://docs.google.com/document/create?usp=drive_web&amp;ouid=110737225569469728451&amp;folder=1prO98fmB2WKzpubZ2-z0sju9dQ4ijpNE</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>TEMPLATE - Meeting doc - Google Docs</string>
+                                    <key>url</key>
+                                    <string>https://docs.google.com/document/d/1TaZ654gTwadWGDYhP3zuAzWe0eiY0s9NhaU9KLCokgw/copy</string>
+                                </dict>
+                            </array>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>⛵️ Cheat sheets and useful links</string>
+                            <key>children</key>
+                            <array>
+                                <dict>
+                                    <key>name</key>
+                                    <string>git-cheat-sheet-education</string>
+                                    <key>url</key>
+                                    <string>https://education.github.com/git-cheat-sheet-education.pdf</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>GitHub Desktop keyboard shortcuts - GitHub Docs</string>
+                                    <key>url</key>
+                                    <string>https://docs.github.com/en/desktop/installing-and-configuring-github-desktop/overview/github-desktop-keyboard-shortcuts</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>Basic writing and formatting syntax - GitHub Docs</string>
+                                    <key>url</key>
+                                    <string>https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>Keyboard shortcuts - GitHub Docs</string>
+                                    <key>url</key>
+                                    <string>https://docs.github.com/en/get-started/accessibility/keyboard-shortcuts#navigating-within-code-files</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>About code owners - GitHub Docs</string>
+                                    <key>url</key>
+                                    <string>https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#example-of-a-codeowners-file</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string># Move this file into your user directory and rename this file to ".zshrc".txt - Google Drive</string>
+                                    <key>url</key>
+                                    <string>https://drive.google.com/file/d/10MrYfln6srMhj09HE5vSpRRZr8xUSCLW/view</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>HTML URL Encoding Reference</string>
+                                    <key>url</key>
+                                    <string>https://www.w3schools.com/tags/ref_urlencode.ASP</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>URL Encode and Decode - Online</string>
+                                    <key>url</key>
+                                    <string>https://www.urlencoder.org/</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>The 9 Enneagram Types — The Enneagram Institute</string>
+                                    <key>url</key>
+                                    <string>https://www.enneagraminstitute.com/type-descriptions</string>
+                                </dict>
+                            </array>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🛩️ Travel</string>
+                            <key>children</key>
+                            <array>
+                                <dict>
+                                    <key>name</key>
+                                    <string>Google Flights - Find Cheap Flight Options &amp; Track Prices</string>
+                                    <key>url</key>
+                                    <string>https://www.google.com/travel/flights?tcfs&amp;ved=2ahUKEwjeorSB1O2IAxVYwvIHHV6QI0EQ0I8EegQIAxAJ&amp;ictx=2</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>United Airlines - Airline Tickets, Travel Deals and Flights</string>
+                                    <key>url</key>
+                                    <string>https://www.united.com/en/us/</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>Southwest Airlines | Book Flights, Make Reservations &amp; Plan a Trip</string>
+                                    <key>url</key>
+                                    <string>https://www.southwest.com/</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>Google Maps</string>
+                                    <key>url</key>
+                                    <string>https://www.google.com/maps/@30.660359,-97.71092,14z?entry=ttu</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>Tips on Austin, Texas - Reed Haynes - 2022-03-08 - Google Docs</string>
+                                    <key>url</key>
+                                    <string>https://docs.google.com/document/d/1sj9JJRSm4QNgDILYzHurV2kmQv00uondpAJ5kL-0TZs/edit#heading=h.v2mvb727yfe2</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>Travel locations and stuff - Google Sheets</string>
+                                    <key>url</key>
+                                    <string>https://docs.google.com/spreadsheets/d/1LLRZph-ctmqKFYPUWfZs8LI89CbKsxvEGEqWuiq_-iA/edit#gid=0</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>Alaska Airlines - Flight Deals and Cheap Airline Tickets - Book Today</string>
+                                    <key>url</key>
+                                    <string>https://www.alaskaair.com/</string>
+                                </dict>
+                                <dict>
+                                    <key>name</key>
+                                    <string>Offsite budget [template] - Google Sheets</string>
+                                    <key>url</key>
+                                    <string>https://docs.google.com/spreadsheets/d/1oe1wAFzerXlKghZaZtdlA7QrWBv9iZmHThlFYqfVzRQ/edit?gid=0#gid=0</string>
+                                </dict>
+                            </array>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🧑‍🚀 Fleeties (🧬 org chart &amp; team info)</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>📈 OKRs (quarterly goals) + KPIs (everyday metrics)</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🎐 Why Fleet?</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>GitHub Projects · fleetdm</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects?query=is%3Aopen</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>My PRs</string>
+                            <key>url</key>
+                            <string>https://github.com/pulls</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>PRs waiting on me</string>
+                            <key>url</key>
+                            <string>https://github.com/pulls/review-requested</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Issues assigned to me</string>
+                            <key>url</key>
+                            <string>https://github.com/issues?q=is%3Aopen%20is%3Aissue%20archived%3Afalse%20org%3Afleetdm%20no%3Amilestone%20assignee%3A%40me%20%20sort%3Aupdated-desc</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>1Password for Fleet</string>
+                            <key>url</key>
+                            <string>https://fleetdevicemanagement.1password.com/home</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Gmail Inbox - Fleet</string>
+                            <key>url</key>
+                            <string>https://mail.google.com/mail/u/0/#inbox</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Google Calendar</string>
+                            <key>url</key>
+                            <string>https://calendar.google.com/calendar/u/0/r</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Google Docs - Template gallery</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/document/u/0/?tgif=d&amp;ftv=1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Google Sheets</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/spreadsheets/u/0/?tgif=d&amp;ftv=1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Brex</string>
+                            <key>url</key>
+                            <string>https://dashboard.brex.com/card/transactions/yours</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Planner | Reclaim</string>
+                            <key>url</key>
+                            <string>https://app.reclaim.ai/planner?range=WEEK</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>osquery | Schema :Tables</string>
+                            <key>url</key>
+                            <string>https://osquery.io/schema/5.8.2/</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>YouTube</string>
+                            <key>url</key>
+                            <string>https://www.youtube.com/</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>LinkedIn</string>
+                            <key>url</key>
+                            <string>https://www.linkedin.com/feed/</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Gong | Home</string>
+                            <key>url</key>
+                            <string>https://us-65885.app.gong.io/home</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Login | Slack</string>
+                            <key>url</key>
+                            <string>https://slack.com/get-started#/createnew</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Amazon.com</string>
+                            <key>url</key>
+                            <string>https://www.amazon.com/ref=nav_logo</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Account | Grammarly</string>
+                            <key>url</key>
+                            <string>https://account.grammarly.com/admin/home</string>
+                        </dict>
+                    </array>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>🚀 Engineering</string>
+                    <key>children</key>
+                    <array>
+                        <dict>
+                            <key>name</key>
+                            <string>🛩️ Product groups | Fleet handbook</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company/product-groups</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🚀 Engineering (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/engineering</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🚀 Documentation for contributors</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/engineering#documentation-for-contributors</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🚀 Kanban board (~engineering-initiated)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/73/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🕸️ Kanban board (#g-website)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/92/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Issue: 🦟Bug report</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/fleet/issues/new?assignees=&amp;labels=bug%2C%3Areproduce&amp;projects=&amp;template=bug-report.md&amp;title=</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>💻 Current sprint (#g-mdm)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/58/views/12</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🪄 Current sprint (#g-orchestration)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/71/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>📦 Current sprint (#g-software)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/70/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Training Videos - 🌈 Fleet - Google Drive</string>
+                            <key>url</key>
+                            <string>https://drive.google.com/drive/folders/1VO0YLrtq5e3Ju8xqUQOpUE_b4QP0pt5P</string>
+                        </dict>
+                    </array>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>🦢 Product design</string>
+                    <key>children</key>
+                    <array>
+                        <dict>
+                            <key>name</key>
+                            <string>🦢 Product design (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/product-design</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🦢 Kanban board (:help-design)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/93/views/2</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🦢 Drafting board (:product)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/67/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🎁 Kanban board (~feature fest)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/72/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>💝 Customer requests (frioritized) (~customer request)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/82/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🗺️ Roadmap</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/87/views/2</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Why There's No Such Thing As MDM for Linux, and What to Do About It</string>
+                            <key>url</key>
+                            <string>https://www.kolide.com/blog/why-there-s-no-such-thing-as-mdm-for-linux-and-what-to-do-about-it</string>
+                        </dict>
+                    </array>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>🌦️ Customer success</string>
+                    <key>children</key>
+                    <array>
+                        <dict>
+                            <key>name</key>
+                            <string>🌦️ Customer Success (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/customer-success</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🌦️ Kanban board (:help-customers)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/79/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Upgrade to Fleet Premium.mp4 - Google Drive</string>
+                            <key>url</key>
+                            <string>https://drive.google.com/file/d/1Up4XqtrPpYewwmCYVz4qBycd6alIsz7O/view</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Gong | Fleet @ Red Hat: Fleet + osquery 101</string>
+                            <key>url</key>
+                            <string>https://us-65885.app.gong.io/call?id=7669046288376668913</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Gong | Fleet @ Red Hat: Fleet 201 for Security</string>
+                            <key>url</key>
+                            <string>https://us-65885.app.gong.io/call?id=4778028065403913218</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Gong | Fleet @ Red Hat: MDM 101</string>
+                            <key>url</key>
+                            <string>https://us-65885.app.gong.io/call?id=2393880604319663645</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Gong | Fleet @ Red Hat: Fleet MDM 201</string>
+                            <key>url</key>
+                            <string>https://us-65885.app.gong.io/call?id=1767845845375937725</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Fleet usage statistics - Google Sheets</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit?gid=1797565811#gid=1797565811</string>
+                        </dict>
+                    </array>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>🐋 Sales</string>
+                    <key>children</key>
+                    <array>
+                        <dict>
+                            <key>name</key>
+                            <string>🐋 Sales (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/sales</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🦄 Go-To-Market groups (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company/go-to-market-groups</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🦄 Kanban board (#g-unicorns)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/81/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Sales playbook "One Pager" - Google Docs</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/document/d/1v5qEUH-aMxIQFQDIs6gdGorr8_iDD7f6/edit</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Fleet sales playbook/process overview</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/document/d/1xVmpCYoxWbOvzQdwGhf9xMQ6ZYoLVjsDA_cEeJb0mEE/edit?tab=t.0</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>confidential/linkedin-profile-best-practices.md at main · fleetdm/confidential</string>
+                            <key>url</key>
+                            <string>https://github.com/fleetdm/confidential/blob/main/linkedin-profile-best-practices.md</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>MAIN - Order form calculator - Google Sheets</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/spreadsheets/d/1LadGegF8JuzXLjcwmCQ_ZeTjqbux7Oz8jGhRLfspYCg/edit?gid=0#gid=0</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Home | Salesforce</string>
+                            <key>url</key>
+                            <string>https://fleetdm.lightning.force.com/lightning/page/home</string>
+                        </dict>
+                    </array>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>🫧 Marketing</string>
+                    <key>children</key>
+                    <array>
+                        <dict>
+                            <key>name</key>
+                            <string>🫧 Marketing (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/marketing</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🫧 Kanban board (:help-marketing)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/94/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🎪 Events</string>
+                            <key>url</key>
+                            <string>https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737</string>
+                        </dict>
+                    </array>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>🌐 IT &amp; Enablement</string>
+                    <key>children</key>
+                    <array>
+                        <dict>
+                            <key>name</key>
+                            <string>🌐 IT &amp; Enablement (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/it-and-enablement</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🌐 Kanban board (:help-it-and-enablement)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/69/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🍽️ Kanban board (:help-dogfooding)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/57/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Fleet's Trust Center</string>
+                            <key>url</key>
+                            <string>https://trust.fleetdm.com/</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Account recovery process | Security</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/finance/security#account-recovery-process</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>periodic table - Google Search</string>
+                            <key>url</key>
+                            <string>https://www.google.com/search?q=periodic+table&amp;rlz=1C5CHFA_enUS1062US1063&amp;oq=Period&amp;gs_lcrp=EgZjaHJvbWUqDQgAEAAYgwEYsQMYgAQyDQgAEAAYgwEYsQMYgAQyDwgBEEUYORiDARixAxiABDIHCAIQABiABDIHCAMQABiABDINCAQQABiDARixAxiABDINCAUQABiDARixAxiABDIHCAYQABiABDIHCAcQABiABDIHCAgQABiABDIHCAkQABiABNIBCDM4MjRqMGo3qAIAsAIA&amp;sourceid=chrome&amp;ie=UTF-8</string>
+                        </dict>
+                    </array>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>🧑‍🚀 People</string>
+                    <key>children</key>
+                    <array>
+                        <dict>
+                            <key>name</key>
+                            <string>🧑‍🚀 People (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/people</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>🧑‍🚀 Kanban board (:help-people)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/91/views/2</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>Hiring | 🛠️ Leadership</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/company/leadership#hiring</string>
+                        </dict>
+                    </array>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>💸 Finance</string>
+                    <key>children</key>
+                    <array>
+                        <dict>
+                            <key>name</key>
+                            <string>Kanban board (:help-finance)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/80/views/1</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
+                            <string>💸 Finance (Handbook)</string>
+                            <key>url</key>
+                            <string>https://fleetdm.com/handbook/finance</string>
+                        </dict>
+                    </array>
+                </dict>
+                <dict>
+                    <key>name</key>
+                    <string>Fleet Dashboard</string>
+                    <key>url</key>
+                    <string>https://dogfood.fleetdm.com/dashboard</string>
+                </dict>
+            </array>
+        </dict>
+    </array>
+    <key>PayloadDescription</key>
+    <string>A collection of helpful bookmarks for Fleeties!</string>
+    <key>PayloadDisplayName</key>
+    <string>Google Chrome managed bookmarks</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.chrome.bookmarks</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>C3EEFE41-1918-484B-9053-568399159951</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

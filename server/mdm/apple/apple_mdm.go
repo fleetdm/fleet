@@ -210,6 +210,10 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 // has that team as default team for a platform, it will also be used to
 // register the profile.
 //
+// Note that this means that a team must either have DEP hosts associated with
+// it with corresponding host_dep_assignment records or be the default team for a
+// class of devices(see GetABMTokenOrgNamesAssociatedWithTeam)
+//
 // On success, it returns the profile uuid and timestamp for the specific token
 // of interest to the caller (identified by its organization name).
 func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant, abmTokenOrgName string) (string, time.Time, error) {
@@ -766,7 +770,6 @@ func (d *DEPService) processDeviceResponse(
 			teamID = macOSTeamID
 		}
 		devicesByTeam[teamID] = append(devicesByTeam[teamID], newDevice)
-
 	}
 
 	// for all other hosts we received, find out the right DEP profile to
@@ -784,6 +787,14 @@ func (d *DEPService) processDeviceResponse(
 		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
 	}
 
+	// Upsert the host DEP assignment records now so that the team is properly linked to the ABM
+	// token if this is the first device DEP host for this token assigned to the team.
+	if len(existingHosts) > 0 {
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
+			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
+		}
+	}
+
 	// assign the profile to each device
 	for team, devices := range devicesByTeam {
 		profUUID, err := d.getProfileUUIDForTeam(ctx, team, abmOrganizationName)
@@ -792,12 +803,6 @@ func (d *DEPService) processDeviceResponse(
 		}
 
 		profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
-	}
-
-	if len(existingHosts) > 0 {
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
-			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
-		}
 	}
 
 	// keep track of the serials we're going to skip for all profiles in
@@ -846,6 +851,27 @@ func (d *DEPService) processDeviceResponse(
 					"msg", "assign profile",
 					"devices", len(serials),
 					"err", err,
+				)
+			}
+			// Verify that all serials assigned get some sort of terminal status. Otherwise an error
+			// that returns no devices at all(i.e. a network error) could result in a serial being
+			// dropped on the floor. Failed may or may not be the right status here since it will
+			// cause cooldowns to be applied however it ensures we retry these assignments
+			implicitlyFailedAssignments := 0
+			if apiResp.Devices == nil {
+				apiResp.Devices = make(map[string]string)
+			}
+			for _, serial := range serials {
+				if _, ok := apiResp.Devices[serial]; !ok {
+					apiResp.Devices[serial] = string(fleet.DEPAssignProfileResponseFailed)
+					implicitlyFailedAssignments++
+				}
+			}
+			// We don't expect to see this but log here just in case
+			if err != nil && implicitlyFailedAssignments > 0 {
+				level.Error(logger).Log(
+					"msg", "assign profile: no error was returned but some devices were not assigned a status in the response",
+					"devices", implicitlyFailedAssignments,
 				)
 			}
 

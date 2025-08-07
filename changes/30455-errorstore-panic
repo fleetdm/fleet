@@ -1,0 +1,1 @@
+Fixed potential panic in error handler when Redis is down.

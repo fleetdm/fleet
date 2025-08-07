@@ -73,6 +73,8 @@ If you're assigned a community pull request for review, it is important to keep 
 
 If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
 
+Make sure to create a Github issue and link it to the PR so that we can track the changes in our release process. Make sure to assign the correct milestone to the issue (by having an issue, QA will make sure the fix is not causing regressions).
+
 **For PRs that change the product:**
 
 - Assign the PR to the appropriate product group EM (Engineering Manager).
@@ -104,6 +106,9 @@ When merging a pull request from a community contributor:
 
 If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
 
+### Close a stale community PR
+
+If a community PR hasn't had any updates or response from the author after one week, convert the PR to draft and add a comment tagging the author to let them know they are welcome to push any updates and convert it back to non-draft. After one year, our bot will auto-close it with a comment if it doesn't get updated.
 
 ### Schedule developer on-call workload
 
