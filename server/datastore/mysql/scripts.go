@@ -1908,6 +1908,7 @@ INSERT INTO batch_activity_host_results (
 	return batchExecID, nil
 }
 
+// Deprecated; will be removed in favor of ListBatchScriptExecutions when the batch script details page is ready.
 func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 	stmtExecutions := `
 SELECT
