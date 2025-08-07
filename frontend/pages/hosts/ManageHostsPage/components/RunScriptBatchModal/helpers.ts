@@ -104,7 +104,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           );
           return parsedDate >= new Date();
         },
-        message: `Time (UTC) cannot be in the past.`,
+        message: `Time (UTC) cannot be in the past`,
       },
     ],
   },

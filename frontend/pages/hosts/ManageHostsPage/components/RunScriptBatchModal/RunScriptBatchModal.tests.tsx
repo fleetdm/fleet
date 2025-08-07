@@ -156,7 +156,7 @@ describe("RunScriptBatchModal", () => {
 
       await waitFor(() => {
         expect(screen.getByText("linuxscript.sh")).toBeInTheDocument();
-        expect(screen.getByText(/macOS\/linux/)).toBeInTheDocument();
+        expect(screen.getByText(/macOS and Linux/)).toBeInTheDocument();
       });
     });
 
@@ -166,7 +166,7 @@ describe("RunScriptBatchModal", () => {
 
       await waitFor(() => {
         expect(screen.getByText("winscript.ps1")).toBeInTheDocument();
-        expect(screen.getByText(/windows/)).toBeInTheDocument();
+        expect(screen.getByText(/Windows/)).toBeInTheDocument();
       });
     });
 
@@ -239,31 +239,31 @@ describe("RunScriptBatchModal", () => {
         await user.type(dateInput, "u up?");
         expect(dateInput).toHaveValue("u up?");
         expect(
-          screen.getByText("Please enter a valid date.")
+          screen.getByText("Date (UTC) must have valid format")
         ).toBeInTheDocument();
         // Add a less wild, but still invalid date
         await user.clear(dateInput);
         await user.type(dateInput, "2023-99-99");
         expect(dateInput).toHaveValue("2023-99-99");
         expect(
-          screen.getByText("Please enter a valid date.")
+          screen.getByText("Date (UTC) must have valid format")
         ).toBeInTheDocument();
         // Add a valid date, but in the past
         await user.clear(dateInput);
         await user.type(dateInput, "2023-01-01");
         expect(dateInput).toHaveValue("2023-01-01");
         expect(
-          screen.getByText("Date cannot be in the past.")
+          screen.getByText("Date (UTC) cannot be in the past")
         ).toBeInTheDocument();
         // Add a valid date in the future
         await user.clear(dateInput);
         await user.type(dateInput, "2099-12-31");
         expect(dateInput).toHaveValue("2099-12-31");
         expect(
-          screen.queryByText("Please enter a valid date.")
+          screen.queryByText("Date (UTC) must have valid format")
         ).not.toBeInTheDocument();
         expect(
-          screen.queryByText("Date cannot be in the past.")
+          screen.queryByText("Date (UTC) cannot be in the past")
         ).not.toBeInTheDocument();
       });
 
@@ -278,24 +278,24 @@ describe("RunScriptBatchModal", () => {
         await user.type(timeInput, "professor churro");
         expect(timeInput).toHaveValue("professor churro");
         expect(
-          screen.getByText("Please enter a valid time.")
+          screen.getByText("Time (UTC) must have valid format")
         ).toBeInTheDocument();
         // Add a less wild, but still invalid time
         await user.clear(timeInput);
         await user.type(timeInput, "99:99");
         expect(timeInput).toHaveValue("99:99");
         expect(
-          screen.getByText("Please enter a valid time.")
+          screen.getByText("Time (UTC) must have valid format")
         ).toBeInTheDocument();
         // Add a valid time in the past (no date selected)
         await user.clear(timeInput);
         await user.type(timeInput, "00:00");
         expect(timeInput).toHaveValue("00:00");
         expect(
-          screen.queryByText("Please enter a valid date.")
+          screen.queryByText("Date (UTC) must have valid format")
         ).not.toBeInTheDocument();
         expect(
-          screen.queryByText("Date cannot be in the past.")
+          screen.queryByText("Date cannot be in the past")
         ).not.toBeInTheDocument();
         // Add a valid time in the past (future date selected)
         await user.clear(timeInput);
@@ -304,10 +304,10 @@ describe("RunScriptBatchModal", () => {
         await user.type(dateInput, "2099-12-31");
         expect(timeInput).toHaveValue("00:00");
         expect(
-          screen.queryByText("Please enter a valid date.")
+          screen.queryByText("Date (UTC) must have valid format")
         ).not.toBeInTheDocument();
         expect(
-          screen.queryByText("Date cannot be in the past.")
+          screen.queryByText("Date (UTC) cannot be in the past")
         ).not.toBeInTheDocument();
         // Add a valid time in the past (today selected)
         await user.clear(dateInput);
@@ -316,7 +316,7 @@ describe("RunScriptBatchModal", () => {
         await user.type(timeInput, "00:00");
         expect(timeInput).toHaveValue("00:00");
         expect(
-          screen.getByText("Time cannot be in the past.")
+          screen.getByText("Time (UTC) cannot be in the past")
         ).toBeInTheDocument();
       });
 
