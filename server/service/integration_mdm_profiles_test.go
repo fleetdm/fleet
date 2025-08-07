@@ -7006,3 +7006,160 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusNoContent,
 		"team_id", fmt.Sprint(tm1.ID))
 }
+
+func (s *integrationMDMTestSuite) TestWindowsProfilesWithFleetVariables() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a team for team-scoped tests
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test_windows_fleet_vars"})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name            string
+		profiles        []fleet.MDMProfileBatchPayload
+		teamID          *uint
+		wantStatus      int
+		wantErrContains string
+	}{
+		{
+			name: "HOST_UUID variable accepted for team",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "TestHostUUID",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
+					}),
+				},
+			},
+			teamID:     &tm.ID,
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "HOST_UUID variable with braces accepted",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "TestHostUUIDBraces",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "${FLEET_VAR_HOST_UUID}"},
+					}),
+				},
+			},
+			teamID:     &tm.ID,
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "unsupported variable rejected",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "TestUnsupported",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/Serial", Data: "$FLEET_VAR_HOST_HARDWARE_SERIAL"},
+					}),
+				},
+			},
+			teamID:          &tm.ID,
+			wantStatus:      http.StatusUnprocessableEntity,
+			wantErrContains: "Fleet variable $FLEET_VAR_HOST_HARDWARE_SERIAL is not supported in Windows profiles",
+		},
+		{
+			name: "mixed supported and unsupported variables rejected",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "TestMixed",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/Email", Data: "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+					}),
+				},
+			},
+			teamID:          &tm.ID,
+			wantStatus:      http.StatusUnprocessableEntity,
+			wantErrContains: "Fleet variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP is not supported in Windows profiles",
+		},
+		{
+			name: "HOST_UUID variable accepted globally",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "GlobalHostUUID",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
+					}),
+				},
+			},
+			teamID:     nil, // global profile
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "batch with regular and variable profiles accepted",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "RegularProfile",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/Policy/Config/System/AllowLocation", Data: "1"},
+					}),
+				},
+				{
+					Name: "ProfileWithVar",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
+					}),
+				},
+			},
+			teamID:     &tm.ID,
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "multiple HOST_UUID variables in single profile accepted",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "MultipleHostUUID",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/BackupID", Data: "${FLEET_VAR_HOST_UUID}"},
+					}),
+				},
+			},
+			teamID:     &tm.ID,
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "unknown Fleet variable rejected",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "UnknownVar",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/Policy/Config/System/SomeValue", Data: "${FLEET_VAR_UNKNOWN_VAR}"},
+					}),
+				},
+			},
+			teamID:          &tm.ID,
+			wantStatus:      http.StatusUnprocessableEntity,
+			wantErrContains: "Fleet variable $FLEET_VAR_UNKNOWN_VAR is not supported in Windows profiles",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp *http.Response
+
+			// Execute request with or without team_id
+			if tc.teamID != nil {
+				resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+					batchSetMDMProfilesRequest{Profiles: tc.profiles},
+					tc.wantStatus,
+					"team_id", fmt.Sprint(*tc.teamID))
+			} else {
+				resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+					batchSetMDMProfilesRequest{Profiles: tc.profiles},
+					tc.wantStatus)
+			}
+
+			// Check error message if expected
+			if tc.wantErrContains != "" {
+				errMsg := extractServerErrorText(resp.Body)
+				require.Contains(t, errMsg, tc.wantErrContains)
+			}
+		})
+	}
+}

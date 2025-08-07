@@ -1516,9 +1516,27 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
+// fleetVarsSupportedInWindowsProfiles lists the Fleet variables that are
+// supported in Windows configuration profiles.
+var fleetVarsSupportedInWindowsProfiles = []string{
+	fleet.FleetVarHostUUID,
+}
+
 func validateWindowsProfileFleetVariables(contents string) error {
-	if len(findFleetVariables(contents)) > 0 {
-		return &fleet.BadRequestError{Message: "Fleet variables ($FLEET_VAR_*) are not currently supported in Windows profiles"}
+	foundVars := findFleetVariables(contents)
+	if len(foundVars) == 0 {
+		return nil
+	}
+
+	// Check if all found variables are supported
+	for varName := range foundVars {
+		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, varName) {
+			supportedMsg := ""
+			if len(fleetVarsSupportedInWindowsProfiles) > 0 {
+				supportedMsg = fmt.Sprintf(" Only $FLEET_VAR_%s is currently supported.", strings.Join(fleetVarsSupportedInWindowsProfiles, ", $FLEET_VAR_"))
+			}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.%s", varName, supportedMsg)}
+		}
 	}
 	return nil
 }

@@ -79,7 +79,7 @@ var (
 	fleetVarHostEndUserIDPGroupsRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPGroups))
 	fleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarSCEPRenewalID))
 
-	fleetVarsSupportedInConfigProfiles = []string{
+	fleetVarsSupportedInAppleConfigProfiles = []string{
 		fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
 		fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 		fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarSCEPRenewalID,
@@ -491,7 +491,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 	)
 	for _, k := range fleetVars {
 		ok := true
-		if !slices.Contains(fleetVarsSupportedInConfigProfiles, k) {
+		if !slices.Contains(fleetVarsSupportedInAppleConfigProfiles, k) {
 			found := false
 			switch {
 			case strings.HasPrefix(k, fleet.FleetVarDigiCertDataPrefix):

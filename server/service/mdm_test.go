@@ -2247,3 +2247,114 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	}}, true, false, ptr.Bool(true), false)
 	require.NoError(t, err)
 }
+
+func TestValidateWindowsProfileFleetVariables(t *testing.T) {
+	tests := []struct {
+		name        string
+		profileXML  string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "no variables",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>1</Data>
+				</Item>
+			</Replace>`,
+			wantErr: false,
+		},
+		{
+			name: "HOST_UUID variable",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>$FLEET_VAR_HOST_UUID</Data>
+				</Item>
+			</Replace>`,
+			wantErr: false,
+		},
+		{
+			name: "HOST_UUID variable with braces",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>${FLEET_VAR_HOST_UUID}</Data>
+				</Item>
+			</Replace>`,
+			wantErr: false,
+		},
+		{
+			name: "multiple HOST_UUID variables",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>$FLEET_VAR_HOST_UUID-${FLEET_VAR_HOST_UUID}</Data>
+				</Item>
+			</Replace>`,
+			wantErr: false,
+		},
+		{
+			name: "unsupported variable",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>$FLEET_VAR_HOST_HARDWARE_SERIAL</Data>
+				</Item>
+			</Replace>`,
+			wantErr:     true,
+			errContains: "Fleet variable $FLEET_VAR_HOST_HARDWARE_SERIAL is not supported in Windows profiles",
+		},
+		{
+			name: "HOST_UUID with another unsupported variable",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>$FLEET_VAR_HOST_UUID-$FLEET_VAR_HOST_END_USER_EMAIL_IDP</Data>
+				</Item>
+			</Replace>`,
+			wantErr:     true,
+			errContains: "Fleet variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP is not supported in Windows profiles",
+		},
+		{
+			name: "unknown Fleet variable",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>${FLEET_VAR_UNKNOWN_VAR}</Data>
+				</Item>
+			</Replace>`,
+			wantErr:     true,
+			errContains: "Fleet variable $FLEET_VAR_UNKNOWN_VAR is not supported in Windows profiles",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateWindowsProfileFleetVariables(tt.profileXML)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errContains != "" {
+					require.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
