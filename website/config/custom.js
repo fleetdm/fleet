@@ -135,7 +135,7 @@ module.exports.custom = {
     'it-and-security': 'allenhouchins',
 
     // 🫧 Articles and release notes
-    'articles': 'mike-j-thomas',
+    // 'articles': 'mike-j-thomas', « Covered in CODEOWNERS
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
