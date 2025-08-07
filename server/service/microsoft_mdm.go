@@ -764,6 +764,8 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 
 	// Checking first if Discovery message is valid and returning error if this is not the case
 	if err := req.IsValidDiscoveryMsg(); err != nil {
+		// Log the raw XML request for debugging invalid errors
+		ctx = logging.WithExtras(ctx, "request_xml", string(req.Raw))
 		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
@@ -1875,7 +1877,7 @@ func GetContextItem(secTokenMsg *fleet.RequestSecurityToken, contextItem string)
 // GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
 func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *fleet.SoapFault {
 	svc.authz.SkipAuthorization(ctx)
-	logging.WithErr(ctx, ctxerr.Wrap(ctx, errorMsg, "soap fault"))
+	level.Info(svc.logger).Log("err", errorMsg, "msg", "soap fault")
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)
 
 	return &soapFault
