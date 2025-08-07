@@ -43,6 +43,8 @@ In this team you can add custom OS settings that are compatible with hosts enrol
 
 Ask your end users to go to **Settings > General > VPN & Device Management > Sign In to Work or School Account...** and log in using their IdP credentials.
 
+When they login, their iOS/iPadOS host will enroll to Fleet.
+
 ## Self-host a service discovery file (well-known resource)
 
 If your iOS/iPadOS hosts are running OS 18.2/iPadOS 18.2 and later, you can skip this step. Fleet manages service discovery for hosts running iOS 18.2/iPadOS 18.2 and later. If you are trialing Fleet and testing Account-driven enrollment use this method for all hosts. 
