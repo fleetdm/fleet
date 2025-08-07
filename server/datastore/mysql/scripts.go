@@ -2085,55 +2085,74 @@ WHERE
 
 func (ds *Datastore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
 	stmtExecutions := `
-SELECT
-	IF(ba.status = 'finished', ba.num_targeted, COUNT(*)) AS num_targeted,
-	IF(ba.status = 'finished', ba.num_incompatible, COUNT(bahr.error)) AS num_incompatible,
-	IF(ba.status = 'finished', ba.num_ran, COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END)) AS num_ran,
-	IF(ba.status = 'finished', ba.num_errored, COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END)) AS num_errored,
-	IF(ba.status = 'finished', ba.num_canceled, COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END)) AS num_canceled,
-	IF(
-		ba.status = 'finished',
-		ba.num_pending,
-		(
-			COUNT(*) -
-			(
-				COUNT(bahr.error) +
-				COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) +
-				COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) +
-				COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END)
-			)
-		)
-	) AS num_pending,
-	ba.execution_id,
-	ba.script_id,
-	ba.status as status,
-	ba.canceled as canceled,
-	ba.finished_at as finished_at,
-	s.name as script_name,
-	s.global_or_team_id as team_id,
-	ba.created_at as created_at,
-	j.not_before as not_before
-FROM
-	batch_activity_host_results bahr
-LEFT JOIN
-	host_script_results hsr
-		ON bahr.host_execution_id = hsr.execution_id
-JOIN
-	batch_activities ba
-		ON ba.execution_id = bahr.batch_execution_id		
-JOIN
-	scripts s
-		ON ba.script_id = s.id
-LEFT JOIN jobs j
-		ON j.id = ba.job_id
-WHERE
-	%s
-GROUP BY
-	ba.id
+SELECT *
+FROM (
+  -- If batch is finished, get the cached host result counts
+  SELECT
+    COALESCE(ba.num_targeted, 0)          AS num_targeted,
+    COALESCE(ba.num_incompatible, 0)      AS num_incompatible,
+    COALESCE(ba.num_ran, 0)               AS num_ran,
+    COALESCE(ba.num_errored, 0)           AS num_errored,
+    COALESCE(ba.num_canceled, 0)          AS num_canceled,
+    COALESCE(ba.num_pending, 0)           AS num_pending,
+    ba.execution_id,
+    ba.script_id,
+    ba.status,
+    ba.canceled,
+    ba.finished_at,
+	ba.started_at,
+    s.name                                 AS script_name,
+    s.global_or_team_id                    AS team_id,
+    ba.created_at                          AS created_at,
+    j.not_before                           AS not_before,
+    ba.id                                  AS id
+  FROM batch_activities ba
+  JOIN scripts s ON ba.script_id = s.id
+  LEFT JOIN jobs j ON j.id = ba.job_id
+  WHERE ( %s ) AND ba.status = 'finished'
+
+  UNION ALL
+
+  -- If batch is not finished, calculate the host result counts live.
+  SELECT
+    COUNT(*)                                AS num_targeted,
+    COUNT(bahr.error)                       AS num_incompatible,
+    COUNT(IF(hsr.exit_code = 0, 1, NULL))   AS num_ran,
+    COUNT(IF(hsr.exit_code > 0, 1, NULL))   AS num_errored,
+    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled,
+    (
+      COUNT(*) 
+      - COUNT(bahr.error)
+      - COUNT(IF(hsr.exit_code = 0, 1, NULL))
+      - COUNT(IF(hsr.exit_code > 0, 1, NULL))
+      - COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL))
+    )                                       AS num_pending,
+    ba.execution_id,
+    ba.script_id,
+    ba.status,
+    ba.canceled,
+    ba.finished_at,
+	ba.started_at,
+    s.name                                  AS script_name,
+    s.global_or_team_id                     AS team_id,
+    ba.created_at                           AS created_at,
+    j.not_before                            AS not_before,
+    ba.id                                   AS id
+  FROM batch_activity_host_results bahr
+  LEFT JOIN host_script_results hsr
+         ON bahr.host_execution_id = hsr.execution_id
+  JOIN batch_activities ba
+         ON ba.execution_id = bahr.batch_execution_id
+  JOIN scripts s
+         ON ba.script_id = s.id
+  LEFT JOIN jobs j
+         ON j.id = ba.job_id
+  WHERE ( %s ) AND ba.status <> 'finished'
+  GROUP BY ba.id
+) AS u
 ORDER BY
-	j.not_before ASC, ba.created_at DESC, ba.id DESC
-LIMIT %d
-OFFSET %d
+  u.not_before ASC, u.created_at DESC, u.id DESC
+LIMIT %d OFFSET %d
 	`
 	limit := 10
 	offset := 0
@@ -2154,6 +2173,10 @@ OFFSET %d
 			args = append(args, *filter.TeamID)
 		}
 	}
+
+	// Double up the args to use them in both WHERE clauses.
+	args = append(args, args...)
+
 	// Use pagination parameters if provided.
 	if filter.Limit != nil {
 		limit = int(*filter.Limit) //nolint:gosec // dismiss G115
@@ -2162,7 +2185,7 @@ OFFSET %d
 		offset = int(*filter.Offset) //nolint:gosec // dismiss G115
 	}
 	where := strings.Join(whereClauses, " AND ")
-	stmtExecutions = fmt.Sprintf(stmtExecutions, where, limit, offset)
+	stmtExecutions = fmt.Sprintf(stmtExecutions, where, where, limit, offset)
 
 	var summary []fleet.BatchActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
