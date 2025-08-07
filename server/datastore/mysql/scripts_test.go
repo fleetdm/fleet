@@ -1999,12 +1999,12 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 
 	// The summary should have two pending hosts and two errored ones, because
 	// the script is not compatible with the hostNoScripts and hostWindows.
-	require.Equal(t, summary.NumTargeted, uint(5))
-	require.Equal(t, summary.NumPending, uint(3))
-	require.Equal(t, summary.NumIncompatible, uint(2))
-	require.Equal(t, summary.NumErrored, uint(0))
-	require.Equal(t, summary.NumRan, uint(0))
-	require.Equal(t, summary.NumCanceled, uint(0))
+	require.Equal(t, *summary.NumTargeted, uint(5))
+	require.Equal(t, *summary.NumPending, uint(3))
+	require.Equal(t, *summary.NumIncompatible, uint(2))
+	require.Equal(t, *summary.NumErrored, uint(0))
+	require.Equal(t, *summary.NumRan, uint(0))
+	require.Equal(t, *summary.NumCanceled, uint(0))
 	// Host 1 should have an upcoming execution
 	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
 	require.NoError(t, err)
@@ -2063,12 +2063,12 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, summaryList, 1)
 	summary = (summaryList)[0]
 	// The summary should have one pending host, one run host and two errored ones.
-	require.Equal(t, summary.NumTargeted, uint(5))
-	require.Equal(t, summary.NumPending, uint(2))
-	require.Equal(t, summary.NumIncompatible, uint(2))
-	require.Equal(t, summary.NumErrored, uint(0))
-	require.Equal(t, summary.NumRan, uint(1))
-	require.Equal(t, summary.NumCanceled, uint(0))
+	require.Equal(t, *summary.NumTargeted, uint(5))
+	require.Equal(t, *summary.NumPending, uint(2))
+	require.Equal(t, *summary.NumIncompatible, uint(2))
+	require.Equal(t, *summary.NumErrored, uint(0))
+	require.Equal(t, *summary.NumRan, uint(1))
+	require.Equal(t, *summary.NumCanceled, uint(0))
 
 	// Set host 1 to have a failed script result
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
@@ -2086,12 +2086,12 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, summaryList, 1)
 	summary = (summaryList)[0] // The summary should have one pending host, one run host and two errored ones.
-	require.Equal(t, summary.NumTargeted, uint(5))
-	require.Equal(t, summary.NumPending, uint(1))
-	require.Equal(t, summary.NumIncompatible, uint(2))
-	require.Equal(t, summary.NumErrored, uint(1))
-	require.Equal(t, summary.NumRan, uint(1))
-	require.Equal(t, summary.NumCanceled, uint(0))
+	require.Equal(t, *summary.NumTargeted, uint(5))
+	require.Equal(t, *summary.NumPending, uint(1))
+	require.Equal(t, *summary.NumIncompatible, uint(2))
+	require.Equal(t, *summary.NumErrored, uint(1))
+	require.Equal(t, *summary.NumRan, uint(1))
+	require.Equal(t, *summary.NumCanceled, uint(0))
 
 	// Cancel the execution
 	_, err = ds.CancelHostUpcomingActivity(ctx, host3.ID, host3Upcoming[0].ExecutionID)
@@ -2104,11 +2104,11 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, summaryList, 1)
 	summary = (summaryList)[0]
 	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
-	require.Equal(t, summary.NumPending, uint(0))
-	require.Equal(t, summary.NumIncompatible, uint(2))
-	require.Equal(t, summary.NumErrored, uint(1))
-	require.Equal(t, summary.NumRan, uint(1))
-	require.Equal(t, summary.NumCanceled, uint(1))
+	require.Equal(t, *summary.NumPending, uint(0))
+	require.Equal(t, *summary.NumIncompatible, uint(2))
+	require.Equal(t, *summary.NumErrored, uint(1))
+	require.Equal(t, *summary.NumRan, uint(1))
+	require.Equal(t, *summary.NumCanceled, uint(1))
 
 	// The summary should be returned when filtering by status "scheduled".
 	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
@@ -2118,11 +2118,11 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, summaryList, 1)
 	summary = (summaryList)[0]
 	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
-	require.Equal(t, summary.NumPending, uint(0))
-	require.Equal(t, summary.NumIncompatible, uint(2))
-	require.Equal(t, summary.NumErrored, uint(1))
-	require.Equal(t, summary.NumRan, uint(1))
-	require.Equal(t, summary.NumCanceled, uint(1))
+	require.Equal(t, *summary.NumPending, uint(0))
+	require.Equal(t, *summary.NumIncompatible, uint(2))
+	require.Equal(t, *summary.NumErrored, uint(1))
+	require.Equal(t, *summary.NumRan, uint(1))
+	require.Equal(t, *summary.NumCanceled, uint(1))
 
 	// The summary should be returned when filtering by team 1.
 	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
@@ -2132,11 +2132,11 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, summaryList, 1)
 	summary = (summaryList)[0]
 	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
-	require.Equal(t, summary.NumPending, uint(0))
-	require.Equal(t, summary.NumIncompatible, uint(2))
-	require.Equal(t, summary.NumErrored, uint(1))
-	require.Equal(t, summary.NumRan, uint(1))
-	require.Equal(t, summary.NumCanceled, uint(1))
+	require.Equal(t, *summary.NumPending, uint(0))
+	require.Equal(t, *summary.NumIncompatible, uint(2))
+	require.Equal(t, *summary.NumErrored, uint(1))
+	require.Equal(t, *summary.NumRan, uint(1))
+	require.Equal(t, *summary.NumCanceled, uint(1))
 }
 
 func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
@@ -2191,7 +2191,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.BatchExecutionActivityScript, batchActivity.ActivityType)
 	require.Equal(t, job.ID, *batchActivity.JobID)
 	require.Equal(t, fleet.BatchExecutionScheduled, batchActivity.Status)
-	require.Equal(t, uint(3), batchActivity.NumTargeted)
+	require.Equal(t, uint(3), *batchActivity.NumTargeted)
 
 	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)

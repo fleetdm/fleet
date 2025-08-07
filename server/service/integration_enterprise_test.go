@@ -6607,8 +6607,8 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	var batchStatusResp batchScriptExecutionSummaryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, batchStatusResp.ScriptID, script.ID)
-	require.Equal(t, batchStatusResp.NumTargeted, uint(2))
-	require.Equal(t, batchStatusResp.NumPending, uint(2))
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(2))
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
@@ -6633,8 +6633,8 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, batchListResp.HasPreviousResults, false)
 	require.Equal(t, batchListResp.BatchScriptExecutions[0].BatchExecutionID, batchRes2.BatchExecutionID)
 	require.Equal(t, batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
-	require.Equal(t, batchListResp.BatchScriptExecutions[0].NumTargeted, uint(1))
-	require.Equal(t, batchListResp.BatchScriptExecutions[0].NumPending, uint(1))
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(1))
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(1))
 
 	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&page=1&per_page=1", nil, http.StatusOK, &batchListResp)
 	require.Len(t, batchListResp.BatchScriptExecutions, 1)
@@ -6643,8 +6643,8 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, batchListResp.HasPreviousResults, true)
 	require.Equal(t, batchListResp.BatchScriptExecutions[0].BatchExecutionID, batchRes.BatchExecutionID)
 	require.Equal(t, batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
-	require.Equal(t, batchListResp.BatchScriptExecutions[0].NumTargeted, uint(2))
-	require.Equal(t, batchListResp.BatchScriptExecutions[0].NumPending, uint(2))
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(2))
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(2))
 
 	// verify that script was queued for orbit
 	s.DoJSON("POST", "/api/fleet/orbit/config",

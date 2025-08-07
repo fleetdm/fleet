@@ -1980,8 +1980,8 @@ func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (
 			num_canceled,
 			created_at,
 			updated_at,
-			completed_at,
-			canceled_at
+			finished_at,
+			canceled
 		FROM
 			batch_activities
 		WHERE
@@ -2060,16 +2060,16 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
 	}
 
-	summary.NumTargeted = temp_summary.NumTargeted
+	summary.NumTargeted = &temp_summary.NumTargeted
 	// NumRan is the number of hosts that actually ran the script successfully.
-	summary.NumRan = temp_summary.NumSucceeded
+	summary.NumRan = &temp_summary.NumSucceeded
 	// NumErrored is the number of hosts that errored out, which includes
 	// both failed and did not run.
-	summary.NumErrored = temp_summary.NumFailed + temp_summary.NumDidNotRun
+	summary.NumErrored = ptr.Uint(temp_summary.NumFailed + temp_summary.NumDidNotRun)
 	// NumFailed is the number of hosts that were canceled before execution.
-	summary.NumCanceled = temp_summary.NumCancelled
+	summary.NumCanceled = &temp_summary.NumCancelled
 	// NumPending is the number of hosts that are pending execution.
-	summary.NumPending = temp_summary.NumTargeted - (temp_summary.NumSucceeded + temp_summary.NumFailed + temp_summary.NumDidNotRun + temp_summary.NumCancelled)
+	summary.NumPending = ptr.Uint(temp_summary.NumTargeted - (temp_summary.NumSucceeded + temp_summary.NumFailed + temp_summary.NumDidNotRun + temp_summary.NumCancelled))
 
 	// Fill out the script details
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &summary, stmtScriptDetails, executionID); err != nil {
@@ -2103,8 +2103,8 @@ SELECT
 	ba.execution_id,
 	ba.script_id,
 	ba.status as status,
-	ba.canceled_at as canceled_at,
-	ba.completed_at as completed_at,
+	ba.canceled as canceled,
+	ba.finished_at as finished_at,
 	s.name as script_name,
 	s.global_or_team_id as team_id,
 	ba.created_at as created_at,

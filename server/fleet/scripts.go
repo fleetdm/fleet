@@ -571,25 +571,27 @@ var (
 )
 
 type BatchActivity struct {
-	BatchExecutionID string     `json:"batch_execution_id" db:"execution_id"`
-	UserID           *uint      `json:"user_id" db:"user_id"`
-	JobID            *uint      `json:"-" db:"job_id"`
-	ActivityType     *string    `json:"-" db:"activity_type"`
-	ScriptID         uint       `json:"script_id" db:"script_id"`
-	ScriptName       string     `json:"script_name" db:"script_name"`
-	TeamID           *uint      `json:"team_id" db:"team_id"`
-	CreatedAt        time.Time  `json:"created_at" db:"created_at"`
-	NotBefore        *time.Time `json:"not_before,omitempty" db:"not_before"`
-	StartedAt        *time.Time `json:"started_at,omitempty" db:"started_at"`
-	CompletedAt      *time.Time `json:"completed_at,omitempty" db:"completed_at"`
-	CanceledAt       *time.Time `json:"canceled_at,omitempty" db:"canceled_at"`
-	Status           *string    `json:"status" db:"status"`
-	NumTargeted      uint       `json:"targeted" db:"num_targeted"`
-	NumPending       uint       `json:"pending" db:"num_pending"`
-	NumRan           uint       `json:"ran" db:"num_ran"`
-	NumErrored       uint       `json:"errored" db:"num_errored"`
-	NumCanceled      uint       `json:"canceled" db:"num_canceled"`
-	NumIncompatible  uint       `json:"incompatible" db:"num_incompatible"`
+	ID               uint                       `json:"id" db:"id"`
+	BatchExecutionID string                     `json:"batch_execution_id" db:"execution_id"`
+	UserID           *uint                      `json:"user_id" db:"user_id"`
+	JobID            *uint                      `json:"-" db:"job_id"`
+	ActivityType     BatchExecutionActivityType `json:"-" db:"activity_type"`
+	ScriptID         uint                       `json:"script_id" db:"script_id"`
+	ScriptName       string                     `json:"script_name" db:"script_name"`
+	TeamID           *uint                      `json:"team_id" db:"team_id"`
+	CreatedAt        time.Time                  `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time                  `json:"updated_at" db:"updated_at"`
+	NotBefore        *time.Time                 `json:"not_before,omitempty" db:"not_before"`
+	StartedAt        *time.Time                 `json:"started_at,omitempty" db:"started_at"`
+	FinishedAt       *time.Time                 `json:"finished_at,omitempty" db:"finished_at"`
+	Canceled         bool                       `json:"canceled" db:"canceled"`
+	Status           BatchExecutionStatus       `json:"status" db:"status"`
+	NumTargeted      *uint                      `json:"targeted_host_count" db:"num_targeted"`
+	NumPending       *uint                      `json:"pending_host_count" db:"num_pending"`
+	NumRan           *uint                      `json:"ran_host_count" db:"num_ran"`
+	NumErrored       *uint                      `json:"errored_host_count" db:"num_errored"`
+	NumCanceled      *uint                      `json:"canceled_host_count" db:"num_canceled"`
+	NumIncompatible  *uint                      `json:"incompatible_host_count" db:"num_incompatible"`
 }
 
 type BatchExecutionStatusFilter struct {
@@ -626,6 +628,7 @@ type BatchExecutionStatus string
 var (
 	BatchExecutionStarted   BatchExecutionStatus = "started"
 	BatchExecutionScheduled BatchExecutionStatus = "scheduled"
+	BatchExecutionFinished  BatchExecutionStatus = "finished"
 )
 
 type BatchExecutionActivityType string
