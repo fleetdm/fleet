@@ -8997,7 +8997,7 @@ Returns a list of batch script executions.
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
 | team_id         | integer | query | _Available in Fleet Premium_. Filters to batch script runs for the specified team. |
-| status          | string  | query | Filters to batch script runs with this status. Either `"started"`, `"scheduled"`, or "`completed`". |
+| status          | string  | query | Filters to batch script runs with this status. Either `"started"`, `"scheduled"`, or `"finished"`. |
 | page            | integer | query | Page number of the results to fetch. |
 | per_page        | integer | query | Results per page. |
 
