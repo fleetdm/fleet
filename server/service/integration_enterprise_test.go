@@ -6604,11 +6604,18 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.NotEmpty(t, batchRes.BatchExecutionID)
 
 	// Check status of the batch execution
-	var batchStatusResp batchScriptExecutionSummaryResponse
+	var batchStatusResp batchScriptExecutionStatusResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, batchStatusResp.ScriptID, script.ID)
 	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
 	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+
+	// Deprecated summary endpoint
+	var batchSummaryResp batchScriptExecutionSummaryResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/summary/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchSummaryResp)
+	require.Equal(t, batchSummaryResp.ScriptID, script.ID)
+	require.Equal(t, *batchSummaryResp.NumTargeted, uint(2))
+	require.Equal(t, *batchSummaryResp.NumPending, uint(2))
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
