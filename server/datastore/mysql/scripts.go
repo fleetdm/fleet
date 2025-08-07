@@ -1991,6 +1991,7 @@ SELECT
 			COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END)
 		)
 	) AS num_pending,
+	ba.execution_id,
 	ba.script_id,
 	ba.status as status,
 	ba.canceled_at as canceled_at,

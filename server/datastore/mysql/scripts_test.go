@@ -1959,6 +1959,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, summaryList, 1)
 	summary := (summaryList)[0]
+	require.Equal(t, execID, summary.BatchExecutionID)
 	require.Equal(t, script.ID, summary.ScriptID)
 	require.Equal(t, script.Name, summary.ScriptName)
 	require.Equal(t, uint(0), *summary.TeamID)
