@@ -1095,13 +1095,13 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 	page := 0
 	pageSize := 0
 	if req.Page != nil {
-		page = int(*req.Page)
+		page = int(*req.Page) //nolint:gosec // dismiss G115
 	}
 	if req.PerPage != nil {
-		pageSize = int(*req.PerPage)
+		pageSize = int(*req.PerPage) //nolint:gosec // dismiss G115
 	}
 	// Set query offset based on the specified page and page size.
-	offset := uint(page * pageSize)
+	offset := uint(page * pageSize) //nolint:gosec // dismiss G115
 	filter := fleet.BatchExecutionStatusFilter{
 		TeamID: &req.TeamID,
 		Status: req.Status,
@@ -1122,7 +1122,7 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 	hasNextResults := resultsSeen < int(count)
 	return batchScriptExecutionListResponse{
 		BatchScriptExecutions: list,
-		Count:                 uint(count),
+		Count:                 uint(count), //nolint:gosec // dismiss G115
 		PaginationMetadata: fleet.PaginationMetadata{
 			HasNextResults:     hasNextResults,
 			HasPreviousResults: hasPreviousResults,
@@ -1152,7 +1152,7 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 	}
 
 	// If the list is empty, it means the batch execution does not exist.
-	if summaryList == nil || len(summaryList) == 0 {
+	if len(summaryList) == 0 {
 		// If the user can see a no-team script, we can return a 404 because they have global access.
 		// Otherwise, we return a 403 to avoid leaking info about which IDs exist.
 		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {

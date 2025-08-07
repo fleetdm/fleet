@@ -2043,10 +2043,10 @@ OFFSET %d
 	}
 	// Use pagination parameters if provided.
 	if filter.Limit != nil {
-		limit = int(*filter.Limit)
+		limit = int(*filter.Limit) //nolint:gosec // dismiss G115
 	}
 	if filter.Offset != nil {
-		offset = int(*filter.Offset)
+		offset = int(*filter.Offset) //nolint:gosec // dismiss G115
 	}
 	where := strings.Join(whereClauses, " AND ")
 	stmtExecutions = fmt.Sprintf(stmtExecutions, where, limit, offset)
