@@ -53,6 +53,8 @@ interface IDataTableProps {
   defaultPageSize: number;
   defaultPageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
+  /** Default: true (same as useTable default) */
+  autoResetPage?: boolean;
   primarySelectAction?: IActionButtonProps;
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
@@ -102,6 +104,7 @@ const DataTable = ({
   defaultPageSize,
   defaultPageIndex,
   defaultSelectedRows = {},
+  autoResetPage = true,
   primarySelectAction,
   secondarySelectActions,
   isClientSidePagination,
@@ -174,6 +177,7 @@ const DataTable = ({
       disableMultiSort: true,
       disableSortRemove: true,
       manualSortBy,
+      autoResetPage,
       // Resets row selection on (server-side) pagination
       autoResetSelectedRows: true,
       // Expands the enumerated `filterTypes` for react-table

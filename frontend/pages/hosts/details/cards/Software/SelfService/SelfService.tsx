@@ -736,6 +736,7 @@ const SoftwareSelfService = ({
             searchQueryColumn="name"
             isClientSideFilter
             isClientSidePagination
+            disableAutoResetPage // Prevents resetting page to 0 on data change when clicking install/uninstall
             onClientSidePaginationChange={onClientSidePaginationChange}
             emptyComponent={() => {
               return isEmptySearch ? (
