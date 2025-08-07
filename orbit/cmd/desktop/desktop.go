@@ -192,8 +192,6 @@ func main() {
 		myDeviceItem.Disable()
 		myDeviceItem.Hide()
 
-		// We are doing this using two menu items because line breaks
-		// are not rendered correctly on Windows and MacOS.
 		hostOfflineItemOne := systray.AddMenuItem("🛜🚫 Your computer is not connected to Fleet.", "")
 		hostOfflineItemOne.Disable()
 
