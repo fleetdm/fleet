@@ -79,4 +79,4 @@ Make sure the `Content-Type` header is set to `application/json`.
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-08-01">
-<meta name="description" value="Enroll personal iPhones and iPads using Account-driven User Enrollment">
+<meta name="description" value="Enroll personal (BYOD) iPhones and iPads with Managed Apple Account">
