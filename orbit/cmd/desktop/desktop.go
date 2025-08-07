@@ -392,6 +392,8 @@ func main() {
 					migrateMDMItem.Disable()
 					migrateMDMItem.Hide()
 					hostOfflineItemOne.Show()
+					selfServiceItem.Disable()
+					selfServiceItem.Hide()
 					offlineIndicatorDisplayed = true
 				}
 			)
