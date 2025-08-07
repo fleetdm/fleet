@@ -50,16 +50,20 @@ When they login, their iOS/iPadOS host will enroll to Fleet.
 
 If your iOS/iPadOS hosts are running iOS 18.2/iPadOS 18.2 and later, you can skip need this. Fleet manages service discovery for hosts running iOS 18.2/iPadOS 18.2 and later. 
 
-If your iOS/iPadOS hosts are below iOS 18.2/iPadOS 18.2 or you're trying Fleet and testing Account-driven User Enrollment you want to self-host a [service discovery JSON file](https://support.apple.com/en-gb/guide/deployment/dep4d9e9cd26/web#depcae01b5df) on your company domain. You added your domain to ABM in a [previous step](http://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account#step-2-add-and-verify-your-domain-in-apple-business-manager-abm). This file directs personal hosts to the Fleet.
+If your iOS/iPadOS hosts are below iOS 18.2/iPadOS 18.2 or you're trying Fleet, you have to self-host a [service discovery JSON file](https://support.apple.com/en-gb/guide/deployment/dep4d9e9cd26/web#depcae01b5df).
 
-The server must return JSON file below with `Content-Type` header set to `application/json`.
+If you're trying Fleet and using a different MDM solution in production, hosting this file will direct only Account-driven user enrollments to the Fleet. iOS/iPadOS hosts purchased in ABM and hosts that use an enrollment profile will still enroll to your current MDM solution.
+
+Host this JSON file below at the following URL: `https://<company_domain>/.well-known/com.apple.remotemanagement.`
+
+Make sure the `Content-Type` header is set to `application/json`.
 
 ```json
 {
   "Servers": [
     {
       "Version": "mdm-byod",
-      "BaseURL": "https://<fleet_server_url>/...TODO..."
+      "BaseURL": "https://<fleet_server_url>/api/mdm/apple/account_driven_enroll"
     }
   ]
 }
