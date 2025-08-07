@@ -171,12 +171,38 @@ describe("getUiStatus", () => {
     expect(getUiStatus(sw, false)).toBe("pending_uninstall");
   });
 
-  it("returns 'update_available' if status not pending and update available", () => {
+  it("returns 'update_available' if inventory refresh is newer than last install (host software inventory is up to date, but there's still updates available)", () => {
+    const now = new Date();
+    const hostSoftwareUpdatedAt = new Date(
+      now.getTime() + 60 * 1000
+    ).toISOString(); // 1 min after install
+    const lastInstallDate = now.toISOString();
     const sw = createMockHostSoftware({
       status: "installed",
-      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+      software_package: createMockHostSoftwarePackage({
+        version: "2.0.0",
+        last_install: { install_uuid: "abc", installed_at: lastInstallDate },
+      }), // newer
     });
-    expect(getUiStatus(sw, true)).toBe("update_available");
+    // Simulate inventory updated after install
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe(
+      "update_available"
+    );
+  });
+
+  it("returns 'updated' if last install is newer than inventory refresh (host software inventory is not up to date yet)", () => {
+    const now = new Date();
+    const lastInstallDate = new Date(now.getTime() + 60 * 1000).toISOString(); // 1 min after inventory update
+    const hostSoftwareUpdatedAt = now.toISOString();
+    const sw = createMockHostSoftware({
+      status: "installed",
+      software_package: createMockHostSoftwarePackage({
+        version: "2.0.0",
+        last_install: { install_uuid: "abc", installed_at: lastInstallDate },
+      }), // newer
+    });
+    // Simulate install happened after last inventory check
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe("updated");
   });
 
   // Tarball packages (tgz_packages) are not tracked in software inventory
