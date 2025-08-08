@@ -170,8 +170,12 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       return (
         <>
           <p>
-            Add your ABM to automatically enroll newly purchased Apple hosts
-            when they&apos;re first unboxed and set up by your end users.
+            Add your ABM to allow automatic enrollment for company-owned devices
+            and personal enrollment with Managed Apple Account. Newly purchased
+            company-owned Apple hosts will enroll with Automated Device
+            Enrollment (ADE) when they&apos;re first unboxed and set up by your
+            end users. Personal (BYOD) hosts will enroll when end users sign in
+            with Managed Apple Account.
           </p>
           <AppleBusinessManagerTable
             abmTokens={abmTokens}

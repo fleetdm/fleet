@@ -97,6 +97,9 @@ type FullInstallerMetadata struct {
 
 	// PackageIDs contains the product code for 'msi' packages.
 	PackageIDs []string
+
+	// UpgradeCode is the upgrade code for 'msi' packages.
+	UpgradeCode string
 }
 
 func (m FullInstallerMetadata) PolicyName() (string, error) {
@@ -136,8 +139,12 @@ func (m FullInstallerMetadata) PolicyQuery() (string, error) {
 		}
 		return fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", m.BundleIdentifier), nil
 	case "msi":
+		// Use the upgrade code if we have it. Otherwise, fall back to the product code.
+		if m.UpgradeCode != "" {
+			return fmt.Sprintf("SELECT 1 FROM programs WHERE upgrade_code = '%s';", m.UpgradeCode), nil
+		}
 		if len(m.PackageIDs) == 0 || m.PackageIDs[0] == "" {
-			return "", ErrMissingProductCode
+			return "", ErrMissingProductAndUpgradeCode
 		}
 		return fmt.Sprintf("SELECT 1 FROM programs WHERE identifying_number = '%s';", m.PackageIDs[0]), nil
 	case "deb":
@@ -182,8 +189,8 @@ var (
 	ErrExtensionNotSupported = errors.New("extension not supported")
 	// ErrMissingBundleIdentifier is returned if the software extension is "pkg" and a bundle identifier was not extracted from the installer.
 	ErrMissingBundleIdentifier = errors.New("missing bundle identifier")
-	// ErrMissingProductCode is returned if the software extension is "msi" and a product code was not extracted from the installer.
-	ErrMissingProductCode = errors.New("missing product code")
+	// ErrMissingProductAndUpgradeCode is returned if the software extension is "msi" and a product code was not extracted from the installer.
+	ErrMissingProductAndUpgradeCode = errors.New("missing product and upgrade code")
 	// ErrMissingTitle is returned if a title was not extracted from the installer.
 	ErrMissingTitle = errors.New("missing title")
 )

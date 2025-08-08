@@ -141,17 +141,15 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 (replace items in <> with the appropriate values):
    
 ```md
-### Changes
+### Security Engineers
 
 <COPY FROM CHANGELOG>
 
-### Upgrading
+### IT Admins
 
-Please visit our [update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) for upgrade instructions.
+<COPY FROM CHANGELOG>
 
-### Documentation
-
-Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs).
+> Fleet-maintained app updates and vulnerability fixes are applied, whether or not you upgrade.
 
 ### Fleet's agent
 
@@ -163,6 +161,14 @@ The following version of Fleet's agent (`fleetd`) support the latest changes to 
 3. [fleetd-chrome-v1.x.x](https://github.com/fleetdm/fleet/releases/tag/fleetd-chrome-v1.x.x)
 
 > While newer versions of `fleetd` still function with older versions of the Fleet server (and vice versa), Fleet does not actively test these scenarios and some newer features won't be available.
+
+### Upgrading
+
+Please visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) for upgrade instructions.
+
+### Documentation
+
+Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs).
 
 ### Binary Checksum
 

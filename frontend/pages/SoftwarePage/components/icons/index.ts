@@ -1,3 +1,6 @@
+// Note: if parts of a icon have a clip path, mask, or gradient, the IDs must be unique
+// across all icons to avoid conflicts in the DOM. See uniqueId usage within icon components.
+
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
@@ -38,6 +41,10 @@ import OnePassword from "./OnePassword";
 import AmazonDCV from "./AmazonDCV";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import Santa from "./Santa";
+import YubikeyManager from "./YubikeyManager";
+import BeyondCompare from "./BeyondCompare";
+import ITerm from "./ITerm";
+import VncViewer from "./VncViewer";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -83,6 +90,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "amazon dcv": AmazonDCV,
   "company portal": IntuneCompanyPortal,
   santa: Santa,
+  "yubikey manager": YubikeyManager,
+  "beyond compare": BeyondCompare,
+  iterm2: ITerm,
+  "vnc viewer": VncViewer,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 

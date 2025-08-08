@@ -3,6 +3,8 @@ package fleet
 import (
 	"errors"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 )
 
 // OsqueryDistributedQueryResults represents the format of the results of an
@@ -82,6 +84,7 @@ type DatastoreEnrollHostConfig struct {
 	NodeKey        string
 	TeamID         *uint
 	Cooldown       time.Duration
+	IdentityCert   *types.HostIdentityCertificate
 }
 
 // DatastoreEnrollHostOption is a functional option for configuring datastore Host enrollment
@@ -133,5 +136,11 @@ func WithEnrollHostTeamID(teamID *uint) DatastoreEnrollHostOption {
 func WithEnrollHostCooldown(cooldown time.Duration) DatastoreEnrollHostOption {
 	return func(c *DatastoreEnrollHostConfig) {
 		c.Cooldown = cooldown
+	}
+}
+
+func WithEnrollHostIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollHostOption {
+	return func(c *DatastoreEnrollHostConfig) {
+		c.IdentityCert = identityCert
 	}
 }

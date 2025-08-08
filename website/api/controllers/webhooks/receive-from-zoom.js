@@ -52,7 +52,7 @@ module.exports = {
 
     if(event === 'endpoint.url_validation'){
       if(!payload.plainToken){
-        sails.log.warn(`When the receive-from-zoom webhook recieved an event to validate the webhook URL, the provided payload did not contain a token. Full payload: ${require('util').inpsect(payload, {depth: null})}`);
+        sails.log.warn(`When the receive-from-zoom webhook recieved an event to validate the webhook URL, the provided payload did not contain a token. Full payload: ${require('util').inspect(payload, {depth: null})}`);
         return this.res.badRequest();
       }
       // [?]: https://nodejs.org/docs/latest-v20.x/api/crypto.html#class-hmac
@@ -85,14 +85,16 @@ module.exports = {
       let token = oauthResponse.access_token;
 
       let idOfCallToGenerateTranscriptFor = payload.object.conversation_id;
+      // Double URL-encode the meeting ID. https://developers.zoom.us/docs/api/using-zoom-apis/#double-encoding
+      let encodedMeetingId = encodeURIComponent(encodeURIComponent(idOfCallToGenerateTranscriptFor));
       let informationAboutThisCall = await sails.helpers.http.get.with({
-        url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}`,
+        url: `https://api.zoom.us/v2/zra/conversations/${encodedMeetingId}`,
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
       .intercept({raw: {statusCode: 404}}, (err)=>{
-        sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get information about the call. Full payload from Zoom: ${require('util').inpsect(payload, {depth: null})} Full error: ${require('util').inspect(err, {depth: 3})}`);
+        sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get information about the call. Full payload from Zoom: ${require('util').inspect(payload, {depth: null})} Full error: ${require('util').inspect(err, {depth: 3})}`);
         return 'callInfoNotFound';
       }).intercept((err)=>{
         return new Error(`When sending a request to get information about a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
@@ -101,13 +103,13 @@ module.exports = {
 
       // Get a transcript of the call.
       let callTranscript = await sails.helpers.http.get.with({
-        url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}/interactions?page_size=300`,
+        url: `https://api.zoom.us/v2/zra/conversations/${encodedMeetingId}/interactions?page_size=300`,
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
       .intercept({raw: {statusCode: 404}}, (err)=>{
-        sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get a transcript of the call. Full payload from Zoom: ${require('util').inpsect(payload, {depth: null})} Full error: ${require('util').inspect(err, {depth: 3})}`);
+        sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get a transcript of the call. Full payload from Zoom: ${require('util').inspect(payload, {depth: null})} Full error: ${require('util').inspect(err, {depth: 3})}`);
         return 'callTranscriptNotFound';
       }).intercept((err)=>{
         return new Error(`When sending a request to get a transcript of a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
@@ -126,7 +128,7 @@ module.exports = {
       if(tokenForNextPageOfResults) {
         await sails.helpers.flow.until(async()=>{
           let thisPageOfCallInformation = await sails.helpers.http.get.with({
-            url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}/interactions?next_page_token=${encodeURIComponent(tokenForNextPageOfResults)}`,
+            url: `https://api.zoom.us/v2/zra/conversations/${encodedMeetingId}/interactions?next_page_token=${encodeURIComponent(tokenForNextPageOfResults)}`,
             headers: {
               'Authorization': `Bearer ${token}`
             }

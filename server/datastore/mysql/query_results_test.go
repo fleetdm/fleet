@@ -195,10 +195,10 @@ func testQueryResultRowsTeamFilter(t *testing.T, ds *Datastore) {
 	query := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", teamUser.ID, true)
 	globalHost := test.NewHost(t, ds, "globalHost", "192.168.1.100", "1111", "UI8XB1223", time.Now())
 	teamHost := test.NewHost(t, ds, "teamHost", "192.168.1.100", "2222", "UI8XB1223", time.Now())
-	err = ds.AddHostsToTeam(context.Background(), &team.ID, []uint{teamHost.ID})
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID}))
 	require.NoError(t, err)
 	observerTeamHost := test.NewHost(t, ds, "teamHost", "192.168.1.100", "3333", "UI8XB1223", time.Now())
-	err = ds.AddHostsToTeam(context.Background(), &observerTeam.ID, []uint{observerTeamHost.ID})
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&observerTeam.ID, []uint{observerTeamHost.ID}))
 	require.NoError(t, err)
 
 	mockTime := time.Now().UTC().Truncate(time.Second)

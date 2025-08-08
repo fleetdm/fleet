@@ -3,6 +3,7 @@ package testing_utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -72,6 +73,30 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				Name:        args.Name,
+				Query:       args.Query,
+				Critical:    args.Critical,
+				Platform:    args.Platform,
+				Description: args.Description,
+				Resolution:  &args.Resolution,
+				AuthorID:    authorID,
+			},
+		}, nil
+	}
+	ds.NewScriptFunc = func(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
+		if !strings.HasPrefix(script.ScriptContents, "#!/") {
+			return nil, errors.New("script not uploaded properly")
+		}
+		return &fleet.Script{
+			ID: 1,
+		}, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
 	}
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)

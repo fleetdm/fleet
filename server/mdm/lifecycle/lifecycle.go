@@ -130,10 +130,12 @@ func (t *HostLifecycle) resetWindows(ctx context.Context, opts HostOptions) erro
 }
 
 func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error {
+	isPersonalEnrollment := false
 	if opts.UUID == "" && opts.HardwareSerial == "" && opts.UserEnrollmentID != "" {
 		// We are doing user enrollment, where we don't have access to device hardware details
 		opts.UUID = opts.UserEnrollmentID
 		opts.HardwareSerial = opts.UserEnrollmentID
+		isPersonalEnrollment = true
 	}
 	if opts.UUID == "" || opts.HardwareSerial == "" || opts.HardwareModel == "" {
 		return ctxerr.New(ctx, "UUID, HardwareSerial and HardwareModel options are required for this action")
@@ -152,7 +154,7 @@ func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error 
 	// to centralize the flow control in the lifecycle methods.
 	if !opts.SCEPRenewalInProgress {
 		// upsert the host to ensure we have the latest information
-		if err := t.ds.MDMAppleUpsertHost(ctx, host); err != nil {
+		if err := t.ds.MDMAppleUpsertHost(ctx, host, isPersonalEnrollment); err != nil {
 			return ctxerr.Wrap(ctx, err, "upserting mdm host")
 		}
 	}

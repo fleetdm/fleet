@@ -1,0 +1,1 @@
+* Fixed bug on Fleet Desktop, 'About Fleet' menu item was not showing after the host is back online.

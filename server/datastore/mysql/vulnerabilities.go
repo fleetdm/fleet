@@ -309,11 +309,11 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) (uint, error) {
 	selectStmt := `
 		SELECT
-			COUNT(*)
+			COUNT(DISTINCT combined.cve)
 		FROM (
-			SELECT cve, created_at, source FROM software_cve
+			SELECT cve FROM software_cve
 			UNION
-			SELECT cve, created_at, source FROM operating_system_vulnerabilities
+			SELECT cve FROM operating_system_vulnerabilities
 		) AS combined
 		INNER JOIN vulnerability_host_counts vhc ON vhc.cve = combined.cve
 		LEFT JOIN cve_meta cm ON cm.cve = combined.cve

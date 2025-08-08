@@ -44,3 +44,7 @@ software:
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
     - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/slack-rpm.yml # Zoom for RHEL
+  fleet_maintained_apps:
+    # macOS apps
+    - slug: santa/darwin # Santa for macOS
+      self_service: true

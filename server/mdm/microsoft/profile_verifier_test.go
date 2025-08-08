@@ -48,6 +48,10 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 				{Verb: "Replace", LocURI: "L3", Data: "D3"},
 				{Verb: "Add", LocURI: "L3.1", Data: "D3.1"},
 			})},
+			"N4": {Name: "N4", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{
+				{Verb: "Replace", LocURI: "L4", Data: "<![CDATA[D4]]>"},
+				{Verb: "Add", LocURI: "L4.1", Data: "<![CDATA[D4.1]]>"},
+			})},
 		}, nil
 	}
 	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
@@ -77,6 +81,8 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 			{"L2", "D2", "N2", "2736786183"},
 			{"L3", "D3", "N3", "894211447"},
 			{"L3.1", "D3.1", "N3", "3410477854"},
+			{"L4", "D4", "N4", "4141459399"},
+			{"L4.1", "D4.1", "N4", "236794510"},
 		},
 		got,
 	)
@@ -288,8 +294,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
 					Verb:   "Replace",
 					LocURI: "L1",
-					Data: `
-      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+					Data: `<![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
       <data id="Listbox_ModuleNames" value="*"/>
       <data id="OutputDirectory" value="false"/>
       <data id="EnableScriptBlockInvocationLogging" value="true"/>
@@ -298,7 +303,11 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			},
 			report: []osqueryReport{{
 				"N1", "200", "L1",
-				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+				`<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="Listbox_ModuleNames" value="*"/>
+      <data id="OutputDirectory" value="false"/>
+      <data id="EnableScriptBlockInvocationLogging" value="true"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>`,
 			}},
 			toVerify: []string{"N1"},
 			toFail:   []string{},
@@ -312,13 +321,14 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 					Verb:   "Replace",
 					LocURI: "L1",
 					Data: `
-      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+<![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
       <data id="SourcePathForUpdateHelp" value="false"/>]]>`,
 				}}), 0},
 			},
 			report: []osqueryReport{{
 				"N1", "200", "L1",
-				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+				`<disabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>`,
 			}},
 			toVerify: []string{},
 			toFail:   []string{},

@@ -2,6 +2,7 @@
   "name": "Microsoft Word",
   "slug": "microsoft-word/darwin",
   "unique_identifier": "com.microsoft.Word",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/microsoft_word_uninstall.sh",
   "token": "microsoft-word",
   "installer_format": "pkg",
   "default_categories": ["Productivity"]

@@ -10,6 +10,7 @@ COPY orbit ./orbit
 COPY server ./server
 COPY ee ./ee
 COPY pkg ./pkg
+COPY ./third_party ./third_party
 COPY go.mod go.sum ./
 
 CMD /bin/bash

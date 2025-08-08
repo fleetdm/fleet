@@ -1,0 +1,1 @@
+* Fix wrongly formatted URL for EULA when accessing from Fleet UI and when shown in the iFrame for SSO callback.

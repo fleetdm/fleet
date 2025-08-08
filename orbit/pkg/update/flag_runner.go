@@ -153,7 +153,7 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 	}
 
 	// Filter out extensions not targeted to this OS.
-	extensions.FilterByHostPlatform(runtime.GOOS)
+	extensions.FilterByHostPlatform(runtime.GOOS, runtime.GOARCH)
 
 	var sb strings.Builder
 	for extensionName, extensionInfo := range extensions {

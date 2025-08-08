@@ -198,6 +198,7 @@
                       {{ configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'Yes' : 'No' }}
                     </label>
                   </div>
+                  <%// Select input %>
                   <div purpose="option-value" v-else-if="['select'].includes(option.formInput.type)">
                     <select :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" class="form-control" style="width: 300px;" @input="clickAutoSelectWhenSet(formInput)">
                       <option selected value="undefined" >Select an option</option>
@@ -205,6 +206,7 @@
                     </select>
                     <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please select an option</div>
                   </div>
+                  <%// Multiple inputs %>
                   <div purpose="option-value" class="w-100" v-else-if="['multifield'].includes(option.formInput.type)">
                     <div purpose="multifield-option" v-for="input in option.formInput.inputs">
                       <% // Number input %>
@@ -218,8 +220,11 @@
                       </div>
                       <% // Text input %>
                       <div purpose="option-value" v-if="['text'].includes(input.type)">
-                        <input :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" :type="input.type" placeholder="Please enter a value" >
-                        <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please enter a value</div>
+                        <label>
+                          <span purpose="nested-label">{{input.name}}</span>
+                          <input :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" :type="input.type" placeholder="Please enter a value" >
+                          <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-'+input.slug]">Please enter a value</div>
+                        </label>
                       </div>
                       <% // Radio input %>
                       <div purpose="option-value" v-else-if="['radio'].includes(input.type)" :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']">
@@ -238,7 +243,7 @@
                           {{ configurationBuilderFormData[option.uniqueSlug+'-'+input.slug] ? 'Yes' : 'No' }}
                         </label>
                       </div>
-                      <%// Checkbox input %>
+                      <%// Checkbox (with label) input %>
                       <div purpose="option-value" v-else-if="['booleanWithLabel'].includes(input.type)">
                         <div class="d-flex flex-row justify-content-between">
                           <p>{{input.label}}</p>
@@ -247,13 +252,13 @@
                           <span purpose="custom-switch" :class="[configurationBuilderFormData[option.uniqueSlug+'-'+input.slug] ? 'checked' : '']"><span purpose="custom-switch-status"></span></span>
                           </label>
                         </div>
-
                       </div>
+                      <%// select input %>
                       <div purpose="option-value" v-else-if="['select'].includes(input.type)">
                         <div class="d-flex flex-row justify-content-between">
                         <p>{{input.label}}</p>
-                        <div class="d-flex flex-column">
-                          <select :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" class="form-control" style="width: 120px;">
+                        <div class="d-flex flex-column" purpose="select-option">
+                          <select :class="[formErrors[option.uniqueSlug+'-'+input.slug] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-'+input.slug]" class="form-control">
                             <option :value="undefined">Select an option</option>
                             <option :value="formInput.value" style="text-transform: uppercase;" v-for="formInput in input.options">{{formInput.name}}</option>
                           </select>

@@ -8,7 +8,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -322,18 +321,13 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	return &out, nil
 }
 
-//go:embed uninstall_with_upgrade_code.ps1
-var uninstallWithUpgradeCode string
-
 func buildUpgradeCodeBasedUninstallScript(upgradeCode string) string {
-	return regexp.MustCompile(`\$UPGRADE_CODE`).ReplaceAllString(uninstallWithUpgradeCode, upgradeCode)
+	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("\"%s\"${suffix}", upgradeCode))
 }
-
-var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
 
 func preProcessUninstallScript(uninstallScript, productCode string) string {
 	code := fmt.Sprintf("\"%s\"", productCode)
-	return packageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
+	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
 }
 
 // these are installer types that correspond to software vendors, not the actual installer type

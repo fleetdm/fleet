@@ -97,18 +97,24 @@ agent_options:
     hello_world_linux:
       channel: 'stable'
       platform: 'linux'
+    hello_world_linux_arm64:
+      channel: 'stable'
+      platform: 'linux-arm64'
     hello_world_windows:
       channel: 'stable'
       platform: 'windows'
+    hello_world_windows_arm64:
+      channel: 'stable'
+      platform: 'windows-arm64'
 ```
 
-In the above example, we are configuring our `hello_world` extensions for all the supported operating systems. We do this by creating `hello_world_{macos|linux|windows}` subkeys under `extensions`, and then specifying the `channel` and `platform` keys for each extension entry.
+In the above example, we are configuring our `hello_world` extensions for all the supported operating systems. We do this by creating `hello_world_{macos|linux|linux_arm64|windows|windows_arm64}` subkeys under `extensions`, and then specifying the `channel` and `platform` keys for each extension entry.
 
 Next, you will need to make sure to push the binary files of our `hello_world_*` extension as a target on your TUF server. This step needs to follow these conventions:
 * The binary file of the extension must have the same name as the extension, followed by `.ext` for macOS and Linux extensions and by `.ext.exe` for Windows extensions.
-In the above case, the filename for macOS should be `hello_world_macos.ext`, for Linux it should be `hello_world_linux.ext` and for Windows it should be `hello_world_windows.ext.exe`.
-* The target name for the TUF server must be named as `extensions/<extension_name>`. For the above example, this would be `extensions/hello_world_{macos|linux|windows}`
-* The `platform` field is one of `macos`, `linux`, or `windows`.
+In the above case, the filename for macOS should be `hello_world_macos.ext`, for Linux it should be `hello_world_linux.ext`, for Linux arm64 it should be `hello_world_linux_arm64.ext`, for Windows it should be `hello_world_windows.ext.exe`, and for Windows arm64 it should be `hello_world_windows_arm64.ext.exe`.
+* The target name for the TUF server must be named as `extensions/<extension_name>`. For the above example, this would be `extensions/hello_world_{macos|linux|linux_arm64|windows|windows_arm64}`
+* The `platform` field is one of `macos`, `linux`, `linux-arm64`, `windows`, or `windows-arm64`.
 
 If you are using `fleetctl` to manage your TUF server, these same conventions apply. You can run the following command to add a new target:
 ```bash
@@ -127,10 +133,24 @@ fleetctl updates add \
   --version 0.1
 
 fleetctl updates add \
+  --path /path/to/local/TUF/repo
+  --target /path/to/extensions/binary/hello_world_linux_arm64.ext \
+  --name extensions/hello_world_linux_arm64 \
+  --platform linux-arm64 \
+  --version 0.1
+
+fleetctl updates add \
   --path /path/to/local/TUF/repo \
   --target /path/to/extensions/binary/hello_world_windows.ext.exe \
   --name extensions/hello_world_windows \
   --platform windows \
+  --version 0.1
+
+fleetctl updates add \
+  --path /path/to/local/TUF/repo \
+  --target /path/to/extensions/binary/hello_world_windows_arm64.ext.exe \
+  --name extensions/hello_world_windows_arm64 \
+  --platform windows-arm64 \
   --version 0.1
 ```
 
@@ -255,7 +275,7 @@ agent_options:
             - /etc/%%
         auto_table_construction:
           tcc_system_entries:
-            # This query and columns are restricted for compatability.  Open TCC.db with sqlite on
+            # This query and its columns are restricted for compatibility. Open TCC.db with sqlite on
             # your endpoints to expand this out.
             query: "SELECT service, client, last_modified FROM access"
             # Note that TCC.db requires fleetd to have full-disk access, ensure that endpoints have 
