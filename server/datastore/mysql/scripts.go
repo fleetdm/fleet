@@ -2081,8 +2081,8 @@ func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (
 			num_canceled,
 			created_at,
 			updated_at,
-			completed_at,
-			canceled_at
+			finished_at,
+			canceled
 		FROM
 			batch_activities
 		WHERE
@@ -2117,7 +2117,8 @@ func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionI
 	return results, nil
 }
 
-func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+// Deprecated; will be removed in favor of ListBatchScriptExecutions when the batch script details page is ready.
+func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 	stmtExecutions := `
 SELECT
 	COUNT(*) as num_targeted,
@@ -2147,7 +2148,7 @@ JOIN
 WHERE
 	bse.execution_id = ?`
 
-	var summary fleet.BatchExecutionSummary
+	var summary fleet.BatchActivity
 	var temp_summary struct {
 		NumTargeted  uint `db:"num_targeted"`
 		NumDidNotRun uint `db:"num_did_not_run"`
@@ -2160,16 +2161,16 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
 	}
 
-	summary.NumTargeted = temp_summary.NumTargeted
+	summary.NumTargeted = &temp_summary.NumTargeted
 	// NumRan is the number of hosts that actually ran the script successfully.
-	summary.NumRan = temp_summary.NumSucceeded
+	summary.NumRan = &temp_summary.NumSucceeded
 	// NumErrored is the number of hosts that errored out, which includes
 	// both failed and did not run.
-	summary.NumErrored = temp_summary.NumFailed + temp_summary.NumDidNotRun
+	summary.NumErrored = ptr.Uint(temp_summary.NumFailed + temp_summary.NumDidNotRun)
 	// NumFailed is the number of hosts that were canceled before execution.
-	summary.NumCanceled = temp_summary.NumCancelled
+	summary.NumCanceled = &temp_summary.NumCancelled
 	// NumPending is the number of hosts that are pending execution.
-	summary.NumPending = temp_summary.NumTargeted - (temp_summary.NumSucceeded + temp_summary.NumFailed + temp_summary.NumDidNotRun + temp_summary.NumCancelled)
+	summary.NumPending = ptr.Uint(temp_summary.NumTargeted - (temp_summary.NumSucceeded + temp_summary.NumFailed + temp_summary.NumDidNotRun + temp_summary.NumCancelled))
 
 	// Fill out the script details
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &summary, stmtScriptDetails, executionID); err != nil {
@@ -2181,4 +2182,193 @@ WHERE
 	}
 
 	return &summary, nil
+}
+
+func (ds *Datastore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
+	stmtExecutions := `
+SELECT *
+FROM (
+  -- If batch is finished, get the cached host result counts
+  SELECT
+    COALESCE(ba.num_targeted, 0)          AS num_targeted,
+    COALESCE(ba.num_incompatible, 0)      AS num_incompatible,
+    COALESCE(ba.num_ran, 0)               AS num_ran,
+    COALESCE(ba.num_errored, 0)           AS num_errored,
+    COALESCE(ba.num_canceled, 0)          AS num_canceled,
+    COALESCE(ba.num_pending, 0)           AS num_pending,
+    ba.execution_id,
+    ba.script_id,
+    ba.status,
+    ba.canceled,
+    ba.finished_at,
+	ba.started_at,
+    s.name                                 AS script_name,
+    s.global_or_team_id                    AS team_id,
+    ba.created_at                          AS created_at,
+    j.not_before                           AS not_before,
+    ba.id                                  AS id
+  FROM batch_activities ba
+  JOIN scripts s ON ba.script_id = s.id
+  LEFT JOIN jobs j ON j.id = ba.job_id
+  WHERE ( %s ) AND ba.status = 'finished'
+
+  UNION ALL
+
+  -- If batch is not finished, calculate the host result counts live.
+  SELECT
+    COUNT(*)                                AS num_targeted,
+    COUNT(bahr.error)                       AS num_incompatible,
+    COUNT(IF(hsr.exit_code = 0, 1, NULL))   AS num_ran,
+    COUNT(IF(hsr.exit_code > 0, 1, NULL))   AS num_errored,
+    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled,
+    (
+      COUNT(*) 
+      - COUNT(bahr.error)
+      - COUNT(IF(hsr.exit_code = 0, 1, NULL))
+      - COUNT(IF(hsr.exit_code > 0, 1, NULL))
+      - COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL))
+    )                                       AS num_pending,
+    ba.execution_id,
+    ba.script_id,
+    ba.status,
+    ba.canceled,
+    ba.finished_at,
+	ba.started_at,
+    s.name                                  AS script_name,
+    s.global_or_team_id                     AS team_id,
+    ba.created_at                           AS created_at,
+    j.not_before                            AS not_before,
+    ba.id                                   AS id
+  FROM batch_activity_host_results bahr
+  LEFT JOIN host_script_results hsr
+         ON bahr.host_execution_id = hsr.execution_id
+  JOIN batch_activities ba
+         ON ba.execution_id = bahr.batch_execution_id
+  JOIN scripts s
+         ON ba.script_id = s.id
+  LEFT JOIN jobs j
+         ON j.id = ba.job_id
+  WHERE ( %s ) AND ba.status <> 'finished'
+  GROUP BY ba.id
+) AS u
+ORDER BY
+  u.not_before ASC, u.created_at DESC, u.id DESC
+LIMIT %d OFFSET %d
+	`
+	limit := 10
+	offset := 0
+	args := []any{}
+	whereClauses := make([]string, 0, 2)
+	// If an execution ID is provided, use it to filter the results.
+	if filter.ExecutionID != nil && *filter.ExecutionID != "" {
+		whereClauses = append(whereClauses, "ba.execution_id = ?")
+		args = append(args, *filter.ExecutionID)
+	} else {
+		// Otherwise filter by status and/or team ID.
+		if filter.Status != nil && *filter.Status != "" {
+			whereClauses = append(whereClauses, "ba.status = ?")
+			args = append(args, *filter.Status)
+		}
+		if filter.TeamID != nil {
+			whereClauses = append(whereClauses, "s.global_or_team_id = ?")
+			args = append(args, *filter.TeamID)
+		}
+	}
+
+	// Double up the args to use them in both WHERE clauses.
+	args = append(args, args...)
+
+	// Use pagination parameters if provided.
+	if filter.Limit != nil {
+		limit = int(*filter.Limit) //nolint:gosec // dismiss G115
+	}
+	if filter.Offset != nil {
+		offset = int(*filter.Offset) //nolint:gosec // dismiss G115
+	}
+	where := strings.Join(whereClauses, " AND ")
+	stmtExecutions = fmt.Sprintf(stmtExecutions, where, where, limit, offset)
+
+	var summary []fleet.BatchActivity
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
+	}
+
+	return summary, nil
+}
+
+func (ds *Datastore) CountBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error) {
+	stmtExecutions := `
+SELECT
+	COUNT(*)
+FROM	
+	batch_activities ba
+JOIN 
+	scripts s
+	ON ba.script_id = s.id
+WHERE
+	%s
+	`
+	args := []any{}
+	whereClauses := make([]string, 0, 2)
+	if filter.Status != nil && *filter.Status != "" {
+		whereClauses = append(whereClauses, "ba.status = ?")
+		args = append(args, *filter.Status)
+	}
+	if filter.TeamID != nil {
+		whereClauses = append(whereClauses, "s.global_or_team_id = ?")
+		args = append(args, *filter.TeamID)
+	}
+	where := strings.Join(whereClauses, " AND ")
+	stmtExecutions = fmt.Sprintf(stmtExecutions, where)
+
+	var count int64
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, stmtExecutions, args...); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
+	}
+
+	return count, nil
+}
+
+func (ds *Datastore) markActivitiesAsCompleted(ctx context.Context, tx sqlx.ExtContext) error {
+	const stmt = `
+UPDATE batch_activities AS ba
+JOIN (
+  SELECT
+    ba2.id AS batch_id,
+    COUNT(*)                                                   AS num_targeted,
+    COUNT(bahr.error)                                          AS num_incompatible,
+    COUNT(IF(hsr.exit_code = 0, 1, NULL))                      AS num_ran,
+    COUNT(IF(hsr.exit_code > 0, 1, NULL))                      AS num_errored,
+    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled
+  FROM batch_activity_host_results AS bahr
+  LEFT JOIN host_script_results AS hsr
+         ON bahr.host_execution_id = hsr.execution_id
+  JOIN batch_activities AS ba2
+         ON ba2.execution_id = bahr.batch_execution_id
+  WHERE ba2.status = 'started'
+  GROUP BY ba2.id
+  HAVING (num_incompatible + num_ran + num_errored + num_canceled) >= num_targeted
+) AS agg
+  ON agg.batch_id = ba.id
+SET
+  ba.status         = 'finished',
+  ba.finished_at    = NOW(),
+  ba.num_targeted   = agg.num_targeted,
+  ba.num_incompatible = agg.num_incompatible,
+  ba.num_ran        = agg.num_ran,
+  ba.num_errored    = agg.num_errored,
+  ba.num_canceled   = agg.num_canceled,
+  ba.num_pending    = 0
+WHERE ba.status = 'started';
+`
+	// TODO -- use `RETURNING` to return the IDs of the updated activities?
+	_, err := tx.ExecContext(ctx, stmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marking activities as completed")
+	}
+	return nil
+}
+
+func (ds *Datastore) MarkActivitiesAsCompleted(ctx context.Context) error {
+	return ds.markActivitiesAsCompleted(ctx, ds.writer(ctx))
 }

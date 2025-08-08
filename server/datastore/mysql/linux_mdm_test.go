@@ -51,14 +51,17 @@ func TestLinuxDiskEncryptionSummary(t *testing.T) {
 	// Add disk encryption keys
 
 	// ubuntu
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, ubuntuHosts[0], "base64_encrypted", "", nil)
+	keyArchived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, ubuntuHosts[0], "base64_encrypted", "", nil)
 	require.NoError(t, err)
+	require.True(t, keyArchived)
 	// fedora
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, fedoraHosts[0], "base64_encrypted", "", nil)
+	keyArchived, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, fedoraHosts[0], "base64_encrypted", "", nil)
 	require.NoError(t, err)
+	require.True(t, keyArchived)
 	// macos
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, macosHosts[0], "base64_encrypted", "", nil)
+	keyArchived, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, macosHosts[0], "base64_encrypted", "", nil)
 	require.NoError(t, err)
+	require.True(t, keyArchived)
 
 	summary, err = ds.GetLinuxDiskEncryptionSummary(ctx, nil)
 	require.NoError(t, err)
@@ -68,8 +71,9 @@ func TestLinuxDiskEncryptionSummary(t *testing.T) {
 	require.Equal(t, uint(0), summary.Failed)
 
 	// update ubuntu with key and client error
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, ubuntuHosts[0], "base64_encrypted", "client error", nil)
+	keyArchived, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, ubuntuHosts[0], "base64_encrypted", "client error", nil)
 	require.NoError(t, err)
+	require.False(t, keyArchived)
 
 	summary, err = ds.GetLinuxDiskEncryptionSummary(ctx, nil)
 	require.NoError(t, err)
@@ -79,8 +83,9 @@ func TestLinuxDiskEncryptionSummary(t *testing.T) {
 	require.Equal(t, uint(1), summary.Failed)
 
 	// add ubuntu with no key and client error
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, ubuntuHosts[1], "", "client error", nil)
+	keyArchived, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, ubuntuHosts[1], "", "client error", nil)
 	require.NoError(t, err)
+	require.False(t, keyArchived)
 
 	summary, err = ds.GetLinuxDiskEncryptionSummary(ctx, nil)
 	require.NoError(t, err)

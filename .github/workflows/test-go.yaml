@@ -48,27 +48,27 @@ jobs:
       matrix:
         suite: ["integration-core", "integration-enterprise", "integration-mdm", "fast", "fleetctl", "main", "mysql", "scripts", "service", "vuln"]
         os: [ubuntu-latest]
-        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.5", "mysql:9.3.0"] # make sure to update supported versions docs when this changes
+        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.6", "mysql:9.4.0"] # make sure to update supported versions docs when this changes
         isCron:
           - ${{ github.event_name == 'schedule' }}
         exclude:
           - isCron: false
-            mysql: "mysql:8.4.5" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
+            mysql: "mysql:8.4.6" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
           - isCron: false
             mysql: "mysql:8.0.32" # Run MySQL 8.0.32 tests on cron schedule and not every time.
           # The suites below do not need MySQL, so we exclude additional MySQL options from the above matrix.
           - suite: "fast"
             mysql: "mysql:8.0.32" # We must make sure that at least 1 instance of this suite will run, which is 8.0.36 in this case
           - suite: "fast"
-            mysql: "mysql:8.4.5"
+            mysql: "mysql:8.4.6"
           - suite: "fast"
-            mysql: "mysql:9.3.0"
+            mysql: "mysql:9.4.0"
           - suite: "scripts"
             mysql: "mysql:8.0.32"
           - suite: "scripts"
-            mysql: "mysql:8.4.5"
+            mysql: "mysql:8.4.6"
           - suite: "scripts"
-            mysql: "mysql:9.3.0"
+            mysql: "mysql:9.4.0"
     # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
     # to an unrelated issue in another product area.
     continue-on-error: true

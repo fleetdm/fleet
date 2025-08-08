@@ -1717,17 +1717,17 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 
 	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
 		decryptable *bool,
-	) error {
+	) (bool, error) {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
-			return errors.New("key mismatch")
+			return false, errors.New("key mismatch")
 		}
 		if host.ID != incomingHost.ID {
-			return errors.New("host ID mismatch")
+			return false, errors.New("host ID mismatch")
 		}
 		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
-			return errors.New("decryptable should be false if the key is empty")
+			return false, errors.New("decryptable should be false if the key is empty")
 		}
-		return nil
+		return false, nil
 	}
 
 	t.Run("empty key", func(t *testing.T) {

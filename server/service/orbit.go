@@ -1080,8 +1080,28 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		decryptable = ptr.Bool(true)
 	}
 
-	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, encryptedEncryptionKey, clientError, decryptable); err != nil {
+	keyArchived, err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, encryptedEncryptionKey, clientError, decryptable)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set or update disk encryption key")
+	}
+
+	// We only want to record the activity if the key was successfully archived.
+	if !keyArchived {
+		return nil
+	}
+	if err := svc.NewActivity(
+		ctx,
+		nil,
+		fleet.ActivityTypeEscrowedDiskEncryptionKey{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		// OK: this is not critical to the operation of the endpoint
+		level.Error(svc.logger).Log(
+			"msg", "record fleet disk encryption key escrowed activity",
+			"err", err,
+		)
 	}
 
 	return nil
@@ -1143,7 +1163,31 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 		return err
 	}
 
-	return svc.ds.SaveLUKSData(ctx, host, encryptedPassphrase, encryptedSalt, validatedKeySlot)
+	keyArchived, err := svc.ds.SaveLUKSData(ctx, host, encryptedPassphrase, encryptedSalt, validatedKeySlot)
+	if err != nil {
+		return err
+	}
+
+	// When only want to record a new activity if the current key was archived ...
+	if !keyArchived {
+		return nil
+	}
+	if err := svc.NewActivity(
+		ctx,
+		nil,
+		fleet.ActivityTypeEscrowedDiskEncryptionKey{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		// OK: this is not critical to the operation of the endpoint
+		level.Error(svc.logger).Log(
+			"msg", "record fleet disk encryption key escrowed activity",
+			"err", err,
+		)
+	}
+
+	return nil
 }
 
 func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, salt string, keySlot *uint) (encryptedPassphrase string, encryptedSalt string, validatedKeySlot uint, err error) {
