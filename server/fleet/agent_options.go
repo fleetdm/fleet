@@ -294,6 +294,7 @@ type OsqueryCommandLineFlagsWindows struct {
 	NtfsEventPublisherDebug          bool   `json:"ntfs_event_publisher_debug"`
 	WindowsEventChannels             string `json:"windows_event_channels"`
 	UsnJournalReaderDebug            bool   `json:"usn_journal_reader_debug"`
+	EnableDNSLookupEvents            bool   `json:"enable_dns_lookup_events"`
 }
 
 type OsqueryCommandLineFlagsMacOS struct {

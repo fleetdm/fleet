@@ -426,20 +426,33 @@ export interface IHostSoftware {
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
+/**
+ * Comprehensive list of possible UI software statuses for host > software > library/self-service.
+ *
+ * These are more detailed than the raw API `.status` and are determined by:
+ * - Whether the host is online or offline
+ * - If the fleet-installed version is newer than any in installed_versions
+ * - Special handling for tarballs (tgz_packages)
+ * - Cases where the software inventory has not yet updated to reflect a recent change
+ *   (i.e., last_install date vs host software's updated_at date)
+ */
 export type IHostSoftwareUiStatus =
-  | "installed"
-  | "uninstalled"
-  | "installing"
-  | "uninstalling"
-  | "updating"
-  | "pending_install"
-  | "pending_uninstall"
-  | "pending_update"
-  | "failed_install"
-  | "failed_install_update_available"
-  | "failed_uninstall"
-  | "failed_uninstall_update_available"
-  | "update_available";
+  | "installed" // Present in inventory; no newer fleet installer version (tarballs: successful install only)
+  | "uninstalled" // Not present in inventory (tarballs: successful uninstall or never installed)
+  | "installing" // ONLINE; fleet-initiated install in progress
+  | "uninstalling" // ONLINE; fleet-initiated uninstall in progress
+  | "recently_updated" // Update applied (installer newer than inventory), but inventory not yet refreshed
+  | "recently_installed" // Install applied (installer NOT newer than inventory), but inventory not yet refreshed
+  | "recently_uninstalled" // Uninstall applied, but inventory not yet refreshed
+  | "updating" // ONLINE; update (install) in progress with newer fleet installer
+  | "pending_install" // OFFLINE; install scheduled (no newer installer version)
+  | "pending_uninstall" // OFFLINE; uninstall scheduled
+  | "pending_update" // OFFLINE; update scheduled (no newer installer version)
+  | "failed_install" // Install attempt failed
+  | "failed_install_update_available" // Install/update failed; newer installer version available
+  | "failed_uninstall" // Uninstall attempt failed
+  | "failed_uninstall_update_available" // Uninstall/update failed; newer installer version available
+  | "update_available"; // In inventory, but newer fleet installer version is available
 
 /**
  * Extends IHostSoftware with a computed `ui_status` field.
