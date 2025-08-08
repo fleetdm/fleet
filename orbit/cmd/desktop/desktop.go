@@ -317,9 +317,6 @@ func main() {
 			var (
 				pingErrCount            = 0
 				lastDesktopSummaryCheck time.Time
-				showOffline             = func() {
-					menuManager.SetOffline()
-				}
 			)
 
 			for {
@@ -335,7 +332,7 @@ func main() {
 					// We try 5 more times to make sure one bad request doesn't trigger the offline indicator.
 					// So it might take up to ~1m (6 * 10s) for Fleet Desktop to show the offline indicator.
 					if pingErrCount >= 6 {
-						showOffline()
+						menuManager.SetOffline()
 					}
 					continue
 				}
@@ -547,7 +544,6 @@ func main() {
 
 	systray.Run(onReady, onExit)
 }
-
 
 type mdmMigrationHandler struct {
 	client      *service.DeviceClient
