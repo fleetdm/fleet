@@ -6,6 +6,7 @@ import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 import createMockConfig from "__mocks__/configMock";
 
 import AddCertAuthorityModal from "./AddCertAuthorityModal";
+import { createMockCertificateAuthorityPartial } from "__mocks__/certificatesMock";
 
 describe("AddCertAuthorityModal", () => {
   it("renders the Digicert form by default", () => {
@@ -39,21 +40,13 @@ describe("AddCertAuthorityModal", () => {
   });
 
   it("does not allow NDES option to be selected if there is already an NDES CA added", async () => {
-    const customRender = createCustomRenderer({
-      context: {
-        app: {
-          config: createMockConfig({
-            integrations: {
-              zendesk: [],
-              jira: [],
-            },
-          }),
-        },
-      },
-    });
-
-    const { user } = customRender(
-      <AddCertAuthorityModal certAuthorities={[]} onExit={noop} />
+    const { user } = renderWithSetup(
+      <AddCertAuthorityModal
+        certAuthorities={[
+          createMockCertificateAuthorityPartial({ type: "ndes_scep_proxy" }),
+        ]}
+        onExit={noop}
+      />
     );
 
     // testing library does not see options when it is disabled
