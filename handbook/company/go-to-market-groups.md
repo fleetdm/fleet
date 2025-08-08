@@ -223,7 +223,7 @@ You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts,
 
 ### Getting a contract reviewed
 
-The [Digital Experience team](https://fleetdm.com/handbook/it-and-enablement#team) will review all contracts within **2 business days**. 
+The [Finance team](https://fleetdm.com/handbook/finance#team) will review all contracts within **2 business days**. 
 
 > If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and [get the contract signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed). Please submit other legal questions and requests to 💸 [Finance](https://fleetdm.com/handbook/finance#contact-us).
 
