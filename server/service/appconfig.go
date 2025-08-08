@@ -624,7 +624,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			return nil, fleet.NewInvalidArgumentError("UI Gitops Mode: ", "Repository URL is invalid")
 		}
 		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-			return nil, fleet.NewInvalidArgumentError("UI Gitops Mode: ", "Repository URL must begin with either http:// or https://")
+			return nil, fleet.NewInvalidArgumentError("UI Gitops Mode: ", "Git repository URL must include protocol (e.g. https://)")
 		}
 	}
 
