@@ -2255,12 +2255,14 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEmpty(t, execID2)
 
-	require.NoError(t, err)
+	// Get the upcoming activities for each host
 	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
-	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
-	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
-
 	require.NoError(t, err)
+	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	require.NoError(t, err)
+	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
+	require.NoError(t, err)
+
 	// Set host 1 to have a successful script result
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      host1.ID,
@@ -2269,6 +2271,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 		ExitCode:    0,
 	})
 	require.NoError(t, err)
+
 	// Set host 2 to have a failed script result
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      host2.ID,
@@ -2277,6 +2280,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 		ExitCode:    1,
 	})
 	require.NoError(t, err)
+
 	// Cancel the execution for host 3
 	_, err = ds.CancelHostUpcomingActivity(ctx, host3.ID, host3Upcoming[0].ExecutionID)
 	require.NoError(t, err)
@@ -2296,7 +2300,6 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.BatchExecutionFinished, batchActivity.Status)
 	require.Equal(t, uint(5), *batchActivity.NumTargeted)
-	// require.Equal(t, uint(0), *batchActivity.NumPending)
 	require.Equal(t, uint(1), *batchActivity.NumRan)
 	require.Equal(t, uint(1), *batchActivity.NumErrored)
 	require.Equal(t, uint(2), *batchActivity.NumIncompatible)
