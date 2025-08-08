@@ -9,6 +9,10 @@ import {
   IHostSoftwareWithUiStatus,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
+import {
+  getLastInstall,
+  getLastUninstall,
+} from "../HostSoftwareLibrary/helpers";
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams
 export const getHostSoftwareFilterFromQueryParams = (
@@ -158,15 +162,23 @@ const getInstallerVersion = (software: IHostSoftware) => {
 };
 
 // UI_STATUS UTILITIES
+
+const getNewerDate = (dateStr1: string, dateStr2: string) => {
+  return dateStr1 > dateStr2 ? dateStr1 : dateStr2;
+};
+
 export const getUiStatus = (
   software: IHostSoftware,
-  isHostOnline: boolean
+  isHostOnline: boolean,
+  hostSoftwareUpdatedAt?: string | null
 ): IHostSoftwareUiStatus => {
   const { status, installed_versions } = software;
 
+  const lastInstallDate = getLastInstall(software)?.installed_at;
+  const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
 
-  // If the installation has failed, return 'failed_install'
+  // 1. Failed install states
   if (status === "failed_install") {
     if (
       installerVersion &&
@@ -180,7 +192,7 @@ export const getUiStatus = (
     return "failed_install";
   }
 
-  // If the uninstallation has failed, return 'failed_uninstall'
+  // 2. Failed uninstall states
   if (status === "failed_uninstall") {
     if (
       installerVersion &&
@@ -194,34 +206,37 @@ export const getUiStatus = (
     return "failed_uninstall";
   }
 
-  // If installation is pending
+  // 3. Pending install/update
   if (status === "pending_install") {
     if (
       installed_versions &&
       installed_versions.length > 0 &&
       installerVersion
     ) {
-      // Are we updating (installerVersion > installed), or reinstalling (installerVersion == installed)?
       const isUpdate = installed_versions.some(
         (iv) => compareVersions(iv.version, installerVersion) === -1
       );
-
-      // Updating to a newer version
       if (isUpdate) {
         return isHostOnline ? "updating" : "pending_update";
       }
     }
-    // Reinstalling equivalent versions or installing with no currently installed versions
     return isHostOnline ? "installing" : "pending_install";
   }
 
-  // If uninstallation is pending
+  // 4. Pending uninstall
   if (status === "pending_uninstall") {
-    // Return 'uninstalling' if host is online, else 'pending_uninstall'
     return isHostOnline ? "uninstalling" : "pending_uninstall";
   }
 
-  // Check if any installed version is less than the installer version, indicating an update is available
+  // **Recently_uninstalled check comes BEFORE update_available**
+  if (software.status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
+    const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
+    if (newerDate === lastUninstallDate) {
+      return "recently_uninstalled";
+    }
+  }
+
+  // 5. Update available and recently updated
   if (
     installerVersion &&
     installed_versions &&
@@ -229,20 +244,38 @@ export const getUiStatus = (
       (iv) => compareVersions(iv.version, installerVersion) === -1
     )
   ) {
-    return "update_available";
+    if (!lastInstallDate) {
+      return "update_available";
+    }
+    const newerDate = hostSoftwareUpdatedAt
+      ? getNewerDate(hostSoftwareUpdatedAt, lastInstallDate)
+      : lastInstallDate;
+    return newerDate === lastInstallDate
+      ? "recently_updated"
+      : "update_available";
   }
 
-  // Tgz packages that are installed via Fleet should return 'installed' as they
-  // are not tracked in software inventory (installed_versions)
+  // 6. Recently installed (not an update)
+  if (
+    software.status === "installed" &&
+    lastInstallDate &&
+    hostSoftwareUpdatedAt
+  ) {
+    const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
+    if (newerDate === lastInstallDate) {
+      return "recently_installed";
+    }
+  }
+
+  // 7. Tarballs edge case
   if (software.source === "tgz_packages" && software.status === "installed") {
     return "installed";
   }
 
-  // If there are installed versions and none need updating, return 'installed'
+  // 8. Default to installed or uninstalled based on installed_versions
   if (installed_versions && installed_versions.length > 0) return "installed";
 
-  // Default fallback status when no other conditions are met
-  return "uninstalled"; // fallback
+  return "uninstalled";
 };
 
 // Library/Self-Service Action Button Configurations

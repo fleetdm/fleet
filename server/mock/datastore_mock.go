@@ -703,9 +703,9 @@ type SetOrUpdateHostDiskTpmPINFunc func(ctx context.Context, hostID uint, pinSet
 
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
-type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) error
+type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) (bool, error)
 
-type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error)
 
 type DeleteLUKSDataFunc func(ctx context.Context, hostID uint, keySlot uint) error
 
@@ -1171,13 +1171,17 @@ type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.
 
 type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
+type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
+
+type ListBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error)
+
+type CountBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error)
+
 type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
 
 type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
 type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
-
-type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error)
 
 type GetHostLockWipeStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error)
 
@@ -3175,6 +3179,12 @@ type DataStore struct {
 
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
+
+	LastBatchScriptExecutionsFunc        ListBatchScriptExecutionsFunc
+	LastBatchScriptExecutionsFuncInvoked bool
+
+	CountBatchScriptExecutionsFunc        CountBatchScriptExecutionsFunc
+	CountBatchScriptExecutionsFuncInvoked bool
 
 	GetHostLockWipeStatusFunc        GetHostLockWipeStatusFunc
 	GetHostLockWipeStatusFuncInvoked bool
@@ -5952,14 +5962,14 @@ func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID u
 	return s.SetOrUpdateHostDisksEncryptionFunc(ctx, hostID, encrypted)
 }
 
-func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) error {
+func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) (bool, error) {
 	s.mu.Lock()
 	s.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, host, encryptedBase64Key, clientError, decryptable)
 }
 
-func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error {
+func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error) {
 	s.mu.Lock()
 	s.SaveLUKSDataFuncInvoked = true
 	s.mu.Unlock()
@@ -7611,11 +7621,25 @@ func (s *DataStore) GetBatchActivityHostResults(ctx context.Context, executionID
 	return s.GetBatchActivityHostResultsFunc(ctx, executionID)
 }
 
-func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 	s.mu.Lock()
 	s.BatchExecuteSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchExecuteSummaryFunc(ctx, executionID)
+}
+
+func (s *DataStore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
+	s.mu.Lock()
+	s.LastBatchScriptExecutionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.LastBatchScriptExecutionsFunc(ctx, filter)
+}
+
+func (s *DataStore) CountBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error) {
+	s.mu.Lock()
+	s.CountBatchScriptExecutionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountBatchScriptExecutionsFunc(ctx, filter)
 }
 
 func (s *DataStore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {

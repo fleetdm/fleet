@@ -18,11 +18,13 @@ import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import { HostInstallerActionButton } from "../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 import {
   InstallOrCommandUuid,
   IStatusDisplayConfig,
+  RECENT_SUCCESS_ACTION_MESSAGE,
 } from "../../InstallStatusCell/InstallStatusCell";
 
 const baseClass = "update-software-item";
@@ -177,24 +179,46 @@ const InstallerStatusAction = ({
 
   const showFailedInstallStatus = status === "failed_install";
 
+  const renderPrimaryStatusAction = () => {
+    if (ui_status === "updating") {
+      return (
+        <>
+          <Spinner size="x-small" includeContainer={false} centered={false} />{" "}
+          Updating...{" "}
+        </>
+      );
+    }
+    if (ui_status === "recently_updated") {
+      return (
+        <>
+          <Icon name="success" />
+          <TooltipWrapper
+            tipContent={RECENT_SUCCESS_ACTION_MESSAGE("updated")}
+            showArrow
+            underline={false}
+            position="top"
+          >
+            Updated
+          </TooltipWrapper>
+        </>
+      );
+    }
+    return (
+      <HostInstallerActionButton
+        baseClass={baseClass}
+        disabled={false}
+        onClick={onInstall}
+        text="Update"
+        icon="refresh"
+        testId={`${baseClass}__install-button--test`}
+      />
+    );
+  };
+
   return (
     <div className={`${baseClass}__item-action-status`}>
       <div className={`${baseClass}__item-action`}>
-        {ui_status === "updating" ? (
-          <>
-            <Spinner size="x-small" includeContainer={false} centered={false} />{" "}
-            Updating...{" "}
-          </>
-        ) : (
-          <HostInstallerActionButton
-            baseClass={baseClass}
-            disabled={false}
-            onClick={onInstall}
-            text="Update"
-            icon="refresh"
-            testId={`${baseClass}__install-button--test`}
-          />
-        )}
+        {renderPrimaryStatusAction()}
       </div>
       {showFailedInstallStatus && (
         <div className={`${baseClass}__item-status`}>

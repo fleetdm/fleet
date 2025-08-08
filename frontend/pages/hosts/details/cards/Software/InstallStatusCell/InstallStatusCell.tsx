@@ -61,9 +61,14 @@ export type IStatusDisplayConfig = {
   tooltip: (args: TooltipArgs) => ReactNode;
 };
 
+export const RECENT_SUCCESS_ACTION_MESSAGE = (
+  action: "installed" | "uninstalled" | "updated"
+) =>
+  `Fleet successfully ${action} software and is fetching latest software inventory.`;
+
 // Similar to SelfServiceTableConfig STATUS_CONFIG
 export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
-  Exclude<IHostSoftwareUiStatus, "uninstalled">, // Uninstalled is handled separately with empty cell
+  Exclude<IHostSoftwareUiStatus, "uninstalled" | "recently_uninstalled">, // Uninstalled/recently uninstalled is handled separately with empty cell
   IStatusDisplayConfig
 > = {
   installed: {
@@ -87,6 +92,20 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
           {dateAgo(lastInstalledAt)}.
         </>
       );
+    },
+  },
+  recently_updated: {
+    iconName: "success",
+    displayText: "Updated",
+    tooltip: () => {
+      return RECENT_SUCCESS_ACTION_MESSAGE("updated");
+    },
+  },
+  recently_installed: {
+    iconName: "success",
+    displayText: "Installed",
+    tooltip: () => {
+      return RECENT_SUCCESS_ACTION_MESSAGE("installed");
     },
   },
   installing: {
@@ -345,6 +364,16 @@ const InstallStatusCell = ({
     );
   }
 
+  if (displayStatus === "recently_uninstalled") {
+    return (
+      <TextCell
+        grey
+        italic
+        emptyCellTooltipText={RECENT_SUCCESS_ACTION_MESSAGE("uninstalled")}
+      />
+    );
+  }
+
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
   // This is never called for App Store app missing 'last_install' info for
@@ -399,9 +428,16 @@ const InstallStatusCell = ({
     const isMissingLastInstallInfo =
       isAppStoreApp && !software.app_store_app?.last_install;
 
+    // These temporary statuses are not clickable because it will show outdated info in modal
+    const recentlyTakenAction =
+      software.ui_status === "recently_installed" ||
+      software.ui_status === "recently_updated" ||
+      software.ui_status === "recently_uninstalled";
+
     const shouldOnClickBeDisabled =
-      isMissingLastInstallInfo &&
-      (software.status === "failed_install" || isInstalledInFleetAndUI);
+      (isMissingLastInstallInfo &&
+        (software.status === "failed_install" || isInstalledInFleetAndUI)) ||
+      recentlyTakenAction;
 
     // Status groups and their click handlers
     const displayStatusConfig = [

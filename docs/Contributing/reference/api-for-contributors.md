@@ -632,7 +632,7 @@ Status: 200
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| certificate | file | form | *Required* The file conataining the APNS certificate (.pem) |
+| certificate | file | form | *Required* The file containing the APNS certificate (.pem) |
 
 #### Example
 
@@ -1052,6 +1052,8 @@ This endpoint initiates the SSO flow, the response contains an URL that the clie
 
 `POST /api/v1/fleet/mdm/sso`
 
+A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that needs to be sent on the `POST /api/v1/fleet/mdm/sso/callback` request (this HTTP cookie is used to identify the SSO login session).
+
 #### Parameters
 
 | Name | Type | In | Description |
@@ -1070,17 +1072,25 @@ This endpoint initiates the SSO flow, the response contains an URL that the clie
 }
 ```
 
+Example response cookie in the HTTP `Set-Cookie` header:
+```
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=300; HttpOnly; Secure
+```
+
 ### Complete SSO during DEP or Account Driven enrollment
 
 This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
 
 `POST /api/v1/fleet/mdm/sso/callback`
 
+The `__Host-FLEETSSOSESSIONID` HTTP cookie must be set for MDM SSO login requests. The value for this cookie is returned in the `POST /api/v1/fleet/mdm/sso` request.
+
 #### Parameters
 
-| Name         | Type   | In   | Description                                                 |
-| ------------ | ------ | ---- | ----------------------------------------------------------- |
-| SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
+| Name                     | Type   | In     | Description                                                                                                         |
+| ------------------------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| SAMLResponse             | string | body   | **Required**. The SAML response from the identity provider.                                                         |
+| __Host-FLEETSSOSESSIONID | string | cookie | **Required**. HTTP Cookie returned in the `POST /api/v1/fleet/mdm/sso` request.                                     |
 
 #### Example
 
@@ -1092,6 +1102,11 @@ This is the callback endpoint that the identity provider will use to send securi
 {
   "SAMLResponse": "<SAML response from IdP>"
 }
+```
+
+Example session cookie set in the `Cookie` request header:
+```
+Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 ```
 
 ##### Default response
@@ -4410,7 +4425,7 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 
 | Name              | Type    | In   | Description                                        |
 |-------------------|---------|------|----------------------------------------------------|
-| team_name | string | query | The name of the team to filter the check to. If not supplied, the user must haave global access, and hashes are checked across the entire instance. |
+| team_name | string | query | The name of the team to filter the check to. If not supplied, the user must have global access, and hashes are checked across the entire instance. |
 | sha256              | string  | query | **Required**. A comma-separated list of SHA256 hashes, (64 hex characters apiece) to check. Endpoint returns 200 if all specified hashes exist, 404 otherwise. |
 
 #### Example
@@ -4513,7 +4528,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
 | Name         | Type   | In    | Description                                                                                                                                                           |
 | ------------ | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | request_uuid | string | query | The request_uuid returned by the `POST /api/v1/fleet/software/batch` endpoint. |
-| team_name    | string | query | The name of the team to add the software package to. Ommitting these parameters will add software to 'No Team'. |
+| team_name    | string | query | The name of the team to add the software package to. Omitting these parameters will add software to 'No Team'. |
 | dry_run      | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 
 ##### Default responses
@@ -4562,7 +4577,7 @@ _Available in Fleet Premium._
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_name | string | query | The name of the team to add the software package to. Ommitting this parameter will add software to "No team". |
+| team_name | string | query | The name of the team to add the software package to. Omitting this parameter will add software to "No team". |
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
 | app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
