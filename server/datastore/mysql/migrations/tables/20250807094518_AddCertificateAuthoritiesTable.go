@@ -38,29 +38,29 @@ func Up_20250807094518(tx *sql.Tx) error {
 	stmt := `
 	CREATE TABLE certificate_authorities (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  type ENUM('digicert', 'ndes_scep_proxy', 'custom_scep_proxy', 'hydrant') NOT NULL,
+  type ENUM('digicert', 'ndes_scep_proxy', 'custom_scep_proxy', 'hydrant') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   
   -- Common fields
-  name VARCHAR(255) NOT NULL,           -- Used by digicert and custom_scep_proxy
-  url TEXT NOT NULL,                    -- Used by all types
+  name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,           -- Used by digicert and custom_scep_proxy
+  url TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,                    -- Used by all types
 
   -- DigiCert fields
-  api_token BLOB, -- stored in ca_config_assets table prior to migration, being migrated here
-  profile_id VARCHAR(255),
-  certificate_common_name VARCHAR(255),
+  api_token BLOB, -- previously stored in ca_config_assets
+  profile_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  certificate_common_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   certificate_user_principal_names JSON,       -- Array of UPNs
-  certificate_seat_id VARCHAR(255),
+  certificate_seat_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
 
   -- NDES fields
-  admin_url TEXT,
-  username VARCHAR(255),
-  password BLOB, -- stored in mdm_config_assets table prior to migration, being migrated here
+  admin_url TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  username VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  password BLOB, -- previously stored in mdm_config_assets
 
   -- Custom SCEP
-  challenge BLOB, -- stored in ca_config_assets table prior to migration, being migrated here
+  challenge BLOB, -- previously stored in ca_config_assets
 
   -- Hydrant fields
-  client_id VARCHAR(255),
+  client_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   client_secret BLOB,
 
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
