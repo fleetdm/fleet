@@ -2,18 +2,23 @@ import React, { useContext, useMemo, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import certificatesAPI from "services/entities/certificates";
-import { ICertificateAuthorityType } from "interfaces/integration";
-import { AppContext } from "context/app";
+import {
+  ICertificateAuthorityPartial,
+  ICertificateAuthorityType,
+} from "interfaces/certificates";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 
-import { generateDropdownOptions, getErrorMessage } from "./helpers";
+import {
+  generateAddCertAuthorityData,
+  generateDropdownOptions,
+  getErrorMessage,
+} from "./helpers";
 
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
-import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
 import NDESForm from "../NDESForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
@@ -30,12 +35,16 @@ export type ICertFormData =
 const baseClass = "add-cert-authority-modal";
 
 interface IAddCertAuthorityModalProps {
+  certAuthorities: ICertificateAuthorityPartial[];
   onExit: () => void;
 }
 
-const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
-  const { config, setConfig } = useContext(AppContext);
+const AddCertAuthorityModal = ({
+  certAuthorities,
+  onExit,
+}: IAddCertAuthorityModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+
   const [
     certAuthorityType,
     setCertAuthorityType,
@@ -71,10 +80,6 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     challenge: "",
   });
 
-  const { generateAddPatchData } = useCertAuthorityDataGenerator(
-    certAuthorityType
-  );
-
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
   };
@@ -91,11 +96,11 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
         setFormData = setHydrantFormData;
         formData = hydrantFormData;
         break;
-      case "ndes":
+      case "ndes_scep_proxy":
         setFormData = setNDESFormData;
         formData = ndesFormData;
         break;
-      case "custom":
+      case "custom_scep_proxy":
         setFormData = setCustomSCEPFormData;
         formData = customSCEPFormData;
         break;
@@ -118,25 +123,28 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
       case "hydrant":
         formData = hydrantFormData;
         break;
-      case "ndes":
+      case "ndes_scep_proxy":
         formData = ndesFormData;
         break;
-      case "custom":
+      case "custom_scep_proxy":
         formData = customSCEPFormData;
         break;
       default:
         return;
     }
 
-    const addPatchData = generateAddPatchData(formData);
+    const addCertAuthorityData = generateAddCertAuthorityData(
+      certAuthorityType,
+      formData
+    );
+    if (!addCertAuthorityData) {
+      return;
+    }
     setIsAdding(true);
     try {
-      const newConfig = await certificatesAPI.addCertificateAuthority(
-        addPatchData
-      );
+      await certificatesAPI.addCertificateAuthority(addCertAuthorityData);
       renderFlash("success", "Successfully added your certificate authority.");
       onExit();
-      setConfig(newConfig);
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
     }
@@ -144,8 +152,10 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
   };
 
   const dropdownOptions = useMemo(() => {
-    return generateDropdownOptions(!!config?.integrations.ndes_scep_proxy);
-  }, [config?.integrations.ndes_scep_proxy]);
+    return generateDropdownOptions(
+      certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
+    );
+  }, [certAuthorities]);
 
   const renderForm = () => {
     const submitBtnText = "Add CA";
@@ -173,7 +183,7 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
             onCancel={onExit}
           />
         );
-      case "ndes":
+      case "ndes_scep_proxy":
         return (
           <NDESForm
             formData={ndesFormData}
@@ -184,7 +194,7 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
             onCancel={onExit}
           />
         );
-      case "custom":
+      case "custom_scep_proxy":
         return (
           <CustomSCEPForm
             formData={customSCEPFormData}
