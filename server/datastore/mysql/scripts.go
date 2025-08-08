@@ -2081,3 +2081,44 @@ WHERE
 
 	return &summary, nil
 }
+
+func (ds *Datastore) MarkActivitiesAsCompleted(ctx context.Context) error {
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		const stmt = `
+UPDATE batch_activities AS ba
+JOIN (
+  SELECT
+    ba2.id AS batch_id,
+    COUNT(*)                                                   AS num_targeted,
+    COUNT(bahr.error)                                          AS num_incompatible,
+    COUNT(IF(hsr.exit_code = 0, 1, NULL))                      AS num_ran,
+    COUNT(IF(hsr.exit_code > 0, 1, NULL))                      AS num_errored,
+    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled
+  FROM batch_activity_host_results AS bahr
+  LEFT JOIN host_script_results AS hsr
+         ON bahr.host_execution_id = hsr.execution_id
+  JOIN batch_activities AS ba2
+         ON ba2.execution_id = bahr.batch_execution_id
+  WHERE ba2.status = 'started'
+  GROUP BY ba2.id
+  HAVING (num_incompatible + num_ran + num_errored + num_canceled) >= num_targeted
+) AS agg
+  ON agg.batch_id = ba.id
+SET
+  ba.status         = 'finished',
+  ba.finished_at    = NOW(),
+  ba.num_targeted   = agg.num_targeted,
+  ba.num_incompatible = agg.num_incompatible,
+  ba.num_ran        = agg.num_ran,
+  ba.num_errored    = agg.num_errored,
+  ba.num_canceled   = agg.num_canceled
+WHERE ba.status = 'started';
+`
+		// TODO -- use `RETURNING` to return the IDs of the updated activities?
+		_, err := tx.ExecContext(ctx, stmt)
+		return err
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking activities as completed")
+	}
+	return nil
+}

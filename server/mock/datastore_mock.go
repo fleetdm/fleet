@@ -1171,6 +1171,8 @@ type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.
 
 type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
+type MarkActivitiesAsCompletedFunc func(ctx context.Context) error
+
 type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
 
 type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
@@ -3175,6 +3177,9 @@ type DataStore struct {
 
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
+
+	MarkActivitiesAsCompletedFunc		MarkActivitiesAsCompletedFunc
+	MarkActivitiesAsCompletedFuncInvoked bool
 
 	GetHostLockWipeStatusFunc        GetHostLockWipeStatusFunc
 	GetHostLockWipeStatusFuncInvoked bool
@@ -7616,6 +7621,13 @@ func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string)
 	s.BatchExecuteSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchExecuteSummaryFunc(ctx, executionID)
+}
+
+func (s *DataStore) MarkActivitiesAsCompleted(ctx context.Context) error {
+	s.mu.Lock()
+	s.MarkActivitiesAsCompletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkActivitiesAsCompletedFunc(ctx)
 }
 
 func (s *DataStore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
