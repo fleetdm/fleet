@@ -27,6 +27,12 @@ const (
 	CATypeHydrant         CAType = "hydrant"
 )
 
+type CertificateAuthoritySummary struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
 type CertificateAuthority struct {
 	ID   uint   `json:"id" db:"id"`
 	Type string `json:"type" db:"type"`
