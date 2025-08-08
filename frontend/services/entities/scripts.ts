@@ -128,7 +128,6 @@ export interface IScriptBatchHostCountsV1 {
   ran: number;
   pending: number;
   errored: number;
-  incompatible: number;
   canceled: number;
 }
 export type ScriptBatchHostCountV1 = keyof IScriptBatchHostCountsV1;
@@ -279,7 +278,6 @@ export default {
     }?${buildQueryStringFromParams({ ...params })}`;
     // TODO - swap
     // return sendRequest("GET", path);
-    // await new Promise((resolve) => setTimeout(() => null, 2000));
 
     // remove:
     switch (params.status) {
