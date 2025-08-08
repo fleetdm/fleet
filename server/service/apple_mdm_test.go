@@ -4930,7 +4930,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
 			},
 		},
 		{
@@ -4949,7 +4949,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART.")
 			},
 		},
 		{
