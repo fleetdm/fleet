@@ -38,6 +38,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch3", testBulkOperationsMDMWindowsHostProfilesBatch3},
 		{"TestGetMDMWindowsProfilesContents", testGetMDMWindowsProfilesContents},
 		{"TestMDMWindowsConfigProfiles", testMDMWindowsConfigProfiles},
+		{"TestMDMWindowsConfigProfilesWithFleetVars", testMDMWindowsConfigProfilesWithFleetVars},
 		{"TestSetOrReplaceMDMWindowsConfigProfile", testSetOrReplaceMDMWindowsConfigProfile},
 		{"TestMDMWindowsDiskEncryption", testMDMWindowsDiskEncryption},
 		{"TestMDMWindowsProfilesSummary", testMDMWindowsProfilesSummary},
@@ -2071,6 +2072,64 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
 	require.NoError(t, err)
+}
+
+func testMDMWindowsConfigProfilesWithFleetVars(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Test that usesFleetVars parameter correctly persists variables in the database
+	// Create a profile with Fleet variables
+	profWithVars, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "profile_with_vars",
+		TeamID: nil,
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
+	}, []string{fleet.FleetVarHostUUID})
+	require.NoError(t, err)
+	require.NotEmpty(t, profWithVars.ProfileUUID)
+
+	// Query the mdm_configuration_profile_variables table to verify the variables were persisted
+	var varNames []string
+	stmt := `
+		SELECT fv.name 
+		FROM mdm_configuration_profile_variables mcpv
+		JOIN fleet_variables fv ON mcpv.fleet_variable_id = fv.id
+		WHERE mcpv.windows_profile_uuid = ?
+		ORDER BY fv.name
+	`
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, profWithVars.ProfileUUID)
+	require.NoError(t, err)
+
+	// Assert that the returned variable names exactly match the provided slice
+	// Note: the database stores the full name with FLEET_VAR_ prefix
+	expectedVarNames := []string{"FLEET_VAR_" + fleet.FleetVarHostUUID}
+	require.Equal(t, expectedVarNames, varNames, "Variable names in database should match the provided usesFleetVars slice")
+
+	// Test with empty usesFleetVars slice
+	profNoVars, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "profile_no_vars",
+		TeamID: nil,
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/NoVars</LocURI></Target></Item></Replace>"),
+	}, []string{})
+	require.NoError(t, err)
+	require.NotEmpty(t, profNoVars.ProfileUUID)
+
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, profNoVars.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "No variables should be persisted when usesFleetVars is empty")
+
+	// Test with nil usesFleetVars
+	profNilVars, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "profile_nil_vars",
+		TeamID: nil,
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/NilVars</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, profNilVars.ProfileUUID)
+
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, profNilVars.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "No variables should be persisted when usesFleetVars is nil")
+
 }
 
 func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {

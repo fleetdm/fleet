@@ -2106,19 +2106,19 @@ ON DUPLICATE KEY UPDATE
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
-			return false, ctxerr.Wrap(ctx, err, "build query to load current profiles")
+			return false, ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "reselect") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
-			return false, ctxerr.Wrap(ctx, err, "load current profiles")
+			return false, ctxerr.Wrap(ctx, err, "load newly inserted profiles")
 		}
 
 		for _, currentProfile := range currentProfiles {
 			incomingProf, ok := incomingProfs[currentProfile.Name]
 			if !ok {
-				return false, ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", currentProfile.Name)
+				return false, ctxerr.Errorf(ctx, "profile %q is in the database but was not incoming", currentProfile.Name)
 			}
 
 			var profHasLabel bool
