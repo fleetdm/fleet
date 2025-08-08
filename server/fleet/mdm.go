@@ -822,12 +822,12 @@ const (
 )
 
 type CertificateAuthority struct {
-	ID   int64  `db:"id"`
-	Type string `db:"type"`
+	ID   uint   `json:"id" db:"id"`
+	Type string `json:"type" db:"type"`
 
 	// common
-	Name string `db:"name"`
-	URL  string `db:"url"`
+	Name string `json:"name" db:"name"`
+	URL  string `json:"url" db:"url"`
 
 	// Digicert
 	APIToken                      *string  `json:"api_token,omitempty" db:"-"`
@@ -848,8 +848,8 @@ type CertificateAuthority struct {
 	ClientID     *string `json:"client_id,omitempty" db:"client_id"`
 	ClientSecret *string `json:"client_secret,omitempty" db:"-"`
 
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // MDMPlatform returns "darwin" or "windows" as MDM platforms
