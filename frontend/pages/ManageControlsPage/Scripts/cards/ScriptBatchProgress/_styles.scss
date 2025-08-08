@@ -1,0 +1,33 @@
+.script-batch-progress {
+  &__status-count {
+    font-weight: $bold;
+    margin: $pad-medium 0;
+  }
+  .paginated-list__row {
+    padding: 16px 24px;
+  }
+  &__row-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  &__row-when {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    @include help-text;
+  }
+
+  &__row-right {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  &__row-errors {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    @include help-text;
+  }
+}

@@ -317,6 +317,14 @@ export default {
           count: 2,
         });
       case "finished":
+        return Promise.resolve({
+          batch_executions: [
+            createMockBatchScriptSummary(),
+            createMockBatchScriptSummary({ canceled: true }),
+          ],
+          meta: { has_next_results: false, has_previous_results: false },
+          count: 2,
+        });
       default:
         return Promise.resolve({
           batch_executions: [createMockBatchScriptSummary()],
