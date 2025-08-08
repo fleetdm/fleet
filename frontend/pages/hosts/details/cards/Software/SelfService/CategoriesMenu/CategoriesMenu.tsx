@@ -4,14 +4,14 @@ import classNames from "classnames";
 import LinkWithContext from "components/LinkWithContext";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 
-import { parseHostSoftwareQueryParams } from "../../HostSoftware";
+import { parseSelfServiceQueryParams } from "../SelfService";
 import { ICategory } from "../helpers";
 
 const baseClass = "categories-menu";
 
 export interface ICategoriesMenu {
   categories: ICategory[];
-  queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
+  queryParams: ReturnType<typeof parseSelfServiceQueryParams>;
   className?: string;
 }
 
