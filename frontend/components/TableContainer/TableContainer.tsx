@@ -82,7 +82,7 @@ interface ITableContainerProps<T = any> {
   // TODO - consolidate this functionality within `filters`
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
-  /** Only used on self-service page client side pagination that clicking on a action re-orders the data and we don't want that to trigger reset to page 0 */
+  /** Only used on self-service page client side pagination because clicking on a action re-orders the data and we don't want that to trigger reset to page 0 */
   disableAutoResetPage?: boolean;
   /** Used to set URL to correct path and include page query param */
   onClientSidePaginationChange?: (pageIndex: number) => void;

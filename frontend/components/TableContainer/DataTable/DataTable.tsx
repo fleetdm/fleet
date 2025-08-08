@@ -311,7 +311,7 @@ const DataTable = ({
   // track previous sort state
   const prevSort = useRef<{ id?: string; desc?: boolean }>({
     id: undefined,
-    desc: undefined,
+    desc: undefined, // desc as in descending
   });
 
   // This is used to listen for changes to sort. If there is a change
