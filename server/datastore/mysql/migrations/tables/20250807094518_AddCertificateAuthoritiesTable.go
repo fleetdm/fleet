@@ -163,7 +163,7 @@ FROM
 		dbNDESCA := dbCertificateAuthority{
 			CertificateAuthority: fleet.CertificateAuthority{
 				Type:     string(fleet.CATypeNDESSCEPProxy),
-				Name:     "Default NDES SCEP Proxy", // TODO is there a better name for this?
+				Name:     "DEFAULT_NDES_CA",
 				URL:      ndesCA.URL,
 				AdminURL: &ndesCA.AdminURL,
 				Username: &ndesCA.Username,

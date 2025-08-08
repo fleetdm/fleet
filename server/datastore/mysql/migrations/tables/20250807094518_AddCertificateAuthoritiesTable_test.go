@@ -169,7 +169,7 @@ FROM certificate_authorities`
 			assert.Equal(t, expectedChallenge, ca.ChallengeRaw)
 			assert.Nil(t, ca.CertificateUserPrincipalNames)
 		case "ndes_scep_proxy":
-			assert.Equal(t, "Default NDES SCEP Proxy", ca.Name)
+			assert.Equal(t, "DEFAULT_NDES_CA", ca.Name)
 			require.NotNil(t, ca.AdminURL)
 			assert.Equal(t, ndesCA.AdminURL, *ca.AdminURL)
 			assert.Equal(t, ndesCA.URL, ca.URL)
@@ -181,5 +181,5 @@ FROM certificate_authorities`
 			require.Failf(t, "unexpected certificate authority type", "type: %s, name: %s", ca.Type, ca.Name)
 		}
 	}
-	require.ElementsMatch(t, []string{digicertCA1Name, digicertCA2Name, customSCEPCA1Name, customSCEPCA2Name, "Default NDES SCEP Proxy"}, casFound)
+	require.ElementsMatch(t, []string{digicertCA1Name, digicertCA2Name, customSCEPCA1Name, customSCEPCA2Name, "DEFAULT_NDES_CA"}, casFound)
 }
