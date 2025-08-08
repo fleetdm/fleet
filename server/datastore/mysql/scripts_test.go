@@ -2301,6 +2301,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), *batchActivity.NumErrored)
 	require.Equal(t, uint(2), *batchActivity.NumIncompatible)
 	require.Equal(t, uint(1), *batchActivity.NumCanceled)
+	require.Equal(t, uint(0), *batchActivity.NumPending)
 
 	// Second activity should still be in "started" status.
 	batchActivity2, err := ds.GetBatchActivity(ctx, execID2)

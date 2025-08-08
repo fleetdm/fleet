@@ -2257,7 +2257,8 @@ SET
   ba.num_incompatible = agg.num_incompatible,
   ba.num_ran        = agg.num_ran,
   ba.num_errored    = agg.num_errored,
-  ba.num_canceled   = agg.num_canceled
+  ba.num_canceled   = agg.num_canceled,
+  ba.pending        = 0
 WHERE ba.status = 'started';
 `
 		// TODO -- use `RETURNING` to return the IDs of the updated activities?
