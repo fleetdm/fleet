@@ -1099,9 +1099,10 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchScriptRunRequest struct {
-	ScriptID uint                    `json:"script_id"`
-	HostIDs  []uint                  `json:"host_ids"`
-	Filters  *map[string]interface{} `json:"filters"`
+	ScriptID  uint            `json:"script_id"`
+	HostIDs   []uint          `json:"host_ids"`
+	Filters   *map[string]any `json:"filters"`
+	NotBefore *time.Time      `json:"not_before"`
 }
 type batchScriptRunResponse struct {
 	BatchExecutionID string `json:"batch_execution_id"`
@@ -1112,7 +1113,7 @@ func (r batchScriptRunResponse) Error() error { return r.Err }
 
 func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptRunRequest)
-	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs, req.Filters)
+	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs, req.Filters, req.NotBefore)
 	if err != nil {
 		return batchScriptRunResponse{Err: err}, nil
 	}
@@ -1121,7 +1122,7 @@ func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service)
 
 const MAX_BATCH_EXECUTION_HOSTS = 5000
 
-func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]interface{}) (string, error) {
+func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error) {
 	// If we are given both host IDs and filters, return an error
 	if len(hostIDs) > 0 && filters != nil {
 		return "", fleet.NewInvalidArgumentError("filters", "cannot specify both host_ids and filters")
@@ -1207,18 +1208,38 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		}
 	}
 
-	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
+	if notBefore == nil || notBefore.Before(time.Now()) {
+		batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
+		if err != nil {
+			return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
+		}
+
+		if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
+			ScriptName:       script.Name,
+			BatchExecutionID: batchID,
+			HostCount:        uint(len(hostIDsToExecute)),
+			TeamID:           script.TeamID,
+		}); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
+		}
+
+		return batchID, nil
+	}
+
+	notBeforeUTC := notBefore.UTC()
+	batchID, err := svc.ds.BatchScheduleScript(ctx, userId, scriptID, hostIDs, notBeforeUTC)
 	if err != nil {
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
 
-	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
-		ScriptName:       script.Name,
-		BatchExeuctionID: batchID,
+	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptScheduled{
+		ScriptName:       &script.Name,
+		BatchExecutionID: batchID,
 		HostCount:        uint(len(hostIDsToExecute)),
 		TeamID:           script.TeamID,
+		NotBefore:        &notBeforeUTC,
 	}); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
+		return "", ctxerr.Wrap(ctx, err, "creating activity for scheduled batch run scripts")
 	}
 
 	return batchID, nil

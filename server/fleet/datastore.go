@@ -969,6 +969,7 @@ type Datastore interface {
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
+	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
@@ -1811,6 +1812,16 @@ type Datastore interface {
 	// BatchExecuteScript queues a script to run on a set of hosts and returns the batch script
 	// execution ID.
 	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
+
+	// BatchExecuteScript queued a script to run on a set of hosts after notBefore and returns the
+	// batch execution ID.
+	BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+	// GetBatchActivity returns a batch activity with executionID
+	GetBatchActivity(ctx context.Context, executionID string) (*BatchActivity, error)
+
+	// GetBatchActivityHostResults returns all host results associated with batch executionID
+	GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*BatchActivityHostResult, error)
 
 	// BatchExecuteSummary returns the summary of a batch script execution
 	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)

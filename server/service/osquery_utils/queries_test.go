@@ -10,9 +10,12 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -366,6 +369,57 @@ func TestGetDetailQueries(t *testing.T) {
 	wantQueries = append(wantQueries, mdmQueriesWindows...)
 	require.Len(t, gotQueries, len(wantQueries))
 	sortedKeysCompare(t, gotQueries, wantQueries)
+
+	// Check that TPM PIN verify queries are only added iff RequireBitLockerPIN is set
+
+	testCases := []struct {
+		name string
+		ac   fleet.AppConfig
+		want []string
+	}{
+		{
+			name: "windows MDM not enabled",
+			ac:   fleet.AppConfig{},
+		},
+		{
+			name: "windows MDM is enabled but disk encryption is not enabled",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+				},
+			},
+		},
+		{
+			name: "windows MDM is enabled with disk encryption but TPM PIN is not enforced",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					EnableDiskEncryption:        optjson.SetBool(true),
+				},
+			},
+		},
+		{
+			name: "windows MDM is enabled with disk encryption and TPM PIN is enforced",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					EnableDiskEncryption:        optjson.SetBool(true),
+					RequireBitLockerPIN:         optjson.SetBool(true),
+				},
+			},
+			want: maps.Keys(tpmPINQueries),
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetDetailQueries(context.Background(), config.FleetConfig{}, &tt.ac, nil, Integrations{})
+			for _, name := range tt.want {
+				_, ok := got[name]
+				require.True(t, ok)
+			}
+		})
+	}
 }
 
 func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
@@ -2534,5 +2588,178 @@ func TestWindowsLastOpenedAt(t *testing.T) {
 		if software["name"] == "Mozilla Firefox (x64 en-US)" {
 			assert.Equal(t, "1751755087", software["last_opened_at"])
 		}
+	}
+}
+
+func TestTPMPinSetVerifyIngest(t *testing.T) {
+	tests := []struct {
+		name   string
+		host   *fleet.Host
+		rows   []map[string]string
+		pinSet *bool
+	}{
+		{
+			name: "nil host",
+			host: nil,
+			rows: []map[string]string{
+				{"host": "something", "criteria": "1"}},
+		},
+		{
+			name: "empty uuid",
+			host: &fleet.Host{
+				ID: 1,
+			},
+			rows: []map[string]string{{"host": "something", "criteria": "1"}},
+		},
+		{
+			name: "no rows - pin not set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows:   []map[string]string{},
+			pinSet: ptr.Bool(false),
+		},
+		{
+			name: "with rows - pin set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows: []map[string]string{
+				{"host": "Mordor", "criteria": "1"},
+			},
+			pinSet: ptr.Bool(true),
+		},
+		{
+			name: "multiple rows - pin set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows: []map[string]string{
+				{"host": "Mordor", "criteria": "1"},
+				{"host": "Mordor", "criteria": "1"},
+			},
+			pinSet: ptr.Bool(true),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			var setPinCalled bool
+			ds.SetOrUpdateHostDiskTpmPINFunc = func(ctx context.Context, hostID uint, pinSet bool) error {
+				setPinCalled = true
+				require.Equal(t, *tt.pinSet, pinSet)
+				require.Equal(t, tt.host.ID, hostID)
+				return nil
+			}
+
+			ingestFunc := tpmPINQueries["tpm_pin_set_verify"].DirectIngestFunc
+
+			require.NoError(t, ingestFunc(context.Background(), log.NewNopLogger(), tt.host, ds, tt.rows))
+			require.Equal(t, setPinCalled, tt.pinSet != nil)
+		})
+	}
+}
+
+func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
+	logger := log.NewNopLogger()
+	ctx := context.Background()
+
+	tests := []struct {
+		name      string
+		host      *fleet.Host
+		rows      []map[string]string
+		wantCmd   bool
+		wantError bool
+	}{
+		{
+			name: "nil host",
+			host: nil,
+		},
+		{
+			name: "empty UUID host",
+			host: &fleet.Host{UUID: ""},
+		},
+		{
+			name: "too many rows",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+			},
+			wantError: true,
+		},
+		{
+			name: "no rows - requires command",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows:    []map[string]string{},
+			wantCmd: true,
+		},
+		{
+			name: "disallowed state - requires command",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownDisallowed)},
+			},
+			wantCmd: true,
+		},
+		{
+			name: "policy set to optinal",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+			},
+		},
+		{
+			name: "policy set to required",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired)},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			cmdInserted := false
+			if tt.wantCmd {
+				ds.MDMWindowsInsertCommandForHostsFunc = func(
+					ctx context.Context,
+					hostUUIDs []string,
+					cmd *fleet.MDMWindowsCommand,
+				) error {
+					cmdInserted = true
+					require.Equal(t, []string{tt.host.UUID}, hostUUIDs)
+					require.NotNil(t, cmd)
+					return nil
+				}
+			}
+
+			ingestFunc := tpmPINQueries["tpm_pin_config_verify"].DirectIngestFunc
+			err := ingestFunc(ctx, logger, tt.host, ds, tt.rows)
+			require.Equal(t, tt.wantError, err != nil)
+			require.Equal(t, cmdInserted, tt.wantCmd)
+		})
 	}
 }
