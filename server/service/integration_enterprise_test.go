@@ -6620,11 +6620,35 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
 
 	// Queue scripts again, now in upcoming activities queue
+	// Scheduling something in the past makes it run right now
+	scheduledPast := time.Now().Add(-2 * time.Hour)
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
-		ScriptID: script.ID,
-		HostIDs:  []uint{host1.ID, host2.ID},
+		ScriptID:  script.ID,
+		HostIDs:   []uint{host1.ID, host2.ID},
+		NotBefore: &scheduledPast,
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name),
+		0,
+	)
+
+	// Queue upcoming execution
+	scheduledTime := time.Now().Add(10 * time.Hour)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID:  script.ID,
+		HostIDs:   []uint{host1.ID, host2.ID},
+		NotBefore: &scheduledTime,
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeBatchScriptScheduled{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
+		0,
+	)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {

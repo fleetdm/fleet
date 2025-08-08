@@ -87,12 +87,13 @@ export interface ISoftwareSelfServiceProps {
   router: InjectedRouter;
   refetchHostDetails: () => void;
   isHostDetailsPolling: boolean;
+  hostSoftwareUpdatedAt?: string | null;
   hostDisplayName: string;
 }
 
 const getUpdatesPageSize = (width: number): number => {
   if (width >= 1400) return 4;
-  if (width >= 768) return 3;
+  if (width >= 880) return 3;
   return 2;
 };
 
@@ -105,6 +106,7 @@ const SoftwareSelfService = ({
   router,
   refetchHostDetails,
   isHostDetailsPolling,
+  hostSoftwareUpdatedAt,
   hostDisplayName,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
@@ -139,13 +141,14 @@ const SoftwareSelfService = ({
     if (!selfServiceData) return [];
     return selfServiceData.software.map((software) => ({
       ...software,
-      ui_status: getUiStatus(software, true),
+      ui_status: getUiStatus(software, true, hostSoftwareUpdatedAt),
     }));
-  }, [selfServiceData]);
+  }, [selfServiceData, hostSoftwareUpdatedAt]);
 
   const updateSoftware = enhancedSoftware.filter(
     (software) =>
       software.ui_status === "updating" ||
+      software.ui_status === "recently_updated" ||
       software.ui_status === "pending_update" || // Should never show as self-service = host online
       software.ui_status === "update_available" ||
       software.ui_status === "failed_install_update_available" ||
@@ -188,10 +191,14 @@ const SoftwareSelfService = ({
   };
 
   const disableUpdateAllButton = useMemo(() => {
-    // Disable if all statuses are "updating"
+    // Disable if all statuses are "updating" or "recently_updated"
     return (
       updateSoftware.length > 0 &&
-      updateSoftware.every((software) => software.ui_status === "updating")
+      updateSoftware.every(
+        (software) =>
+          software.ui_status === "updating" ||
+          software.ui_status === "recently_updated"
+      )
     );
   }, [updateSoftware]);
 
@@ -211,12 +218,12 @@ const SoftwareSelfService = ({
       {
         scope: "device_software",
         id: deviceToken,
-        page: queryParams.page,
+        page: 0, // Pagination is clientside
         query: "", // Search is now client-side to reduce API calls
         ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
       },
     ];
-  }, [deviceToken, queryParams.page]);
+  }, [deviceToken]);
 
   // Fetch self-service software (regular API call)
   const {
@@ -549,25 +556,18 @@ const SoftwareSelfService = ({
     onInstallOrUninstall();
   };
 
-  const onNextPage = useCallback(() => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        query: queryParams.query,
-        category_id: queryParams.category_id,
-        page: queryParams.page + 1,
-      })
-    );
-  }, [pathname, queryParams, router]);
-
-  const onPrevPage = useCallback(() => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        query: queryParams.query,
-        category_id: queryParams.category_id,
-        page: queryParams.page - 1,
-      })
-    );
-  }, [pathname, queryParams, router]);
+  const onClientSidePaginationChange = useCallback(
+    (page: number) => {
+      router.push(
+        getPathWithQueryParams(pathname, {
+          query: queryParams.query,
+          category_id: queryParams.category_id,
+          page,
+        })
+      );
+    },
+    [pathname, queryParams.query, queryParams.category_id, router]
+  );
 
   // TODO: handle empty state better, this is just a placeholder for now
   // TODO: what should happen if query params are invalid (e.g., page is negative or exceeds the
@@ -703,13 +703,14 @@ const SoftwareSelfService = ({
             defaultSortDirection={
               DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_direction
             }
-            pageIndex={0}
+            pageIndex={queryParams.page ?? 0} // Client-side pagination with URL source of truth
             disableNextPage={selfServiceData?.meta.has_next_results === false}
             pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
             searchQuery={queryParams.query} // Search is now client-side to reduce API calls
             searchQueryColumn="name"
             isClientSideFilter
             isClientSidePagination
+            onClientSidePaginationChange={onClientSidePaginationChange}
             emptyComponent={() => {
               return isEmptySearch ? (
                 <EmptyTable
@@ -736,18 +737,6 @@ const SoftwareSelfService = ({
             disableCount
           />
         </div>
-
-        <Pagination
-          disableNext={selfServiceData?.meta.has_next_results === false}
-          disablePrev={selfServiceData?.meta.has_previous_results === false}
-          hidePagination={
-            selfServiceData?.meta.has_next_results === false &&
-            selfServiceData?.meta.has_previous_results === false
-          }
-          onNextPage={onNextPage}
-          onPrevPage={onPrevPage}
-          className={`${baseClass}__pagination`}
-        />
       </>
     );
   };

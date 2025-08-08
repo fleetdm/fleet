@@ -699,6 +699,8 @@ type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAv
 
 type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error)
 
+type SetOrUpdateHostDiskTpmPINFunc func(ctx context.Context, hostID uint, pinSet bool) error
+
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) error
@@ -762,6 +764,8 @@ type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
 
 type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error)
+
+type GetFilteredQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error)
 
 type UpdateJobFunc func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error)
 
@@ -1166,6 +1170,12 @@ type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uin
 type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error)
 
 type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
+
+type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
+
+type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
 
 type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error)
 
@@ -2446,6 +2456,9 @@ type DataStore struct {
 	GetConfigEnableDiskEncryptionFunc        GetConfigEnableDiskEncryptionFunc
 	GetConfigEnableDiskEncryptionFuncInvoked bool
 
+	SetOrUpdateHostDiskTpmPINFunc        SetOrUpdateHostDiskTpmPINFunc
+	SetOrUpdateHostDiskTpmPINFuncInvoked bool
+
 	SetOrUpdateHostDisksEncryptionFunc        SetOrUpdateHostDisksEncryptionFunc
 	SetOrUpdateHostDisksEncryptionFuncInvoked bool
 
@@ -2541,6 +2554,9 @@ type DataStore struct {
 
 	GetQueuedJobsFunc        GetQueuedJobsFunc
 	GetQueuedJobsFuncInvoked bool
+
+	GetFilteredQueuedJobsFunc        GetFilteredQueuedJobsFunc
+	GetFilteredQueuedJobsFuncInvoked bool
 
 	UpdateJobFunc        UpdateJobFunc
 	UpdateJobFuncInvoked bool
@@ -3147,6 +3163,15 @@ type DataStore struct {
 
 	BatchExecuteScriptFunc        BatchExecuteScriptFunc
 	BatchExecuteScriptFuncInvoked bool
+
+	BatchScheduleScriptFunc        BatchScheduleScriptFunc
+	BatchScheduleScriptFuncInvoked bool
+
+	GetBatchActivityFunc        GetBatchActivityFunc
+	GetBatchActivityFuncInvoked bool
+
+	GetBatchActivityHostResultsFunc        GetBatchActivityHostResultsFunc
+	GetBatchActivityHostResultsFuncInvoked bool
 
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
@@ -5913,6 +5938,13 @@ func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *u
 	return s.GetConfigEnableDiskEncryptionFunc(ctx, teamID)
 }
 
+func (s *DataStore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error {
+	s.mu.Lock()
+	s.SetOrUpdateHostDiskTpmPINFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateHostDiskTpmPINFunc(ctx, hostID, pinSet)
+}
+
 func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDisksEncryptionFuncInvoked = true
@@ -6135,6 +6167,13 @@ func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.
 	s.GetQueuedJobsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetQueuedJobsFunc(ctx, maxNumJobs, now)
+}
+
+func (s *DataStore) GetFilteredQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
+	s.mu.Lock()
+	s.GetFilteredQueuedJobsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetFilteredQueuedJobsFunc(ctx, maxNumJobs, now, jobNames)
 }
 
 func (s *DataStore) UpdateJob(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error) {
@@ -7549,6 +7588,27 @@ func (s *DataStore) BatchExecuteScript(ctx context.Context, userID *uint, script
 	s.BatchExecuteScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchExecuteScriptFunc(ctx, userID, scriptID, hostIDs)
+}
+
+func (s *DataStore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
+	s.mu.Lock()
+	s.BatchScheduleScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchScheduleScriptFunc(ctx, userID, scriptID, hostIDs, notBefore)
+}
+
+func (s *DataStore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
+	s.mu.Lock()
+	s.GetBatchActivityFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetBatchActivityFunc(ctx, executionID)
+}
+
+func (s *DataStore) GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error) {
+	s.mu.Lock()
+	s.GetBatchActivityHostResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetBatchActivityHostResultsFunc(ctx, executionID)
 }
 
 func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {

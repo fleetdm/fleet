@@ -331,7 +331,7 @@ export FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS=30
 
 This environment variable overrides the default 365-day validity period for host identity certificates. This is intended only for development and testing scenarios where shorter certificate lifetimes are needed.
 
-After getting a new certificate, Orbit will attempt to renew the certificate within 1 hour or within 180 days of certificate expiration, whichever is longer.
+After getting a new certificate, Orbit will attempt to renew the certificate within 1 hour or within 180 days of certificate expiration (plus jitter), whichever is longer.
 
 ### Load testing configuration
 
@@ -354,6 +354,8 @@ The `--http_message_signature_prob` flag controls the probability (0.0 to 1.0) t
 
 The certificate is issued with a validity period of 365 days. Orbit attempts to renew it within 180 days of expiration.
 
+To prevent thundering herd issues when multiple hosts need to renew certificates simultaneously, Orbit adds a random jitter of 0-30 minutes to the renewal timer. This ensures that certificate renewal requests are spread out over time, reducing load on the Fleet server.
+
 ### Problem
 
 We can't use standard SCEP renewal because our SCEP library does not support signing the CMS envelope with ECC certificates. This breaks the renewal flow, which requires the CMS to be signed with the existing certificate.
@@ -366,7 +368,7 @@ Instead, we implement a re-enrollment flow in Orbit that proves possession of th
 1. Generates a new ECC key and CSR.
 2. Signs a message: `<current cert serial number>` using the existing ECC private key.
 3. Embeds the message and signature in a custom CSR extension:
-   - OID: `1.3.6.1.4.1.99999.1.1` (99999 will be replaced by our IANA private enterprise number once assigned)
+   - OID: `1.3.6.1.4.1.63991.1.1` (63991 is Fleet's IANA private enterprise number)
    - Value: JSON like `{ "sn":"0x1b", "sig":"MEUCIQ..." }`
    - This indicates that this is a renewal request
 4. Wraps the CSR in a CMS envelope signed by a temporary RSA key (to satisfy SCEP protocol requirements).

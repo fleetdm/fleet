@@ -1039,6 +1039,9 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM
 
+	// ProcessMDMMicrosoftDiscovery handles the Discovery message validation and response
+	ProcessMDMMicrosoftDiscovery(ctx context.Context, req *SoapRequest) (*SoapResponse, error)
+
 	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
 	GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*DiscoverResponse, error)
 
@@ -1186,7 +1189,7 @@ type Service interface {
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) ([]ScriptResponse, error)
 
 	// BatchScriptExecute runs a script on many hosts. It creates and returns a batch execution ID
-	BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]interface{}) (string, error)
+	BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
 
 	BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*BatchExecutionSummary, error)
 

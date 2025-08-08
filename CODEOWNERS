@@ -120,6 +120,7 @@ go.mod @fleetdm/go
 # 🌐 Fleet website
 ##############################################################################################
 /website/.sailsrc 		@eashaw # Note: eashaw will not approve any PR that changes this file. This codeowner exists to make sure no changes are committed to the repo.
+/articles             @mike-j-thomas
 
 ##############################################################################################
 # 🌐 GitHub workflows
