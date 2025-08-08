@@ -101,13 +101,13 @@ go.mod @fleetdm/go
 /handbook/company/leadership.md                                 @sampfluger88
 /handbook/company/open-positions.yml                            @sampfluger88
 #/handbook/company/product-groups.md                            Covered in custom.js
-/handbook/company/go-to-market-groups.md                        @sampfluger88
-/handbook/finance                   			        	    @sampfluger88
-/handbook/it-and-enablement                             	    @sampfluger88
-/handbook/customer-success                                  	@sampfluger88
-/handbook/marketing                                          	@sampfluger88
-/handbook/sales                                           	  	@sampfluger88
-#/handbook/product-design                                    	Covered in custom.js
+/handbook/company/go-to-market-groups.md                        @ireedy
+/handbook/finance                   			        	            @sampfluger88
+/handbook/it-and-enablement                             	      @sampfluger88
+/handbook/customer-success                                    	@sampfluger88
+/handbook/marketing                                            	@sampfluger88
+/handbook/sales                                             	  @sampfluger88
+#/handbook/product-design                                     	Covered in custom.js
 #/handbook/engineering                                     	    Covered in custom.js
 
 ##############################################################################################
