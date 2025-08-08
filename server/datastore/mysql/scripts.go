@@ -1865,9 +1865,11 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		batchExecID = uuid.New().String()
 		_, err := tx.ExecContext(
 			ctx,
-			"INSERT INTO batch_activities (execution_id, script_id) VALUES (?, ?)",
+			"INSERT INTO batch_activities (execution_id, script_id, status, activity_type) VALUES (?, ?, ?, ?)",
 			batchExecID,
 			script.ID,
+			fleet.BatchExecutionStarted,
+			fleet.BatchExecutionActivityScript,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to insert new batch execution")
@@ -1906,6 +1908,112 @@ INSERT INTO batch_activity_host_results (
 	}
 
 	return batchExecID, nil
+}
+
+func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
+	batchExecID := uuid.New().String()
+
+	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, job_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?, ?)`
+	const batchHostsStmt = `INSERT INTO batch_activity_host_results (batch_execution_id, host_id) VALUES (:exec_id, :host_id)`
+
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		job, err := ds.NewJob(ctx, &fleet.Job{
+			Name:      fleet.BatchActivityJobName,
+			State:     fleet.JobStateQueued,
+			NotBefore: notBefore.UTC(),
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating new job")
+		}
+
+		_, err = tx.ExecContext(
+			ctx,
+			batchActivitiesStmt,
+			batchExecID,
+			job.ID,
+			scriptID,
+			userID,
+			fleet.BatchExecutionScheduled,
+			fleet.BatchExecutionActivityScript,
+			len(hostIDs),
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting new batch activity")
+		}
+
+		args := make([]map[string]any, 0, len(hostIDs))
+
+		for _, hostID := range hostIDs {
+			args = append(args, map[string]any{
+				"exec_id": batchExecID,
+				"host_id": hostID,
+			})
+		}
+
+		if _, err := sqlx.NamedExecContext(ctx, tx, batchHostsStmt, args); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting batch host results")
+		}
+
+		return nil
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating scheduled script execution")
+	}
+
+	return batchExecID, nil
+}
+
+func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
+	const stmt = `
+		SELECT
+			id,
+			script_id,
+			execution_id,
+			user_id,
+			job_id,
+			status,
+			activity_type,
+			num_targeted,
+			num_pending,
+			num_ran,
+			num_errored,
+			num_incompatible,
+			num_canceled,
+			created_at,
+			updated_at,
+			completed_at,
+			canceled_at
+		FROM
+			batch_activities
+		WHERE
+			execution_id = ?`
+
+	batchActivity := &fleet.BatchActivity{}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), batchActivity, stmt, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity")
+	}
+
+	return batchActivity, nil
+}
+
+func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error) {
+	const stmt = `
+		SELECT
+			id,
+			batch_execution_id,
+			host_id,
+			host_execution_id,
+			error
+			FROM
+			batch_activity_host_results
+		WHERE
+			batch_execution_id = ?`
+
+	results := []*fleet.BatchActivityHostResult{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity host results")
+	}
+
+	return results, nil
 }
 
 func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {

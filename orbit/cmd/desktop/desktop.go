@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -140,10 +141,16 @@ func main() {
 	var swiftDialogCh chan struct{}
 	var offlineWatcher useraction.MDMOfflineWatcher
 
-	// This ticker is used for fetching the desktop summary. It is initialized here because it is
+	// We will execute the summary API every 5 minutes (to refresh policy state).
+	const desktopSummaryInterval = 5 * time.Minute
+
+	// This ticker is used for checking connectivity. It is initialized here because it is
 	// stopped in `OnExit.`
-	const checkInterval = 5 * time.Minute
-	summaryTicker := time.NewTicker(checkInterval)
+	const pingInterval = 10 * time.Second // same value as default distributed/read
+	pingTicker := time.NewTicker(pingInterval)
+
+	// Used to trigger a policy check when clicking on "My device" or "About Fleet".
+	var fleetDesktopCheckTrigger atomic.Bool
 
 	// we have seen some cases where systray.Run() does not call onReady seemingly due to early
 	// initialization states with the GUI such as Windows Autopilot first time setup. This ensures
@@ -181,16 +188,12 @@ func main() {
 		// immediately begin showing the migrator again if we were showing it prior.
 		showMDMMigrator := false
 
-		myDeviceItem := systray.AddMenuItem("Connecting...", "")
+		myDeviceItem := systray.AddMenuItem("My device", "")
 		myDeviceItem.Disable()
 		myDeviceItem.Hide()
 
-		// We are doing this using two menu items because line breaks
-		// are not rendered correctly on Windows and MacOS.
-		hostOfflineItemOne := systray.AddMenuItem("🛜🚫 Your computer is offline.", "")
-		hostOfflineItemTwo := systray.AddMenuItem("It might take up to 5 minutes to reconnect to Fleet.", "")
+		hostOfflineItemOne := systray.AddMenuItem("🛜🚫 Your computer is not connected to Fleet.", "")
 		hostOfflineItemOne.Disable()
-		hostOfflineItemTwo.Disable()
 
 		selfServiceItem := systray.AddMenuItem("Self-service", "")
 		selfServiceItem.Disable()
@@ -234,8 +237,8 @@ func main() {
 			return newToken
 		})
 
-		disableTray := func() {
-			log.Debug().Msg("disabling tray items")
+		showConnecting := func() {
+			log.Debug().Msg("displaying Connecting...")
 			myDeviceItem.SetTitle("Connecting...")
 			myDeviceItem.Show()
 			myDeviceItem.Disable()
@@ -252,7 +255,6 @@ func main() {
 			}
 
 			hostOfflineItemOne.Hide()
-			hostOfflineItemTwo.Hide()
 		}
 
 		reportError := func(err error, info map[string]any) {
@@ -296,6 +298,7 @@ func main() {
 		// checkToken performs API test calls to enable the "My device" item as
 		// soon as the device auth token is registered by Fleet.
 		checkToken := func() <-chan interface{} {
+			showConnecting()
 			done := make(chan interface{})
 
 			go func() {
@@ -317,7 +320,6 @@ func main() {
 						transparencyItem.Show()
 
 						hostOfflineItemOne.Hide()
-						hostOfflineItemTwo.Hide()
 
 						// Hide Self-Service for Free tier
 						if errors.Is(err, service.ErrMissingLicense) || (summary.SelfService != nil && !*summary.SelfService) {
@@ -364,50 +366,91 @@ func main() {
 				case err != nil:
 					log.Error().Err(err).Msg("check token file")
 				case expired:
-					log.Info().Msg("token file changed, rechecking")
-					disableTray()
+					log.Info().Msg("token file expired or invalid, rechecking")
 					<-checkToken()
 				}
 			}
 		}()
 
 		// poll the server to check the policy status of the host and update the
-		// tray icon accordingly
+		// tray icon accordingly.
+		// We first ping the server to check for connectivity, then get the policy status (every 5 minutes to
+		// not cause performance issues on the server).
 		go func() {
 			<-deviceEnabledChan
 
-			for {
-				<-summaryTicker.C
-				// Reset the ticker to the intended interval, in case we reset it to 1ms
-				summaryTicker.Reset(checkInterval)
-				sum, err := client.DesktopSummary(tokenReader.GetCached())
-				switch {
-				case err == nil:
-					hostOfflineItemOne.Hide()
-					hostOfflineItemTwo.Hide()
-				case errors.Is(err, service.ErrMissingLicense):
-					myDeviceItem.SetTitle("My device")
-					myDeviceItem.Show()
-					hostOfflineItemOne.Hide()
-					hostOfflineItemTwo.Hide()
-					continue
-				case errors.Is(err, service.ErrUnauthenticated):
-					disableTray()
-					hostOfflineItemOne.Hide()
-					hostOfflineItemTwo.Hide()
-					<-checkToken()
-					continue
-				default:
+			var (
+				pingErrCount              = 0
+				lastDesktopSummaryCheck   time.Time
+				offlineIndicatorDisplayed = false
+				showOffline               = func() {
 					myDeviceItem.Hide()
 					transparencyItem.Disable()
 					transparencyItem.Hide()
 					migrateMDMItem.Disable()
 					migrateMDMItem.Hide()
 					hostOfflineItemOne.Show()
-					hostOfflineItemTwo.Show()
-					log.Error().Err(err).Msg("get desktop summary")
+					selfServiceItem.Disable()
+					selfServiceItem.Hide()
+					offlineIndicatorDisplayed = true
+				}
+			)
+
+			for {
+				<-pingTicker.C
+
+				// Reset the ticker to the intended interval,
+				// in case we reset it to 1ms (when clicking on "My device").
+				pingTicker.Reset(pingInterval)
+
+				if err := client.Ping(); err != nil {
+					log.Error().Err(err).Int("count", pingErrCount).Msg("ping failed")
+					pingErrCount++
+					// We try 5 more times to make sure one bad request doesn't trigger the offline indicator.
+					// So it might take up to ~1m (6 * 10s) for Fleet Desktop to show the offline indicator.
+					if pingErrCount >= 6 {
+						showOffline()
+					}
 					continue
 				}
+
+				// Successfully connected to Fleet.
+				pingErrCount = 0
+
+				// Check if we need to fetch the "Fleet desktop" summary from Fleet.
+				if !offlineIndicatorDisplayed &&
+					!fleetDesktopCheckTrigger.Load() &&
+					(!lastDesktopSummaryCheck.IsZero() && time.Since(lastDesktopSummaryCheck) < desktopSummaryInterval) {
+					continue
+				}
+
+				lastDesktopSummaryCheck = time.Now()
+				fleetDesktopCheckTrigger.Store(false)
+				// We set offlineIndicatorDisplayed to false because we do not want to retry the
+				// Fleet Desktop summary every 10s if Ping works but DesktopSummary doesn't
+				// (to avoid server load issues).
+				offlineIndicatorDisplayed = false
+
+				sum, err := client.DesktopSummary(tokenReader.GetCached())
+				if err != nil {
+					switch {
+					case errors.Is(err, service.ErrMissingLicense):
+						// Policy reporting in Fleet Desktop requires a license,
+						// so we just show the "My device" item as usual.
+						myDeviceItem.SetTitle("My device")
+						myDeviceItem.Show()
+						hostOfflineItemOne.Hide()
+					case errors.Is(err, service.ErrUnauthenticated):
+						log.Debug().Err(err).Msg("get desktop summary auth failure")
+						// This usually happens every ~1 hour when the token expires.
+						<-checkToken()
+					default:
+						log.Error().Err(err).Msg("get desktop summary failed")
+					}
+					continue
+				}
+
+				hostOfflineItemOne.Hide()
 
 				refreshMenuItems(sum.DesktopSummary, selfServiceItem, myDeviceItem)
 				myDeviceItem.Enable()
@@ -509,7 +552,8 @@ func main() {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser policies")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
-					summaryTicker.Reset(1 * time.Millisecond)
+					fleetDesktopCheckTrigger.Store(true)
+					pingTicker.Reset(1 * time.Millisecond)
 				case <-transparencyItem.ClickedCh:
 					openURL := client.BrowserTransparencyURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
@@ -521,7 +565,8 @@ func main() {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser self-service")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
-					summaryTicker.Reset(1 * time.Millisecond)
+					fleetDesktopCheckTrigger.Store(true)
+					pingTicker.Reset(1 * time.Millisecond)
 				case <-migrateMDMItem.ClickedCh:
 					if offline := offlineWatcher.ShowIfOffline(offlineWatcherCtx); offline {
 						continue
@@ -548,8 +593,8 @@ func main() {
 			log.Debug().Err(err).Msg("exiting swiftDialogCh")
 			close(swiftDialogCh)
 		}
-		log.Debug().Msg("stopping ticker")
-		summaryTicker.Stop()
+		log.Debug().Msg("stopping ping ticker")
+		pingTicker.Stop()
 		log.Debug().Msg("canceling offline watcher ctx")
 		cancelOfflineWatcherCtx()
 	}

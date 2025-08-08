@@ -1248,9 +1248,9 @@ func main() {
 				// This is better than using a ticker that ticks every hour because the
 				// we can't ensure the tick actually runs every hour (eg: the computer is
 				// asleep).
-				rotationDuration := 30 * time.Second
-				rotationTicker := time.NewTicker(rotationDuration)
-				defer rotationTicker.Stop()
+				localCheckDuration := 30 * time.Second
+				localCheckTicker := time.NewTicker(localCheckDuration)
+				defer localCheckTicker.Stop()
 
 				// This timer is used to periodically check if the token is valid. The
 				// server might deem a toked as invalid for reasons out of our control,
@@ -1262,10 +1262,10 @@ func main() {
 
 				for {
 					select {
-					case <-rotationTicker.C:
-						rotationTicker.Reset(rotationDuration)
+					case <-localCheckTicker.C:
+						localCheckTicker.Reset(localCheckDuration)
 
-						log.Debug().Msgf("checking if token has changed or expired, cached mtime: %s", trw.GetMtime())
+						log.Debug().Msgf("initiating local token check, cached mtime: %s", trw.GetMtime())
 						hasChanged, err := trw.HasChanged()
 						if err != nil {
 							log.Error().Err(err).Msg("error checking if token has changed")
@@ -1281,10 +1281,10 @@ func main() {
 							if err := trw.Rotate(); err != nil {
 								log.Error().Err(err).Msg("error rotating token")
 							}
-						} else if remain > 0 && remain < rotationDuration {
+						} else if remain > 0 && remain < localCheckDuration {
 							// check again when the token will expire, which will happen
 							// before the next rotation check
-							rotationTicker.Reset(remain)
+							localCheckTicker.Reset(remain)
 							log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
 						}
 
