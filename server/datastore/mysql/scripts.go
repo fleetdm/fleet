@@ -2046,8 +2046,9 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "setting canceled column")
 			}
 
-			// Summarize rows
-			// run incoming stats compiler method
+			if err := ds.markActivitiesAsCompleted(ctx, tx); err != nil {
+				return ctxerr.Wrap(ctx, err, "marking job as complete and summarizing counts")
+			}
 		} else {
 			// The batch activity is scheduled, but not started
 			if _, err := tx.ExecContext(ctx, stmtSetCanceled, executionID); err != nil {
@@ -2222,7 +2223,7 @@ FROM (
     COUNT(IF(hsr.exit_code > 0, 1, NULL))   AS num_errored,
     COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled,
     (
-      COUNT(*) 
+      COUNT(*)
       - COUNT(bahr.error)
       - COUNT(IF(hsr.exit_code = 0, 1, NULL))
       - COUNT(IF(hsr.exit_code > 0, 1, NULL))
@@ -2300,9 +2301,9 @@ func (ds *Datastore) CountBatchScriptExecutions(ctx context.Context, filter flee
 	stmtExecutions := `
 SELECT
 	COUNT(*)
-FROM	
+FROM
 	batch_activities ba
-JOIN 
+JOIN
 	scripts s
 	ON ba.script_id = s.id
 WHERE
