@@ -57,6 +57,7 @@ const ScriptBatchProgress = ({
     setShowBatchDetailsForSummary,
   ] = useState<IScriptBatchDetailsForSummary | null>(null);
   const [batchCount, setBatchCount] = useState<number | undefined>(undefined);
+  const [updating, setUpdating] = useState(false);
 
   const handleTabChange = useCallback(
     (index: number) => {
@@ -91,6 +92,7 @@ const ScriptBatchProgress = ({
 
   const fetchPage = useCallback(
     (pageNumber: number) => {
+      setUpdating(true);
       return queryClient.fetchQuery(
         [
           {
@@ -111,6 +113,7 @@ const ScriptBatchProgress = ({
               // `batchCount`'s default value is undefined, while the empty state renders when it
               // === 0.
               setBatchCount(r.count);
+              setUpdating(false);
               return r.batch_executions;
             });
         }
@@ -248,20 +251,21 @@ const ScriptBatchProgress = ({
       return getEmptyState(status);
     }
     return (
-      <>
-        {batchCount && (
+      <div className={`${baseClass}__tab-content`}>
+        {!updating && batchCount && (
           <div className={`${baseClass}__status-count`}>
             {batchCount} batch script{batchCount > 1 ? "s" : ""}
           </div>
         )}
         <PaginatedList<IScriptBatchSummaryV2>
+          ancestralUpdating={updating}
           count={batchCount}
           fetchPage={fetchPage}
           onClickRow={onClickRow}
           renderItemRow={renderRow}
           useCheckBoxes={false}
         />
-      </>
+      </div>
     );
   };
 

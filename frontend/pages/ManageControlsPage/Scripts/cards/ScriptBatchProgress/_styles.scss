@@ -44,4 +44,11 @@
       @include help-text;
     }
   }
+  .paginated-list .loading-overlay {
+    position: initial;
+    top: initial;
+    bottom: initial;
+    left: initial;
+    right: initial;
+  }
 }
