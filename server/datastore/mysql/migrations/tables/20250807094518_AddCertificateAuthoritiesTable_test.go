@@ -81,7 +81,7 @@ func TestUp_20250807094518(t *testing.T) {
 		t.Fatalf("failed to marshal appConfigJSON: %v", err)
 	}
 
-	insertNDESPasswordStmt := `INSERT INTO mdm_config_assets (name, value, md5_checksum) VALUES (?, ?, UNHEX(?))`
+	insertNDESPasswordStmt := `INSERT INTO mdm_config_assets (name, value, md5_checksum) VALUES (?, ?, UNHEX(?))` // nolint:gosec // just test data, not hardcoded credentials
 	_, err = db.Exec(insertNDESPasswordStmt, fleet.MDMAssetNDESPassword, ndesEncryptedPassword, md5ChecksumBytes(ndesEncryptedPassword))
 	require.NoError(t, err, "failed to insert NDES SCEP Proxy password")
 
