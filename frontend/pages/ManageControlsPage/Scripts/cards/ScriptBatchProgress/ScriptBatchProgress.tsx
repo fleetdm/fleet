@@ -132,13 +132,20 @@ const ScriptBatchProgress = ({
   };
 
   const getWhen = (summary: IScriptBatchSummaryV2) => {
-    const { not_before, started_at, finished_at, canceled } = summary;
+    const {
+      batch_execution_id: id,
+      not_before,
+      started_at,
+      finished_at,
+      canceled,
+    } = summary;
     switch (summary.status) {
       case "started":
         if (!started_at || !isDateTimePast(started_at)) {
-          return (
-            <DataError description="Batch run is marked as 'started' but has no past 'started_at'" />
+          console.warn(
+            `Batch run with execution id ${id} is marked as 'started' but has no past 'started_at'`
           );
+          return null;
         }
         return (
           <>
@@ -151,9 +158,10 @@ const ScriptBatchProgress = ({
         );
       case "scheduled":
         if (!not_before || isDateTimePast(not_before)) {
-          return (
-            <DataError description="Batch run is marked as 'scheduled' but has no future scheduled start time" />
+          console.warn(
+            `Batch run with execution id ${id} is marked as 'scheduled' but has no future scheduled start time`
           );
+          return null;
         }
         return (
           <>
@@ -166,9 +174,10 @@ const ScriptBatchProgress = ({
         );
       case "finished":
         if (!finished_at || !isDateTimePast(finished_at)) {
-          return (
-            <DataError description="Batch run is marked as 'finished' but has no past 'finished_at' data" />
+          console.warn(
+            `Batch run with execution id ${id} is marked as 'finished' but has no past 'finished_at' data`
           );
+          return null;
         }
         return (
           <>

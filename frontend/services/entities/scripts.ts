@@ -279,7 +279,7 @@ export default {
       endpoints.SCRIPT_RUN_BATCH_SUMMARIES
     }?${buildQueryStringFromParams({ ...params })}`;
     // TODO - swap
-    // return sendRequest("GET", path);
+    return sendRequest("GET", path);
 
     // remove:
     switch (params.status) {
