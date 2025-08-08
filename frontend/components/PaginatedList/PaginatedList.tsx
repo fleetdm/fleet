@@ -45,7 +45,7 @@ interface IPaginatedListProps<TItem> {
   isItemDisabled?: (item: TItem) => boolean;
   /** How to determine the tooltip to show on hover over the item's checkbox */
   getItemTooltipContent?: (item: TItem) => React.ReactNode;
-  /** Custom function to render the label for an item. */
+  /** Custom function to render the label for an item. Only considered if !!useCheckboxes */
   renderItemLabel?: (item: TItem) => ReactElement | null;
   /** Custom function to render extra markup (besides the label) in an item row. */
   renderItemRow?: (

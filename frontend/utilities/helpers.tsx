@@ -907,6 +907,12 @@ export const getGitOpsModeTipContent = (repoURL: string) => (
   </>
 );
 
+/** Returns true if the passed in ISO 8601 date-time string represents a date and time in the past,
+ * false otherwise */
+export const isDateTimePast = (dt: string) => {
+  return new Date(dt) < new Date();
+};
+
 export default {
   addGravatarUrlToResource,
   removeOSPrefix,
@@ -949,4 +955,5 @@ export default {
   normalizeEmptyValues,
   wait,
   wrapFleetHelper,
+  isDateTimePast,
 };

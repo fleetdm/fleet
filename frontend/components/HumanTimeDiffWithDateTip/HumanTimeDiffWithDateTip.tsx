@@ -62,8 +62,13 @@ export const HumanTimeDiffWithDateTip = ({
  * that the timeString is before the launch date of Fleet */
 export const HumanTimeDiffWithFleetLaunchCutoff = ({
   timeString,
+  tooltipPosition = "top",
 }: IHumanTimeDiffWithDateTip): JSX.Element => {
   return (
-    <HumanTimeDiffWithDateTip timeString={timeString} cutoffBeforeFleetLaunch />
+    <HumanTimeDiffWithDateTip
+      timeString={timeString}
+      tooltipPosition={tooltipPosition}
+      cutoffBeforeFleetLaunch
+    />
   );
 };

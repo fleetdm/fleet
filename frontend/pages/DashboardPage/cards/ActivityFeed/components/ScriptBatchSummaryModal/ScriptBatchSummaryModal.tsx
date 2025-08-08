@@ -17,7 +17,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryResponse,
+  IScriptBatchSummaryResponseV1,
 } from "services/entities/scripts";
 import { AxiosError } from "axios";
 import Spinner from "components/Spinner";
@@ -28,8 +28,13 @@ import ScriptBatchStatusTable from "../ScriptBatchStatusTable";
 
 const baseClass = "script-batch-summary-modal";
 
+export type IScriptBatchDetailsForSummary = Pick<
+  IActivityDetails,
+  "batch_execution_id" | "created_at" | "script_name" | "host_count"
+>;
+
 interface IScriptBatchSummaryModal {
-  scriptBatchExecutionDetails: IActivityDetails;
+  scriptBatchExecutionDetails: IScriptBatchDetailsForSummary;
   onCancel: () => void;
   router: InjectedRouter;
 }
@@ -42,9 +47,9 @@ const ScriptBatchSummaryModal = ({
   const [showCancelModal, setShowCancelModal] = useState(false);
 
   const { data: statusData, isLoading, isError } = useQuery<
-    IScriptBatchSummaryResponse,
+    IScriptBatchSummaryResponseV1,
     AxiosError,
-    IScriptBatchSummaryResponse,
+    IScriptBatchSummaryResponseV1,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -81,11 +86,13 @@ const ScriptBatchSummaryModal = ({
   };
 
   let activityCreatedAt: Date | null = null;
-  try {
-    activityCreatedAt = new Date(details?.created_at || "");
-  } catch (e) {
-    // invalid date string
-    activityCreatedAt = null;
+  if (details?.created_at) {
+    try {
+      activityCreatedAt = new Date(details?.created_at || "");
+    } catch (e) {
+      // invalid date string
+      activityCreatedAt = null;
+    }
   }
 
   const targetedTitle = (
