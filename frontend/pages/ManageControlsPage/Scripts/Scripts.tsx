@@ -59,10 +59,7 @@ const Scripts = ({ router, location, params }: IScriptsProps) => {
       </p>
       <SideNav
         className={`${baseClass}__side-nav`}
-        navItems={SCRIPTS_NAV_ITEMS.map((navItem) => ({
-          ...navItem,
-          path: navItem.path.concat(location.search),
-        }))}
+        navItems={SCRIPTS_NAV_ITEMS}
         activeItem={currentFormSection.urlSection}
         CurrentCard={
           <CurrentCard

@@ -36,7 +36,12 @@ const controlsSubNav: IControlsSubNavItem[] = [
   },
 ];
 
-const subNavQueryParams = ["page", "order_key", "order_direction"] as const;
+const subNavQueryParams = [
+  "page",
+  "order_key",
+  "order_direction",
+  "status",
+] as const;
 
 interface IManageControlsPageProps {
   children: JSX.Element;
