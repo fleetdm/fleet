@@ -1,6 +1,7 @@
 import { IHostScript, IScript, ScriptBatchStatus } from "interfaces/script";
 import sendRequest from "services";
 
+import { sleep } from "services/mock_service/service/service";
 import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
 
 import endpoints from "utilities/endpoints";
@@ -283,6 +284,7 @@ export default {
     // remove:
     switch (params.status) {
       case "started":
+        // await sleep(200000);
         return Promise.resolve({
           batch_executions: [
             createMockBatchScriptSummary({
@@ -291,7 +293,7 @@ export default {
             }),
           ],
           meta: { has_next_results: false, has_previous_results: false },
-          count: 0,
+          count: 1,
         });
       case "scheduled":
         return Promise.resolve({
@@ -313,7 +315,7 @@ export default {
             }),
           ],
           meta: { has_next_results: false, has_previous_results: false },
-          count: 0,
+          count: 2,
         });
       case "finished":
         return Promise.resolve({
@@ -328,7 +330,7 @@ export default {
         return Promise.resolve({
           batch_executions: [createMockBatchScriptSummary()],
           meta: { has_next_results: false, has_previous_results: false },
-          count: 0,
+          count: 1,
         });
     }
   },

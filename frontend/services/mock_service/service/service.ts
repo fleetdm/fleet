@@ -14,7 +14,8 @@ const {
   WILDCARDS,
 } = CONFIG;
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 const splitRouteAndQueryString = (path: string) => {
   path = trim(path, "/").replace(trim(ENDPOINT, "/"), "");
