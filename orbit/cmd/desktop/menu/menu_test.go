@@ -157,6 +157,30 @@ func TestManagerWithMockFactory(t *testing.T) {
 		assert.True(t, selfService.Enabled)
 	})
 
+	t.Run("set connected state free tier", func(t *testing.T) {
+		// Test free tier - self-service should be hidden
+		summary := &fleet.DesktopSummary{
+			SelfService: ptr.Bool(true), // Even if enabled in summary, free tier overrides it
+		}
+		manager.SetConnected(summary, true) // true = free tier
+
+		// Check MyDevice state
+		myDevice := manager.Items.MyDevice.(*MockMenuItem)
+		assert.Equal(t, "My device", myDevice.Title)
+		assert.True(t, myDevice.Visible)
+		assert.True(t, myDevice.Enabled)
+
+		// Check transparency is enabled
+		transparency := manager.Items.Transparency.(*MockMenuItem)
+		assert.True(t, transparency.Enabled)
+		assert.True(t, transparency.Visible)
+
+		// Check self-service is hidden and disabled on free tier
+		selfService := manager.Items.SelfService.(*MockMenuItem)
+		assert.False(t, selfService.Visible, "Self-service should be hidden on free tier")
+		assert.False(t, selfService.Enabled, "Self-service should be disabled on free tier")
+	})
+
 	t.Run("set offline state", func(t *testing.T) {
 		// First, set connected state with self-service enabled
 		summary := &fleet.DesktopSummary{
