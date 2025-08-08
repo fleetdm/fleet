@@ -80,7 +80,7 @@ const DEFAULT_SEARCH_QUERY = "";
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE = 0;
-const DEFAULT_CLIENT_SIDE_PAGINATION = 4;
+const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
 
 export interface ISoftwareSelfServiceProps {
   contactUrl: string;
@@ -101,9 +101,9 @@ export const parseSelfServiceQueryParams = (queryParams: {
   order_direction?: "asc" | "desc";
   category_id?: string;
 }) => {
-  const searchQuery = queryParams?.query ?? "";
-  const sortHeader = queryParams?.order_key ?? "name";
-  const sortDirection = queryParams?.order_direction ?? "desc";
+  const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
+  const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
+  const sortDirection = queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION;
   const page = queryParams?.page
     ? parseInt(queryParams.page, 10)
     : DEFAULT_PAGE;
