@@ -73,7 +73,7 @@ Currently, if a host has two versions of the software installed, with each versi
 rm -r /Users/noahtalerman/Downloads/Google\ Chrome.app
 ```
 
-For more technical detail and edge cases, checkout the [software self-service diagram](https://drive.google.com/file/d/1dtCo-CzVIcJkk1GIDHMKflqu6mSNyzfw/view).
+For more technical detail and edge cases, checkout the [software self-service diagram](https://drive.google.com/file/d/1rOR0zRT5DKZfJVPq2WdNpdWkO0ARYbsj/view).
 
 ### Statuses
 
