@@ -2273,6 +2273,7 @@ type AndroidDatastore interface {
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
+	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

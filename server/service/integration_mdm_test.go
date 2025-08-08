@@ -13792,7 +13792,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		})
 
 		t.Run("if invalid device signature", func(t *testing.T) {
-			os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+			t.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
 			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
 			errMsg := extractServerErrorText(httpResp.Body)
 			require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
@@ -13938,12 +13938,6 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			checkInstallFleetdCommandSent(mdmDevice, true)
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				mysql.DumpTable(t, q, "hosts")
-				mysql.DumpTable(t, q, "mdm_idp_accounts")
-				mysql.DumpTable(t, q, "host_mdm_idp_accounts")
-				return nil
-			})
 			verifySuccessfulIdpAssociation(resp.Host.UUID, idpAccount.UUID)
 		})
 	})

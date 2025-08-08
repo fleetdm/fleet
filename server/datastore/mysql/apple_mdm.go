@@ -1597,12 +1597,17 @@ func createHostFromMDMDB(
 		whenArgs = append(whenArgs, serial)
 	}
 
-	stmt = fmt.Sprintf(`
-UPDATE hosts
-SET uuid = CASE %s ELSE uuid END
-WHERE hardware_serial IN (%s)
-	`, strings.Join(whenCases, " "), strings.Repeat("?", len(updateUUIDHosts)))
-	_, err = tx.ExecContext(ctx, stmt, whenArgs...)
+	if len(updateUUIDHosts) > 0 {
+		stmt = fmt.Sprintf(`
+	UPDATE hosts
+	SET uuid = CASE %s ELSE uuid END
+	WHERE hardware_serial IN (%s)
+		`, strings.Join(whenCases, " "), strings.TrimSuffix(strings.Repeat("?,", len(updateUUIDHosts)), ","))
+		_, err = tx.ExecContext(ctx, stmt, whenArgs...)
+		if err != nil {
+			return 0, nil, ctxerr.Wrap(ctx, err, "setting uuid for hosts")
+		}
+	}
 
 	var hostsWithEnrolled []struct {
 		fleet.Host
@@ -1685,7 +1690,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 			},
 		}
 		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, false, teamID, teamID, teamID)
-		if idpUUID != "" {
+		if idpUUID != "" && len(hosts) > 0 {
 			host := hosts[0]
 			level.Info(ds.logger).Log("msg", fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
 			err = associateHostMDMIdPAccountDB(ctx, tx, host.UUID, idpUUID)
