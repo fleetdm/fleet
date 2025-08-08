@@ -1832,6 +1832,9 @@ type Datastore interface {
 	// CountBatchScriptExecutions returns the number of batch script executions matching the filter.
 	CountBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) (int64, error)
 
+	// MarkActivitiesAsCompleted updates the status of the specified activities to "completed".
+	MarkActivitiesAsCompleted(ctx context.Context) error
+
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)
 
