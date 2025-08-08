@@ -6603,11 +6603,55 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
 
+	// Check status of the batch execution
+	var batchStatusResp batchScriptExecutionStatusResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+
+	// Deprecated summary endpoint
+	var batchSummaryResp batchScriptExecutionSummaryResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/summary/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchSummaryResp)
+	require.Equal(t, batchSummaryResp.ScriptID, script.ID)
+	require.Equal(t, *batchSummaryResp.NumTargeted, uint(2))
+	require.Equal(t, *batchSummaryResp.NumPending, uint(2))
+
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
 		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name),
 		0,
 	)
+
+	// Another request so we can check the list endpoint
+	var batchRes2 batchScriptRunResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID},
+	}, http.StatusOK, &batchRes2)
+	require.NotEmpty(t, batchRes2.BatchExecutionID)
+
+	// Check with the list endpoint
+	var batchListResp batchScriptExecutionListResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
+	require.Len(t, batchListResp.BatchScriptExecutions, 1)
+	require.Equal(t, batchListResp.Count, uint(2))
+	require.Equal(t, batchListResp.HasNextResults, true)
+	require.Equal(t, batchListResp.HasPreviousResults, false)
+	require.Equal(t, batchListResp.BatchScriptExecutions[0].BatchExecutionID, batchRes2.BatchExecutionID)
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(1))
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(1))
+
+	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&page=1&per_page=1", nil, http.StatusOK, &batchListResp)
+	require.Len(t, batchListResp.BatchScriptExecutions, 1)
+	require.Equal(t, batchListResp.Count, uint(2))
+	require.Equal(t, batchListResp.HasNextResults, false)
+	require.Equal(t, batchListResp.HasPreviousResults, true)
+	require.Equal(t, batchListResp.BatchScriptExecutions[0].BatchExecutionID, batchRes.BatchExecutionID)
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(2))
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(2))
 
 	// verify that script was queued for orbit
 	s.DoJSON("POST", "/api/fleet/orbit/config",
@@ -6642,8 +6686,37 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	var batchResUpcoming batchScriptRunResponse
 	// Queue scripts again, now in upcoming activities queue
+	// Scheduling something in the past makes it run right now
+	scheduledPast := time.Now().Add(-2 * time.Hour)
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
-		ScriptID: script.ID,
+		ScriptID:  script.ID,
+		HostIDs:   []uint{host1.ID, host2.ID},
+		NotBefore: &scheduledPast,
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name),
+		0,
+	)
+
+	// Queue upcoming execution
+	scheduledTime := time.Now().Add(10 * time.Hour)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID:  script.ID,
+		HostIDs:   []uint{host1.ID, host2.ID},
+		NotBefore: &scheduledTime,
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeBatchScriptScheduled{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
+		0,
+	)
+ s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+   ScriptID: script.ID,
 		HostIDs:  []uint{host1.ID, host2.ID},
 	}, http.StatusOK, &batchResUpcoming)
 	require.NotEmpty(t, batchResUpcoming.BatchExecutionID)

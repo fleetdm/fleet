@@ -1,3 +1,6 @@
+// Note: if parts of a icon have a clip path, mask, or gradient, the IDs must be unique
+// across all icons to avoid conflicts in the DOM. See uniqueId usage within icon components.
+
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 

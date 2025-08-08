@@ -67,8 +67,8 @@
       - ➕ Bonus: Cybersecurity or IT background.
 
 
-- jobTitle: 🎐 Solutions Consultant
-  department: Sales
+- jobTitle: 🌐 Solutions Consultant
+  department: IT & Enablement
   hiringManagerName: Allen Houchins
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
   hiringManagerGithubUsername: allenhouchins
@@ -236,4 +236,36 @@
     - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
     - ➕ Bonus: YB2B SaaS background
+
+
+- jobTitle: 🌐 Head of Security Solutions
+  department: IT & Enablement
+  hiringManagerName: Allen Houchins
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
+  hiringManagerGithubUsername: allenhouchins
+  onTargetEarnings: '$150,000 - $190,000'
+  responsibilities: |
+      - 🎯 Serve as the primary point of contact and subject matter expert for all security solutions throughout the entire customer lifecycle, from initial prospecting through post-sales success and expansion.
+      - 🤝 Lead pre-sales security consultations by working directly with prospects to understand their security architecture, compliance requirements, and threat landscape to demonstrate how Fleet fits into their security ecosystem.
+      - 📈 Drive post-sales security adoption by partnering with Customer Success to ensure customers are maximizing Fleet's security capabilities, implementing security best practices, and achieving their security objectives.
+      - 🧠 Act as a strategic security advisor to the Product team by identifying market trends, customer security needs, and competitive landscape insights to influence product roadmap and feature development priorities.
+      - 🛠️ Collaborate closely with Engineering teams to define security feature requirements, review technical specifications, and validate that new security capabilities meet enterprise customer needs.
+      - 🔒 Execute internal Information Security initiatives including security assessments, compliance audits, security training programs, and implementation of security policies and procedures as assigned.
+      - 📊 Develop and maintain security-focused sales collateral, competitive intelligence, demo environments, and technical documentation to enable the broader Go-to-Market team.
+      - 🎪 Represent Fleet's security expertise at industry conferences, security meetups, webinars, and customer advisory board meetings to build thought leadership and drive demand generation.
+      - 🚨 Serve as an escalation point for complex security-related customer questions, technical objections, and competitive situations that require deep security domain expertise.
+      - 📋 Work with Sales to track security solution metrics, customer feedback, and market intelligence to optimize our security go-to-market strategy and inform leadership decisions.
+      - 🚙 Drive the certification process for Fleet to become an approved PCI scanning vendor
+  experience: |
+      - 🦉 5+ years of experience in cybersecurity with a combination of technical sales, product management, or security consulting roles, preferably in the device management, endpoint security, or IT security space.
+      - 🎓 Deep technical expertise in enterprise security technologies including EDR/XDR platforms, SIEM/SOAR solutions, vulnerability management, compliance frameworks (SOC 2, ISO 27001, FedRAMP), and security operations.
+      - 💼 Proven track record of successfully working with enterprise security teams, CISOs, and IT leadership to solve complex security challenges and drive technology adoption.
+      - 🔍 Hands-on experience with osquery, SQL, threat hunting, incident response, and security monitoring tools, with the ability to demonstrate technical concepts to both technical and non-technical audiences.
+      - 🏗️ Experience influencing product strategy and working cross-functionally with engineering, product, and sales teams to bring security solutions to market.
+      - 📢 Excellent communication and presentation skills with the ability to articulate complex security concepts clearly to diverse audiences, from security analysts to C-level executives.
+      - 🌍 Understanding of modern IT infrastructure including cloud platforms (AWS, Azure, GCP), containerization, macOS/Windows/Linux environments, and enterprise networking.
+      - 🎯 Strong business acumen with experience building business cases, ROI models, and competitive positioning for security solutions.
+      - 🤝 Collaboration: You work best in a participatory, team-based environment and can bridge the gap between technical and business stakeholders.
+      - 🟣 Openness: You are flexible and open to new ideas and ways of working, especially in the fast-paced startup environment.
+      - ➕ Bonus: Experience with open source security tools, previous startup experience, industry certifications (CISSP, CISM, etc.), and familiarity with GitOps workflows and infrastructure as code.
 

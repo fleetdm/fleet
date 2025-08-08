@@ -92,6 +92,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+      - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
       - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig

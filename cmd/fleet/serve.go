@@ -1045,6 +1045,13 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register host vitals label membership schedule")
 			}
 
+			// Start the service that marks activities as completed.
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newBatchActivityCompletionCheckerSchedule(ctx, instanceID, ds, logger)
+			}); err != nil {
+				initFatal(err, "failed to register batch activity completion checker schedule")
+			}
+
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
@@ -1320,6 +1327,30 @@ the way that the Fleet server works.
 					if err := rc.SetWriteDeadline(time.Now().Add(30 * time.Minute)); err != nil {
 						level.Error(logger).Log(
 							"msg", "http middleware failed to override endpoint write timeout for android enterpriset setup",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
+					}
+				}
+
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") {
+					// For customers using large profiles and/or large numbers of profiles, the
+					// server needs time to completely read the request body and also to process
+					// all the side effects of a potentially large number of profiles being changed
+					// across a large number of hosts, so set the timeouts a bit higher than default
+					rc := http.NewResponseController(rw)
+					if err := rc.SetWriteDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint write timeout for MDM profiles batch endpoint",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
+					}
+					if err := rc.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint read timeout for MDM profiles batch endpoint",
 							"response_writer_type", fmt.Sprintf("%T", rw),
 							"response_writer", fmt.Sprintf("%+v", rw),
 							"err", err,
