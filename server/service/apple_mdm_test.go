@@ -641,7 +641,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 		},
 	}
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []string) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		return &cp, nil
 	}
 	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
@@ -753,7 +753,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	mcBytes := mcBytesForTest("Foo", identifier, "UUID")
 	r := bytes.NewReader(mcBytes)
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []string) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		require.Equal(t, "Foo", cp.Name)
 		assert.Equal(t, identifier, cp.Identifier)
 		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
@@ -2899,7 +2899,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		return nil
 	}
 
-	t.Run("replace $FLEET_VAR_"+fleet.FleetVarNDESSCEPProxyURL, func(t *testing.T) {
+	t.Run("replace $FLEET_VAR_"+string(fleet.FleetVarNDESSCEPProxyURL), func(t *testing.T) {
 		var upsertCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
@@ -2931,7 +2931,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
-	t.Run("preprocessor fails on $FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP, func(t *testing.T) {
+	t.Run("preprocessor fails on $FLEET_VAR_"+string(fleet.FleetVarHostEndUserEmailIDP), func(t *testing.T) {
 		var failedCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
@@ -4773,7 +4773,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	}{
 		{
 			desc:           "username only scim",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4792,7 +4792,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username local part only scim",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4811,7 +4811,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "groups only scim",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4833,7 +4833,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "multiple times username only scim",
-			profileContent: strings.Repeat("${FLEET_VAR_"+fleet.FleetVarHostEndUserIDPUsername+"}", 3),
+			profileContent: strings.Repeat("${FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPUsername)+"}", 3),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4852,7 +4852,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "all 3 vars with scim",
-			profileContent: "${FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername + "}${FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart + "}${FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups + "}",
+			profileContent: "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername) + "}${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) + "}${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups) + "}",
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4874,7 +4874,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username no scim, with idp",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4895,7 +4895,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username scim and idp",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4916,7 +4916,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4935,7 +4935,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username local part, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4954,7 +4954,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "groups, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4971,7 +4971,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "department, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4988,7 +4988,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "groups with scim user but no group",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -5005,7 +5005,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "profile with scim department",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -5028,7 +5028,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "profile with scim department, user has no department",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {

@@ -5882,8 +5882,8 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 
 	// add two profiles to no team, one that uses the IdP username and one that uses groups
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: mobileconfigForTest("N1", "I1", fleet.FleetVarHostEndUserIDPUsername)},
-		{Name: "N2", Contents: mobileconfigForTest("N2", "I2", fleet.FleetVarHostEndUserIDPGroups)},
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1", string(fleet.FleetVarHostEndUserIDPUsername))},
+		{Name: "N2", Contents: mobileconfigForTest("N2", "I2", string(fleet.FleetVarHostEndUserIDPGroups))},
 	}}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 
@@ -14700,9 +14700,9 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		URL:                           digiCertServer.server.URL,
 		APIToken:                      "api_token",
 		ProfileID:                     "profile_id",
-		CertificateCommonName:         "$FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + " $FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP,
-		CertificateUserPrincipalNames: []string{"_${FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + "}_"},
-		CertificateSeatID:             "_${FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + "}_",
+		CertificateCommonName:         "$FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + " $FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP),
+		CertificateUserPrincipalNames: []string{"_${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}_"},
+		CertificateSeatID:             "_${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}_",
 	}
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{

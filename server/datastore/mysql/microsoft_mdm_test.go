@@ -2083,7 +2083,7 @@ func testMDMWindowsConfigProfilesWithFleetVars(t *testing.T, ds *Datastore) {
 		Name:   "profile_with_vars",
 		TeamID: nil,
 		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
-	}, []string{fleet.FleetVarHostUUID})
+	}, []fleet.FleetVarName{fleet.FleetVarHostUUID})
 	require.NoError(t, err)
 	require.NotEmpty(t, profWithVars.ProfileUUID)
 
@@ -2101,7 +2101,7 @@ func testMDMWindowsConfigProfilesWithFleetVars(t *testing.T, ds *Datastore) {
 
 	// Assert that the returned variable names exactly match the provided slice
 	// Note: the database stores the full name with FLEET_VAR_ prefix
-	expectedVarNames := []string{"FLEET_VAR_" + fleet.FleetVarHostUUID}
+	expectedVarNames := []string{"FLEET_VAR_" + string(fleet.FleetVarHostUUID)}
 	require.Equal(t, expectedVarNames, varNames, "Variable names in database should match the provided usesFleetVars slice")
 
 	// Test with empty usesFleetVars slice
@@ -2109,7 +2109,7 @@ func testMDMWindowsConfigProfilesWithFleetVars(t *testing.T, ds *Datastore) {
 		Name:   "profile_no_vars",
 		TeamID: nil,
 		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/NoVars</LocURI></Target></Item></Replace>"),
-	}, []string{})
+	}, []fleet.FleetVarName{})
 	require.NoError(t, err)
 	require.NotEmpty(t, profNoVars.ProfileUUID)
 
@@ -2136,7 +2136,7 @@ func testMDMWindowsConfigProfilesWithFleetVars(t *testing.T, ds *Datastore) {
 		Name:   "team_profile_1",
 		TeamID: ptr.Uint(1),
 		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
-	}, []string{fleet.FleetVarHostUUID})
+	}, []fleet.FleetVarName{fleet.FleetVarHostUUID})
 	require.NoError(t, err)
 
 	// Verify the variable was persisted
@@ -2183,7 +2183,7 @@ func testMDMWindowsConfigProfilesWithFleetVars(t *testing.T, ds *Datastore) {
 
 	// Mock the profilesVariablesByIdentifier that would be passed from service layer
 	profilesVars := []fleet.MDMProfileIdentifierFleetVariables{
-		{Identifier: "team_profile_1", FleetVariables: []string{fleet.FleetVarHostUUID}},
+		{Identifier: "team_profile_1", FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostUUID}},
 	}
 
 	_, err = ds.BatchSetMDMProfiles(ctx, ptr.Uint(1), nil, []*fleet.MDMWindowsConfigProfile{teamProf1WithVarsAgain, teamProf2NoChange}, nil, profilesVars)
@@ -2870,7 +2870,7 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 
 	ctx := context.Background()
 
-	checkProfileVariables := func(profUUID string, teamID uint, wantVars []string) {
+	checkProfileVariables := func(profUUID string, teamID uint, wantVars []fleet.FleetVarName) {
 		var gotVars []string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &gotVars, `
@@ -2884,10 +2884,11 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 					mwcp.name = ? AND
 					mwcp.team_id = ?`, "name-"+profUUID, teamID) // test profiles are created with a name = "name-" + uuid
 		})
+		wantVarStrings := make([]string, len(wantVars))
 		for i := range wantVars {
-			wantVars[i] = "FLEET_VAR_" + wantVars[i]
+			wantVarStrings[i] = "FLEET_VAR_" + string(wantVars[i])
 		}
-		require.ElementsMatch(t, wantVars, gotVars)
+		require.ElementsMatch(t, wantVarStrings, gotVars)
 	}
 
 	globalProfiles := []string{
@@ -2907,11 +2908,11 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 
 	// add some variables
 	err = batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
-		{ProfileUUID: globalProfiles[0], FleetVariables: []string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix + "ZZZ"}},
-		{ProfileUUID: globalProfiles[1], FleetVariables: []string{fleet.FleetVarHostEndUserIDPGroups}},
+		{ProfileUUID: globalProfiles[0], FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
+		{ProfileUUID: globalProfiles[1], FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
 	}, "windows")
 	require.NoError(t, err)
 
-	checkProfileVariables(globalProfiles[0], 0, []string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix})
-	checkProfileVariables(globalProfiles[1], 0, []string{fleet.FleetVarHostEndUserIDPGroups})
+	checkProfileVariables(globalProfiles[0], 0, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix})
+	checkProfileVariables(globalProfiles[1], 0, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 }

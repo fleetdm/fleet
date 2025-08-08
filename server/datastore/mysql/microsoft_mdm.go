@@ -1763,7 +1763,7 @@ func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(
 	return nil
 }
 
-func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []string) (*fleet.MDMWindowsConfigProfile, error) {
+func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 	profileUUID := "w" + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
@@ -2164,7 +2164,7 @@ ON DUPLICATE KEY UPDATE
 	// Process ALL profiles to ensure stale variable associations are cleared for profiles that no longer have variables
 	if len(currentProfiles) > 0 {
 		// build a lookup map for variables by profile name (Windows profiles use Name as identifier)
-		lookupVariablesByName := make(map[string][]string, len(profilesVariablesByIdentifier))
+		lookupVariablesByName := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
 		for _, pv := range profilesVariablesByIdentifier {
 			// Windows profiles use Name as the identifier in the validateFleetVariables function
 			lookupVariablesByName[pv.Identifier] = pv.FleetVariables

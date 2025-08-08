@@ -24,7 +24,13 @@ const (
 	// RefetchCriticalQueriesUntil field when migrating a device from a
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+)
 
+// FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
+// It provides clearer semantics when used in function signatures and data structures.
+type FleetVarName string
+
+const (
 	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
 	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
 	// Currently, we assume the variables are fully unique and not substrings of each other.
@@ -33,21 +39,21 @@ const (
 	// in the fleet_variables table. At some point we should refactor those constants/regexp
 	// and the findFleetVariables logic to use the DB table instead of hardcoding them here
 	// (not doing it now because of time constraints to finish the story for the release).
-	FleetVarNDESSCEPChallenge               = "NDES_SCEP_CHALLENGE"
-	FleetVarNDESSCEPProxyURL                = "NDES_SCEP_PROXY_URL"
-	FleetVarHostEndUserEmailIDP             = "HOST_END_USER_EMAIL_IDP"
-	FleetVarHostHardwareSerial              = "HOST_HARDWARE_SERIAL"
-	FleetVarHostEndUserIDPUsername          = "HOST_END_USER_IDP_USERNAME"
-	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
-	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
-	FleetVarHostEndUserIDPDepartment        = "HOST_END_USER_IDP_DEPARTMENT"
-	FleetVarHostUUID                        = "HOST_UUID" // Windows only
-	FleetVarSCEPRenewalID                   = "SCEP_RENEWAL_ID"
+	FleetVarNDESSCEPChallenge               FleetVarName = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL                FleetVarName = "NDES_SCEP_PROXY_URL"
+	FleetVarHostEndUserEmailIDP             FleetVarName = "HOST_END_USER_EMAIL_IDP"
+	FleetVarHostHardwareSerial              FleetVarName = "HOST_HARDWARE_SERIAL"
+	FleetVarHostEndUserIDPUsername          FleetVarName = "HOST_END_USER_IDP_USERNAME"
+	FleetVarHostEndUserIDPUsernameLocalPart FleetVarName = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
+	FleetVarHostEndUserIDPGroups            FleetVarName = "HOST_END_USER_IDP_GROUPS"
+	FleetVarHostEndUserIDPDepartment        FleetVarName = "HOST_END_USER_IDP_DEPARTMENT"
+	FleetVarHostUUID                        FleetVarName = "HOST_UUID" // Windows only
+	FleetVarSCEPRenewalID                   FleetVarName = "SCEP_RENEWAL_ID"
 
-	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"
-	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
-	FleetVarCustomSCEPChallengePrefix = "CUSTOM_SCEP_CHALLENGE_"
-	FleetVarCustomSCEPProxyURLPrefix  = "CUSTOM_SCEP_PROXY_URL_"
+	FleetVarDigiCertDataPrefix        FleetVarName = "DIGICERT_DATA_"
+	FleetVarDigiCertPasswordPrefix    FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
+	FleetVarCustomSCEPChallengePrefix FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
+	FleetVarCustomSCEPProxyURLPrefix  FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
 
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
@@ -1022,7 +1028,7 @@ type MDMProfileUUIDFleetVariables struct {
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
 	// findFleetVariables).
-	FleetVariables []string
+	FleetVariables []FleetVarName
 }
 
 // MDMProfileIdentifierFleetVariables represents the Fleet variables used by a
@@ -1034,7 +1040,7 @@ type MDMProfileIdentifierFleetVariables struct {
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
 	// findFleetVariables).
-	FleetVariables []string
+	FleetVariables []FleetVarName
 }
 
 // BatchResendMDMProfileFilters represents the filters to apply to hosts for

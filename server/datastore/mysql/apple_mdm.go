@@ -180,7 +180,7 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 	return nil
 }
 
-func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
+func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
 
 	// Set default scope if not provided
@@ -2438,7 +2438,7 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrap(ctx, err, "load inserted/updated profiles")
 		}
 
-		lookupVariablesByIdentifier := make(map[string][]string, len(profilesVariablesByIdentifier))
+		lookupVariablesByIdentifier := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
 		for _, p := range profilesVariablesByIdentifier {
 			lookupVariablesByIdentifier[p.Identifier] = p.FleetVariables
 		}

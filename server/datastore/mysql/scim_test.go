@@ -1836,9 +1836,9 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 
 	// insert the relationship between profile and variables
 	varsPerProfile := map[string][]string{
-		profUsername.ProfileUUID: {fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart},
-		profGroup.ProfileUUID:    {fleet.FleetVarHostEndUserIDPGroups},
-		profAll.ProfileUUID:      {fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart, fleet.FleetVarHostEndUserIDPGroups},
+		profUsername.ProfileUUID: {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart)},
+		profGroup.ProfileUUID:    {string(fleet.FleetVarHostEndUserIDPGroups)},
+		profAll.ProfileUUID:      {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart), string(fleet.FleetVarHostEndUserIDPGroups)},
 	}
 	for profUUID, vars := range varsPerProfile {
 		for _, v := range vars {
@@ -2145,7 +2145,7 @@ func testTriggerResendIdPProfilesOnTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create some profiles with/without vars on the team
-	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []string{fleet.FleetVarHostEndUserIDPGroups})
+	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 	require.NoError(t, err)
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", team.ID), nil)
 	require.NoError(t, err)

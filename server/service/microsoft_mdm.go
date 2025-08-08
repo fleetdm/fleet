@@ -2241,7 +2241,7 @@ func preprocessWindowsProfileContents(
 	result := profileContents
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case fleet.FleetVarHostUUID:
+		case string(fleet.FleetVarHostUUID):
 			// Replace HOST_UUID with the actual host UUID
 			// Use XML escaping for the replacement value to be safe and prevent XML injection
 			b := make([]byte, 0, len(hostUUID))

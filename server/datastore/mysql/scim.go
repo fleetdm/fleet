@@ -1173,7 +1173,7 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 		return err
 	}
 	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]string{
+		[]fleet.FleetVarName{
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPDepartment,
@@ -1186,7 +1186,7 @@ func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtCont
 		return err
 	}
 	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]string{
+		[]fleet.FleetVarName{
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPGroups,
@@ -1210,7 +1210,7 @@ func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtCont
 		return err
 	}
 	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]string{fleet.FleetVarHostEndUserIDPGroups})
+		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 }
 
 func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.ExtContext, scimUserIDs []uint) error {
@@ -1223,7 +1223,7 @@ func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.
 		return err
 	}
 	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
-		[]string{fleet.FleetVarHostEndUserIDPGroups})
+		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 }
 
 func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, updatedScimUserID uint) error {
@@ -1238,7 +1238,7 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 		return nil
 	}
 	return triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID},
-		[]string{
+		[]fleet.FleetVarName{
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPDepartment,
@@ -1246,7 +1246,7 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 		})
 }
 
-func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []string) error {
+func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
 	if len(hostIDs) == 0 || len(affectedVars) == 0 {
 		return nil
 	}
@@ -1284,7 +1284,7 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 `
 	vars := make([]any, len(affectedVars))
 	for i, v := range affectedVars {
-		vars[i] = "FLEET_VAR_" + v
+		vars[i] = "FLEET_VAR_" + string(v)
 	}
 
 	stmt, args, err := sqlx.Named(updateStatusQuery, map[string]any{

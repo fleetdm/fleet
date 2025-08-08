@@ -1865,13 +1865,13 @@ func batchSetProfileVariableAssociationsDB(
 		for _, v := range pv.FleetVariables {
 			// variables received here do not have the FLEET_VAR_ prefix, but variables
 			// in the fleet_variables table do.
-			v = "FLEET_VAR_" + v
+			varWithPrefix := "FLEET_VAR_" + string(v)
 			for _, def := range varDefs {
-				if !def.IsPrefix && def.Name == v {
+				if !def.IsPrefix && def.Name == varWithPrefix {
 					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
 					break
 				}
-				if def.IsPrefix && strings.HasPrefix(v, def.Name) {
+				if def.IsPrefix && strings.HasPrefix(varWithPrefix, def.Name) {
 					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
 					break
 				}
