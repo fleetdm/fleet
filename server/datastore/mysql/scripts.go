@@ -1966,7 +1966,7 @@ func (ds *Datastore) CancelBatchScript(ctx context.Context, executionID string) 
 	stmt := `
 SELECT
 	bahr.host_execution_id,
-	bahr.host_id,
+	bahr.host_id
 FROM
 	batch_activity_host_results bahr
 LEFT JOIN
@@ -1978,29 +1978,27 @@ AND
 AND
 	hsr.exit_code IS NULL
 AND
-	bahr.error IS NULL
-`
+	bahr.error IS NULL`
 
 	stmtSetCanceled := `
 UPDATE
 	batch_activities ba
 SET
 	finished_at = NOW(),
-	state = 'finished'
+	status = 'finished',
 	canceled = 1,
 	num_canceled = (SELECT COUNT(*) FROM batch_activity_host_results WHERE batch_execution_id = ba.execution_id)
 WHERE
-	ba.execution_id = ?
-`
+	ba.execution_id = ?`
 
 	stmtCanceled := `
 UPDATE
 	batch_activities
 SET
-	canceled = 1,
+	canceled = 1
 WHERE
-	execution_id = ?
-`
+	execution_id = ?`
+
 	activity, err := ds.GetBatchActivity(ctx, executionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting batch activity")
