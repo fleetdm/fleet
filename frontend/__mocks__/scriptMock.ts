@@ -53,7 +53,9 @@ export const createMockHostScript = (
 };
 
 const DEFAULT_SCRIPT_BATCH_SUMMARY_MOCK: IScriptBatchSummaryV2 = {
+  created_at: "2025-07-01T10:00:00Z",
   batch_execution_id: "abc-def",
+  // batch_execution_id: "6a3bb9a1-a303-4222-86a2-aab63999ce02", // a real one
   script_id: 1,
   script_name: "fake_batch_script.sh",
   team_id: 0,

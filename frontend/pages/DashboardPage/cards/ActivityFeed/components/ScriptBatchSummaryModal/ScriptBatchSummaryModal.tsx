@@ -28,8 +28,13 @@ import ScriptBatchStatusTable from "../ScriptBatchStatusTable";
 
 const baseClass = "script-batch-summary-modal";
 
+export type IScriptBatchDetailsForSummary = Pick<
+  IActivityDetails,
+  "batch_execution_id" | "created_at" | "script_name" | "host_count"
+>;
+
 interface IScriptBatchSummaryModal {
-  scriptBatchExecutionDetails: IActivityDetails;
+  scriptBatchExecutionDetails: IScriptBatchDetailsForSummary;
   onCancel: () => void;
   router: InjectedRouter;
 }
@@ -81,11 +86,13 @@ const ScriptBatchSummaryModal = ({
   };
 
   let activityCreatedAt: Date | null = null;
-  try {
-    activityCreatedAt = new Date(details?.created_at || "");
-  } catch (e) {
-    // invalid date string
-    activityCreatedAt = null;
+  if (details?.created_at) {
+    try {
+      activityCreatedAt = new Date(details?.created_at || "");
+    } catch (e) {
+      // invalid date string
+      activityCreatedAt = null;
+    }
   }
 
   const targetedTitle = (

@@ -155,6 +155,9 @@ export interface IScriptBatchHostCountsV2 {
 
 export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
   batch_execution_id: string;
+  /** ISO 8601 date-time string. When the script batch run was created (NOT when it is/was scheduled
+   * to run by, which is represented by `not_before`. */
+  created_at: string;
   script_id: number;
   script_name: string;
   team_id: number;
