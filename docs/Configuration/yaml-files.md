@@ -30,17 +30,6 @@ package_path: package_name.yml
 # If the file is in a different directory:
 package_path: ../software/package_name.yml
 ```
-Here's how it looks in a policy file:
-```yaml
-- name: Policy name
-  query:
-  install_software:
-    package_path: ../software/package_name.yml
-  critical:
-  description:
-  resolution:
-  platform:
-```
 
 You may also wish to create specialized API-Only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
 
