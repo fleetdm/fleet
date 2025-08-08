@@ -1,7 +1,6 @@
 import { IHostScript, IScript, ScriptBatchStatus } from "interfaces/script";
 import sendRequest from "services";
 
-import { sleep } from "services/mock_service/service/service";
 import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
 
 import endpoints from "utilities/endpoints";

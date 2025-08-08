@@ -10,7 +10,7 @@ import { IDiskEncryptionProps } from "./cards/DiskEncryption/DiskEncryption";
 
 export interface IOSSettingsCommonProps {
   currentTeamId: number;
-  router: InjectedRouter; // v3
+  router: InjectedRouter;
   /** handler that fires when a change occures on the section (e.g. disk encryption
    * enabled, profile uploaded) */
   onMutation: () => void;

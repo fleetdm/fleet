@@ -176,7 +176,9 @@ const RunScriptBatchModal = ({
             "success",
             <span className={`${baseClass}__success-message`}>
               <span>Successfully scheduled script.</span>
-              <Link to={PATHS.CONTROLS_SCRIPTS_PROGRESS("scheduled", teamId)}>
+              <Link
+                to={`PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS?status=scheduled&team_id=${teamId})`}
+              >
                 Show schedule
               </Link>
             </span>
@@ -186,7 +188,9 @@ const RunScriptBatchModal = ({
             "success",
             <span className={`${baseClass}__success-message`}>
               <span>Successfully ran script.</span>
-              <Link to={PATHS.CONTROLS_SCRIPTS_PROGRESS("started", teamId)}>
+              <Link
+                to={`PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS?status=started&team_id=${teamId})`}
+              >
                 Show script activity
               </Link>
             </span>

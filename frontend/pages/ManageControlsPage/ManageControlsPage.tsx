@@ -36,6 +36,7 @@ const controlsSubNav: IControlsSubNavItem[] = [
   },
 ];
 
+// params to strip when navigating between tabs
 const subNavQueryParams = [
   "page",
   "order_key",

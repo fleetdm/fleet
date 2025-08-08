@@ -18,7 +18,6 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import PaginatedList from "components/PaginatedList";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import DataError from "components/DataError";
 import Icon from "components/Icon/Icon";
 
 import ScriptBatchSummaryModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptBatchSummaryModal";
@@ -67,7 +66,7 @@ const ScriptBatchProgress = ({
       setBatchCount(undefined);
 
       const newStatus = STATUS_BY_INDEX[index];
-      // push to the URL
+
       const newParams = new URLSearchParams(location?.search);
       newParams.set("status", newStatus);
       const newQuery = newParams.toString();
@@ -106,13 +105,14 @@ const ScriptBatchProgress = ({
           return scriptsAPI
             .getRunScriptBatchSummaries(queryKey[0])
             .then((r) => {
-              // there is some slightly round-about data flow here on account of PaginatedList's
-              // expecations for `fetchPage` and `fetchCount` / `count` – this fetchPage is called by
+              // there is some slightly round-about data flow here – this fetchPage is called by
               // PaginatedList, and the batchCount state this sets controls rendering of an empty
               // state that causes PaginatedList to not be rendered. This works because
               // `batchCount`'s default value is undefined, while the empty state renders when it
               // === 0.
               setBatchCount(r.count);
+              // tracking updating state at this level allows coordination of PaginatedList's
+              // internal loading state with showing/hiding the batch count
               setUpdating(false);
               return r.batch_executions;
             });
@@ -128,6 +128,7 @@ const ScriptBatchProgress = ({
       script_name: r.script_name,
       host_count: r.targeted_host_count,
     });
+    // return satisfies caller expectations, not used in this case
     return r;
   };
 

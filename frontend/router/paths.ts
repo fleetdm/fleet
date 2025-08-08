@@ -21,8 +21,6 @@ export default {
   CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
   CONTROLS_SCRIPTS_LIBRARY: `${URL_PREFIX}/controls/scripts/library`,
   CONTROLS_SCRIPTS_BATCH_PROGRESS: `${URL_PREFIX}/controls/scripts/progress`,
-  CONTROLS_SCRIPTS_PROGRESS: (status: string, teamId: number): string =>
-    `${URL_PREFIX}/controls/scripts/progress?status=${status}&team_id=${teamId}`,
 
   // Dashboard pages
   DASHBOARD: `${URL_PREFIX}/dashboard`,
