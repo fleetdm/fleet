@@ -20,7 +20,7 @@ software: # Can be defined in teams/no-team.yml too
 org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
-Paths in YAML files are always relative to the file you’re editing, keeping configurations simple and portable. 
+Paths in YAML files are always relative to the file you’re editing.
 
 For example:
 ```yaml
