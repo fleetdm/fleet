@@ -4618,7 +4618,7 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	}, &team1.ID)
 	require.NoError(t, err)
 
-	automaticPolicies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{team1App3.TitleID}, &team1.ID)
+	automaticPolicies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{team1App3.TitleID}, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, automaticPolicies, 1)
 
@@ -5728,7 +5728,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	policy2 := newTestPolicy(t, ds, user1, "policy 2", "darwin", &team2.ID)
 
 	// Get policies for an invalid title ID
-	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{999}, &team1.ID)
+	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{999}, team1.ID)
 	require.NoError(t, err)
 	require.Empty(t, policies)
 
@@ -5784,31 +5784,31 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.NotNil(t, installer2.TitleID)
 
 	// software title 1 should have policy 1 when filtering by team 1
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer1.TitleID}, &team1.ID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer1.TitleID}, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, policy1.ID, policies[0].ID)
 	require.Equal(t, policy1.Name, policies[0].Name)
 
 	// software title 1 should not have any policies when filtering by team 2
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer1.TitleID}, &team2.ID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer1.TitleID}, team2.ID)
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
 	// software title 2 should have policy 2 when filtering by team 2
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, &team2.ID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, team2.ID)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, policy2.ID, policies[0].ID)
 	require.Equal(t, policy2.Name, policies[0].Name)
 
 	// software title 2 should not have any policies when filtering by team 1
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, &team1.ID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
 	// software title 2 should not have any policies when filtering by no team
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, nil)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, 0)
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
@@ -5863,7 +5863,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, installer3.TitleID)
 
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, ptr.Uint(0))
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, 0)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 	expected := map[uint]fleet.AutomaticInstallPolicy{
@@ -5882,12 +5882,12 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 		megaTitleIDs = append(megaTitleIDs, *installer4.TitleID+i+1)
 	}
 	megaTitleIDs = append(megaTitleIDs, *installer4.TitleID)
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, megaTitleIDs, ptr.Uint(0))
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, megaTitleIDs, 0)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
 	// "No team" titles should not have any policies when filtering by team 1
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, ptr.Uint(1))
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, 1)
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 }

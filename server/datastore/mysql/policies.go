@@ -2117,10 +2117,13 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 }
 
 // getPoliciesBySoftwareTitleIDs returns the policies that are associated with a set of software titles.
+//
+// Takes a uint teamID (and not a *uint) because it should only be used when querying team and "No team"
+// policies ("All teams" cannot be associated to packages/VPP-apps).
 func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	ctx context.Context,
 	softwareTitleIDs []uint,
-	teamID *uint,
+	teamID uint,
 ) ([]fleet.AutomaticInstallPolicy, error) {
 	if len(softwareTitleIDs) == 0 {
 		return nil, nil
