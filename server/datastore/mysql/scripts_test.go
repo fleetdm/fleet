@@ -2253,7 +2253,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	// Schedule another one
 	execID2, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
-	require.NotEmpty(t, execID)
+	require.NotEmpty(t, execID2)
 
 	require.NoError(t, err)
 	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
