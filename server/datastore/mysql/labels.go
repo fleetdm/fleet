@@ -19,6 +19,38 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 }
 
 func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
+	// First, get existing labels to detect platform changes
+	labelNames := make([]string, 0, len(specs))
+	for _, s := range specs {
+		if s.Name != "" {
+			labelNames = append(labelNames, s.Name)
+		}
+	}
+
+	type existingLabel struct {
+		ID       uint   `db:"id"`
+		Name     string `db:"name"`
+		Platform string `db:"platform"`
+	}
+	existingLabels := make(map[string]existingLabel)
+
+	if len(labelNames) > 0 {
+		stmt := `SELECT id, name, platform FROM labels WHERE name IN (?)`
+		stmt, args, err := sqlx.In(stmt, labelNames)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build existing labels query")
+		}
+
+		var labels []existingLabel
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "query existing labels")
+		}
+
+		for _, label := range labels {
+			existingLabels[label.Name] = label
+		}
+	}
+
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// TODO: do we want to allow on duplicate updating label_type or
 		// label_membership_type or should those always be immutable?
@@ -65,18 +97,37 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
 			}
 
+			// Check if this is an existing label and platform changed -> clean up memberships if needed
+			if existing, ok := existingLabels[s.Name]; ok && existing.Platform != s.Platform {
+				// When a label's platform changes, we delete all existing memberships.
+				// This ensures a clean slate - the label's query will be re-evaluated
+				// by Fleet's label execution system, and only hosts matching the new
+				// platform will be added back. This is simpler than trying to selectively
+				// remove hosts and handles all edge cases consistently.
+				cleanupSQL := `DELETE FROM label_membership WHERE label_id = ?`
+				_, err = tx.ExecContext(ctx, cleanupSQL, existing.ID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "cleanup label membership for platform change")
+				}
+			}
+
 			if s.LabelType == fleet.LabelTypeBuiltIn ||
 				s.LabelMembershipType != fleet.LabelMembershipTypeManual {
 				// No need to update membership
 				continue
 			}
 
+			// For manual labels, we need the label ID to update membership
 			var labelID uint
-			sql = `
-SELECT id from labels WHERE name = ?
-`
-			if err := sqlx.GetContext(ctx, tx, &labelID, sql, s.Name); err != nil {
-				return ctxerr.Wrap(ctx, err, "get label ID")
+			if existing, ok := existingLabels[s.Name]; ok {
+				// Use the existing label ID
+				labelID = existing.ID
+			} else {
+				// New label - fetch the ID we just created
+				sqlGetID := `SELECT id FROM labels WHERE name = ?`
+				if err := sqlx.GetContext(ctx, tx, &labelID, sqlGetID, s.Name); err != nil {
+					return ctxerr.Wrap(ctx, err, "get new label ID for manual membership")
+				}
 			}
 
 			sql = `

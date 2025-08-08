@@ -97,6 +97,7 @@ func TestLabels(t *testing.T) {
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
 		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
+		{"ApplyLabelSpecsWithPlatformChange", testApplyLabelSpecsWithPlatformChange},
 		{"UpdateLabelMembershipByHostCriteria", testUpdateLabelMembershipByHostCriteria},
 	}
 	// call TruncateTables first to remove migration-created labels
@@ -2024,6 +2025,151 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.ID, hosts[0].ID)
 	require.Equal(t, host2.ID, hosts[1].ID)
 	require.Equal(t, host3.ID, hosts[2].ID)
+}
+
+func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create hosts with different platforms
+	hostDarwin1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("darwin1"),
+		NodeKey:        ptr.String("darwin1"),
+		UUID:           "darwin-uuid-1",
+		Hostname:       "darwin1.local",
+		HardwareSerial: "darwin-serial-1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	hostDarwin2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("darwin2"),
+		NodeKey:        ptr.String("darwin2"),
+		UUID:           "darwin-uuid-2",
+		Hostname:       "darwin2.local",
+		HardwareSerial: "darwin-serial-2",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	hostWindows1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("windows1"),
+		NodeKey:        ptr.String("windows1"),
+		UUID:           "windows-uuid-1",
+		Hostname:       "windows1.local",
+		HardwareSerial: "windows-serial-1",
+		Platform:       "windows",
+	})
+	require.NoError(t, err)
+
+	hostLinux1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("linux1"),
+		NodeKey:        ptr.String("linux1"),
+		UUID:           "linux-uuid-1",
+		Hostname:       "linux1.local",
+		HardwareSerial: "linux-serial-1",
+		Platform:       "linux",
+	})
+	require.NoError(t, err)
+
+	// Test 1: Create a dynamic label for darwin platform
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "platform_test_label",
+			Description:         "Test label for platform changes",
+			Query:               "select 1",
+			Platform:            "darwin",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+
+	// Get the label ID
+	labels, err := ds.LabelsByName(ctx, []string{"platform_test_label"})
+	require.NoError(t, err)
+	label := labels["platform_test_label"]
+	require.NotNil(t, label)
+	require.Equal(t, "darwin", label.Platform)
+
+	// Manually add hosts to the label to simulate existing memberships
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO label_membership (label_id, host_id) VALUES 
+			(?, ?), (?, ?), (?, ?), (?, ?)`,
+			label.ID, hostDarwin1.ID,
+			label.ID, hostDarwin2.ID,
+			label.ID, hostWindows1.ID,
+			label.ID, hostLinux1.ID,
+		)
+		return err
+	})
+
+	// Verify all hosts are in the label
+	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 4)
+
+	// Test 2: Change platform to windows - all memberships are cleared
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "platform_test_label",
+			Description:         "Test label for platform changes",
+			Query:               "select 1",
+			Platform:            "windows",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+
+	// All memberships should be cleared (label query will repopulate with windows hosts on next execution)
+	hosts, err = ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// Test 3: Change platform to empty (all platforms) - all memberships are cleared
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "platform_test_label",
+			Description:         "Test label for platform changes",
+			Query:               "select 1",
+			Platform:            "",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+
+	// All memberships should be cleared (label query will repopulate on next execution)
+	hosts, err = ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// Add all hosts back
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT IGNORE INTO label_membership (label_id, host_id) VALUES 
+			(?, ?), (?, ?), (?, ?)`,
+			label.ID, hostDarwin1.ID,
+			label.ID, hostDarwin2.ID,
+			label.ID, hostLinux1.ID,
+		)
+		return err
+	})
+
+	// Test 4: Change from empty to specific platform (linux) - all memberships are cleared
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "platform_test_label",
+			Description:         "Test label for platform changes",
+			Query:               "select 1",
+			Platform:            "linux",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+
+	// All memberships should be cleared (label query will repopulate with linux hosts on next execution)
+	hosts, err = ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
 }
 
 type TestHostVitalsLabel struct {
