@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -17,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/service"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
@@ -405,6 +407,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 
 type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
+	BOYDIdpUUID  string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
 }
 
 type enrollmentTokenResponse struct {
@@ -412,16 +415,54 @@ type enrollmentTokenResponse struct {
 	android.DefaultResponse
 }
 
+func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	enrollSecret := r.URL.Query().Get("enroll_secret")
+	if enrollSecret == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "enroll_secret is required",
+		}
+	}
+
+	boydIdpCookie, err := r.Cookie(service.BOYDIdpCookieName)
+
+	if err == http.ErrNoCookie {
+		// We do not fail here if no cookie is found, we validate later down the line if it's required
+		return &enrollmentTokenRequest{
+			EnrollSecret: enrollSecret,
+			BOYDIdpUUID:  "f58ee3ed-58c2-11f0-b4fc-82f38ee18d9d",
+		}, nil
+	}
+
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "something went wrong parsing the boyd idp cookie",
+			InternalErr: err,
+		}
+	}
+
+	if err = boydIdpCookie.Valid(); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "boyd idp cookie is not valid",
+			InternalErr: err,
+		}
+	}
+
+	return &enrollmentTokenRequest{
+		EnrollSecret: enrollSecret,
+		BOYDIdpUUID:  boydIdpCookie.Value,
+	}, nil
+}
+
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
-	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret)
+	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.BOYDIdpUUID)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
 	return enrollmentTokenResponse{EnrollmentToken: token}
 }
 
-func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*android.EnrollmentToken, error) {
+func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, boydIdpUUID string) (*android.EnrollmentToken, error) {
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
@@ -450,10 +491,18 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
+	enrollmentTokenRequest, err := json.Marshal(enrollmentTokenRequest{
+		EnrollSecret: enrollSecret,
+		BOYDIdpUUID:  boydIdpUUID,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshalling enrollment token request")
+	}
+
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
-		AdditionalData:     enrollSecret,
+		AdditionalData:     string(enrollmentTokenRequest),
 		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
 		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultAndroidPolicyID),
 		OneTimeOnly:        true,
