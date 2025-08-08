@@ -10,6 +10,9 @@ import { isValidScriptBatchStatus, ScriptBatchStatus } from "interfaces/script";
 
 import { isDateTimePast } from "utilities/helpers";
 
+import { COLORS } from "styles/var/colors";
+
+import ProgressBar from "components/ProgressBar";
 import SectionHeader from "components/SectionHeader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
@@ -203,8 +206,20 @@ const ScriptBatchProgress = ({
               {ran_host_count + errored_host_count} / {targeted_host_count}{" "}
               hosts
             </div>
-            {/* TODO - bar graphic */}
-            <div>{"[~~~~     ]"}</div>
+            <ProgressBar
+              sections={[
+                {
+                  // results
+                  color: COLORS["status-success"],
+                  portion: ran_host_count / targeted_host_count,
+                },
+                {
+                  // errors
+                  color: COLORS["status-error"],
+                  portion: errored_host_count / targeted_host_count,
+                },
+              ]}
+            />
             <div className={`${baseClass}__row-errors`}>
               <Icon
                 name="error-outline"
