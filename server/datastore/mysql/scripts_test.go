@@ -45,6 +45,7 @@ func TestScripts(t *testing.T) {
 		{"UpdateDeletingUpcomingScriptExecutions", testUpdateDeletingUpcomingScriptExecutions},
 		{"BatchExecute", testBatchExecute},
 		{"BatchScriptSchedule", testBatchScriptSchedule},
+		{"TestMarkActivitiesAsCompleted", testMarkActivitiesAsCompleted},
 		{"DeleteScriptActivatesNextActivity", testDeleteScriptActivatesNextActivity},
 		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
 	}
@@ -1998,6 +1999,96 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)
 	require.Len(t, hostResults, 3)
+}
+
+func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "user1", "user@example.com", true)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	hostNoScripts := test.NewHost(t, ds, "hostNoScripts", "10.0.0.1", "hostnoscripts", "hostnoscriptsuuid", time.Now())
+	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"))
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now())
+	hostTeam1 := test.NewHost(t, ds, "hostTeam1", "10.0.0.5", "hostTeam1key", "hostTeam1uuid", time.Now(), test.WithTeamID(team1.ID))
+
+	test.SetOrbitEnrollment(t, hostWindows, ds)
+	test.SetOrbitEnrollment(t, host1, ds)
+	test.SetOrbitEnrollment(t, host2, ds)
+	test.SetOrbitEnrollment(t, host3, ds)
+	test.SetOrbitEnrollment(t, hostTeam1, ds)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo hi",
+	})
+	require.NoError(t, err)
+
+	// Actual good execution
+	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	require.NotEmpty(t, execID)
+
+	// Schedule another one
+	execID2, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	require.NotEmpty(t, execID)
+
+	require.NoError(t, err)
+	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
+
+	require.NoError(t, err)
+	// Set host 1 to have a successful script result
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host1.ID,
+		ExecutionID: host1Upcoming[0].ExecutionID,
+		Output:      "foo",
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
+	// Set host 2 to have a failed script result
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host2.ID,
+		ExecutionID: host2Upcoming[0].ExecutionID,
+		Output:      "bar",
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+	// Cancel the execution for host 3
+	_, err = ds.CancelHostUpcomingActivity(ctx, host3.ID, host3Upcoming[0].ExecutionID)
+	require.NoError(t, err)
+
+	// Update the batch activity status to "started"
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE batch_activities SET status='started' WHERE execution_id IN (?,?)", execID, execID2)
+		return err
+	})
+
+	// Mark activities as completed
+	err = ds.MarkActivitiesAsCompleted(ctx)
+	require.NoError(t, err)
+
+	// First activity should be marked as finished and updated accordingly.
+	batchActivity, err := ds.GetBatchActivity(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BatchExecutionFinished, batchActivity.Status)
+	require.Equal(t, uint(5), *batchActivity.NumTargeted)
+	require.Equal(t, uint(0), *batchActivity.NumPending)
+	require.Equal(t, uint(1), *batchActivity.NumRan)
+	require.Equal(t, uint(1), *batchActivity.NumErrored)
+	require.Equal(t, uint(2), *batchActivity.NumIncompatible)
+	require.Equal(t, uint(1), *batchActivity.NumCanceled)
+
+	// Second activity should still be in "started" status.
+	batchActivity2, err := ds.GetBatchActivity(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BatchExecutionStarted, batchActivity2.Status)
 }
 
 func testDeleteScriptActivatesNextActivity(t *testing.T, ds *Datastore) {

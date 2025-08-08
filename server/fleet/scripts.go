@@ -622,6 +622,7 @@ type BatchExecutionStatus string
 var (
 	BatchExecutionStarted   BatchExecutionStatus = "started"
 	BatchExecutionScheduled BatchExecutionStatus = "scheduled"
+	BatchExecutionFinished  BatchExecutionStatus = "finished"
 )
 
 type BatchExecutionActivityType string
