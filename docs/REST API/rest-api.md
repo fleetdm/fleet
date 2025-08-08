@@ -10093,7 +10093,7 @@ Linux vulnerabilities are based on kernel vulnerabilities for hosts running the 
 
 ```json
 {
-  "id": 321,
+  "os_version_id": 321,
   "hosts_count": 2,
   "name": "Ubuntu 24.04.1 LTS",
   "name_only": "Ubuntu",
