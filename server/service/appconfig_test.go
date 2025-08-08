@@ -2025,7 +2025,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + " ${FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + "}"
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " ${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
@@ -2039,7 +2039,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in common name", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + "}${FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + "}"
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
@@ -2053,7 +2053,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in seat id", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + " $FLEET_VAR_" + fleet.FleetVarHostHardwareSerial
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " $FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial)
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -11,6 +12,8 @@ import (
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -240,6 +243,62 @@ func TestValidSyncMLCmdStatus(t *testing.T) {
 	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testStatusCode))
 }
 
+func TestPreprocessWindowsProfileContents(t *testing.T) {
+	testHostUUID := "test-host-1234-uuid"
+
+	tests := []struct {
+		name            string
+		hostUUID        string
+		profileContents string
+		wantContents    string
+	}{
+		{
+			name:            "no_fleet_variables",
+			hostUUID:        testHostUUID,
+			profileContents: `<Replace><CmdID>1</CmdID><Item><Target><LocURI>./Device/Config</LocURI></Target></Item></Replace>`,
+			wantContents:    `<Replace><CmdID>1</CmdID><Item><Target><LocURI>./Device/Config</LocURI></Target></Item></Replace>`,
+		},
+		{
+			name:            "host_uuid_without_braces",
+			hostUUID:        testHostUUID,
+			profileContents: `<Replace><CmdID>1</CmdID><Item><Data>Device ID: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
+			wantContents:    `<Replace><CmdID>1</CmdID><Item><Data>Device ID: test-host-1234-uuid</Data></Item></Replace>`,
+		},
+		{
+			name:            "host_uuid_with_braces",
+			hostUUID:        testHostUUID,
+			profileContents: `<Replace><CmdID>1</CmdID><Item><Data>Device ID: ${FLEET_VAR_HOST_UUID}</Data></Item></Replace>`,
+			wantContents:    `<Replace><CmdID>1</CmdID><Item><Data>Device ID: test-host-1234-uuid</Data></Item></Replace>`,
+		},
+		{
+			name:            "multiple_host_uuid_occurrences",
+			hostUUID:        testHostUUID,
+			profileContents: `<Replace><Data>ID1: $FLEET_VAR_HOST_UUID, ID2: ${FLEET_VAR_HOST_UUID}</Data></Replace>`,
+			wantContents:    `<Replace><Data>ID1: test-host-1234-uuid, ID2: test-host-1234-uuid</Data></Replace>`,
+		},
+		{
+			name:            "host_uuid_with_xml_special_chars",
+			hostUUID:        "test<>&\"'uuid",
+			profileContents: `<Replace><Data>ID: $FLEET_VAR_HOST_UUID</Data></Replace>`,
+			wantContents:    `<Replace><Data>ID: test&lt;&gt;&amp;&#34;&#39;uuid</Data></Replace>`,
+		},
+		{
+			name:            "unsupported_variable_ignored",
+			hostUUID:        testHostUUID,
+			profileContents: `<Replace><Data>ID: $FLEET_VAR_HOST_UUID, Other: $FLEET_VAR_UNSUPPORTED</Data></Replace>`,
+			wantContents:    `<Replace><Data>ID: test-host-1234-uuid, Other: $FLEET_VAR_UNSUPPORTED</Data></Replace>`,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			gotContents := preprocessWindowsProfileContents(tt.hostUUID, tt.profileContents)
+			require.Equal(t, tt.wantContents, gotContents)
+		})
+	}
+}
+
 func TestValidNewSyncMLCmdGet(t *testing.T) {
 	testOmaURI := "testuri"
 	cmdMsg := newSyncMLNoFormat(fleet.CmdGet, testOmaURI)
@@ -421,4 +480,108 @@ func syncMLForTest(locURI string) []byte {
     </Target>
   </Item>
 </Replace>`, locURI, locURI))
+}
+
+func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := log.NewNopLogger()
+
+	// Setup test data with a profile containing Fleet variable
+	testHostUUID := "test-host-uuid"
+	// Profile with Fleet variable that would cause preprocessing to succeed normally
+	testProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "test-profile-uuid",
+		Name:        "Test Profile with Variable",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>Host: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`),
+	}
+
+	// Mock ListMDMWindowsProfilesToInstall to return a profile with Fleet variable
+	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return []*fleet.MDMWindowsProfilePayload{
+			{
+				ProfileUUID:   testProfile.ProfileUUID,
+				ProfileName:   testProfile.Name,
+				HostUUID:      testHostUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeInstall,
+			},
+		}, nil
+	}
+
+	// Mock ListMDMWindowsProfilesToRemove to return no profiles
+	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return nil, nil
+	}
+
+	// Mock GetMDMWindowsProfilesContents to return the profile content
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		return map[string]fleet.MDMWindowsProfileContents{
+			testProfile.ProfileUUID: {
+				SyncML:   testProfile.SyncML,
+				Checksum: []byte("test-checksum"),
+			},
+		}, nil
+	}
+
+	// Mock MDMWindowsInsertCommandForHosts to succeed (but fail specifically for preprocessed content)
+	var receivedCommand *fleet.MDMWindowsCommand
+	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		receivedCommand = cmd
+		// Simulate error only for commands with substituted UUID (to test error handling)
+		if strings.Contains(string(cmd.RawCommand), testHostUUID) {
+			return errors.New("command insert failed after preprocessing")
+		}
+		return nil
+	}
+
+	// Mock BulkUpsertMDMWindowsHostProfiles to capture status updates
+	var capturedUpdates []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		capturedUpdates = append(capturedUpdates, payload...)
+		return nil
+	}
+
+	// Mock GetMDMWindowsBitLockerSummary
+	ds.GetMDMWindowsBitLockerSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
+		return &fleet.MDMWindowsBitLockerSummary{}, nil
+	}
+
+	// Mock AppConfig to enable Windows MDM
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				WindowsEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	// Mock BulkDeleteMDMWindowsHostsConfigProfiles (for remove operations)
+	ds.BulkDeleteMDMWindowsHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error {
+		return nil
+	}
+
+	// Run ReconcileWindowsProfiles
+	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	require.NoError(t, err) // The function should not return an error even if insert fails
+
+	// Verify the command was preprocessed (UUID should be substituted)
+	require.NotNil(t, receivedCommand, "Command should have been created")
+	require.Contains(t, string(receivedCommand.RawCommand), testHostUUID, "UUID should have been substituted in the command")
+	require.NotContains(t, string(receivedCommand.RawCommand), "$FLEET_VAR_HOST_UUID", "Fleet variable should have been replaced")
+
+	// Verify that the error was captured and the profile was marked as failed
+	require.True(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked, "MDMWindowsInsertCommandForHosts should have been called")
+	require.True(t, ds.BulkUpsertMDMWindowsHostProfilesFuncInvoked, "BulkUpsertMDMWindowsHostProfiles should have been called")
+
+	// Find the error status update
+	var foundError bool
+	for _, update := range capturedUpdates {
+		if update.Status != nil && *update.Status == fleet.MDMDeliveryFailed {
+			foundError = true
+			require.Contains(t, update.Detail, "command insert failed after preprocessing", "Error detail should contain the original error message")
+			break
+		}
+	}
+	require.True(t, foundError, "Should have found a failed status update")
 }

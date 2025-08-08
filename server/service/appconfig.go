@@ -1403,7 +1403,7 @@ func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
 	fleetVars := findFleetVariables(cn)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_common_name", "FLEET_VAR_"+fleetVar+" is not allowed in CA Common Name (CN)")
@@ -1421,7 +1421,7 @@ func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
 	fleetVars := findFleetVariables(seatID)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_seat_id", "FLEET_VAR_"+fleetVar+" is not allowed in DigiCert Seat ID")
@@ -1448,7 +1448,7 @@ func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.Inva
 	fleetVars := findFleetVariables(userPrincipalNames[0])
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_user_principal_names",

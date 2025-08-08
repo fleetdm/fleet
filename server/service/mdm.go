@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -1482,7 +1481,14 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
-	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
+	// Collect Fleet variables used in the profile
+	foundVars := findFleetVariables(string(cp.SyncML))
+	var usesFleetVars []fleet.FleetVarName
+	for varName := range foundVars {
+		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
+	}
+
+	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp, usesFleetVars)
 	if err != nil {
 		var existsErr endpoint_utils.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
@@ -1516,9 +1522,23 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
+// fleetVarsSupportedInWindowsProfiles lists the Fleet variables that are
+// supported in Windows configuration profiles.
+var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
+	fleet.FleetVarHostUUID,
+}
+
 func validateWindowsProfileFleetVariables(contents string) error {
-	if len(findFleetVariables(contents)) > 0 {
-		return &fleet.BadRequestError{Message: "Fleet variables ($FLEET_VAR_*) are not currently supported in Windows profiles"}
+	foundVars := findFleetVariables(contents)
+	if len(foundVars) == 0 {
+		return nil
+	}
+
+	// Check if all found variables are supported
+	for varName := range foundVars {
+		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) {
+			return fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
+		}
 	}
 	return nil
 }
@@ -1735,9 +1755,13 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
 	for identifier, variables := range profilesVariablesByIdentifierMap {
+		varNames := make([]fleet.FleetVarName, 0, len(variables))
+		for varName := range variables {
+			varNames = append(varNames, fleet.FleetVarName(varName))
+		}
 		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{
 			Identifier:     identifier,
-			FleetVariables: slices.Collect(maps.Keys(variables)),
+			FleetVariables: varNames,
 		})
 	}
 
@@ -1837,6 +1861,11 @@ func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, app
 		err = validateWindowsProfileFleetVariables(string(p.SyncML))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
+		}
+		// Collect Fleet variables for Windows profiles (use unique Name as identifier for Windows)
+		windowsVars := findFleetVariables(string(p.SyncML))
+		if len(windowsVars) > 0 {
+			profileVarsByProfIdentifier[p.Name] = windowsVars
 		}
 	}
 	for _, p := range appleDecls {
