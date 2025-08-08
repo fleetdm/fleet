@@ -54,7 +54,6 @@ import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
-import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
 
 import {
@@ -77,19 +76,51 @@ const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   category_id: undefined,
 } as const;
 
-const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
+const DEFAULT_SEARCH_QUERY = "";
+const DEFAULT_SORT_DIRECTION = "asc";
+const DEFAULT_SORT_HEADER = "name";
+const DEFAULT_PAGE = 0;
+const DEFAULT_CLIENT_SIDE_PAGINATION = 4;
 
 export interface ISoftwareSelfServiceProps {
   contactUrl: string;
   deviceToken: string;
   isSoftwareEnabled?: boolean;
   pathname: string;
-  queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
+  queryParams: ReturnType<typeof parseSelfServiceQueryParams>;
   router: InjectedRouter;
   refetchHostDetails: () => void;
   isHostDetailsPolling: boolean;
   hostDisplayName: string;
 }
+
+export const parseSelfServiceQueryParams = (queryParams: {
+  page?: string;
+  query?: string;
+  order_key?: string;
+  order_direction?: "asc" | "desc";
+  category_id?: string;
+}) => {
+  const searchQuery = queryParams?.query ?? "";
+  const sortHeader = queryParams?.order_key ?? "name";
+  const sortDirection = queryParams?.order_direction ?? "desc";
+  const page = queryParams?.page
+    ? parseInt(queryParams.page, 10)
+    : DEFAULT_PAGE;
+  const pageSize = DEFAULT_CLIENT_SIDE_PAGINATION;
+  const categoryId = queryParams?.category_id
+    ? parseInt(queryParams.category_id, 10)
+    : undefined;
+
+  return {
+    page,
+    query: searchQuery,
+    order_key: sortHeader,
+    order_direction: sortDirection,
+    per_page: pageSize,
+    category_id: categoryId,
+  };
+};
 
 const getUpdatesPageSize = (width: number): number => {
   if (width >= 1400) return 4;
