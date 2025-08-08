@@ -597,7 +597,7 @@ type BatchActivity struct {
 	UserID           *uint                      `json:"user_id" db:"user_id"`
 	JobID            *uint                      `json:"-" db:"job_id"`
 	ActivityType     BatchExecutionActivityType `json:"-" db:"activity_type"`
-	ScriptID         uint                       `json:"script_id" db:"script_id"`
+	ScriptID         *uint                      `json:"script_id" db:"script_id"`
 	ScriptName       string                     `json:"script_name" db:"script_name"`
 	TeamID           *uint                      `json:"team_id" db:"team_id"`
 	CreatedAt        time.Time                  `json:"created_at" db:"created_at"`

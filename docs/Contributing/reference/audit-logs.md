@@ -1900,6 +1900,23 @@ This activity contains the following field:
 }
 ```
 
+## escrowed_disk_encryption_key
+
+Generated when a disk encryption key is escrowed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+	"host_id": "123",
+	"host_display_name": "PWNED-VM-123"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

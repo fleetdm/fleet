@@ -2228,9 +2228,8 @@ WHERE
 	return count, nil
 }
 
-func (ds *Datastore) MarkActivitiesAsCompleted(ctx context.Context) error {
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		const stmt = `
+func (ds *Datastore) markActivitiesAsCompleted(ctx context.Context, tx sqlx.ExtContext) error {
+	const stmt = `
 UPDATE batch_activities AS ba
 JOIN (
   SELECT
@@ -2261,11 +2260,14 @@ SET
   ba.num_pending    = 0
 WHERE ba.status = 'started';
 `
-		// TODO -- use `RETURNING` to return the IDs of the updated activities?
-		_, err := tx.ExecContext(ctx, stmt)
-		return err
-	}); err != nil {
+	// TODO -- use `RETURNING` to return the IDs of the updated activities?
+	_, err := tx.ExecContext(ctx, stmt)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marking activities as completed")
 	}
 	return nil
+}
+
+func (ds *Datastore) MarkActivitiesAsCompleted(ctx context.Context) error {
+	return ds.markActivitiesAsCompleted(ctx, ds.writer(ctx))
 }

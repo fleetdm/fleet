@@ -1843,7 +1843,7 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 
 	summary, err := ds.BatchExecuteSummary(ctx, execID)
 	require.NoError(t, err)
-	require.Equal(t, script.ID, summary.ScriptID)
+	require.Equal(t, script.ID, *summary.ScriptID)
 	require.Equal(t, script.Name, summary.ScriptName)
 	require.Equal(t, uint(0), *summary.TeamID)
 	require.NotNil(t, summary.CreatedAt)
@@ -1858,17 +1858,17 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, host1Upcoming, 1)
-	require.Equal(t, &summary.ScriptID, host1Upcoming[0].ScriptID)
+	require.Equal(t, summary.ScriptID, host1Upcoming[0].ScriptID)
 	// Host 2 should have an upcoming execution
 	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, host2Upcoming, 1)
-	require.Equal(t, &summary.ScriptID, host2Upcoming[0].ScriptID)
+	require.Equal(t, summary.ScriptID, host2Upcoming[0].ScriptID)
 	// Host 3 should have an upcoming execution
 	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, host3Upcoming, 1)
-	require.Equal(t, &summary.ScriptID, host3Upcoming[0].ScriptID)
+	require.Equal(t, summary.ScriptID, host3Upcoming[0].ScriptID)
 	// Host Windows should not have an upcoming execution
 	hostWindowsUpcoming, err := ds.listUpcomingHostScriptExecutions(ctx, hostWindows.ID, false, false)
 	require.NoError(t, err)
@@ -1993,7 +1993,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, summaryList, 1)
 	summary := (summaryList)[0]
 	require.Equal(t, execID, summary.BatchExecutionID)
-	require.Equal(t, script.ID, summary.ScriptID)
+	require.Equal(t, script.ID, *summary.ScriptID)
 	require.Equal(t, script.Name, summary.ScriptName)
 	require.Equal(t, uint(0), *summary.TeamID)
 	require.NotNil(t, summary.CreatedAt)
@@ -2010,17 +2010,17 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, host1Upcoming, 1)
-	require.Equal(t, &summary.ScriptID, host1Upcoming[0].ScriptID)
+	require.Equal(t, summary.ScriptID, host1Upcoming[0].ScriptID)
 	// Host 2 should have an upcoming execution
 	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, host2Upcoming, 1)
-	require.Equal(t, &summary.ScriptID, host2Upcoming[0].ScriptID)
+	require.Equal(t, summary.ScriptID, host2Upcoming[0].ScriptID)
 	// Host 3 should have an upcoming execution
 	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, host3Upcoming, 1)
-	require.Equal(t, &summary.ScriptID, host3Upcoming[0].ScriptID)
+	require.Equal(t, summary.ScriptID, host3Upcoming[0].ScriptID)
 	// Host Windows should not have an upcoming execution
 	hostWindowsUpcoming, err := ds.listUpcomingHostScriptExecutions(ctx, hostWindows.ID, false, false)
 	require.NoError(t, err)
