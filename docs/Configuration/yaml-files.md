@@ -24,7 +24,7 @@ Paths in YAML files are always relative to the file you’re editing, keeping co
 
 For example:
 ```yaml
-# If the package is in the same directory:
+# If the file is in the same directory:
 package_path: package_name.yml
 
 # If the package is in a different directory:
