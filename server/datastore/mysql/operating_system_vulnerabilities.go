@@ -205,7 +205,7 @@ func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src f
 	return nil
 }
 
-func (ds *Datastore) ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error) {
+func (ds *Datastore) ListKernelsByOS(ctx context.Context, osVersionID uint, teamID *uint) ([]*fleet.Kernel, error) {
 	var kernels []*fleet.Kernel
 
 	stmt := `
@@ -217,7 +217,7 @@ SELECT DISTINCT
 FROM
 	software
 	LEFT JOIN software_cve ON software.id = software_cve.software_id
-	JOIN kernels ON kernels.software_title_id = software.title_id
+	JOIN kernels ON kernels.software_id = software.id
     JOIN software_host_counts ON software_host_counts.software_id = kernels.software_id
 WHERE
 	kernels.os_version_id = ? AND
@@ -242,7 +242,7 @@ WHERE
 		Version    string  `db:"version"`
 		HostsCount uint    `db:"hosts_count"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, osID, tmID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, osVersionID, tmID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing kernels by OS name")
 	}
 
