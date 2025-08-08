@@ -2130,6 +2130,74 @@ func testMDMWindowsConfigProfilesWithFleetVars(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, varNames, "No variables should be persisted when usesFleetVars is nil")
 
+	// Test that BatchSetMDMProfiles properly clears stale variable associations
+	// Create a team profile with variables
+	teamProf1, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "team_profile_1",
+		TeamID: ptr.Uint(1),
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
+	}, []string{fleet.FleetVarHostUUID})
+	require.NoError(t, err)
+
+	// Verify the variable was persisted
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, teamProf1.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, expectedVarNames, varNames, "Team profile should have HOST_UUID variable")
+
+	// Now update the profile via BatchSetMDMProfiles to remove the variable
+	teamProf1Updated := &fleet.MDMWindowsConfigProfile{
+		Name:   "team_profile_1",
+		TeamID: ptr.Uint(1),
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/NoVarsAnymore</LocURI></Target></Item></Replace>"),
+	}
+
+	// BatchSetMDMProfiles should process this profile and clear its variable associations
+	// since the content no longer contains variables
+	_, err = ds.BatchSetMDMProfiles(ctx, ptr.Uint(1), nil, []*fleet.MDMWindowsConfigProfile{teamProf1Updated}, nil, nil)
+	require.NoError(t, err)
+
+	// Verify the variable associations were cleared
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, teamProf1.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "Variables should be cleared when profile is updated without variables")
+
+	// Create another team profile to test multiple profiles with mixed variables
+	teamProf2, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "team_profile_2",
+		TeamID: ptr.Uint(1),
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/Profile2</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+
+	// Update both profiles - one adds variables, one keeps no variables
+	teamProf1WithVarsAgain := &fleet.MDMWindowsConfigProfile{
+		Name:   "team_profile_1",
+		TeamID: ptr.Uint(1),
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/WithVarsAgain/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
+	}
+	teamProf2NoChange := &fleet.MDMWindowsConfigProfile{
+		Name:   "team_profile_2",
+		TeamID: ptr.Uint(1),
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/Profile2Updated</LocURI></Target></Item></Replace>"),
+	}
+
+	// Mock the profilesVariablesByIdentifier that would be passed from service layer
+	profilesVars := []fleet.MDMProfileIdentifierFleetVariables{
+		{Identifier: "team_profile_1", FleetVariables: []string{fleet.FleetVarHostUUID}},
+	}
+
+	_, err = ds.BatchSetMDMProfiles(ctx, ptr.Uint(1), nil, []*fleet.MDMWindowsConfigProfile{teamProf1WithVarsAgain, teamProf2NoChange}, nil, profilesVars)
+	require.NoError(t, err)
+
+	// Verify profile 1 has variables again
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, teamProf1.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, expectedVarNames, varNames, "Profile 1 should have variables again")
+
+	// Verify profile 2 still has no variables
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, teamProf2.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "Profile 2 should still have no variables")
 }
 
 func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {

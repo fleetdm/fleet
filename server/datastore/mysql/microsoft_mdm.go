@@ -2160,7 +2160,9 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	// save fleet variables associated with Windows profiles (both new and updated)
-	if len(profilesVariablesByIdentifier) > 0 && len(currentProfiles) > 0 {
+	// Note: currentProfiles contains all incoming profiles (new AND updated), not just new ones
+	// Process ALL profiles to ensure stale variable associations are cleared for profiles that no longer have variables
+	if len(currentProfiles) > 0 {
 		// build a lookup map for variables by profile name (Windows profiles use Name as identifier)
 		lookupVariablesByName := make(map[string][]string, len(profilesVariablesByIdentifier))
 		for _, pv := range profilesVariablesByIdentifier {
@@ -2168,15 +2170,15 @@ ON DUPLICATE KEY UPDATE
 			lookupVariablesByName[pv.Identifier] = pv.FleetVariables
 		}
 
-		// collect profile UUIDs that have Fleet variables (using already loaded profiles)
+		// collect ALL profile UUIDs, including those without variables (to clear stale associations)
 		var profilesVarsToUpsert []fleet.MDMProfileUUIDFleetVariables
 		for _, p := range currentProfiles {
-			if vars, ok := lookupVariablesByName[p.Name]; ok && len(vars) > 0 {
-				profilesVarsToUpsert = append(profilesVarsToUpsert, fleet.MDMProfileUUIDFleetVariables{
-					ProfileUUID:    p.ProfileUUID,
-					FleetVariables: vars,
-				})
-			}
+			vars := lookupVariablesByName[p.Name] // defaults to nil/empty slice if not found
+			// Include every profile, even those without variables, so the helper can clear old associations
+			profilesVarsToUpsert = append(profilesVarsToUpsert, fleet.MDMProfileUUIDFleetVariables{
+				ProfileUUID:    p.ProfileUUID,
+				FleetVariables: vars, // may be empty/nil, which will clear associations
+			})
 		}
 
 		if len(profilesVarsToUpsert) > 0 {
