@@ -554,10 +554,10 @@ func testNDESSCEPProxyPassword(t *testing.T, ds *Datastore) {
 	url := "https://localhost:8080/mscep/mscep.dll"
 	password := "password"
 
-	ac.Integrations.NDESSCEPProxy = optjson.Any[fleet.NDESSCEPProxyIntegration]{
+	ac.Integrations.NDESSCEPProxy = optjson.Any[fleet.NDESSCEPProxyCertAuthority]{
 		Valid: true,
 		Set:   true,
-		Value: fleet.NDESSCEPProxyIntegration{
+		Value: fleet.NDESSCEPProxyCertAuthority{
 			AdminURL: adminURL,
 			Username: username,
 			Password: password,

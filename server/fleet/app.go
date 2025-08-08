@@ -714,12 +714,12 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 	}
 	if len(c.Integrations.DigiCert.Value) > 0 {
-		digicert := make([]DigiCertIntegration, len(c.Integrations.DigiCert.Value))
+		digicert := make([]DigiCertCertAuthority, len(c.Integrations.DigiCert.Value))
 		copy(digicert, c.Integrations.DigiCert.Value)
 		clone.Integrations.DigiCert = optjson.SetSlice(digicert)
 	}
 	if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
-		customSCEP := make([]CustomSCEPProxyIntegration, len(c.Integrations.CustomSCEPProxy.Value))
+		customSCEP := make([]CustomSCEPProxyCertAuthority, len(c.Integrations.CustomSCEPProxy.Value))
 		copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
 		clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
 	}

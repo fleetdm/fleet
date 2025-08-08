@@ -1587,7 +1587,7 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	fleetConfig := config.TestConfig()
 	scepConfig := &scep_mock.SCEPConfigService{}
 	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
-	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyCertAuthority) error { return nil }
 	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{
 		License:           &fleet.LicenseInfo{Tier: fleet.TierPremium},
 		SCEPConfigService: scepConfig,
@@ -1677,7 +1677,7 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error {
 		return errors.New("**invalid** 1")
 	}
-	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyCertAuthority) error {
 		return errors.New("**invalid** 2")
 	}
 	scepURL = "https://new2.com/mscep/mscep.dll"
@@ -1693,7 +1693,7 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	scepConfig.ValidateSCEPURLFuncInvoked = false
 	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
 	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
-	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyCertAuthority) error { return nil }
 
 	// Config cleared with explicit null
 	payload := `
@@ -2115,7 +2115,7 @@ func TestAppConfigCAs(t *testing.T) {
 		mt.appConfig = mt.oldAppConfig.Copy()
 		mt.newAppConfig = &fleet.AppConfig{
 			Integrations: fleet.Integrations{
-				DigiCert: optjson.Slice[fleet.DigiCertIntegration]{
+				DigiCert: optjson.Slice[fleet.DigiCertCertAuthority]{
 					Set:   true,
 					Valid: true,
 				},
@@ -2144,10 +2144,10 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert happy path -- add one, delete one, modify one", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert = optjson.Slice[fleet.DigiCertIntegration]{
+		mt.newAppConfig.Integrations.DigiCert = optjson.Slice[fleet.DigiCertCertAuthority]{
 			Set:   true,
 			Valid: true,
-			Value: []fleet.DigiCertIntegration{
+			Value: []fleet.DigiCertCertAuthority{
 				{
 					Name:                          "add",
 					URL:                           mockDigiCertServer.URL,
@@ -2177,10 +2177,10 @@ func TestAppConfigCAs(t *testing.T) {
 				},
 			},
 		}
-		mt.oldAppConfig.Integrations.DigiCert = optjson.Slice[fleet.DigiCertIntegration]{
+		mt.oldAppConfig.Integrations.DigiCert = optjson.Slice[fleet.DigiCertCertAuthority]{
 			Set:   true,
 			Valid: true,
-			Value: []fleet.DigiCertIntegration{
+			Value: []fleet.DigiCertCertAuthority{
 				{
 					Name:                          "delete",
 					URL:                           mockDigiCertServer.URL,
@@ -2240,7 +2240,7 @@ func TestAppConfigCAs(t *testing.T) {
 		mt.appConfig = mt.oldAppConfig.Copy()
 		mt.newAppConfig = &fleet.AppConfig{
 			Integrations: fleet.Integrations{
-				CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyIntegration]{
+				CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyCertAuthority]{
 					Set:   true,
 					Valid: true,
 				},
@@ -2270,10 +2270,10 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("custom_scep happy path -- add one, delete one, modify one", func(t *testing.T) {
 		mt := setUpCustomSCEP()
-		mt.newAppConfig.Integrations.CustomSCEPProxy = optjson.Slice[fleet.CustomSCEPProxyIntegration]{
+		mt.newAppConfig.Integrations.CustomSCEPProxy = optjson.Slice[fleet.CustomSCEPProxyCertAuthority]{
 			Set:   true,
 			Valid: true,
-			Value: []fleet.CustomSCEPProxyIntegration{
+			Value: []fleet.CustomSCEPProxyCertAuthority{
 				{
 					Name:      "add",
 					URL:       "https://example.com",
@@ -2291,10 +2291,10 @@ func TestAppConfigCAs(t *testing.T) {
 				},
 			},
 		}
-		mt.oldAppConfig.Integrations.CustomSCEPProxy = optjson.Slice[fleet.CustomSCEPProxyIntegration]{
+		mt.oldAppConfig.Integrations.CustomSCEPProxy = optjson.Slice[fleet.CustomSCEPProxyCertAuthority]{
 			Set:   true,
 			Valid: true,
-			Value: []fleet.CustomSCEPProxyIntegration{
+			Value: []fleet.CustomSCEPProxyCertAuthority{
 				{
 					Name:      "delete",
 					URL:       "https://example.com",
@@ -2375,18 +2375,18 @@ func checkExpectedCAValidationError(t *testing.T, invalid *fleet.InvalidArgument
 func getAppConfigWithDigiCertIntegration(url string, name string) *fleet.AppConfig {
 	newAppConfig := &fleet.AppConfig{
 		Integrations: fleet.Integrations{
-			DigiCert: optjson.Slice[fleet.DigiCertIntegration]{
+			DigiCert: optjson.Slice[fleet.DigiCertCertAuthority]{
 				Set:   true,
 				Valid: true,
-				Value: []fleet.DigiCertIntegration{getDigiCertIntegration(url, name)},
+				Value: []fleet.DigiCertCertAuthority{getDigiCertIntegration(url, name)},
 			},
 		},
 	}
 	return newAppConfig
 }
 
-func getDigiCertIntegration(url string, name string) fleet.DigiCertIntegration {
-	digiCertCA := fleet.DigiCertIntegration{
+func getDigiCertIntegration(url string, name string) fleet.DigiCertCertAuthority {
+	digiCertCA := fleet.DigiCertCertAuthority{
 		Name:                          name,
 		URL:                           url,
 		APIToken:                      "api_token",
@@ -2401,19 +2401,19 @@ func getDigiCertIntegration(url string, name string) fleet.DigiCertIntegration {
 func getAppConfigWithSCEPIntegration(url string, name string) *fleet.AppConfig {
 	newAppConfig := &fleet.AppConfig{
 		Integrations: fleet.Integrations{
-			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyIntegration]{
+			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyCertAuthority]{
 				Set:   true,
 				Valid: true,
-				Value: []fleet.CustomSCEPProxyIntegration{getCustomSCEPIntegration(url, name)},
+				Value: []fleet.CustomSCEPProxyCertAuthority{getCustomSCEPIntegration(url, name)},
 			},
 		},
 	}
 	return newAppConfig
 }
 
-func getCustomSCEPIntegration(url string, name string) fleet.CustomSCEPProxyIntegration {
+func getCustomSCEPIntegration(url string, name string) fleet.CustomSCEPProxyCertAuthority {
 	challenge, _ := server.GenerateRandomText(6)
-	return fleet.CustomSCEPProxyIntegration{
+	return fleet.CustomSCEPProxyCertAuthority{
 		Name:      name,
 		URL:       url,
 		Challenge: challenge,

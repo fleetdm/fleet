@@ -214,9 +214,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	scepConfig := &scep_mock.SCEPConfigService{}
 	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
-	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyCertAuthority) error { return nil }
 	digiCertService := &digicert_mock.Service{}
-	digiCertService.VerifyProfileIDFunc = func(_ context.Context, _ fleet.DigiCertIntegration) error { return nil }
+	digiCertService.VerifyProfileIDFunc = func(_ context.Context, _ fleet.DigiCertCertAuthority) error { return nil }
 	_, ds := testing_utils.RunServerWithMockedDS(
 		t, &service.TestServerOpts{
 			License:           license,

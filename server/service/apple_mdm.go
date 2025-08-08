@@ -4861,9 +4861,9 @@ func preprocessProfileContents(
 
 	var (
 		// Copy of NDES SCEP config which will contain unencrypted password, if needed
-		ndesConfig    *fleet.NDESSCEPProxyIntegration
-		digiCertCAs   map[string]*fleet.DigiCertIntegration
-		customSCEPCAs map[string]*fleet.CustomSCEPProxyIntegration
+		ndesConfig    *fleet.NDESSCEPProxyCertAuthority
+		digiCertCAs   map[string]*fleet.DigiCertCertAuthority
+		customSCEPCAs map[string]*fleet.CustomSCEPProxyCertAuthority
 	)
 
 	// this is used to cache the host ID corresponding to the UUID, so we don't
@@ -4929,7 +4929,7 @@ func preprocessProfileContents(
 					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix))
 				}
 				if digiCertCAs == nil {
-					digiCertCAs = make(map[string]*fleet.DigiCertIntegration)
+					digiCertCAs = make(map[string]*fleet.DigiCertCertAuthority)
 				}
 				configured, err := isDigiCertConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, digiCertCAs, profUUID, target, caName, fleetVar)
 				if err != nil {
@@ -4948,7 +4948,7 @@ func preprocessProfileContents(
 					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix))
 				}
 				if customSCEPCAs == nil {
-					customSCEPCAs = make(map[string]*fleet.CustomSCEPProxyIntegration)
+					customSCEPCAs = make(map[string]*fleet.CustomSCEPProxyCertAuthority)
 				}
 				configured, err := isCustomSCEPConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, customSCEPCAs, profUUID, target, caName,
 					fleetVar)
@@ -5559,7 +5559,7 @@ func (d *digiCertVarsFound) SetPassword(value string) (*digiCertVarsFound, bool)
 func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
-	digiCertCAs map[string]*fleet.DigiCertIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
+	digiCertCAs map[string]*fleet.DigiCertCertAuthority, profUUID string, target *cmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "DigiCert integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
@@ -5568,7 +5568,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 		return true, nil
 	}
 	configured := false
-	var digiCertCA *fleet.DigiCertIntegration
+	var digiCertCA *fleet.DigiCertCertAuthority
 	if appConfig.Integrations.DigiCert.Valid {
 		for _, ca := range appConfig.Integrations.DigiCert.Value {
 			if ca.Name == caName {
@@ -5769,7 +5769,7 @@ func (cs *customSCEPVarsFound) SetRenewalID() (*customSCEPVarsFound, bool) {
 func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
-	customSCEPCAs map[string]*fleet.CustomSCEPProxyIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
+	customSCEPCAs map[string]*fleet.CustomSCEPProxyCertAuthority, profUUID string, target *cmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
@@ -5778,7 +5778,7 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 		return true, nil
 	}
 	configured := false
-	var scepCA *fleet.CustomSCEPProxyIntegration
+	var scepCA *fleet.CustomSCEPProxyCertAuthority
 	if appConfig.Integrations.CustomSCEPProxy.Valid {
 		for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
 			if ca.Name == caName {
