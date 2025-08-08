@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
@@ -21,16 +20,16 @@ func TestUp_20250807094518(t *testing.T) {
 	db := applyUpToPrev(t)
 	var appConfigJSON fleet.AppConfig
 	const (
-		digicertCA1Name             = "DigiCert_CA_1"
-		digicertCA2Name             = "DigiCert_CA_2"
-		customSCEPCA1Name           = "Custom_SCEP_Proxy_CA_1"
-		customSCEPProxyCA1Challenge = "challenge1"
-		customSCEPCA2Name           = "Custom_SCEP_Proxy_CA_2"
-		customSCEPProxyCA2Challenge = "challenge2"
+		digicertCA1Name   = "DigiCert_CA_1"
+		digicertCA2Name   = "DigiCert_CA_2"
+		customSCEPCA1Name = "Custom_SCEP_Proxy_CA_1"
+		customSCEPCA2Name = "Custom_SCEP_Proxy_CA_2"
 	)
-	ndesPassword := []byte("ndes-password")
-	digicertCA1Password := []byte("digicert-ca-1-password")
-	digicertCA2Password := []byte("digicert-ca-2-password")
+	customSCEPCA1EncryptedChallenge := []byte{0xe0, 0xd1, 0xba, 0x48, 0x20, 0x31, 0xff, 0x52, 0x11, 0x2c, 0x62, 0x0d, 0x8e, 0xc3, 0xb7, 0x88, 0x13, 0x5d, 0x37, 0x04, 0x10, 0xf4, 0xda, 0xa4, 0x8e, 0x18, 0xf7, 0x95, 0x8f, 0x5d, 0x1c, 0xc4, 0xb7, 0x45, 0xeb, 0xa9, 0xbf, 0x7d}
+	customSCEPCA2EncryptedChallenge := []byte{0x8b, 0x92, 0x95, 0xbf, 0xda, 0xc1, 0x71, 0x11, 0x64, 0xdc, 0xd0, 0xa8, 0x1c, 0x91, 0x26, 0xec, 0x15, 0xd5, 0x21, 0xca, 0x5e, 0x62, 0x71, 0x01, 0x5e, 0xb1, 0xb1, 0xbf, 0x9f, 0xe6, 0x36, 0x79, 0xa2, 0xee, 0x32, 0x9d, 0x64, 0x7c}
+	ndesEncryptedPassword := []byte{0xaa, 0x20, 0x6e, 0xb0, 0xb5, 0x10, 0x52, 0x6d, 0xe2, 0x78, 0x14, 0xbe, 0xc5, 0xe0, 0x8a, 0x04, 0xa6, 0xfd, 0x8b, 0x17, 0xd8, 0x15, 0x71, 0x3c, 0x72, 0xa2, 0x76, 0x5f, 0xba, 0x5d, 0x10, 0x41, 0x21, 0x56, 0xe4, 0x1d, 0xa0, 0x90, 0x0d, 0x9e, 0xe1}
+	digicertCA1EncryptedPassword := []byte{0xd5, 0xf1, 0x50, 0x6f, 0x59, 0xb4, 0xfe, 0xa4, 0x3a, 0xc4, 0x24, 0xc8, 0xfa, 0xfd, 0x43, 0xc0, 0xec, 0x2d, 0x10, 0xb1, 0x2a, 0x1e, 0xa8, 0x1e, 0x62, 0x2f, 0x04, 0xeb, 0xb5, 0x55, 0xea, 0x92, 0xfe, 0xb2, 0x9b, 0x6b, 0xc0, 0x98, 0x70, 0x2c, 0x33, 0xf6, 0x01, 0x0f, 0x13, 0x06, 0xef, 0xee, 0x81, 0xb9}
+	digicertCA2EncryptedPassword := []byte{0x24, 0x46, 0x38, 0xa5, 0x75, 0xe4, 0x34, 0x2a, 0x99, 0x5d, 0x52, 0xc9, 0xb1, 0x05, 0x05, 0xa1, 0xdf, 0x62, 0xe2, 0xf1, 0x01, 0x92, 0x0b, 0xcd, 0xd4, 0x49, 0x83, 0x2e, 0xff, 0xd6, 0x23, 0x5c, 0x75, 0x57, 0x57, 0x18, 0x42, 0x3c, 0x81, 0x78, 0xf2, 0x86, 0x59, 0x42, 0x11, 0xb5, 0x82, 0x23, 0x3a, 0x91}
 	ndesCA := fleet.NDESSCEPProxyIntegration{
 		URL:      "https://ndes.example.com",
 		AdminURL: "https://admin.ndes.example.com",
@@ -80,15 +79,15 @@ func TestUp_20250807094518(t *testing.T) {
 	}
 
 	insertNDESPasswordStmt := `INSERT INTO mdm_config_assets (name, value, md5_checksum) VALUES (?, ?, UNHEX(?))`
-	_, err = db.Exec(insertNDESPasswordStmt, fleet.MDMAssetNDESPassword, ndesPassword, md5ChecksumBytes([]byte(ndesPassword)))
+	_, err = db.Exec(insertNDESPasswordStmt, fleet.MDMAssetNDESPassword, ndesEncryptedPassword, md5ChecksumBytes(ndesEncryptedPassword))
 	require.NoError(t, err, "failed to insert NDES SCEP Proxy password")
 
 	insertCAAssetsStmt := `INSERT INTO ca_config_assets (name, value, type) VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?), (?, ?, ?)`
 	_, err = db.Exec(insertCAAssetsStmt,
-		digicertCA1Name, digicertCA1Password, fleet.CAConfigDigiCert,
-		digicertCA2Name, digicertCA2Password, fleet.CAConfigDigiCert,
-		customSCEPCA1Name, customSCEPProxyCA1Challenge, fleet.CAConfigCustomSCEPProxy,
-		customSCEPCA2Name, customSCEPProxyCA2Challenge, fleet.CAConfigCustomSCEPProxy,
+		digicertCA1Name, digicertCA1EncryptedPassword, fleet.CAConfigDigiCert,
+		digicertCA2Name, digicertCA2EncryptedPassword, fleet.CAConfigDigiCert,
+		customSCEPCA1Name, customSCEPCA1EncryptedChallenge, fleet.CAConfigCustomSCEPProxy,
+		customSCEPCA2Name, customSCEPCA2EncryptedChallenge, fleet.CAConfigCustomSCEPProxy,
 	)
 	require.NoError(t, err, "failed to insert ca_config_assets")
 
@@ -102,39 +101,23 @@ func TestUp_20250807094518(t *testing.T) {
 	// Apply current migration.
 	applyNext(t, db)
 
-	type fleetCertificateAuthority struct {
-		ID   int64  `db:"id"`
-		Type string `db:"type"` // TODO
-
-		// common
-		Name string `db:"name"`
-		URL  string `db:"url"`
-
+	type dbCertificateAuthority struct {
+		fleet.CertificateAuthority
 		// Digicert
-		APIToken                         []byte   `db:"api_token"`
-		ProfileID                        *string  `db:"profile_id"`
-		CertificateCommonName            *string  `db:"certificate_common_name"`
-		CertificateUserPrincipalNames    []string `db:"-"`                                // TODO
-		CertificateUserPrincipalNamesRaw []byte   `db:"certificate_user_principal_names"` // JSON array
-		CertificateSeatID                *string  `db:"certificate_seat_id"`
+		APITokenRaw                      []byte `db:"api_token"`
+		CertificateUserPrincipalNamesRaw []byte `db:"certificate_user_principal_names"`
 
 		// NDES SCEP Proxy
-		AdminURL *string `db:"admin_url"`
-		Username *string `db:"username"`
-		Password []byte  `db:"password"`
+		PasswordRaw []byte `db:"password"`
 
 		// Custom SCEP Proxy
-		Challenge []byte `db:"challenge"`
+		ChallengeRaw []byte `db:"challenge"`
 
 		// Hydrant
-		ClientID     *string `db:"client_id"`
-		ClientSecret []byte  `db:"client_secret"`
-
-		CreatedAt time.Time `db:"created_at"`
-		UpdatedAt time.Time `db:"updated_at"`
+		ClientSecretRaw []byte `db:"client_secret"`
 	}
 
-	cas := []fleetCertificateAuthority{}
+	cas := []dbCertificateAuthority{}
 	stmt := `SELECT type, name, url, api_token, profile_id, certificate_common_name, certificate_user_principal_names, certificate_seat_id, admin_url, username, password, challenge, client_id, client_secret, created_at, updated_at
 FROM certificate_authorities`
 	err = db.Select(&cas, stmt)
@@ -149,17 +132,21 @@ FROM certificate_authorities`
 			require.NoError(t, err, "failed to unmarshal certificate user principal names for %s", ca.Name)
 		}
 		casFound = append(casFound, ca.Name)
+
+		// No Hydrant CAs in this test so these should be nil
+		require.Nil(t, ca.ClientID)
+		require.Nil(t, ca.ClientSecret)
 		switch ca.Type {
 		case "digicert":
 			require.Contains(t, []string{digicertCA1Name, digicertCA2Name}, ca.Name, "unexpected DigiCert CA name")
 			expectedCA := digicertCAs[0]
-			expectedCA.APIToken = string(digicertCA1Password)
+			expectedAPIToken := digicertCA1EncryptedPassword
 			if ca.Name == digicertCA2Name {
 				expectedCA = digicertCAs[1]
-				expectedCA.APIToken = string(digicertCA2Password)
+				expectedAPIToken = digicertCA2EncryptedPassword
 			}
 			require.Equal(t, expectedCA.URL, ca.URL)
-			require.Equal(t, expectedCA.APIToken, string(ca.APIToken))
+			require.Equal(t, expectedAPIToken, ca.APITokenRaw)
 			require.NotNil(t, ca.ProfileID)
 			require.Equal(t, expectedCA.ProfileID, *ca.ProfileID)
 			require.NotNil(t, ca.CertificateCommonName)
@@ -170,13 +157,13 @@ FROM certificate_authorities`
 		case "custom_scep_proxy":
 			require.Contains(t, []string{customSCEPCA1Name, customSCEPCA2Name}, ca.Name, "unexpected Custom SCEP Proxy CA name")
 			expectedCA := customSCEPProxyCAs[0]
-			expectedCA.Challenge = customSCEPProxyCA1Challenge
+			expectedChallenge := customSCEPCA1EncryptedChallenge
 			if ca.Name == customSCEPCA2Name {
 				expectedCA = customSCEPProxyCAs[1]
-				expectedCA.Challenge = customSCEPProxyCA2Challenge
+				expectedChallenge = customSCEPCA2EncryptedChallenge
 			}
 			require.Equal(t, expectedCA.URL, ca.URL)
-			require.Equal(t, expectedCA.Challenge, string(ca.Challenge))
+			require.Equal(t, expectedChallenge, ca.ChallengeRaw)
 			require.Nil(t, ca.CertificateUserPrincipalNames)
 		case "ndes_scep_proxy":
 			require.Equal(t, "Default NDES SCEP Proxy", ca.Name)
@@ -185,8 +172,7 @@ FROM certificate_authorities`
 			require.Equal(t, ndesCA.URL, ca.URL)
 			require.NotNil(t, ca.Username)
 			require.Equal(t, ndesCA.Username, *ca.Username)
-			require.NotNil(t, ca.Password)
-			require.Equal(t, ndesPassword, ca.Password)
+			require.Equal(t, ndesEncryptedPassword, ca.PasswordRaw)
 			require.Nil(t, ca.CertificateUserPrincipalNames)
 		default:
 			t.Fatalf("unexpected certificate authority type: %s", ca.Type)

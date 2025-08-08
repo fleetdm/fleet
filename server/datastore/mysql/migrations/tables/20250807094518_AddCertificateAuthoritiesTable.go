@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -14,6 +13,24 @@ import (
 
 func init() {
 	MigrationClient.AddMigration(Up_20250807094518, Down_20250807094518)
+}
+
+// dbCertificateAuthority embeds fleet.CertificateAuthority and adds raw representation of encrypted
+// fields for handling DB operations
+type dbCertificateAuthority struct {
+	fleet.CertificateAuthority
+	// Digicert
+	APITokenRaw                      []byte `db:"api_token"`
+	CertificateUserPrincipalNamesRaw []byte `db:"certificate_user_principal_names"`
+
+	// NDES SCEP Proxy
+	PasswordRaw []byte `db:"password"`
+
+	// Custom SCEP Proxy
+	ChallengeRaw []byte `db:"challenge"`
+
+	// Hydrant
+	ClientSecretRaw []byte `db:"client_secret"`
 }
 
 func Up_20250807094518(tx *sql.Tx) error {
@@ -28,7 +45,7 @@ func Up_20250807094518(tx *sql.Tx) error {
   url TEXT NOT NULL,                    -- Used by all types
 
   -- DigiCert fields
-  api_token BLOB, -- stored in CA config assets table currently
+  api_token BLOB, -- stored in ca_config_assets table prior to migration, being migrated here
   profile_id VARCHAR(255),
   certificate_common_name VARCHAR(255),
   certificate_user_principal_names JSON,       -- Array of UPNs
@@ -37,10 +54,10 @@ func Up_20250807094518(tx *sql.Tx) error {
   -- NDES fields
   admin_url TEXT,
   username VARCHAR(255),
-  password BLOB, -- stored in CA config asserts table currently
+  password BLOB, -- stored in mdm_config_assets table prior to migration, being migrated here
 
   -- Custom SCEP
-  challenge BLOB, -- stored in CA config assets table currently
+  challenge BLOB, -- stored in ca_config_assets table prior to migration, being migrated here
 
   -- Hydrant fields
   client_id VARCHAR(255),
@@ -50,38 +67,6 @@ func Up_20250807094518(tx *sql.Tx) error {
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 	`
-
-	type fleetCertificateAuthority struct {
-		ID   int64  `db:"id"`
-		Type string `db:"type"`
-
-		// common
-		Name string `db:"name"`
-		URL  string `db:"url"`
-
-		// Digicert
-		APIToken                         []byte   `db:"api_token"`
-		ProfileID                        *string  `db:"profile_id"`
-		CertificateCommonName            *string  `db:"certificate_common_name"`
-		CertificateUserPrincipalNames    []string `db:"-"`                                // TODO
-		CertificateUserPrincipalNamesRaw []byte   `db:"certificate_user_principal_names"` // JSON array
-		CertificateSeatID                *string  `db:"certificate_seat_id"`
-
-		// NDES SCEP Proxy
-		AdminURL *string `db:"admin_url"`
-		Username *string `db:"username"`
-		Password []byte  `db:"password"`
-
-		// Custom SCEP Proxy
-		Challenge []byte `db:"challenge"`
-
-		// Hydrant
-		ClientID     *string `db:"client_id"`
-		ClientSecret []byte  `db:"client_secret"`
-
-		CreatedAt time.Time `db:"created_at"`
-		UpdatedAt time.Time `db:"updated_at"`
-	}
 
 	// Create the table then iterate through app_config_json to populate it
 	_, err := txx.Exec(stmt)
@@ -124,7 +109,7 @@ FROM
 		return nil
 	}
 
-	casToInsert := []fleetCertificateAuthority{}
+	casToInsert := []dbCertificateAuthority{}
 
 	if appConfigJSON.Integrations.CustomSCEPProxy.Valid && len(appConfigJSON.Integrations.CustomSCEPProxy.Value) > 0 {
 		for _, customSCEPProxyCA := range appConfigJSON.Integrations.CustomSCEPProxy.Value {
@@ -132,11 +117,13 @@ FROM
 			if customSCEPChallenge == nil || len(customSCEPChallenge.Value) == 0 {
 				return errors.New("Custom SCEP Proxy challenge not found in mdm_config_assets")
 			}
-			casToInsert = append(casToInsert, fleetCertificateAuthority{
-				Type:      string(fleet.CATypeCustomSCEPProxy),
-				Name:      customSCEPProxyCA.Name,
-				URL:       customSCEPProxyCA.URL,
-				Challenge: customSCEPChallenge.Value,
+			casToInsert = append(casToInsert, dbCertificateAuthority{
+				CertificateAuthority: fleet.CertificateAuthority{
+					Type: string(fleet.CATypeCustomSCEPProxy),
+					Name: customSCEPProxyCA.Name,
+					URL:  customSCEPProxyCA.URL,
+				},
+				ChallengeRaw: customSCEPChallenge.Value,
 			})
 		}
 	}
@@ -146,40 +133,44 @@ FROM
 			if digicertAPIToken == nil || len(digicertAPIToken.Value) == 0 {
 				return errors.New("DigiCert API token not found in ca_config_assets")
 			}
-			casToInsert = append(casToInsert, fleetCertificateAuthority{
-				Type:                          string(fleet.CATypeDigiCert),
-				Name:                          digicertCA.Name,
-				URL:                           digicertCA.URL,
-				APIToken:                      digicertAPIToken.Value,
-				ProfileID:                     &digicertCA.ProfileID,
-				CertificateCommonName:         &digicertCA.CertificateCommonName,
-				CertificateUserPrincipalNames: digicertCA.CertificateUserPrincipalNames,
-				CertificateSeatID:             &digicertCA.CertificateSeatID,
+			casToInsert = append(casToInsert, dbCertificateAuthority{
+				CertificateAuthority: fleet.CertificateAuthority{
+					Type:                          string(fleet.CATypeDigiCert),
+					Name:                          digicertCA.Name,
+					URL:                           digicertCA.URL,
+					ProfileID:                     &digicertCA.ProfileID,
+					CertificateCommonName:         &digicertCA.CertificateCommonName,
+					CertificateUserPrincipalNames: digicertCA.CertificateUserPrincipalNames,
+					CertificateSeatID:             &digicertCA.CertificateSeatID,
+				},
+				APITokenRaw: digicertAPIToken.Value,
 			})
 		}
 	}
 
 	if appConfigJSON.Integrations.NDESSCEPProxy.Valid {
-		ndesSCEPPassword := []byte{}
-		err = txx.Get(&ndesSCEPPassword, `SELECT value FROM mdm_config_assets WHERE name = ?`, fleet.MDMAssetNDESPassword)
+		ndesCAPassword := []byte{}
+		err = txx.Get(&ndesCAPassword, `SELECT value FROM mdm_config_assets WHERE name = ?`, fleet.MDMAssetNDESPassword)
 		if err != nil {
 			return fmt.Errorf("failed to get NDES SCEP Proxy password: %w", err)
 		}
-		if len(ndesSCEPPassword) == 0 {
+		if len(ndesCAPassword) == 0 {
 			return errors.New("NDES SCEP Proxy password not found in mdm_config_assets")
 		}
 
 		// Insert NDES SCEP Proxy data
-		ndesSCEP := appConfigJSON.Integrations.NDESSCEPProxy.Value
-		dbNDESSCEP := fleetCertificateAuthority{
-			Type:     string(fleet.CATypeNDESSCEPProxy),
-			Name:     "Default NDES SCEP Proxy", // TODO EJM this name OK?
-			URL:      ndesSCEP.URL,
-			AdminURL: &ndesSCEP.AdminURL,
-			Username: &ndesSCEP.Username,
-			Password: ndesSCEPPassword,
+		ndesCA := appConfigJSON.Integrations.NDESSCEPProxy.Value
+		dbNDESCA := dbCertificateAuthority{
+			CertificateAuthority: fleet.CertificateAuthority{
+				Type:     string(fleet.CATypeNDESSCEPProxy),
+				Name:     "Default NDES SCEP Proxy", // TODO is there a better name for this?
+				URL:      ndesCA.URL,
+				AdminURL: &ndesCA.AdminURL,
+				Username: &ndesCA.Username,
+			},
+			PasswordRaw: ndesCAPassword,
 		}
-		casToInsert = append(casToInsert, dbNDESSCEP)
+		casToInsert = append(casToInsert, dbNDESCA)
 	}
 
 	fmt.Printf("Inserting %d certificate authorities\n", len(casToInsert))
@@ -212,15 +203,15 @@ INSERT INTO certificate_authorities (
 			ca.Type,
 			ca.Name,
 			ca.URL,
-			ca.APIToken,
+			ca.APITokenRaw,
 			ca.ProfileID,
 			ca.CertificateCommonName,
 			upns,
 			ca.CertificateSeatID,
 			ca.AdminURL,
 			ca.Username,
-			ca.Password,
-			ca.Challenge,
+			ca.PasswordRaw,
+			ca.ChallengeRaw,
 			ca.ClientID,
 			ca.ClientSecret,
 		}
