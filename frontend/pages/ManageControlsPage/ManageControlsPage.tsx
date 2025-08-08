@@ -34,6 +34,10 @@ const controlsSubNav: IControlsSubNavItem[] = [
     name: "Scripts",
     pathname: PATHS.CONTROLS_SCRIPTS,
   },
+  {
+    name: "Variables",
+    pathname: PATHS.CONTROLS_VARIABLES,
+  },
 ];
 
 const subNavQueryParams = ["page", "order_key", "order_direction"] as const;
@@ -106,8 +110,13 @@ const ManageControlsPage = ({
     let renderedSubNav = controlsSubNav;
     if (!isGlobalAdmin && !isTeamAdmin) {
       renderedSubNav = controlsSubNav.filter((navItem) => {
-        return navItem.name !== "OS updates";
+        return navItem.name !== "OS updates" && navItem.name !== "Variables";
       });
+    }
+    if (!featureFlags.showControlsVariables) {
+      renderedSubNav = renderedSubNav.filter(
+        (navItem) => navItem.name !== "Variables"
+      );
     }
     return renderedSubNav;
   }, [isGlobalAdmin, isTeamAdmin]);

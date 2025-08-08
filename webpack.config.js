@@ -30,6 +30,9 @@ let plugins = [
       showBitLockerPINOption: JSON.stringify(
         process.env.SHOW_BITLOCKER_PIN_OPTION
       ),
+      showControlsVariables: JSON.stringify(
+        process.env.SHOW_CONTROLS_VARIABLES
+      ),
     },
   }),
 ];
