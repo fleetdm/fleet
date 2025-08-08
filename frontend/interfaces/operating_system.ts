@@ -2,6 +2,7 @@ import { ISoftwareVulnerability } from "./software";
 
 export interface IOperatingSystemVersion {
   os_version_id: number;
+  /** name often includes "<name> <version>" */
   name: string;
   name_only: string;
   version: string;
