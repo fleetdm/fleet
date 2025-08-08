@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	sharedMdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -5617,12 +5618,13 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 
 		idpUUID := uuid.New()
 		resp := s.DoRawWithHeaders("GET", "/api/latest/fleet/enrollment_profiles/ota", j, http.StatusOK, map[string]string{
-			"Cookie": fmt.Sprintf("%s=%s", BOYDIdpCookieName, idpUUID.String()),
+			"Cookie": fmt.Sprintf("%s=%s", sharedMdm.BYODIdpCookieName, idpUUID.String()),
 		}, "enroll_secret", globalEnrollSec)
 		require.NotZero(t, resp.ContentLength)
 		require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)
 		require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
 		require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+		defer resp.Body.Close()
 		b, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.Equal(t, resp.ContentLength, int64(len(b)))

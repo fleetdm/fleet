@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -331,9 +330,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
 
-	if enrollmentTokenRequest.BOYDIdpUUID != "" {
-		level.Info(svc.logger).Log("msg", fmt.Sprintf("associating android host %s with idp account %s", host.UUID, enrollmentTokenRequest.BOYDIdpUUID))
-		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, enrollmentTokenRequest.BOYDIdpUUID)
+	if enrollmentTokenRequest.IdpUUID != "" {
+		level.Info(svc.logger).Log("msg", "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", enrollmentTokenRequest.IdpUUID)
+		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, enrollmentTokenRequest.IdpUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}

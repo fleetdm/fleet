@@ -176,7 +176,7 @@ func TestPubSubEnrollment(t *testing.T) {
 
 			enrollmentToken := enrollmentTokenRequest{
 				EnrollSecret: "global",
-				BOYDIdpUUID:  "mock-id",
+				IdpUUID:      "mock-id",
 			}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)

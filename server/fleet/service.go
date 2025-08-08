@@ -1024,7 +1024,7 @@ type Service interface {
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
 
 	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
-	GetOTAProfile(ctx context.Context, enrollSecret, boydIdpUUID string) ([]byte, error)
+	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
