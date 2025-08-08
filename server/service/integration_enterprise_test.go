@@ -2556,7 +2556,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 			"gitops": { "gitops_mode_enabled": true, "repository_url": "a.b.cc" }
 	  }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Repository URL must begin with either http:// or https://")
+	assert.Contains(t, errMsg, "Git repository URL must include protocol (e.g. https://)")
 
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"gitops": { "gitops_mode_enabled": true, "repository_url": "https://a.b.cc" }
