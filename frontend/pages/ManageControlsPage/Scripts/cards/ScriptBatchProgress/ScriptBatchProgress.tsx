@@ -236,10 +236,10 @@ const ScriptBatchProgress = ({
 
   const getEmptyState = (status: ScriptBatchStatus) => {
     return (
-      <>
+      <div className={`${baseClass}__empty`}>
         <b>No batch scripts {status} for this team</b>
         <p>{EMPTY_STATE_DETAILS[status]}</p>
-      </>
+      </div>
     );
   };
 

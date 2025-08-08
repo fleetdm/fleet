@@ -291,7 +291,7 @@ export default {
             }),
           ],
           meta: { has_next_results: false, has_previous_results: false },
-          count: 1,
+          count: 0,
         });
       case "scheduled":
         return Promise.resolve({
@@ -313,7 +313,7 @@ export default {
             }),
           ],
           meta: { has_next_results: false, has_previous_results: false },
-          count: 2,
+          count: 0,
         });
       case "finished":
         return Promise.resolve({
@@ -322,7 +322,7 @@ export default {
             createMockBatchScriptSummary({ canceled: true }),
           ],
           meta: { has_next_results: false, has_previous_results: false },
-          count: 2,
+          count: 0,
         });
       default:
         return Promise.resolve({

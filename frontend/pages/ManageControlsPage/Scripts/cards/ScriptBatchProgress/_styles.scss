@@ -30,4 +30,18 @@
     align-items: center;
     @include help-text;
   }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 4px;
+    padding: 40px;
+    gap: 8px;
+    p {
+      margin: 0;
+      @include help-text;
+    }
+  }
 }
