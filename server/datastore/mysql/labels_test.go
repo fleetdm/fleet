@@ -2090,18 +2090,11 @@ func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {
 	require.NotNil(t, label)
 	require.Equal(t, "darwin", label.Platform)
 
-	// Manually add hosts to the label to simulate existing memberships
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			INSERT INTO label_membership (label_id, host_id) VALUES 
-			(?, ?), (?, ?), (?, ?), (?, ?)`,
-			label.ID, hostDarwin1.ID,
-			label.ID, hostDarwin2.ID,
-			label.ID, hostWindows1.ID,
-			label.ID, hostLinux1.ID,
-		)
-		return err
-	})
+	// Add hosts to the label to simulate existing memberships
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostDarwin1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostDarwin2, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostWindows1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostLinux1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	// Verify all hosts are in the label
 	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
@@ -2124,6 +2117,8 @@ func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {
 	hosts, err = ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Len(t, hosts, 0)
+	// Re-seed membership to ensure this step exercises clearing again
+	require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostWindows1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	// Test 3: Change platform to empty (all platforms) - all memberships are cleared
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
@@ -2143,16 +2138,9 @@ func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 0)
 
 	// Add all hosts back
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			INSERT IGNORE INTO label_membership (label_id, host_id) VALUES 
-			(?, ?), (?, ?), (?, ?)`,
-			label.ID, hostDarwin1.ID,
-			label.ID, hostDarwin2.ID,
-			label.ID, hostLinux1.ID,
-		)
-		return err
-	})
+	for _, h := range []*fleet.Host{hostDarwin1, hostDarwin2, hostLinux1} {
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	}
 
 	// Test 4: Change from empty to specific platform (linux) - all memberships are cleared
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
