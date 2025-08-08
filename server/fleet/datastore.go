@@ -1081,6 +1081,7 @@ type Datastore interface {
 
 	// GetJob returns a job from the database
 	GetJob(ctx context.Context, jobID uint) (*Job, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 
