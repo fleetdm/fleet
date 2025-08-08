@@ -455,10 +455,11 @@ func checkNVDVulnerabilities(
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
 		opts := nvd.SyncOptions{
-			VulnPath:           config.DatabasesPath,
-			CPEDBURL:           config.CPEDatabaseURL,
-			CPETranslationsURL: config.CPETranslationsURL,
-			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
+			VulnPath:             config.DatabasesPath,
+			CPEDBURL:             config.CPEDatabaseURL,
+			CPETranslationsURL:   config.CPETranslationsURL,
+			CVEFeedPrefixURL:     config.CVEFeedPrefixURL,
+			CISAKnownExploitsURL: config.CISAKnownExploitsURL,
 		}
 		err := nvd.Sync(opts, logger)
 		if err != nil {
