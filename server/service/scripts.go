@@ -1070,6 +1070,31 @@ func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecut
 	return summary, nil
 }
 
+type batchScriptCancelRequest struct {
+	BatchExecutionID string `url:"batch_execution_id"`
+}
+
+type batchScriptCancelResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchScriptCancelResponse) Error() error { return r.Err }
+
+func batchScriptCancelEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptCancelRequest)
+	if err := svc.BatchScriptCancel(ctx, req.BatchExecutionID); err != nil {
+		return batchScriptCancelResponse{Err: err}, nil
+	}
+
+	return batchScriptCancelResponse{}, nil
+}
+
+func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID string) error {
+	// TODO authz!!
+
+	return nil
+}
+
 func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {
 	// first, get the script because we don't know which team id it is for.
 	script, err := svc.ds.Script(ctx, scriptID)

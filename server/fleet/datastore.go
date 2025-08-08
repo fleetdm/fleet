@@ -1078,6 +1078,8 @@ type Datastore interface {
 	// provided durations. It returns the number of jobs deleted and an error.
 	CleanupWorkerJobs(ctx context.Context, failedSince, completedSince time.Duration) (int64, error)
 
+	// GetJob returns a job from the database
+	GetJob(ctx context.Context, jobID uint) (*Job, error)
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 

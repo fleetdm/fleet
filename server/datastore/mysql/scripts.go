@@ -1962,6 +1962,107 @@ func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scri
 	return batchExecID, nil
 }
 
+func (ds *Datastore) CancelBatchScript(ctx context.Context, executionID string) error {
+	stmt := `
+SELECT
+	bahr.host_execution_id,
+	bahr.host_id,
+FROM
+	batch_activity_host_results bahr
+LEFT JOIN
+	host_script_results hsr ON bahr.host_execution_id = hsr.execution_id -- I think?
+WHERE
+	bahr.batch_execution_id = ?
+AND
+	hsr.canceled = 0
+AND
+	hsr.exit_code IS NULL
+AND
+	bahr.error IS NULL
+`
+
+	stmtSetCanceled := `
+UPDATE
+	batch_activities ba
+SET
+	finished_at = NOW(),
+	state = 'finished'
+	canceled = 1,
+	num_canceled = (SELECT COUNT(*) FROM batch_activity_host_results WHERE batch_execution_id = ba.execution_id)
+WHERE
+	ba.execution_id = ?
+`
+
+	stmtCanceled := `
+UPDATE
+	batch_activities
+SET
+	canceled = 1,
+WHERE
+	execution_id = ?
+`
+	activity, err := ds.GetBatchActivity(ctx, executionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting batch activity")
+	}
+
+	if activity.Status == fleet.BatchExecutionFinished {
+		return nil
+	}
+
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// If job worker exists, mark it as complete to stop it from running
+		if jobID := activity.JobID; jobID != nil {
+			job, err := ds.GetJob(ctx, *jobID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to find job associated with batch activity")
+			}
+
+			job.State = fleet.JobStateSuccess
+
+			if _, err := ds.updateJob(ctx, tx, *jobID, job); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating batch activity job")
+			}
+		}
+
+		if activity.Status == fleet.BatchExecutionStarted {
+			// If the batch activity has started, we need to cancel anything in progress or queued
+			toCancel := []struct {
+				HostExecutionID string `db:"host_execution_id"`
+				HostID          uint   `db:"host_id"`
+			}{}
+
+			if err := sqlx.SelectContext(ctx, tx, &toCancel, stmt, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "selecting hosts to cancel")
+			}
+
+			for _, host := range toCancel {
+				if _, err := ds.cancelHostUpcomingActivity(ctx, tx, host.HostID, host.HostExecutionID); err != nil {
+					return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
+				}
+			}
+
+			if _, err := tx.ExecContext(ctx, stmtCanceled, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting canceled column")
+			}
+
+			// Summarize rows
+			// run incoming stats compiler method
+		} else {
+			// The batch activity is scheduled, but not started
+			if _, err := tx.ExecContext(ctx, stmtSetCanceled, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting canceled host count")
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel batch script db transaction")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 	const stmt = `
 		SELECT
