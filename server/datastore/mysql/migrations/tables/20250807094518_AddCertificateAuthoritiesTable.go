@@ -53,7 +53,7 @@ func Up_20250807094518(tx *sql.Tx) error {
 
 	type fleetCertificateAuthority struct {
 		ID   int64  `db:"id"`
-		Type string `db:"type"` // TODO
+		Type string `db:"type"`
 
 		// common
 		Name string `db:"name"`
@@ -86,8 +86,7 @@ func Up_20250807094518(tx *sql.Tx) error {
 	// Create the table then iterate through app_config_json to populate it
 	_, err := txx.Exec(stmt)
 	if err != nil {
-		// tODO EJM
-		return err
+		return fmt.Errorf("failed to create certificate_authorities table: %w", err)
 	}
 	// Populate the table with existing data from app_config_json
 	// if appConfigJSON.integrations.ndes_scep_proxy ...
@@ -134,7 +133,7 @@ FROM
 				return errors.New("Custom SCEP Proxy challenge not found in mdm_config_assets")
 			}
 			casToInsert = append(casToInsert, fleetCertificateAuthority{
-				Type:      string(fleet.CAConfigCustomSCEPProxy),
+				Type:      string(fleet.CATypeCustomSCEPProxy),
 				Name:      customSCEPProxyCA.Name,
 				URL:       customSCEPProxyCA.URL,
 				Challenge: customSCEPChallenge.Value,
@@ -148,7 +147,7 @@ FROM
 				return errors.New("DigiCert API token not found in ca_config_assets")
 			}
 			casToInsert = append(casToInsert, fleetCertificateAuthority{
-				Type:                          string(fleet.CAConfigDigiCert),
+				Type:                          string(fleet.CATypeDigiCert),
 				Name:                          digicertCA.Name,
 				URL:                           digicertCA.URL,
 				APIToken:                      digicertAPIToken.Value,
@@ -173,7 +172,7 @@ FROM
 		// Insert NDES SCEP Proxy data
 		ndesSCEP := appConfigJSON.Integrations.NDESSCEPProxy.Value
 		dbNDESSCEP := fleetCertificateAuthority{
-			Type:     string(fleet.CAConfigNDES),
+			Type:     string(fleet.CATypeNDESSCEPProxy),
 			Name:     "Default NDES SCEP Proxy", // TODO EJM this name OK?
 			URL:      ndesSCEP.URL,
 			AdminURL: &ndesSCEP.AdminURL,
@@ -183,6 +182,7 @@ FROM
 		casToInsert = append(casToInsert, dbNDESSCEP)
 	}
 
+	fmt.Printf("Inserting %d certificate authorities\n", len(casToInsert))
 	for _, ca := range casToInsert {
 		insertStmt := `
 INSERT INTO certificate_authorities (
@@ -200,7 +200,7 @@ INSERT INTO certificate_authorities (
 	challenge,
 	client_id,
 	client_secret
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		var upns []byte
 		if ca.CertificateUserPrincipalNames != nil {
 			upns, err = json.Marshal(ca.CertificateUserPrincipalNames)
@@ -226,7 +226,6 @@ INSERT INTO certificate_authorities (
 		}
 		_, err = txx.Exec(insertStmt, args...)
 		if err != nil {
-			// TODO EJM: log error
 			return fmt.Errorf("failed to insert certificate authority %s: %w", ca.Name, err)
 		}
 	}
