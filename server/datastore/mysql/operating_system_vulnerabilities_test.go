@@ -500,9 +500,17 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 				require.Equal(t, kernel.HostsCount, uint(1))
 			}
 
+			expectedSet := make(map[string]struct{})
+			for _, v := range tt.vulns {
+				expectedSet[v.CVE] = struct{}{}
+			}
+
 			cves, err := ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, false)
 			require.NoError(t, err)
-			require.Len(t, cves, len(tt.vulns))
+			for _, g := range cves {
+				_, ok := expectedSet[g.CVE]
+				assert.Truef(t, ok, "got unexpected CVE: %s", g.CVE)
+			}
 
 			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", false)
 			require.NoError(t, err)
@@ -511,6 +519,10 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, true)
 			require.NoError(t, err)
 			require.Len(t, cves, len(tt.vulns))
+			for _, g := range cves {
+				_, ok := expectedSet[g.CVE]
+				assert.True(t, ok)
+			}
 
 			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", true)
 			require.NoError(t, err)
