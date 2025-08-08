@@ -852,6 +852,8 @@ func (a *agent) runOrbitLoop() {
 	capabilitiesCheckerTicker := time.Tick(5 * time.Minute)
 	// fleet desktop polls for policy compliance every 5 minutes
 	fleetDesktopPolicyTicker := time.Tick(5 * time.Minute)
+	// fleet desktop pings every 10s for connectivity check.
+	fleetDesktopConnectivityCheck := time.Tick(10 * time.Second)
 
 	const windowsMDMEnrollmentAttemptFrequency = time.Hour
 	var lastEnrollAttempt time.Time
@@ -918,6 +920,14 @@ func (a *agent) runOrbitLoop() {
 				if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
 					a.stats.IncrementDesktopErrors()
 					log.Println("deviceClient.NumberOfFailingPolicies: ", err)
+					continue
+				}
+			}
+		case <-fleetDesktopConnectivityCheck:
+			if !a.disableFleetDesktop {
+				if err := deviceClient.Ping(); err != nil {
+					a.stats.IncrementDesktopErrors()
+					log.Println("deviceClient.Ping: ", err)
 					continue
 				}
 			}

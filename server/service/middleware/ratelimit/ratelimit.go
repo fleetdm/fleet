@@ -7,8 +7,10 @@ import (
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/go-kit/kit/endpoint"
-	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
 	"github.com/throttled/throttled/v2"
 )
 
@@ -54,7 +56,7 @@ func (m *Middleware) Limit(keyName string, quota throttled.RateQuota) endpoint.M
 				if az, ok := authz_ctx.FromContext(ctx); ok {
 					az.SetChecked()
 				}
-				return nil, ctxerr.Wrap(ctx, &ratelimitError{result: result})
+				return nil, ctxerr.Wrap(ctx, &rateLimitError{result: result})
 			}
 
 			return next(ctx, req)
@@ -77,7 +79,7 @@ func NewErrorMiddleware(store throttled.GCRAStore) *ErrorMiddleware {
 }
 
 // Limit returns a new middleware function enforcing the provided quota only when errors occur in the next middleware
-func (m *ErrorMiddleware) Limit(keyName string, quota throttled.RateQuota) endpoint.Middleware {
+func (m *ErrorMiddleware) Limit(keyName string, quota throttled.RateQuota, logger kitlog.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		limiter, err := throttled.NewGCRARateLimiter(m.store, quota)
 		if err != nil {
@@ -85,8 +87,12 @@ func (m *ErrorMiddleware) Limit(keyName string, quota throttled.RateQuota) endpo
 		}
 
 		return func(ctx context.Context, req interface{}) (response interface{}, err error) {
-			xForwardedFor, _ := ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string)
-			ipKeyName := fmt.Sprintf("%s-%s", keyName, xForwardedFor)
+			publicIP := publicip.FromContext(ctx)
+			if publicIP == "" {
+				level.Warn(logger).Log("msg", "missing public_ip, skipping rate limit")
+				return next(ctx, req)
+			}
+			ipKeyName := fmt.Sprintf("%s-%s", keyName, publicIP)
 
 			// RateLimit with quantity 0 will never get limited=true, so we check result.Remaining instead
 			_, result, err := limiter.RateLimit(ipKeyName, 0)
@@ -104,13 +110,23 @@ func (m *ErrorMiddleware) Limit(keyName string, quota throttled.RateQuota) endpo
 				if az, ok := authz_ctx.FromContext(ctx); ok {
 					az.SetChecked()
 				}
-				return nil, ctxerr.Wrap(ctx, &ratelimitError{result: result})
+				level.Warn(logger).Log(
+					"ip", publicIP,
+					"msg", "limit exceeded",
+				)
+				return nil, ctxerr.Wrap(ctx, &rateLimitError{result: result})
 			}
 
 			resp, err := next(ctx, req)
 			if err != nil {
 				_, _, rateErr := limiter.RateLimit(ipKeyName, 1)
 				if rateErr != nil {
+					// This can happen if the limit store (e.g. Redis) is unavailable.
+					//
+					// We need to set authentication as checked, otherwise we end up returning HTTP 500 errors.
+					if az, ok := authz_ctx.FromContext(ctx); ok {
+						az.SetChecked()
+					}
 					return nil, ctxerr.Wrap(ctx, err, "rate limit ErrorMiddleware: failed to increase rate limit")
 				}
 			}
@@ -125,22 +141,29 @@ type Error interface {
 	Result() throttled.RateLimitResult
 }
 
-type ratelimitError struct {
+type rateLimitError struct {
 	result throttled.RateLimitResult
 }
 
-func (r ratelimitError) Error() string {
-	return fmt.Sprintf("limit exceeded, retry after: %ds", int(r.result.RetryAfter.Seconds()))
+func (r rateLimitError) Error() string {
+	// github.com/throttled/throttled has a bug where "peeking" with RateLimit(key, 0)
+	// always returns a RetryAfter=-1. So we just return "limit exceeded" to prevent confusing
+	// errors with "limit exceeded, retry after: 0s".
+	ra := int(r.result.RetryAfter.Seconds())
+	if ra > 0 {
+		return fmt.Sprintf("limit exceeded, retry after: %ds", ra)
+	}
+	return "limit exceeded"
 }
 
-func (r ratelimitError) StatusCode() int {
+func (r rateLimitError) StatusCode() int {
 	return http.StatusTooManyRequests
 }
 
-func (r ratelimitError) RetryAfter() int {
+func (r rateLimitError) RetryAfter() int {
 	return int(r.result.RetryAfter.Seconds())
 }
 
-func (r ratelimitError) Result() throttled.RateLimitResult {
+func (r rateLimitError) Result() throttled.RateLimitResult {
 	return r.result
 }
