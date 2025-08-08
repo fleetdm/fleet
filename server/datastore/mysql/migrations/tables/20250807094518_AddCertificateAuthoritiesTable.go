@@ -73,6 +73,14 @@ func Up_20250807094518(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("failed to create certificate_authorities table: %w", err)
 	}
+
+	// Create unique indexes on name and type(i.e. can't have more than 1 CA of a given type with a
+	// given name)
+	_, err = txx.Exec(`CREATE UNIQUE INDEX idx_ca_type_name ON certificate_authorities (type, name)`)
+	if err != nil {
+		return fmt.Errorf("failed to create unique index on certificate_authorities: %w", err)
+	}
+
 	// Populate the table with existing data from app_config_json
 	// if appConfigJSON.integrations.ndes_scep_proxy ...
 	// if appConfigJSON.integrations.custom_scep_proxy
