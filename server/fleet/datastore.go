@@ -1725,7 +1725,7 @@ type Datastore interface {
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
 	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
-	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []string) (*MDMWindowsConfigProfile, error)
 
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
 	// The profile gets replaced if it already exists for the same team and name

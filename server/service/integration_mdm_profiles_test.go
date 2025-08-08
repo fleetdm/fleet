@@ -3552,9 +3552,9 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 			_, err = s.ds.NewMDMAppleConfigProfile(ctx, *tprof, nil)
 			require.NoError(t, err)
 		} else {
-			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, SyncML: []byte(`<Replace></Replace>`)})
+			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, SyncML: []byte(`<Replace></Replace>`)}, nil)
 			require.NoError(t, err)
-			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "t" + name, TeamID: &tm1.ID, SyncML: []byte(`<Replace></Replace>`)})
+			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "t" + name, TeamID: &tm1.ID, SyncML: []byte(`<Replace></Replace>`)}, nil)
 			require.NoError(t, err)
 		}
 	}
@@ -3590,7 +3590,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 			{LabelID: lblFoo.ID, LabelName: lblFoo.Name},
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// make tm2ProfH a "include-any" label-based profile
@@ -3602,7 +3602,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 			{LabelID: lblBaz.ID, LabelName: lblBaz.Name},
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// break lblFoo by deleting it

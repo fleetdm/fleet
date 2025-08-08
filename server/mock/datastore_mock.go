@@ -1125,7 +1125,7 @@ type GetMDMWindowsProfilesContentsFunc func(ctx context.Context, profileUUIDs []
 
 type BulkDeleteMDMWindowsHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error
 
-type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error)
+type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []string) (*fleet.MDMWindowsConfigProfile, error)
 
 type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error
 
@@ -7409,11 +7409,11 @@ func (s *DataStore) BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context,
 	return s.BulkDeleteMDMWindowsHostsConfigProfilesFunc(ctx, payload)
 }
 
-func (s *DataStore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+func (s *DataStore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []string) (*fleet.MDMWindowsConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMWindowsConfigProfileFunc(ctx, cp)
+	return s.NewMDMWindowsConfigProfileFunc(ctx, cp, usesFleetVars)
 }
 
 func (s *DataStore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {

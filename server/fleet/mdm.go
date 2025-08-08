@@ -41,7 +41,7 @@ const (
 	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
 	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
 	FleetVarHostEndUserIDPDepartment        = "HOST_END_USER_IDP_DEPARTMENT"
-	FleetVarHostUUID                        = "HOST_UUID"
+	FleetVarHostUUID                        = "HOST_UUID" // Windows only
 	FleetVarSCEPRenewalID                   = "SCEP_RENEWAL_ID"
 
 	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"

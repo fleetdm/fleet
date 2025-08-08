@@ -320,11 +320,12 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 ) (updates fleet.MDMProfilesUpdates, err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
+		// Pass profilesVariablesByIdentifier to Windows profiles to save variable associations
+		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
 		}
 
-		// for now, only apple profiles support Fleet variables
+		// Apple profiles also support Fleet variables
 		if updates.AppleConfigProfile, err = ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}

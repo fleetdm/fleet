@@ -3830,7 +3830,7 @@ func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
 		CreatedAt:        time.Now(),
 		UploadedAt:       time.Now(),
 	}
-	noTeamWindowsProfile, err := ds.NewMDMWindowsConfigProfile(ctx, windowsProfile)
+	noTeamWindowsProfile, err := ds.NewMDMWindowsConfigProfile(ctx, windowsProfile, nil)
 	require.NoError(t, err)
 
 	// verified status

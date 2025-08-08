@@ -1763,7 +1763,7 @@ func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(
 	return nil
 }
 
-func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []string) (*fleet.MDMWindowsConfigProfile, error) {
 	profileUUID := "w" + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
@@ -1830,6 +1830,19 @@ INSERT INTO
 		}
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profsWithoutLabel, "windows"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
+		}
+
+		// Save Fleet variables associated with this Windows profile
+		if len(usesFleetVars) > 0 {
+			profilesVarsToUpsert := []fleet.MDMProfileUUIDFleetVariables{
+				{
+					ProfileUUID:    profileUUID,
+					FleetVariables: usesFleetVars,
+				},
+			}
+			if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "windows"); err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting windows profile variable associations")
+			}
 		}
 
 		return nil
@@ -1900,6 +1913,7 @@ func (ds *Datastore) batchSetMDMWindowsProfilesDB(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMWindowsConfigProfile,
+	profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updatedDB bool, err error) {
 	const loadExistingProfiles = `
 SELECT
@@ -2084,53 +2098,53 @@ ON DUPLICATE KEY UPDATE
 	// implementation we're under tight time constraints.
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
 	var profsWithoutLabel []string
+	var currentProfiles []*fleet.MDMWindowsConfigProfile
 	if len(incomingNames) > 0 {
-		var newlyInsertedProfs []*fleet.MDMWindowsConfigProfile
-		// load current profiles (again) that match the incoming profiles by name to grab their uuids
+		// load current profiles (both new and updated) that match the incoming profiles by name to grab their uuids
 		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
 		if err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "inreselect") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
-			return false, ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
+			return false, ctxerr.Wrap(ctx, err, "build query to load current profiles")
 		}
-		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "reselect") {
+		if err := sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "reselect") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
-			return false, ctxerr.Wrap(ctx, err, "load newly inserted profiles")
+			return false, ctxerr.Wrap(ctx, err, "load current profiles")
 		}
 
-		for _, newlyInsertedProf := range newlyInsertedProfs {
-			incomingProf, ok := incomingProfs[newlyInsertedProf.Name]
+		for _, currentProfile := range currentProfiles {
+			incomingProf, ok := incomingProfs[currentProfile.Name]
 			if !ok {
-				return false, ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Name)
+				return false, ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", currentProfile.Name)
 			}
 
 			var profHasLabel bool
 			for _, label := range incomingProf.LabelsIncludeAll {
-				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.ProfileUUID = currentProfile.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = true
 				incomingLabels = append(incomingLabels, label)
 				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsIncludeAny {
-				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.ProfileUUID = currentProfile.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
 				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsExcludeAny {
-				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.ProfileUUID = currentProfile.ProfileUUID
 				label.Exclude = true
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
 				profHasLabel = true
 			}
 			if !profHasLabel {
-				profsWithoutLabel = append(profsWithoutLabel, newlyInsertedProf.ProfileUUID)
+				profsWithoutLabel = append(profsWithoutLabel, currentProfile.ProfileUUID)
 			}
 		}
 	}
@@ -2143,6 +2157,33 @@ ON DUPLICATE KEY UPDATE
 			err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 		}
 		return false, ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
+	}
+
+	// save fleet variables associated with Windows profiles (both new and updated)
+	if len(profilesVariablesByIdentifier) > 0 && len(currentProfiles) > 0 {
+		// build a lookup map for variables by profile name (Windows profiles use Name as identifier)
+		lookupVariablesByName := make(map[string][]string, len(profilesVariablesByIdentifier))
+		for _, pv := range profilesVariablesByIdentifier {
+			// Windows profiles use Name as the identifier in the validateFleetVariables function
+			lookupVariablesByName[pv.Identifier] = pv.FleetVariables
+		}
+
+		// collect profile UUIDs that have Fleet variables (using already loaded profiles)
+		var profilesVarsToUpsert []fleet.MDMProfileUUIDFleetVariables
+		for _, p := range currentProfiles {
+			if vars, ok := lookupVariablesByName[p.Name]; ok && len(vars) > 0 {
+				profilesVarsToUpsert = append(profilesVarsToUpsert, fleet.MDMProfileUUIDFleetVariables{
+					ProfileUUID:    p.ProfileUUID,
+					FleetVariables: vars,
+				})
+			}
+		}
+
+		if len(profilesVarsToUpsert) > 0 {
+			if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "windows"); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "inserting windows profile variable associations")
+			}
+		}
 	}
 
 	return updatedDB || updatedLabels, nil

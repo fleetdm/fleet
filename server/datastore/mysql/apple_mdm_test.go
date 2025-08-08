@@ -129,7 +129,7 @@ func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, profB.ProfileUUID)
 	require.Equal(t, "a", string(profB.ProfileUUID[0]))
 	// create a Windows profile for no-team
-	profC, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "c", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	profC, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "c", TeamID: nil, SyncML: []byte("<Replace></Replace>")}, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, profC.ProfileUUID)
 	require.Equal(t, "w", string(profC.ProfileUUID[0]))
@@ -143,7 +143,7 @@ func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 	require.NotNil(t, profATm.TeamID)
 	require.Equal(t, uint(1), *profATm.TeamID)
 	// create the same B profile for team 1 as Windows profile
-	profBTm, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	profBTm, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")}, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, profBTm.ProfileUUID)
 
@@ -165,11 +165,11 @@ func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 	// create a duplicate name with a Windows profile for no-team
-	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: nil, SyncML: []byte("<Replace></Replace>")}, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 	// create a duplicate name with a Windows profile for team
-	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")}, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 }

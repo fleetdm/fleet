@@ -1127,7 +1127,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	ds.DeleteMDMWindowsConfigProfileFunc = func(ctx context.Context, profileUUID string) error {
 		return nil
 	}
-	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []string) (*fleet.MDMWindowsConfigProfile, error) {
 		return &cp, nil
 	}
 	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
@@ -1205,7 +1205,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
 		return nil
 	}
-	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []string) (*fleet.MDMWindowsConfigProfile, error) {
 		if bytes.Contains(cp.SyncML, []byte("duplicate")) {
 			return nil, &alreadyExistsError{}
 		}

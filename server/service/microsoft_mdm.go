@@ -2214,12 +2214,12 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 func preprocessWindowsProfileContents(
 	hostUUID string,
 	profileContents string,
-) (string, error) {
+) string {
 	// Check if Fleet variables are present
 	fleetVars := findFleetVariables(profileContents)
 	if len(fleetVars) == 0 {
 		// No variables to replace, return original content
-		return profileContents, nil
+		return profileContents
 	}
 
 	// Process each Fleet variable
@@ -2234,7 +2234,7 @@ func preprocessWindowsProfileContents(
 			_ = xml.EscapeText(buf, []byte(hostUUID))
 			escapedUUID := buf.String()
 
-			// Replace both braced and non-braced versions
+			// Replace both braced and non-braced versions. We assume this variable name is unique (and not a prefix of another variable name).
 			result = strings.ReplaceAll(result, fmt.Sprintf("$FLEET_VAR_%s", fleetVar), escapedUUID)
 			result = strings.ReplaceAll(result, fmt.Sprintf("${FLEET_VAR_%s}", fleetVar), escapedUUID)
 		default:
@@ -2244,7 +2244,7 @@ func preprocessWindowsProfileContents(
 		}
 	}
 
-	return result, nil
+	return result
 }
 
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
@@ -2361,15 +2361,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				}
 
 				// Preprocess the profile content for this specific host
-				processedContent, err := preprocessWindowsProfileContents(hostUUID, profileStr)
-				if err != nil {
-					level.Error(logger).Log("err", err, "msg", "preprocessing Windows profile", "profile_uuid", profUUID, "host_uuid", hostUUID)
-					// Mark this host's profile as failed
-					hp.Status = &fleet.MDMDeliveryFailed
-					hp.Detail = fmt.Sprintf("Fleet couldn't populate variables. %s", err.Error())
-					// Continue with other hosts even if one fails
-					continue
-				}
+				processedContent := preprocessWindowsProfileContents(hostUUID, profileStr)
 
 				// Create a unique command UUID for this host since the content is unique
 				hostCmdUUID := uuid.New().String()

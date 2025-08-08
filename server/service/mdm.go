@@ -1482,7 +1482,14 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
-	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
+	// Collect Fleet variables used in the profile
+	foundVars := findFleetVariables(string(cp.SyncML))
+	var usesFleetVars []string
+	for varName := range foundVars {
+		usesFleetVars = append(usesFleetVars, varName)
+	}
+
+	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp, usesFleetVars)
 	if err != nil {
 		var existsErr endpoint_utils.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
@@ -1851,6 +1858,11 @@ func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, app
 		err = validateWindowsProfileFleetVariables(string(p.SyncML))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
+		}
+		// Collect Fleet variables for Windows profiles (use unique Name as identifier for Windows)
+		windowsVars := findFleetVariables(string(p.SyncML))
+		if len(windowsVars) > 0 {
+			profileVarsByProfIdentifier[p.Name] = windowsVars
 		}
 	}
 	for _, p := range appleDecls {
