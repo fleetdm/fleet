@@ -63,6 +63,7 @@ import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
 import SelfService from "../cards/Software/SelfService";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
@@ -512,7 +513,7 @@ const DeviceUserPage = ({
                       deviceToken={deviceAuthToken}
                       isSoftwareEnabled
                       pathname={location.pathname}
-                      queryParams={parseHostSoftwareQueryParams(location.query)}
+                      queryParams={parseSelfServiceQueryParams(location.query)}
                       router={router}
                       refetchHostDetails={refetchHostDetails}
                       isHostDetailsPolling={showRefetchSpinner}
