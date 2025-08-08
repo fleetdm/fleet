@@ -5863,7 +5863,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, installer3.TitleID)
 
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, nil)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, ptr.Uint(0))
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 	expected := map[uint]fleet.AutomaticInstallPolicy{
@@ -5882,7 +5882,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 		megaTitleIDs = append(megaTitleIDs, *installer4.TitleID+i+1)
 	}
 	megaTitleIDs = append(megaTitleIDs, *installer4.TitleID)
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, megaTitleIDs, nil)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, megaTitleIDs, ptr.Uint(0))
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 

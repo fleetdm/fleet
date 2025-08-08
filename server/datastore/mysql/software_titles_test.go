@@ -14,12 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,6 +40,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 		{"ListSoftwareTitlesDoesnotIncludeDuplicates", testListSoftwareTitlesDoesnotIncludeDuplicates},
+		{"ListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam", testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2011,4 +2011,64 @@ func generateSoftwareTitleListOptionsCombinations(
 		generateSoftwareTitleListOptionsCombinations(v, currentValues, combinations)
 	}
 	delete(currentValues, field.Name)
+}
+
+func testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create a macOS software foobar installer on "No team".
+	_, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "foobar",
+		BundleIdentifier: "com.foo.bar",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "foobar.pkg",
+		TeamID:           ptr.Uint(0), // "No team"
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		UserID:           user1.ID,
+		StorageID:        "abc123",
+		Extension:        "pkg",
+		AutomaticInstall: true,
+	})
+	require.NoError(t, err)
+
+	// List titles for "No team" should return the software title.
+	noTeamTitles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		TeamID: ptr.Uint(0),
+	}, fleet.TeamFilter{
+		User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, noTeamTitles, 1)
+
+	// Simulate the host installing the software.
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{
+			Name:             "foobar",
+			BundleIdentifier: "com.foo.bar",
+			Version:          "v1.0.0",
+			Source:           "apps",
+		},
+	})
+
+	// Update hosts software title counts so that it shows up at the "All teams" view.
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// List titles for "All teams" should return the one title without any installer associated to it.
+	allTeamsTitles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		TeamID: nil,
+	}, fleet.TeamFilter{
+		User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	},
+	)
+	require.NoError(t, err)
+	require.Len(t, allTeamsTitles, 1)
+	require.Nil(t, allTeamsTitles[0].SoftwarePackage)
 }

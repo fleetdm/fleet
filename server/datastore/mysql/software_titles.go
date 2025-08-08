@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -219,8 +220,14 @@ func (ds *Datastore) ListSoftwareTitles(
 		if i, ok := titleIndex[p.TitleID]; ok {
 			if softwareList[i].AppStoreApp != nil {
 				softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(softwareList[i].AppStoreApp.AutomaticInstallPolicies, p)
-			} else {
+			} else if softwareList[i].SoftwarePackage != nil {
 				softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
+			} else {
+				level.Warn(ds.logger).Log(
+					"team_id", opt.TeamID,
+					"policy_id", p.ID,
+					"msg", "policy should have an associated VPP application or software package",
+				)
 			}
 		}
 	}
