@@ -29,7 +29,9 @@ import {
 
 interface IGetStatusMessageProps {
   isDUP?: boolean;
-  displayStatus: SoftwareInstallStatus;
+  /** "pending" is an edge case here where VPP install activities that were added to the feed prior to v4.57
+   * (when we split pending into pending_install/pending_uninstall) will list the status as "pending" rather than "pending_install" */
+  displayStatus: SoftwareInstallStatus | "pending";
   isMDMStatusNotNow: boolean;
   isMDMStatusAcknowledged: boolean;
   appName: string;
@@ -55,6 +57,11 @@ export const getStatusMessage = ({
           addSuffix: true,
         })})`
       : null;
+
+  // Handles "pending" value prior to 4.57
+  const isPendingInstall = ["pending_install", "pending"].includes(
+    displayStatus
+  );
 
   // Handles the case where software is installed manually by the user and not through Fleet
   // This app_store_app modal matches software_packages installed manually shown with SoftwareInstallDetailsModal
@@ -85,7 +92,7 @@ export const getStatusMessage = ({
   }
 
   // VPP Verify command pending state
-  if (displayStatus === "pending_install" && isMDMStatusAcknowledged) {
+  if (isPendingInstall && isMDMStatusAcknowledged) {
     return (
       <>
         The MDM command (request) to install <b>{appName}</b>
@@ -127,7 +134,7 @@ export const getStatusMessage = ({
       <>
         {" "}
         on {formattedHost}
-        {displayStatus === "pending_install" && " when it comes online"}
+        {isPendingInstall && " when it comes online"}
         {displayTimeStamp && <> {displayTimeStamp}</>}
       </>
     );
