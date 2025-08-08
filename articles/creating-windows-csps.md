@@ -151,6 +151,21 @@ Pay attention to the verbs `<Add>` vs `<Replace>` when creating as these need to
 
 Intune uses Windows [CSPs](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) that set registry keys that tell your system(s) which configuration to enforce. Intune CSPs can mostly be found in the registry under the `HKLM:\SOFTWARE\Microsoft\Provisioning\NodeCache\CSP\Device\MS DM Server\Nodes\<id>` key.
 
+> **Note (Intune edge case):**  
+> In some instances, Intune doesn’t explicitly set a Boolean value in the NodeCache – leaving it **unset**, which will return `ExpectedValue : -1` instead of `0` or `1`. Running the PowerShell query shown in this guide and discovering `ExpectedValue` of `-1` is a signal the policy wasn’t enforced in the registry.  
+>
+> For example, querying the `EnableFirewall` policy yields:  
+>
+> ```powershell
+> NodeUri       : ./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall
+> ExpectedValue : -1
+>
+> NodeUri       : ./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall
+> ExpectedValue : -1
+> ```
+>
+> In these edge cases, you’ll need to verify the actual runtime state (e.g. via `Get‑NetFirewallProfile`) to ensure whether the setting is active.
+
 How to get the CSP from Intune and format it as a configuration profile for Fleet:
 
 ### Step 1: Export from Intune
