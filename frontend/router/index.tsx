@@ -64,7 +64,7 @@ import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Windo
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
 import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
-import Variables from "pages/ManageControlsPage/Variables/Variables";
+import Secrets from "pages/ManageControlsPage/Secrets/Secrets";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
@@ -287,7 +287,7 @@ const routes = (
                 <Route path="os-settings/:section" component={OSSettings} />
                 <Route path="setup-experience" component={SetupExperience} />
                 <Route path="scripts" component={Scripts} />
-                <Route path="variables" component={Variables} />
+                <Route path="variables" component={Secrets} />
                 <Route
                   path="setup-experience/:section"
                   component={SetupExperience}

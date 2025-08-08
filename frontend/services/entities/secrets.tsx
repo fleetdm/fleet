@@ -20,7 +20,20 @@ export default {
     // Stubbed out for now, as the secrets endpoint is not yet implemented.
     console.log("getSecrets called with params:", params);
     return Promise.resolve({
-      secrets: [],
+      secrets: [
+        {
+          id: 1,
+          name: "example_secret",
+          created_at: "2023-10-01T00:00:00Z",
+          updated_at: "2023-10-01T00:00:00Z",
+        },
+        {
+          id: 2,
+          name: "another_secret",
+          created_at: "2023-10-02T00:00:00Z",
+          updated_at: "2023-10-02T00:00:00Z",
+        },
+      ],
       meta: {
         has_next_results: false,
         has_previous_results: false,
