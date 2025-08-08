@@ -177,6 +177,7 @@ func TestHosts(t *testing.T) {
 		{"GetHostEmails", testGetHostEmails},
 		{"TestGetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
 		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
+		{"SetOrUpdateHostDiskTpmPIN", testSetOrUpdateHostDiskTpmPIN},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -10895,5 +10896,60 @@ func testGetMatchingHostSerialsMarkedDeleted(t *testing.T, ds *Datastore) {
 			}
 			require.Equal(t, tt.want, got)
 		})
+	}
+}
+
+func testSetOrUpdateHostDiskTpmPIN(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var hosts []*fleet.Host
+	for _, id := range []string{"1", "2"} {
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(id),
+			UUID:            id,
+			OsqueryHostID:   ptr.String(id),
+			Hostname:        fmt.Sprintf("foo.local.%s", id),
+			PrimaryIP:       fmt.Sprintf("192.168.1.%s", id),
+			PrimaryMac:      fmt.Sprintf("30-65-EC-6F-C4-1%s", id),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, host)
+	}
+
+	testCases := map[uint]bool{
+		hosts[0].ID: true,
+		hosts[1].ID: false,
+	}
+
+	for hostID, expected := range testCases {
+		require.NoError(t, ds.SetOrUpdateHostDiskTpmPIN(ctx, hostID, expected))
+
+		var tpmPINSet bool
+
+		require.NoError(t,
+			sqlx.GetContext(
+				ctx,
+				ds.writer(ctx),
+				&tpmPINSet,
+				`SELECT tpm_pin_set FROM host_disks WHERE host_id = ?`, hostID,
+			),
+		)
+		require.Equal(t, expected, tpmPINSet)
+
+		require.NoError(t, ds.SetOrUpdateHostDiskTpmPIN(ctx, hostID, !expected))
+
+		require.NoError(t,
+			sqlx.GetContext(
+				ctx,
+				ds.writer(ctx),
+				&tpmPINSet,
+				`SELECT tpm_pin_set FROM host_disks WHERE host_id = ?`, hostID,
+			),
+		)
+		require.NotEqual(t, expected, tpmPINSet)
 	}
 }

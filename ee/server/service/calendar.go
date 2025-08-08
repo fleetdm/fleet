@@ -24,6 +24,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return fmt.Errorf("load app config: %w", err)
 	}
 
@@ -44,6 +45,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	// If this was a legitimate update, then it will be caught by the next cron job run (or a future callback).
 	recent, err := svc.distributedLock.Get(ctx, calendar.RecentUpdateKeyPrefix+eventUUID)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return err
 	}
 	if recent != nil && *recent == calendar.RecentCalendarUpdateValue {
@@ -55,6 +57,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	// Otherwise, we do additional validation to see if we need to process the event.
 	lockValue, reserved, err := svc.getCalendarLock(ctx, eventUUID, false)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return err
 	}
 	unlocked := false
@@ -85,6 +88,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 
 	if eventDetails.TeamID == nil {
 		// Should not happen
+		svc.authz.SkipAuthorization(ctx)
 		return fmt.Errorf("calendar event %s has no team ID", eventUUID)
 	}
 

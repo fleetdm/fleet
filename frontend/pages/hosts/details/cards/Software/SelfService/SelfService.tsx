@@ -87,6 +87,7 @@ export interface ISoftwareSelfServiceProps {
   router: InjectedRouter;
   refetchHostDetails: () => void;
   isHostDetailsPolling: boolean;
+  hostSoftwareUpdatedAt?: string | null;
   hostDisplayName: string;
 }
 
@@ -105,6 +106,7 @@ const SoftwareSelfService = ({
   router,
   refetchHostDetails,
   isHostDetailsPolling,
+  hostSoftwareUpdatedAt,
   hostDisplayName,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
@@ -139,13 +141,14 @@ const SoftwareSelfService = ({
     if (!selfServiceData) return [];
     return selfServiceData.software.map((software) => ({
       ...software,
-      ui_status: getUiStatus(software, true),
+      ui_status: getUiStatus(software, true, hostSoftwareUpdatedAt),
     }));
-  }, [selfServiceData]);
+  }, [selfServiceData, hostSoftwareUpdatedAt]);
 
   const updateSoftware = enhancedSoftware.filter(
     (software) =>
       software.ui_status === "updating" ||
+      software.ui_status === "recently_updated" ||
       software.ui_status === "pending_update" || // Should never show as self-service = host online
       software.ui_status === "update_available" ||
       software.ui_status === "failed_install_update_available" ||
@@ -188,10 +191,14 @@ const SoftwareSelfService = ({
   };
 
   const disableUpdateAllButton = useMemo(() => {
-    // Disable if all statuses are "updating"
+    // Disable if all statuses are "updating" or "recently_updated"
     return (
       updateSoftware.length > 0 &&
-      updateSoftware.every((software) => software.ui_status === "updating")
+      updateSoftware.every(
+        (software) =>
+          software.ui_status === "updating" ||
+          software.ui_status === "recently_updated"
+      )
     );
   }, [updateSoftware]);
 
