@@ -2047,7 +2047,7 @@ func testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam(t *testing.T,
 
 	// Simulate the host installing the software.
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-	ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
 		{
 			Name:             "foobar",
 			BundleIdentifier: "com.foo.bar",
@@ -2055,6 +2055,7 @@ func testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam(t *testing.T,
 			Source:           "apps",
 		},
 	})
+	require.NoError(t, err)
 
 	// Update hosts software title counts so that it shows up at the "All teams" view.
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))

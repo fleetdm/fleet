@@ -218,11 +218,16 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	for _, p := range policies {
 		if i, ok := titleIndex[p.TitleID]; ok {
-			if softwareList[i].AppStoreApp != nil {
-				softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(softwareList[i].AppStoreApp.AutomaticInstallPolicies, p)
-			} else if softwareList[i].SoftwarePackage != nil {
-				softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
-			} else {
+			switch {
+			case softwareList[i].AppStoreApp != nil:
+				softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(
+					softwareList[i].AppStoreApp.AutomaticInstallPolicies, p,
+				)
+			case softwareList[i].SoftwarePackage != nil:
+				softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(
+					softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p,
+				)
+			default:
 				level.Warn(ds.logger).Log(
 					"team_id", opt.TeamID,
 					"policy_id", p.ID,
