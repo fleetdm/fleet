@@ -570,6 +570,27 @@ var (
 	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
 )
 
+type BatchExecutionStatusFilter struct {
+	ScriptID *uint   `json:"script_id,omitempty"`
+	TeamID   *uint   `json:"team_id,omitempty"` // if nil, it is scoped to hosts that are assigned to "No team"
+	Status   *string `json:"status,omitempty"`  // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
+	// ExecutionID is the unique identifier for a single execution of the script.
+	ExecutionID *string `json:"execution_id,omitempty"`
+	// Limit is the maximum number of results to return.
+	// If not set, it defaults to 100.
+	Limit *uint `json:"limit,omitempty"`
+	// Offset is the number of results to skip before returning results.
+	// If not set, it defaults to 0.
+	Offset *uint `json:"offset,omitempty"`
+}
+
+type BatchExecutionHost struct {
+	HostID          uint    `json:"host_id" db:"host_id"`
+	HostDisplayName string  `json:"host_display_name" db:"hostname"`
+	ExecutionID     *string `json:"execution_id,omitempty" db:"execution_id"`
+	Error           *string `json:"error,omitempty" db:"error"`
+}
+
 type BatchActivity struct {
 	ID               uint                       `json:"id" db:"id"`
 	BatchExecutionID string                     `json:"batch_execution_id" db:"execution_id"`
@@ -592,27 +613,6 @@ type BatchActivity struct {
 	NumErrored       *uint                      `json:"errored_host_count" db:"num_errored"`
 	NumCanceled      *uint                      `json:"canceled_host_count" db:"num_canceled"`
 	NumIncompatible  *uint                      `json:"incompatible_host_count" db:"num_incompatible"`
-}
-
-type BatchExecutionStatusFilter struct {
-	ScriptID *uint   `json:"script_id,omitempty"`
-	TeamID   *uint   `json:"team_id,omitempty"` // if nil, it is scoped to hosts that are assigned to "No team"
-	Status   *string `json:"status,omitempty"`  // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
-	// ExecutionID is the unique identifier for a single execution of the script.
-	ExecutionID *string `json:"execution_id,omitempty"`
-	// Limit is the maximum number of results to return.
-	// If not set, it defaults to 100.
-	Limit *uint `json:"limit,omitempty"`
-	// Offset is the number of results to skip before returning results.
-	// If not set, it defaults to 0.
-	Offset *uint `json:"offset,omitempty"`
-}
-
-type BatchExecutionHost struct {
-	HostID          uint    `json:"host_id" db:"host_id"`
-	HostDisplayName string  `json:"host_display_name" db:"hostname"`
-	ExecutionID     *string `json:"execution_id,omitempty" db:"execution_id"`
-	Error           *string `json:"error,omitempty" db:"error"`
 }
 
 type BatchActivityHostResult struct {
