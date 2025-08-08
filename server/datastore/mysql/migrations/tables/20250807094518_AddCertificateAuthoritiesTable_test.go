@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,6 +26,8 @@ func TestUp_20250807094518(t *testing.T) {
 		customSCEPCA1Name = "Custom_SCEP_Proxy_CA_1"
 		customSCEPCA2Name = "Custom_SCEP_Proxy_CA_2"
 	)
+	// various strings encrypted with key my-secret-key-123456781234567890 just to verify the
+	// migration works with opaque(to it) binary data
 	customSCEPCA1EncryptedChallenge := []byte{0xe0, 0xd1, 0xba, 0x48, 0x20, 0x31, 0xff, 0x52, 0x11, 0x2c, 0x62, 0x0d, 0x8e, 0xc3, 0xb7, 0x88, 0x13, 0x5d, 0x37, 0x04, 0x10, 0xf4, 0xda, 0xa4, 0x8e, 0x18, 0xf7, 0x95, 0x8f, 0x5d, 0x1c, 0xc4, 0xb7, 0x45, 0xeb, 0xa9, 0xbf, 0x7d}
 	customSCEPCA2EncryptedChallenge := []byte{0x8b, 0x92, 0x95, 0xbf, 0xda, 0xc1, 0x71, 0x11, 0x64, 0xdc, 0xd0, 0xa8, 0x1c, 0x91, 0x26, 0xec, 0x15, 0xd5, 0x21, 0xca, 0x5e, 0x62, 0x71, 0x01, 0x5e, 0xb1, 0xb1, 0xbf, 0x9f, 0xe6, 0x36, 0x79, 0xa2, 0xee, 0x32, 0x9d, 0x64, 0x7c}
 	ndesEncryptedPassword := []byte{0xaa, 0x20, 0x6e, 0xb0, 0xb5, 0x10, 0x52, 0x6d, 0xe2, 0x78, 0x14, 0xbe, 0xc5, 0xe0, 0x8a, 0x04, 0xa6, 0xfd, 0x8b, 0x17, 0xd8, 0x15, 0x71, 0x3c, 0x72, 0xa2, 0x76, 0x5f, 0xba, 0x5d, 0x10, 0x41, 0x21, 0x56, 0xe4, 0x1d, 0xa0, 0x90, 0x0d, 0x9e, 0xe1}
@@ -129,31 +132,31 @@ FROM certificate_authorities`
 	for _, ca := range cas {
 		if ca.CertificateUserPrincipalNamesRaw != nil {
 			err = json.Unmarshal(ca.CertificateUserPrincipalNamesRaw, &ca.CertificateUserPrincipalNames)
-			require.NoError(t, err, "failed to unmarshal certificate user principal names for %s", ca.Name)
+			require.NoErrorf(t, err, "failed to unmarshal certificate user principal names for %s", ca.Name)
 		}
 		casFound = append(casFound, ca.Name)
 
 		// No Hydrant CAs in this test so these should be nil
-		require.Nil(t, ca.ClientID)
-		require.Nil(t, ca.ClientSecret)
+		assert.Nil(t, ca.ClientID)
+		assert.Nil(t, ca.ClientSecret)
 		switch ca.Type {
 		case "digicert":
-			require.Contains(t, []string{digicertCA1Name, digicertCA2Name}, ca.Name, "unexpected DigiCert CA name")
+			assert.Contains(t, []string{digicertCA1Name, digicertCA2Name}, ca.Name, "unexpected DigiCert CA name")
 			expectedCA := digicertCAs[0]
 			expectedAPIToken := digicertCA1EncryptedPassword
 			if ca.Name == digicertCA2Name {
 				expectedCA = digicertCAs[1]
 				expectedAPIToken = digicertCA2EncryptedPassword
 			}
-			require.Equal(t, expectedCA.URL, ca.URL)
-			require.Equal(t, expectedAPIToken, ca.APITokenRaw)
+			assert.Equal(t, expectedCA.URL, ca.URL)
+			assert.Equal(t, expectedAPIToken, ca.APITokenRaw)
 			require.NotNil(t, ca.ProfileID)
-			require.Equal(t, expectedCA.ProfileID, *ca.ProfileID)
+			assert.Equal(t, expectedCA.ProfileID, *ca.ProfileID)
 			require.NotNil(t, ca.CertificateCommonName)
-			require.Equal(t, expectedCA.CertificateCommonName, *ca.CertificateCommonName)
-			require.Equal(t, expectedCA.CertificateUserPrincipalNames, ca.CertificateUserPrincipalNames)
+			assert.Equal(t, expectedCA.CertificateCommonName, *ca.CertificateCommonName)
+			assert.Equal(t, expectedCA.CertificateUserPrincipalNames, ca.CertificateUserPrincipalNames)
 			require.NotNil(t, ca.CertificateSeatID)
-			require.Equal(t, expectedCA.CertificateSeatID, *ca.CertificateSeatID)
+			assert.Equal(t, expectedCA.CertificateSeatID, *ca.CertificateSeatID)
 		case "custom_scep_proxy":
 			require.Contains(t, []string{customSCEPCA1Name, customSCEPCA2Name}, ca.Name, "unexpected Custom SCEP Proxy CA name")
 			expectedCA := customSCEPProxyCAs[0]
@@ -162,20 +165,21 @@ FROM certificate_authorities`
 				expectedCA = customSCEPProxyCAs[1]
 				expectedChallenge = customSCEPCA2EncryptedChallenge
 			}
-			require.Equal(t, expectedCA.URL, ca.URL)
-			require.Equal(t, expectedChallenge, ca.ChallengeRaw)
-			require.Nil(t, ca.CertificateUserPrincipalNames)
+			assert.Equal(t, expectedCA.URL, ca.URL)
+			assert.Equal(t, expectedChallenge, ca.ChallengeRaw)
+			assert.Nil(t, ca.CertificateUserPrincipalNames)
 		case "ndes_scep_proxy":
-			require.Equal(t, "Default NDES SCEP Proxy", ca.Name)
+			assert.Equal(t, "Default NDES SCEP Proxy", ca.Name)
 			require.NotNil(t, ca.AdminURL)
-			require.Equal(t, ndesCA.AdminURL, *ca.AdminURL)
-			require.Equal(t, ndesCA.URL, ca.URL)
+			assert.Equal(t, ndesCA.AdminURL, *ca.AdminURL)
+			assert.Equal(t, ndesCA.URL, ca.URL)
 			require.NotNil(t, ca.Username)
-			require.Equal(t, ndesCA.Username, *ca.Username)
-			require.Equal(t, ndesEncryptedPassword, ca.PasswordRaw)
-			require.Nil(t, ca.CertificateUserPrincipalNames)
+			assert.Equal(t, ndesCA.Username, *ca.Username)
+			assert.Equal(t, ndesEncryptedPassword, ca.PasswordRaw)
+			assert.Nil(t, ca.CertificateUserPrincipalNames)
 		default:
-			t.Fatalf("unexpected certificate authority type: %s", ca.Type)
+			require.Failf(t, "unexpected certificate authority type", "type: %s, name: %s", ca.Type, ca.Name)
 		}
 	}
+	require.ElementsMatch(t, []string{digicertCA1Name, digicertCA2Name, customSCEPCA1Name, customSCEPCA2Name, "Default NDES SCEP Proxy"}, casFound)
 }

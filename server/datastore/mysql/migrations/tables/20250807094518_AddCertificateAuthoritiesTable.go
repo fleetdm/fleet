@@ -173,7 +173,6 @@ FROM
 		casToInsert = append(casToInsert, dbNDESCA)
 	}
 
-	fmt.Printf("Inserting %d certificate authorities\n", len(casToInsert))
 	for _, ca := range casToInsert {
 		insertStmt := `
 INSERT INTO certificate_authorities (
