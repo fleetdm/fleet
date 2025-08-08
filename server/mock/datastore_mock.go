@@ -1181,6 +1181,8 @@ type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID strin
 
 type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
+type CancelBatchScriptFunc func(ctx context.Context, executionID string) error
+
 type ListBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error)
 
 type CountBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error)
@@ -3186,6 +3188,9 @@ type DataStore struct {
 
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
+
+	CancelBatchScriptFunc        CancelBatchScriptFunc
+	CancelBatchScriptFuncInvoked bool
 
 	ListBatchScriptExecutionsFunc        ListBatchScriptExecutionsFunc
 	ListBatchScriptExecutionsFuncInvoked bool
@@ -7643,6 +7648,13 @@ func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string)
 	s.BatchExecuteSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchExecuteSummaryFunc(ctx, executionID)
+}
+
+func (s *DataStore) CancelBatchScript(ctx context.Context, executionID string) error {
+	s.mu.Lock()
+	s.CancelBatchScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelBatchScriptFunc(ctx, executionID)
 }
 
 func (s *DataStore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {

@@ -1830,6 +1830,9 @@ type Datastore interface {
 	// BatchExecuteSummary returns the summary of a batch script execution
 	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchActivity, error)
 
+	// CancelBatchScript cancels the execution of a batch script execution
+	CancelBatchScript(ctx context.Context, executionID string) error
+
 	// ListBatchScriptExecutions returns a filtered list of batch script executions, with summaries.
 	ListBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchActivity, error)
 

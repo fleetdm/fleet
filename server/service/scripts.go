@@ -1186,10 +1186,41 @@ func batchScriptCancelEndpoint(ctx context.Context, request any, svc fleet.Servi
 }
 
 func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID string) error {
-	// TODO authz!!
+	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &batchExecutionID,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get batch script summary")
+	}
+
+	// If the list is empty, it means the batch execution does not exist.
+	if len(summaryList) == 0 {
+		// If the user can see a no-team script, we can return a 404 because they have global access.
+		// Otherwise, we return a 403 to avoid leaking info about which IDs exist.
+		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
+			return err
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "get batch script status")
+	}
+
+	if len(summaryList) > 1 {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("batch_execution_id", "expected a single batch execution status, got multiple"))
+	}
+
+	summary := (summaryList)[0]
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	if err := svc.ds.CancelBatchScript(ctx, batchExecutionID); err != nil {
+		return ctxerr.Wrap(ctx, err, "canceling batch script")
+	}
 
 	return nil
 }
+
 func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
 	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &batchExecutionID,
