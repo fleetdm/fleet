@@ -3,6 +3,7 @@ package menu
 import (
 	"fmt"
 	"runtime"
+	"sync/atomic"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
@@ -41,9 +42,9 @@ type Manager struct {
 	Items *Items
 	// Track the current state of the MDM Migrate item so that on, e.g. token refreshes we can
 	// immediately begin showing the migrator again if we were showing it prior.
-	showMDMMigrator bool
+	showMDMMigrator atomic.Bool
 	// Track whether the offline indicator is currently displayed
-	offlineIndicatorDisplayed bool
+	offlineIndicatorDisplayed atomic.Bool
 }
 
 // NewManager creates a new menu manager with initialized menu items
@@ -80,11 +81,13 @@ func NewManager(version string, factory Factory) *Manager {
 	items.Transparency.Disable()
 	items.Transparency.Hide()
 
-	return &Manager{
-		Items:                     items,
-		showMDMMigrator:           false,
-		offlineIndicatorDisplayed: false,
+	m := &Manager{
+		Items: items,
 	}
+	// Initialize atomic fields
+	m.showMDMMigrator.Store(false)
+	m.offlineIndicatorDisplayed.Store(false)
+	return m
 }
 
 // SetConnecting sets the menu to the connecting state
@@ -99,7 +102,7 @@ func (m *Manager) SetConnecting() {
 	m.Items.SelfService.Hide()
 
 	m.Items.MigrateMDM.Disable()
-	if m.showMDMMigrator {
+	if m.showMDMMigrator.Load() {
 		m.Items.MigrateMDM.Show()
 	} else {
 		m.Items.MigrateMDM.Hide()
@@ -118,7 +121,7 @@ func (m *Manager) SetConnected(summary *fleet.DesktopSummary, isFreeTier bool) {
 	m.Items.Transparency.Show()
 
 	m.hideOfflineWarning()
-	m.offlineIndicatorDisplayed = false
+	m.offlineIndicatorDisplayed.Store(false)
 
 	// Handle self-service visibility. Check for null for backward compatibility with an old Fleet server
 	if isFreeTier || (summary.SelfService != nil && !*summary.SelfService) {
@@ -130,7 +133,7 @@ func (m *Manager) SetConnected(summary *fleet.DesktopSummary, isFreeTier bool) {
 	}
 
 	// Show MDM migrator if it was previously shown
-	if m.showMDMMigrator {
+	if m.showMDMMigrator.Load() {
 		m.Items.MigrateMDM.Enable()
 		m.Items.MigrateMDM.Show()
 	}
@@ -146,7 +149,7 @@ func (m *Manager) SetOffline() {
 	m.Items.MigrateMDM.Disable()
 	m.Items.MigrateMDM.Hide()
 	m.showOfflineWarning()
-	m.offlineIndicatorDisplayed = true
+	m.offlineIndicatorDisplayed.Store(true)
 }
 
 // UpdateFailingPolicies updates the my device item based on failing policies count
@@ -178,7 +181,7 @@ func (m *Manager) UpdateFailingPolicies(failingPolicies *uint) {
 
 // SetMDMMigratorVisibility controls the visibility of the MDM migration menu item
 func (m *Manager) SetMDMMigratorVisibility(show bool) {
-	m.showMDMMigrator = show
+	m.showMDMMigrator.Store(show)
 	if show {
 		m.Items.MigrateMDM.Enable()
 		m.Items.MigrateMDM.Show()
@@ -190,17 +193,17 @@ func (m *Manager) SetMDMMigratorVisibility(show bool) {
 
 // GetMDMMigratorVisibility returns whether the MDM migrator is currently shown
 func (m *Manager) GetMDMMigratorVisibility() bool {
-	return m.showMDMMigrator
+	return m.showMDMMigrator.Load()
 }
 
 // IsOfflineIndicatorDisplayed returns whether the offline indicator is currently displayed
 func (m *Manager) IsOfflineIndicatorDisplayed() bool {
-	return m.offlineIndicatorDisplayed
+	return m.offlineIndicatorDisplayed.Load()
 }
 
 // SetOfflineIndicatorDisplayed sets the offline indicator display state
 func (m *Manager) SetOfflineIndicatorDisplayed(displayed bool) {
-	m.offlineIndicatorDisplayed = displayed
+	m.offlineIndicatorDisplayed.Store(displayed)
 }
 
 // showOfflineWarning displays the offline warning item
