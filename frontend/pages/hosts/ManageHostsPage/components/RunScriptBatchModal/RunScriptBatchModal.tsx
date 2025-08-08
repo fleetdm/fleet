@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
-import { format } from "date-fns";
+import PATHS from "router/paths";
 
 import classnames from "classnames";
 
@@ -176,7 +176,9 @@ const RunScriptBatchModal = ({
             "success",
             <span className={`${baseClass}__success-message`}>
               <span>Successfully scheduled script.</span>
-              <Link to="#">Show schedule</Link>
+              <Link to={PATHS.CONTROLS_SCRIPTS_PROGRESS("scheduled", teamId)}>
+                Show schedule
+              </Link>
             </span>
           );
         } else {
@@ -184,7 +186,9 @@ const RunScriptBatchModal = ({
             "success",
             <span className={`${baseClass}__success-message`}>
               <span>Successfully ran script.</span>
-              {/* <Link to="#">Show script activity</Link> */}
+              <Link to={PATHS.CONTROLS_SCRIPTS_PROGRESS("started", teamId)}>
+                Show script activity
+              </Link>
             </span>
           );
         }
