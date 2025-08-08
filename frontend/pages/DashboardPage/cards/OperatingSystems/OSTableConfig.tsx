@@ -65,7 +65,7 @@ const generateDefaultTableHeaders = (
         );
       }
 
-      const { name, os_version_id, platform } = cellProps.row.original;
+      const { os_version_id, platform } = cellProps.row.original;
 
       const softwareOsDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_OS_DETAILS(os_version_id),
@@ -85,7 +85,7 @@ const generateDefaultTableHeaders = (
           customOnClick={onClickSoftware}
           tooltipTruncate
           prefix={<SoftwareIcon name={platform} />}
-          value={name}
+          value={cellProps.cell.value}
         />
       );
     },
