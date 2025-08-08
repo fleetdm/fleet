@@ -6606,7 +6606,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	// Check status of the batch execution
 	var batchStatusResp batchScriptExecutionStatusResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
-	require.Equal(t, batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
 	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
 	require.Equal(t, *batchStatusResp.NumPending, uint(2))
 
@@ -6639,7 +6639,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, batchListResp.HasNextResults, true)
 	require.Equal(t, batchListResp.HasPreviousResults, false)
 	require.Equal(t, batchListResp.BatchScriptExecutions[0].BatchExecutionID, batchRes2.BatchExecutionID)
-	require.Equal(t, batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(1))
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(1))
 
@@ -6649,7 +6649,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, batchListResp.HasNextResults, false)
 	require.Equal(t, batchListResp.HasPreviousResults, true)
 	require.Equal(t, batchListResp.BatchScriptExecutions[0].BatchExecutionID, batchRes.BatchExecutionID)
-	require.Equal(t, batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
+	require.Equal(t, *batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(2))
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(2))
 

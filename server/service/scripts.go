@@ -1091,7 +1091,7 @@ func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{
 		return batchScriptExecutionSummaryResponse{Err: err}, nil
 	}
 	return batchScriptExecutionSummaryResponse{
-		ScriptID:    summary.ScriptID,
+		ScriptID:    *summary.ScriptID,
 		ScriptName:  summary.ScriptName,
 		TeamID:      summary.TeamID,
 		CreatedAt:   summary.CreatedAt,
