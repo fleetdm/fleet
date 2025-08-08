@@ -27,7 +27,7 @@ For example:
 # If the file is in the same directory:
 package_path: package_name.yml
 
-# If the package is in a different directory:
+# If the file is in a different directory:
 package_path: ../software/package_name.yml
 ```
 Here's how it looks in a policy file:
