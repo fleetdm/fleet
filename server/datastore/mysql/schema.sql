@@ -1028,6 +1028,17 @@ CREATE TABLE `jobs` (
 INSERT INTO `jobs` VALUES (1,'2024-03-20 00:00:00','2024-03-20 00:00:00','macos_setup_assistant','{\"task\": \"update_all_profiles\"}','queued',0,'','2024-03-20 00:00:00');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `kernels` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `software_title_id` int unsigned DEFAULT NULL,
+  `software_id` int unsigned DEFAULT NULL,
+  `os_version_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_kernels_unique_mapping` (`software_title_id`,`software_id`,`os_version_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `label_membership` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

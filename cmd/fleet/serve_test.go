@@ -697,6 +697,10 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
+	ds.InsertKernelSoftwareMappingFunc = func(ctx context.Context) error {
+		return nil
+	}
+
 	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock

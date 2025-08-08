@@ -29,9 +29,9 @@ func createVulnProcessingCmd(configManager config.Manager) *cobra.Command {
 	vulnProcessingCmd := &cobra.Command{
 		Use:   "vuln_processing",
 		Short: "Run the vulnerability processing features of Fleet",
-		Long: `The vuln_processing command is intended for advanced configurations that want to externally manage 
+		Long: `The vuln_processing command is intended for advanced configurations that want to externally manage
 vulnerability processing. By default the Fleet server command internally manages vulnerability processing via scheduled
-'cron' style jobs, but setting 'vulnerabilities.disable_schedule=true' or 'FLEET_VULNERABILITIES_DISABLE_SCHEDULE=true' 
+'cron' style jobs, but setting 'vulnerabilities.disable_schedule=true' or 'FLEET_VULNERABILITIES_DISABLE_SCHEDULE=true'
 will disable it on the server allowing the user configure their own 'cron' mechanism. Successful processing will be indicated
 by an exit code of zero.`,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
@@ -187,6 +187,12 @@ func getVulnFuncs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			Name: "update_host_issues_vulnerabilities_counts",
 			VulnFunc: func(ctx context.Context) error {
 				return ds.UpdateHostIssuesVulnerabilities(ctx)
+			},
+		},
+		{
+			Name: "insert_kernel_software_mapping",
+			VulnFunc: func(ctx context.Context) error {
+				return ds.InsertKernelSoftwareMapping(ctx)
 			},
 		},
 	}
