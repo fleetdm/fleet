@@ -1,3 +1,11 @@
 .progress-bar {
+  display: flex;
+  height: 4px;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
 
+  &__section {
+    height: 100%;
+  }
 }
