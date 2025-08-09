@@ -212,6 +212,8 @@ type HostScriptResult struct {
 	HostID uint `json:"host_id" db:"host_id"`
 	// ExecutionID is a unique identifier for a single execution of the script.
 	ExecutionID string `json:"execution_id" db:"execution_id"`
+	// BatchExecutionID is an identifier that links this execution to a larger batch job
+	BatchExecutionID *string `json:"batch_execution_id" db:"batch_execution_id"`
 	// ScriptContents is the content of the script to execute.
 	ScriptContents string `json:"script_contents" db:"script_contents"`
 	// Output is the combined stdout/stderr output of the script. It is empty

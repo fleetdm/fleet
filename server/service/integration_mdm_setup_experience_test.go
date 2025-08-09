@@ -497,7 +497,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	"policy_name": null,
 	"script_name": "%s",
 	"host_display_name": "%s",
-	"script_execution_id": "%s"
+	"script_execution_id": "%s",
+	"batch_execution_id": null
 }
 	`, enrolledHost.ID, statusResp.Results.Script.Name, enrolledHost.DisplayName(), execID)
 	require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", debugPrintActivities(hostActivitiesResp.Activities))
@@ -557,7 +558,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	"policy_name": null,
 	"script_name": "%s",
 	"host_display_name": "%s",
-	"script_execution_id": "%s"
+	"script_execution_id": "%s",
+	"batch_execution_id": null
 }
 	`, enrolledHost.ID, statusResp.Results.Script.Name, getHostResp.Host.DisplayName, execID)
 

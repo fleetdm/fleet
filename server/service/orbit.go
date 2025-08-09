@@ -953,6 +953,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					ScriptExecutionID:   hsr.ExecutionID,
+					BatchExecutionID:    hsr.BatchExecutionID,
 					ScriptName:          scriptName,
 					Async:               !hsr.SyncRequest,
 					PolicyID:            hsr.PolicyID,

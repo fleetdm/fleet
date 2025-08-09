@@ -1,0 +1,2 @@
+- Individual script executions from batch jobs are now hidden from the global feed
+- Batch execution IDs are now included in script run activities
