@@ -3,13 +3,12 @@ import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
 import {
-  IHostSoftware,
-  SoftwareSource,
   formatSoftwareType,
+  IHostSoftware,
   isIpadOrIphoneSoftwareSource,
+  SoftwareSource,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { IDropdownOption } from "interfaces/dropdownOption";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
@@ -21,7 +20,6 @@ import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCe
 import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
 import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-import TooltipWrapper from "components/TooltipWrapper";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
@@ -123,14 +121,9 @@ export const generateSoftwareTableHeaders = ({
     },
     {
       Header: (): JSX.Element => {
-        const titleWithToolTip = (
-          <TooltipWrapper tipContent={<>Date and time of last open.</>}>
-            Last used
-          </TooltipWrapper>
-        );
-        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+        return <HeaderCell value="Last opened" disableSortBy />;
       },
-      id: "Last used",
+      id: "Last opened",
       disableSortBy: true,
       accessor: (originalRow) => {
         // Extract all last_opened_at values, filter out null/undefined, and ensure valid dates
@@ -143,25 +136,31 @@ export const generateSoftwareTableHeaders = ({
         if (dateStrings.length === 0) return null;
 
         // Find the most recent date string by comparing their Date values
-        const mostRecent = dateStrings.reduce((a, b) =>
+        return dateStrings.reduce((a, b) =>
           new Date(a).getTime() > new Date(b).getTime() ? a : b
-        );
-
-        return mostRecent; // cellProps.cell.value = mostRecent;
+        ); // cellProps.cell.value = mostRecent;
       },
       Cell: (cellProps: ITableStringCellProps) => {
-        return (
-          <TextCell
-            value={
-              cellProps.cell.value ? (
-                <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
-              ) : (
-                DEFAULT_EMPTY_CELL_VALUE
-              )
-            }
-            grey={!cellProps.cell.value}
-          />
-        );
+        const { source } = cellProps.row.original;
+        const shouldShowNever =
+          !cellProps.cell.value &&
+          (source === "programs" ||
+            source === "apps" ||
+            source === "deb_packages" ||
+            source === "rpm_packages");
+
+        let displayValue;
+        if (cellProps.cell.value) {
+          displayValue = (
+            <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
+          );
+        } else if (!shouldShowNever) {
+          displayValue = "Not supported";
+        } else {
+          return <TextCell value="Never" />;
+        }
+
+        return <TextCell value={displayValue} grey={!cellProps.cell.value} />;
       },
     },
     {
