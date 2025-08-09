@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server"
@@ -35,6 +36,7 @@ func CreateAuthorizationRequest(
 	sessionStore SessionStore,
 	originalURL string,
 	sessionTTLSeconds uint,
+	relayState string,
 ) (sessionID string, idpURL string, err error) {
 	idpURL, err = getDestinationURL(samlProvider.IDPMetadata)
 	if err != nil {
@@ -81,8 +83,10 @@ func CreateAuthorizationRequest(
 		return "", "", fmt.Errorf("caching SSO session while creating auth request: %w", err)
 	}
 
-	relayState := "" // Fleet currently doesn't use/set RelayState
-	idpRedirectURL, err := samlAuthRequest.Redirect(relayState, samlProvider)
+	//relayState := "" // Fleet currently doesn't use/set RelayState
+	// NOTE(mna): the 3rd-party SAML package does not properly encode the relay
+	// state query string, we must ensure it is encoded before passing it on.
+	idpRedirectURL, err := samlAuthRequest.Redirect(url.QueryEscape(relayState), samlProvider)
 	if err != nil {
 		return "", "", ctxerr.Wrap(ctx, err, "generating redirect")
 	}

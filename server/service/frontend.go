@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
@@ -101,6 +102,38 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
+		// TODO(mna): check if IdP is enabled for any team, and lookup team of the
+		// enroll secret to see if it must go through the IdP flow.
+		// For the POC, we do the IdP flow if the enroll_secret starts with idpteam.
+		enrollSecret := r.URL.Query().Get("enroll_secret")
+		enrollRef := r.URL.Query().Get("enrollment_reference")
+		var cookieIdPRef string
+		if byodCookie, _ := r.Cookie(cookieNameBYODAuthenticated); byodCookie != nil {
+			cookieIdPRef = byodCookie.Value
+		}
+		fmt.Println(">>>>> GOT BYOD COOKIE VALUE: ", cookieIdPRef, enrollRef)
+
+		if cookieIdPRef == "" && strings.HasPrefix(enrollSecret, "idpteam") {
+			// TODO(mna): if IdP required, go through that flow with proper RelayState
+			// passed on, and store the email to save later on as SCIM username linked
+			// to that host.
+			// TODO(mna): this requires a POST for some reason, use a temporary GET
+			// handler for the POC (the response also needs to be different - in our
+			// existing MDM SSO, we return JSON data from the initiator and this gets
+			// handled in the setup experience flow, but here we need to redirect to
+			// the IdP provider login page as this is in the browser).
+			q := make(url.Values)
+			q.Set("RelayState", "/enroll?enroll_secret="+enrollSecret)
+			q.Set("initiator", "ota_enroll")
+			http.Redirect(w, r, "/api/latest/fleet/mdm/sso?"+q.Encode(), http.StatusSeeOther)
+			return
+		}
+
+		if cookieIdPRef != "" && enrollRef != cookieIdPRef {
+			// TODO(mna): error, those values should match
+			fmt.Println(">>>> ERROR! EnrollRef != cookieIdPRef!")
+		}
+
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/enroll-ota.html")
 		if err != nil {
@@ -120,7 +153,20 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
-		enrollURL, err := generateEnrollOTAURL(urlPrefix, r.URL.Query().Get("enroll_secret"))
+		// TODO(mna): there's more than the enroll secret that we need to pass down
+		// to the download URL, as we want the host to be linked to the IdP email
+		// on enrollment. Need to figure this out...
+		//
+		// The next steps are:
+		// * GET /enrollment_profiles/ota : downloads the profile, passing the enroll secret
+		//   (enrollment secret still not validated at this point)
+		// * POST /ota_enrollment : on install of the enrollment profile, calls this endpoint
+		//   with the enroll secret.
+		// * enroll secret gets validated at this stage, and the host entry gets created if there
+		//   is no match already on host serial.
+		// * that's probably where the IdP email should be linked to this host, with the enroll ref.
+
+		enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
 		if err != nil {
 			herr(w, "generate enroll ota url: "+err.Error())
 			return

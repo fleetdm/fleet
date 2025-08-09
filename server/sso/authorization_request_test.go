@@ -47,6 +47,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 		store,
 		"/redir",
 		0,
+		"",
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 300*time.Second, store.sessionLifetime) // check default is used
@@ -79,6 +80,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 		store,
 		"/redir",
 		sessionTTL,
+		"",
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 1*time.Hour, store.sessionLifetime)
