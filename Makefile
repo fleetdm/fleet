@@ -412,7 +412,7 @@ doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
 	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 
-generate-doc: doc vex-report
+generate-doc: doc
 
 .help-short--deps:
 	@echo "Install dependent programs and libraries"
