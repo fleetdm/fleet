@@ -1,0 +1,8 @@
+{
+  "name": "Windows App",
+  "slug": "windows-app/darwin",
+  "unique_identifier": "com.microsoft.rdc.macos",
+  "token": "windows-app",
+  "installer_format": "pkg",
+  "default_categories": ["Productivity"]
+}
