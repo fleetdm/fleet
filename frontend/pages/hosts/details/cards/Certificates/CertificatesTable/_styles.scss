@@ -1,3 +1,9 @@
 .certificates-table {
+  .data-table-block .data-table__wrapper {
+    overflow-x: auto;
+  }
 
+  .cert-table__status-indicator {
+    min-width: 160px;
+  }
 }
