@@ -46,6 +46,7 @@ func TestScripts(t *testing.T) {
 		{"BatchExecute", testBatchExecute},
 		{"BatchExecuteWithStatus", testBatchExecuteWithStatus},
 		{"BatchScriptSchedule", testBatchScriptSchedule},
+		{"BatchScriptCancel", testBatchScriptCancel},
 		{"TestMarkActivitiesAsCompleted", testMarkActivitiesAsCompleted},
 		{"DeleteScriptActivatesNextActivity", testDeleteScriptActivatesNextActivity},
 		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
@@ -2310,6 +2311,127 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	batchActivity2, err := ds.GetBatchActivity(ctx, execID2)
 	require.NoError(t, err)
 	require.Equal(t, fleet.BatchExecutionStarted, batchActivity2.Status)
+}
+
+func testBatchScriptCancel(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "user1", "user@example.com", true)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now())
+	hostTeam1 := test.NewHost(t, ds, "hostTeam1", "10.0.0.5", "hostTeam1key", "hostTeam1uuid", time.Now(), test.WithTeamID(team1.ID))
+
+	test.SetOrbitEnrollment(t, host1, ds)
+	test.SetOrbitEnrollment(t, host2, ds)
+	test.SetOrbitEnrollment(t, host3, ds)
+	test.SetOrbitEnrollment(t, hostTeam1, ds)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo hi",
+	})
+	require.NoError(t, err)
+
+	////
+	// Immediate execution
+	//
+	execID1, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID})
+	require.NoError(t, err)
+	require.NotEmpty(t, execID1)
+
+	summary1, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID1})
+	require.NoError(t, err)
+	require.Len(t, summary1, 1)
+	require.Equal(t, fleet.BatchExecutionStarted, summary1[0].Status)
+	require.False(t, summary1[0].Canceled)
+	require.Equal(t, uint(2), *summary1[0].NumTargeted)
+	require.Equal(t, uint(2), *summary1[0].NumPending)
+
+	upcoming1, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming1, 1)
+
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host1.ID,
+		ExecutionID: upcoming1[0].ExecutionID,
+		Output:      "",
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
+
+	upcoming1, err = ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming1, 1)
+
+	err = ds.CancelBatchScript(ctx, execID1)
+	require.NoError(t, err)
+
+	summary1, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID1})
+	require.NoError(t, err)
+	require.Len(t, summary1, 1)
+	require.Equal(t, fleet.BatchExecutionFinished, summary1[0].Status)
+	require.True(t, summary1[0].Canceled)
+	require.Equal(t, uint(0), *summary1[0].NumPending)
+	require.Equal(t, uint(1), *summary1[0].NumRan)
+	require.Equal(t, uint(2), *summary1[0].NumTargeted)
+	require.Equal(t, uint(1), *summary1[0].NumCanceled)
+
+	upcoming1, err = ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming1, 0)
+
+	upcoming1, err = ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming1, 0)
+
+	////
+	// Future execution
+	//
+	execID2, err := ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID}, time.Now().Add(2*time.Hour))
+	require.NoError(t, err)
+	require.NotEmpty(t, execID2)
+
+	summary2, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID2})
+	require.NoError(t, err)
+	require.Len(t, summary2, 1)
+	require.Equal(t, fleet.BatchExecutionScheduled, summary2[0].Status)
+	require.False(t, summary2[0].Canceled)
+	require.Equal(t, uint(2), *summary2[0].NumTargeted)
+	require.Equal(t, uint(2), *summary2[0].NumPending)
+
+	upcoming2, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming2, 0)
+
+	upcoming2, err = ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming2, 0)
+
+	err = ds.CancelBatchScript(ctx, execID2)
+	require.NoError(t, err)
+
+	summary2, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID2})
+	require.NoError(t, err)
+	require.Len(t, summary2, 1)
+	require.Equal(t, fleet.BatchExecutionFinished, summary2[0].Status)
+	require.True(t, summary2[0].Canceled)
+	require.Equal(t, uint(0), *summary2[0].NumPending)
+	require.Equal(t, uint(0), *summary2[0].NumRan)
+	require.Equal(t, uint(2), *summary2[0].NumCanceled)
+	require.Equal(t, uint(2), *summary2[0].NumTargeted)
+
+	upcoming2, err = ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming2, 0)
+
+	upcoming2, err = ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming2, 0)
 }
 
 func testDeleteScriptActivatesNextActivity(t *testing.T, ds *Datastore) {

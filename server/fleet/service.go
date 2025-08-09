@@ -1197,6 +1197,9 @@ type Service interface {
 
 	BatchScriptExecutionList(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchActivity, int64, error)
 
+	// BatchScriptCancel cancels a batch script execution
+	BatchScriptCancel(ctx context.Context, batchExecutionID string) error
+
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
