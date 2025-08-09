@@ -107,7 +107,7 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 - Send the CEO a Slack DM with the balance of each of Fleet's two bank accounts.
 
 **Days to invoice customer**: 
-- Check the [invoice sent and payment received report]((https://fleetdm.lightning.force.com/lightning/r/Report/00O4x000007chpzEAA/view?queryScope=userFolders)) in Salesforce.
+- Check the [invoice sent and payment received report](https://fleetdm.lightning.force.com/lightning/r/Report/00O4x000007chpzEAA/view?queryScope=userFolders) in Salesforce.
 - Sort by close date, then check invoice dates for any recently closed deals and enter them in the finance spreadsheet and create new rows at the top of the 'time-to-invoice' tab in the spreadsheet for each new entry.  If a company has not been invoiced yet (invoice date is blank) do not enter yet, but verify if an invoice is scheduled to be sent using the [Invoice status and upcoming bill dates](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000010r8b2AA/view) report. If it doesn't appear here, create an issue on the finance board to investigate. 
 - Open the ["Time-to-invoice" tab](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1835263594) in the [💸 Finance  metrics spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0). Enter the year and month + customer name in column A, then the # of days between the close date and the invoice date in column B. After entering new entries you will probably have to adjust the formula in column D to include the new cells in the average and make sure the formula includes no further back than the last three months of invoices.
 

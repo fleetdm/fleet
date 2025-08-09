@@ -158,7 +158,7 @@ After a software package is installed on a host, it can be uninstalled on the ho
 
 ## Manage packages with Fleet's REST API
 
-Fleet also provides a REST API for managing software programmatically. The API allows you to add, update, retrieve, list, and delete software. Detailed documentation on Fleet's [REST API is available]([https://fleetdm.com/docs/rest-api/rest-api#software](https://fleetdm.com/docs/rest-api/rest-api#software)), including endpoints for installing and uninstalling packages.
+Fleet also provides a REST API for managing software programmatically. The API allows you to add, update, retrieve, list, and delete software. Detailed documentation on Fleet's [REST API is available](https://fleetdm.com/docs/rest-api/rest-api#software), including endpoints for installing and uninstalling packages.
 
 ## Manage packages with GitOps
 
