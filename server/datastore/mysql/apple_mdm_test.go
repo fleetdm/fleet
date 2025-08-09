@@ -7498,7 +7498,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	wantSerials = append(wantSerials, "abc", "xyz", "ijk", "tuv")
 
 	for _, d := range otaDevices {
-		err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, d)
+		err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", d)
 		require.NoError(t, err)
 	}
 

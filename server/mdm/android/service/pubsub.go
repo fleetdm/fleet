@@ -181,10 +181,16 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	// lifecycle and update the lifecycle to support Android, so that TurnOnMDM
 	// inserts the host_mdm, and TurnOffMDM deletes it.
 
+	var enrollmentTokenRequest enrollmentTokenRequest
+	err = json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshilling enrollment token data")
+	}
+
 	if host != nil {
 		level.Debug(svc.logger).Log("msg", "The enrolling Android host is already present in Fleet. Updating team if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
-		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
+		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 		}
@@ -270,8 +276,14 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 }
 
 func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.Device) error {
-	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
-	if err != nil && !fleet.IsNotFound(err) {
+	var enrollmentTokenRequest enrollmentTokenRequest
+	err := json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshilling enrollment token data")
+	}
+
+	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
@@ -294,6 +306,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			HardwareVendor:  device.HardwareInfo.Brand,
 			LabelUpdatedAt:  time.Time{},
 			DetailUpdatedAt: time.Time{},
+			UUID:            device.HardwareInfo.EnterpriseSpecificId,
 		},
 		Device: &android.Device{
 			DeviceID: deviceID,
@@ -316,6 +329,15 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
+
+	if enrollmentTokenRequest.IdpUUID != "" {
+		level.Info(svc.logger).Log("msg", "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", enrollmentTokenRequest.IdpUUID)
+		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, enrollmentTokenRequest.IdpUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "associating host with idp account")
+		}
+	}
+
 	return nil
 }
 
