@@ -88,20 +88,23 @@ const (
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
-	Address                     string
-	Cert                        string
-	Key                         string
-	TLS                         bool
-	TLSProfile                  string        `yaml:"tls_compatibility"`
-	URLPrefix                   string        `yaml:"url_prefix"`
-	Keepalive                   bool          `yaml:"keepalive"`
-	SandboxEnabled              bool          `yaml:"sandbox_enabled"`
-	WebsocketsAllowUnsafeOrigin bool          `yaml:"websockets_allow_unsafe_origin"`
-	FrequentCleanupsEnabled     bool          `yaml:"frequent_cleanups_enabled"`
-	ForceH2C                    bool          `yaml:"force_h2c"`
-	PrivateKey                  string        `yaml:"private_key"`
-	VPPVerifyTimeout            time.Duration `yaml:"vpp_verify_timeout"`
-	VPPVerifyRequestDelay       time.Duration `yaml:"vpp_verify_request_delay"`
+	Address                          string
+	Cert                             string
+	Key                              string
+	TLS                              bool
+	TLSProfile                       string        `yaml:"tls_compatibility"`
+	URLPrefix                        string        `yaml:"url_prefix"`
+	Keepalive                        bool          `yaml:"keepalive"`
+	SandboxEnabled                   bool          `yaml:"sandbox_enabled"`
+	WebsocketsAllowUnsafeOrigin      bool          `yaml:"websockets_allow_unsafe_origin"`
+	FrequentCleanupsEnabled          bool          `yaml:"frequent_cleanups_enabled"`
+	ForceH2C                         bool          `yaml:"force_h2c"`
+	PrivateKey                       string        `yaml:"private_key"`
+	PrivateKeySecretArn              string        `yaml:"private_key_secret_arn"`
+	PrivateKeySecretSTSAssumeRoleArn string        `yaml:"private_key_secret_sts_assume_role_arn"`
+	PrivateKeySecretSTSExternalID    string        `yaml:"private_key_secret_sts_external_id"`
+	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
+	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -1100,6 +1103,9 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
 	man.addConfigBool("server.force_h2c", false, "Force the fleet server to use HTTP2 cleartext aka h2c (ignored if using TLS)")
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
+	man.addConfigString("server.private_key_secret_arn", "", "ARN of AWS Secrets Manager secret containing server private key")
+	man.addConfigString("server.private_key_secret_sts_assume_role_arn", "", "ARN of role to assume for accessing private key secret")
+	man.addConfigString("server.private_key_secret_sts_external_id", "", "External ID for STS role assumption when accessing private key secret")
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amout of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 
@@ -1518,20 +1524,23 @@ func (man Manager) LoadConfig() FleetConfig {
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 		},
 		Server: ServerConfig{
-			Address:                     man.getConfigString("server.address"),
-			Cert:                        man.getConfigString("server.cert"),
-			Key:                         man.getConfigString("server.key"),
-			TLS:                         man.getConfigBool("server.tls"),
-			TLSProfile:                  man.getConfigTLSProfile(),
-			URLPrefix:                   man.getConfigString("server.url_prefix"),
-			Keepalive:                   man.getConfigBool("server.keepalive"),
-			SandboxEnabled:              man.getConfigBool("server.sandbox_enabled"),
-			WebsocketsAllowUnsafeOrigin: man.getConfigBool("server.websockets_allow_unsafe_origin"),
-			FrequentCleanupsEnabled:     man.getConfigBool("server.frequent_cleanups_enabled"),
-			ForceH2C:                    man.getConfigBool("server.force_h2c"),
-			PrivateKey:                  man.getConfigString("server.private_key"),
-			VPPVerifyTimeout:            man.getConfigDuration("server.vpp_verify_timeout"),
-			VPPVerifyRequestDelay:       man.getConfigDuration("server.vpp_verify_request_delay"),
+			Address:                          man.getConfigString("server.address"),
+			Cert:                             man.getConfigString("server.cert"),
+			Key:                              man.getConfigString("server.key"),
+			TLS:                              man.getConfigBool("server.tls"),
+			TLSProfile:                       man.getConfigTLSProfile(),
+			URLPrefix:                        man.getConfigString("server.url_prefix"),
+			Keepalive:                        man.getConfigBool("server.keepalive"),
+			SandboxEnabled:                   man.getConfigBool("server.sandbox_enabled"),
+			WebsocketsAllowUnsafeOrigin:      man.getConfigBool("server.websockets_allow_unsafe_origin"),
+			FrequentCleanupsEnabled:          man.getConfigBool("server.frequent_cleanups_enabled"),
+			ForceH2C:                         man.getConfigBool("server.force_h2c"),
+			PrivateKey:                       man.getConfigString("server.private_key"),
+			PrivateKeySecretArn:              man.getConfigString("server.private_key_secret_arn"),
+			PrivateKeySecretSTSAssumeRoleArn: man.getConfigString("server.private_key_secret_sts_assume_role_arn"),
+			PrivateKeySecretSTSExternalID:    man.getConfigString("server.private_key_secret_sts_external_id"),
+			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
+			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
