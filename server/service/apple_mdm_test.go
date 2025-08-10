@@ -5079,6 +5079,63 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	}
 }
 
+func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
+	t.Run("requires premium license", func(t *testing.T) {
+		appConfig := &fleet.AppConfig{}
+		profileWithVars := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>Test profile with Fleet variable</string>
+	<key>PayloadDisplayName</key>
+	<string>Test Profile</string>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>ComputerName</key>
+			<string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
+		</dict>
+	</array>
+</dict>
+</plist>`
+
+		// Test with free license
+		freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
+		_, err := validateConfigProfileFleetVariables(appConfig, profileWithVars, freeLic)
+		require.Error(t, err)
+		require.Equal(t, fleet.ErrMissingLicense, err)
+
+		// Test with premium license
+		premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		vars, err := validateConfigProfileFleetVariables(appConfig, profileWithVars, premiumLic)
+		require.NoError(t, err)
+		require.Contains(t, vars, "HOST_END_USER_EMAIL_IDP")
+
+		// Test profile without variables (should work with free license)
+		profileNoVars := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>Test profile without Fleet variables</string>
+	<key>PayloadDisplayName</key>
+	<string>Test Profile</string>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>ComputerName</key>
+			<string>StaticValue</string>
+		</dict>
+	</array>
+</dict>
+</plist>`
+		vars, err = validateConfigProfileFleetVariables(appConfig, profileNoVars, freeLic)
+		require.NoError(t, err)
+		require.Nil(t, vars)
+	})
+}
+
 func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	t.Parallel()
 	appConfig := &fleet.AppConfig{
@@ -5373,7 +5430,9 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			vars, err := validateConfigProfileFleetVariables(appConfig, tc.profile)
+			// Pass a premium license for testing (we're not testing license validation here)
+			premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+			vars, err := validateConfigProfileFleetVariables(appConfig, tc.profile, premiumLic)
 			if tc.errMsg != "" {
 				assert.ErrorContains(t, err, tc.errMsg)
 				assert.Empty(t, vars)

@@ -1477,13 +1477,18 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
-	err = validateWindowsProfileFleetVariables(string(cp.SyncML))
+	// Get license for validation
+	lic, err := svc.License(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+		return nil, ctxerr.Wrap(ctx, err, "checking license")
+	}
+
+	foundVars, err := validateWindowsProfileFleetVariables(string(cp.SyncML), lic)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	// Collect Fleet variables used in the profile
-	foundVars := variables.Find(string(cp.SyncML))
 	var usesFleetVars []fleet.FleetVarName
 	for varName := range foundVars {
 		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
@@ -1529,19 +1534,24 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostUUID,
 }
 
-func validateWindowsProfileFleetVariables(contents string) error {
+func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo) (map[string]struct{}, error) {
 	foundVars := variables.Find(contents)
 	if len(foundVars) == 0 {
-		return nil
+		return nil, nil
+	}
+
+	// Check for premium license if the profile contains Fleet variables
+	if lic != nil && !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
 	}
 
 	// Check if all found variables are supported
 	for varName := range foundVars {
 		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) {
-			return fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
+			return nil, fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
 		}
 	}
-	return nil
+	return foundVars, nil
 }
 
 func (svc *Service) batchValidateProfileLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
@@ -1750,10 +1760,17 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
-	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
+	// Get license for validation
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking license")
+	}
+
+	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
 	}
+
 	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
 	for identifier, variables := range profilesVariablesByIdentifierMap {
 		varNames := make([]fleet.FleetVarName, 0, len(variables))
@@ -1845,26 +1862,25 @@ func (svc *Service) BatchSetMDMProfiles(
 	return nil
 }
 
-func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
+func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
 ) (map[string]map[string]struct{}, error) {
 	var err error
 
 	profileVarsByProfIdentifier := make(map[string]map[string]struct{})
 	for _, p := range appleProfiles {
-		profileVars, err := validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig))
+		profileVars, err := validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig), lic)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}
 		profileVarsByProfIdentifier[p.Identifier] = profileVars
 	}
 	for _, p := range windowsProfiles {
-		err = validateWindowsProfileFleetVariables(string(p.SyncML))
+		windowsVars, err := validateWindowsProfileFleetVariables(string(p.SyncML), lic)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
 		}
 		// Collect Fleet variables for Windows profiles (use unique Name as identifier for Windows)
-		windowsVars := variables.Find(string(p.SyncML))
 		if len(windowsVars) > 0 {
 			profileVarsByProfIdentifier[p.Name] = windowsVars
 		}

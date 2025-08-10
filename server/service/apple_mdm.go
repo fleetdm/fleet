@@ -401,7 +401,14 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	profileVars, err := validateConfigProfileFleetVariables(appConfig, expanded)
+
+	// Get license for validation
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking license")
+	}
+
+	profileVars, err := validateConfigProfileFleetVariables(appConfig, expanded, lic)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
@@ -484,10 +491,15 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
-func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents string) (map[string]struct{}, error) {
+func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents string, lic *fleet.LicenseInfo) (map[string]struct{}, error) {
 	fleetVars := variables.FindKeepDuplicates(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
+	}
+
+	// Check for premium license if the profile contains Fleet variables
+	if lic != nil && !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
 	}
 	var (
 		digiCertVars   *digiCertVarsFound
