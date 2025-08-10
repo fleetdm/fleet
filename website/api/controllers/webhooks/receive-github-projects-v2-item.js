@@ -109,9 +109,13 @@ module.exports = {
     }
 
     // Check and parse GCP service account key
-    let gcpServiceAccountKey = parseGcpServiceAccountKey();
-    if (!gcpServiceAccountKey) {
-      // Error already logged in parseGcpServiceAccountKey function
+    let gcpServiceAccountKey;
+    try {
+      gcpServiceAccountKey = await sails.helpers.parseGcpServiceAccountKey.with({
+        gcpServiceAccountKey: sails.config.custom.engMetricsGcpServiceAccountKey
+      });
+    } catch (unused) {
+      // Error already logged in helper
       return {
         success: true,
         message: 'Webhook received but GCP configuration error'
@@ -198,51 +202,6 @@ function verifyGitHubWebhookSignature(req, secret) {
   }
 }
 
-/**
- * Parses and validates GCP service account key from configuration
- *
- * @returns {Object|null} Parsed GCP service account key object or null if invalid/missing
- */
-function parseGcpServiceAccountKey() {
-  if (!sails.config.custom.engMetricsGcpServiceAccountKey) {
-    sails.log.error('No GCP service account key configured for engineering metrics');
-    return null;
-  }
-
-  try {
-    let gcpServiceAccountKey;
-
-    // Check if it's already an object or needs parsing
-    if (typeof sails.config.custom.engMetricsGcpServiceAccountKey === 'object') {
-      gcpServiceAccountKey = sails.config.custom.engMetricsGcpServiceAccountKey;
-    } else if (typeof sails.config.custom.engMetricsGcpServiceAccountKey === 'string') {
-      // Fix common JSON formatting issues before parsing
-      let jsonString = sails.config.custom.engMetricsGcpServiceAccountKey;
-
-      // This handles cases where the private key has literal newlines
-      jsonString = jsonString.replace(/"private_key":\s*"([^"]+)"/g, (match, key) => {
-        // Replace actual newlines with escaped newlines only within the private key value
-        const fixedKey = key.replace(/\n/g, '\\n');
-        return `"private_key": "${fixedKey}"`;
-      });
-
-      // Parse the cleaned JSON
-      gcpServiceAccountKey = JSON.parse(jsonString);
-    } else {
-      throw new Error('Invalid GCP service account key type');
-    }
-
-    // Validate that it has the expected structure
-    if (!gcpServiceAccountKey.type || !gcpServiceAccountKey.project_id || !gcpServiceAccountKey.private_key) {
-      throw new Error('Invalid GCP service account key structure');
-    }
-
-    return gcpServiceAccountKey;
-  } catch (err) {
-    sails.log.error('Failed to parse GCP service account key:', err);
-    return null;
-  }
-}
 
 /**
  * Processes status changes from GitHub Projects v2 webhook
