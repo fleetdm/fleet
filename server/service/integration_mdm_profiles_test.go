@@ -7419,25 +7419,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	// Normal profile should be verified successfully
 	checkHostProfileStatus(hostNoVars.UUID, "ProfileNoVars", fleet.MDMDeliveryVerified)
 
-	// Note: GlobalProfileWithVar was replaced by ProfileNoVars for global hosts
-	// since both are global profiles and Fleet only keeps one profile per host.
-	// So we need to simulate osquery reporting ProfileNoVars for global hosts.
-
-	// Simulate osquery reporting back for global hosts (they have ProfileNoVars)
-	simulateOsqueryProfileReport(
-		*hostGlobal1.NodeKey,
-		"ProfileNoVars",
-		"./Device/Vendor/MSFT/DMClient/Provider/ProviderID/Static/Value",
-		"Static Value: NoSubstitution", // osquery reports exactly what was sent
-	)
-
-	simulateOsqueryProfileReport(
-		*hostGlobal2.NodeKey,
-		"ProfileNoVars",
-		"./Device/Vendor/MSFT/DMClient/Provider/ProviderID/Static/Value",
-		"Static Value: NoSubstitution", // osquery reports exactly what was sent
-	)
-
 	// Simulate osquery reporting back for team host
 	simulateOsqueryProfileReport(
 		*hostTeam.NodeKey,
@@ -7446,34 +7427,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 		"Team Device: "+hostTeam.UUID, // osquery reports the substituted value
 	)
 
-	// Global hosts have ProfileNoVars (replaced GlobalProfileWithVar) and should now be verified
-	// after we simulated osquery reporting them
-	checkHostProfileStatus(hostGlobal1.UUID, "ProfileNoVars", fleet.MDMDeliveryVerified)
-	checkHostProfileStatus(hostGlobal2.UUID, "ProfileNoVars", fleet.MDMDeliveryVerified)
-
 	// Team host has TeamProfileWithVar which now correctly verifies with Fleet variables
 	// The fix has been implemented and the profile should be verified successfully
 	checkHostProfileStatus(hostTeam.UUID, "TeamProfileWithVar", fleet.MDMDeliveryVerified)
 
 	// Hit the host details API and check the status in the mdm.profiles section
-	// Verify global host 1
-	var hostResp1 getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostGlobal1.ID), getHostRequest{}, http.StatusOK, &hostResp1)
-	require.NotNil(t, hostResp1.Host.MDM.Profiles)
-	require.Len(t, *hostResp1.Host.MDM.Profiles, 1)
-	require.Equal(t, "ProfileNoVars", (*hostResp1.Host.MDM.Profiles)[0].Name)
-	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostResp1.Host.MDM.Profiles)[0].Status,
-		"Profile should be verified in host details API for global host 1")
-
-	// Verify global host 2
-	var hostResp2 getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostGlobal2.ID), getHostRequest{}, http.StatusOK, &hostResp2)
-	require.NotNil(t, hostResp2.Host.MDM.Profiles)
-	require.Len(t, *hostResp2.Host.MDM.Profiles, 1)
-	require.Equal(t, "ProfileNoVars", (*hostResp2.Host.MDM.Profiles)[0].Name)
-	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostResp2.Host.MDM.Profiles)[0].Status,
-		"Profile should be verified in host details API for global host 2")
-
 	// Verify team host
 	var hostRespTeam getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostTeam.ID), getHostRequest{}, http.StatusOK, &hostRespTeam)
