@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/variables"
 
 	// we are using this package as we were having issues with pasrsing signed apple
 	// mobileconfig profiles with the pcks7 package we were using before.
@@ -112,14 +113,14 @@ func getSignedProfileData(mc Mobileconfig) (Mobileconfig, error) {
 func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	mcBytes := mc
 	// Remove Fleet variables expected in <data> section.
-	mcBytes = mdm.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
+	mcBytes = variables.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
 	if mc.isSignedProfile() {
 		profileData, err := getSignedProfileData(mc)
 		if err != nil {
 			return nil, err
 		}
 		mcBytes = profileData
-		if mdm.ProfileVariableRegex.Match(mcBytes) {
+		if variables.FleetVariableRegex.Match(mcBytes) {
 			return nil, errors.New("a signed profile cannot contain Fleet variables ($FLEET_VAR_*)")
 		}
 	}
@@ -164,14 +165,14 @@ type payloadSummary struct {
 func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	mcBytes := mc
 	// Remove Fleet variables expected in <data> section.
-	mcBytes = mdm.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
+	mcBytes = variables.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
 	if mc.isSignedProfile() {
 		profileData, err := getSignedProfileData(mc)
 		if err != nil {
 			return nil, err
 		}
 		mcBytes = profileData
-		if mdm.ProfileVariableRegex.Match(mcBytes) {
+		if variables.FleetVariableRegex.Match(mcBytes) {
 			return nil, errors.New("a signed profile cannot contain Fleet variables ($FLEET_VAR_*)")
 		}
 	}
