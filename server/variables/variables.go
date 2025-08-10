@@ -55,12 +55,6 @@ func FindKeepDuplicates(contents string) []string {
 	for _, match := range matches {
 		for _, i := range nameToIndex {
 			if match[i] != "" {
-				// Extract the variable name without the FLEET_VAR_ prefix
-				varName := strings.TrimPrefix(match[i], "FLEET_VAR_")
-				varName = strings.TrimPrefix(varName, "${FLEET_VAR_")
-				varName = strings.TrimSuffix(varName, "}")
-
-				// The regex already captures just the name part, so we can use it directly
 				result = append(result, match[i])
 			}
 		}

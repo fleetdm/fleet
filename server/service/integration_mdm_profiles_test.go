@@ -7454,7 +7454,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	require.NotNil(t, hostResp1.Host.MDM.Profiles)
 	require.Len(t, *hostResp1.Host.MDM.Profiles, 1)
 	require.Equal(t, "ProfileNoVars", (*hostResp1.Host.MDM.Profiles)[0].Name)
-	require.Equal(t, fleet.MDMDeliveryVerified, (*hostResp1.Host.MDM.Profiles)[0].Status,
+	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostResp1.Host.MDM.Profiles)[0].Status,
 		"Profile should be verified in host details API for global host 1")
 
 	// Verify global host 2
@@ -7463,7 +7463,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	require.NotNil(t, hostResp2.Host.MDM.Profiles)
 	require.Len(t, *hostResp2.Host.MDM.Profiles, 1)
 	require.Equal(t, "ProfileNoVars", (*hostResp2.Host.MDM.Profiles)[0].Name)
-	require.Equal(t, fleet.MDMDeliveryVerified, (*hostResp2.Host.MDM.Profiles)[0].Status,
+	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostResp2.Host.MDM.Profiles)[0].Status,
 		"Profile should be verified in host details API for global host 2")
 
 	// Verify team host
@@ -7472,7 +7472,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	require.NotNil(t, hostRespTeam.Host.MDM.Profiles)
 	require.Len(t, *hostRespTeam.Host.MDM.Profiles, 1)
 	require.Equal(t, "TeamProfileWithVar", (*hostRespTeam.Host.MDM.Profiles)[0].Name)
-	require.Equal(t, fleet.MDMDeliveryVerified, (*hostRespTeam.Host.MDM.Profiles)[0].Status,
+	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespTeam.Host.MDM.Profiles)[0].Status,
 		"Profile should be verified in host details API for team host")
 
 	// Verify no-vars host
@@ -7481,7 +7481,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	require.NotNil(t, hostRespNoVars.Host.MDM.Profiles)
 	require.Len(t, *hostRespNoVars.Host.MDM.Profiles, 1)
 	require.Equal(t, "ProfileNoVars", (*hostRespNoVars.Host.MDM.Profiles)[0].Name)
-	require.Equal(t, fleet.MDMDeliveryVerified, (*hostRespNoVars.Host.MDM.Profiles)[0].Status,
+	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespNoVars.Host.MDM.Profiles)[0].Status,
 		"Profile should be verified in host details API for no-vars host")
 
 }
