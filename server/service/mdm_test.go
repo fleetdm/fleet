@@ -1524,7 +1524,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		{
 			"only macOS",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
+			true,
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
