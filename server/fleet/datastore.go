@@ -1123,7 +1123,7 @@ type Datastore interface {
 	// Apple MDM
 
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
-	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []string) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []FleetVarName) (*MDMAppleConfigProfile, error)
 
 	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
 	// profiles in bulk with the current payload.
@@ -1727,7 +1727,7 @@ type Datastore interface {
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
 	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
-	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
 	// The profile gets replaced if it already exists for the same team and name
