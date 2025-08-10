@@ -2249,8 +2249,8 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 }
 
 func TestValidateWindowsProfileFleetVariablesLicense(t *testing.T) {
-	t.Run("requires premium license", func(t *testing.T) {
-		profileWithVars := `<Replace>
+	t.Parallel()
+	profileWithVars := `<Replace>
 			<Item>
 				<Target>
 					<LocURI>./Device/Vendor/MSFT/Accounts/DomainName</LocURI>
@@ -2259,20 +2259,19 @@ func TestValidateWindowsProfileFleetVariablesLicense(t *testing.T) {
 			</Item>
 		</Replace>`
 
-		// Test with free license
-		freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
-		_, err := validateWindowsProfileFleetVariables(profileWithVars, freeLic)
-		require.Error(t, err)
-		require.Equal(t, fleet.ErrMissingLicense, err)
+	// Test with free license
+	freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, err := validateWindowsProfileFleetVariables(profileWithVars, freeLic)
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		// Test with premium license
-		premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-		vars, err := validateWindowsProfileFleetVariables(profileWithVars, premiumLic)
-		require.NoError(t, err)
-		require.Contains(t, vars, "HOST_UUID")
+	// Test with premium license
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	vars, err := validateWindowsProfileFleetVariables(profileWithVars, premiumLic)
+	require.NoError(t, err)
+	require.Contains(t, vars, "HOST_UUID")
 
-		// Test profile without variables (should work with free license)
-		profileNoVars := `<Replace>
+	// Test profile without variables (should work with free license)
+	profileNoVars := `<Replace>
 			<Item>
 				<Target>
 					<LocURI>./Device/Vendor/MSFT/Accounts/DomainName</LocURI>
@@ -2280,10 +2279,9 @@ func TestValidateWindowsProfileFleetVariablesLicense(t *testing.T) {
 				<Data>Static Value</Data>
 			</Item>
 		</Replace>`
-		vars, err = validateWindowsProfileFleetVariables(profileNoVars, freeLic)
-		require.NoError(t, err)
-		require.Nil(t, vars)
-	})
+	vars, err = validateWindowsProfileFleetVariables(profileNoVars, freeLic)
+	require.NoError(t, err)
+	require.Nil(t, vars)
 }
 
 func TestValidateWindowsProfileFleetVariables(t *testing.T) {

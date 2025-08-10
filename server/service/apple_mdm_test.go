@@ -5080,9 +5080,9 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 }
 
 func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
-	t.Run("requires premium license", func(t *testing.T) {
-		appConfig := &fleet.AppConfig{}
-		profileWithVars := `<?xml version="1.0" encoding="UTF-8"?>
+	t.Parallel()
+	appConfig := &fleet.AppConfig{}
+	profileWithVars := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -5100,20 +5100,19 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 </dict>
 </plist>`
 
-		// Test with free license
-		freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
-		_, err := validateConfigProfileFleetVariables(appConfig, profileWithVars, freeLic)
-		require.Error(t, err)
-		require.Equal(t, fleet.ErrMissingLicense, err)
+	// Test with free license
+	freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, err := validateConfigProfileFleetVariables(appConfig, profileWithVars, freeLic)
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		// Test with premium license
-		premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-		vars, err := validateConfigProfileFleetVariables(appConfig, profileWithVars, premiumLic)
-		require.NoError(t, err)
-		require.Contains(t, vars, "HOST_END_USER_EMAIL_IDP")
+	// Test with premium license
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	vars, err := validateConfigProfileFleetVariables(appConfig, profileWithVars, premiumLic)
+	require.NoError(t, err)
+	require.Contains(t, vars, "HOST_END_USER_EMAIL_IDP")
 
-		// Test profile without variables (should work with free license)
-		profileNoVars := `<?xml version="1.0" encoding="UTF-8"?>
+	// Test profile without variables (should work with free license)
+	profileNoVars := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -5130,10 +5129,9 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	</array>
 </dict>
 </plist>`
-		vars, err = validateConfigProfileFleetVariables(appConfig, profileNoVars, freeLic)
-		require.NoError(t, err)
-		require.Nil(t, vars)
-	})
+	vars, err = validateConfigProfileFleetVariables(appConfig, profileNoVars, freeLic)
+	require.NoError(t, err)
+	require.Empty(t, vars)
 }
 
 func TestValidateConfigProfileFleetVariables(t *testing.T) {

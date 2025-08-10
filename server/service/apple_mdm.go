@@ -498,7 +498,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 	}
 
 	// Check for premium license if the profile contains Fleet variables
-	if lic != nil && !lic.IsPremium() {
+	if lic == nil || !lic.IsPremium() {
 		return nil, fleet.ErrMissingLicense
 	}
 	var (

@@ -2301,11 +2301,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
 		}
 
-		// Check if the profile contains Fleet variables
-		profileStr := string(p.SyncML)
-		fleetVars := variables.Find(profileStr)
-
-		if len(fleetVars) == 0 {
+		if !variables.ContainsBytes(p.SyncML) {
 			// No Fleet variables, send the same command to all hosts
 			command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
 			if err != nil {
@@ -2327,7 +2323,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				}
 
 				// Preprocess the profile content for this specific host
-				processedContent := microsoft_mdm.PreprocessWindowsProfileContents(hostUUID, profileStr)
+				processedContent := microsoft_mdm.PreprocessWindowsProfileContents(hostUUID, string(p.SyncML))
 
 				// Create a unique command UUID for this host since the content is unique
 				hostCmdUUID := uuid.New().String()

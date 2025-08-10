@@ -88,3 +88,8 @@ func Replace(contents string, variableName string, value string) string {
 func Contains(contents string) bool {
 	return fleetVariableRegex.MatchString(contents)
 }
+
+// ContainsBytes checks if the given content contains any Fleet variables (bytes version).
+func ContainsBytes(contents []byte) bool {
+	return fleetVariableRegex.Match(contents)
+}

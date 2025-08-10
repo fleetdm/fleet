@@ -7329,12 +7329,20 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 		// Set profile timestamps to 2 hours ago
 		// IMPORTANT: uploaded_at is used as EarliestInstallDate in verification logic
 		_, err := q.ExecContext(ctx,
-			`UPDATE mdm_windows_configuration_profiles SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR), uploaded_at = DATE_SUB(NOW(), INTERVAL 2 HOUR)`)
+			`UPDATE mdm_windows_configuration_profiles
+			 SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR),
+			     uploaded_at = DATE_SUB(NOW(), INTERVAL 2 HOUR)
+			 WHERE name IN (?, ?, ?)`,
+			"GlobalProfileWithVar", "TeamProfileWithVar", "ProfileNoVars")
 		if err != nil {
 			return err
 		}
 		// Also update the host profile associations to have old timestamps (only created_at)
-		_, err = q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR)`)
+		_, err = q.ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles
+			 SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR)
+			 WHERE host_uuid IN (?, ?, ?, ?)`,
+			hostGlobal1.UUID, hostGlobal2.UUID, hostTeam.UUID, hostNoVars.UUID)
 		if err != nil {
 			return err
 		}
