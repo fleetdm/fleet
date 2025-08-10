@@ -44,8 +44,11 @@ const FleetDesktop = ({
     const { transparencyUrl } = formData;
 
     const errors: IFleetDesktopFormErrors = {};
-    if (transparencyUrl && !validUrl({ url: transparencyUrl })) {
-      errors.transparency_url = `${transparencyUrl} is not a valid URL`;
+    if (
+      transparencyUrl &&
+      !validUrl({ url: transparencyUrl, protocols: ["http", "https"] })
+    ) {
+      errors.transparency_url = `Custom transparency URL must include protocol (e.g. https://)`;
     }
 
     setFormErrors(errors);

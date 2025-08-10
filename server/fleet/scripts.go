@@ -570,16 +570,18 @@ var (
 	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
 )
 
-type BatchExecutionSummary struct {
-	ScriptID    uint      `json:"script_id" db:"script_id"`
-	ScriptName  string    `json:"script_name" db:"script_name"`
-	TeamID      *uint     `json:"team_id" db:"team_id"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	NumTargeted uint      `json:"targeted" db:"num_targeted"`
-	NumPending  uint      `json:"pending" db:"num_pending"`
-	NumRan      uint      `json:"ran" db:"num_ran"`
-	NumErrored  uint      `json:"errored" db:"num_errored"`
-	NumCanceled uint      `json:"canceled" db:"num_canceled"`
+type BatchExecutionStatusFilter struct {
+	ScriptID *uint   `json:"script_id,omitempty"`
+	TeamID   *uint   `json:"team_id,omitempty"` // if nil, it is scoped to hosts that are assigned to "No team"
+	Status   *string `json:"status,omitempty"`  // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
+	// ExecutionID is the unique identifier for a single execution of the script.
+	ExecutionID *string `json:"execution_id,omitempty"`
+	// Limit is the maximum number of results to return.
+	// If not set, it defaults to 100.
+	Limit *uint `json:"limit,omitempty"`
+	// Offset is the number of results to skip before returning results.
+	// If not set, it defaults to 0.
+	Offset *uint `json:"offset,omitempty"`
 }
 
 type BatchExecutionHost struct {
@@ -590,23 +592,27 @@ type BatchExecutionHost struct {
 }
 
 type BatchActivity struct {
-	ID              uint                       `db:"id"`
-	ScriptID        *uint                      `db:"script_id"`
-	ExecutionID     string                     `db:"execution_id"`
-	UserID          *uint                      `db:"user_id"`
-	JobID           *uint                      `db:"job_id"`
-	Status          BatchExecutionStatus       `db:"status"`
-	ActivityType    BatchExecutionActivityType `db:"activity_type"`
-	NumTargeted     *uint                      `db:"num_targeted"`
-	NumPending      *uint                      `db:"num_pending"`
-	NumRan          *uint                      `db:"num_ran"`
-	NumErrored      *uint                      `db:"num_errored"`
-	NumIncompatible *uint                      `db:"num_incompatible"`
-	NumCanceled     *uint                      `db:"num_canceled"`
-	CreatedAt       time.Time                  `db:"created_at"`
-	UpdatedAt       time.Time                  `db:"updated_at"`
-	CompletedAt     *time.Time                 `db:"completed_at"`
-	CanceledAt      *time.Time                 `db:"canceled_at"`
+	ID               uint                       `json:"id" db:"id"`
+	BatchExecutionID string                     `json:"batch_execution_id" db:"execution_id"`
+	UserID           *uint                      `json:"user_id" db:"user_id"`
+	JobID            *uint                      `json:"-" db:"job_id"`
+	ActivityType     BatchExecutionActivityType `json:"-" db:"activity_type"`
+	ScriptID         *uint                      `json:"script_id" db:"script_id"`
+	ScriptName       string                     `json:"script_name" db:"script_name"`
+	TeamID           *uint                      `json:"team_id" db:"team_id"`
+	CreatedAt        time.Time                  `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time                  `json:"updated_at" db:"updated_at"`
+	NotBefore        *time.Time                 `json:"not_before,omitempty" db:"not_before"`
+	StartedAt        *time.Time                 `json:"started_at,omitempty" db:"started_at"`
+	FinishedAt       *time.Time                 `json:"finished_at,omitempty" db:"finished_at"`
+	Canceled         bool                       `json:"canceled" db:"canceled"`
+	Status           BatchExecutionStatus       `json:"status" db:"status"`
+	NumTargeted      *uint                      `json:"targeted_host_count" db:"num_targeted"`
+	NumPending       *uint                      `json:"pending_host_count" db:"num_pending"`
+	NumRan           *uint                      `json:"ran_host_count" db:"num_ran"`
+	NumErrored       *uint                      `json:"errored_host_count" db:"num_errored"`
+	NumCanceled      *uint                      `json:"canceled_host_count" db:"num_canceled"`
+	NumIncompatible  *uint                      `json:"incompatible_host_count" db:"num_incompatible"`
 }
 
 type BatchActivityHostResult struct {
@@ -622,6 +628,7 @@ type BatchExecutionStatus string
 var (
 	BatchExecutionStarted   BatchExecutionStatus = "started"
 	BatchExecutionScheduled BatchExecutionStatus = "scheduled"
+	BatchExecutionFinished  BatchExecutionStatus = "finished"
 )
 
 type BatchExecutionActivityType string

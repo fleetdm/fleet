@@ -84,11 +84,13 @@ WHERE
 	}
 	app.Categories = categories
 
-	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+	if teamID != nil {
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+		}
+		app.AutomaticInstallPolicies = policies
 	}
-	app.AutomaticInstallPolicies = policies
 
 	return &app, nil
 }

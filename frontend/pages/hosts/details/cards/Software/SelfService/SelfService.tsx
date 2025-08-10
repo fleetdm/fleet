@@ -48,12 +48,12 @@ import SoftwareUninstallDetailsModal, {
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
-import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
 
 import {
@@ -76,6 +76,10 @@ const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   category_id: undefined,
 } as const;
 
+const DEFAULT_SEARCH_QUERY = "";
+const DEFAULT_SORT_DIRECTION = "asc";
+const DEFAULT_SORT_HEADER = "name";
+const DEFAULT_PAGE = 0;
 const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
 
 export interface ISoftwareSelfServiceProps {
@@ -83,13 +87,41 @@ export interface ISoftwareSelfServiceProps {
   deviceToken: string;
   isSoftwareEnabled?: boolean;
   pathname: string;
-  queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
+  queryParams: ReturnType<typeof parseSelfServiceQueryParams>;
   router: InjectedRouter;
   refetchHostDetails: () => void;
   isHostDetailsPolling: boolean;
   hostSoftwareUpdatedAt?: string | null;
   hostDisplayName: string;
 }
+
+export const parseSelfServiceQueryParams = (queryParams: {
+  page?: string;
+  query?: string;
+  order_key?: string;
+  order_direction?: "asc" | "desc";
+  category_id?: string;
+}) => {
+  const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
+  const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
+  const sortDirection = queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION;
+  const page = queryParams?.page
+    ? parseInt(queryParams.page, 10)
+    : DEFAULT_PAGE;
+  const pageSize = DEFAULT_CLIENT_SIDE_PAGINATION;
+  const categoryId = queryParams?.category_id
+    ? parseInt(queryParams.category_id, 10)
+    : undefined;
+
+  return {
+    page,
+    query: searchQuery,
+    order_key: sortHeader,
+    order_direction: sortDirection,
+    per_page: pageSize,
+    category_id: categoryId,
+  };
+};
 
 const getUpdatesPageSize = (width: number): number => {
   if (width >= 1400) return 4;
@@ -110,6 +142,10 @@ const SoftwareSelfService = ({
   hostDisplayName,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
+
+  const initialSortHeader = queryParams.order_key || "name";
+  const initialSortDirection = queryParams.order_direction || "asc";
+  const initialSortPage = queryParams.page || 0;
 
   const [selfServiceData, setSelfServiceData] = useState<
     IGetDeviceSoftwareResponse | undefined
@@ -509,7 +545,25 @@ const SoftwareSelfService = ({
       getPathWithQueryParams(pathname, {
         query: value,
         category_id: queryParams.category_id,
+        order_key: initialSortHeader,
+        order_direction: initialSortDirection,
         page: 0, // Always reset to page 0 when searching
+      })
+    );
+  };
+
+  const onSortChange = ({ sortHeader, sortDirection }: ITableQueryData) => {
+    router.push(
+      getPathWithQueryParams(pathname, {
+        ...queryParams,
+        order_key: sortHeader,
+        order_direction: sortDirection,
+        query: queryParams.query !== undefined ? queryParams.query : undefined,
+        category_id:
+          queryParams.category_id !== undefined
+            ? queryParams.category_id
+            : undefined,
+        page: 0, // Always reset to page 0 when sorting
       })
     );
   };
@@ -521,6 +575,8 @@ const SoftwareSelfService = ({
       getPathWithQueryParams(pathname, {
         category_id: option?.value !== "undefined" ? option?.value : undefined,
         query: queryParams.query,
+        order_key: initialSortHeader,
+        order_direction: initialSortDirection,
         page: 0, // Always reset to page 0 when searching
       })
     );
@@ -562,11 +618,20 @@ const SoftwareSelfService = ({
         getPathWithQueryParams(pathname, {
           query: queryParams.query,
           category_id: queryParams.category_id,
+          order_key: initialSortHeader,
+          order_direction: initialSortDirection,
           page,
         })
       );
     },
-    [pathname, queryParams.query, queryParams.category_id, router]
+    [
+      pathname,
+      queryParams.query,
+      queryParams.category_id,
+      initialSortDirection,
+      initialSortHeader,
+      router,
+    ]
   );
 
   // TODO: handle empty state better, this is just a placeholder for now
@@ -699,17 +764,17 @@ const SoftwareSelfService = ({
               queryParams.category_id
             )}
             isLoading={isFetching}
-            defaultSortHeader={DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_key}
-            defaultSortDirection={
-              DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_direction
-            }
-            pageIndex={queryParams.page ?? 0} // Client-side pagination with URL source of truth
+            defaultSortHeader={initialSortHeader}
+            defaultSortDirection={initialSortDirection}
+            onQueryChange={onSortChange} // Only used for sort
+            pageIndex={initialSortPage} // Client-side pagination with URL source of truth
             disableNextPage={selfServiceData?.meta.has_next_results === false}
             pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
             searchQuery={queryParams.query} // Search is now client-side to reduce API calls
             searchQueryColumn="name"
             isClientSideFilter
             isClientSidePagination
+            disableAutoResetPage // Prevents resetting page to 0 on data change when clicking install/uninstall
             onClientSidePaginationChange={onClientSidePaginationChange}
             emptyComponent={() => {
               return isEmptySearch ? (
