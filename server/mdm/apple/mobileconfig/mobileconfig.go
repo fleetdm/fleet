@@ -120,7 +120,7 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 			return nil, err
 		}
 		mcBytes = profileData
-		if variables.FleetVariableRegex.Match(mcBytes) {
+		if variables.Contains(string(mcBytes)) {
 			return nil, errors.New("a signed profile cannot contain Fleet variables ($FLEET_VAR_*)")
 		}
 	}
@@ -172,7 +172,7 @@ func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 			return nil, err
 		}
 		mcBytes = profileData
-		if variables.FleetVariableRegex.Match(mcBytes) {
+		if variables.Contains(string(mcBytes)) {
 			return nil, errors.New("a signed profile cannot contain Fleet variables ($FLEET_VAR_*)")
 		}
 	}

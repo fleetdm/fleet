@@ -8,13 +8,13 @@ import (
 	"strings"
 )
 
-// FleetVariableRegex matches Fleet variables in content.
+// fleetVariableRegex matches Fleet variables in content.
 // It supports two formats:
 //   - $FLEET_VAR_NAME - without braces
 //   - ${FLEET_VAR_NAME} - with braces
 //
 // The regex captures the variable name (without the FLEET_VAR_ prefix) in named groups.
-var FleetVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FLEET_VAR_(?P<name2>\w+)})`)
+var fleetVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FLEET_VAR_(?P<name2>\w+)})`)
 
 // ProfileDataVariableRegex matches variables present in <data> section of Apple profile, which may cause validation issues.
 // This is specific to DigiCert certificate data variables.
@@ -39,13 +39,13 @@ func Find(contents string) map[string]struct{} {
 // This is useful when you need to know the order or frequency of variable occurrences.
 func FindKeepDuplicates(contents string) []string {
 	var result []string
-	matches := FleetVariableRegex.FindAllStringSubmatch(contents, -1)
+	matches := fleetVariableRegex.FindAllStringSubmatch(contents, -1)
 	if len(matches) == 0 {
 		return nil
 	}
 
 	nameToIndex := make(map[string]int, 2)
-	for i, name := range FleetVariableRegex.SubexpNames() {
+	for i, name := range fleetVariableRegex.SubexpNames() {
 		if name == "" {
 			continue
 		}
@@ -71,23 +71,6 @@ func dedupe(varsWithDupes []string) map[string]struct{} {
 	return result
 }
 
-// Contains checks if the given content contains any Fleet variables.
-func Contains(contents string) bool {
-	return FleetVariableRegex.MatchString(contents)
-}
-
-// ContainsSpecific checks if the given content contains a specific Fleet variable.
-// The variableName should be provided without the FLEET_VAR_ prefix.
-//
-// For example, to check for $FLEET_VAR_HOST_UUID, use ContainsSpecific(content, "HOST_UUID").
-func ContainsSpecific(contents string, variableName string) bool {
-	// Check both braced and non-braced versions
-	nonBraced := "$FLEET_VAR_" + variableName
-	braced := "${FLEET_VAR_" + variableName + "}"
-
-	return strings.Contains(contents, nonBraced) || strings.Contains(contents, braced)
-}
-
 // Replace replaces all occurrences of a specific Fleet variable with the given value.
 // The variableName should be provided without the FLEET_VAR_ prefix.
 // This function replaces both braced and non-braced versions of the variable.
@@ -101,76 +84,7 @@ func Replace(contents string, variableName string, value string) string {
 	return result
 }
 
-// ReplaceAll replaces all Fleet variables in the content with their corresponding values
-// from the provided map. Variables not in the map are left unchanged.
-// The map keys should be variable names without the FLEET_VAR_ prefix.
-//
-// For example, ReplaceAll(content, map[string]string{"HOST_UUID": "123", "HOST_EMAIL": "test@example.com"})
-func ReplaceAll(contents string, values map[string]string) string {
-	result := contents
-	for varName, value := range values {
-		result = Replace(result, varName, value)
-	}
-	return result
-}
-
-// Validate checks if all Fleet variables in the content are valid.
-// Returns a slice of invalid variable names (without FLEET_VAR_ prefix).
-// An empty slice means all variables are valid.
-//
-// The validVariables parameter should contain the set of allowed variable names
-// without the FLEET_VAR_ prefix.
-func Validate(contents string, validVariables map[string]struct{}) []string {
-	found := Find(contents)
-	if found == nil {
-		return nil
-	}
-
-	var invalid []string
-	for varName := range found {
-		if _, ok := validVariables[varName]; !ok {
-			invalid = append(invalid, varName)
-		}
-	}
-	return invalid
-}
-
-// ExtractVariableName extracts the variable name from a full Fleet variable string.
-// It handles both $FLEET_VAR_NAME and ${FLEET_VAR_NAME} formats.
-// Returns empty string if the input is not a valid Fleet variable.
-//
-// For example:
-//   - ExtractVariableName("$FLEET_VAR_HOST_UUID") returns "HOST_UUID"
-//   - ExtractVariableName("${FLEET_VAR_HOST_EMAIL}") returns "HOST_EMAIL"
-//   - ExtractVariableName("not a variable") returns ""
-func ExtractVariableName(variable string) string {
-	// Trim any whitespace
-	variable = strings.TrimSpace(variable)
-
-	// Check if it starts with ${FLEET_VAR_ and ends with }
-	if strings.HasPrefix(variable, "${FLEET_VAR_") && strings.HasSuffix(variable, "}") {
-		name := strings.TrimPrefix(variable, "${FLEET_VAR_")
-		name = strings.TrimSuffix(name, "}")
-		return name
-	}
-
-	// Check if it starts with $FLEET_VAR_
-	if strings.HasPrefix(variable, "$FLEET_VAR_") {
-		return strings.TrimPrefix(variable, "$FLEET_VAR_")
-	}
-
-	return ""
-}
-
-// FormatVariable formats a variable name into the standard Fleet variable format.
-// By default, it uses the non-braced format ($FLEET_VAR_NAME).
-//
-// For example:
-//   - FormatVariable("HOST_UUID", false) returns "$FLEET_VAR_HOST_UUID"
-//   - FormatVariable("HOST_UUID", true) returns "${FLEET_VAR_HOST_UUID}"
-func FormatVariable(variableName string, useBraces bool) string {
-	if useBraces {
-		return "${FLEET_VAR_" + variableName + "}"
-	}
-	return "$FLEET_VAR_" + variableName
+// Contains checks if the given content contains any Fleet variables.
+func Contains(contents string) bool {
+	return fleetVariableRegex.MatchString(contents)
 }

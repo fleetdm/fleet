@@ -307,7 +307,7 @@ func PreprocessWindowsProfileContents(hostUUID string, profileContents string) s
 	// Process each Fleet variable
 	result := profileContents
 	for fleetVar := range fleetVars {
-		if fleetVar == "HOST_UUID" {
+		if fleetVar == string(fleet.FleetVarHostUUID) {
 			// Replace HOST_UUID with the actual host UUID
 			// Use XML escaping for the replacement value to be safe and prevent XML injection
 			b := make([]byte, 0, len(hostUUID))
@@ -315,9 +315,7 @@ func PreprocessWindowsProfileContents(hostUUID string, profileContents string) s
 			_ = xml.EscapeText(buf, []byte(hostUUID))
 			escapedUUID := buf.String()
 
-			// Replace both braced and non-braced versions
-			result = strings.ReplaceAll(result, fmt.Sprintf("$FLEET_VAR_%s", fleetVar), escapedUUID)
-			result = strings.ReplaceAll(result, fmt.Sprintf("${FLEET_VAR_%s}", fleetVar), escapedUUID)
+			result = variables.Replace(result, fleetVar, escapedUUID)
 		}
 		// Add other Fleet variables here as they are implemented
 	}
