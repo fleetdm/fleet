@@ -79,7 +79,7 @@ controls:
       - package_path: ../lib/macos/software/1password.yml # 1Password for macOS
       - app_store_id: '803453959' # Slack Desktop
   macos_updates:
-    deadline: "2025-08-31"
+    deadline: "2025-09-07"
     minimum_version: "15.6"
   windows_settings:
     custom_settings:
