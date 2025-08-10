@@ -72,7 +72,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 	t.Run("fails if the profile can't be saved in the db", func(t *testing.T) {
 		ds, svc := setup(t)
 		testErr := errors.New("test")
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, vars []string) (*fleet.MDMAppleConfigProfile, error) {
+		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 			return nil, testErr
 		}
 		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, nil)
@@ -83,7 +83,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		var teamID uint = 4
 		ds, svc := setup(t)
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, vars []string) (*fleet.MDMAppleConfigProfile, error) {
+		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 			require.Equal(t, &teamID, p.TeamID)
 			require.Equal(t, p.Identifier, mobileconfig.FleetFileVaultPayloadIdentifier)
 			require.Equal(t, p.Name, mdm.FleetFileVaultProfileName)
