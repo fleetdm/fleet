@@ -753,35 +753,60 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator, customOr
 	return sessionID, sessionDurationSeconds, idpURL, nil
 }
 
-func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
+func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
 	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
+	// TODO(mna): currently this redirects to "/mdm/sso/callback", a UI route, on
+	// any error in the callback and this page displays the error message, but
+	// for BYOD IdP, it doesn't work as this URL will redirect to the Fleet's
+	// login (as the user is not logged in yet). We should probably add a special
+	// error mode to "/enroll" (or define a new URL for that) that can display
+	// the error message.
+
 	profileToken, enrollmentRef, eulaToken, originalURL, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
-		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
-	}
-
-	// For account driven enrollment we have to use this special protocol URL scheme to pass the
-	// access token back to Apple which it will then use to request the enrollment profile.
-	if originalURL == appleMDMAccountDrivenEnrollmentUrl {
-		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef)
+		return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
 	}
 
 	q := url.Values{
 		"profile_token":        {profileToken},
 		"enrollment_reference": {enrollmentRef},
 	}
-
 	if eulaToken != "" {
 		q.Add("eula_token", eulaToken)
 	}
 
-	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
+	switch {
+	case originalURL == appleMDMAccountDrivenEnrollmentUrl:
+		// For account driven enrollment we have to use this special protocol URL scheme to pass the
+		// access token back to Apple which it will then use to request the enrollment profile.
+		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef), ""
+
+	case strings.HasPrefix(originalURL, "/enroll?"):
+		// redirect to the original URL with a cookie that identifies this device
+		// as authenticated and links it to the authenticated email (the enrollment
+		// reference).
+		u, err := url.Parse(originalURL)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+		}
+		// port over the query string values, which will copy over the enrollment
+		// secret
+		for k, v := range u.Query() {
+			q.Add(k, v[0])
+		}
+		u.RawQuery = q.Encode()
+		return u.String(), enrollmentRef
+
+	default:
+		return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode()), ""
+	}
 }
 
 func (svc *Service) mdmSSOHandleCallbackAuth(

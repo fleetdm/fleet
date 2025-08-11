@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -390,6 +391,18 @@ func deleteSSOCookie(w http.ResponseWriter) {
 		MaxAge:   -1,
 		Secure:   cookieSecure,
 		HttpOnly: true,
+	})
+}
+
+func setBYODCookie(w http.ResponseWriter, value string, cookieDurationSeconds int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     shared_mdm.BYODIdpCookieName,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   cookieDurationSeconds,
+		Secure:   cookieSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
 	})
 }
 

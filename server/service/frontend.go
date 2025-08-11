@@ -141,6 +141,10 @@ func ServeEndUserEnrollOTA(
 			}
 		}
 
+		// if we get here, IdP SSO authentication is either not required, or has
+		// been successfully completed (we have a cookie with the IdP account
+		// reference).
+
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/enroll-ota.html")
 		if err != nil {

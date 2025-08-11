@@ -190,7 +190,7 @@ type Service interface {
 	// MDMAppleSSOCallback handles the IdP SAMLResponse and ensures the
 	// credentials are valid, then responds with a URL to the Fleet UI to
 	// handle next steps based on the query parameters provided.
-	MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string
+	MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string)
 
 	// GetMDMAccountDrivenEnrollmentSSOURL returns the URL to redirect to for MDM Account Driven Enrollment SSO Authentication
 	GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error)
