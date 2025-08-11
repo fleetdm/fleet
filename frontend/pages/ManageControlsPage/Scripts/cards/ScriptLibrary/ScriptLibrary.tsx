@@ -176,7 +176,9 @@ const ScriptLibrary = ({
       <SectionHeader title="Library" alignLeftHeaderVertically />
       {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
-      <ScriptUploader currentTeamId={teamId} onUpload={onUploadScript} />
+      {!isLoading && (
+        <ScriptUploader currentTeamId={teamId} onUpload={onUploadScript} />
+      )}
       {showDeleteScriptModal && selectedScript.current && (
         <DeleteScriptModal
           scriptName={selectedScript.current?.name}
