@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -209,18 +210,32 @@ func (ds *Datastore) ListSoftwareTitles(
 		titleIndex[title.ID] = i
 	}
 
-	// Grab the automatic install policies, if any exist
-	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, titleIDs, opt.TeamID)
-	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
-	}
+	// Grab the automatic install policies, if any exist.
+	// Skip for "All teams" titles because automatic install policies are set on teams/No-team.
+	if opt.TeamID != nil {
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, titleIDs, *opt.TeamID)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
+		}
 
-	for _, p := range policies {
-		if i, ok := titleIndex[p.TitleID]; ok {
-			if softwareList[i].AppStoreApp != nil {
-				softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(softwareList[i].AppStoreApp.AutomaticInstallPolicies, p)
-			} else {
-				softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
+		for _, p := range policies {
+			if i, ok := titleIndex[p.TitleID]; ok {
+				switch {
+				case softwareList[i].AppStoreApp != nil:
+					softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(
+						softwareList[i].AppStoreApp.AutomaticInstallPolicies, p,
+					)
+				case softwareList[i].SoftwarePackage != nil:
+					softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(
+						softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p,
+					)
+				default:
+					level.Warn(ds.logger).Log(
+						"team_id", opt.TeamID,
+						"policy_id", p.ID,
+						"msg", "policy should have an associated VPP application or software package",
+					)
+				}
 			}
 		}
 	}

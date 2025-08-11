@@ -2552,14 +2552,20 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "Repository URL is required when GitOps mode is enabled")
 
-	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"gitops": { "gitops_mode_enabled": true, "repository_url": "a.b.cc" }
+	  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "Git repository URL must include protocol (e.g. https://)")
+
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"gitops": { "gitops_mode_enabled": true, "repository_url": "https://a.b.cc" }
 	  }`), http.StatusOK)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledGitOpsMode{}.ActivityName(), "", 0)
 
 	// turn off, persists repo url
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"gitops": { "gitops_mode_enabled": false, "repository_url": "a.b.cc" }
+			"gitops": { "gitops_mode_enabled": false, "repository_url": "https://a.b.cc" }
 	  }`), http.StatusOK)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledGitOpsMode{}.ActivityName(), "", 0)
 
@@ -2569,7 +2575,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 	  }`), http.StatusOK)
 	config, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, "a.b.cc", config.UIGitOpsMode.RepositoryURL)
+	assert.Equal(t, "https://a.b.cc", config.UIGitOpsMode.RepositoryURL)
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
@@ -6755,6 +6761,68 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.NotNil(t, hostPastActivitiesResp.Activities[0].Details)
 	require.JSONEq(t, expectedPastActivityDetail, string(*hostPastActivitiesResp.Activities[0].Details))
 
+}
+
+func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
+	t := s.T()
+	ctx := context.Background()
+
+	host1 := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	host2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
+	host3 := createOrbitEnrolledHost(t, "linux", "host3", s.ds)
+	host4 := createOrbitEnrolledHost(t, "linux", "host4", s.ds)
+
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		ScriptContents: "echo bonjour",
+	})
+	require.NoError(t, err)
+
+	// Immediate execution
+	var batchRes batchScriptRunResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID},
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	var batchStatusResp batchScriptExecutionStatusResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+
+	var batchCancelResp batchScriptCancelResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchRes.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(0))
+	require.Equal(t, *batchStatusResp.NumCanceled, uint(2))
+
+	// Future execution
+	var batchResScheduled batchScriptRunResponse
+	scheduleTime := time.Now().Add(3 * time.Hour)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID:  script.ID,
+		HostIDs:   []uint{host3.ID, host4.ID},
+		NotBefore: &scheduleTime,
+	}, http.StatusOK, &batchResScheduled)
+	require.NotEmpty(t, batchResScheduled.BatchExecutionID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(0))
+	require.Equal(t, *batchStatusResp.NumCanceled, uint(2))
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
