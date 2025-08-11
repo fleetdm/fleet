@@ -4,6 +4,7 @@ import { useQueryClient } from "react-query";
 import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
 import { ISecret } from "interfaces/secrets";
 
+import ListItem from "components/ListItem/ListItem";
 import PaginatedList from "components/PaginatedList";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -53,7 +54,14 @@ const SecretsPaginatedList = () => {
     onChange: (secret: ISecret) => void
   ) => (
     <>
-      <a>{secret.name}</a>
+      <ListItem
+        title={secret.name.toUpperCase()}
+        details={
+          <span>
+            created whenever <a>foo</a>
+          </span>
+        }
+      />
       <Button
         variant="text-icon"
         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
@@ -81,7 +89,7 @@ const SecretsPaginatedList = () => {
             <span>
               <Button variant="text-icon" onClick={onAddSecret}>
                 <Icon name="plus" />
-                <span>Add secret</span>
+                <span>Add custom variable</span>
               </Button>
             </span>
           </div>
