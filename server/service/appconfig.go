@@ -619,6 +619,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if gitopsRepoURL == "" {
 			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
 		}
+		parsedURL, err := url.Parse(gitopsRepoURL)
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("UI Gitops Mode: ", "Repository URL is invalid")
+		}
+		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+			return nil, fleet.NewInvalidArgumentError("UI Gitops Mode: ", "Git repository URL must include protocol (e.g. https://)")
+		}
 	}
 
 	if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
@@ -1403,7 +1410,7 @@ func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
 	fleetVars := findFleetVariables(cn)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_common_name", "FLEET_VAR_"+fleetVar+" is not allowed in CA Common Name (CN)")
@@ -1421,7 +1428,7 @@ func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
 	fleetVars := findFleetVariables(seatID)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_seat_id", "FLEET_VAR_"+fleetVar+" is not allowed in DigiCert Seat ID")
@@ -1448,7 +1455,7 @@ func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.Inva
 	fleetVars := findFleetVariables(userPrincipalNames[0])
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_user_principal_names",

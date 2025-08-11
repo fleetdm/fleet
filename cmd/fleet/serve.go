@@ -1045,6 +1045,13 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register host vitals label membership schedule")
 			}
 
+			// Start the service that marks activities as completed.
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newBatchActivityCompletionCheckerSchedule(ctx, instanceID, ds, logger)
+			}); err != nil {
+				initFatal(err, "failed to register batch activity completion checker schedule")
+			}
+
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.

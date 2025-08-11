@@ -94,7 +94,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				Name:   "abc",
 				TeamID: &team.ID,
 				SyncML: []byte(`<Replace></Replace>`),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			dec, err := ds.NewMDMAppleDeclaration(context.Background(), &fleet.MDMAppleDeclaration{
