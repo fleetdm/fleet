@@ -10200,7 +10200,7 @@ Content-Type: image/png
 
 _Available in Fleet Premium._
 
-Download the icon added via [Upadte software icon](#update-software-icon) or icon from App Store (VPP).
+Download the icon added via [Update software icon](#update-software-icon) or icon from App Store (VPP).
 
 `GET /api/v1/fleet/software/titles/:id/icon`
 
