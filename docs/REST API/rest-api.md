@@ -9427,7 +9427,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
-      "icon_url":"/api/v1/fleet/software/titles/12/icon?team_id=3",
+      "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
@@ -9704,7 +9704,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Falcon.app",
-    "icon_url":"/api/v1/fleet/software/titles/12/icon?team_id=3",
+    "icon_url":"/api/latest/fleet/software/titles/12/icon?team_id=3",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "available_software": {
       "fleet_maintained_app": {
@@ -9790,7 +9790,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
-    "icon_url": "/api/v1/fleet/software/titles/15/icon?team_id=3",
+    "icon_url": "/api/latest/fleet/software/titles/15/icon?team_id=3",
     "bundle_identifier": "com.apple.logic10",
     "available_software": {
       "fleet_maintained_app": null,
@@ -10191,7 +10191,7 @@ Content-Type: image/png
 `Status: 200`
 
 ```json
-  "icon_url": "/api/v1/fleet/software/titles/33/icon?team_id=2"
+  "icon_url": "/api/latest/fleet/software/titles/33/icon?team_id=2"
 ```
 
 ### Download software icon
@@ -10404,7 +10404,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "app_store_id": 1091189122,
     "categories": ["Browser"],
     "latest_version": "2.04",
-    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
     "self_service": true,
     "labels_include_any": [
       {
