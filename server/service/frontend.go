@@ -106,7 +106,21 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
+		errorMsg := r.URL.Query().Get("error")
+		if errorMsg != "" {
+			// TODO(mna): render ErrorMessage template field
+		}
+
 		enrollSecret := r.URL.Query().Get("enroll_secret")
+		if enrollSecret == "" {
+			// TODO(mna): this should display the "this URL is invalid" error page
+			// to the user:
+			// https://www.figma.com/design/fw7XXg2QzBOa7YJ9r2Cchp/-29222-IdP-authentication-before-BYOD-iOS--iPadOS--and-Android-enrollment?node-id=5319-3340&t=mn243Pavsxvkd4QC-0
+			// Suggestion: since we will also need to display other error messages
+			// that may happen in the MDM SSO callback processing, we should pass an
+			// "ErrorMessage" field to the template and render it on the frontend.
+		}
+
 		authRequired, err := requiresEnrollOTAAuthentication(r.Context(), ds,
 			enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 		if err != nil {
