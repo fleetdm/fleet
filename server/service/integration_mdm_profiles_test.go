@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	sharedMdm "github.com/fleetdm/fleet/v4/pkg/mdm"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -5618,7 +5618,7 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 
 		idpUUID := uuid.New()
 		resp := s.DoRawWithHeaders("GET", "/api/latest/fleet/enrollment_profiles/ota", j, http.StatusOK, map[string]string{
-			"Cookie": fmt.Sprintf("%s=%s", sharedMdm.BYODIdpCookieName, idpUUID.String()),
+			"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, idpUUID.String()),
 		}, "enroll_secret", globalEnrollSec)
 		require.NotZero(t, resp.ContentLength)
 		require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)

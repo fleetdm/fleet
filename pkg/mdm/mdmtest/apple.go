@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	sharedMdm "github.com/fleetdm/fleet/v4/pkg/mdm"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -372,7 +372,7 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 
 	if c.otaIdpUUID != "" {
 		request.AddCookie(&http.Cookie{
-			Name:  sharedMdm.BYODIdpCookieName,
+			Name:  shared_mdm.BYODIdpCookieName,
 			Value: c.otaIdpUUID,
 		})
 	}

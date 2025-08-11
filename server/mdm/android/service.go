@@ -34,3 +34,8 @@ type EnterpriseSignupResponse struct {
 	Url string `json:"android_enterprise_signup_url"`
 	DefaultResponse
 }
+
+type EnrollmentTokenResponse struct {
+	*EnrollmentToken
+	DefaultResponse
+}

@@ -29,7 +29,7 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/file"
-	sharedMdm "github.com/fleetdm/fleet/v4/pkg/mdm"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -6787,21 +6787,15 @@ func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
-	boydIdpCookie, err := r.Cookie(sharedMdm.BYODIdpCookieName)
+	boydIdpCookie, err := r.Cookie(shared_mdm.BYODIdpCookieName)
+	if err != nil {
+		// r.Cookie only return ErrNoCookie and no other errors.
 
-	if err == http.ErrNoCookie {
 		// We do not fail here if no cookie is found, we validate later down the line if it's required
 		return &getOTAProfileRequest{
 			EnrollSecret: enrollSecret,
 			IdpUUID:      "",
 		}, nil
-	}
-
-	if err != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "something went wrong parsing the boyd idp cookie",
-			InternalErr: err,
-		}
 	}
 
 	if err = boydIdpCookie.Valid(); err != nil {
@@ -6965,8 +6959,6 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 		return nil, ctxerr.Wrap(ctx, err, "validating enroll secret")
 	}
-
-	// TODO(IB): Should we verify SSO check here, since this URL could be manually crafted and tampered.
 
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetSCEPChallenge,

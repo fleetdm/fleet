@@ -410,11 +410,6 @@ type enrollmentTokenRequest struct {
 	IdpUUID      string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
 }
 
-type enrollmentTokenResponse struct {
-	*android.EnrollmentToken
-	android.DefaultResponse
-}
-
 func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	enrollSecret := r.URL.Query().Get("enroll_secret")
 	if enrollSecret == "" {
@@ -459,7 +454,7 @@ func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc andro
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
-	return enrollmentTokenResponse{EnrollmentToken: token}
+	return android.EnrollmentTokenResponse{EnrollmentToken: token}
 }
 
 func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*android.EnrollmentToken, error) {
