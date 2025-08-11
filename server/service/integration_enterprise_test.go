@@ -6609,6 +6609,38 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
 
+	// verify that script was queued for orbit
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
+		http.StatusOK, &orbitRespHost1)
+	require.Len(t, orbitRespHost1.Notifications.PendingScriptExecutionIDs, 1)
+
+	var orbitRespHost2 orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host2.OrbitNodeKey)),
+		http.StatusOK, &orbitRespHost2)
+	require.Len(t, orbitRespHost2.Notifications.PendingScriptExecutionIDs, 1)
+
+	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID),
+		nil, http.StatusOK, &hostActivitiesResp)
+
+	expectedActivityDetail := fmt.Sprintf(`
+	{
+		"async": true,
+		"host_id": %d,
+		"policy_id": null,
+		"policy_name": null,
+		"batch_execution_id": "%s",
+		"script_execution_id": "%s",
+		"script_name": "%s",
+		"host_display_name": "%s"
+	}
+	`, host1.ID, batchRes.BatchExecutionID, orbitRespHost1.Notifications.PendingScriptExecutionIDs[0], script.Name, host1.DisplayName())
+	require.Len(t, hostActivitiesResp.Activities, 1)
+	require.NotNil(t, hostActivitiesResp.Activities[0].Details)
+	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
+
 	// Check status of the batch execution
 	var batchStatusResp batchScriptExecutionStatusResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
@@ -6659,37 +6691,6 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(2))
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(2))
 
-	// verify that script was queued for orbit
-	s.DoJSON("POST", "/api/fleet/orbit/config",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
-		http.StatusOK, &orbitRespHost1)
-	require.Len(t, orbitRespHost1.Notifications.PendingScriptExecutionIDs, 1)
-	var orbitRespHost2 orbitGetConfigResponse
-	s.DoJSON("POST", "/api/fleet/orbit/config",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host2.OrbitNodeKey)),
-		http.StatusOK, &orbitRespHost2)
-	require.Len(t, orbitRespHost2.Notifications.PendingScriptExecutionIDs, 1)
-
-	var hostActivitiesResp listHostUpcomingActivitiesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID),
-		nil, http.StatusOK, &hostActivitiesResp)
-
-	expectedActivityDetail := fmt.Sprintf(`
-	{
-		"async": true,
-		"host_id": %d,
-		"policy_id": null,
-		"policy_name": null,
-		"batch_execution_id": "%s",
-		"script_execution_id": "%s",
-		"script_name": "%s",
-		"host_display_name": "%s"
-	}
-	`, host1.ID, batchRes.BatchExecutionID, orbitRespHost1.Notifications.PendingScriptExecutionIDs[0], script.Name, host1.DisplayName())
-	require.Len(t, hostActivitiesResp.Activities, 1)
-	require.NotNil(t, hostActivitiesResp.Activities[0].Details)
-	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
-
 	var batchResUpcoming batchScriptRunResponse
 	// Queue scripts again, now in upcoming activities queue
 	// Scheduling something in the past makes it run right now
@@ -6698,32 +6699,6 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		ScriptID:  script.ID,
 		HostIDs:   []uint{host1.ID, host2.ID},
 		NotBefore: &scheduledPast,
-	}, http.StatusOK, &batchRes)
-	require.NotEmpty(t, batchRes.BatchExecutionID)
-
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name),
-		0,
-	)
-
-	// Queue upcoming execution
-	scheduledTime := time.Now().Add(10 * time.Hour)
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
-		ScriptID:  script.ID,
-		HostIDs:   []uint{host1.ID, host2.ID},
-		NotBefore: &scheduledTime,
-	}, http.StatusOK, &batchRes)
-	require.NotEmpty(t, batchRes.BatchExecutionID)
-
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeBatchScriptScheduled{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
-		0,
-	)
- s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
-   ScriptID: script.ID,
-		HostIDs:  []uint{host1.ID, host2.ID},
 	}, http.StatusOK, &batchResUpcoming)
 	require.NotEmpty(t, batchResUpcoming.BatchExecutionID)
 
@@ -6733,7 +6708,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host1.OrbitNodeKey, orbitRespHost1.Notifications.PendingScriptExecutionIDs[0])),
 		http.StatusOK, &orbitPostScriptResp)
 
-	// batch script executions don't get added to the global feed
+	// individual script executions don't get added to the global feed, only the batch job
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
 		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null}`, batchResUpcoming.BatchExecutionID, script.Name),
@@ -6761,6 +6736,25 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.NotNil(t, hostPastActivitiesResp.Activities[0].Details)
 	require.JSONEq(t, expectedPastActivityDetail, string(*hostPastActivitiesResp.Activities[0].Details))
 
+	// Queue upcoming execution
+	scheduledTime := time.Now().Add(10 * time.Hour)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID:  script.ID,
+		HostIDs:   []uint{host1.ID, host2.ID},
+		NotBefore: &scheduledTime,
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeBatchScriptScheduled{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
+		0,
+	)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID},
+	}, http.StatusOK, &batchResUpcoming)
+	require.NotEmpty(t, batchResUpcoming.BatchExecutionID)
 }
 
 func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
