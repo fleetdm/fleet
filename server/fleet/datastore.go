@@ -2269,6 +2269,7 @@ type Datastore interface {
 
 	// GetCertificateAuthorityByID gets a certificate authority by its ID.
 	GetCertificateAuthorityByID(ctx context.Context, id uint) (*CertificateAuthority, error)
+	ListCertificateAuthorities(ctx context.Context, opts ListOptions) ([]*CertificateAuthoritySummary, error)
 }
 
 type AndroidDatastore interface {
