@@ -105,6 +105,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"FLEET_SECRET_NAME":          "secret_name",
 				"FLEET_SECRET_length":        "10",
 				"FLEET_SECRET_BANANA":        "bread",
+				"FLEET_SECRET_CLEMENTINE":    "not-an-orange",
+				"FLEET_SECRET_DURIAN":        "fruity", // not used
+				"FLEET_SECRET_EGGPLANT":      "parmesan",
 			},
 			filePath: "testdata/team_config_no_paths.yml",
 			isTeam:   true,
@@ -119,6 +122,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"FLEET_SECRET_NAME":               "secret_name",
 				"FLEET_SECRET_length":             "10",
 				"FLEET_SECRET_BANANA":             "bread",
+				"FLEET_SECRET_CLEMENTINE":         "not-an-orange",
+				"FLEET_SECRET_DURIAN":             "fruity", // not used
+				"FLEET_SECRET_EGGPLANT":           "parmesan",
 			},
 			filePath: "testdata/team_config.yml",
 			isTeam:   true,
@@ -133,6 +139,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"FLEET_SECRET_NAME":               "secret_name",
 				"FLEET_SECRET_length":             "10",
 				"FLEET_SECRET_BANANA":             "bread",
+				"FLEET_SECRET_CLEMENTINE":         "not-an-orange",
+				"FLEET_SECRET_DURIAN":             "fruity", // not used
+				"FLEET_SECRET_EGGPLANT":           "parmesan",
 			},
 			filePath: "testdata/team_config_only_sha256.yml",
 			isTeam:   true,
@@ -188,6 +197,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.Equal(t, "SampleSecret123", secrets.([]*fleet.EnrollSecret)[0].Secret)
 					assert.Equal(t, "ABC", secrets.([]*fleet.EnrollSecret)[1].Secret)
 					require.Len(t, gitops.Software.Packages, 2)
+					require.Len(t, gitops.FleetSecrets, 6)
 					for _, pkg := range gitops.Software.Packages {
 						if strings.Contains(pkg.URL, "MicrosoftTeams") {
 							assert.Equal(t, "testdata/lib/uninstall.sh", pkg.UninstallScript.Path)
@@ -248,7 +258,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 					activityExpiryWindow, ok := activityExpirySettings["activity_expiry_window"].(float64)
 					require.True(t, ok)
 					require.Equal(t, 30, int(activityExpiryWindow))
-
+					require.Len(t, gitops.FleetSecrets, 4)
+					
 					// Check labels
 					require.Len(t, gitops.Labels, 2)
 					assert.Equal(t, "Global label numero uno", gitops.Labels[0].Name)
@@ -282,7 +293,6 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
-				require.Len(t, gitops.FleetSecrets, 4)
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
 				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
 				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_length"])

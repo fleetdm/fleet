@@ -1,1 +1,1 @@
-echo 'Goodbye box'
+echo $FLEET_SECRET_CLEMENTINE

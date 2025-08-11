@@ -1,1 +1,1 @@
-echo 'Hello world'
+echo $FLEET_SECRET_EGGPLANT

@@ -1097,7 +1097,25 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 		item = item.ResolveSoftwarePackagePaths(baseDir)
 
-		// TODO resolve secrets
+		// handle secrets
+		if item.InstallScript.Path != "" {
+			if err := gatherFileSecrets(result, item.InstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+		if item.PostInstallScript.Path != "" {
+			if err := gatherFileSecrets(result, item.PostInstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+		if item.UninstallScript.Path != "" {
+			if err := gatherFileSecrets(result, item.UninstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
 
 		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &item)
 	}

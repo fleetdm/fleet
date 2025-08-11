@@ -1,1 +1,1 @@
-echo 'Install was successful'
+echo $FLEET_SECRET_EGGPLANT
