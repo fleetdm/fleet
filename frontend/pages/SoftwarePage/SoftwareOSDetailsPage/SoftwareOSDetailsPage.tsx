@@ -21,7 +21,7 @@ import osVersionsAPI, {
   IOSVersionResponse,
   IGetOsVersionQueryKey,
 } from "services/entities/operating_systems";
-import { IOperatingSystemVersion } from "interfaces/operating_system";
+import { createMockLinuxOSVersion } from "__mocks__/operatingSystemsMock";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   PLATFORM_DISPLAY_NAMES,
@@ -31,11 +31,13 @@ import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 
 import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabilitiesTable";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import OSKernelsTable from "../components/tables/OSKernelsTable";
 
 const baseClass = "software-os-details-page";
 
@@ -72,7 +74,7 @@ const SoftwareOSDetailsPage = ({
   });
 
   const {
-    data: { os_version: osVersionDetails, counts_updated_at } = {},
+    data: { os_version: osVersionDetails2, counts_updated_at } = {},
     isLoading,
     isError: isOsVersionError,
   } = useQuery<
@@ -105,6 +107,11 @@ const SoftwareOSDetailsPage = ({
     }
   );
 
+  const osVersionDetails = createMockLinuxOSVersion();
+
+  console.log("osversiondetails2", osVersionDetails2);
+  console.log("osversiondetails", osVersionDetails);
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
@@ -112,18 +119,31 @@ const SoftwareOSDetailsPage = ({
     [handleTeamChange]
   );
 
-  const renderTable = () => {
+  const renderKernelsTable = () => {
+    return (
+      <OSKernelsTable
+        data={osVersionDetails.kernels}
+        isLoading={isLoading}
+        router={router}
+        teamIdForApi={teamIdForApi}
+      />
+    );
+  };
+
+  const renderVulnerabilitiesTable = () => {
     if (!osVersionDetails) {
       return null;
     }
 
     if (
-      // TODO - detangle platform typing here
-      !VULN_SUPPORTED_PLATFORMS.includes(osVersionDetails.platform as Platform)
+      !VULN_SUPPORTED_PLATFORMS.includes(
+        osVersionDetails.platform as Platform
+      ) &&
+      !isLinuxLike(osVersionDetails.platform) // 4.73 Linux vulns are now supported
     ) {
-      const platformText = isLinuxLike(osVersionDetails.platform)
-        ? "Linux"
-        : PLATFORM_DISPLAY_NAMES[osVersionDetails.platform];
+      const platformText =
+        PLATFORM_DISPLAY_NAMES[osVersionDetails.platform] ||
+        osVersionDetails.platform;
       return <VulnsNotSupported platformText={platformText} />;
     }
 
@@ -146,6 +166,13 @@ const SoftwareOSDetailsPage = ({
     if (!osVersionDetails && !isOsVersionError) {
       return null;
     }
+
+    const isLinuxPlatform = isLinuxLike(osVersionDetails.platform);
+    const showKernelsCard = osVersionDetails.kernels.length > 0;
+
+    // Vulns are associated with specific kernels hence hiding Vulns table on OS view
+    // and showing vulns within OS > Kernels card
+    const showVulnerabilitiesCard = !isLinuxPlatform;
 
     return (
       <>
@@ -181,14 +208,26 @@ const SoftwareOSDetailsPage = ({
                 name={osVersionDetails.platform}
               />
             </Card>
-            <Card
-              borderRadiusSize="xxlarge"
-              includeShadow
-              className={`${baseClass}__vulnerabilities-section`}
-            >
-              <h2>Vulnerabilities</h2>
-              {renderTable()}
-            </Card>
+            {showKernelsCard && (
+              <Card
+                borderRadiusSize="xxlarge"
+                includeShadow
+                className={`${baseClass}__summary-section`}
+              >
+                <CardHeader header="Kernels" />
+                {renderKernelsTable()}
+              </Card>
+            )}
+            {showVulnerabilitiesCard && (
+              <Card
+                borderRadiusSize="xxlarge"
+                includeShadow
+                className={`${baseClass}__vulnerabilities-section`}
+              >
+                <CardHeader header="Vulnerabilities" />
+                {renderVulnerabilitiesTable()}
+              </Card>
+            )}
           </>
         )}
       </>

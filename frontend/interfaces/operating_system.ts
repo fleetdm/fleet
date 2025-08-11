@@ -1,6 +1,6 @@
 import { ISoftwareVulnerability } from "./software";
 
-interface IOperatingSystemKernels {
+export interface IOperatingSystemKernels {
   id: number; // the software version ID of the kernel
   version: string;
   vulnerabilities: string[] | null;
