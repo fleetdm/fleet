@@ -85,3 +85,7 @@ func (h *HydrantCA) NeedToVerify(other *HydrantCA) bool {
 		h.ClientID != other.ClientID ||
 		!(h.ClientSecret == "" || h.ClientSecret == MaskedPassword || h.ClientSecret == other.ClientSecret)
 }
+
+func (c *CertificateAuthority) AuthzType() string {
+	return "certificate_authority"
+}

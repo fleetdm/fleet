@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
@@ -1407,7 +1408,7 @@ func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
 		invalid.Append("integrations.digicert.certificate_common_name", "CA Common Name (CN) cannot be empty")
 		return false
 	}
-	fleetVars := fleet.FindFleetVariables(cn)
+	fleetVars := variables.Find(cn)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
@@ -1425,7 +1426,7 @@ func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
 		invalid.Append("integrations.digicert.certificate_seat_id", "CA Seat ID cannot be empty")
 		return false
 	}
-	fleetVars := fleet.FindFleetVariables(seatID)
+	fleetVars := variables.Find(seatID)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
@@ -1452,7 +1453,7 @@ func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.Inva
 			"DigiCert CA certificate user principal name cannot be empty if specified")
 		return false
 	}
-	fleetVars := fleet.FindFleetVariables(userPrincipalNames[0])
+	fleetVars := variables.Find(userPrincipalNames[0])
 	for fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):

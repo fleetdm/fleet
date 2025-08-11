@@ -820,3 +820,74 @@ type hostProfile struct {
 	RawContents []byte
 	RetryCount  uint
 }
+
+func TestPreprocessWindowsProfileContents(t *testing.T) {
+	tests := []struct {
+		name             string
+		hostUUID         string
+		profileContents  string
+		expectedContents string
+	}{
+		{
+			name:             "no fleet variables",
+			hostUUID:         "test-uuid-123",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Simple Value</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Simple Value</Data></Item></Replace>`,
+		},
+		{
+			name:             "fleet variable without braces",
+			hostUUID:         "test-uuid-456",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: test-uuid-456</Data></Item></Replace>`,
+		},
+		{
+			name:             "fleet variable with braces",
+			hostUUID:         "test-uuid-789",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: ${FLEET_VAR_HOST_UUID}</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: test-uuid-789</Data></Item></Replace>`,
+		},
+		{
+			name:             "multiple fleet variables",
+			hostUUID:         "test-uuid-abc",
+			profileContents:  `<Replace><Item><Data>First: $FLEET_VAR_HOST_UUID, Second: ${FLEET_VAR_HOST_UUID}</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Data>First: test-uuid-abc, Second: test-uuid-abc</Data></Item></Replace>`,
+		},
+		{
+			name:             "fleet variable with special XML characters in UUID",
+			hostUUID:         "test<>&\"uuid",
+			profileContents:  `<Replace><Item><Data>Device: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Data>Device: test&lt;&gt;&amp;&#34;uuid</Data></Item></Replace>`,
+		},
+		{
+			name:             "fleet variable with apostrophe in UUID",
+			hostUUID:         "test<>&\"'uuid",
+			profileContents:  `<Replace><Data>ID: $FLEET_VAR_HOST_UUID</Data></Replace>`,
+			expectedContents: `<Replace><Data>ID: test&lt;&gt;&amp;&#34;&#39;uuid</Data></Replace>`,
+		},
+		{
+			name:             "unsupported variable ignored",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><Data>ID: $FLEET_VAR_HOST_UUID, Other: $FLEET_VAR_UNSUPPORTED</Data></Replace>`,
+			expectedContents: `<Replace><Data>ID: test-host-1234-uuid, Other: $FLEET_VAR_UNSUPPORTED</Data></Replace>`,
+		},
+		{
+			name:             "fleet variable with CmdID in profile",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><CmdID>1</CmdID><Item><Data>Device ID: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
+			expectedContents: `<Replace><CmdID>1</CmdID><Item><Data>Device ID: test-host-1234-uuid</Data></Item></Replace>`,
+		},
+		{
+			name:             "fleet variable with both formats in same profile",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><Data>ID1: $FLEET_VAR_HOST_UUID, ID2: ${FLEET_VAR_HOST_UUID}</Data></Replace>`,
+			expectedContents: `<Replace><Data>ID1: test-host-1234-uuid, ID2: test-host-1234-uuid</Data></Replace>`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := PreprocessWindowsProfileContents(tt.hostUUID, tt.profileContents)
+			require.Equal(t, tt.expectedContents, result)
+		})
+	}
+}

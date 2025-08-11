@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
 type CertificateAuthorityPayload struct{}
@@ -171,7 +172,7 @@ func validateDigicertCACN(cn string) error {
 	if len(strings.TrimSpace(cn)) == 0 {
 		return fleet.NewInvalidArgumentError("certificate_common_name", "CA Common Name (CN) cannot be empty")
 	}
-	fleetVars := fleet.FindFleetVariables(cn)
+	fleetVars := variables.Find(cn)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
@@ -193,7 +194,7 @@ func validateDigicertSeatID(seatID string) error {
 	if len(strings.TrimSpace(seatID)) == 0 {
 		return fleet.NewInvalidArgumentError("certificate_seat_id", "CA Seat ID cannot be empty")
 	}
-	fleetVars := fleet.FindFleetVariables(seatID)
+	fleetVars := variables.Find(seatID)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
@@ -217,7 +218,7 @@ func validateDigicertUserPrincipalNames(userPrincipalNames []string) error {
 		return fleet.NewInvalidArgumentError("certificate_user_principal_names",
 			"DigiCert certificate_user_principal_name cannot be empty if specified")
 	}
-	fleetVars := fleet.FindFleetVariables(userPrincipalNames[0])
+	fleetVars := variables.Find(userPrincipalNames[0])
 	for fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):

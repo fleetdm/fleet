@@ -243,62 +243,6 @@ func TestValidSyncMLCmdStatus(t *testing.T) {
 	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testStatusCode))
 }
 
-func TestPreprocessWindowsProfileContents(t *testing.T) {
-	testHostUUID := "test-host-1234-uuid"
-
-	tests := []struct {
-		name            string
-		hostUUID        string
-		profileContents string
-		wantContents    string
-	}{
-		{
-			name:            "no_fleet_variables",
-			hostUUID:        testHostUUID,
-			profileContents: `<Replace><CmdID>1</CmdID><Item><Target><LocURI>./Device/Config</LocURI></Target></Item></Replace>`,
-			wantContents:    `<Replace><CmdID>1</CmdID><Item><Target><LocURI>./Device/Config</LocURI></Target></Item></Replace>`,
-		},
-		{
-			name:            "host_uuid_without_braces",
-			hostUUID:        testHostUUID,
-			profileContents: `<Replace><CmdID>1</CmdID><Item><Data>Device ID: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
-			wantContents:    `<Replace><CmdID>1</CmdID><Item><Data>Device ID: test-host-1234-uuid</Data></Item></Replace>`,
-		},
-		{
-			name:            "host_uuid_with_braces",
-			hostUUID:        testHostUUID,
-			profileContents: `<Replace><CmdID>1</CmdID><Item><Data>Device ID: ${FLEET_VAR_HOST_UUID}</Data></Item></Replace>`,
-			wantContents:    `<Replace><CmdID>1</CmdID><Item><Data>Device ID: test-host-1234-uuid</Data></Item></Replace>`,
-		},
-		{
-			name:            "multiple_host_uuid_occurrences",
-			hostUUID:        testHostUUID,
-			profileContents: `<Replace><Data>ID1: $FLEET_VAR_HOST_UUID, ID2: ${FLEET_VAR_HOST_UUID}</Data></Replace>`,
-			wantContents:    `<Replace><Data>ID1: test-host-1234-uuid, ID2: test-host-1234-uuid</Data></Replace>`,
-		},
-		{
-			name:            "host_uuid_with_xml_special_chars",
-			hostUUID:        "test<>&\"'uuid",
-			profileContents: `<Replace><Data>ID: $FLEET_VAR_HOST_UUID</Data></Replace>`,
-			wantContents:    `<Replace><Data>ID: test&lt;&gt;&amp;&#34;&#39;uuid</Data></Replace>`,
-		},
-		{
-			name:            "unsupported_variable_ignored",
-			hostUUID:        testHostUUID,
-			profileContents: `<Replace><Data>ID: $FLEET_VAR_HOST_UUID, Other: $FLEET_VAR_UNSUPPORTED</Data></Replace>`,
-			wantContents:    `<Replace><Data>ID: test-host-1234-uuid, Other: $FLEET_VAR_UNSUPPORTED</Data></Replace>`,
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			gotContents := preprocessWindowsProfileContents(tt.hostUUID, tt.profileContents)
-			require.Equal(t, tt.wantContents, gotContents)
-		})
-	}
-}
-
 func TestValidNewSyncMLCmdGet(t *testing.T) {
 	testOmaURI := "testuri"
 	cmdMsg := newSyncMLNoFormat(fleet.CmdGet, testOmaURI)

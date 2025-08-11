@@ -1524,7 +1524,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		{
 			"only macOS",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
+			true,
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
@@ -2248,6 +2248,42 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestValidateWindowsProfileFleetVariablesLicense(t *testing.T) {
+	t.Parallel()
+	profileWithVars := `<Replace>
+			<Item>
+				<Target>
+					<LocURI>./Device/Vendor/MSFT/Accounts/DomainName</LocURI>
+				</Target>
+				<Data>Host UUID: $FLEET_VAR_HOST_UUID</Data>
+			</Item>
+		</Replace>`
+
+	// Test with free license
+	freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, err := validateWindowsProfileFleetVariables(profileWithVars, freeLic)
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+	// Test with premium license
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	vars, err := validateWindowsProfileFleetVariables(profileWithVars, premiumLic)
+	require.NoError(t, err)
+	require.Contains(t, vars, "HOST_UUID")
+
+	// Test profile without variables (should work with free license)
+	profileNoVars := `<Replace>
+			<Item>
+				<Target>
+					<LocURI>./Device/Vendor/MSFT/Accounts/DomainName</LocURI>
+				</Target>
+				<Data>Static Value</Data>
+			</Item>
+		</Replace>`
+	vars, err = validateWindowsProfileFleetVariables(profileNoVars, freeLic)
+	require.NoError(t, err)
+	require.Nil(t, vars)
+}
+
 func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -2346,7 +2382,9 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateWindowsProfileFleetVariables(tt.profileXML)
+			// Pass a premium license for testing (we're not testing license validation here)
+			premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+			_, err := validateWindowsProfileFleetVariables(tt.profileXML, premiumLic)
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.errContains != "" {

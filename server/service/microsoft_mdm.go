@@ -29,6 +29,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
@@ -2212,56 +2213,6 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
-// preprocessWindowsProfileContents processes Windows configuration profiles to replace Fleet variables
-// with their actual values for each host.
-//
-// Why we don't use Go templates here:
-//  1. Error handling: Go templates don't provide fine-grained error handling for individual variable
-//     replacements. We need to handle failures per-host and per-variable gracefully.
-//  2. Variable dependencies: Some variables may be related or have dependencies on each other. With
-//     manual processing, we can control the order of variable replacement precisely.
-//  3. Performance: Templates must be compiled every time they're used, adding overhead when processing
-//     thousands of host profiles. Direct string replacement is more efficient for our use case.
-//  4. XML escaping: We need XML-specific escaping for values, which is simpler to control with direct
-//     string replacement rather than template functions.
-//
-// Note: When adding support for additional variables here, consider refactoring this variable replacement logic into its own package.
-func preprocessWindowsProfileContents(
-	hostUUID string,
-	profileContents string,
-) string {
-	// Check if Fleet variables are present
-	fleetVars := fleet.FindFleetVariables(profileContents)
-	if len(fleetVars) == 0 {
-		// No variables to replace, return original content
-		return profileContents
-	}
-
-	// Process each Fleet variable
-	result := profileContents
-	for fleetVar := range fleetVars {
-		switch fleetVar {
-		case string(fleet.FleetVarHostUUID):
-			// Replace HOST_UUID with the actual host UUID
-			// Use XML escaping for the replacement value to be safe and prevent XML injection
-			b := make([]byte, 0, len(hostUUID))
-			buf := bytes.NewBuffer(b)
-			_ = xml.EscapeText(buf, []byte(hostUUID))
-			escapedUUID := buf.String()
-
-			// Replace both braced and non-braced versions. We assume this variable name is unique (and not a prefix of another variable name).
-			result = strings.ReplaceAll(result, fmt.Sprintf("$FLEET_VAR_%s", fleetVar), escapedUUID)
-			result = strings.ReplaceAll(result, fmt.Sprintf("${FLEET_VAR_%s}", fleetVar), escapedUUID)
-		default:
-			// This should not happen as validation should have caught unsupported variables
-			// but we handle it gracefully by skipping the variable
-			continue
-		}
-	}
-
-	return result
-}
-
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -2350,11 +2301,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
 		}
 
-		// Check if the profile contains Fleet variables
-		profileStr := string(p.SyncML)
-		fleetVars := fleet.FindFleetVariables(profileStr)
-
-		if len(fleetVars) == 0 {
+		if !variables.ContainsBytes(p.SyncML) {
 			// No Fleet variables, send the same command to all hosts
 			command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
 			if err != nil {
@@ -2376,7 +2323,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				}
 
 				// Preprocess the profile content for this specific host
-				processedContent := preprocessWindowsProfileContents(hostUUID, profileStr)
+				processedContent := microsoft_mdm.PreprocessWindowsProfileContents(hostUUID, string(p.SyncML))
 
 				// Create a unique command UUID for this host since the content is unique
 				hostCmdUUID := uuid.New().String()
