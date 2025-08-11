@@ -115,6 +115,7 @@ jobs:
     # Deploy to Heroku
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
     - name: Deploy to Heroku
+      run: |
         set -euo pipefail
         git add -A
         # Create a git tree object that contains only the changes in the /website folder.
