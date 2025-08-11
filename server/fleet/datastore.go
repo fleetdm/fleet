@@ -2263,6 +2263,12 @@ type Datastore interface {
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
+
+	// ///////////////////////////////////////////////////////////////////////////////
+	// Certificate Authorities
+
+	// GetCertificateAuthorityByID gets a certificate authority by its ID.
+	GetCertificateAuthorityByID(ctx context.Context, id uint) (*CertificateAuthority, error)
 }
 
 type AndroidDatastore interface {
