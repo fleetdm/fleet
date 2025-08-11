@@ -90,7 +90,7 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
   - which talk proposal Fleet will submit
   - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
   - estimated budget, including sponsorship or airfare, and lodging for attendees
-2. Set up and attend a 30m meeting with the Head of Marketing and CEO:
+2. Set up and attend a 30m meeting with the Head of Marketing, Head of Finance and Head of Enablement:
   - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
