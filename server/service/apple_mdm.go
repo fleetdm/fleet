@@ -53,6 +53,7 @@ import (
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -400,7 +401,14 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	profileVars, err := validateConfigProfileFleetVariables(appConfig, expanded)
+
+	// Get license for validation
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking license")
+	}
+
+	profileVars, err := validateConfigProfileFleetVariables(appConfig, expanded, lic)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
@@ -483,10 +491,15 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
-func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents string) (map[string]struct{}, error) {
-	fleetVars := findFleetVariablesKeepDuplicates(contents)
+func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents string, lic *fleet.LicenseInfo) (map[string]struct{}, error) {
+	fleetVars := variables.FindKeepDuplicates(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
+	}
+
+	// Check for premium license if the profile contains Fleet variables
+	if lic == nil || !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
 	}
 	var (
 		digiCertVars   *digiCertVarsFound
@@ -591,14 +604,19 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			return nil, err
 		}
 	}
-	return dedupeFleetVariables(fleetVars), nil
+	// Convert slice to map for deduplication
+	result := make(map[string]struct{}, len(fleetVars))
+	for _, v := range fleetVars {
+		result[v] = struct{}{}
+	}
+	return result, nil
 }
 
 // additionalDigiCertValidation checks that Password/ContentType fields match DigiCert Fleet variables exactly,
 // and that these variables are only present in a "com.apple.security.pkcs12" payload
 func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFound) error {
 	// Find and replace matches in base64 encoded data contents so we can unmarshal the plist and keep the Fleet vars.
-	contents = mdm_types.ProfileDataVariableRegex.ReplaceAllStringFunc(contents, func(match string) string {
+	contents = variables.ProfileDataVariableRegex.ReplaceAllStringFunc(contents, func(match string) string {
 		return base64.StdEncoding.EncodeToString([]byte(match))
 	})
 
@@ -738,7 +756,7 @@ func checkThatOnlyOneSCEPPayloadIsPresent(scepProf SCEPProfileContent) (SCEPPayl
 
 func unmarshalSCEPProfile(contents string) (SCEPProfileContent, error) {
 	// Replace any Fleet variables in data fields. SCEP payload does not need them and we cannot unmarshal if they are present.
-	contents = mdm_types.ProfileDataVariableRegex.ReplaceAllString(contents, "")
+	contents = variables.ProfileDataVariableRegex.ReplaceAllString(contents, "")
 	var scepProf SCEPProfileContent
 	err := plist.Unmarshal([]byte(contents), &scepProf)
 	if err != nil {
@@ -951,7 +969,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 }
 
 func validateDeclarationFleetVariables(contents string) error {
-	if len(findFleetVariables(contents)) > 0 {
+	if variables.Contains(contents) {
 		return &fleet.BadRequestError{Message: "Fleet variables ($FLEET_VAR_*) are not currently supported in DDM profiles"}
 	}
 	return nil
@@ -2595,7 +2613,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 
 		// check if the profile has any fleet variable, not supported by this deprecated endpoint
-		if vars := findFleetVariablesKeepDuplicates(expanded); len(vars) > 0 {
+		if vars := variables.FindKeepDuplicates(expanded); len(vars) > 0 {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(
 					fmt.Sprintf("profiles[%d]", i), "profile variables are not supported by this deprecated endpoint, use POST /api/latest/fleet/mdm/profiles/batch"))
@@ -4862,7 +4880,7 @@ func preprocessProfileContents(
 
 		// Check if Fleet variables are present.
 		contentsStr := string(contents)
-		fleetVars := findFleetVariables(contentsStr)
+		fleetVars := variables.Find(contentsStr)
 		if len(fleetVars) == 0 {
 			continue
 		}
@@ -5272,7 +5290,7 @@ func preprocessProfileContents(
 
 func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string, caVarsCache map[string]string, item *string,
 ) (bool, error) {
-	caFleetVars := findFleetVariables(*item)
+	caFleetVars := variables.Find(*item)
 	for caVar := range caFleetVars {
 		switch caVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP):
@@ -5866,45 +5884,6 @@ func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents
 		return "", err
 	}
 	return re.ReplaceAllLiteralString(contents, fmt.Sprintf(`>%s<`, buf.String())), nil
-}
-
-func findFleetVariables(contents string) map[string]struct{} {
-	resultSlice := findFleetVariablesKeepDuplicates(contents)
-	if len(resultSlice) == 0 {
-		return nil
-	}
-	return dedupeFleetVariables(resultSlice)
-}
-
-func dedupeFleetVariables(varsWithDupes []string) map[string]struct{} {
-	result := make(map[string]struct{}, len(varsWithDupes))
-	for _, v := range varsWithDupes {
-		result[v] = struct{}{}
-	}
-	return result
-}
-
-func findFleetVariablesKeepDuplicates(contents string) []string {
-	var result []string
-	matches := mdm_types.ProfileVariableRegex.FindAllStringSubmatch(contents, -1)
-	if len(matches) == 0 {
-		return nil
-	}
-	nameToIndex := make(map[string]int, 2)
-	for i, name := range mdm_types.ProfileVariableRegex.SubexpNames() {
-		if name == "" {
-			continue
-		}
-		nameToIndex[name] = i
-	}
-	for _, match := range matches {
-		for _, i := range nameToIndex {
-			if match[i] != "" {
-				result = append(result, match[i])
-			}
-		}
-	}
-	return result
 }
 
 // scepCertRenewalThresholdDays defines the number of days before a SCEP
