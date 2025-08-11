@@ -10234,7 +10234,7 @@ Content-Length: 124567
 
 _Available in Fleet Premium._
 
-Delete the icon added via [Update software icon](#update-software-icon), to revert to icon that's built-in in Fleet.
+Delete a custom icon added via [Update software icon](#update-software-icon). This will revert to using the software title's built-in icon.
 
 `DELETE /api/v1/fleet/software/titles/:id/icon`
 
