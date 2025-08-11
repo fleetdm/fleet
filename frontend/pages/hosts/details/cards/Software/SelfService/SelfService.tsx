@@ -887,8 +887,7 @@ const SoftwareSelfService = ({
         <VppInstallDetailsModal
           deviceAuthToken={deviceToken}
           details={{
-            fleetInstallStatus:
-              selectedVPPInstallDetails.status || "pending_install",
+            fleetInstallStatus: selectedVPPInstallDetails.status,
             hostDisplayName,
             appName: selectedVPPInstallDetails.name,
             commandUuid: selectedVPPInstallDetails.commandUuid,
