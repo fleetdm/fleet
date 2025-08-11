@@ -9365,6 +9365,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
 - [Modify package](#modify-package)
+- [Modify icon](#modify-sowftware-icon)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
 - [Modify App Store app](#modify-app-store-app)
@@ -9422,11 +9423,11 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
+      "icon_url":"https://fleet.server.com/software_icons/firefox-512x512.png",
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
         "name": "FirefoxInsall.pkg",
-        "custom_icon_url":"https://fleet.server.com/software_icons/firefox-512x512.png",
         "version": "125.6",
         "self_service": true,
         "automatic_install_policies": [
@@ -9699,6 +9700,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Falcon.app",
+    "icon_url":"https://fleet.server.com/software_icons/falcon-256x256.png",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "available_software": {
       "fleet_maintained_app": {
@@ -9708,7 +9710,6 @@ Returns information about the specified software. By default, `versions` are sor
     },
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
-      "custom_icon_url":"https://fleet.server.com/software_icons/falcon-256x256.png",
       "version": "6.44",
       "categories": ["Productivity"],
       "platform": "darwin",
@@ -9785,6 +9786,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
+    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
     "bundle_identifier": "com.apple.logic10",
     "available_software": {
       "fleet_maintained_app": null,
@@ -9800,8 +9802,6 @@ Returns information about the specified software. By default, `versions` are sor
       "platform": "darwin",
       "latest_version": "2.04",
       "created_at": "2024-04-01T14:22:58Z",
-      "custom_icon_url":"https://fleet.server.com/software_icons/logic-pro-512x512.png",
-      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
       "automatic_install_policies": [
         {
@@ -10063,7 +10063,6 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
-| custom_icon | file | form | PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service**. It must be a square PNG with dimensions ranging from 120x120 px to 1024x1024 px. In the UI Fleet, display icons for the most popular titles across all teams and versions. Custom icons will only override the icon for the software title and team where they are added. |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
@@ -10122,7 +10121,6 @@ Content-Type: application/octet-stream
   "software_package": {
     "name": "FalconSensor-6.44.pkg",
     "categories": [],
-    "custom_icon_url": null,
     "version": "6.44",
     "platform": "darwin",
     "fleet_maintained_app_id": 42,
@@ -10141,6 +10139,58 @@ Content-Type: application/octet-stream
     }
   }
 }
+```
+
+### Modify icon
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI, Fleet display icons for the most popular titles across all teams and versions. Icons updated via this endpoint will only override the icon for the software title and team where they are added.
+
+The icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI, Fleet displays icons for the most popular titles across all teams and versions. Icons updated through this endpoint will only replace the icon for the specific software title and team where they are added.
+
+`PATCH /api/v1/fleet/software/titles/:id/icon`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | ID of the software title being updated. |
+| icon            | file    | form | Must be PNG format. It must be a square with dimensions ranging from 120x120 px to 1024x1024 px. |
+| team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/33/icon`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="icon"; filename="crowdstrike-icon-512x512.png"
+Content-Type: application/octet-stream
+<DATA>
+--------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+  "icon_url": "https://fleet.server.com/software_icons/ddccca65-a556-47c8-a376-aa5519e2859f.png"
 ```
 
 ### List App Store apps
