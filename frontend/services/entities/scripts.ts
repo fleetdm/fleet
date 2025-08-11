@@ -277,6 +277,60 @@ export default {
     const path = `${
       endpoints.SCRIPT_RUN_BATCH_SUMMARIES
     }?${buildQueryStringFromParams({ ...params })}`;
+    // TODO - swap
     return sendRequest("GET", path);
+
+    // remove:
+    switch (params.status) {
+      case "started":
+        // await sleep(200000);
+        return Promise.resolve({
+          batch_executions: [
+            createMockBatchScriptSummary({
+              status: "started",
+              finished_at: null,
+            }),
+          ],
+          meta: { has_next_results: false, has_previous_results: false },
+          count: 1,
+        });
+      case "scheduled":
+        return Promise.resolve({
+          batch_executions: [
+            createMockBatchScriptSummary({
+              status: "scheduled",
+              not_before: "2026-07-10T18:30:08Z",
+              started_at: null,
+              finished_at: null,
+            }),
+            createMockBatchScriptSummary({
+              batch_execution_id: "bbb-ccc",
+              script_id: 2,
+              script_name: "another_fake_batch_script.sh",
+              status: "scheduled",
+              not_before: "2026-07-10T18:30:08Z",
+              started_at: null,
+              finished_at: null,
+            }),
+          ],
+          meta: { has_next_results: false, has_previous_results: false },
+          count: 2,
+        });
+      case "finished":
+        return Promise.resolve({
+          batch_executions: [
+            createMockBatchScriptSummary(),
+            createMockBatchScriptSummary({ canceled: true }),
+          ],
+          meta: { has_next_results: false, has_previous_results: false },
+          count: 1,
+        });
+      default:
+        return Promise.resolve({
+          batch_executions: [createMockBatchScriptSummary()],
+          meta: { has_next_results: false, has_previous_results: false },
+          count: 1,
+        });
+    }
   },
 };

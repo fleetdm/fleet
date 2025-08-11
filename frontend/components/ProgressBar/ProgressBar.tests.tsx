@@ -4,13 +4,13 @@ import { render, screen } from "@testing-library/react";
 
 import { COLORS } from "styles/var/colors";
 
-import ProgressBar, { IProgressBarSection } from "./ProgressBar";
+import ProgressBar from "./ProgressBar";
 
 describe("ProgressBar component", () => {
   it("renders with the correct sections and colors", () => {
     const sections = [
-      { color: "#5cb85c", portion: 0.7 },
-      { color: "#d9534f", portion: 0.1 },
+      { color: "green", portion: 0.7 },
+      { color: "red", portion: 0.1 },
     ];
 
     render(<ProgressBar sections={sections} />);
@@ -25,20 +25,20 @@ describe("ProgressBar component", () => {
     expect(sectionElements.length).toBe(2);
 
     expect(sectionElements[0]).toHaveStyle({
-      backgroundColor: "#5cb85c",
+      backgroundColor: "green",
       width: "70%",
     });
 
     // Check second section
     expect(sectionElements[1]).toHaveStyle({
-      backgroundColor: "#d9534f",
+      backgroundColor: "red",
       width: "10%",
     });
   });
 
   it("applies custom background color when provided", () => {
-    const sections = [{ color: "#5cb85c", portion: 0.5 }];
-    const customBgColor = "red";
+    const sections = [{ color: "green", portion: 0.5 }];
+    const customBgColor = "blue";
 
     render(<ProgressBar sections={sections} backgroundColor={customBgColor} />);
 

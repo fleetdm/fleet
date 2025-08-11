@@ -34,12 +34,21 @@ const STATUS_BY_INDEX: ScriptBatchStatus[] = [
   "finished",
 ];
 
-const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, string> = {
+export const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, string> = {
   started: "When a script is run on multiple hosts, progress will appear here.",
   scheduled:
     "When a script is scheduled to run in the future, it will appear here.",
   finished:
     "When a batch script is completed or cancelled, historical results will appear here.",
+};
+
+const getEmptyState = (status: ScriptBatchStatus) => {
+  return (
+    <div className={`${baseClass}__empty`}>
+      <b>No batch scripts {status} for this team</b>
+      <p>{EMPTY_STATE_DETAILS[status]}</p>
+    </div>
+  );
 };
 
 export type IScriptBatchProgressProps = IScriptsCommonProps & {
@@ -244,15 +253,6 @@ const ScriptBatchProgress = ({
           </div>
         )}
       </>
-    );
-  };
-
-  const getEmptyState = (status: ScriptBatchStatus) => {
-    return (
-      <div className={`${baseClass}__empty`}>
-        <b>No batch scripts {status} for this team</b>
-        <p>{EMPTY_STATE_DETAILS[status]}</p>
-      </div>
     );
   };
 
