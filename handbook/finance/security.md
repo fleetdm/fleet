@@ -1963,11 +1963,11 @@ This section contains explanations of the latest external security audits perfor
 
 ### July 2025 penetration testing of Fleet 4.70.1
 
-In Juy 2025, [BHIS](https://www.blackhillsinfosec.com/) performed an application penetration assessment of the application from Fleet. 
+In July 2025, [BHIS](https://www.blackhillsinfosec.com/) performed an application penetration assessment of the application from Fleet. 
 
 An application penetration test captures a point-in-time assessment of vulnerabilities, misconfigurations, and gaps in applications that could allow an attacker to compromise the security, availability, processing integrity, confidentiality, and privacy (SAPCP) of sensitive data and application resources. An application penetration test simulates the capabilities of a real adversary, but accelerates testing by using information provided by the target company.
 
-BHIS identified one medium severity issue, which has been addressed in our infrastructure settings, as well as a few low severity and informational issues.
+BHIS identified one medium severity issue and two new low severity issues. 
 
 You can find the full report here: [2025-07-31-fleet-penetration-test.pdf](https://drive.google.com/file/d/1HmnD4ky8DGFuu90z_O-sOal21fFMwHm0/view?usp=drive_link).
 
@@ -2011,7 +2011,7 @@ This was previously documented and addressed as [a finding in our 2022 penetrati
 
 The Admin user creation feature offered a form to create an account. After submitting the form, the new user was able to log into the application without first verifying their email.
 
-All user accounts that use email and password for authentication require an administrator to manually creare the account and share the password. This process enforces validation of the new user via out of band access to password management tools.
+All user accounts that use email and password for authentication require an administrator to manually creare the account and share the password. This process enforces validation of the new user via out of band access to password management systems.
 
 #### 5 - Sensitive information in local storage
 
