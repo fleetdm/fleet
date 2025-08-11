@@ -107,21 +107,21 @@ func TestUp_20250811084533(t *testing.T) {
 	type dbCertificateAuthority struct {
 		fleet.CertificateAuthority
 		// Digicert
-		APITokenRaw                      []byte `db:"api_token"`
+		APITokenEncrypted                []byte `db:"api_token_encrypted"`
 		CertificateUserPrincipalNamesRaw []byte `db:"certificate_user_principal_names"`
 
 		// NDES SCEP Proxy
-		PasswordRaw []byte `db:"password"`
+		PasswordEncrypted []byte `db:"password_encrypted"`
 
 		// Custom SCEP Proxy
-		ChallengeRaw []byte `db:"challenge"`
+		ChallengeEncrypted []byte `db:"challenge_encrypted"`
 
 		// Hydrant
-		ClientSecretRaw []byte `db:"client_secret"`
+		ClientSecretEncrypted []byte `db:"client_secret_encrypted"`
 	}
 
 	cas := []dbCertificateAuthority{}
-	stmt := `SELECT type, name, url, api_token, profile_id, certificate_common_name, certificate_user_principal_names, certificate_seat_id, admin_url, username, password, challenge, client_id, client_secret, created_at, updated_at
+	stmt := `SELECT type, name, url, api_token_encrypted, profile_id, certificate_common_name, certificate_user_principal_names, certificate_seat_id, admin_url, username, password_encrypted, challenge_encrypted, client_id, client_secret_encrypted, created_at, updated_at
 FROM certificate_authorities`
 	err = db.Select(&cas, stmt)
 
@@ -149,7 +149,7 @@ FROM certificate_authorities`
 				expectedAPIToken = digicertCA2EncryptedPassword
 			}
 			assert.Equal(t, expectedCA.URL, ca.URL)
-			assert.Equal(t, expectedAPIToken, ca.APITokenRaw)
+			assert.Equal(t, expectedAPIToken, ca.APITokenEncrypted)
 			require.NotNil(t, ca.ProfileID)
 			assert.Equal(t, expectedCA.ProfileID, *ca.ProfileID)
 			require.NotNil(t, ca.CertificateCommonName)
@@ -166,7 +166,7 @@ FROM certificate_authorities`
 				expectedChallenge = customSCEPCA2EncryptedChallenge
 			}
 			assert.Equal(t, expectedCA.URL, ca.URL)
-			assert.Equal(t, expectedChallenge, ca.ChallengeRaw)
+			assert.Equal(t, expectedChallenge, ca.ChallengeEncrypted)
 			assert.Nil(t, ca.CertificateUserPrincipalNames)
 		case "ndes_scep_proxy":
 			assert.Equal(t, "DEFAULT_NDES_CA", ca.Name)
@@ -175,7 +175,7 @@ FROM certificate_authorities`
 			assert.Equal(t, ndesCA.URL, ca.URL)
 			require.NotNil(t, ca.Username)
 			assert.Equal(t, ndesCA.Username, *ca.Username)
-			assert.Equal(t, ndesEncryptedPassword, ca.PasswordRaw)
+			assert.Equal(t, ndesEncryptedPassword, ca.PasswordEncrypted)
 			assert.Nil(t, ca.CertificateUserPrincipalNames)
 		default:
 			require.Failf(t, "unexpected certificate authority type", "type: %s, name: %s", ca.Type, ca.Name)

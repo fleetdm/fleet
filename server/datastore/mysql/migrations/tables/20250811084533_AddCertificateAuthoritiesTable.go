@@ -15,28 +15,28 @@ func init() {
 	MigrationClient.AddMigration(Up_20250811084533, Down_20250811084533)
 }
 
-// dbCertificateAuthority embeds fleet.CertificateAuthority and adds raw representation of encrypted
+// dbCertificateAuthority embeds fleet.CertificateAuthority and adds encrypted representation of sensitive
 // fields for handling DB operations
 type dbCertificateAuthority struct {
 	fleet.CertificateAuthority
 	// Digicert
-	APITokenRaw                      []byte `db:"api_token"`
+	APITokenEncrypted                []byte `db:"api_token_encrypted"`
 	CertificateUserPrincipalNamesRaw []byte `db:"certificate_user_principal_names"`
 
 	// NDES SCEP Proxy
-	PasswordRaw []byte `db:"password"`
+	PasswordEncrypted []byte `db:"password_encrypted"`
 
 	// Custom SCEP Proxy
-	ChallengeRaw []byte `db:"challenge"`
+	ChallengeEncrypted []byte `db:"challenge_encrypted"`
 
 	// Hydrant
-	ClientSecretRaw []byte `db:"client_secret"`
+	ClientSecretEncrypted []byte `db:"client_secret_encrypted"`
 }
 
 func Up_20250811084533(tx *sql.Tx) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 	stmt := `
-	CREATE TABLE certificate_authorities (
+	CREATE TABLE IF NOT EXISTS certificate_authorities (
   id INT AUTO_INCREMENT PRIMARY KEY,
   type ENUM('digicert', 'ndes_scep_proxy', 'custom_scep_proxy', 'hydrant') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   
@@ -45,7 +45,7 @@ func Up_20250811084533(tx *sql.Tx) error {
   url TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,                    -- Used by all types
 
   -- DigiCert fields
-  api_token BLOB, -- previously stored in ca_config_assets
+  api_token_encrypted BLOB, -- previously stored in ca_config_assets
   profile_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   certificate_common_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   certificate_user_principal_names JSON,       -- Array of UPNs
@@ -54,18 +54,18 @@ func Up_20250811084533(tx *sql.Tx) error {
   -- NDES fields
   admin_url TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   username VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  password BLOB, -- previously stored in mdm_config_assets
+  password_encrypted BLOB, -- previously stored in mdm_config_assets
 
   -- Custom SCEP
-  challenge BLOB, -- previously stored in ca_config_assets
+  challenge_encrypted BLOB, -- previously stored in ca_config_assets
 
   -- Hydrant fields
   client_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  client_secret BLOB,
+  client_secret_encrypted BLOB,
 
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 	`
 
 	// Create the table then iterate through app_config_json to populate it
@@ -131,7 +131,7 @@ FROM
 					Name: customSCEPProxyCA.Name,
 					URL:  customSCEPProxyCA.URL,
 				},
-				ChallengeRaw: customSCEPChallenge.Value,
+				ChallengeEncrypted: customSCEPChallenge.Value,
 			})
 		}
 	}
@@ -151,7 +151,7 @@ FROM
 					CertificateUserPrincipalNames: digicertCA.CertificateUserPrincipalNames,
 					CertificateSeatID:             &digicertCA.CertificateSeatID,
 				},
-				APITokenRaw: digicertAPIToken.Value,
+				APITokenEncrypted: digicertAPIToken.Value,
 			})
 		}
 	}
@@ -176,7 +176,7 @@ FROM
 				AdminURL: &ndesCA.AdminURL,
 				Username: &ndesCA.Username,
 			},
-			PasswordRaw: ndesCAPassword,
+			PasswordEncrypted: ndesCAPassword,
 		}
 		casToInsert = append(casToInsert, dbNDESCA)
 	}
@@ -187,17 +187,17 @@ INSERT INTO certificate_authorities (
 	type,
 	name,
 	url,
-	api_token,
+	api_token_encrypted,
 	profile_id,
 	certificate_common_name,
 	certificate_user_principal_names,
 	certificate_seat_id,
 	admin_url,
 	username,
-	password,
-	challenge,
+	password_encrypted,
+	challenge_encrypted,
 	client_id,
-	client_secret
+	client_secret_encrypted
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		var upns []byte
 		if ca.CertificateUserPrincipalNames != nil {
@@ -210,17 +210,17 @@ INSERT INTO certificate_authorities (
 			ca.Type,
 			ca.Name,
 			ca.URL,
-			ca.APITokenRaw,
+			ca.APITokenEncrypted,
 			ca.ProfileID,
 			ca.CertificateCommonName,
 			upns,
 			ca.CertificateSeatID,
 			ca.AdminURL,
 			ca.Username,
-			ca.PasswordRaw,
-			ca.ChallengeRaw,
+			ca.PasswordEncrypted,
+			ca.ChallengeEncrypted,
 			ca.ClientID,
-			ca.ClientSecret,
+			ca.ClientSecretEncrypted,
 		}
 		_, err = txx.Exec(insertStmt, args...)
 		if err != nil {
