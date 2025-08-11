@@ -123,7 +123,7 @@ FROM
 		for _, customSCEPProxyCA := range appConfigJSON.Integrations.CustomSCEPProxy.Value {
 			customSCEPChallenge := getCAConfigAsset(customSCEPProxyCA.Name, fleet.CAConfigCustomSCEPProxy)
 			if customSCEPChallenge == nil || len(customSCEPChallenge.Value) == 0 {
-				return errors.New("Custom SCEP Proxy challenge not found in mdm_config_assets")
+				return errors.New("Custom SCEP Proxy challenge not found in ca_config_assets")
 			}
 			casToInsert = append(casToInsert, dbCertificateAuthority{
 				CertificateAuthority: fleet.CertificateAuthority{
