@@ -114,15 +114,18 @@ jobs:
 
     # Deploy to Heroku
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
-    # Create a git tree of the staged changes
-    - run: echo "TREE_SHA=$(git write-tree)" >> "$GITHUB_ENV"
-    # Create a parentless commit from the git tree that only contains the files in the website/ folder.
-    # This lets up deploy the website from the Fleet monorepo while working around Heroku's pack size limits. 
-    - run: |
-        COMMIT_SHA=$(echo 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.' \
-          | git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit-tree "$TREE_SHA")
-        echo "COMMIT_SHA=$COMMIT_SHA" >> "$GITHUB_ENV"
-    # Push the parentless commit to Heroku
-    - run: git push heroku "$COMMIT_SHA":master --force
+    - name: Deploy to Heroku
+        set -euo pipefail
+        git add -A
+        # Create a git tree object that contains only the changes in the /website folder.
+        TREE=$(git write-tree)
+        # Create a parentless commit from the tree object.
+        COMMIT=$(git -c "user.name=Fleetwood" -c "user.email=github@example.com" \
+          commit-tree "$TREE" \
+          -m 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.')
+        # Push the parentless commit to Heroku
+        # Note: The commit pushed to Heroku will not contain the full git history.
+        # This lets up deploy the website from the Fleet monorepo while working around Heroku's pack size limits. 
+        git push heroku "$COMMIT":master --force
     - name: 🌐 https://fleetdm.com
       run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
