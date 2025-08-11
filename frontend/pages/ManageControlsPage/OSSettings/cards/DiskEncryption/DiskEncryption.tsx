@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -24,13 +23,11 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import RevealButton from "components/buttons/RevealButton";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
+import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const baseClass = "disk-encryption";
-interface IDiskEncryptionProps {
-  currentTeamId: number;
-  onMutation: () => void;
-  router: InjectedRouter;
-}
+
+export type IDiskEncryptionProps = IOSSettingsCommonProps;
 
 const DiskEncryption = ({
   currentTeamId,
