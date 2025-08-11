@@ -1971,6 +1971,58 @@ BHIS identified one medium severity issue, which has been addressed in our infra
 
 You can find the full report here: [2025-07-31-fleet-penetration-test.pdf](https://drive.google.com/file/d/1HmnD4ky8DGFuu90z_O-sOal21fFMwHm0/view?usp=drive_link).
 
+### Findings
+
+#### 1 - Server supports weak transport layer security (SSL/TLS)
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Encryption          | Medium risk       |
+
+The web application servers accepted connections encrypted using weak ciphers.
+
+This was resolved on 2025-07-30 in the `fleetdm/fleet-terraform` with [updates TLS version used in load balancers](https://github.com/fleetdm/fleet-terraform/pull/78).
+
+#### 2 - Lack of user lockout for password authentication
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access controls     | Low risk          |
+
+The web application did not enforce user lockouts as a result of brute-force password attacks. The tester sent 20 fake passwords to the application in 5-second delays to avoid the rate limiting in place by the application.
+
+This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/finance/security#5-no-account-lockout).
+
+#### 3 - Long session timeout
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access controls     | Low risk          |
+
+The default value was found to be five days, but session timeout is configurable for self-managed users in the application's configuration.
+
+This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/finance/security#6-session-timeout-insufficient-session-expiration).
+
+#### 4 - Failure to validate new account emails
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access controls     | Low risk          |
+
+The Admin user creation feature offered a form to create an account. After submitting the form, the new user was able to log into the application without first verifying their email.
+
+All user accounts that use email and password for authentication require an administrator to manually creare the account and share the password. This process enforces validation of the new user via out of band access to password management tools.
+
+#### 5 - Sensitive information in local storage
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access controls     | Low risk          |
+
+The application's authentication token was stored in the browser's DOM storage object.
+
+This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/finance/security#4-insecure-storage-of-authentication-tokens).
+
 
 ### June 2024 penetration testing of Fleet 4.50.1
 
