@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
@@ -9,6 +10,7 @@ import (
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/log"
@@ -73,6 +75,8 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 	})
 }
 
+// ServeEndUserEnrollOTA implements the entrypoint handler for the /enroll
+// path, used to add hosts in "BYOD" mode (currently, iPhone/iPad/Android).
 func ServeEndUserEnrollOTA(
 	svc fleet.Service,
 	urlPrefix string,
@@ -101,6 +105,16 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
+		enrollSecret := r.URL.Query().Get("enroll_secret")
+		authRequired, err := requiresEnrollOTAAuthentication(r.Context(), ds, enrollSecret)
+		if err != nil {
+			herr(w, "check if authentication is required err: "+err.Error())
+			return
+		}
+
+		if authRequired {
+		}
+
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/enroll-ota.html")
 		if err != nil {
@@ -120,7 +134,7 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
-		enrollURL, err := generateEnrollOTAURL(urlPrefix, r.URL.Query().Get("enroll_secret"))
+		enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
 		if err != nil {
 			herr(w, "generate enroll ota url: "+err.Error())
 			return
@@ -159,6 +173,36 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	q.Set("enroll_secret", enrollSecret)
 	enrollURL.RawQuery = q.Encode()
 	return enrollURL.String(), nil
+}
+
+func requiresEnrollOTAAuthentication(ctx context.Context, ds fleet.Datastore, enrollSecret string) (bool, error) {
+	secret, err := ds.VerifyEnrollSecret(ctx, enrollSecret)
+	if err != nil && !fleet.IsNotFound(err) {
+		return false, ctxerr.Wrap(ctx, err, "verify enroll secret")
+	}
+
+	if secret == nil {
+		// enroll secret is invalid, check if any team has IdP enabled for setup experience
+		ids, err := ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "get team IDs with setup experience IdP enabled")
+		}
+		return len(ids) > 0, nil
+	}
+
+	if secret.TeamID == nil { // enroll in "no team"
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "get app config for no-team settings")
+		}
+		return ac.MDM.MacOSSetup.EnableEndUserAuthentication, nil
+	}
+
+	tm, err := ds.Team(ctx, *secret.TeamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get team for settings")
+	}
+	return tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication, nil
 }
 
 func ServeStaticAssets(path string) http.Handler {
