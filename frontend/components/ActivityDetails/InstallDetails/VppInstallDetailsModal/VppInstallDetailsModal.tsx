@@ -255,7 +255,7 @@ export const VppInstallDetailsModal = ({
 
   const excludeVersions =
     !deviceAuthToken &&
-    ["pending_install", "failed_install"].includes(displayStatus);
+    ["pending_install", "failed_install", "pending"].includes(displayStatus);
 
   const isInstalledByFleet = hostSoftware
     ? !!hostSoftware.app_store_app?.last_install
@@ -342,7 +342,7 @@ export const VppInstallDetailsModal = ({
           <span>{statusMessage}</span>
         </div>
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-        {displayStatus !== "pending_install" &&
+        {!isPendingInstall &&
           isInstalledByFleet &&
           renderInstallDetailsSection()}
       </div>
