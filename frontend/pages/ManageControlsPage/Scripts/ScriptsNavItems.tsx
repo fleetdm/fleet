@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
@@ -16,19 +17,26 @@ export interface IScriptsCommonProps {
 }
 type IScriptsCardProps = IScriptLibraryProps | IScriptBatchProgressProps;
 
-const SCRIPTS_NAV_ITEMS: ISideNavItem<IScriptsCardProps>[] = [
-  {
-    title: "Library",
-    urlSection: "library",
-    path: `${PATHS.CONTROLS_SCRIPTS_LIBRARY}`,
-    Card: ScriptLibrary,
-  },
-  {
-    title: "Batch progress",
-    urlSection: "progress",
-    path: `${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}`,
-    Card: ScriptBatchProgress,
-  },
-];
+const useScriptNavItems = (
+  teamId: number | undefined
+): ISideNavItem<IScriptsCardProps>[] => {
+  return useMemo(
+    () => [
+      {
+        title: "Library",
+        urlSection: "library",
+        path: `${PATHS.CONTROLS_SCRIPTS_LIBRARY}?team_id=${teamId || 0}`,
+        Card: ScriptLibrary,
+      },
+      {
+        title: "Batch progress",
+        urlSection: "progress",
+        path: `${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?team_id=${teamId || 0}`,
+        Card: ScriptBatchProgress,
+      },
+    ],
+    [teamId]
+  );
+};
 
-export default SCRIPTS_NAV_ITEMS;
+export default useScriptNavItems;

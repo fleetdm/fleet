@@ -10,7 +10,7 @@ import { FLEET_WEBSITE_URL } from "utilities/constants";
 import SideNav from "pages/admin/components/SideNav";
 import CustomLink from "components/CustomLink";
 
-import SCRIPTS_NAV_ITEMS from "./ScriptsNavItems";
+import useScriptNavItems from "./ScriptsNavItems";
 
 const baseClass = "scripts";
 
@@ -37,6 +37,8 @@ const Scripts = ({ router, location, params }: IScriptsProps) => {
     includeAllTeams: false,
     includeNoTeam: true,
   });
+
+  const SCRIPTS_NAV_ITEMS = useScriptNavItems(teamIdForApi);
 
   const DEFAULT_SCRIPTS_SECTION = SCRIPTS_NAV_ITEMS[0];
 
