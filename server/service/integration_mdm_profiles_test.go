@@ -7260,16 +7260,194 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	verifyProfileSubstitution(deviceTeam, hostTeam.UUID, "Team Device: "+hostTeam.UUID)
 
 	// Check that profile statuses are updated correctly in the database
-	checkHostProfileStatus := func(hostUUID string, expectedStatus fleet.MDMDeliveryStatus) {
+	checkHostProfileStatus := func(hostUUID string, profileName string, expectedStatus fleet.MDMDeliveryStatus) {
 		profiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
 		require.NoError(t, err)
-		require.Len(t, profiles, 1)
-		require.NotNil(t, profiles[0].Status)
-		require.Equal(t, expectedStatus, *profiles[0].Status)
+
+		// Find the specific profile by name
+		var foundProfile *fleet.HostMDMWindowsProfile
+		for _, p := range profiles {
+			if p.Name == profileName {
+				foundProfile = &p
+				break
+			}
+		}
+		require.NotNil(t, foundProfile, "Profile %s not found for host %s", profileName, hostUUID)
+		require.NotNil(t, foundProfile.Status, "Profile %s status is nil for host %s", profileName, hostUUID)
+		assert.Equal(t, expectedStatus, *foundProfile.Status, "Profile %s has unexpected status for host %s", profileName, hostUUID)
 	}
 
-	checkHostProfileStatus(hostGlobal1.UUID, fleet.MDMDeliveryVerifying)
-	checkHostProfileStatus(hostGlobal2.UUID, fleet.MDMDeliveryVerifying)
-	checkHostProfileStatus(hostTeam.UUID, fleet.MDMDeliveryVerifying)
+	checkHostProfileStatus(hostGlobal1.UUID, "GlobalProfileWithVar", fleet.MDMDeliveryVerifying)
+	checkHostProfileStatus(hostGlobal2.UUID, "GlobalProfileWithVar", fleet.MDMDeliveryVerifying)
+	checkHostProfileStatus(hostTeam.UUID, "TeamProfileWithVar", fleet.MDMDeliveryVerifying)
+
+	// Now let's check profile verification
+	// Also create and test a host without Fleet variables to ensure normal verification still works
+	hostNoVars, deviceNoVars := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// Create a profile without variables
+	profileNoVars := syncml.ForTestWithData([]syncml.TestCommand{
+		{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/Static/Value", Data: "Static Value: NoSubstitution"},
+	})
+
+	// Upload profile without variables
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "ProfileNoVars", Contents: profileNoVars},
+		}},
+		http.StatusNoContent)
+
+	// Let the host get the profile
+	s.awaitTriggerProfileSchedule(t)
+	cmds, err := deviceNoVars.StartManagementSession()
+	require.NoError(t, err)
+	msgID, err := deviceNoVars.GetCurrentMsgID()
+	require.NoError(t, err)
+	for _, cmd := range cmds {
+		deviceNoVars.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID,
+			CmdRef:  &cmd.Cmd.CmdID.Value,
+			Cmd:     ptr.String(cmd.Verb),
+			Data:    ptr.String(syncml.CmdStatusOK),
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+		})
+	}
+	cmds, err = deviceNoVars.SendResponse()
+	require.NoError(t, err)
+	require.Len(t, cmds, 1) // ack
+
+	checkHostProfileStatus(hostNoVars.UUID, "ProfileNoVars", fleet.MDMDeliveryVerifying)
+
+	// To ensure any verification failures result in retry (pending) status instead of staying as verifying,
+	// we need to be outside the grace period. The grace period check is:
+	// hostDetailUpdatedAt.Before(profileEarliestInstallDate.Add(1 hour))
+	//
+	// We need to make sure the host checked in recently (detail_updated_at = now)
+	// but the profiles are old (created more than 1 hour ago)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		// Set profile timestamps to 2 hours ago
+		// IMPORTANT: uploaded_at is used as EarliestInstallDate in verification logic
+		_, err := q.ExecContext(ctx,
+			`UPDATE mdm_windows_configuration_profiles
+			 SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR),
+			     uploaded_at = DATE_SUB(NOW(), INTERVAL 2 HOUR)
+			 WHERE name IN (?, ?, ?)`,
+			"GlobalProfileWithVar", "TeamProfileWithVar", "ProfileNoVars")
+		if err != nil {
+			return err
+		}
+		// Also update the host profile associations to have old timestamps (only created_at)
+		_, err = q.ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles
+			 SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR)
+			 WHERE host_uuid IN (?, ?, ?, ?)`,
+			hostGlobal1.UUID, hostGlobal2.UUID, hostTeam.UUID, hostNoVars.UUID)
+		if err != nil {
+			return err
+		}
+		// Set host detail_updated_at to now (recent check-in)
+		_, err = q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = NOW() WHERE id IN (?, ?, ?, ?)`,
+			hostGlobal1.ID, hostGlobal2.ID, hostTeam.ID, hostNoVars.ID)
+		return err
+	})
+
+	// Helper to simulate osquery reporting back profile data
+	simulateOsqueryProfileReport := func(nodeKey string, profileName string, locURI string, reportedData string) {
+		// Build a SyncML response that osquery would send back after reading the profile from Windows
+		cmdRef := microsoft_mdm.HashLocURI(profileName, locURI)
+
+		var msg fleet.SyncML
+		msg.Xmlns = syncml.SyncCmdNamespace
+		msg.SyncHdr = fleet.SyncHdr{
+			VerDTD:    syncml.SyncMLSupportedVersion,
+			VerProto:  syncml.SyncMLVerProto,
+			SessionID: "2",
+			MsgID:     "2",
+		}
+
+		// Add status response (profile was successfully applied)
+		msg.AppendCommand(fleet.MDMRaw, fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			CmdRef:  &cmdRef,
+			Data:    ptr.String("200"),
+		})
+
+		// Add results with the data that osquery read from Windows
+		msg.AppendCommand(fleet.MDMRaw, fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdResults},
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			CmdRef:  &cmdRef,
+			Items: []fleet.CmdItem{
+				{
+					Target: ptr.String(locURI),
+					Data: &fleet.RawXmlData{
+						Content: reportedData,
+					},
+				},
+			},
+		})
+
+		rawResponse, err := xml.Marshal(msg)
+		require.NoError(t, err)
+
+		// Submit the results via osquery distributed write endpoint
+		distributedReq := SubmitDistributedQueryResultsRequest{
+			NodeKey: nodeKey,
+			Results: map[string][]map[string]string{
+				"fleet_detail_query_mdm_config_profiles_windows": {
+					{"raw_mdm_command_output": string(rawResponse)},
+				},
+			},
+			Statuses: map[string]fleet.OsqueryStatus{
+				"fleet_detail_query_mdm_config_profiles_windows": 0,
+			},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	}
+
+	// First verify that normal profile (without variables) verifies correctly
+	simulateOsqueryProfileReport(
+		*hostNoVars.NodeKey,
+		"ProfileNoVars",
+		"./Device/Vendor/MSFT/DMClient/Provider/ProviderID/Static/Value",
+		"Static Value: NoSubstitution", // osquery reports exactly what was sent
+	)
+
+	// Normal profile should be verified successfully
+	checkHostProfileStatus(hostNoVars.UUID, "ProfileNoVars", fleet.MDMDeliveryVerified)
+
+	// Simulate osquery reporting back for team host
+	simulateOsqueryProfileReport(
+		*hostTeam.NodeKey,
+		"TeamProfileWithVar",
+		"./Device/Vendor/MSFT/DMClient/Provider/ProviderID/TeamDevice/ID",
+		"Team Device: "+hostTeam.UUID, // osquery reports the substituted value
+	)
+
+	// Team host has TeamProfileWithVar which now correctly verifies with Fleet variables
+	// The fix has been implemented and the profile should be verified successfully
+	checkHostProfileStatus(hostTeam.UUID, "TeamProfileWithVar", fleet.MDMDeliveryVerified)
+
+	// Hit the host details API and check the status in the mdm.profiles section
+	// Verify team host
+	var hostRespTeam getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostTeam.ID), getHostRequest{}, http.StatusOK, &hostRespTeam)
+	require.NotNil(t, hostRespTeam.Host.MDM.Profiles)
+	require.Len(t, *hostRespTeam.Host.MDM.Profiles, 1)
+	require.Equal(t, "TeamProfileWithVar", (*hostRespTeam.Host.MDM.Profiles)[0].Name)
+	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespTeam.Host.MDM.Profiles)[0].Status,
+		"Profile should be verified in host details API for team host")
+
+	// Verify no-vars host
+	var hostRespNoVars getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostNoVars.ID), getHostRequest{}, http.StatusOK, &hostRespNoVars)
+	require.NotNil(t, hostRespNoVars.Host.MDM.Profiles)
+	require.Len(t, *hostRespNoVars.Host.MDM.Profiles, 1)
+	require.Equal(t, "ProfileNoVars", (*hostRespNoVars.Host.MDM.Profiles)[0].Name)
+	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespNoVars.Host.MDM.Profiles)[0].Status,
+		"Profile should be verified in host details API for no-vars host")
 
 }
