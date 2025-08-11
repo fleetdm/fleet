@@ -17,7 +17,7 @@ func md5ChecksumBytes(b []byte) string {
 	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 
-func TestUp_20250808151308(t *testing.T) {
+func TestUp_20250811084533(t *testing.T) {
 	db := applyUpToPrev(t)
 	var appConfigJSON fleet.AppConfig
 	const (

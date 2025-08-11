@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250808151308, Down_20250808151308)
+	MigrationClient.AddMigration(Up_20250811084533, Down_20250811084533)
 }
 
 // dbCertificateAuthority embeds fleet.CertificateAuthority and adds raw representation of encrypted
@@ -33,7 +33,7 @@ type dbCertificateAuthority struct {
 	ClientSecretRaw []byte `db:"client_secret"`
 }
 
-func Up_20250808151308(tx *sql.Tx) error {
+func Up_20250811084533(tx *sql.Tx) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 	stmt := `
 	CREATE TABLE certificate_authorities (
@@ -231,6 +231,6 @@ INSERT INTO certificate_authorities (
 	return nil
 }
 
-func Down_20250808151308(tx *sql.Tx) error {
+func Down_20250811084533(tx *sql.Tx) error {
 	return nil
 }
