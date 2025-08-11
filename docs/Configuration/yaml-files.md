@@ -775,7 +775,7 @@ integrations:
 - `username` is the username of the NDES admin endpoint (default: `""`).
 - `password` is the password of the NDES admin endpoint (default: `""`).
 
-#### scep_proxy
+#### custom_scep_proxy
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
