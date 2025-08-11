@@ -36,7 +36,7 @@ type getCertificateAuthorityRequest struct {
 }
 
 type getCertificateAuthorityResponse struct {
-	*fleet.CertificateAuthority
+	*fleet.CertificateAuthorityResult
 	Err error `json:"error,omitempty"`
 }
 
@@ -49,21 +49,21 @@ func getCertificateAuthorityEndpoint(ctx context.Context, request any, svc fleet
 		return getCertificateAuthorityResponse{Err: err}, nil
 	}
 	return getCertificateAuthorityResponse{
-		CertificateAuthority: certAuth,
+		CertificateAuthorityResult: certAuth,
 	}, nil
 }
 
-func (svc *Service) GetCertificateAuthority(ctx context.Context, id uint) (*fleet.CertificateAuthority, error) {
+func (svc *Service) GetCertificateAuthority(ctx context.Context, id uint) (*fleet.CertificateAuthorityResult, error) {
 	svc.authz.SkipAuthorization(ctx)
 	// Implementation here
-	return &fleet.CertificateAuthority{
-		ID:                           id,
-		Name:                         "CA1",
-		Type:                         "digicert",
-		URL:                          "https://example.com",
-		APIToken:                     "api_token",
-		ProfileID:                    1,
-		CertificateCommonName:        "common_name",
-		CertificateUserPrincipalName: []string{"user@example.com"},
+	return &fleet.CertificateAuthorityResult{
+		ID:                            id,
+		Type:                          "digicert",
+		Name:                          "Example DigiCert CA",
+		URL:                           "https://example.com",
+		APIToken:                      "example-token",
+		ProfileID:                     "profile-id",
+		CertificateCommonName:         "example.com",
+		CertificateUserPrincipalNames: []string{"user@example.com"},
 	}, nil
 }

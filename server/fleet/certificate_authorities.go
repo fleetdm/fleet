@@ -115,3 +115,10 @@ func (s *CustomSCEPProxyCertAuthority) Equals(other *CustomSCEPProxyCertAuthorit
 		s.URL == other.URL &&
 		(s.Challenge == "" || s.Challenge == MaskedPassword || s.Challenge == other.Challenge)
 }
+
+type HydrantCertAuthority struct {
+	Name         string `json:"name"`
+	URL          string `json:"url"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+}
