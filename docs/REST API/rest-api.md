@@ -10141,7 +10141,7 @@ Content-Type: application/octet-stream
 }
 ```
 
-### Modify icon
+### Update icon
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -10156,12 +10156,12 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id              | integer | path | ID of the software title being updated. |
+| team_id         | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
 | icon            | file    | form | Must be PNG format. It must be a square with dimensions ranging from 120x120 px to 1024x1024 px. |
-| team_id         | integer | path | **Required**. The team ID. Updates a software package in the specified team. |
 
 #### Example
 
-`PATCH /api/v1/fleet/software/titles/33/icon`
+`PATCH /api/v1/fleet/software/titles/33/icon?team_id=2`
 
 ##### Request header
 
@@ -10186,6 +10186,31 @@ Content-Type: application/octet-stream
 ```json
   "icon_url": "https://fleet.server.com/software_icons/ddccca65-a556-47c8-a376-aa5519e2859f.png"
 ```
+
+### Delete icon
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Delete the icon added via [Upadte icon](#update-icon), to revert to icon that's built-in in Fleet.
+
+`DELETE /api/v1/fleet/software/titles/:id/icon`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | ID of the software title being updated. |
+| team_id         | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/33/icon?team_id=2`
+
+##### Default response
+
+`Status: 200`
 
 ### List App Store apps
 
