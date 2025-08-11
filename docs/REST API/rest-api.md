@@ -10206,11 +10206,11 @@ Delete the icon added via [Upadte icon](#update-icon), to revert to icon that's 
 
 #### Example
 
-`PATCH /api/v1/fleet/software/titles/33/icon?team_id=2`
+`DELETE /api/v1/fleet/software/titles/33/icon?team_id=2`
 
 ##### Default response
 
-`Status: 200`
+`Status: 204`
 
 ### List App Store apps
 
