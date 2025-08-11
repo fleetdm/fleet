@@ -2095,6 +2095,39 @@ func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (
 	return batchActivity, nil
 }
 
+func (ds *Datastore) GetBatchActivityByJobID(ctx context.Context, jobID uint) (*fleet.BatchActivity, error) {
+	const stmt = `
+		SELECT
+			id,
+			script_id,
+			execution_id,
+			user_id,
+			job_id,
+			status,
+			activity_type,
+			num_targeted,
+			num_pending,
+			num_ran,
+			num_errored,
+			num_incompatible,
+			num_canceled,
+			created_at,
+			updated_at,
+			finished_at,
+			canceled
+		FROM
+			batch_activities
+		WHERE
+			job_id = ?`
+
+	batchActivity := &fleet.BatchActivity{}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), batchActivity, stmt, jobID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity")
+	}
+
+	return batchActivity, nil
+}
+
 func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error) {
 	const stmt = `
 		SELECT
@@ -2103,7 +2136,7 @@ func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionI
 			host_id,
 			host_execution_id,
 			error
-			FROM
+		FROM
 			batch_activity_host_results
 		WHERE
 			batch_execution_id = ?`
@@ -2114,6 +2147,50 @@ func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionI
 	}
 
 	return results, nil
+}
+
+func (ds *Datastore) RunScheduledBatchActivity(ctx context.Context, executionID string) error {
+	batchActivity, err := ds.GetBatchActivity(ctx, executionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting batch activity")
+	}
+
+	if batchActivity.ScriptID == nil {
+		return ctxerr.New(ctx, "no script ID present in batch activity")
+	}
+
+	script, err := ds.Script(ctx, *batchActivity.ScriptID)
+	if err != nil {
+		ctxerr.Wrap(ctx, err, "could not get script")
+	}
+
+	results, err := ds.GetBatchActivityHostResults(ctx, executionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting batch activity host results")
+	}
+
+	ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, result := range results {
+			hostExecutionID, activityID, err := ds.insertNewHostScriptExecution(ctx, tx, &fleet.HostScriptRequestPayload{
+				HostID:          result.HostID,
+				ScriptID:        batchActivity.ScriptID,
+				ScriptContentID: script.ScriptContentID,
+				ScriptName:      script.Name,
+				UserID:          batchActivity.UserID,
+			}, false)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting host script execution")
+			}
+		}
+
+		// update batch activity host result with host execution id
+		// update batch activity started_at
+		// update batch activity status
+
+		return nil
+	})
+
+	return nil
 }
 
 // Deprecated; will be removed in favor of ListBatchScriptExecutions when the batch script details page is ready.

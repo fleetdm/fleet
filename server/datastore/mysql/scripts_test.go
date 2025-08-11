@@ -2217,6 +2217,10 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)
 	require.Len(t, hostResults, 3)
+
+	batchActivityJobID, err := ds.GetBatchActivityByJobID(ctx, *batchActivity.JobID)
+	require.NoError(t, err)
+	require.Equal(t, batchActivity.BatchExecutionID, batchActivityJobID.BatchExecutionID)
 }
 
 func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
