@@ -13,8 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
-type CertificateAuthorityPayload struct{}
-
 func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.CertificateAuthorityPayload) (*fleet.CertificateAuthority, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
 		return nil, err
