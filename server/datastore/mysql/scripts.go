@@ -398,9 +398,12 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		hsr.sync_request,
 		hsr.host_deleted_at,
 		hsr.setup_experience_script_id,
-		hsr.canceled
-  FROM
+		hsr.canceled,
+		bahr.batch_execution_id
+	FROM
 		host_script_results hsr
+	LEFT JOIN
+		batch_activity_host_results bahr ON hsr.execution_id = bahr.host_execution_id
 	JOIN
 		script_contents sc
 	%s
