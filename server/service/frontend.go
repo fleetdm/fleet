@@ -9,6 +9,7 @@ import (
 	"net/url"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -106,13 +107,33 @@ func ServeEndUserEnrollOTA(
 		}
 
 		enrollSecret := r.URL.Query().Get("enroll_secret")
-		authRequired, err := requiresEnrollOTAAuthentication(r.Context(), ds, enrollSecret)
+		authRequired, err := requiresEnrollOTAAuthentication(r.Context(), ds,
+			enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 		if err != nil {
 			herr(w, "check if authentication is required err: "+err.Error())
 			return
 		}
 
 		if authRequired {
+			// check if authentication cookie is present, in which case we go ahead with
+			// offering the enrollment profile to download.
+			var cookieIdPRef string
+			if byodCookie, _ := r.Cookie(shared_mdm.BYODIdpCookieName); byodCookie != nil {
+				cookieIdPRef = byodCookie.Value
+
+				// if the cookie is present, we should also receive a (matching) enroll reference
+				if cookieIdPRef != "" {
+					enrollRef := r.URL.Query().Get("enrollment_reference")
+					if cookieIdPRef != enrollRef {
+						cookieIdPRef = "" // cookie does not match the enroll reference, so we ignore it and require authentication
+					}
+				}
+			}
+
+			if cookieIdPRef == "" {
+				// TODO(mna): redirect to IdP SSO
+				return
+			}
 		}
 
 		fs := newBinaryFileSystem("/frontend")
@@ -175,14 +196,17 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	return enrollURL.String(), nil
 }
 
-func requiresEnrollOTAAuthentication(ctx context.Context, ds fleet.Datastore, enrollSecret string) (bool, error) {
+func requiresEnrollOTAAuthentication(ctx context.Context, ds fleet.Datastore, enrollSecret string, noTeamIdPEnabled bool) (bool, error) {
 	secret, err := ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil && !fleet.IsNotFound(err) {
 		return false, ctxerr.Wrap(ctx, err, "verify enroll secret")
 	}
 
 	if secret == nil {
-		// enroll secret is invalid, check if any team has IdP enabled for setup experience
+		// enroll secret is invalid, check if any team has IdP enabled for setup
+		// experience and if so require authentication before going through (we
+		// enforce the failure due to the enroll secret being invalid only when the
+		// enrollment profile is installed).
 		ids, err := ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "get team IDs with setup experience IdP enabled")
@@ -191,11 +215,7 @@ func requiresEnrollOTAAuthentication(ctx context.Context, ds fleet.Datastore, en
 	}
 
 	if secret.TeamID == nil { // enroll in "no team"
-		ac, err := ds.AppConfig(ctx)
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "get app config for no-team settings")
-		}
-		return ac.MDM.MacOSSetup.EnableEndUserAuthentication, nil
+		return noTeamIdPEnabled, nil
 	}
 
 	tm, err := ds.Team(ctx, *secret.TeamID)
