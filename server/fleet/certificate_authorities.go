@@ -57,3 +57,31 @@ type CertificateAuthority struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
+
+type CertificateAuthorityPayload struct {
+	DigiCert        *DigiCertIntegration        `json:"digicert,omitempty"`
+	NDESSCEPProxy   *NDESSCEPProxyIntegration   `json:"ndes_scep_proxy,omitempty"`
+	CustomSCEPProxy *CustomSCEPProxyIntegration `json:"custom_scep_proxy,omitempty"`
+	Hydrant         *HydrantCA                  `json:"hydrant,omitempty"`
+}
+
+type HydrantCA struct {
+	Name         string `json:"name"`
+	URL          string `json:"url"`
+	ClientID     string `json:"client_id,omitempty" db:"client_id"`
+	ClientSecret string `json:"client_secret,omitempty" db:"-"`
+}
+
+func (h *HydrantCA) Equals(other *HydrantCA) bool {
+	return h.Name == other.Name &&
+		h.URL == other.URL &&
+		h.ClientID == other.ClientID &&
+		(h.ClientSecret == "" || h.ClientSecret == MaskedPassword || h.ClientSecret == other.ClientSecret)
+}
+
+func (h *HydrantCA) NeedToVerify(other *HydrantCA) bool {
+	return h.Name != other.Name ||
+		h.URL != other.URL ||
+		h.ClientID != other.ClientID ||
+		!(h.ClientSecret == "" || h.ClientSecret == MaskedPassword || h.ClientSecret == other.ClientSecret)
+}

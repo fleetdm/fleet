@@ -2231,7 +2231,7 @@ func preprocessWindowsProfileContents(
 	profileContents string,
 ) string {
 	// Check if Fleet variables are present
-	fleetVars := findFleetVariables(profileContents)
+	fleetVars := fleet.FindFleetVariables(profileContents)
 	if len(fleetVars) == 0 {
 		// No variables to replace, return original content
 		return profileContents
@@ -2352,7 +2352,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 
 		// Check if the profile contains Fleet variables
 		profileStr := string(p.SyncML)
-		fleetVars := findFleetVariables(profileStr)
+		fleetVars := fleet.FindFleetVariables(profileStr)
 
 		if len(fleetVars) == 0 {
 			// No Fleet variables, send the same command to all hosts

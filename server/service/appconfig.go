@@ -1407,7 +1407,7 @@ func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
 		invalid.Append("integrations.digicert.certificate_common_name", "CA Common Name (CN) cannot be empty")
 		return false
 	}
-	fleetVars := findFleetVariables(cn)
+	fleetVars := fleet.FindFleetVariables(cn)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
@@ -1425,7 +1425,7 @@ func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
 		invalid.Append("integrations.digicert.certificate_seat_id", "CA Seat ID cannot be empty")
 		return false
 	}
-	fleetVars := findFleetVariables(seatID)
+	fleetVars := fleet.FindFleetVariables(seatID)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
@@ -1452,7 +1452,7 @@ func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.Inva
 			"DigiCert CA certificate user principal name cannot be empty if specified")
 		return false
 	}
-	fleetVars := findFleetVariables(userPrincipalNames[0])
+	fleetVars := fleet.FindFleetVariables(userPrincipalNames[0])
 	for fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):

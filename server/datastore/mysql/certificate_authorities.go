@@ -67,17 +67,17 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	type,
 	name,
 	url,
-	api_token,
+	api_token_encrypted,
 	profile_id,
 	certificate_common_name,
 	certificate_user_principal_names,
 	certificate_seat_id,
 	admin_url,
 	username,
-	password,
-	challenge,
+	password_encrypted,
+	challenge_encrypted,
 	client_id,
-	client_secret
+	client_secret_encrypted
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {

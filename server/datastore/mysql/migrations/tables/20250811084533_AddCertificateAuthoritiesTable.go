@@ -82,11 +82,6 @@ func Up_20250811084533(tx *sql.Tx) error {
 	}
 
 	// Populate the table with existing data from app_config_json
-	// if appConfigJSON.integrations.ndes_scep_proxy ...
-	// if appConfigJSON.integrations.custom_scep_proxy
-	// if appConfigJSON.integrations.hydrant ...
-	// if appConfigJSON.integrations.digicert ...
-
 	appConfigSelect := `SELECT json_value FROM app_config_json LIMIT 1`
 	var appConfigJSON fleet.AppConfig
 	jsonBytes := []byte{}

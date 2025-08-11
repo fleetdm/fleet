@@ -1482,7 +1482,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	}
 
 	// Collect Fleet variables used in the profile
-	foundVars := findFleetVariables(string(cp.SyncML))
+	foundVars := fleet.FindFleetVariables(string(cp.SyncML))
 	var usesFleetVars []fleet.FleetVarName
 	for varName := range foundVars {
 		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
@@ -1529,7 +1529,7 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 }
 
 func validateWindowsProfileFleetVariables(contents string) error {
-	foundVars := findFleetVariables(contents)
+	foundVars := fleet.FindFleetVariables(contents)
 	if len(foundVars) == 0 {
 		return nil
 	}
@@ -1863,7 +1863,7 @@ func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, app
 			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
 		}
 		// Collect Fleet variables for Windows profiles (use unique Name as identifier for Windows)
-		windowsVars := findFleetVariables(string(p.SyncML))
+		windowsVars := fleet.FindFleetVariables(string(p.SyncML))
 		if len(windowsVars) > 0 {
 			profileVarsByProfIdentifier[p.Name] = windowsVars
 		}

@@ -1060,3 +1060,42 @@ type MDMCommandResults interface {
 }
 
 type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error
+
+func FindFleetVariables(contents string) map[string]struct{} {
+	resultSlice := FindFleetVariablesKeepDuplicates(contents)
+	if len(resultSlice) == 0 {
+		return nil
+	}
+	return DedupeFleetVariables(resultSlice)
+}
+
+func DedupeFleetVariables(varsWithDupes []string) map[string]struct{} {
+	result := make(map[string]struct{}, len(varsWithDupes))
+	for _, v := range varsWithDupes {
+		result[v] = struct{}{}
+	}
+	return result
+}
+
+func FindFleetVariablesKeepDuplicates(contents string) []string {
+	var result []string
+	matches := mdm_types.ProfileVariableRegex.FindAllStringSubmatch(contents, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	nameToIndex := make(map[string]int, 2)
+	for i, name := range mdm_types.ProfileVariableRegex.SubexpNames() {
+		if name == "" {
+			continue
+		}
+		nameToIndex[name] = i
+	}
+	for _, match := range matches {
+		for _, i := range nameToIndex {
+			if match[i] != "" {
+				result = append(result, match[i])
+			}
+		}
+	}
+	return result
+}
