@@ -140,4 +140,23 @@ Fleet should include `statusReportingSettings` in a policy for each host, so Fle
 
 ## Verification of configuration profiles
 
-...
+Verification will rely on pub/sub notifications. Google sends notifications for different eventes and one of them is `STATUS_REPORT`. Status report happens always when something changes on device (e.g. `appliedPolicyVersion` changes or `apiLevel` changes).
+
+When new settings are available through configuration profiles and Fleet send request to patch policy, we should wait on `STATUS_REPORT`. If correct policy and version is applied to a host, but there's `nonComplianceReason` in status report, that means that some setting haven't been applied (e.g. not compatible with device or OS).
+
+
+More information on what we should look for to determine the status of the configuration profile is provided below.
+
+### Configuration profile statuses:
+
+**Enforcing (pending)**: after profile is uploaded, it will stay in pending until Fleet sends request to AMAPI (PATCH policy) and get `STATUS_REPORT` from host (via pub/sub notifications).
+
+**Veryfing**: Skipped.
+
+**Verified**: Profile is verified if `STATUS_REPORT` confirms that policy is updated (version is correct) and there’s no `nonComplianceReason` for settings that are included in profile.
+
+**Removing enforcement (pending)**: after profile is deleted, Fleet sends request to AMAPI to patch policy to delete settings from the profile. it will stay in pending until Fleet gets `STATUS_REPORT` that confirms that policy is updated (version is correct).
+
+**Failed**: 
+- If Android Management API request (PATCH policy) fails.
+- If `STATUS_REPORT` from host returns `nonComplianceReason` for setting that is included in profile.
