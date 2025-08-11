@@ -1715,8 +1715,12 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	if app.SHA256 != noCheckHash {
 		payload.SHA256 = app.SHA256
 	}
-	payload.InstallScript = app.InstallScript
-	payload.UninstallScript = app.UninstallScript
+	if payload.InstallScript == "" {
+		payload.InstallScript = app.InstallScript
+	}
+	if payload.UninstallScript == "" {
+		payload.UninstallScript = app.UninstallScript
+	}
 	payload.FleetMaintained = true
 	payload.MaintainedApp = app
 	if len(payload.Categories) == 0 {
@@ -2000,7 +2004,6 @@ func (svc *Service) softwareBatchUpload(
 					}
 				}
 				extension := strings.TrimLeft(filepath.Ext(installer.Filename), ".")
-				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
 				installer.Title = appName
 				installer.Version = p.MaintainedApp.Version
 
@@ -2026,8 +2029,6 @@ func (svc *Service) softwareBatchUpload(
 				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
 				installer.StorageID = p.MaintainedApp.SHA256
 				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
-				installer.AutomaticInstall = p.AutomaticInstall != nil && *p.AutomaticInstall
-				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
 			}
 
 			var ext string

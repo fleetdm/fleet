@@ -200,8 +200,16 @@ func TestValidGitOpsYaml(t *testing.T) {
 						switch fma.Slug {
 						case "slack/darwin":
 							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+							require.Empty(t, fma.PreInstallQuery)
+							require.Empty(t, fma.PostInstallScript)
+							require.Empty(t, fma.InstallScript)
+							require.Empty(t, fma.UninstallScript)
 						case "box-drive/windows":
 							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+							require.NotEmpty(t, fma.PreInstallQuery)
+							require.NotEmpty(t, fma.PostInstallScript)
+							require.NotEmpty(t, fma.InstallScript)
+							require.NotEmpty(t, fma.UninstallScript)
 						default:
 							assert.FailNow(t, "unexpected slug found in gitops file", "slug: %s", fma.Slug)
 						}
