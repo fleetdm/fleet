@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -45,6 +46,8 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 
 	caToCreate := &fleet.CertificateAuthority{}
 
+	var activity fleet.ActivityDetails
+
 	if p.DigiCert != nil {
 		p.DigiCert.Name = fleet.Preprocess(p.DigiCert.Name)
 		p.DigiCert.URL = fleet.Preprocess(p.DigiCert.URL)
@@ -60,6 +63,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.CertificateCommonName = &p.DigiCert.CertificateCommonName
 		caToCreate.CertificateUserPrincipalNames = p.DigiCert.CertificateUserPrincipalNames
 		caToCreate.CertificateSeatID = &p.DigiCert.CertificateSeatID
+		activity = fleet.ActivityAddedDigiCert{Name: p.DigiCert.Name}
 	}
 
 	if p.Hydrant != nil {
@@ -74,6 +78,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.URL = p.Hydrant.URL
 		caToCreate.ClientID = &p.Hydrant.ClientID
 		caToCreate.ClientSecret = &p.Hydrant.ClientSecret
+		activity = fleet.ActivityAddedHydrant{}
 	}
 
 	if p.NDESSCEPProxy != nil {
@@ -91,6 +96,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.AdminURL = ptr.String(p.NDESSCEPProxy.AdminURL)
 		caToCreate.Username = ptr.String(p.NDESSCEPProxy.Username)
 		caToCreate.Password = &p.NDESSCEPProxy.Password
+		activity = fleet.ActivityAddedNDESSCEPProxy{}
 	}
 
 	if p.CustomSCEPProxy != nil {
@@ -105,6 +111,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.Name = p.CustomSCEPProxy.Name
 		caToCreate.URL = p.CustomSCEPProxy.URL
 		caToCreate.Challenge = &p.CustomSCEPProxy.Challenge
+		activity = fleet.ActivityAddedCustomSCEPProxy{Name: p.CustomSCEPProxy.Name}
 	}
 
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
@@ -115,10 +122,10 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		}
 	}
 
-	// TODO
-	// svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, newSCEPProxy)
-	// err := svc.scepConfigService.ValidateSCEPURL(ctx, newSCEPProxy.URL)
-	// fleet.preprocess(url, adminUrl, etc...)
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+		return nil, fmt.Errorf("recording activity for new %s certificate authority %s: %w", caToCreate.Type, caToCreate.Name, err)
+	}
+
 	return createdCA, nil
 }
 
