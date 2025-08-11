@@ -131,7 +131,12 @@ func ServeEndUserEnrollOTA(
 			}
 
 			if cookieIdPRef == "" {
-				// TODO(mna): redirect to IdP SSO
+				// IdP authentication has not been completed yet, initiate it by
+				// redirecting to the configured IdP provider.
+				if err := initiateOTAEnrollSSO(svc, w, r, enrollSecret); err != nil {
+					herr(w, "initiate IdP SSO authentication err: "+err.Error())
+					return
+				}
 				return
 			}
 		}
@@ -223,6 +228,16 @@ func requiresEnrollOTAAuthentication(ctx context.Context, ds fleet.Datastore, en
 		return false, ctxerr.Wrap(ctx, err, "get team for settings")
 	}
 	return tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication, nil
+}
+
+func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Request, enrollSecret string) error {
+	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMAppleSSO(r.Context(), "ota_enroll", "/enroll?enroll_secret="+url.QueryEscape(enrollSecret))
+	if err != nil {
+		return err
+	}
+	setSSOCookie(w, ssnID, ssnDurationSecs)
+	http.Redirect(w, r, idpURL, http.StatusSeeOther)
+	return nil
 }
 
 func ServeStaticAssets(path string) http.Handler {
