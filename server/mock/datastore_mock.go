@@ -771,6 +771,8 @@ type UpdateJobFunc func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Jo
 
 type CleanupWorkerJobsFunc func(ctx context.Context, failedSince time.Duration, completedSince time.Duration) (int64, error)
 
+type GetJobFunc func(ctx context.Context, jobID uint) (*fleet.Job, error)
+
 type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
@@ -1178,6 +1180,8 @@ type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.
 type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
 
 type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
+
+type CancelBatchScriptFunc func(ctx context.Context, executionID string) error
 
 type ListBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error)
 
@@ -2572,6 +2576,9 @@ type DataStore struct {
 	CleanupWorkerJobsFunc        CleanupWorkerJobsFunc
 	CleanupWorkerJobsFuncInvoked bool
 
+	GetJobFunc        GetJobFunc
+	GetJobFuncInvoked bool
+
 	InnoDBStatusFunc        InnoDBStatusFunc
 	InnoDBStatusFuncInvoked bool
 
@@ -3183,6 +3190,9 @@ type DataStore struct {
 
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
+
+	CancelBatchScriptFunc        CancelBatchScriptFunc
+	CancelBatchScriptFuncInvoked bool
 
 	ListBatchScriptExecutionsFunc        ListBatchScriptExecutionsFunc
 	ListBatchScriptExecutionsFuncInvoked bool
@@ -6210,6 +6220,13 @@ func (s *DataStore) CleanupWorkerJobs(ctx context.Context, failedSince time.Dura
 	return s.CleanupWorkerJobsFunc(ctx, failedSince, completedSince)
 }
 
+func (s *DataStore) GetJob(ctx context.Context, jobID uint) (*fleet.Job, error) {
+	s.mu.Lock()
+	s.GetJobFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetJobFunc(ctx, jobID)
+}
+
 func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
 	s.mu.Lock()
 	s.InnoDBStatusFuncInvoked = true
@@ -7636,6 +7653,13 @@ func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string)
 	s.BatchExecuteSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchExecuteSummaryFunc(ctx, executionID)
+}
+
+func (s *DataStore) CancelBatchScript(ctx context.Context, executionID string) error {
+	s.mu.Lock()
+	s.CancelBatchScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelBatchScriptFunc(ctx, executionID)
 }
 
 func (s *DataStore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {

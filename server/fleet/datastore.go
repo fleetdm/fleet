@@ -1079,6 +1079,9 @@ type Datastore interface {
 	// provided durations. It returns the number of jobs deleted and an error.
 	CleanupWorkerJobs(ctx context.Context, failedSince, completedSince time.Duration) (int64, error)
 
+	// GetJob returns a job from the database
+	GetJob(ctx context.Context, jobID uint) (*Job, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 
@@ -1826,6 +1829,9 @@ type Datastore interface {
 
 	// BatchExecuteSummary returns the summary of a batch script execution
 	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchActivity, error)
+
+	// CancelBatchScript cancels the execution of a batch script execution
+	CancelBatchScript(ctx context.Context, executionID string) error
 
 	// ListBatchScriptExecutions returns a filtered list of batch script executions, with summaries.
 	ListBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchActivity, error)

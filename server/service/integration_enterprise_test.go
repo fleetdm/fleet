@@ -6701,6 +6701,68 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	)
 }
 
+func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
+	t := s.T()
+	ctx := context.Background()
+
+	host1 := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	host2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
+	host3 := createOrbitEnrolledHost(t, "linux", "host3", s.ds)
+	host4 := createOrbitEnrolledHost(t, "linux", "host4", s.ds)
+
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		ScriptContents: "echo bonjour",
+	})
+	require.NoError(t, err)
+
+	// Immediate execution
+	var batchRes batchScriptRunResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID},
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	var batchStatusResp batchScriptExecutionStatusResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+
+	var batchCancelResp batchScriptCancelResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchRes.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(0))
+	require.Equal(t, *batchStatusResp.NumCanceled, uint(2))
+
+	// Future execution
+	var batchResScheduled batchScriptRunResponse
+	scheduleTime := time.Now().Add(3 * time.Hour)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID:  script.ID,
+		HostIDs:   []uint{host3.ID, host4.ID},
+		NotBefore: &scheduleTime,
+	}, http.StatusOK, &batchResScheduled)
+	require.NotEmpty(t, batchResScheduled.BatchExecutionID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(0))
+	require.Equal(t, *batchStatusResp.NumCanceled, uint(2))
+}
+
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	t := s.T()
 

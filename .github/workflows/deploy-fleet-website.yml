@@ -115,6 +115,7 @@ jobs:
     # Deploy to Heroku
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
     - name: Deploy to Heroku
+      run: |
         set -euo pipefail
         git add -A
         # Create a git tree object that contains only the changes in the /website folder.
@@ -126,6 +127,6 @@ jobs:
         # Push the parentless commit to Heroku
         # Note: The commit pushed to Heroku will not contain the full git history.
         # This lets up deploy the website from the Fleet monorepo while working around Heroku's pack size limits. 
-        git push heroku "$COMMIT":master --force
+        git push heroku "$COMMIT":refs/heads/master --force
     - name: 🌐 https://fleetdm.com
       run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'
