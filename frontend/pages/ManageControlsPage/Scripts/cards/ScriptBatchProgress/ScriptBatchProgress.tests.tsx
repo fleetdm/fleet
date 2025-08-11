@@ -28,8 +28,9 @@ const emptyTeamBatchSummariesHandler = http.get(baseUrl("/scripts/batch"), () =>
 
 const teamBatchSummariesHandler = http.get(
   baseUrl("/scripts/batch"),
-  ({ params }) => {
-    const { status } = params;
+  ({ request }) => {
+    const url = new URL(request.url);
+    const status = url.searchParams.get("status");
     if (status === "started") {
       return HttpResponse.json({
         batch_executions: [
@@ -44,6 +45,47 @@ const teamBatchSummariesHandler = http.get(
         count: 1,
       });
     }
+    if (status === "scheduled") {
+      return HttpResponse.json({
+        batch_executions: [
+          createMockBatchScriptSummary({
+            script_name: "Test Script 1",
+            status: "scheduled",
+            finished_at: null,
+            not_before: "2099-01-01T10:11:00.000Z",
+          }),
+        ],
+        meta: { has_next_results: false, has_previous_results: false },
+        count: 1,
+      });
+    }
+    if (status === "finished") {
+      return HttpResponse.json({
+        batch_executions: [
+          createMockBatchScriptSummary({
+            script_name: "Test Script 1",
+            status: "finished",
+            finished_at: "2025-07-01T10:00:00Z",
+          }),
+          createMockBatchScriptSummary({
+            script_name: "Test Script 2",
+            status: "finished",
+            canceled: true,
+            finished_at: "2025-06-02T11:12:00Z",
+            targeted_host_count: 50,
+            ran_host_count: 5,
+            pending_host_count: 0,
+            errored_host_count: 15,
+            incompatible_host_count: 5,
+            canceled_host_count: 25,
+          }),
+        ],
+        meta: { has_next_results: false, has_previous_results: false },
+        count: 1,
+      });
+    }
+
+    return HttpResponse.json({});
     // TODO if status param === "scheduled"
 
     // TODO if status param === "finished"
@@ -91,39 +133,91 @@ const testTabURLNavAndEmpty = async (status: ScriptBatchStatus) => {
 };
 
 describe("ScriptBatchProgress", () => {
-  it("Renders each tab and its empty state from URL navigation", async () => {
+  it("Renders 'started' empty state from URL navigation", async () => {
     mockServer.use(emptyTeamBatchSummariesHandler);
-
     await testTabURLNavAndEmpty("started");
-    await testTabURLNavAndEmpty("scheduled");
-    testTabURLNavAndEmpty("finished");
   });
 
-  // it("Renders each tab with appropriate scripts list", async () => {
-  //   mockServer.use(teamBatchSummariesHandler);
+  it("Renders 'scheduled' empty state from URL navigation", async () => {
+    mockServer.use(emptyTeamBatchSummariesHandler);
+    await testTabURLNavAndEmpty("scheduled");
+  });
 
-  //   const render = createCustomRenderer({
-  //     withBackendMock: true,
-  //   });
+  it("Renders 'finished' empty state from URL navigation", async () => {
+    mockServer.use(emptyTeamBatchSummariesHandler);
+    await testTabURLNavAndEmpty("finished");
+  });
 
-  //   const { container } = render(
-  //     <ScriptBatchProgress
-  //       router={createMockRouter()}
-  //       teamId={1}
-  //       location={getTestLocation("started")}
-  //     />
-  //   );
+  it("Renders the 'started' tab with appropriate scripts list", async () => {
+    mockServer.use(teamBatchSummariesHandler);
 
-  //   await waitForLoadingToFinish(container);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
 
-  //   expect(screen.getByText("Test Script 1")).toBeInTheDocument();
-  //   expect(screen.getByText("just now")).toBeInTheDocument();
-  //   // (ran + errored) / targeted
-  //   expect(screen.getByText("65 / 100")).toBeInTheDocument();
-  //   expect(screen.getByText("hosts")).toBeInTheDocument();
+    const { container } = render(
+      <ScriptBatchProgress
+        router={createMockRouter()}
+        teamId={1}
+        location={getTestLocation("started")}
+      />
+    );
 
-  //   // TODO - click Scheduled, expect scheduled script summaries
+    await waitForLoadingToFinish(container);
 
-  //   // TODO - click Finished, expect scheduled script summaries
-  // });
+    expect(screen.getByText("Test Script 1")).toBeInTheDocument();
+    expect(screen.getByText("less than a minute ago")).toBeInTheDocument();
+    // (ran + errored) / targeted
+    expect(screen.getByText(/65\s+\/\s+100/m)).toBeInTheDocument();
+    expect(screen.getByText(/hosts/)).toBeInTheDocument();
+  });
+
+  it("Renders the 'scheduled' tab with appropriate scripts list", async () => {
+    mockServer.use(teamBatchSummariesHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    const { container } = render(
+      <ScriptBatchProgress
+        router={createMockRouter()}
+        teamId={1}
+        location={getTestLocation("scheduled")}
+      />
+    );
+
+    await waitForLoadingToFinish(container);
+
+    expect(screen.getByText("Test Script 1")).toBeInTheDocument();
+    expect(screen.getByText(/Scheduled to start/)).toBeInTheDocument();
+    expect(screen.getByText(/in over \d+ years/)).toBeInTheDocument();
+  });
+
+  it("Renders the 'finished' tab with appropriate scripts list", async () => {
+    mockServer.use(teamBatchSummariesHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    const { container } = render(
+      <ScriptBatchProgress
+        router={createMockRouter()}
+        teamId={1}
+        location={getTestLocation("finished")}
+      />
+    );
+
+    await waitForLoadingToFinish(container);
+
+    // Not a 100% awesome test because we're not correlating the script names
+    // with the summaries.
+    expect(screen.getByText(/Test Script 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Completed/)).toBeInTheDocument();
+    expect(screen.getByText(/65\s+\/\s+100/m)).toBeInTheDocument();
+    expect(screen.getByText("Test Script 2")).toBeInTheDocument();
+    expect(screen.getByText(/Canceled/)).toBeInTheDocument();
+    expect(screen.getByText(/20\s+\/\s+50/m)).toBeInTheDocument();
+  });
 });

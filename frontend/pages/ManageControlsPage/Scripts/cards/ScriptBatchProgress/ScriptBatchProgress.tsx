@@ -39,7 +39,7 @@ export const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, string> = {
   scheduled:
     "When a script is scheduled to run in the future, it will appear here.",
   finished:
-    "When a batch script is completed or cancelled, historical results will appear here.",
+    "When a batch script is completed or canceled, historical results will appear here.",
 };
 
 const getEmptyState = (status: ScriptBatchStatus) => {
@@ -175,7 +175,7 @@ const ScriptBatchProgress = ({
         }
         return (
           <>
-            Scheduled to start in{" "}
+            Scheduled to start{" "}
             <HumanTimeDiffWithFleetLaunchCutoff
               timeString={not_before}
               tooltipPosition="right"
@@ -196,7 +196,7 @@ const ScriptBatchProgress = ({
               color="ui-fleet-black-50"
               size="small"
             />
-            {canceled ? "Cancelled" : "Completed"}
+            {canceled ? "Canceled" : "Completed"}
             <HumanTimeDiffWithFleetLaunchCutoff
               timeString={finished_at}
               tooltipPosition="right"
