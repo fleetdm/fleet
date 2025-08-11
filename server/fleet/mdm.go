@@ -805,6 +805,20 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	return clone
 }
 
+type CAConfigAssetType string
+
+const (
+	CAConfigNDES            CAConfigAssetType = "ndes"
+	CAConfigDigiCert        CAConfigAssetType = "digicert"
+	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
+)
+
+type CAConfigAsset struct {
+	Name  string            `db:"name"`
+	Value []byte            `db:"value"`
+	Type  CAConfigAssetType `db:"type"`
+}
+
 // MDMPlatform returns "darwin" or "windows" as MDM platforms
 // derived from a host's platform (hosts.platform field).
 //
