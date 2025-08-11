@@ -10147,9 +10147,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium._
 
-Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI, Fleet display icons for the most popular titles across all teams and versions. Icons updated via this endpoint will only override the icon for the software title and team where they are added.
-
-The icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI, Fleet displays icons for the most popular titles across all teams and versions. Icons updated through this endpoint will only replace the icon for the specific software title and team where they are added.
+Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
 
 `PATCH /api/v1/fleet/software/titles/:id/icon`
 
