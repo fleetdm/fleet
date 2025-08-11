@@ -1095,13 +1095,3 @@ allow {
   subject.global_role == admin
   action == write
 }
-
-##
-# Certificate Authorities
-##
-# Global admins and GitOps can configure and read certificate Authorities
-allow {
-  object.type == "certificate_authority"
-  subject.global_role == [admin, gitops][_]
-  action == [read, write][_]
-}
