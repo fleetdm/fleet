@@ -10149,7 +10149,7 @@ _Available in Fleet Premium._
 
 Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
 
-`PATCH /api/v1/fleet/software/titles/:id/icon`
+`PUT /api/v1/fleet/software/titles/:id/icon`
 
 #### Parameters
 
@@ -10157,7 +10157,7 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 | ----            | ------- | ---- | --------------------------------------------     |
 | id              | integer | path | ID of the software title being updated. |
 | icon            | file    | form | Must be PNG format. It must be a square with dimensions ranging from 120x120 px to 1024x1024 px. |
-| team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
+| team_id         | integer | path | **Required**. The team ID. Updates a software package in the specified team. |
 
 #### Example
 
@@ -10173,14 +10173,10 @@ Content-Type: multipart/form-data; boundary=------------------------d8c247122f59
 ##### Request body
 
 ```http
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="team_id"
-1
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="icon"; filename="crowdstrike-icon-512x512.png"
+
+Content-Disposition: form-data; filename="crowdstrike-icon-512x512.png"
 Content-Type: application/octet-stream
 <DATA>
---------------------------d8c247122f594ba0
 ```
 
 ##### Default response
