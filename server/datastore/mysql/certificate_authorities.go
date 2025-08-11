@@ -87,6 +87,6 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last insert ID for new certificate authority %s: %w", ca.Name, err)
 	}
-	ca.ID = id
+	ca.ID = uint(id)
 	return ca, nil
 }
