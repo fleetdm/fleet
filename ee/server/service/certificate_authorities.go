@@ -46,6 +46,8 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 
 	var activity fleet.ActivityDetails
 
+	caDisplayType := "Unknown"
+
 	if p.DigiCert != nil {
 		p.DigiCert.Name = fleet.Preprocess(p.DigiCert.Name)
 		p.DigiCert.URL = fleet.Preprocess(p.DigiCert.URL)
@@ -61,6 +63,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.CertificateCommonName = &p.DigiCert.CertificateCommonName
 		caToCreate.CertificateUserPrincipalNames = p.DigiCert.CertificateUserPrincipalNames
 		caToCreate.CertificateSeatID = &p.DigiCert.CertificateSeatID
+		caDisplayType = "DigiCert"
 		activity = fleet.ActivityAddedDigiCert{Name: p.DigiCert.Name}
 	}
 
@@ -76,6 +79,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.URL = p.Hydrant.URL
 		caToCreate.ClientID = &p.Hydrant.ClientID
 		caToCreate.ClientSecret = &p.Hydrant.ClientSecret
+		caDisplayType = "Hydrant"
 		activity = fleet.ActivityAddedHydrant{}
 	}
 
@@ -94,6 +98,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.AdminURL = ptr.String(p.NDESSCEPProxy.AdminURL)
 		caToCreate.Username = ptr.String(p.NDESSCEPProxy.Username)
 		caToCreate.Password = &p.NDESSCEPProxy.Password
+		caDisplayType = "NDES SCEP"
 		activity = fleet.ActivityAddedNDESSCEPProxy{}
 	}
 
@@ -109,14 +114,14 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.Name = p.CustomSCEPProxy.Name
 		caToCreate.URL = p.CustomSCEPProxy.URL
 		caToCreate.Challenge = &p.CustomSCEPProxy.Challenge
+		caDisplayType = "custom SCEP"
 		activity = fleet.ActivityAddedCustomSCEPProxy{Name: p.CustomSCEPProxy.Name}
 	}
 
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
 		if strings.Contains(err.Error(), "idx_ca_type_name") {
-			// TODO Make sure this works
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Couldn’t add certificate authority. \"%s\" name is already used by another certificate authority. Please choose a different name and try again.", caToCreate.Name)}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Couldn’t add certificate authority. \"%s\" name is already used by another %s certificate authority. Please choose a different name and try again.", caToCreate.Name, caDisplayType)}
 		}
 	}
 
@@ -241,14 +246,22 @@ func validateHydrant(hydrantCA *fleet.HydrantCA) error {
 	if err := validateURL(hydrantCA.URL); err != nil {
 		return err
 	}
+	if err := validateURL(hydrantCA.URL); err != nil {
+		return err
+	}
 	// TODO HCA Validate Hydrant Parameters
+	if hydrantCA.ClientID == "" {
+		return fleet.NewInvalidArgumentError("client_id", "Invalid Hydrant Client ID. Please correct and try again.")
+	}
+	if hydrantCA.ClientSecret == "" {
+		return fleet.NewInvalidArgumentError("client_secret", "Invalid Hydrant Client Secret. Please correct and try again.")
+	}
 	return nil
 }
 
 func validateURL(caURL string) error {
 	if u, err := url.ParseRequestURI(caURL); err != nil {
-		return fleet.NewInvalidArgumentError("url",
-			err.Error())
+		return fleet.NewInvalidArgumentError("url", "Invalid URL. Please correct and try again.")
 	} else if u.Scheme != "https" && u.Scheme != "http" {
 		return fleet.NewInvalidArgumentError("url", "URL scheme must be https or http")
 	}
@@ -260,10 +273,10 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 		return err
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, ndesSCEP.URL); err != nil {
-		return fleet.NewInvalidArgumentError("url", err.Error())
+		return fleet.NewInvalidArgumentError("url", "Invalid SCEP URL. Please correct and try again.")
 	}
 	if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, *ndesSCEP); err != nil {
-		return fleet.NewInvalidArgumentError("admin_url", err.Error())
+		return fleet.NewInvalidArgumentError("admin_url", "Invalid admin URL or credentials. Please correct and try again.")
 	}
 
 	if len(strings.TrimSpace(ndesSCEP.AdminURL)) == 0 {
