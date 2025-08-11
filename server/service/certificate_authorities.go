@@ -28,7 +28,12 @@ func listCertificateAuthoritiesEndpoint(ctx context.Context, req any, svc fleet.
 func (svc *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 	svc.authz.SkipAuthorization(ctx)
 	// Implementation here
-	return []*fleet.CertificateAuthoritySummary{{ID: 1, Name: "CA1", Type: "digicert"}}, nil
+	cas, err := svc.ds.ListCertificateAuthorities(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return cas, nil
 }
 
 type getCertificateAuthorityRequest struct {

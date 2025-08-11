@@ -60,6 +60,13 @@ func (ds *Datastore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.C
 		name
 	`
 
+	return []*fleet.CertificateAuthoritySummary{
+		{ID: 1, Name: "Example CA", Type: "digicert"},
+		{ID: 2, Name: "Example CA 2", Type: "hydrant"},
+		{ID: 3, Name: "Example CA 3", Type: "ndes_scep_proxy"},
+		{ID: 4, Name: "Example CA 4", Type: "custom_scep_proxy"},
+	}, nil
+
 	var cas []*fleet.CertificateAuthoritySummary
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cas, stmt); err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "list CertificateAuthorities")
