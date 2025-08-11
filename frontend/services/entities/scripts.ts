@@ -262,6 +262,10 @@ export default {
     const { SCRIPT_RUN_BATCH } = endpoints;
     return sendRequest("POST", SCRIPT_RUN_BATCH, request);
   },
+  cancelScriptBatch(batchExecutionId: string) {
+    const { SCRIPT_CANCEL_BATCH } = endpoints;
+    return sendRequest("POST", SCRIPT_CANCEL_BATCH(batchExecutionId));
+  },
   /** calls the deprecated endpoint */
   getRunScriptBatchSummary({
     batch_execution_id,
