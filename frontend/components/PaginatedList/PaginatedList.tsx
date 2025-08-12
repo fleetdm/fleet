@@ -255,7 +255,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
               key={item[idKey]}
               onClick={() => {
                 if (itemDisabled) return;
-                const clickedItem = onClickRow(item);
+                const clickedItem = onClickRow ? onClickRow(item) : item;
                 if (setDirtyOnClickRow)
                   setDirtyItems({
                     ...dirtyItems,
