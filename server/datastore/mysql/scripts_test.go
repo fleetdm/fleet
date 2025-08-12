@@ -2175,6 +2175,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	host4 := test.NewHost(t, ds, "host4", "10.0.0.5", "host4key", "host4uuid", time.Now())
 	hostTeam1 := test.NewHost(t, ds, "hostTeam1", "10.0.0.6", "hostTeam1key", "hostTeam1uuid", time.Now(), test.WithTeamID(team1.ID))
 	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"))
+	hostNoScripts := test.NewHost(t, ds, "hostNoScripts", "10.0.0.1", "hostnoscripts", "hostnoscriptsuuid", time.Now())
 
 	test.SetOrbitEnrollment(t, host1, ds)
 	test.SetOrbitEnrollment(t, host2, ds)
@@ -2258,8 +2259,8 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	}
 
 	// Schedule script where most hosts will fail for various reaons
-	// These would all be checked for validity before insertion if submitted by a user
-	execID, err = ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host4.ID, hostWindows.ID, hostTeam1.ID, 0xbeef}, scheduledTime)
+	// These would be checked for some validity before insertion if submitted by a user
+	execID, err = ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host4.ID, hostWindows.ID, hostTeam1.ID, hostNoScripts.ID, 0xbeef}, scheduledTime)
 	require.NoError(t, err)
 	require.NotEmpty(t, execID)
 
@@ -2271,18 +2272,18 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, execID, batchActivity.BatchExecutionID)
 	require.NotNil(t, batchActivity.StartedAt)
 	require.Equal(t, fleet.BatchExecutionStarted, batchActivity.Status)
-	require.Equal(t, uint(4), *batchActivity.NumTargeted)
+	require.Equal(t, uint(5), *batchActivity.NumTargeted)
 
 	executions, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &execID,
 	})
 	require.NoError(t, err)
 	require.Len(t, executions, 1)
-	require.Equal(t, uint(3), *executions[0].NumIncompatible)
+	require.Equal(t, uint(4), *executions[0].NumIncompatible)
 
 	hostResults, err = ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)
-	require.Len(t, hostResults, 4)
+	require.Len(t, hostResults, 5)
 	for _, hostResult := range hostResults {
 		require.Equal(t, execID, hostResult.BatchExecutionID)
 		var upcomingScripts []*fleet.HostScriptResult
@@ -2305,6 +2306,11 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 			require.Len(t, upcomingScripts, 0)
 			require.NotNil(t, hostResult.Error)
 			require.Equal(t, fleet.BatchExecuteIncompatibleTeam, *hostResult.Error)
+		case hostNoScripts.ID:
+			// Host doesn't support scripts
+			require.Len(t, upcomingScripts, 0)
+			require.NotNil(t, hostResult.Error)
+			require.Equal(t, fleet.BatchExecuteIncompatibleFleetd, *hostResult.Error)
 		case 0xbeef:
 			// Host was deleted after scheduling
 			require.NotNil(t, hostResult.Error)
