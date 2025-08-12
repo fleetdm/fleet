@@ -12906,12 +12906,19 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
 ##### Request body
 
 ```json
-[
-  {
-    "id": 123
-    "name": "SOME_API_TOKEN"
-  }
-]
+{
+  "custom_variables": [
+    {
+      "id": 123
+      "name": "SOME_API_TOKEN"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false,
+  },
+  "count": 1
+}
 
 ```
 
