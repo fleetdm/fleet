@@ -59,15 +59,6 @@ const AddSecretModal = ({ onCancel, onSubmit }: AddSecretModalProps) => {
               message: "A secret with this name already exists.",
             },
           });
-        } else {
-          setFormValidation({
-            ...validation,
-            name: {
-              isValid: false,
-              message:
-                "Something went wrong saving your secret. Please try again.",
-            },
-          });
         }
       });
     } else {

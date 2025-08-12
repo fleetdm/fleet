@@ -1,8 +1,8 @@
-import React, { useCallback, useRef, useState } from "react";
-import { InjectedRouter } from "react-router";
+import React, { useCallback, useContext, useRef, useState } from "react";
 
 import { useQueryClient } from "react-query";
 
+import { NotificationContext } from "context/notification";
 import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
 import { ISecret, ISecretPayload } from "interfaces/secrets";
 
@@ -12,22 +12,19 @@ import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
+import Spinner from "components/Spinner";
+import EmptyTable from "components/EmptyTable";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
 import DeleteSecretModal from "./components/DeleteSecretModal";
-import { set } from "lodash";
 
 const baseClass = "secrets-batch-paginated-list";
 
 export const SECRETS_PAGE_SIZE = 6;
 
-interface ISecretsProps {
-  router: InjectedRouter; // v3
-  teamIdForApi: number;
-  currentPage: number;
-}
+const Secrets = () => {
+  const { renderFlash } = useContext(NotificationContext);
 
-const Secrets = ({ router, currentPage, teamIdForApi }: ISecretsProps) => {
   const paginatedListRef = useRef<IPaginatedListHandle<ISecret>>(null);
 
   const [copyMessage, setCopyMessage] = useState("");
@@ -38,12 +35,16 @@ const Secrets = ({ router, currentPage, teamIdForApi }: ISecretsProps) => {
   const [secretToDelete, setSecretToDelete] = useState<ISecret | undefined>();
   const [showAddModal, setShowAddModal] = useState(false);
 
+  const [count, setCount] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
   // Fetch a single page of scripts.
   const queryClient = useQueryClient();
 
   const fetchPage = useCallback(
     (pageNumber: number) => {
       // scripts not supported for All teams
+      setIsLoading(true);
       const fetchPromise = queryClient.fetchQuery(
         [
           {
@@ -57,6 +58,8 @@ const Secrets = ({ router, currentPage, teamIdForApi }: ISecretsProps) => {
       );
 
       return fetchPromise.then(({ secrets }: IListSecretsResponse) => {
+        setCount(secrets?.length ?? 0);
+        setIsLoading(false);
         return secrets || [];
       });
     },
@@ -74,10 +77,19 @@ const Secrets = ({ router, currentPage, teamIdForApi }: ISecretsProps) => {
     };
     const addSecretPromise = secretsAPI.addSecret(newSecret);
     // Handle success by closing the modal and reloading the list.
-    addSecretPromise.then(() => {
-      setShowAddModal(false);
-      paginatedListRef.current?.reload({ keepPage: true });
-    });
+    addSecretPromise
+      .then(() => {
+        setShowAddModal(false);
+        paginatedListRef.current?.reload({ keepPage: true });
+      })
+      .catch((error) => {
+        if (error.status !== 409) {
+          renderFlash(
+            "error",
+            "An error occurred while saving the secret. Please try again."
+          );
+        }
+      });
     // The modal will handle errors and display appropriate messages.
     return addSecretPromise;
   };
@@ -168,10 +180,31 @@ const Secrets = ({ router, currentPage, teamIdForApi }: ISecretsProps) => {
 
   return (
     <div className={`${baseClass}`}>
+      {isLoading && (
+        <div className={`${baseClass}__loading`}>
+          <Spinner />
+        </div>
+      )}
+      {count === 0 && (
+        <EmptyTable
+          header="No custom variables created yet"
+          info="Add a custom variable to make it available in scripts and profiles."
+          primaryButton={
+            <Button onClick={onAddSecret}>Add custom variable</Button>
+          }
+        />
+      )}
+      {count !== null && count > 0 && (
+        <p>
+          Manage custom variables that will be available in scripts and
+          profiles.
+        </p>
+      )}
       <PaginatedList<ISecret>
         ref={paginatedListRef}
+        pageSize={1}
         renderItemRow={renderSecretRow}
-        count={2}
+        count={count || 0}
         fetchPage={fetchPage}
         onClickRow={(secret) => secret}
         heading={

@@ -230,80 +230,84 @@ function PaginatedListInner<TItem extends Record<string, any>>(
           <Spinner />
         </div>
       )}
-      <ul className={`${baseClass}__list`}>
-        {heading && (
-          <li className={`${baseClass}__row ${baseClass}__header`}>
-            {heading}
-          </li>
-        )}
-        {items.map((_item) => {
-          // If an item has been marked as changed, use the changed version
-          // of the item rather than the one from the page fetch.  This allows
-          // us to render an item correctly even after we've navigated away
-          // from its page and then back again.
-          const item = dirtyItems[_item[idKey]] ?? _item;
+      {items.length > 0 && (
+        <>
+          <ul className={`${baseClass}__list`}>
+            {heading && (
+              <li className={`${baseClass}__row ${baseClass}__header`}>
+                {heading}
+              </li>
+            )}
+            {items.map((_item) => {
+              // If an item has been marked as changed, use the changed version
+              // of the item rather than the one from the page fetch.  This allows
+              // us to render an item correctly even after we've navigated away
+              // from its page and then back again.
+              const item = dirtyItems[_item[idKey]] ?? _item;
 
-          const itemDisabled = isItemDisabled && isItemDisabled(item);
+              const itemDisabled = isItemDisabled && isItemDisabled(item);
 
-          const rowClasses = classnames(`${baseClass}__row`, {
-            [`${baseClass}__row--disabled`]: itemDisabled,
-          });
-          return (
-            // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-            <li
-              className={rowClasses}
-              key={item[idKey]}
-              onClick={() => {
-                if (itemDisabled) return;
-                const clickedItem = onClickRow ? onClickRow(item) : item;
-                if (setDirtyOnClickRow)
-                  setDirtyItems({
-                    ...dirtyItems,
-                    [item[idKey]]: clickedItem,
-                  });
-              }}
-            >
-              {useCheckBoxes && isSelected && (
-                <Checkbox
-                  disabled={disabled || itemDisabled}
-                  iconTooltipContent={
-                    getItemTooltipContent && getItemTooltipContent(item)
-                  }
-                  value={
-                    typeof isSelected === "function"
-                      ? isSelected(item)
-                      : item[isSelected]
-                  }
-                  name={`item_${item[idKey]}_checkbox`}
+              const rowClasses = classnames(`${baseClass}__row`, {
+                [`${baseClass}__row--disabled`]: itemDisabled,
+              });
+              return (
+                // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+                <li
+                  className={rowClasses}
+                  key={item[idKey]}
+                  onClick={() => {
+                    if (itemDisabled) return;
+                    const clickedItem = onClickRow ? onClickRow(item) : item;
+                    if (setDirtyOnClickRow)
+                      setDirtyItems({
+                        ...dirtyItems,
+                        [item[idKey]]: clickedItem,
+                      });
+                  }}
                 >
-                  {renderItemLabel ? (
-                    renderItemLabel(item)
-                  ) : (
-                    <TooltipTruncatedText value={<>{item[labelKey]}</>} />
+                  {useCheckBoxes && isSelected && (
+                    <Checkbox
+                      disabled={disabled || itemDisabled}
+                      iconTooltipContent={
+                        getItemTooltipContent && getItemTooltipContent(item)
+                      }
+                      value={
+                        typeof isSelected === "function"
+                          ? isSelected(item)
+                          : item[isSelected]
+                      }
+                      name={`item_${item[idKey]}_checkbox`}
+                    >
+                      {renderItemLabel ? (
+                        renderItemLabel(item)
+                      ) : (
+                        <TooltipTruncatedText value={<>{item[labelKey]}</>} />
+                      )}
+                    </Checkbox>
                   )}
-                </Checkbox>
-              )}
-              {renderItemRow &&
-                // If a custom row renderer was supplied, call it with the item value
-                // as well as the callback the parent can use to indicate changes to an item.
-                renderItemRow(item, (changedItem) => {
-                  setDirtyItems({
-                    ...dirtyItems,
-                    [changedItem[idKey]]: changedItem,
-                  });
-                })}
-            </li>
-          );
-        })}
-      </ul>
-      {helpText && <p className="form-field__help-text">{helpText}</p>}
-      <Pagination
-        disablePrev={currentPage === 0}
-        disableNext={disableNext}
-        onNextPage={() => setCurrentPage(currentPage + 1)}
-        onPrevPage={() => setCurrentPage(currentPage - 1)}
-        hidePagination={currentPage === 0 && disableNext}
-      />
+                  {renderItemRow &&
+                    // If a custom row renderer was supplied, call it with the item value
+                    // as well as the callback the parent can use to indicate changes to an item.
+                    renderItemRow(item, (changedItem) => {
+                      setDirtyItems({
+                        ...dirtyItems,
+                        [changedItem[idKey]]: changedItem,
+                      });
+                    })}
+                </li>
+              );
+            })}
+          </ul>
+          {helpText && <p className="form-field__help-text">{helpText}</p>}
+          <Pagination
+            disablePrev={currentPage === 0}
+            disableNext={disableNext}
+            onNextPage={() => setCurrentPage(currentPage + 1)}
+            onPrevPage={() => setCurrentPage(currentPage - 1)}
+            hidePagination={currentPage === 0 && disableNext}
+          />
+        </>
+      )}
     </div>
   );
 }
