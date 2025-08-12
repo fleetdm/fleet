@@ -26,14 +26,9 @@ func listCertificateAuthoritiesEndpoint(ctx context.Context, req any, svc fleet.
 }
 
 func (svc *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+	// skipauth: No authorization check needed due to implementation returning only license error.
 	svc.authz.SkipAuthorization(ctx)
-	// Implementation here
-	cas, err := svc.ds.ListCertificateAuthorities(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return cas, nil
+	return nil, fleet.ErrMissingLicense
 }
 
 type getCertificateAuthorityRequest struct {
@@ -59,14 +54,9 @@ func getCertificateAuthorityEndpoint(ctx context.Context, request any, svc fleet
 }
 
 func (svc *Service) GetCertificateAuthority(ctx context.Context, id uint) (*fleet.CertificateAuthority, error) {
+	// skipauth: No authorization check needed due to implementation returning only license error.
 	svc.authz.SkipAuthorization(ctx)
-
-	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, id, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return ca, nil
+	return nil, fleet.ErrMissingLicense
 }
 
 type createCertificateAuthorityRequest struct {
