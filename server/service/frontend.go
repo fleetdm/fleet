@@ -117,8 +117,6 @@ func ServeEndUserEnrollOTA(
 
 		enrollSecret := r.URL.Query().Get("enroll_secret")
 		if enrollSecret == "" {
-			// TODO(mna): how should we pass this formatted error with heading? Needs to be special-cased on the frontend I think...
-			// https://www.figma.com/design/fw7XXg2QzBOa7YJ9r2Cchp/-29222-IdP-authentication-before-BYOD-iOS--iPadOS--and-Android-enrollment?node-id=5319-3340&t=mn243Pavsxvkd4QC-0
 			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin."); err != nil {
 				herr(w, err.Error())
 			}
