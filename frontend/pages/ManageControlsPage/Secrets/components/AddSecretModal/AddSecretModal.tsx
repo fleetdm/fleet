@@ -5,7 +5,7 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import { validateFormData, IAddSecretModalFormValidation } from "./helpers";
 
-const baseClass = "fleet-app-details-modal";
+const baseClass = "fleet-add-secret-modal";
 
 interface AddSecretModalProps {
   onCancel: () => void;

@@ -14,6 +14,8 @@ import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
+import DeleteSecretModal from "./components/DeleteSecretModal";
+import { set } from "lodash";
 
 const baseClass = "secrets-batch-paginated-list";
 
@@ -33,6 +35,7 @@ const Secrets = ({ router, currentPage, teamIdForApi }: ISecretsProps) => {
   const copyMessageTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [secretToDelete, setSecretToDelete] = useState<ISecret | undefined>();
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Fetch a single page of scripts.
@@ -79,17 +82,25 @@ const Secrets = ({ router, currentPage, teamIdForApi }: ISecretsProps) => {
     return addSecretPromise;
   };
 
-  const onDeleteSecret = useCallback((secret: ISecret) => {
+  const onDeleteSecret = (secret: ISecret) => {
+    setSecretToDelete(secret);
+    setShowDeleteModal(true);
+  };
+
+  const onDelete = useCallback(() => {
+    if (!secretToDelete) {
+      return;
+    }
     secretsAPI
-      .deleteSecret(secret.id)
+      .deleteSecret(secretToDelete.id)
       .then(() => {
-        console.log("Secret deleted successfully");
         paginatedListRef.current?.reload({ keepPage: true });
+        setShowDeleteModal(false);
       })
       .catch((error) => {
         console.error("Error deleting secret:", error);
       });
-  }, []);
+  }, [secretToDelete]);
 
   const getTokenFromSecretName = (secretName: string): string => {
     return `$FLEET_SECRET_${secretName.toUpperCase()}`;
@@ -187,6 +198,13 @@ const Secrets = ({ router, currentPage, teamIdForApi }: ISecretsProps) => {
           onSubmit={(secretName: string, secretValue: string) => {
             return onSave(secretName, secretValue);
           }}
+        />
+      )}
+      {showDeleteModal && (
+        <DeleteSecretModal
+          secret={secretToDelete}
+          onCancel={() => setShowDeleteModal(false)}
+          onDelete={onDelete}
         />
       )}
     </div>
