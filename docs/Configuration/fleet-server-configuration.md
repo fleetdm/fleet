@@ -212,8 +212,7 @@ Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use f
 
 ### mysql_sts_external_id
 
-AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this
-with `mysql_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
+AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `mysql_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
 
 - Default value: `""`
 - Environment variable: `FLEET_MYSQL_STS_EXTERNAL_ID`
