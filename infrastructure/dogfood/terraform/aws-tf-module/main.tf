@@ -97,7 +97,7 @@ locals {
   */
   ca_cert_thumbprint = "8cf85e3e2bdbcbe2c4a34c1e85828fb29833e87f"
   rds_container_path = "/tmp/rds-tls"
-  cert_path          = "${local.rds_container_path}/${data.aws_region.current.id}.pem"
+  cert_path          = "${local.rds_container_path}/${data.aws_region.current.region}.pem"
 
   # load the certificate with a side car into a volume mount
   sidecars = [
@@ -106,7 +106,7 @@ locals {
       image      = "public.ecr.aws/docker/library/alpine@sha256:8a1f59ffb675680d47db6337b49d22281a139e9d709335b492be023728e11715"
       entrypoint = ["/bin/sh", "-c"]
       command = [templatefile("./templates/mysql_ca_tls_retrieval.sh.tpl", {
-        aws_region         = data.aws_region.current.id
+        aws_region         = data.aws_region.current.region
         container_path     = local.rds_container_path
         ca_cert_thumbprint = local.ca_cert_thumbprint
       })]
@@ -114,7 +114,7 @@ locals {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = local.customer
-          "awslogs-region"        = data.aws_region.current.id
+          "awslogs-region"        = data.aws_region.current.region
           "awslogs-stream-prefix" = "rds-tls-ca-retriever"
         }
       }
@@ -457,7 +457,7 @@ module "firehose-logging" {
   firehose_status_name  = "osquery_status"
   firehose_audit_name   = "fleet_audit"
   iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003"
-  region                = data.aws_region.current.name
+  region                = data.aws_region.current.region
 }
 
 module "osquery-carve" {

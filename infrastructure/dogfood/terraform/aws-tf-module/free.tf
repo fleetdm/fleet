@@ -34,7 +34,7 @@ locals {
       image      = "public.ecr.aws/docker/library/alpine@sha256:8a1f59ffb675680d47db6337b49d22281a139e9d709335b492be023728e11715"
       entrypoint = ["/bin/sh", "-c"]
       command = [templatefile("./templates/mysql_ca_tls_retrieval.sh.tpl", {
-        aws_region         = data.aws_region.current.id
+        aws_region         = data.aws_region.current.region
         container_path     = local.rds_container_path
         ca_cert_thumbprint = local.ca_cert_thumbprint
       })]
@@ -42,7 +42,7 @@ locals {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = local.customer_free
-          "awslogs-region"        = data.aws_region.current.id
+          "awslogs-region"        = data.aws_region.current.region
           "awslogs-stream-prefix" = "rds-tls-ca-retriever"
         }
       }
