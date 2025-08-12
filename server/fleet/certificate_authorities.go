@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// TODO HCA these types can/should be removed once appconfig CA support is removed
 type CAConfigAssetType string
 
 const (
@@ -73,6 +74,7 @@ type CertificateAuthorityPayload struct {
 	Hydrant         *HydrantCA         `json:"hydrant,omitempty"`
 }
 
+// If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
 type DigiCertCA struct {
 	Name                          string   `json:"name"`
 	URL                           string   `json:"url"`

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -291,6 +292,9 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
+		if strings.Contains(err.Error(), "idx_ca_type_name") {
+			return nil, fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+		}
 		return nil, ctxerr.Wrap(ctx, err, "inserting new certificate authority")
 	}
 	id, err := result.LastInsertId()
