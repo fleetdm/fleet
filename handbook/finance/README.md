@@ -210,6 +210,7 @@ Thanks,
 6. If Finance is still awaiting a PO one week after the opportunity has been closed/won, reply to the thread in the Slack post, mention the CSM, and ask them to follow up with their customer contact.
 7. Review the [Accounts receivable](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001oc9Z2AQ/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Finance board.
 
+
 ### Create an offer in AWS Marketplace
 
 1. Use gmail to log in to AWS SSO.
@@ -256,6 +257,7 @@ Thanks,
 
 22. Click "Next" to go to Step 5: Review and create. Verify the information is accurate and submit the offer. Let the AE or CX account owner know that you have done so.
     
+
 ### Obtain a copy of Fleet's W-9
 
 A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
