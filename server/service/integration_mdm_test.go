@@ -17451,3 +17451,56 @@ func (s *integrationMDMTestSuite) TestServiceDiscovery() {
 	require.Contains(t, res.Servers[0].BaseURL, apple_mdm.AccountDrivenEnrollPath)
 	require.Equal(t, "mdm-byod", res.Servers[0].Version)
 }
+
+func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
+	t := s.T()
+
+	if !hasBuildTag("full") {
+		t.Skip("This test requires running with -tags full")
+	}
+
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	s.setUpMDMSSO(t)
+
+	// create a couple teams, one with IdP enabled and one without
+	teamNoIdP, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team without idp"})
+	require.NoError(t, err)
+	teamIdP, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team with idp"})
+	require.NoError(t, err)
+	teamIdP.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	_, err = s.ds.SaveTeam(ctx, teamIdP)
+	require.NoError(t, err)
+
+	err = s.ds.ApplyEnrollSecrets(ctx, &teamNoIdP.ID, []*fleet.EnrollSecret{{Secret: "noidp"}})
+	require.NoError(t, err)
+	err = s.ds.ApplyEnrollSecrets(ctx, &teamIdP.ID, []*fleet.EnrollSecret{{Secret: "idp"}})
+	require.NoError(t, err)
+
+	// try to BYOD-enroll in team without IdP enabled, should render the download
+	// profile page immediately (200)
+	res := s.DoRawNoAuth("GET", "/enroll", nil, http.StatusOK, "enroll_secret", "noidp")
+	page, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(page), "Enroll your Android device to Fleet")
+
+	// try to BYOD-enroll in team with IdP enabled, should redirect to SSO login
+	res = s.DoRawNoAuth("GET", "/enroll", nil, http.StatusSeeOther, "enroll_secret", "idp")
+	location := res.Header.Get("Location")
+	require.NotEmpty(t, location)
+	require.True(t, strings.HasPrefix(location, "http://localhost:9080/simplesaml/"))
+
+	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+	location = res.Header.Get("Location")
+	require.NotEmpty(t, location)
+	require.True(t, strings.HasPrefix(location, "/mdm/sso/callback"))
+
+	// try to BYOD-enroll with invalid enroll secret, should redirect to SSO
+	// login as at least one team has it enabled
+	res = s.DoRawNoAuth("GET", "/enroll", nil, http.StatusSeeOther, "enroll_secret", "no-such-secret")
+	location = res.Header.Get("Location")
+	require.NotEmpty(t, location)
+	require.True(t, strings.HasPrefix(location, "http://localhost:9080/simplesaml/"))
+}
