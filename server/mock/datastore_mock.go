@@ -1451,11 +1451,13 @@ type UpdateHostIdentityCertHostIDBySerialFunc func(ctx context.Context, serialNu
 
 type NewCertificateAuthorityFunc func(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error)
 
-type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
+type GetCertificateAuthorityByIDFunc func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error)
 
-type GetCertificateAuthorityByIDFunc func(ctx context.Context, id uint) (*fleet.CertificateAuthority, error)
+type GetAllCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error)
 
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
+
+type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -3600,14 +3602,17 @@ type DataStore struct {
 	NewCertificateAuthorityFunc        NewCertificateAuthorityFunc
 	NewCertificateAuthorityFuncInvoked bool
 
-	GetCurrentTimeFunc        GetCurrentTimeFunc
-	GetCurrentTimeFuncInvoked bool
-
 	GetCertificateAuthorityByIDFunc        GetCertificateAuthorityByIDFunc
 	GetCertificateAuthorityByIDFuncInvoked bool
 
+	GetAllCertificateAuthoritiesFunc        GetAllCertificateAuthoritiesFunc
+	GetAllCertificateAuthoritiesFuncInvoked bool
+
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
+
+	GetCurrentTimeFunc        GetCurrentTimeFunc
+	GetCurrentTimeFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8610,18 +8615,18 @@ func (s *DataStore) NewCertificateAuthority(ctx context.Context, ca *fleet.Certi
 	return s.NewCertificateAuthorityFunc(ctx, ca)
 }
 
-func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
-	s.mu.Lock()
-	s.GetCurrentTimeFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetCurrentTimeFunc(ctx)
-}
-
-func (s *DataStore) GetCertificateAuthorityByID(ctx context.Context, id uint) (*fleet.CertificateAuthority, error) {
+func (s *DataStore) GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 	s.mu.Lock()
 	s.GetCertificateAuthorityByIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetCertificateAuthorityByIDFunc(ctx, id)
+	return s.GetCertificateAuthorityByIDFunc(ctx, id, includeSecrets)
+}
+
+func (s *DataStore) GetAllCertificateAuthorities(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+	s.mu.Lock()
+	s.GetAllCertificateAuthoritiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllCertificateAuthoritiesFunc(ctx, includeSecrets)
 }
 
 func (s *DataStore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
@@ -8629,4 +8634,11 @@ func (s *DataStore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.Ce
 	s.ListCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListCertificateAuthoritiesFunc(ctx)
+}
+
+func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
+	s.mu.Lock()
+	s.GetCurrentTimeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCurrentTimeFunc(ctx)
 }

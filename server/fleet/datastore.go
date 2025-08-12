@@ -2263,17 +2263,20 @@ type Datastore interface {
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
+	// NewCertificateAuthority creates a new certificate authority.
 	NewCertificateAuthority(ctx context.Context, ca *CertificateAuthority) (*CertificateAuthority, error)
+	// GetCertificateAuthorityByID gets a certificate authority by its ID.
+	GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*CertificateAuthority, error)
+	// GetAllCertificateAuthorities returns all certificate authorities.
+	GetAllCertificateAuthorities(ctx context.Context, includeSecrets bool) ([]*CertificateAuthority, error)
+	// ListCertificateAuthorities returns a summary of all certificate authorities.
+	ListCertificateAuthorities(ctx context.Context) ([]*CertificateAuthoritySummary, error)
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 
 	// ///////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
-
-	// GetCertificateAuthorityByID gets a certificate authority by its ID.
-	GetCertificateAuthorityByID(ctx context.Context, id uint) (*CertificateAuthority, error)
-	ListCertificateAuthorities(ctx context.Context) ([]*CertificateAuthoritySummary, error)
 }
 
 type AndroidDatastore interface {

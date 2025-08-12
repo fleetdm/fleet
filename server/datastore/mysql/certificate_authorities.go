@@ -5,40 +5,48 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint) (*fleet.CertificateAuthority, error) {
+type certificateAuthorityWithEncryptedSecrets struct {
+	fleet.CertificateAuthority
+	APITokenEncrypted                []byte `db:"api_token_encrypted"`
+	PasswordEncrypted                []byte `db:"password_encrypted"`
+	ChallengeEncrypted               []byte `db:"challenge_encrypted"`
+	ClientSecretEncrypted            []byte `db:"client_secret_encrypted"`
+	CertificateUserPrincipalNamesRaw []byte `db:"certificate_user_principal_names"`
+}
+
+func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 	stmt := `
 	SELECT
-		id, type, name, url, api_token, profile_id,
-		certificate_common_name, certificate_user_principal_names,
-		certificate_seat_id, admin_url, username, client_id,
-		client_secret, password, challenge
-	FROM
-		certificate_authorities
-	WHERE
-		id = ?
-	`
+		id,
+		type,
+		name,
+		url,
+		api_token_encrypted,
+		profile_id,
+		certificate_common_name,
+		certificate_user_principal_names,
+		certificate_seat_id,
+		admin_url,
+		username,
+		password_encrypted,
+		challenge_encrypted,
+		client_id,
+		client_secret_encrypted
+		FROM
+			certificate_authorities
+		WHERE
+			id = ?
+		`
 
-	// return &fleet.CertificateAuthority{
-	// 	ID:                            id,
-	// 	Type:                          "digicert", // Example type, adjust as needed
-	// 	Name:                          "Example DigiCert CA",
-	// 	URL:                           "https://example.com",
-	// 	APIToken:                      ptr.String("example-token"),
-	// 	ProfileID:                     ptr.String("example-profile-id"),
-	// 	CertificateCommonName:         ptr.String("example.com"),
-	// 	CertificateUserPrincipalNames: []string{"user@example.com"},
-	// 	CertificateSeatID:             ptr.String("example-seat-id"),
-	// 	CreatedAt:                     time.Now(),
-	// 	UpdatedAt:                     time.Now(),
-	// }, nil
-
-	var ca fleet.CertificateAuthority
+	var ca certificateAuthorityWithEncryptedSecrets
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &ca, stmt, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notFound("CertificateAuthority").WithID(id)
@@ -46,7 +54,144 @@ func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint) (
 		return nil, ctxerr.Wrapf(ctx, err, "get CertificateAuthority %d", id)
 	}
 
-	return &ca, nil
+	if ca.CertificateUserPrincipalNamesRaw != nil {
+		if err := json.Unmarshal(ca.CertificateUserPrincipalNamesRaw, &ca.CertificateUserPrincipalNames); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshalling certificate user principal names")
+		}
+	}
+
+	if includeSecrets {
+		// Decrypt sensitive fields
+		if ca.APITokenEncrypted != nil {
+			decryptedAPIToken, err := decrypt(ca.APITokenEncrypted, ds.serverPrivateKey)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "decrypting API token")
+			}
+			ca.APIToken = ptr.String(string(decryptedAPIToken))
+		}
+		if ca.PasswordEncrypted != nil {
+			decryptedPassword, err := decrypt(ca.PasswordEncrypted, ds.serverPrivateKey)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "decrypting password")
+			}
+			ca.Password = ptr.String(string(decryptedPassword))
+		}
+		if ca.ChallengeEncrypted != nil {
+			decryptedChallenge, err := decrypt(ca.ChallengeEncrypted, ds.serverPrivateKey)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "decrypting challenge")
+			}
+			ca.Challenge = ptr.String(string(decryptedChallenge))
+		}
+		if ca.ClientSecretEncrypted != nil {
+			decryptedClientSecret, err := decrypt(ca.ClientSecretEncrypted, ds.serverPrivateKey)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "decrypting client secret")
+			}
+			ca.ClientSecret = ptr.String(string(decryptedClientSecret))
+		}
+	} else {
+		if ca.APITokenEncrypted != nil {
+			ca.APIToken = ptr.String(fleet.MaskedPassword)
+		}
+		if ca.PasswordEncrypted != nil {
+			ca.Password = ptr.String(fleet.MaskedPassword)
+		}
+		if ca.ChallengeEncrypted != nil {
+			ca.Challenge = ptr.String(fleet.MaskedPassword)
+		}
+		if ca.ClientSecretEncrypted != nil {
+			ca.ClientSecret = ptr.String(fleet.MaskedPassword)
+		}
+	}
+
+	return &ca.CertificateAuthority, nil
+}
+
+func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+	stmt := `
+	SELECT
+		id,
+		type,
+		name,
+		url,
+		api_token_encrypted,
+		profile_id,
+		certificate_common_name,
+		certificate_user_principal_names,
+		certificate_seat_id,
+		admin_url,
+		username,
+		password_encrypted,
+		challenge_encrypted,
+		client_id,
+		client_secret_encrypted
+		FROM
+			certificate_authorities
+		`
+
+	var cas []certificateAuthorityWithEncryptedSecrets
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cas, stmt); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "select CertificateAuthorities")
+	}
+
+	processedCAs := make([]*fleet.CertificateAuthority, 0, len(cas))
+
+	for _, ca := range cas {
+		if ca.CertificateUserPrincipalNamesRaw != nil {
+			if err := json.Unmarshal(ca.CertificateUserPrincipalNamesRaw, &ca.CertificateUserPrincipalNames); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "unmarshalling certificate user principal names")
+			}
+		}
+
+		if includeSecrets {
+			// Decrypt sensitive fields
+			if ca.APITokenEncrypted != nil {
+				decryptedAPIToken, err := decrypt(ca.APITokenEncrypted, ds.serverPrivateKey)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting API token for certificate authority %d", ca.ID))
+				}
+				ca.APIToken = ptr.String(string(decryptedAPIToken))
+			}
+			if ca.PasswordEncrypted != nil {
+				decryptedPassword, err := decrypt(ca.PasswordEncrypted, ds.serverPrivateKey)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting password for certificate authority %d", ca.ID))
+				}
+				ca.Password = ptr.String(string(decryptedPassword))
+			}
+			if ca.ChallengeEncrypted != nil {
+				decryptedChallenge, err := decrypt(ca.ChallengeEncrypted, ds.serverPrivateKey)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting challenge for certificate authority %d", ca.ID))
+				}
+				ca.Challenge = ptr.String(string(decryptedChallenge))
+			}
+			if ca.ClientSecretEncrypted != nil {
+				decryptedClientSecret, err := decrypt(ca.ClientSecretEncrypted, ds.serverPrivateKey)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting client secret for certificate authority %d", ca.ID))
+				}
+				ca.ClientSecret = ptr.String(string(decryptedClientSecret))
+			}
+		} else {
+			if ca.APITokenEncrypted != nil {
+				ca.APIToken = ptr.String(fleet.MaskedPassword)
+			}
+			if ca.PasswordEncrypted != nil {
+				ca.Password = ptr.String(fleet.MaskedPassword)
+			}
+			if ca.ChallengeEncrypted != nil {
+				ca.Challenge = ptr.String(fleet.MaskedPassword)
+			}
+			if ca.ClientSecretEncrypted != nil {
+				ca.ClientSecret = ptr.String(fleet.MaskedPassword)
+			}
+		}
+		processedCAs = append(processedCAs, &ca.CertificateAuthority)
+	}
+
+	return processedCAs, nil
 }
 
 func (ds *Datastore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {

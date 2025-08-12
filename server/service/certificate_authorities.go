@@ -61,7 +61,7 @@ func getCertificateAuthorityEndpoint(ctx context.Context, request any, svc fleet
 func (svc *Service) GetCertificateAuthority(ctx context.Context, id uint) (*fleet.CertificateAuthority, error) {
 	svc.authz.SkipAuthorization(ctx)
 
-	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, id)
+	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, id, false)
 	if err != nil {
 		return nil, err
 	}

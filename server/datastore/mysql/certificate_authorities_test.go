@@ -32,7 +32,7 @@ func testGetCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 
 	// get unknown CA
 	id := uint(9999)
-	_, err := ds.GetCertificateAuthorityByID(ctx, id)
+	_, err := ds.GetCertificateAuthorityByID(ctx, id, true)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 
