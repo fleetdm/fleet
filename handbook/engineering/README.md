@@ -75,7 +75,7 @@ If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn
 
 **For PRs that change the product:**
 
-- Assign the PR to the appropriate product group Product Designer (PD).
+- Assign the PR to the appropriate Product Designer (PD).
 - Notify the relevant PD in the #g-mdm, #g-software, or #g-orchestration Slack channel.
 
 The PD will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The PD should:
