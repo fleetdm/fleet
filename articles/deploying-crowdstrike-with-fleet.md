@@ -1,6 +1,6 @@
 # Deploy CrowdStrike with Fleet
 
-CrowdStrike's Falcon platform is widely deployed by IT admins and security teams through centralized management consoles and automated deployment tools. A pillar in the securtiy sector, it provides edpoint detection and response capabilities to organizations of all sizes. It uses artificial intelligence, machine learning, and behavioral analytics to detect and prevent sophisticated cyber threats, including advanced persistent threats (APTs), malware, ransomware, and zero-day exploits. This guide covers deployment and configuration across macOS, Windows, and Linux using Fleet.
+CrowdStrike's Falcon platform is widely deployed by IT admins and security teams through centralized management consoles and automated deployment tools. A pillar in the security sector, it provides endpoint detection and response capabilities to organizations of all sizes. It uses artificial intelligence, machine learning, and behavioral analytics to detect and prevent sophisticated cyber threats, including advanced persistent threats (APTs), malware, ransomware, and zero-day exploits. This guide covers deployment and configuration across macOS, Windows, and Linux using Fleet.
 
 There are multiple ways to install Crowdstrike, such as using the API method combined with scripts, listed [here.](https://github.com/CrowdStrike/falcon-scripts) Use whichever method is best for your organization.
 
@@ -8,19 +8,19 @@ There are multiple ways to install Crowdstrike, such as using the API method com
 
 ### Upload .mobileconfigs to Fleet
 
-CrowdStrike requires [5 separate mobileconfig files](TODO) in order to maximize its capabilties on macOS. Each of these serves an important operational function.
+CrowdStrike requires [5 separate mobileconfig files](https://github.com/fleetdm/fleet/tree/main/assets/configuration-profiles) in order to properly function on macOS.
 
 > It's possible these profiles can be combined into one payload, but we've kept them separate here for troubleshooting purposes.
 
-`crowdstrike-service-management.mobileconfig` - This payload is used to configure managed login items. A login item is an applications or services that automatically launches when a user logs in.
+`crowdstrike-service-management.mobileconfig` - This payload is used to configure managed login items. A login item is an applications or service that automatically launches when a user logs in.
 
-`crowdstrike-notification.mobileconfig` - It's often easiest for an admin to control the notifications and various banners that an application presents to reduce end-user interaction and confusion. This profile helps supress items such as `ShowInLockScreen`.
+`crowdstrike-notification.mobileconfig` - It's often easiest for an admin to control the notifications and various banners that an application presents, reducing end-user interaction. This profile helps suppress items such as `ShowInLockScreen`.
 
-`crowdstrike-system-extension` - An improvement on the classic macOS kernel extensions, or kexts, this validates the CrowdStrikes extension in addition to preventing tampering and modification by your end users. The profile profile complements the other CrowdStrike configurations by ensuring users cannot disable or remove the network monitoring component through the macOS System Settings interface, maintaining continuous security protection on the device.
+`crowdstrike-system-extension` - An improvement on the classic macOS kernel extensions, or kexts, this validates the CrowdStrike extension in addition to preventing tampering and modification by your end users. The profile complements the other CrowdStrike configurations by ensuring users cannot disable or remove the network monitoring component through the macOS System Settings interface, maintaining continuous security protection on the device.
 
-`crowdstrike-web-filter.mobileconfig` - This configuration profile configures the web filtering capabilities. It allows CrowdStrike's to monitor network traffic at the socket level (FilterSockets is true) while not filtering individual packets (FilterPackets is false). A key component to comprehensive device protection the filter component is properly validated with Apple's security requirements and operates at the firewall level.
+`crowdstrike-web-filter.mobileconfig` - This configuration profile configures the web filtering capabilities. It allows CrowdStrike to monitor network traffic at the socket level (FilterSockets is true) while not filtering individual packets (FilterPackets is false). A key component to comprehensive device protection, the filter component is properly validated with Apple's security requirements and operates at the firewall level.
 
-`crowdstrike-full-disk-access.mobileconfig` - The privacy payload grants full disk access to CrowdStrike's application compoents. All components are verified using Apple's code signing requirements with CrowdStrikes's team identifier.
+`crowdstrike-full-disk-access.mobileconfig` - The privacy payload grants full disk access to CrowdStrike's application components. All components are verified using Apple's code signing requirements with CrowdStrike's team identifier.
 
 ### Installer
 
@@ -36,6 +36,7 @@ The **Customer ID** used to assign hosts to your tenant and validate the license
 
 ```
 #!/bin/bash
+
 CUSTOMER_ID="YOUR-CUSTOMER-ID-HERE"
 FALCON_PATH="/Applications/Falcon.app/Contents/Resources/falconctl"
 
@@ -91,40 +92,30 @@ From the **Software** tab in Fleet, **Add software** > **Custom package**. Uploa
 
 ### Post-install script
 
-The default install script that is populated in Fleet is sufficient, but a post-install script is needed to set the site token and start the agent services. Here is an example post-install script that will set the token, start the service and check the status. Adjust the sleep time if needed.
+The default install script that is populated in Fleet is sufficient, but a post-install script is needed to set the Customer ID. Modify and add flags as needed for your deployment.
 
 ```
 #!/bin/bash
 
-# Set your Customer ID here
-FalconCid = "YOUR-CUSTOMER-ID-HERE
+CUSTOMER_ID="YOUR-CUSTOMER-ID-HERE"
+FALCON_PATH="/opt/CrowdStrike/falconctl"
 
-echo "Setting CrowdStrike Falcon Customer ID: $FalconCid"
+sudo "$FALCON_PATH" -s -cid="$CUSTOMER_ID"
 
-# Set the Customer ID
-sudo /opt/CrowdStrike/falconctl -s --cid="$FalconCid"
-
-# Check if the command was successful
+# Check status
 if [ $? -eq 0 ]; then
-    echo "Customer ID set successfully!"
-    
-    # Verify the setting
-    echo "Verifying Customer ID..."
-    sudo /opt/CrowdStrike/falconctl -g --cid
+    echo "Activation completed"
 else
-    echo "Error: Failed to set Customer ID"
+    echo "Activation failed"
     exit 1
 fi
 ```
 
 Admins can verify the sensor installation by running a command searching for the falcon sensor `sudo ps -e | grep falcon-sensor`
 
-
-
-
 ## Conclusion
 
-Fleet offers admins a simple approach to deploying the CrowdStrike Falcon sensor across the major operating system. The lightweight Falcon sensor requires no restarts and offers a simple single-command installation, you can efficiently protect your organization from evolving cybersecurity threats with minimal lift.
+Fleet offers admins a simple approach to deploying the CrowdStrike Falcon sensor across the major operating systems. The lightweight Falcon sensor requires no restarts and offers a simple single-command installation, so you can efficiently protect your organization from evolving cybersecurity threats with minimal lift.
 
 Want to learn more? Reach out directly to me or the [team at Fleet](https://fleetdm.com/contact) today!
 
