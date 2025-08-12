@@ -11,6 +11,7 @@ import ListItem from "components/ListItem/ListItem";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import AddSecretModal from "../AddSecretModal";
 
 const baseClass = "secrets-batch-paginated-list";
 
@@ -51,20 +52,24 @@ const SecretsPaginatedList = () => {
     [queryClient]
   );
 
-  const onAddSecret = useCallback(() => {
-    secretsAPI
-      .addSecret({
-        name: `New Secret ${Date.now()}`,
-        value: "secret_value",
-      } as ISecretPayload)
-      .then(() => {
-        console.log("Secret added successfully");
-        paginatedListRef.current?.reload({ keepPage: true });
-      })
-      .catch((error) => {
-        console.error("Error adding secret:", error);
-      });
-  }, []);
+  const onAddSecret = () => {
+    setShowAddModal(true);
+  };
+
+  const onSave = (secretName: string, secretValue: string): Promise<object> => {
+    const newSecret: ISecretPayload = {
+      name: secretName,
+      value: secretValue,
+    };
+    const addSecretPromise = secretsAPI.addSecret(newSecret);
+    // Handle success by closing the modal and reloading the list.
+    addSecretPromise.then(() => {
+      setShowAddModal(false);
+      paginatedListRef.current?.reload({ keepPage: true });
+    });
+    // The modal will handle errors and display appropriate messages.
+    return addSecretPromise;
+  };
 
   const onDeleteSecret = useCallback((secret: ISecret) => {
     secretsAPI
@@ -168,6 +173,14 @@ const SecretsPaginatedList = () => {
           </span>
         }
       />
+      {showAddModal && (
+        <AddSecretModal
+          onCancel={() => setShowAddModal(false)}
+          onSubmit={(secretName: string, secretValue: string) => {
+            return onSave(secretName, secretValue);
+          }}
+        />
+      )}
     </div>
   );
 };

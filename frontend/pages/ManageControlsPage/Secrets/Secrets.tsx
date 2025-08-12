@@ -1,6 +1,6 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
-import SecretsPaginatedList from "./components/SecretsPaginatedList/SecretsPaginatedList";
+import SecretsPaginatedList from "./components/SecretsPaginatedList";
 
 interface ISecretsProps {
   router: InjectedRouter; // v3

@@ -53,7 +53,13 @@ export default {
 
   addSecret(secret: ISecretPayload) {
     // Stubbed out for now, as the secrets endpoint is not yet implemented.
-    console.log("addSecret called with secret:", secret);
+    if (secret.name === "DUPE") {
+      return Promise.reject({ status: 409, message: "Conflict" });
+    }
+    if (secret.name === "ERR") {
+      return Promise.reject({ status: 500, message: "Internal Server Error" });
+    }
+
     mockSecrets = [
       ...mockSecrets,
       {
