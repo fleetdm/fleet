@@ -44,7 +44,7 @@ CREATE TABLE kernels (
   software_id int unsigned DEFAULT NULL,
   os_version_id int unsigned DEFAULT NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY idx_kernels_unique_mapping (software_title_id,software_id,os_version_id)
+  UNIQUE KEY idx_kernels_unique_mapping (os_version_id,software_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`); err != nil {
 		return fmt.Errorf("failed to create kernels table: %w", err)
 	}
