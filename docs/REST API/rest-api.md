@@ -12934,7 +12934,7 @@ Creates a custom variable that can be used in scripts and profiles prefixed with
 | Name    | Type | In   | Description                                                                                                      |
 | ------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
 | name    | string | body | **Required.** The desired variable name, without the `$FLEET_SECRET` prefix.
-| value   | string | body   | **REquired.** The value for the custom variable.
+| value   | string | body   | **Required.** The value for the custom variable.
 
 
 #### Example
