@@ -12909,17 +12909,24 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
 
 #### Example
 
-`GET /api/v1/fleet/spec/custom_variables`
+`GET /api/v1/fleet/custom_variables`
 
 ##### Request body
 
 ```json
-[
-  {
-    "id": 123
-    "name": "SOME_API_TOKEN"
-  }
-]
+{
+  "custom_variables": [
+    {
+      "id": 123
+      "name": "SOME_API_TOKEN"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false,
+  },
+  "count": 1
+}
 
 ```
 
@@ -12935,12 +12942,12 @@ Creates a custom variable that can be used in scripts and profiles prefixed with
 | Name    | Type | In   | Description                                                                                                      |
 | ------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
 | name    | string | body | **Required.** The desired variable name, without the `$FLEET_SECRET` prefix.
-| value   | string | body   | **REquired.** The value for the custom variable.
+| value   | string | body   | **Required.** The value for the custom variable.
 
 
 #### Example
 
-`POST /api/v1/fleet/spec/custom_variables`
+`POST /api/v1/fleet/custom_variables`
 
 ##### Request body
 
