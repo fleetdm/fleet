@@ -568,6 +568,8 @@ func (s HostLockWipeStatus) IsWiped() bool {
 var (
 	BatchExecuteIncompatiblePlatform = "incompatible-platform"
 	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
+	BatchExecuteIncompatibleTeam     = "incompatible-team"
+	BatchExecuteInvalidHost          = "invalid-host"
 )
 
 type BatchExecutionStatusFilter struct {
