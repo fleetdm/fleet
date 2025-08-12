@@ -119,7 +119,6 @@ Fleet offers admins a simple approach to deploying the CrowdStrike Falcon sensor
 
 Want to learn more? Reach out directly to me or the [team at Fleet](https://fleetdm.com/contact) today!
 
-
 <meta name="articleTitle" value="Deploy CrowdStrike with Fleet">
 <meta name="authorFullName" value="Harrison Ravazzolo">
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
