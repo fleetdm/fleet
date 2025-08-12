@@ -512,6 +512,8 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 				assert.Truef(t, ok, "got unexpected CVE: %s", g.CVE)
 			}
 
+			assert.Len(t, cves, len(tt.vulns))
+
 			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", false)
 			require.NoError(t, err)
 			require.Empty(t, cves)
