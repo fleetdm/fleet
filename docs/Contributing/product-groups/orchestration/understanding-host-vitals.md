@@ -573,7 +573,7 @@ FROM chrome_extensions
 
 ## software_deb_last_opened_at
 
-- Description: A software override query[^1] to append last_opened_at information to Linux DEB software entries.
+- Description: A software override query[^1] to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
 
@@ -883,7 +883,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 
 ## software_rpm_last_opened_at
 
-- Description: A software override query[^1] to append last_opened_at information to Linux RPM software entries.
+- Description: A software override query[^1] to append last_opened_at information to Linux RPM software entries.  The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
 
