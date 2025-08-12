@@ -310,7 +310,7 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	return nil
 }
 
-func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID int64) error {
+func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
 		return err
 	}

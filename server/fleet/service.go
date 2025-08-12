@@ -1278,11 +1278,12 @@ type Service interface {
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 
-	// /////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
 
 	NewCertificateAuthority(ctx context.Context, p CertificateAuthorityPayload) (*CertificateAuthority, error)
-	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID int64) error
+	// DeleteCertificateAuthority deletes the certificate authority of the given id, returns nil if successful or not found error
+	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error
 }
 
 type KeyValueStore interface {

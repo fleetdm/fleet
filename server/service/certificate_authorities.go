@@ -38,7 +38,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 }
 
 type deleteCertificateAuthorityRequest struct {
-	ID int64 `url:"id"`
+	ID uint `url:"id"`
 }
 
 type deleteCertificateAuthorityResponse struct {
@@ -59,7 +59,7 @@ func deleteCertificateAuthorityEndpoint(ctx context.Context, request interface{}
 	return &deleteCertificateAuthorityResponse{}, nil
 }
 
-func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID int64) error {
+func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
 	// skipauth: No authorization check needed due to implementation returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 	return fleet.ErrMissingLicense

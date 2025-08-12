@@ -96,7 +96,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID int64) error {
+func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
 	stmt := "DELETE FROM certificate_authorities WHERE id = ?"
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateAuthorityID)
 	if err != nil {
