@@ -4187,6 +4187,16 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 	)
 }
 
+// SetOrUpdateHostDiskTpmPIN sets the host's flag indicating if the disk has a TPM PIN protector set
+func (ds *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_disks SET tpm_pin_set = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (tpm_pin_set, host_id) VALUES (?, ?)`,
+		pinSet, hostID,
+	)
+}
+
 func (ds *Datastore) SetOrUpdateHostOrbitInfo(
 	ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
 ) error {

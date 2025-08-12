@@ -55,7 +55,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}}, http.StatusUnprocessableEntity)
 
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration) are supported")
+	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration.) are supported")
 
 	// "com.apple.configuration.softwareupdate.enforcement.specific" type should fail
 	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -976,6 +976,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	declarations := []fleet.MDMProfileBatchPayload{
 		{Name: "N1.json", Contents: declarationForTest("I1")},
 		{Name: "N2.json", Contents: declarationForTest("I2")},
+		{Name: "Unknown.json", Contents: declarationForTestWithType("I3", "com.apple.configuration.")},
 	}
 	// add global declarations
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
@@ -988,6 +989,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
 		{Identifier: "I1", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
 		{Identifier: "I2", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I3", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
 	})
 
 	// host gets a DDM sync call
@@ -1004,13 +1006,15 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	var items fleet.MDMAppleDDMDeclarationItemsResponse
 	require.NoError(t, json.Unmarshal(body, &items))
 
-	var i1ServerToken, i2ServerToken string
+	var i1ServerToken, i2ServerToken, i3ServerToken string
 	for _, d := range items.Declarations.Configurations {
 		switch d.Identifier {
 		case "I1":
 			i1ServerToken = d.ServerToken
 		case "I2":
 			i2ServerToken = d.ServerToken
+		case "I3":
+			i3ServerToken = d.ServerToken
 		}
 	}
 
@@ -1018,6 +1022,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
 		{Identifier: "I1", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
 		{Identifier: "I2", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I3", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
 	})
 
 	// host sends a partial DDM report
@@ -1030,6 +1035,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
 		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
 		{Identifier: "I2", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I3", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
 	})
 
 	// host sends a report with a wrong (could be old) server token for I2, nothing changes
@@ -1042,6 +1048,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
 		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
 		{Identifier: "I2", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I3", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
 	})
 
 	// host sends a full report, declaration I2 is invalid
@@ -1049,12 +1056,18 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
 		{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: "I1", ServerToken: i1ServerToken},
 		{Active: false, Valid: fleet.MDMAppleDeclarationInvalid, Identifier: "I2", ServerToken: i2ServerToken},
+		{Active: false, Valid: fleet.MDMAppleDeclarationUnknown, Identifier: "I3", ServerToken: i3ServerToken, Reasons: []fleet.MDMAppleDDMStatusErrorReason{
+			{
+				Code: "Error.UnknownDeclarationType",
+			},
+		}},
 	}
 	_, err = device.DeclarativeManagement("status", report)
 	require.NoError(t, err)
 	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
 		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
 		{Identifier: "I2", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I3", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall},
 	})
 
 	// do a batch request, this time I2 is deleted

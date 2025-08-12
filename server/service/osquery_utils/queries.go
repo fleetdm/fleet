@@ -63,7 +63,7 @@ type DetailQuery struct {
 	// around data that lives on the hosts table.
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
-	// persist them. This is usually used for host data that is stored in a separate table.
+	// persist them. This is usually used for host data stored in a separate table.
 	// DirectTaskIngestFunc must not be set if this is set.
 	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error
 	// DirectTaskIngestFunc is similar to DirectIngestFunc except that it uses a task to
@@ -2188,7 +2188,13 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	if base64Key == "" {
 		decryptable = ptr.Bool(false)
 	}
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
+
+	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
+	if err != nil {
+		return err
+	}
+	host.DiskEncryptionKeyEscrowed = archived
+	return nil
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -2247,7 +2253,12 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		decryptable = ptr.Bool(false)
 	}
 
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
+	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
+	if err != nil {
+		return err
+	}
+	host.DiskEncryptionKeyEscrowed = archived
+	return nil
 }
 
 func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
@@ -2495,76 +2506,120 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 	}
 }
 
-// tpmPINConfigVerifyQuery checks the Windows registry to verify whether the host has the proper
-// BitLocker policy for allowing the setup of a TPM PIN protector, if not properly set, the proper
-// configuration is enforced via an MDM command.
-var tpmPINConfigVerifyQuery = DetailQuery{
-	Platforms: []string{"windows"},
-	// We only want to run this query iff:
-	// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
-	// - And a TPM PIN is not yet set.
-	// - And the volume is encrypted (to avoid errors while trying to apply the policy).
-	Discovery: `
-WITH should_run(ready) AS (
-SELECT
-	(
-	    -- BitLocker is optional but enabled
-		EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-	    -- BitLocker is built in, so it won't appear as an optional feature
-		OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker') 
-	)
-	-- PIN is already set, so regardless of the current config, we don't need to enforce it:
-	-- 4: TPM And PIN.
-	-- 6: TPM And PIN And Startup key.
-	AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
-	-- Volume is encrypted
-	AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
-)
-SELECT 1 FROM should_run WHERE ready = 1`,
-	Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPMPIN'",
-	DirectIngestFunc: func(
-		ctx context.Context,
-		logger log.Logger,
-		host *fleet.Host,
-		ds fleet.Datastore,
-		rows []map[string]string,
-	) error {
-		if host == nil || host.UUID == "" {
-			level.Debug(logger).Log(
-				"method", "tpmPINConfigVerifyQuery",
-				"msg", "Ingestion not run, host is nil or UUID is empty",
+var tpmPINQueries = map[string]DetailQuery{
+	// The tpm_pin_config_verify query checks the Windows registry to verify whether the host has the proper
+	// BitLocker policy for allowing the setup of a TPM PIN protector, if not properly set, the proper
+	// configuration is enforced via an MDM command.
+	"tpm_pin_config_verify": {
+		Platforms: []string{"windows"},
+		// We only want to run this query iff:
+		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
+		// - And a TPM PIN is not yet set.
+		// - And the volume is encrypted (to avoid errors while trying to apply the policy).
+		Discovery: `
+			WITH should_run(yes) AS (
+			SELECT
+				(
+					-- BitLocker is an optional feature but enabled
+					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+					-- BitLocker is built in, so it won't appear as an optional feature
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker') 
+				)
+				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
+				-- 4: TPM And PIN.
+				-- 6: TPM And PIN And Startup key.
+				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
+				-- Volume is encrypted
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
 			)
-			return nil
-		}
-
-		if len(rows) > 1 {
-			return ctxerr.Errorf(
-				ctx,
-				"tpmPINConfigVerifyQuery invalid number of rows: %d", len(rows),
-			)
-		}
-
-		// If no results are returned, then the policy setting is in a 'Not Configured' state.
-		// If the policy is 'Enabled', we need to make sure the proper setting is not in a 'Disallowed' state.
-		if len(rows) == 0 || rows[0]["data"] == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
-			level.Info(logger).Log(
-				"method", "tpmPINConfigVerifyQuery",
-				"msg", "Updating TPM PIN protector configuration via MDM",
-				"host_id", host.ID,
-			)
-			cmd, err := microsoft_mdm.SystemDrRequiresStartupAuthCmd(
-				microsoft_mdm.SystemDrRequiresStartupAuthSpec{
-					CmdUUID:      uuid.NewString(),
-					Enabled:      true,
-					ConfigurePIN: ptr.Uint(microsoft_mdm.PolicyOptDropdownOptional),
-				},
-			)
-			if err != nil {
-				return err
+			SELECT 1 FROM should_run WHERE yes = 1`,
+		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPMPIN'",
+		DirectIngestFunc: func(
+			ctx context.Context,
+			logger log.Logger,
+			host *fleet.Host,
+			ds fleet.Datastore,
+			rows []map[string]string,
+		) error {
+			if host == nil || host.UUID == "" {
+				level.Debug(logger).Log(
+					"query", "tpm_pin_config_verify",
+					"msg", "Ingestion not run, host is nil or UUID is empty",
+				)
+				return nil
 			}
-			return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
-		}
-		return nil
+
+			if len(rows) > 1 {
+				return ctxerr.Errorf(
+					ctx,
+					"tpm_pin_config_verify query: invalid number of rows: %d", len(rows),
+				)
+			}
+
+			// If no results are returned, then the policy setting is in a 'Not Configured' state.
+			// If the policy is 'Enabled', we need to make sure the proper setting is not in a 'Disallowed' state.
+			if len(rows) == 0 || rows[0]["data"] == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
+				level.Info(logger).Log(
+					"query", "tpm_pin_config_verify",
+					"msg", "Updating TPM PIN protector configuration via MDM",
+					"host_id", host.ID,
+				)
+				cmd, err := microsoft_mdm.SystemDriveRequiresStartupAuthCmd(
+					microsoft_mdm.SystemDriveRequiresStartupAuthSpec{
+						CmdUUID:      uuid.NewString(),
+						Enabled:      true,
+						ConfigurePIN: ptr.Uint(microsoft_mdm.PolicyOptDropdownOptional),
+					},
+				)
+				if err != nil {
+					return err
+				}
+				return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
+			}
+			return nil
+		},
+	},
+	"tpm_pin_set_verify": {
+		Platforms: []string{"windows"},
+		// We only want to run this query iff:
+		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
+		Discovery: `
+			WITH should_run(yes) AS (
+			SELECT
+				(
+					-- BitLocker is an optional feature but enabled
+					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+					-- BitLocker is built in, so it won't appear as an optional feature
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker') 
+				)
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`,
+		Query: `
+			SELECT EXISTS(
+				SELECT 1 
+				FROM bitlocker_key_protectors 
+				-- 4: TPM And PIN.
+				-- 6: TPM And PIN And Startup key.
+				WHERE drive_letter = 'C:' AND key_protector_type IN (4,6)
+				LIMIT 1
+			) AS criteria
+			WHERE criteria = 1`,
+		DirectIngestFunc: func(
+			ctx context.Context,
+			logger log.Logger,
+			host *fleet.Host,
+			ds fleet.Datastore,
+			rows []map[string]string,
+		) error {
+			if host == nil || host.UUID == "" {
+				level.Debug(logger).Log(
+					"query", "tpm_pin_set_verify",
+					"msg", "Ingestion not run, host is nil or UUID is empty",
+				)
+				return nil
+			}
+			return ds.SetOrUpdateHostDiskTpmPIN(ctx, host.ID, len(rows) > 0)
+		},
 	},
 }
 
@@ -2627,7 +2682,10 @@ func GetDetailQueries(
 		if appConfig.MDM.WindowsEnabledAndConfigured &&
 			appConfig.MDM.EnableDiskEncryption.Value &&
 			appConfig.MDM.RequireBitLockerPIN.Value {
-			generatedMap["tpm_pin_config_verify"] = tpmPINConfigVerifyQuery
+
+			for key, query := range tpmPINQueries {
+				generatedMap[key] = query
+			}
 		}
 	}
 

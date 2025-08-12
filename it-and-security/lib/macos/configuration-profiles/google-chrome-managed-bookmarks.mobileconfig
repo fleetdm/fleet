@@ -343,6 +343,12 @@
                         </dict>
                         <dict>
                             <key>name</key>
+                            <string>My PRs</string>
+                            <key>url</key>
+                            <string>https://github.com/pulls</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
                             <string>PRs waiting on me</string>
                             <key>url</key>
                             <string>https://github.com/pulls/review-requested</string>

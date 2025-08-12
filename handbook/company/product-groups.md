@@ -45,7 +45,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Product Manager                   | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_, [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_, [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen))
+| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_, [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen)), [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
 
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
@@ -271,10 +271,10 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 |:---|:-----------------------------|:-|
 | XXS | ≤1 day for 1 contributor | 1-3 |
 | XS | ≤1 week for 1 contributor | 3-8 |
-| S  | 1 sprint for 1 contributor | 8-25 |
-| M  | 1 sprint for 2 contributors | 25-60 |
-| L  | 1 sprint for 3 contributors | Variable (>60) |
-| XL | >1 sprint for 3 contributors | Variable (>100) |
+| S  | ≤1 sprint for 1 contributor | 8-25 |
+| M  | 1 sprint for 2 contributors | 25-50 |
+| L  | 1 sprint for 3 contributors | 50-75 |
+| XL | >1 sprint for 3 contributors | >75 |
 
 
 ### Implementing
@@ -284,7 +284,7 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 
 Please read carefully and [pay special attention](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) to UI wireframes.
 
-While Product Designers are responsible for wireframing significant UI changes at Fleet's breakpoints (see [breakpoints in the user story template](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md)), Fleet relies on Engineers to fill in the gaps and fluidly include all screen widths. If you discovered a gap, please bring the proposed changes as a live prototype to your product group's next design review. 
+While Product Designers are responsible for wireframing significant UI changes at Fleet's breakpoints (see [breakpoints in the user story template](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md)), Fleet relies on Engineers to fill in the gaps and fluidly include all screen widths. If you discovered a gap, please bring the proposed changes as a live prototype to your product group's next design review.
 
 Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases! When you think you've discovered a blocker, here's how to proceed:
 
@@ -579,9 +579,9 @@ This has a dual purpose of providing more context for how our customers use Flee
 - **Documentation for contributors**
 Fleet's documentation for contributors can be found in the [Fleet GitHub repo](https://github.com/fleetdm/fleet/tree/main/docs/Contributing).
 
-The on-call developer is asked to read, understand, test, correct, and improve at least one doc page per week. 
+The on-call developer is asked to read, understand, test, correct, and improve at least one doc page per week.
 
-Our goal is to ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected, as well as improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. 
+Our goal is to ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected, as well as improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users.
 
 See [Writing](https://fleetdm.com/handbook/company/communications#writing) for writing guidelines, and don't hesitate to reach out to 🌐 [IT & Enablement](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. [Outstanding documentation issues](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22) use the `:improve documentation` tag.
 

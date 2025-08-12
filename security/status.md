@@ -97,7 +97,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Author:** @sgress454
 - **Status:** `not_affected`
 - **Status notes:** The affected dependency (libxml2) is not utilized by fleetctl itself, but by Apple’s iTMSTransporter tool, which is included in the Docker image for code signing purposes. fleetctl does not process untrusted XML input. Additionally, this CVE describes a denial-of-service (DoS) vulnerability, and fleetctl is a CLI tool, not a long-running service, and therefore is not susceptible to DoS-style exploitation.
-- **Products:**: `fleetctl`,`pkg:deb/debian/libxml2@2.9.14+dfsg-1.3~deb12u1`
+- **Products:**: `fleetctl`,`pkg:deb/debian/libxml2@2.9.14+dfsg-1.3~deb12u1`,`pkg:deb/debian/libxml2@2.9.14+dfsg-1.3~deb12u2`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2025-06-13 15:57:38
 
@@ -113,7 +113,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Author:** @sgress454
 - **Status:** `not_affected`
 - **Status notes:** The affected dependency (libxml2) is not utilized by fleetctl itself, but by Apple’s iTMSTransporter tool, which is included in the Docker image for code signing purposes. fleetctl does not process untrusted XML input. Additionally, this CVE describes a denial-of-service (DoS) vulnerability, and fleetctl is a CLI tool, not a long-running service, and therefore is not susceptible to DoS-style exploitation.
-- **Products:**: `fleetctl`,`pkg:deb/debian/libxml2@2.9.14+dfsg-1.3~deb12u1`
+- **Products:**: `fleetctl`,`pkg:deb/debian/libxml2@2.9.14+dfsg-1.3~deb12u1`,`pkg:deb/debian/libxml2@2.9.14+dfsg-1.3~deb12u2`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2025-06-13 15:56:50
 
