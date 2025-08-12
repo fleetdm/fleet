@@ -1538,3 +1538,54 @@ func TestParser(t *testing.T) {
 		})
 	})
 }
+
+func Test_ignoreKnownBadCVEs(t *testing.T) {
+	full := "Windows 10 Version 22H2 for x64-based Systems"
+	require.NotEmpty(t, parsed.NewProductFromFullName(full).Name(), "parsed didn’t recognize product full name: %q", full)
+
+	rXML := &msrcxml.FeedResult{
+		WinProducts: map[string]msrcxml.Product{
+			"11569": {ProductID: "11569", FullName: full},
+		},
+		WinVulnerabities: []msrcxml.Vulnerability{
+			{
+				CVE: "CVE-2025-36350", // bad CVE, should be skipped
+				Remediations: []msrcxml.VulnerabilityRemediation{
+					{
+						Type:            "Vendor Fix",
+						FixedBuild:      "10.0.17763.2928",
+						ProductIDs:      []string{"11568", "11569", "11570", "11571", "11572"},
+						Description:     "5013941",
+						Supercedence:    "5012647",
+						RestartRequired: "Yes",
+						URL:             "https://catalog.update.microsoft.com/v7/site/Search.aspx?q=KB5013941",
+					},
+				},
+			},
+			{
+				CVE: "CVE-2025-12345", // normal CVE, should appear
+				Remediations: []msrcxml.VulnerabilityRemediation{
+					{
+						Type:            "Vendor Fix",
+						FixedBuild:      "10.0.17763.2928",
+						ProductIDs:      []string{"11568", "11569", "11570", "11571", "11572"},
+						Description:     "5013941",
+						Supercedence:    "5012647",
+						RestartRequired: "Yes",
+						URL:             "https://catalog.update.microsoft.com/v7/site/Search.aspx?q=KB5013941",
+					},
+				},
+			},
+		},
+	}
+
+	bulletins, err := mapToSecurityBulletins(rXML)
+	require.NoError(t, err)
+	require.NotEmpty(t, bulletins, "no bulletins were produced (product may be unsupported)")
+
+	for _, b := range bulletins {
+		require.NotContains(t, b.Vulnerabities, "CVE-2025-36350")
+		require.Contains(t, b.Vulnerabities, "CVE-2025-12345")
+	}
+
+}

@@ -51,7 +51,17 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 		pIDToPName[pID] = name
 	}
 
+	knownVulnsToIgnore := map[string]struct{}{
+		"CVE-2025-36350": {},
+		"CVE-2025-36357": {},
+	}
+
 	for _, v := range rXML.WinVulnerabities {
+		// skip broken CVE's
+		if _, bad := knownVulnsToIgnore[v.CVE]; bad {
+			continue
+		}
+
 		for _, rem := range v.Remediations {
 			// We will only be able to detect vulns for which they are vendor fixes.
 			if !rem.IsVendorFix() {
