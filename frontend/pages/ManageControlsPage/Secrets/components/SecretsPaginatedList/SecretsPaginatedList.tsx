@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 
 import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
@@ -17,6 +17,8 @@ export const SECRETS_PAGE_SIZE = 6;
 
 const SecretsPaginatedList = () => {
   const [copyMessage, setCopyMessage] = useState("");
+  const [copiedSecretName, setCopiedSecretName] = useState("");
+  const copyMessageTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch a single page of scripts.
   const queryClient = useQueryClient();
@@ -60,12 +62,20 @@ const SecretsPaginatedList = () => {
   const onCopySecretName = (evt: React.MouseEvent, secretName: string) => {
     evt.preventDefault();
 
+    if (copyMessageTimeoutIdRef.current) {
+      clearTimeout(copyMessageTimeoutIdRef.current);
+    }
+
+    setCopiedSecretName(secretName);
     stringToClipboard(getTokenFromSecretName(secretName))
       .then(() => setCopyMessage("Copied!"))
       .catch(() => setCopyMessage("Copy failed"));
 
     // Clear message after 1 second
-    setTimeout(() => setCopyMessage(""), 1000);
+    copyMessageTimeoutIdRef.current = setTimeout(() => {
+      setCopyMessage("");
+      setCopiedSecretName("");
+    }, 1000);
 
     return false;
   };
@@ -87,6 +97,11 @@ const SecretsPaginatedList = () => {
             >
               <Icon name="copy" />
             </Button>
+            {copyMessage && copiedSecretName === secret.name && (
+              <span
+                className={`${baseClass}__copy-message`}
+              >{`${copyMessage} `}</span>
+            )}
           </span>
         }
       />
