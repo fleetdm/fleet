@@ -5586,7 +5586,7 @@ Resends a configuration profile for the specified host.
 
 `Status: 202`
 
-### Batch-modify custom OS settings(configuration profiles)
+### Batch-modify custom OS settings (configuration profiles)
 
 Modify configuration profiles for a team. The provided list of profiles will be the active profiles for the specified team. If no team (`team_id` or `team_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are not assigned to "No team" (Fleet Premium).
 
