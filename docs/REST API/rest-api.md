@@ -12901,7 +12901,7 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
 
 #### Example
 
-`GET /api/v1/fleet/spec/custom_variables`
+`GET /api/v1/fleet/custom_variables`
 
 ##### Request body
 
