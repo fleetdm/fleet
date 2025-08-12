@@ -1,3 +1,4 @@
+
 alarm_timeout
 allow_unsafe
 alsologtostderr
@@ -107,6 +108,7 @@ distributed_tls_read_endpoint
 distributed_tls_write_endpoint
 docker_socket
 enable_bpf_events
+enable_dns_lookup_events
 enable_extensions_watchdog
 enable_file_events
 enable_foreign
@@ -194,6 +196,7 @@ logger_status_sync
 logger_stderr
 logger_syslog_facility
 logger_syslog_prepend_cee
+logger_tls_backoff_max
 logger_tls_compress
 logger_tls_endpoint
 logger_tls_max_lines
@@ -283,3 +286,4 @@ watchdog_memory_limit
 watchdog_utilization_limit
 windows_event_channels
 yara_delay
+yara_sigurl_authenticate

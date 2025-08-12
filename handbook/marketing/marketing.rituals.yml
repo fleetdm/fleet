@@ -88,9 +88,30 @@
   task: "Update content calendar"
   startedOn: "2025-08-04"
   frequency: "Weekly"
-  description: "Every Monday, the Content Specialist will verify that the next two weeks of content is completely planed and the conent calendar is updated."
+  description: "Every Monday, the Content Specialist will verify that the next two weeks of content are completely planned and the content calendar is updated."
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=390351382#gid=390351382"
   dri: "irenareedy"
   autoIssue:  
     labels: [ ":help-marketing" ] 
     repo: "confidential"
+-
+  task: "Update KPIs"
+  startedOn: "2025-08-08"
+  frequency: "Weekly"
+  description: "Every Friday, the Content Specialist will fill out the weekly marketing KPIs."
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing" ] 
+    repo: "confidential"
+-
+  task: "Import LinkedIn posts to Clay"
+  startedOn: "2025-08-08"
+  frequency: "Weekly"
+  description: "Every Friday, the Content Specialist will duplicate the previously made Clay table and import all LinkedIn posts listed in the content calendar."
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing" ] 
+    repo: "confidential"
+  
