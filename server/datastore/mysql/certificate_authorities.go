@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"encoding/json"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
