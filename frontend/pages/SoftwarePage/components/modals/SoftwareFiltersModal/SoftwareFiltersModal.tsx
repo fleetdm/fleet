@@ -169,8 +169,8 @@ const SoftwareFiltersModal = ({
     onSubmit({
       vulnerable: vulnSoftwareFilterEnabled,
       exploit: hasKnownExploit || undefined,
-      minCvssScore: min === 0 ? undefined : min,
-      maxCvssScore: max === 10 ? undefined : max,
+      minCvssScore: min === 0 && max === 10 ? undefined : min, // Only clear severity if set to 0-10
+      maxCvssScore: min === 0 && max === 10 ? undefined : max, // Only clear severity if set to 0-10
     });
   };
 
@@ -224,6 +224,7 @@ const SoftwareFiltersModal = ({
                 value={formData.minScore}
                 disabled={!vulnSoftwareFilterEnabled}
                 type="number"
+                placeholder="0.0"
                 min={0}
                 max={10}
                 step={0.1}
@@ -237,6 +238,7 @@ const SoftwareFiltersModal = ({
                 value={formData.maxScore}
                 disabled={!vulnSoftwareFilterEnabled}
                 type="number"
+                placeholder="10.0"
                 min={0}
                 max={10}
                 step={0.1}
