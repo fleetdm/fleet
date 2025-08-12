@@ -49,6 +49,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 	defer mockDigiCertServer.Close()
 
 	createdCAs := []*fleet.CertificateAuthority{}
+	createdActivities := []*fleet.Activity{}
 	baseSetupForCATests := func() (*Service, context.Context) {
 		ds := new(mock.Store)
 		// Reset createdCAs before each test
@@ -73,7 +74,6 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 		svc.config.Server.PrivateKey = "supersecret"
 
-		// TODO EJM figure out why this is failign the authz check
 		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 		return svc, ctx
@@ -94,6 +94,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			},
 		}
 
+		// TODO EJM TODO HCA Figure out how to mock out newActivity because this currently panics on it
 		ca, err := svc.NewCertificateAuthority(ctx, createDigicertRequest)
 		require.NoError(t, err)
 		require.NotNil(t, ca)
