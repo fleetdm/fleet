@@ -184,8 +184,8 @@ const DataTable = ({
         selectedRowIds: defaultSelectedRows,
       },
       // For onClientSidePaginationChange (URL-controlled mode) we inject pageIndex, otherwise leave undefined so it's internal
-      // NOTE: This specificallyprevents flickering render of incorrect page data for clientside pagination with
-      // external source of truth (URL bar) such as the self-service page
+      // NOTE: This specifically prevents quick flicker of incorrect page data for clientside pagination with
+      // external source of truth (URL bar) such as the self-service page when searching or changing categories
       // TODO: Figure out flickering on self-service page internal sort buttons
       state:
         controlledPageIndex !== undefined
@@ -363,9 +363,9 @@ const DataTable = ({
   }, [sortBy, sortHeader, onSort, sortDirection, isClientSidePagination]);
 
   /** For onClientSidePaginationChange only:
+   * Prevents bug where URL page + table page mismatch
    * Whenever defaultPageIndex (the value from props, e.g. queryParams.page) changes,
    * ensure we call gotoPage so react-table reflects the correct visible page.
-   * Prevents bug where URL + table mismatch pages
    */
   useEffect(() => {
     if (
