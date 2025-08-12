@@ -224,8 +224,6 @@ AWS Security Token Service (STS) External ID to use for MySQL authentication. Sp
 
 ## Redis
 
-AWS ElastiCache IAM authentication is automatically enabled when there is an ElastiCache endpoint in `redis_address` and no `redis_password` is specified.
-
 Note that to test a TLS connection to a Redis instance, run the
 `tlsconnect` Go program in `tools/redis-tests`, e.g., from the root of the repository:
 
@@ -240,6 +238,8 @@ By default, this will set up a Redis pool for that configuration and execute a
 ### redis_address
 
 For the address of the Redis server that Fleet should connect to, include the hostname and port.
+
+If an AWS ElastiCache endpoint is specified and `redis_password` isn't specified, Identity and Access Management (IAM) authentication is automatically used.
 
 - Default value: `localhost:6379`
 - Environment variable: `FLEET_REDIS_ADDRESS`
