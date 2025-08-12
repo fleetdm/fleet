@@ -633,6 +633,7 @@ Object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name      | string  | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
 | url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant. |
 | client_id | string | **Required**. The client ID provided by Hydrant.|
 | client_secret  | string | **Required**. The client secret provided by Hydrant. |
@@ -647,14 +648,14 @@ Object with the following structure:
 {
   "digicert": {
     "name": "WIFI_CERTIFICATE",
-    "digicert_url": "https://one.digicert.com",
-    "digicert_api_token": "********",
-    "digicert_profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
-    "digicert_certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-    "digicert_certificate_user_principal_names": [
+    "url": "https://one.digicert.com",
+    "api_token": "********",
+    "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
+    "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+    "certificate_user_principal_names": [
       "$FLEET_VAR_HOST_HARDWARE_SERIAL",
     ],
-    "digicert_certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+    "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
   }
 }
 ```
@@ -699,7 +700,7 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
 ```json
 {
   "digicert": {
-    "digicert_certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+    "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
   }
 }
 ```
@@ -742,7 +743,7 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
     },
     {
       "id": 1,
-      "name": "NDES_VPN",
+      "name": "NDES",
       "type": "ndes_scep_proxy"
     },
     {
@@ -781,14 +782,14 @@ Get details of the certificate authority.
   "id": 1,
   "type": "digicert",
   "name": "WIFI_CERTIFICATE",
-  "digicert_url": "https://one.digicert.com",
-  "digicert_api_token": "********",
-  "digicert_profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
-  "digicert_certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-  "digicert_certificate_user_principal_names": [
+  "url": "https://one.digicert.com",
+  "api_token": "********",
+  "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
+  "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "certificate_user_principal_names": [
     "$FLEET_VAR_HOST_HARDWARE_SERIAL",
   ],
-  "digicert_certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+  "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
 }
 ```
 
@@ -1115,6 +1116,7 @@ None.
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "enable_disk_encryption": true,
+    "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -1421,6 +1423,7 @@ Modifies the Fleet's configuration with the supplied information.
     "android_enabled_and_configured": false,
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
+    "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -1967,6 +1970,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
+| windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
@@ -2099,6 +2103,7 @@ _Available in Fleet Premium._
   "mdm": {
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
+    "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -5804,6 +5809,7 @@ _Available in Fleet Premium_
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+| windows_require_bitlocker_pin  | boolean | body | End users on Windows hosts will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 
 #### Example
 
@@ -11315,6 +11321,7 @@ _Available in Fleet Premium_
     },
     "mdm": {
       "enable_disk_encryption": true,
+      "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
@@ -11691,6 +11698,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
+| windows_require_bitlocker_pin           | boolean | End users on Windows hosts that belong to this team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                                      |
 
 <br/>
@@ -11861,6 +11869,7 @@ _Available in Fleet Premium_
     },
     "mdm": {
       "enable_disk_encryption": true,
+      "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
