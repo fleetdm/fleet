@@ -1792,10 +1792,10 @@ func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents
 	return scriptContentsID, nil
 }
 
-func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, batchExecID string) error {
 	script, err := ds.Script(ctx, scriptID)
 	if err != nil {
-		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
+		return fleet.NewInvalidArgumentError("script_id", err.Error())
 	}
 
 	// We need full host info to check if hosts are able to run scripts, see svc.RunHostScript
@@ -1805,7 +1805,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 	for _, hostID := range hostIDs {
 		host, err := ds.Host(ctx, hostID)
 		if err != nil {
-			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
+			return fmt.Errorf("unable to load host information for %d: %w", hostID, err)
 		}
 
 		// All hosts must be on the same team as the script
@@ -1813,15 +1813,13 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		sameTeamNumber := host.TeamID != nil && script.TeamID != nil && *host.TeamID == *script.TeamID
 		sameTeam := sameTeamNoTeam || sameTeamNumber
 		if !sameTeam {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
+			return ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
 		}
 
 		fullHosts = append(fullHosts, host)
 	}
 
 	executions := make([]fleet.BatchExecutionHost, 0, len(fullHosts))
-
-	batchExecID := ""
 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, host := range fullHosts {
@@ -1862,10 +1860,10 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 			})
 		}
 
-		batchExecID = uuid.New().String()
 		_, err := tx.ExecContext(
 			ctx,
-			"INSERT INTO batch_activities (execution_id, script_id, status, activity_type) VALUES (?, ?, ?, ?)",
+			`INSERT INTO batch_activities (execution_id, script_id, status, activity_type, started_at) VALUES (?, ?, ?, ?, NOW())
+				ON DUPLICATE KEY UPDATE status = VALUES(status), started_at = VALUES(started_at)`,
 			batchExecID,
 			script.ID,
 			fleet.BatchExecutionStarted,
@@ -1886,17 +1884,17 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		}
 
 		insertStmt := `
-INSERT INTO batch_activity_host_results (
-	batch_execution_id,
-	host_id,
-	host_execution_id,
-	error
-) VALUES (
-	:batch_id,
-	:host_id,
-	:host_execution_id,
-	:error
-)`
+			INSERT INTO batch_activity_host_results (
+				batch_execution_id,
+				host_id,
+				host_execution_id,
+				error
+			) VALUES (
+				:batch_id,
+				:host_id,
+				:host_execution_id,
+				:error
+			) ON DUPLICATE KEY UPDATE host_execution_id = VALUES(host_execution_id), error = VALUES(error)`
 
 		if _, err := sqlx.NamedExecContext(ctx, tx, insertStmt, args); err != nil {
 			return ctxerr.Wrap(ctx, err, "associating script executions with batch job")
@@ -1904,7 +1902,17 @@ INSERT INTO batch_activity_host_results (
 
 		return nil
 	}); err != nil {
-		return "", fmt.Errorf("creating bulk execution order: %w", err)
+		return fmt.Errorf("creating bulk execution order: %w", err)
+	}
+
+	return nil
+}
+
+func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+	batchExecID := uuid.New().String()
+
+	if err := ds.batchExecuteScript(ctx, userID, scriptID, hostIDs, batchExecID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "immediate batch execution")
 	}
 
 	return batchExecID, nil
@@ -2150,6 +2158,23 @@ func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionI
 }
 
 func (ds *Datastore) RunScheduledBatchActivity(ctx context.Context, executionID string) error {
+	// batchStmt := `
+	// 	UPDATE
+	// 		batch_activities
+	// 	SET
+	// 		status = 'started',
+	// 		started_at = NOW()
+	// 	WHERE
+	// 		execution_id = ?`
+
+	// 	updateHostStmt := `
+	// UPDATE
+	// batch_activity_host_results bahr
+	// JOIN
+	// batch_activities ba ON bahr.batch_execution_id = ba.execution_id
+	// WHERE ba.execution_id = ?
+	// `
+
 	batchActivity, err := ds.GetBatchActivity(ctx, executionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting batch activity")
@@ -2169,26 +2194,51 @@ func (ds *Datastore) RunScheduledBatchActivity(ctx context.Context, executionID 
 		return ctxerr.Wrap(ctx, err, "getting batch activity host results")
 	}
 
-	ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		for _, result := range results {
-			hostExecutionID, activityID, err := ds.insertNewHostScriptExecution(ctx, tx, &fleet.HostScriptRequestPayload{
-				HostID:          result.HostID,
-				ScriptID:        batchActivity.ScriptID,
-				ScriptContentID: script.ScriptContentID,
-				ScriptName:      script.Name,
-				UserID:          batchActivity.UserID,
-			}, false)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "inserting host script execution")
-			}
-		}
+	hostIDs := []uint{}
+	for _, result := range results {
+		hostIDs = append(hostIDs, result.HostID)
+	}
 
-		// update batch activity host result with host execution id
-		// update batch activity started_at
-		// update batch activity status
+	if err := ds.batchExecuteScript(ctx, batchActivity.UserID, script.ID, hostIDs, batchActivity.BatchExecutionID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delayed batch script execution")
+	}
 
-		return nil
-	})
+	// ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// 	if _, err := tx.ExecContext(ctx, batchStmt, executionID); err != nil {
+	// 		return ctxerr.Wrap(ctx, err, "updating batch activity table")
+	// 	}
+
+	// 	hostExecutionIDs := []struct {
+	// 		HostExecutionID string
+	// 		ID              uint
+	// 	}{}
+	// 	for _, result := range results {
+	// 		hostExecutionID, _, err := ds.insertNewHostScriptExecution(ctx, tx, &fleet.HostScriptRequestPayload{
+	// 			HostID:          result.HostID,
+	// 			ScriptID:        batchActivity.ScriptID,
+	// 			ScriptContentID: script.ScriptContentID,
+	// 			ScriptName:      script.Name,
+	// 			UserID:          batchActivity.UserID,
+	// 		}, false)
+	// 		if err != nil {
+	// 			return ctxerr.Wrap(ctx, err, "inserting host script execution")
+	// 		}
+
+	// 		hostExecutionIDs = append(hostExecutionIDs, struct {
+	// 			HostExecutionID string
+	// 			ID              uint
+	// 		}{
+	// 			HostExecutionID: hostExecutionID,
+	// 			ID:              result.ID,
+	// 		})
+	// 	}
+
+	// 	// update batch activity host result with host execution id
+	// 	// update batch activity started_at
+	// 	// update batch activity status
+
+	// 	return nil
+	// })
 
 	return nil
 }
