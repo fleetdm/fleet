@@ -4,3 +4,8 @@ export interface ISecret {
   created_at: string;
   updated_at: string;
 }
+
+export interface ISecretPayload {
+  name: string;
+  value: string;
+}

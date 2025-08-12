@@ -86,6 +86,12 @@ function PoliciesPaginatedList(
       }
       return [];
     },
+    reload: (opts?: { keepPage?: boolean }) => {
+      if (paginatedListRef.current) {
+        return paginatedListRef.current.reload(opts);
+      }
+      return Promise.resolve();
+    },
   }));
 
   // When "save" is clicked, call the parent's `onSubmit` with the set of changed items.

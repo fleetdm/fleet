@@ -2,12 +2,12 @@ import React, { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 
 import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
-import { ISecret } from "interfaces/secrets";
+import { ISecret, ISecretPayload } from "interfaces/secrets";
 
 import { stringToClipboard } from "utilities/copy_text";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
-import PaginatedList from "components/PaginatedList";
+import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
@@ -16,9 +16,14 @@ const baseClass = "secrets-batch-paginated-list";
 export const SECRETS_PAGE_SIZE = 6;
 
 const SecretsPaginatedList = () => {
+  const paginatedListRef = useRef<IPaginatedListHandle<ISecret>>(null);
+
   const [copyMessage, setCopyMessage] = useState("");
   const [copiedSecretName, setCopiedSecretName] = useState("");
   const copyMessageTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Fetch a single page of scripts.
   const queryClient = useQueryClient();
@@ -45,14 +50,31 @@ const SecretsPaginatedList = () => {
     [queryClient]
   );
 
-  const onDeleteSecret = useCallback((secret: ISecret) => {
-    // Logic to delete the secret
-    console.log("Delete secret:", secret);
-    // Here you would typically call an API to delete the secret
+  const onAddSecret = useCallback(() => {
+    secretsAPI
+      .addSecret({
+        name: `New Secret ${Date.now()}`,
+        value: "secret_value",
+      } as ISecretPayload)
+      .then(() => {
+        console.log("Secret added successfully");
+        paginatedListRef.current?.reload({ keepPage: true });
+      })
+      .catch((error) => {
+        console.error("Error adding secret:", error);
+      });
   }, []);
 
-  const onAddSecret = useCallback(() => {
-    console.log("ADD SECRET");
+  const onDeleteSecret = useCallback((secret: ISecret) => {
+    secretsAPI
+      .deleteSecret(secret.id)
+      .then(() => {
+        console.log("Secret deleted successfully");
+        paginatedListRef.current?.reload({ keepPage: true });
+      })
+      .catch((error) => {
+        console.error("Error deleting secret:", error);
+      });
   }, []);
 
   const getTokenFromSecretName = (secretName: string): string => {
@@ -122,6 +144,7 @@ const SecretsPaginatedList = () => {
   return (
     <div className={`${baseClass}`}>
       <PaginatedList<ISecret>
+        ref={paginatedListRef}
         renderItemRow={renderSecretRow}
         count={2}
         fetchPage={fetchPage}

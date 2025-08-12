@@ -19,6 +19,7 @@ const baseClass = "paginated-list";
 // the list of dirty items.
 export interface IPaginatedListHandle<TItem> {
   getDirtyItems: () => TItem[];
+  reload: (opts?: { keepPage?: boolean }) => Promise<void>;
 }
 interface IPaginatedListProps<TItem> {
   /** Function to fetch one page of data.
@@ -56,7 +57,7 @@ interface IPaginatedListProps<TItem> {
   ) => ReactElement | false | null | undefined;
   /** Parents can use this to change whatever item metadata is needed to toggle
   the value indicated by `isSelected`. */
-  onClickRow: (item: TItem) => TItem;
+  onClickRow?: (item: TItem) => TItem;
   /** whether clicking a row should set the item as dirty. Default true. */
   setDirtyOnClickRow?: boolean;
   /** The size of the page to fetch and show. */
@@ -194,6 +195,20 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   useImperativeHandle(ref, () => ({
     getDirtyItems() {
       return Object.values(dirtyItems);
+    },
+    reload: async ({ keepPage } = {}) => {
+      const pageToLoad = keepPage ? currentPage : 0;
+      try {
+        setIsLoadingPage(true);
+        setError(null);
+        const result = await fetchPage(pageToLoad);
+        setItems(result);
+        if (!keepPage) setCurrentPage(0);
+      } catch (e) {
+        setError(e as Error);
+      } finally {
+        setIsLoadingPage(false);
+      }
     },
   }));
 
