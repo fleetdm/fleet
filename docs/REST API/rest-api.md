@@ -12891,7 +12891,7 @@ None.
 
 - [List custom variables](#list-custom-variables)
 - [Create custom variable](#create-custom-variable)
-- [Delete custom variables(#delete-custom-variable)
+- [Delete custom variable](#delete-custom-variable)
 
 ### List custom variables
 
