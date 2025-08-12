@@ -60,6 +60,19 @@ When procuring SaaS tools and services, analyze the purchase of these subscripti
 - Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
 
 
+### Cancel a vendor or subscription
+
+Once the decision has been made not to renew a tool or subscription on Fleet's behalf, use the following steps to churn/cancel a vendor or subscription:
+
+1. Cancel the subscription, including recurring billing. If invoiced, then send churn notice.
+2. Update ["¶ 🧮 The numbers" spreadsheet (confidential doc)](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit?gid=2112277278#gid=2112277278).
+  - Prepend the recurring expense title with "CANCELLED - ".
+  - Zero-out "Projected monthly burn" and "Projected invoice amount".
+3. Remove references from integrated systems and references (i.e. unplug the tool from any other integrations)
+4. Remove any shared access from 1Password vaults.
+5. Update any reference to the tool or subscription and afterwards communicate the change (e.g. by linking to your merged PR in Slack).
+
+
 ### Secure company-issued equipment for a team member
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
