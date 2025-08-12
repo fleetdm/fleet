@@ -54,6 +54,7 @@ const EndUserExperiencePreview = ({
               , they are first asked to authenticate.
             </p>
             <img
+              className={`${baseClass}__personal-preview-img`}
               src={PersonalEndUserAuthPreview}
               alt="Personal End User Authentication Preview"
             />
