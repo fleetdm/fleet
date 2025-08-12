@@ -7474,5 +7474,4 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	require.Equal(t, "ProfileNoVars", (*hostRespNoVars.Host.MDM.Profiles)[0].Name)
 	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespNoVars.Host.MDM.Profiles)[0].Status,
 		"Profile should be verified in host details API for no-vars host")
-
 }

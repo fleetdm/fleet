@@ -1468,7 +1468,7 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, i
 	if idpUUID != "" {
 		q.Set("idp_uuid", idpUUID)
 	}
-	enrollURL.RawQuery = strings.ReplaceAll(q.Encode(), "&", "&amp;") // Only encode & in URL to escape it in XML
+	enrollURL.RawQuery = q.Encode()
 
 	var profileBuf bytes.Buffer
 	tmplArgs := struct {
