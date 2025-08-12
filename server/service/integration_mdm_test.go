@@ -17499,9 +17499,19 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	require.True(t, strings.HasPrefix(location, "/mdm/sso/callback"))
 
 	// requesting the /enroll page again and simulating the BYOD IdP cookie being set
-	// renders the download profile page
+	// still redirects to the SSO login if the cookie value does not match the
+	// enrollment reference query string.
 	res = s.DoRawWithHeaders("GET", "/enroll", nil, http.StatusSeeOther,
-		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp")
+		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "not_matching!")
+	location = res.Header.Get("Location")
+	require.NotEmpty(t, location)
+	require.True(t, strings.HasPrefix(location, "http://localhost:9080/simplesaml/"))
+
+	// requesting the /enroll page again and simulating the BYOD IdP cookie being
+	// set renders the download profile page when there is a matching enrollment
+	// reference.
+	res = s.DoRawWithHeaders("GET", "/enroll", nil, http.StatusOK,
+		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "abc")
 	page, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(page), "Enroll your Android device to Fleet")
