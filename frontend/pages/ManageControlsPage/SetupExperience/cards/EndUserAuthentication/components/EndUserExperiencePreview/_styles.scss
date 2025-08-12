@@ -23,9 +23,10 @@
   }
 
   // we need to override the default tab styles to remove the white background
-  // of a selected tab
+  // of the tab nav and selected tab
   &__tab-nav {
     margin-top: $pad-medium;
+    background-color: transparent;
 
     .react-tabs__tab--selected {
       background: transparent;
