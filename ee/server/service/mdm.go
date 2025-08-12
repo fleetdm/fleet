@@ -760,13 +760,6 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 
 	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
-	// TODO(mna): currently this redirects to "/mdm/sso/callback", a UI route, on
-	// any error in the callback and this page displays the error message, but
-	// for BYOD IdP, it doesn't work as this URL will redirect to the Fleet's
-	// login (as the user is not logged in yet). We should probably add a special
-	// error mode to "/enroll" (or define a new URL for that) that can display
-	// the error message.
-
 	profileToken, enrollmentRef, eulaToken, originalURL, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
@@ -794,7 +787,7 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 		u, err := url.Parse(originalURL)
 		if err != nil {
 			logging.WithErr(ctx, err)
-			return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+			return "/enroll?error=" + url.QueryEscape("Failed to parse original URL."), ""
 		}
 		// port over the query string values, which will copy over the enrollment
 		// secret
