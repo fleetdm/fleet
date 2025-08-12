@@ -7018,6 +7018,13 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
 	}
 
+	if idpUUID != "" {
+		_, err := svc.ds.GetMDMIdPAccountByUUID(ctx, idpUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validating idp account existence")
+		}
+	}
+
 	// before responding, create a host record, and assign the host to the
 	// team that matches the enroll secret provided.
 	err = svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, idpUUID, deviceInfo)

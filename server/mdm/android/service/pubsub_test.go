@@ -126,9 +126,42 @@ func TestPubSubEnrollment(t *testing.T) {
 			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
 			require.Error(t, err)
 		})
+
+		t.Run("idp uuid does not match any account", func(t *testing.T) {
+			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						AndroidEnabledAndConfigured: true,
+					},
+				}, nil
+			}
+			mockDS.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+				return nil, common_mysql.NotFound("mdm idp account")
+			}
+
+			enrollmentToken := enrollmentTokenRequest{
+				EnrollSecret: "global",
+				IdpUUID:      uuid.NewString(),
+			}
+			enrollTokenData, err := json.Marshal(enrollmentToken)
+			require.NoError(t, err)
+			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android"),
+				EnrollmentTokenData: string(enrollTokenData),
+			})
+			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+			require.Error(t, err)
+
+			require.True(t, mockDS.GetMDMIdPAccountByUUIDFuncInvoked)
+			mockDS.GetMDMIdPAccountByUUIDFuncInvoked = false
+		})
 	})
 
 	t.Run("successfully enrolls", func(t *testing.T) {
+		mockDS.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+			return nil, nil
+		}
+
 		t.Run("device into a team with valid enroll secret", func(t *testing.T) {
 			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{
@@ -154,8 +187,13 @@ func TestPubSubEnrollment(t *testing.T) {
 			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
 			require.NoError(t, err)
 
-			require.False(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
 			require.True(t, mockDS.NewAndroidHostFuncInvoked)
+			require.False(t, mockDS.GetMDMIdPAccountByUUIDFuncInvoked)
+			require.False(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
+
+			mockDS.GetMDMIdPAccountByUUIDFuncInvoked = false
+			mockDS.NewAndroidHostFuncInvoked = false
+			mockDS.AssociateHostMDMIdPAccountFuncInvoked = false
 		})
 
 		t.Run("device into a team and associates idp if byod idp id is set", func(t *testing.T) {
@@ -187,8 +225,13 @@ func TestPubSubEnrollment(t *testing.T) {
 			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
 			require.NoError(t, err)
 
+			require.True(t, mockDS.GetMDMIdPAccountByUUIDFuncInvoked)
 			require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
 			require.True(t, mockDS.NewAndroidHostFuncInvoked)
+
+			mockDS.GetMDMIdPAccountByUUIDFuncInvoked = false
+			mockDS.NewAndroidHostFuncInvoked = false
+			mockDS.AssociateHostMDMIdPAccountFuncInvoked = false
 		})
 	})
 }

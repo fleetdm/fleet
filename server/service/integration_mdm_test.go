@@ -13817,6 +13817,19 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.Contains(t, errMsg, "SERIAL is required")
 			require.NoError(t, httpResp.Body.Close())
 		})
+
+		t.Run("if idp uuid does not match an account", func(t *testing.T) {
+			hwModel := "MacBookPro16,1"
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				globalSecret,
+				hwModel,
+				mdmtest.WithOTAIdpUUID(uuid.New().String()),
+			)
+			err := mdmDevice.Enroll()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "404 Not Found")
+		})
 	})
 
 	t.Run("succeeds", func(t *testing.T) {
