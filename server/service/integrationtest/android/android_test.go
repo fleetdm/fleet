@@ -138,6 +138,19 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			je := decodeJsonError(t, resp)
 
 			require.Contains(t, "Android enterprise", je.Errors[0]["base"])
+			mysql.TruncateTables(t, s.DS)
+		})
+
+		t.Run("if idp account does not exist", func(t *testing.T) {
+			enableAndroidMDM()
+			secret := "global"
+			createTeamAndSecret("global", secret)
+			resp := s.DoRawWithHeaders(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusUnprocessableEntity, map[string]string{
+				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, "test-uuid"),
+			}, "enroll_secret", "global")
+			je := decodeJsonError(t, resp)
+
+			require.Contains(t, "validating idp account existence", je.Errors[0]["base"])
 		})
 
 		t.Cleanup(func() {
@@ -170,9 +183,17 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 		})
 
 		t.Run("when enroll and idp uuid is set", func(t *testing.T) {
-			idpUUID := "idp-uuid"
+			idpEmail := "test@local.com"
+			err := s.DS.InsertMDMIdPAccount(t.Context(), &fleet.MDMIdPAccount{
+				Username: "test",
+				Email:    idpEmail,
+			})
+			require.NoError(t, err)
+			idpAccount, err := s.DS.GetMDMIdPAccountByEmail(t.Context(), idpEmail)
+			require.NoError(t, err)
+
 			resp := s.DoRawWithHeaders(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusOK, map[string]string{
-				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, idpUUID),
+				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, idpAccount.UUID),
 			}, "enroll_secret", globalSecret)
 
 			bodyBytes, err := io.ReadAll(resp.Body)
@@ -192,7 +213,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			require.NoError(t, err)
 
 			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
-			require.Equal(t, idpUUID, enrollmentRequest.IdpUUID)
+			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
 		})
 	})
 }

@@ -287,13 +287,6 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
-	if enrollmentTokenRequest.IdpUUID != "" {
-		_, err := svc.ds.GetMDMIdPAccountByUUID(ctx, enrollmentTokenRequest.IdpUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "validating idp account existence")
-		}
-	}
-
 	deviceID, err := svc.getDeviceID(ctx, device)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting device ID")

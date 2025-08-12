@@ -475,6 +475,15 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
+	if idpUUID != "" {
+		_, err := svc.ds.GetMDMIdPAccountByUUID(ctx, idpUUID)
+		if err != nil {
+			iae := &fleet.InvalidArgumentError{}
+			iae.Append("IDP UUID", "Failed validating IDP account existence")
+			return nil, ctxerr.Wrap(ctx, iae)
+		}
+	}
+
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
