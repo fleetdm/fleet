@@ -384,7 +384,6 @@ const DEFAULT_LINUX_OS_VERSIONS_RESPONSE: IOSVersionsResponse = {
   },
 };
 
-// eslint-disable-next-line import/prefer-default-export
 export const createMockLinuxOSVersionsResponse = (
   overrides?: Partial<IOSVersionsResponse>
 ): IOSVersionsResponse => {

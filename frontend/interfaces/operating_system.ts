@@ -12,7 +12,7 @@ export interface IOperatingSystemVersion {
   name: string;
   name_only: string;
   version: string;
-  platform: string;
+  platform: string; // TODO: More specific
   hosts_count: number;
   generated_cpes?: string[];
   vulnerabilities: ISoftwareVulnerability[];

@@ -22,7 +22,7 @@ import osVersionsAPI, {
   IOSVersionResponse,
   IGetOsVersionQueryKey,
 } from "services/entities/operating_systems";
-import { createMockLinuxOSVersion } from "__mocks__/operatingSystemsMock";
+
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   PLATFORM_DISPLAY_NAMES,
@@ -48,7 +48,7 @@ interface ISummaryCardProps {
   teamIdForApi?: number;
 }
 
-const SummaryCard = ({
+export const SummaryCard = ({
   osVersion,
   countsUpdatedAt,
   teamIdForApi,
@@ -75,11 +75,11 @@ const SummaryCard = ({
 interface IVulnerabilitiesCardProps {
   osVersion: IOperatingSystemVersion;
   isLoading: boolean;
-  router: InjectedRouter; // replace with your router's type if you have one
+  router: InjectedRouter;
   teamIdForApi?: number;
 }
 
-const VulnerabilitiesCard = ({
+export const VulnerabilitiesCard = ({
   osVersion,
   isLoading,
   router,
@@ -122,7 +122,7 @@ interface IKernelsCardProps {
   teamIdForApi?: number;
 }
 
-const KernelsCard = ({
+export const KernelsCard = ({
   osVersion,
   isLoading,
   router,
@@ -176,7 +176,7 @@ const SoftwareOSDetailsPage = ({
   });
 
   const {
-    data: { os_version: osVersionDetails2, counts_updated_at } = {},
+    data: { os_version: osVersionDetails, counts_updated_at } = {},
     isLoading,
     isError: isOsVersionError,
   } = useQuery<
@@ -209,12 +209,6 @@ const SoftwareOSDetailsPage = ({
     }
   );
 
-  const osVersionDetails = createMockLinuxOSVersion();
-  // const osVersionDetails = createMockLinuxOSVersion({ kernels: [] });
-
-  console.log("osversiondetails2", osVersionDetails2);
-  console.log("osversiondetails", osVersionDetails);
-
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
@@ -233,7 +227,7 @@ const SoftwareOSDetailsPage = ({
 
     // Linux vulns are associated with specific kernels hence design
     // hiding default vulns table and showing vulns within OS > Kernels card
-    const isLinuxPlatform = isLinuxLike(osVersionDetails.platform);
+    const isLinuxPlatform = isLinuxLike(osVersionDetails?.platform || "");
 
     return (
       <>
