@@ -90,7 +90,8 @@ func (ts *WithServer) CreateCommonDSMocks() {
 		return &fleet.User{ID: id}, nil
 	}
 	ts.DS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		queryerContext sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		result := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(assetNames))
 		for _, name := range assetNames {
 			result[name] = fleet.MDMConfigAsset{Value: []byte("value")}
@@ -155,7 +156,6 @@ func (m *mockService) NewActivity(ctx context.Context, user *fleet.User, details
 }
 
 func runServerForTests(t *testing.T, logger kitlog.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {
-
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext,

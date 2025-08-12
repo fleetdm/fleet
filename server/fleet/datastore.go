@@ -1236,7 +1236,7 @@ type Datastore interface {
 
 	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
 	// MDM-enrolled devices via OTA that are not already enrolled in Fleet.
-	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, deviceInfo MDMAppleMachineInfo) error
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo) error
 
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
@@ -2273,6 +2273,8 @@ type AndroidDatastore interface {
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
+	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
+	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
