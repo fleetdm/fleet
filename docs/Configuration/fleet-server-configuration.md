@@ -19,11 +19,11 @@ This section describes the configuration options for the primary. Suppose you al
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
-AWS RDS IAM authentication is automatically enabled when there is an RDS endpoint in `mysql_address` and no `mysql_password`/`mysql_password_path` is specified.
-
 ### mysql_address
 
 For the address of the MySQL server that Fleet should connect to, include the hostname and port.
+
+If an Amazon Relational Database Service (RDS) endpoint is specified and neither `mysql_password` nor `mysql_password_path` is specified, Identity and Access Management (IAM) authentication is automatically used.
 
 - Default value: `localhost:3306`
 - Environment variable: `FLEET_MYSQL_ADDRESS`
