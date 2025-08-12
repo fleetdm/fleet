@@ -23,15 +23,15 @@ export default {
       secrets: [
         {
           id: 1,
-          name: "example_secret",
+          name: "SOME_API_TOKEN",
           created_at: "2023-10-01T00:00:00Z",
-          updated_at: "2023-10-01T00:00:00Z",
+          updated_at: "2025-08-10T00:00:00Z",
         },
         {
           id: 2,
-          name: "another_secret",
-          created_at: "2023-10-02T00:00:00Z",
-          updated_at: "2023-10-02T00:00:00Z",
+          name: "CROWDSTRIKE_LICENSE_KEY",
+          created_at: "2021-09-04T00:00:00Z",
+          updated_at: "2024-10-02T00:00:00Z",
         },
       ],
       meta: {

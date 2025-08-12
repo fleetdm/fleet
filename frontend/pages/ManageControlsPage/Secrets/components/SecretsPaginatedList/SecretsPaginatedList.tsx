@@ -1,9 +1,11 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { useQueryClient } from "react-query";
 
 import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
 import { ISecret } from "interfaces/secrets";
 
+import { stringToClipboard } from "utilities/copy_text";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
 import PaginatedList from "components/PaginatedList";
 import Button from "components/buttons/Button";
@@ -14,6 +16,8 @@ const baseClass = "secrets-batch-paginated-list";
 export const SECRETS_PAGE_SIZE = 6;
 
 const SecretsPaginatedList = () => {
+  const [copyMessage, setCopyMessage] = useState("");
+
   // Fetch a single page of scripts.
   const queryClient = useQueryClient();
 
@@ -49,16 +53,40 @@ const SecretsPaginatedList = () => {
     console.log("ADD SECRET");
   }, []);
 
-  const renderSecretRow = (
-    secret: ISecret,
-    onChange: (secret: ISecret) => void
-  ) => (
+  const getTokenFromSecretName = (secretName: string): string => {
+    return `$FLEET_SECRET_${secretName.toUpperCase()}`;
+  };
+
+  const onCopySecretName = (evt: React.MouseEvent, secretName: string) => {
+    evt.preventDefault();
+
+    stringToClipboard(getTokenFromSecretName(secretName))
+      .then(() => setCopyMessage("Copied!"))
+      .catch(() => setCopyMessage("Copy failed"));
+
+    // Clear message after 1 second
+    setTimeout(() => setCopyMessage(""), 1000);
+
+    return false;
+  };
+
+  const renderSecretRow = (secret: ISecret) => (
     <>
       <ListItem
         title={secret.name.toUpperCase()}
         details={
           <span>
-            created whenever <a>foo</a>
+            Updated <HumanTimeDiffWithDateTip timeString={secret.updated_at} />{" "}
+            &bull; {getTokenFromSecretName(secret.name)}
+            <Button
+              variant="unstyled"
+              className={`${baseClass}__copy-secret-icon`}
+              onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
+                onCopySecretName(e, secret.name)
+              }
+            >
+              <Icon name="copy" />
+            </Button>
           </span>
         }
       />
