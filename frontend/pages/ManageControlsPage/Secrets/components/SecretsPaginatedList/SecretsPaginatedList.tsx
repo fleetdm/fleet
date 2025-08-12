@@ -5,6 +5,7 @@ import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
 import { ISecret, ISecretPayload } from "interfaces/secrets";
 
 import { stringToClipboard } from "utilities/copy_text";
+import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
@@ -159,6 +160,12 @@ const SecretsPaginatedList = () => {
               </Button>
             </span>
           </div>
+        }
+        helpText={
+          <span>
+            Profiles can also use any of Fleet&rsquo;s{" "}
+            <CustomLink url="#" text="built-in variables" newTab />
+          </span>
         }
       />
     </div>
