@@ -5604,7 +5604,7 @@ For declaration (DDM) profiles, hosts with new, updated, or removed profiles are
 | team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the configuration profiles to. Only one of `team_name` or `team_id` may be included in the request.          |
 | team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name` or `team_id` may be included in the request. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
-| configuration_profiles  | json   | body  | An array of objects, consisting of a `profile` Base64 encoded .mobileconfig or JSON profile for Apple (macOS, iOS, iPadOS) hosts or XML profile for Windows hosts, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` array of label names, and a `display_name` (required). |
+| configuration_profiles  | json   | body  | An array of objects, consisting of a `profile` Base64 encoded .mobileconfig or JSON profile (DDM) for Apple (macOS, iOS, iPadOS) hosts or XML profile for Windows hosts, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` array of label names, and a `display_name`. `display_name` is required for Windows and DDM profiles. It's not supported for .mobileconfig profiles.  |
 
 For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified platform are targeted.
 
