@@ -3,9 +3,11 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -92,4 +94,23 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	}
 	ca.ID = uint(id) //nolint:gosec // dismiss G115
 	return ca, nil
+}
+
+func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID int64) error {
+	stmt := "DELETE FROM certificate_authorities WHERE id = ?"
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateAuthorityID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, fmt.Sprintf("deleting certificate authority with id %d", certificateAuthorityID))
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting rows affected by delete certificate authority")
+	}
+
+	if rowsAffected < 1 {
+		return common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
+	}
+
+	return nil
 }
