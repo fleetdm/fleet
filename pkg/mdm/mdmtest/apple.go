@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -88,6 +89,8 @@ type TestAppleMDMClient struct {
 	fetchEnrollmentProfileFromOTA bool
 	// otaEnrollSecret is the team enroll secret to be used during the OTA flow.
 	otaEnrollSecret string
+	// otaIdpUUID is the optional uuid of the idp account that should be associated with the host enrolling
+	otaIdpUUID string
 
 	// fetchEnrollmentProfileFromMDMBYOD indicates whether this simulated device will fetch
 	// the enrollment profile from Fleet as if it were a device running the Account Driven User
@@ -127,6 +130,13 @@ func WithEnrollmentProfileFromDEPUsingPost() TestMDMAppleClientOption {
 	return func(c *TestAppleMDMClient) {
 		c.fetchEnrollmentProfileFromDEPUsingPost = true
 		c.fetchEnrollmentProfileFromDEP = false
+	}
+}
+
+// Will set a cookie for OTA requests which mimics SSO being enabled before OTA enrollment.
+func WithOTAIdpUUID(idpUUID string) TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.otaIdpUUID = idpUUID
 	}
 }
 
@@ -359,6 +369,14 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true,
 	}))
+
+	if c.otaIdpUUID != "" {
+		request.AddCookie(&http.Cookie{
+			Name:  shared_mdm.BYODIdpCookieName,
+			Value: c.otaIdpUUID,
+		})
+	}
+
 	response, err := cc.Do(request)
 	if err != nil {
 		return fmt.Errorf("send request: %w", err)
