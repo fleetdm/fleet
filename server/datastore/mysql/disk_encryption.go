@@ -39,7 +39,7 @@ func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(
 	incomingKey := encryptionKey{Base: encryptedBase64Key, CreatedAt: time.Now().UTC()}
 	archived, err := ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)
 	if err != nil {
-		return archived, ctxerr.Wrap(ctx, err, "archiving key")
+		return false, ctxerr.Wrap(ctx, err, "archiving key")
 	}
 
 	if existingKey.NotFound {
@@ -58,7 +58,7 @@ VALUES
 				host)
 			// This should never happen unless there is a bug in the code or an infra issue (like huge replication lag).
 		default:
-			return archived, ctxerr.Wrap(ctx, err, "inserting key")
+			return false, ctxerr.Wrap(ctx, err, "inserting key")
 		}
 	}
 
@@ -75,7 +75,7 @@ UPDATE host_disk_encryption_keys SET
 WHERE host_id = ?
 `, incomingKey.Base, decryptable, incomingKey.Base, clientError, host.ID)
 	if err != nil {
-		return archived, ctxerr.Wrap(ctx, err, "updating key")
+		return false, ctxerr.Wrap(ctx, err, "updating key")
 	}
 	return archived, nil
 }
@@ -153,7 +153,7 @@ func (ds *Datastore) SaveLUKSData(
 	}
 	archived, err := ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)
 	if err != nil {
-		return archived, ctxerr.Wrap(ctx, err, "archiving LUKS key")
+		return false, ctxerr.Wrap(ctx, err, "archiving LUKS key")
 	}
 
 	if existingKey.NotFound {
@@ -173,7 +173,7 @@ VALUES
 				host)
 			// This should never happen unless there is a bug in the code or an infra issue (like huge replication lag).
 		default:
-			return archived, ctxerr.Wrap(ctx, err, "inserting LUKS key")
+			return false, ctxerr.Wrap(ctx, err, "inserting LUKS key")
 		}
 	}
 
@@ -188,7 +188,7 @@ UPDATE host_disk_encryption_keys SET
 WHERE host_id = ?
 `, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, host.ID)
 	if err != nil {
-		return archived, ctxerr.Wrap(ctx, err, "updating LUKS key")
+		return false, ctxerr.Wrap(ctx, err, "updating LUKS key")
 	}
 	return archived, nil
 }
