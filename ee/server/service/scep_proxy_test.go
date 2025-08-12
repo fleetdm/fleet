@@ -41,7 +41,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}))
 	t.Cleanup(ndesAdminServer.Close)
 
-	proxy := fleet.NDESSCEPProxyCertAuthority{
+	proxy := fleet.NDESSCEPProxyCA{
 		AdminURL: ndesAdminServer.URL,
 		Username: "admin",
 		Password: "password",
@@ -108,7 +108,7 @@ func TestValidateNDESSCEPURL(t *testing.T) {
 	t.Parallel()
 	srv := newSCEPServer(t)
 
-	proxy := fleet.NDESSCEPProxyCertAuthority{
+	proxy := fleet.NDESSCEPProxyCA{
 		URL: srv.URL + "/scep",
 	}
 	logger := kitlog.NewNopLogger()

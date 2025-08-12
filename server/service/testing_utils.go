@@ -237,6 +237,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			bootstrapPackageStore,
 			distributedLock,
 			keyValueStore,
+			scepConfigService,
+			digiCertService,
 		)
 		if err != nil {
 			panic(err)

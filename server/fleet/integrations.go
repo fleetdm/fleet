@@ -355,21 +355,15 @@ type GoogleCalendarIntegration struct {
 	ApiKey map[string]string `json:"api_key_json"`
 }
 
-type SCEPConfigService interface {
-	ValidateNDESSCEPAdminURL(ctx context.Context, proxy NDESSCEPProxyCertAuthority) error
-	GetNDESSCEPChallenge(ctx context.Context, proxy NDESSCEPProxyCertAuthority) (string, error)
-	ValidateSCEPURL(ctx context.Context, url string) error
-}
-
 // Integrations configures the integrations with external systems.
 type Integrations struct {
-	Jira           []*JiraIntegration                   `json:"jira"`
-	Zendesk        []*ZendeskIntegration                `json:"zendesk"`
-	GoogleCalendar []*GoogleCalendarIntegration         `json:"google_calendar"`
-	DigiCert       optjson.Slice[DigiCertCertAuthority] `json:"digicert"`
+	Jira           []*JiraIntegration           `json:"jira"`
+	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
+	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
+	DigiCert       optjson.Slice[DigiCertCA]    `json:"digicert"`
 	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
-	NDESSCEPProxy   optjson.Any[NDESSCEPProxyCertAuthority]     `json:"ndes_scep_proxy"`
-	CustomSCEPProxy optjson.Slice[CustomSCEPProxyCertAuthority] `json:"custom_scep_proxy"`
+	NDESSCEPProxy   optjson.Any[NDESSCEPProxyCA]     `json:"ndes_scep_proxy"`
+	CustomSCEPProxy optjson.Slice[CustomSCEPProxyCA] `json:"custom_scep_proxy"`
 	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
 }
