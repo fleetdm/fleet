@@ -148,3 +148,7 @@ func (s *CustomSCEPProxyCA) Equals(other *CustomSCEPProxyCA) bool {
 		s.URL == other.URL &&
 		(s.Challenge == "" || s.Challenge == MaskedPassword || s.Challenge == other.Challenge)
 }
+
+func (c *CertificateAuthority) AuthzType() string {
+	return "certificate_authority"
+}
