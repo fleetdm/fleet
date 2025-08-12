@@ -108,6 +108,7 @@ const SoftwareOSDetailsPage = ({
   );
 
   const osVersionDetails = createMockLinuxOSVersion();
+  // const osVersionDetails = createMockLinuxOSVersion({ kernels: [] });
 
   console.log("osversiondetails2", osVersionDetails2);
   console.log("osversiondetails", osVersionDetails);
@@ -168,11 +169,10 @@ const SoftwareOSDetailsPage = ({
     }
 
     const isLinuxPlatform = isLinuxLike(osVersionDetails.platform);
-    const showKernelsCard = osVersionDetails.kernels.length > 0;
-
-    // Vulns are associated with specific kernels hence hiding Vulns table on OS view
-    // and showing vulns within OS > Kernels card
+    // Linux vulns are associated with specific kernels hence design
+    // hiding default vulns table and showing vulns within OS > Kernels card
     const showVulnerabilitiesCard = !isLinuxPlatform;
+    const showKernelsCard = isLinuxPlatform;
 
     return (
       <>
@@ -208,16 +208,6 @@ const SoftwareOSDetailsPage = ({
                 name={osVersionDetails.platform}
               />
             </Card>
-            {showKernelsCard && (
-              <Card
-                borderRadiusSize="xxlarge"
-                includeShadow
-                className={`${baseClass}__summary-section`}
-              >
-                <CardHeader header="Kernels" />
-                {renderKernelsTable()}
-              </Card>
-            )}
             {showVulnerabilitiesCard && (
               <Card
                 borderRadiusSize="xxlarge"
@@ -226,6 +216,16 @@ const SoftwareOSDetailsPage = ({
               >
                 <CardHeader header="Vulnerabilities" />
                 {renderVulnerabilitiesTable()}
+              </Card>
+            )}
+            {showKernelsCard && (
+              <Card
+                borderRadiusSize="xxlarge"
+                includeShadow
+                className={`${baseClass}__summary-section`}
+              >
+                <CardHeader header="Kernels" />
+                {renderKernelsTable()}
               </Card>
             )}
           </>

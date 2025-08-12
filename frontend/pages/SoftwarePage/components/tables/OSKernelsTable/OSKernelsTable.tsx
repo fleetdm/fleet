@@ -23,10 +23,10 @@ const baseClass = "os-kernels-table";
 const NoKernelsDetected = (): JSX.Element => {
   return (
     <EmptyTable
-      header={"No kernels detected for this operating system."}
+      header="No kernels detected"
       info={
         <>
-          Expecting to see vulnerabilities?{" "}
+          Expecting to see kernels?{" "}
           <CustomLink
             url={GITHUB_NEW_ISSUE_LINK}
             text="File an issue on GitHub"
