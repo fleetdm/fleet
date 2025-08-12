@@ -1710,7 +1710,7 @@ func (c *Client) DoGitOps(
 			if err != nil {
 				return nil, nil, fmt.Errorf("org_settings.integrations.digicert cannot be marshalled into JSON: %w", err)
 			}
-			var digicertData optjson.Slice[fleet.DigiCertIntegration]
+			var digicertData optjson.Slice[fleet.DigiCertCA]
 			err = json.Unmarshal(digicertJSON, &digicertData)
 			if err != nil {
 				return nil, nil, fmt.Errorf("org_settings.integrations.digicert cannot be parsed: %w", err)
@@ -1725,7 +1725,7 @@ func (c *Client) DoGitOps(
 			if err != nil {
 				return nil, nil, fmt.Errorf("org_settings.integrations.custom_scep_proxy cannot be marshalled into JSON: %w", err)
 			}
-			var customSCEPData optjson.Slice[fleet.CustomSCEPProxyIntegration]
+			var customSCEPData optjson.Slice[fleet.CustomSCEPProxyCA]
 			err = json.Unmarshal(custonSCEPJSON, &customSCEPData)
 			if err != nil {
 				return nil, nil, fmt.Errorf("org_settings.integrations.custom_scep_proxy cannot be parsed: %w", err)

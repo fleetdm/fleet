@@ -3136,7 +3136,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPChallenge),
 	}
 	scepConfig := &scep_mock.SCEPConfigService{}
-	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", eeservice.NewNDESInvalidError("NDES error")
 	}
@@ -3155,7 +3155,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Empty(t, targets)
 
 	// Password cache full
-	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", eeservice.NewNDESPasswordCacheFullError("NDES error")
 	}
@@ -3170,7 +3170,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Empty(t, targets)
 
 	// Insufficient permissions
-	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", eeservice.NewNDESInsufficientPermissionsError("NDES error")
 	}
@@ -3185,7 +3185,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Empty(t, targets)
 
 	// Other NDES challenge error
-	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", errors.New("NDES error")
 	}
@@ -3202,7 +3202,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 
 	// NDES challenge
 	challenge := "ndes-challenge"
-	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return challenge, nil
 	}
@@ -5138,18 +5138,18 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	t.Parallel()
 	appConfig := &fleet.AppConfig{
 		Integrations: fleet.Integrations{
-			DigiCert: optjson.Slice[fleet.DigiCertIntegration]{
+			DigiCert: optjson.Slice[fleet.DigiCertCA]{
 				Set:   true,
 				Valid: true,
-				Value: []fleet.DigiCertIntegration{
+				Value: []fleet.DigiCertCA{
 					getDigiCertIntegration("https://example.com", "caName"),
 					getDigiCertIntegration("https://example.com", "caName2"),
 				},
 			},
-			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyIntegration]{
+			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyCA]{
 				Set:   true,
 				Valid: true,
-				Value: []fleet.CustomSCEPProxyIntegration{
+				Value: []fleet.CustomSCEPProxyCA{
 					getCustomSCEPIntegration("https://example.com", "scepName"),
 					getCustomSCEPIntegration("https://example.com", "scepName2"),
 				},

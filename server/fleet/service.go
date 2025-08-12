@@ -1277,6 +1277,10 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Certificate Authorities
+	NewCertificateAuthority(ctx context.Context, p CertificateAuthorityPayload) (*CertificateAuthority, error)
 }
 
 type KeyValueStore interface {

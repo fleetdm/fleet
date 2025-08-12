@@ -268,12 +268,12 @@ func NewSCEPConfigService(logger log.Logger, timeout *time.Duration) fleet.SCEPC
 // Compile check that SCEPConfigService implements the interface.
 var _ fleet.SCEPConfigService = (*SCEPConfigService)(nil)
 
-func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) error {
+func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyCA) error {
 	_, err := s.GetNDESSCEPChallenge(ctx, proxy)
 	return err
 }
 
-func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
 	// Get the challenge from NDES
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
