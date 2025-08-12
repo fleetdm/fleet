@@ -19,11 +19,11 @@ Users can now enroll personal iPhones and iPads directly via the **Settings** ap
 
 ### Smarter self-service
 
-Fleet Desktop now shows only the relevant software actions (install, update, uninstall) based on the actual state of the app on each machine. End users see exactly what they can do—nothing more, nothing less. Learn more in [the guide](https://fleetdm.com/guides/updating-software-in-fleet-admin-and-fleet-desktop-workflows).
+Fleet Desktop now shows only the relevant software actions (install, update, uninstall) based on the actual state of the app on each machine. End users see exactly what they can do—nothing more, nothing less. Learn more about self-service software in [the guide](https://fleetdm.com/guides/software-self-service).
 
 ### More Fleet-maintained apps
 
-You can now manage these popular apps as Fleet-maintained software—no need to hunt down vendor installers or build packages yourself. Just select and deploy. Learn more about [Fleet-mainted apps](https://fleetdm.com/guides/fleet-maintained-apps).
+You can now manage these popular apps as Fleet-maintained software—no need to hunt down vendor installers or build packages yourself. Just select and deploy. Learn more about [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps).
 
 ### Linux host identity certificates
 
