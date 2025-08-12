@@ -17,6 +17,7 @@
 - [Teams](#teams)
 - [Translator](#translator)
 - [Users](#users)
+- [Custom variables](#custom-variables)
 - [API errors](#api-responses)
 
 Use the Fleet APIs to automate Fleet.
@@ -12885,6 +12886,89 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 
 #### Parameters
 None.
+
+## Custom variables
+
+- [List custom variables](#list-custom-variables)
+- [Create custom variable](#create-custom-variable)
+- [Delete custom variables(#delete-custom-variable)
+
+### List custom variables
+
+Lists all custom variables that can be used in scripts and profiles prefixed with `$FLEET_SECRET_`.
+
+`GET /api/v1/fleet/custom_variables`
+
+#### Example
+
+`GET /api/v1/fleet/spec/custom_variables`
+
+##### Request body
+
+```json
+[
+  {
+    "id": 123
+    "name": "SOME_API_TOKEN"
+  }
+]
+
+```
+
+### Create custom variable
+
+Creates a custom variable that can be used in scripts and profiles prefixed with `$FLEET_SECRET_`.
+
+
+`POST /api/v1/fleet/custom_variables`
+
+#### Parameters
+
+| Name    | Type | In   | Description                                                                                                      |
+| ------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
+| name    | string | body | **Required.** The desired variable name, without the `$FLEET_SECRET` prefix.
+| value   | string | body   | **REquired.** The value for the custom variable.
+
+
+#### Example
+
+`POST /api/v1/fleet/spec/custom_variables`
+
+##### Request body
+
+```json
+{
+  "name": "SOME_API_TOKEN",
+  "value": "971ef02b93c74ca9b22b694a9251f1d6"
+}
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 123,
+  "name": "SOME_API_TOKEN"
+}
+```
+
+
+### Delete custom variable
+
+Removes a custom variable from Fleet.
+
+`DELETE /api/v1/fleet/custom_variables/:id`
+
+#### Example
+
+`DELETE /api/v1/fleet/custom_variables/123`
+
+##### Default response
+
+`Status: 200`
 
 ## API errors
 
