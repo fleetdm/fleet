@@ -585,14 +585,9 @@ Create a bug (and link Sentry issue / right side 'issues' 'github' click and add
 
 * Expected / benign behavior with no action we’ll take (documented)
 e.g., user canceled requests, 401/403 from expired tokens handled by refresh, client aborts, timeouts within known limits
-
 * Non-prod or obsolete versions only (and we won’t patch them)
-
 * 3rd-party noisy errors we cannot fix and have acceptable impact (e.g., analytics SDK debug logs)
-
 * Duplicates of a tracked Sentry issue with the same fingerprint (merge or ignore rule)
-
-
 
 ### Escalations
 
