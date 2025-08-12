@@ -17,4 +17,12 @@
     margin: $pad-xxlarge auto 0;
     border-radius: $border-radius-large;
   }
+
+  // we need to override the default tab styles to remove the white background
+  // of a selected tab
+  &__tab-nav {
+    .react-tabs__tab--selected {
+      background: transparent;
+    }
+  }
 }
