@@ -3267,8 +3267,6 @@ Lists the software installed on the current device.
           "installed_paths": ["/Users/admin/.cursor/extensions/prettier"]
         }
       ],
-      "software_package": null,
-      "app_store_app": null
     }
   ],
   "meta": {
