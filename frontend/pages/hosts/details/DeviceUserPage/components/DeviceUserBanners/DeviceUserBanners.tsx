@@ -13,6 +13,7 @@ interface IDeviceUserBannersProps extends IHostBannersBaseProps {
   mdmEnabledAndConfigured: boolean;
   diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
   onTurnOnMdm: () => void;
+  onClickCreatePIN: () => void;
   onTriggerEscrowLinuxKey: () => void;
 }
 
@@ -25,6 +26,7 @@ const DeviceUserBanners = ({
   macDiskEncryptionStatus,
   diskEncryptionActionRequired,
   onTurnOnMdm,
+  onClickCreatePIN,
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
@@ -121,6 +123,26 @@ const DeviceUserBanners = ({
           </InfoBanner>
         );
       }
+    }
+
+    if (
+      hostPlatform === "windows" &&
+      diskEncryptionOSSetting?.status === "action_required"
+    ) {
+      return (
+        <InfoBanner
+          color="yellow"
+          cta={
+            <Button variant="text-link-dark" onClick={onClickCreatePIN}>
+              Create PIN
+            </Button>
+          }
+        >
+          Disk encryption: Create a BitLocker PIN to safeguard your data in case
+          your device is lost or stolen. After, select <strong>Refetch</strong>{" "}
+          to clear this banner.
+        </InfoBanner>
+      );
     }
 
     return null;

@@ -190,7 +190,7 @@ export type DiskEncryptionStatus =
 values. In the future we may add more. */
 export type WindowsDiskEncryptionStatus = Extract<
   DiskEncryptionStatus,
-  "verified" | "verifying" | "enforcing" | "failed"
+  "verified" | "verifying" | "enforcing" | "failed" | "action_required"
 >;
 
 export const isWindowsDiskEncryptionStatus = (
@@ -201,6 +201,7 @@ export const isWindowsDiskEncryptionStatus = (
     case "verifying":
     case "enforcing":
     case "failed":
+    case "action_required":
       return true;
     default:
       return false;

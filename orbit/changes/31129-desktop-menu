@@ -1,0 +1,1 @@
+Fixed bug where "Self-service" was still shown in Fleet Desktop menu when device was offline.

@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -204,6 +205,14 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 		level.Error(h.logger).Log("err", err, "msg", "hashErr failed")
 		if h.testOnStore != nil {
 			h.testOnStore(err)
+		}
+		return
+	}
+
+	// Check if pool is nil to prevent panic
+	if h.pool == nil {
+		if h.testOnStore != nil {
+			h.testOnStore(errors.New("redis pool is nil"))
 		}
 		return
 	}

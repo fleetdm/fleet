@@ -234,6 +234,13 @@ type MDM struct {
 	/////////////////////////////////////////////////////////////////
 }
 
+type DiskEncryptionConfig struct {
+	// Enabled indicates if disk encryption is enabled.
+	Enabled bool
+	// BitLockerPINRequired indicates if a PIN is required for BitLocker disk encryption.
+	BitLockerPINRequired bool
+}
+
 type UIGitOpsModeConfig struct {
 	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
 	RepositoryURL     string `json:"repository_url"`

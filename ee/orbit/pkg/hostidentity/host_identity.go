@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	mathrand "math/rand/v2"
 	"os"
 	"path/filepath"
 	"time"
@@ -175,6 +176,10 @@ func Setup(
 			if renewalTime < 1*time.Hour {
 				renewalTime = 1 * time.Hour
 			}
+
+			// Add random jitter (0-30 minutes) to prevent thundering herd
+			jitter := time.Duration(mathrand.IntN(int(30 * time.Minute))) // nolint:gosec // OK to use weak randomizer since we're just randomizing time jitter
+			renewalTime += jitter
 
 			logger.Info().
 				Dur("renewal_in", renewalTime).
