@@ -44,8 +44,8 @@
   task: "Quarterly roadmap blog post"
   startedOn: "2024-11-05" 
   frequency: "Monthly" 
-  description: "Every quarter, Head of Product Design (HPD) meets with the CEO to run through the current quarter objectives and the 3 biggest open opportunities in the product and the solutions we're envisioning for next quarter. Then, the HPD writes a short blog with the objectives, opportunities, and an embedded YouTube video in which HPD walks through this." 
-  moreInfoUrl: "" 
+  description: "Every quarter, Head of Product Design (HPD) meets with the CEO to run through the current quarter objectives and the 3 biggest open opportunities in the product and the solutions we're envisioning for next quarter. Then, the HPD writes a short blog with the objectives, opportunities, and an embedded YouTube video in which HPD walks through this. Last, the HPD assigns the Content Specialist, let's them know the blogpost is ready for the 'tweet storm', and moves the issue to the :help-marketing board." 
+  moreInfoUrl: "https://docs.google.com/document/d/1z4tr65V8Y2izJXKKswYA9nexOIqTzvsTUigC8-serP4/edit?tab=t.0#heading=h.m7i247715hl" 
   dri: "noahtalerman"
   autoIssue:   
     labels: [ ":product" ]
@@ -98,3 +98,17 @@
   autoIssue:   
     labels: [ ":product" ]
     repo: "fleet"
+-
+  task: "Regenerate messaging framework"
+  startedOn: "2024-07-15"
+  frequency: "Quarterly"
+  description: "Run through the entire website in `?utm_content=clear` mode and build a fresh outline of the headings to make sure they all still make sense."
+  moreInfoUrl: ""
+  dri: "mike-j-thomas"
+- 
+  task: "Check brand fronts are up to date"
+  startedOn: "2024-08-01"
+  frequency: "Quarterly"
+  description: "Check all brand fronts for consistancy and update as needed with the current product pitch and graphics."
+  moreInfoUrl: "https://fleetdm.com/handbook/product-design#update-a-company-brand-front"
+  dri: "mike-j-thomas"

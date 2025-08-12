@@ -398,9 +398,12 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		hsr.sync_request,
 		hsr.host_deleted_at,
 		hsr.setup_experience_script_id,
-		hsr.canceled
-  FROM
+		hsr.canceled,
+		bahr.batch_execution_id
+	FROM
 		host_script_results hsr
+	LEFT JOIN
+		batch_activity_host_results bahr ON hsr.execution_id = bahr.host_execution_id
 	JOIN
 		script_contents sc
 	%s
@@ -1865,9 +1868,11 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		batchExecID = uuid.New().String()
 		_, err := tx.ExecContext(
 			ctx,
-			"INSERT INTO batch_script_executions (execution_id, script_id) VALUES (?, ?)",
+			"INSERT INTO batch_activities (execution_id, script_id, status, activity_type) VALUES (?, ?, ?, ?)",
 			batchExecID,
 			script.ID,
+			fleet.BatchExecutionStarted,
+			fleet.BatchExecutionActivityScript,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to insert new batch execution")
@@ -1884,7 +1889,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		}
 
 		insertStmt := `
-INSERT INTO batch_script_execution_host_results (
+INSERT INTO batch_activity_host_results (
 	batch_execution_id,
 	host_id,
 	host_execution_id,
@@ -1908,7 +1913,214 @@ INSERT INTO batch_script_execution_host_results (
 	return batchExecID, nil
 }
 
-func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
+	batchExecID := uuid.New().String()
+
+	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, job_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?, ?)`
+	const batchHostsStmt = `INSERT INTO batch_activity_host_results (batch_execution_id, host_id) VALUES (:exec_id, :host_id)`
+
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		job, err := ds.NewJob(ctx, &fleet.Job{
+			Name:      fleet.BatchActivityJobName,
+			State:     fleet.JobStateQueued,
+			NotBefore: notBefore.UTC(),
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating new job")
+		}
+
+		_, err = tx.ExecContext(
+			ctx,
+			batchActivitiesStmt,
+			batchExecID,
+			job.ID,
+			scriptID,
+			userID,
+			fleet.BatchExecutionScheduled,
+			fleet.BatchExecutionActivityScript,
+			len(hostIDs),
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting new batch activity")
+		}
+
+		args := make([]map[string]any, 0, len(hostIDs))
+
+		for _, hostID := range hostIDs {
+			args = append(args, map[string]any{
+				"exec_id": batchExecID,
+				"host_id": hostID,
+			})
+		}
+
+		if _, err := sqlx.NamedExecContext(ctx, tx, batchHostsStmt, args); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting batch host results")
+		}
+
+		return nil
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating scheduled script execution")
+	}
+
+	return batchExecID, nil
+}
+
+func (ds *Datastore) CancelBatchScript(ctx context.Context, executionID string) error {
+	stmt := `
+SELECT
+	bahr.host_execution_id,
+	bahr.host_id
+FROM
+	batch_activity_host_results bahr
+LEFT JOIN
+	host_script_results hsr ON bahr.host_execution_id = hsr.execution_id -- I think?
+WHERE
+	bahr.batch_execution_id = ?
+AND
+	hsr.canceled = 0
+AND
+	hsr.exit_code IS NULL
+AND
+	bahr.error IS NULL`
+
+	stmtSetCanceled := `
+UPDATE
+	batch_activities ba
+SET
+	finished_at = NOW(),
+	status = 'finished',
+	canceled = 1,
+	num_canceled = (SELECT COUNT(*) FROM batch_activity_host_results WHERE batch_execution_id = ba.execution_id)
+WHERE
+	ba.execution_id = ?`
+
+	stmtCanceled := `
+UPDATE
+	batch_activities
+SET
+	canceled = 1
+WHERE
+	execution_id = ?`
+
+	activity, err := ds.GetBatchActivity(ctx, executionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting batch activity")
+	}
+
+	if activity.Status == fleet.BatchExecutionFinished {
+		return nil
+	}
+
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// If job worker exists, mark it as complete to stop it from running
+		if jobID := activity.JobID; jobID != nil {
+			job, err := ds.GetJob(ctx, *jobID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to find job associated with batch activity")
+			}
+
+			job.State = fleet.JobStateSuccess
+
+			if _, err := ds.updateJob(ctx, tx, *jobID, job); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating batch activity job")
+			}
+		}
+
+		if activity.Status == fleet.BatchExecutionStarted {
+			// If the batch activity has started, we need to cancel anything in progress or queued
+			toCancel := []struct {
+				HostExecutionID string `db:"host_execution_id"`
+				HostID          uint   `db:"host_id"`
+			}{}
+
+			if err := sqlx.SelectContext(ctx, tx, &toCancel, stmt, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "selecting hosts to cancel")
+			}
+
+			for _, host := range toCancel {
+				if _, err := ds.cancelHostUpcomingActivity(ctx, tx, host.HostID, host.HostExecutionID); err != nil {
+					return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
+				}
+			}
+
+			if _, err := tx.ExecContext(ctx, stmtCanceled, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting canceled column")
+			}
+
+			if err := ds.markActivitiesAsCompleted(ctx, tx); err != nil {
+				return ctxerr.Wrap(ctx, err, "marking job as complete and summarizing counts")
+			}
+		} else {
+			// The batch activity is scheduled, but not started
+			if _, err := tx.ExecContext(ctx, stmtSetCanceled, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting canceled host count")
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel batch script db transaction")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
+	const stmt = `
+		SELECT
+			id,
+			script_id,
+			execution_id,
+			user_id,
+			job_id,
+			status,
+			activity_type,
+			num_targeted,
+			num_pending,
+			num_ran,
+			num_errored,
+			num_incompatible,
+			num_canceled,
+			created_at,
+			updated_at,
+			finished_at,
+			canceled
+		FROM
+			batch_activities
+		WHERE
+			execution_id = ?`
+
+	batchActivity := &fleet.BatchActivity{}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), batchActivity, stmt, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity")
+	}
+
+	return batchActivity, nil
+}
+
+func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error) {
+	const stmt = `
+		SELECT
+			id,
+			batch_execution_id,
+			host_id,
+			host_execution_id,
+			error
+			FROM
+			batch_activity_host_results
+		WHERE
+			batch_execution_id = ?`
+
+	results := []*fleet.BatchActivityHostResult{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity host results")
+	}
+
+	return results, nil
+}
+
+// Deprecated; will be removed in favor of ListBatchScriptExecutions when the batch script details page is ready.
+func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 	stmtExecutions := `
 SELECT
 	COUNT(*) as num_targeted,
@@ -1917,7 +2129,7 @@ SELECT
 	COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) as num_failed,
 	COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END) as num_cancelled
 FROM
-	batch_script_execution_host_results bsehr
+	batch_activity_host_results bsehr
 LEFT JOIN
 	host_script_results hsr
 		ON bsehr.host_execution_id = hsr.execution_id
@@ -1931,14 +2143,14 @@ SELECT
 	s.team_id as team_id,
 	bse.created_at as created_at
 FROM
-	batch_script_executions bse
+	batch_activities bse
 JOIN
 	scripts s
 	ON bse.script_id = s.id
 WHERE
 	bse.execution_id = ?`
 
-	var summary fleet.BatchExecutionSummary
+	var summary fleet.BatchActivity
 	var temp_summary struct {
 		NumTargeted  uint `db:"num_targeted"`
 		NumDidNotRun uint `db:"num_did_not_run"`
@@ -1951,16 +2163,16 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
 	}
 
-	summary.NumTargeted = temp_summary.NumTargeted
+	summary.NumTargeted = &temp_summary.NumTargeted
 	// NumRan is the number of hosts that actually ran the script successfully.
-	summary.NumRan = temp_summary.NumSucceeded
+	summary.NumRan = &temp_summary.NumSucceeded
 	// NumErrored is the number of hosts that errored out, which includes
 	// both failed and did not run.
-	summary.NumErrored = temp_summary.NumFailed + temp_summary.NumDidNotRun
+	summary.NumErrored = ptr.Uint(temp_summary.NumFailed + temp_summary.NumDidNotRun)
 	// NumFailed is the number of hosts that were canceled before execution.
-	summary.NumCanceled = temp_summary.NumCancelled
+	summary.NumCanceled = &temp_summary.NumCancelled
 	// NumPending is the number of hosts that are pending execution.
-	summary.NumPending = temp_summary.NumTargeted - (temp_summary.NumSucceeded + temp_summary.NumFailed + temp_summary.NumDidNotRun + temp_summary.NumCancelled)
+	summary.NumPending = ptr.Uint(temp_summary.NumTargeted - (temp_summary.NumSucceeded + temp_summary.NumFailed + temp_summary.NumDidNotRun + temp_summary.NumCancelled))
 
 	// Fill out the script details
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &summary, stmtScriptDetails, executionID); err != nil {
@@ -1972,4 +2184,193 @@ WHERE
 	}
 
 	return &summary, nil
+}
+
+func (ds *Datastore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
+	stmtExecutions := `
+SELECT *
+FROM (
+  -- If batch is finished, get the cached host result counts
+  SELECT
+    COALESCE(ba.num_targeted, 0)          AS num_targeted,
+    COALESCE(ba.num_incompatible, 0)      AS num_incompatible,
+    COALESCE(ba.num_ran, 0)               AS num_ran,
+    COALESCE(ba.num_errored, 0)           AS num_errored,
+    COALESCE(ba.num_canceled, 0)          AS num_canceled,
+    COALESCE(ba.num_pending, 0)           AS num_pending,
+    ba.execution_id,
+    ba.script_id,
+    ba.status,
+    ba.canceled,
+    ba.finished_at,
+	ba.started_at,
+    s.name                                 AS script_name,
+    s.global_or_team_id                    AS team_id,
+    ba.created_at                          AS created_at,
+    j.not_before                           AS not_before,
+    ba.id                                  AS id
+  FROM batch_activities ba
+  JOIN scripts s ON ba.script_id = s.id
+  LEFT JOIN jobs j ON j.id = ba.job_id
+  WHERE ( %s ) AND ba.status = 'finished'
+
+  UNION ALL
+
+  -- If batch is not finished, calculate the host result counts live.
+  SELECT
+    COUNT(*)                                AS num_targeted,
+    COUNT(bahr.error)                       AS num_incompatible,
+    COUNT(IF(hsr.exit_code = 0, 1, NULL))   AS num_ran,
+    COUNT(IF(hsr.exit_code > 0, 1, NULL))   AS num_errored,
+    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled,
+    (
+      COUNT(*)
+      - COUNT(bahr.error)
+      - COUNT(IF(hsr.exit_code = 0, 1, NULL))
+      - COUNT(IF(hsr.exit_code > 0, 1, NULL))
+      - COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL))
+    )                                       AS num_pending,
+    ba.execution_id,
+    ba.script_id,
+    ba.status,
+    ba.canceled,
+    ba.finished_at,
+	ba.started_at,
+    s.name                                  AS script_name,
+    s.global_or_team_id                     AS team_id,
+    ba.created_at                           AS created_at,
+    j.not_before                            AS not_before,
+    ba.id                                   AS id
+  FROM batch_activity_host_results bahr
+  LEFT JOIN host_script_results hsr
+         ON bahr.host_execution_id = hsr.execution_id
+  JOIN batch_activities ba
+         ON ba.execution_id = bahr.batch_execution_id
+  JOIN scripts s
+         ON ba.script_id = s.id
+  LEFT JOIN jobs j
+         ON j.id = ba.job_id
+  WHERE ( %s ) AND ba.status <> 'finished'
+  GROUP BY ba.id
+) AS u
+ORDER BY
+  u.not_before ASC, u.created_at DESC, u.id DESC
+LIMIT %d OFFSET %d
+	`
+	limit := 10
+	offset := 0
+	args := []any{}
+	whereClauses := make([]string, 0, 2)
+	// If an execution ID is provided, use it to filter the results.
+	if filter.ExecutionID != nil && *filter.ExecutionID != "" {
+		whereClauses = append(whereClauses, "ba.execution_id = ?")
+		args = append(args, *filter.ExecutionID)
+	} else {
+		// Otherwise filter by status and/or team ID.
+		if filter.Status != nil && *filter.Status != "" {
+			whereClauses = append(whereClauses, "ba.status = ?")
+			args = append(args, *filter.Status)
+		}
+		if filter.TeamID != nil {
+			whereClauses = append(whereClauses, "s.global_or_team_id = ?")
+			args = append(args, *filter.TeamID)
+		}
+	}
+
+	// Double up the args to use them in both WHERE clauses.
+	args = append(args, args...)
+
+	// Use pagination parameters if provided.
+	if filter.Limit != nil {
+		limit = int(*filter.Limit) //nolint:gosec // dismiss G115
+	}
+	if filter.Offset != nil {
+		offset = int(*filter.Offset) //nolint:gosec // dismiss G115
+	}
+	where := strings.Join(whereClauses, " AND ")
+	stmtExecutions = fmt.Sprintf(stmtExecutions, where, where, limit, offset)
+
+	var summary []fleet.BatchActivity
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
+	}
+
+	return summary, nil
+}
+
+func (ds *Datastore) CountBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error) {
+	stmtExecutions := `
+SELECT
+	COUNT(*)
+FROM
+	batch_activities ba
+JOIN
+	scripts s
+	ON ba.script_id = s.id
+WHERE
+	%s
+	`
+	args := []any{}
+	whereClauses := make([]string, 0, 2)
+	if filter.Status != nil && *filter.Status != "" {
+		whereClauses = append(whereClauses, "ba.status = ?")
+		args = append(args, *filter.Status)
+	}
+	if filter.TeamID != nil {
+		whereClauses = append(whereClauses, "s.global_or_team_id = ?")
+		args = append(args, *filter.TeamID)
+	}
+	where := strings.Join(whereClauses, " AND ")
+	stmtExecutions = fmt.Sprintf(stmtExecutions, where)
+
+	var count int64
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, stmtExecutions, args...); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
+	}
+
+	return count, nil
+}
+
+func (ds *Datastore) markActivitiesAsCompleted(ctx context.Context, tx sqlx.ExtContext) error {
+	const stmt = `
+UPDATE batch_activities AS ba
+JOIN (
+  SELECT
+    ba2.id AS batch_id,
+    COUNT(*)                                                   AS num_targeted,
+    COUNT(bahr.error)                                          AS num_incompatible,
+    COUNT(IF(hsr.exit_code = 0, 1, NULL))                      AS num_ran,
+    COUNT(IF(hsr.exit_code > 0, 1, NULL))                      AS num_errored,
+    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled
+  FROM batch_activity_host_results AS bahr
+  LEFT JOIN host_script_results AS hsr
+         ON bahr.host_execution_id = hsr.execution_id
+  JOIN batch_activities AS ba2
+         ON ba2.execution_id = bahr.batch_execution_id
+  WHERE ba2.status = 'started'
+  GROUP BY ba2.id
+  HAVING (num_incompatible + num_ran + num_errored + num_canceled) >= num_targeted
+) AS agg
+  ON agg.batch_id = ba.id
+SET
+  ba.status         = 'finished',
+  ba.finished_at    = NOW(),
+  ba.num_targeted   = agg.num_targeted,
+  ba.num_incompatible = agg.num_incompatible,
+  ba.num_ran        = agg.num_ran,
+  ba.num_errored    = agg.num_errored,
+  ba.num_canceled   = agg.num_canceled,
+  ba.num_pending    = 0
+WHERE ba.status = 'started';
+`
+	// TODO -- use `RETURNING` to return the IDs of the updated activities?
+	_, err := tx.ExecContext(ctx, stmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marking activities as completed")
+	}
+	return nil
+}
+
+func (ds *Datastore) MarkActivitiesAsCompleted(ctx context.Context) error {
+	return ds.markActivitiesAsCompleted(ctx, ds.writer(ctx))
 }

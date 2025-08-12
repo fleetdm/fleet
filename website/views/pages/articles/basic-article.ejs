@@ -46,6 +46,7 @@
       <div purpose="sidebar-container">
         <div purpose="right-sidebar" class="d-flex flex-column">
           <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
+            <p><strong>Share</strong></p>
             <div class="d-flex flex-row">
               <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com${encodeURIComponent(thisPage.url)}&t=${encodeURIComponent(thisPage.meta.articleTitle)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
               <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
@@ -53,7 +54,7 @@
             </div>
           </div>
 
-          <div purpose="subtopics" id="subtopics" class="d-flex nav flex-column order-lg-1 order-2">
+          <div purpose="subtopics" id="subtopics" class="d-flex nav flex-column order-lg-1 order-2" v-if="subtopics.length > 0">
             <p><strong>On this page</strong></p>
             <a purpose="sidebar-link" v-for="topic in subtopics" :href="topic.url" class="nav-link p-0">{{topic.title}}</a>
           </div>
