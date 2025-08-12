@@ -2258,7 +2258,8 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	}
 
 	// Schedule script where most hosts will fail for various reaons
-	execID, err = ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host4.ID, hostWindows.ID, hostTeam1.ID}, scheduledTime)
+	// These would all be checked for validity before insertion if submitted by a user
+	execID, err = ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host4.ID, hostWindows.ID, hostTeam1.ID, 0xbeef}, scheduledTime)
 	require.NoError(t, err)
 	require.NotEmpty(t, execID)
 
@@ -2270,22 +2271,25 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, execID, batchActivity.BatchExecutionID)
 	require.NotNil(t, batchActivity.StartedAt)
 	require.Equal(t, fleet.BatchExecutionStarted, batchActivity.Status)
-	require.Equal(t, uint(3), *batchActivity.NumTargeted)
+	require.Equal(t, uint(4), *batchActivity.NumTargeted)
 
 	executions, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &execID,
 	})
 	require.NoError(t, err)
 	require.Len(t, executions, 1)
-	require.Equal(t, uint(2), *executions[0].NumIncompatible)
+	require.Equal(t, uint(3), *executions[0].NumIncompatible)
 
 	hostResults, err = ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)
-	require.Len(t, hostResults, 3)
+	require.Len(t, hostResults, 4)
 	for _, hostResult := range hostResults {
 		require.Equal(t, execID, hostResult.BatchExecutionID)
-		upcomingScripts, err := ds.ListPendingHostScriptExecutions(ctx, hostResult.HostID, false)
-		require.NoError(t, err)
+		var upcomingScripts []*fleet.HostScriptResult
+		if hostResult.HostID != 0xbeef {
+			upcomingScripts, err = ds.ListPendingHostScriptExecutions(ctx, hostResult.HostID, false)
+			require.NoError(t, err)
+		}
 		switch hostResult.HostID {
 		case host4.ID:
 			// The only valid host in the group
@@ -2301,8 +2305,12 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 			require.Len(t, upcomingScripts, 0)
 			require.NotNil(t, hostResult.Error)
 			require.Equal(t, fleet.BatchExecuteIncompatibleTeam, *hostResult.Error)
+		case 0xbeef:
+			// Host was deleted after scheduling
+			require.NotNil(t, hostResult.Error)
+			require.Equal(t, fleet.BatchExecuteInvalidHost, *hostResult.Error)
 		default:
-			require.Fail(t, "forgot to check a host")
+			require.Failf(t, "forgot to check a host", "host_id: %d", hostResult.HostID)
 		}
 	}
 }
