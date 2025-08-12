@@ -50,10 +50,6 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				MIN(software_cve.created_at) created_at
 			FROM
 				software_cve
-				-- JOIN software ON software.id = software_cve.software_id
-				-- JOIN software_titles ON software_titles.id = software.title_id
-				-- JOIN host_software ON host_software.software_id = software.id
-				-- JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
 				JOIN kernels ON kernels.software_id = software_cve.software_id
 				JOIN operating_systems ON operating_systems.os_version_id = kernels.os_version_id
 			WHERE
@@ -95,10 +91,6 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 					GROUP_CONCAT(DISTINCT software_cve.resolved_in_version SEPARATOR ',') resolved_in_version
 				FROM
 					software_cve
-					-- JOIN software ON software.id = software_cve.software_id
-					-- JOIN software_titles ON software_titles.id = software.title_id
-					-- JOIN host_software ON host_software.software_id = software.id
-					-- JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
 					JOIN kernels ON kernels.software_id = software_cve.software_id
 					JOIN operating_systems ON operating_systems.os_version_id = kernels.os_version_id
 				WHERE
