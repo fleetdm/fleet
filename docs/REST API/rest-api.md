@@ -743,7 +743,7 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
     },
     {
       "id": 1,
-      "name": "NDES_VPN",
+      "name": "NDES",
       "type": "ndes_scep_proxy"
     },
     {
