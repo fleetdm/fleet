@@ -88,6 +88,7 @@ func ServeEndUserEnrollOTA(
 		logger.Log("err", err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		endpoint_utils.WriteBrowserSecurityHeaders(w)
 		setupRequired, err := svc.SetupRequired(r.Context())
@@ -108,17 +109,20 @@ func ServeEndUserEnrollOTA(
 
 		errorMsg := r.URL.Query().Get("error")
 		if errorMsg != "" {
-			// TODO(mna): render ErrorMessage template field
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg); err != nil {
+				herr(w, err.Error())
+			}
+			return
 		}
 
 		enrollSecret := r.URL.Query().Get("enroll_secret")
 		if enrollSecret == "" {
-			// TODO(mna): this should display the "this URL is invalid" error page
-			// to the user:
+			// TODO(mna): how should we pass this formatted error with heading? Needs to be special-cased on the frontend I think...
 			// https://www.figma.com/design/fw7XXg2QzBOa7YJ9r2Cchp/-29222-IdP-authentication-before-BYOD-iOS--iPadOS--and-Android-enrollment?node-id=5319-3340&t=mn243Pavsxvkd4QC-0
-			// Suggestion: since we will also need to display other error messages
-			// that may happen in the MDM SSO callback processing, we should pass an
-			// "ErrorMessage" field to the template and render it on the frontend.
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "Enroll secret is invalid. Please contact your IT admin."); err != nil {
+				herr(w, err.Error())
+			}
+			return
 		}
 
 		authRequired, err := requiresEnrollOTAAuthentication(r.Context(), ds,
@@ -158,45 +162,8 @@ func ServeEndUserEnrollOTA(
 		// if we get here, IdP SSO authentication is either not required, or has
 		// been successfully completed (we have a cookie with the IdP account
 		// reference).
-
-		fs := newBinaryFileSystem("/frontend")
-		file, err := fs.Open("templates/enroll-ota.html")
-		if err != nil {
-			herr(w, "load enroll ota template: "+err.Error())
-			return
-		}
-
-		data, err := io.ReadAll(file)
-		if err != nil {
-			herr(w, "read bindata file: "+err.Error())
-			return
-		}
-
-		t, err := template.New("enroll-ota").Parse(string(data))
-		if err != nil {
-			herr(w, "create react template: "+err.Error())
-			return
-		}
-
-		enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
-		if err != nil {
-			herr(w, "generate enroll ota url: "+err.Error())
-			return
-		}
-		if err := t.Execute(w, struct {
-			EnrollURL             string
-			URLPrefix             string
-			AndroidMDMEnabled     bool
-			MacMDMEnabled         bool
-			AndroidFeatureEnabled bool
-		}{
-			URLPrefix:             urlPrefix,
-			EnrollURL:             enrollURL,
-			AndroidMDMEnabled:     appCfg.MDM.AndroidEnabledAndConfigured,
-			MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
-			AndroidFeatureEnabled: true,
-		}); err != nil {
-			herr(w, "execute react template: "+err.Error())
+		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, ""); err != nil {
+			herr(w, err.Error())
 			return
 		}
 	})
@@ -217,6 +184,47 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	q.Set("enroll_secret", enrollSecret)
 	enrollURL.RawQuery = q.Encode()
 	return enrollURL.String(), nil
+}
+
+func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage string) error {
+	fs := newBinaryFileSystem("/frontend")
+	file, err := fs.Open("templates/enroll-ota.html")
+	if err != nil {
+		return fmt.Errorf("load enroll ota template: %w", err)
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("read bindata file: %w", err)
+	}
+
+	t, err := template.New("enroll-ota").Parse(string(data))
+	if err != nil {
+		return fmt.Errorf("create react template: %w", err)
+	}
+
+	enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
+	if err != nil {
+		return fmt.Errorf("generate enroll ota url: %w", err)
+	}
+	if err := t.Execute(w, struct {
+		EnrollURL             string
+		URLPrefix             string
+		ErrorMessage          string
+		AndroidMDMEnabled     bool
+		MacMDMEnabled         bool
+		AndroidFeatureEnabled bool
+	}{
+		URLPrefix:             urlPrefix,
+		EnrollURL:             enrollURL,
+		ErrorMessage:          errorMessage,
+		AndroidMDMEnabled:     appCfg.MDM.AndroidEnabledAndConfigured,
+		MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
+		AndroidFeatureEnabled: true,
+	}); err != nil {
+		return fmt.Errorf("execute react template: %w", err)
+	}
+	return nil
 }
 
 func requiresEnrollOTAAuthentication(ctx context.Context, ds fleet.Datastore, enrollSecret string, noTeamIdPEnabled bool) (bool, error) {
