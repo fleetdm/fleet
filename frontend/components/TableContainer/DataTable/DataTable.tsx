@@ -348,20 +348,6 @@ const DataTable = ({
       : { id: undefined, desc: undefined };
   }, [sortBy, sortHeader, onSort, sortDirection, isClientSidePagination]);
 
-  /** For clientside pagination only:
-   * Whenever defaultPageIndex (the value from props, e.g. queryParams.page) changes,
-   * ensure we call gotoPage so react-table reflects the correct visible page.
-   */
-  useEffect(() => {
-    if (
-      isClientSidePagination &&
-      typeof defaultPageIndex === "number" &&
-      pageIndex !== defaultPageIndex
-    ) {
-      gotoPage(defaultPageIndex);
-    }
-  }, [isClientSidePagination, defaultPageIndex, gotoPage, pageIndex]);
-
   useEffect(() => {
     if (isAllPagesSelected) {
       toggleAllRowsSelected(true);
