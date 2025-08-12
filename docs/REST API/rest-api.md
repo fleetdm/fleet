@@ -12899,6 +12899,14 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
 
 `GET /api/v1/fleet/custom_variables`
 
+#### Parameters
+
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
+| page            | integer | query | Page number of the results to fetch.  |
+| per_page        | integer | query | Results per page. |
+
+
 #### Example
 
 `GET /api/v1/fleet/spec/custom_variables`
