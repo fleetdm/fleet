@@ -2393,6 +2393,22 @@ When not defined, Fleet downloads CVE information from the nvd.nist.gov host usi
     cve_feed_prefix_url: ""
   ```
 
+### cisa_known_exploits_url
+
+The CISA known exploited vulnerabilities catalog is downloaded from this URL. This catalog contains
+vulnerabilities that are known to be actively exploited in the wild and is used to enhance vulnerability
+reporting with exploit status information. When this value is defined, it will download the file from
+the specified URL. If this value is not defined, Fleet uses the default CISA catalog URL. Fleet expects this
+path to be a JSON file. For a specification on the catalog you can view https://www.cisa.gov/known-exploited-vulnerabilities-catalog.
+
+- Default value: `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`
+- Environment variable: `FLEET_VULNERABILITIES_CISA_KNOWN_EXPLOITS_URL`
+- Config file format:
+  ```yaml
+  vulnerabilities:
+    cisa_known_exploits_url: https://custom-cisa-path.gov/main/known_exploited_vulnerabilities.json
+  ```
+
 ### disable_schedule
 
 When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to `true` and one of them set to `false`.
