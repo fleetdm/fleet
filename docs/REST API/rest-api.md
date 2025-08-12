@@ -9563,6 +9563,7 @@ Get a list of all software versions.
     "software": [
       {
         "id": 1,
+        "software_title_id": 22,
         "name": "glibc",
         "version": "2.12",
         "source": "rpm_packages",
@@ -9587,6 +9588,7 @@ Get a list of all software versions.
       },
       {
         "id": 2,
+        "software_title_id": 28,
         "name": "1Password – Password Manager",
         "version": "2.10.0",
         "source": "chrome_extensions",
