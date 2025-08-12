@@ -259,7 +259,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					require.True(t, ok)
 					require.Equal(t, 30, int(activityExpiryWindow))
 					require.Len(t, gitops.FleetSecrets, 4)
-					
+
 					// Check labels
 					require.Len(t, gitops.Labels, 2)
 					assert.Equal(t, "Global label numero uno", gitops.Labels[0].Name)
