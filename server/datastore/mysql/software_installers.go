@@ -738,11 +738,13 @@ WHERE
 		dest.Categories = categories
 	}
 
-	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+	if teamID != nil {
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+		}
+		dest.AutomaticInstallPolicies = policies
 	}
-	dest.AutomaticInstallPolicies = policies
 
 	return &dest, nil
 }
