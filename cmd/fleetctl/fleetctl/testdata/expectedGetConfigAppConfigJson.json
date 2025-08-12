@@ -55,7 +55,8 @@
       "enable_jit_provisioning": false,
       "enable_jit_role_sync": false,
       "enable_sso": false,
-      "enable_sso_idp_login": false
+      "enable_sso_idp_login": false,
+      "sso_server_url": ""
     },
     "fleet_desktop": {
       "transparency_url": "https://fleetdm.com/transparency"
@@ -123,6 +124,7 @@
         "grace_period_days": 3
       },
       "windows_migration_enabled": false,
+      "windows_require_bitlocker_pin": null,
       "macos_migration": {
         "enable": false,
         "mode": "",

@@ -21,6 +21,7 @@ import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import RevealButton from "components/buttons/RevealButton";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
@@ -43,12 +44,20 @@ const DiskEncryption = ({
     ? false
     : config?.mdm.enable_disk_encryption ?? false;
 
+  const defaultRequireBitLockerPIN = currentTeamId
+    ? false
+    : config?.mdm.windows_require_bitlocker_pin ?? false;
+
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
 
   const [showAggregate, setShowAggregate] = useState(defaultShowDiskEncryption);
   const [diskEncryptionEnabled, setDiskEncryptionEnabled] = useState(
     defaultShowDiskEncryption
   );
+  const [requireBitLockerPIN, setRequireBitLockerPIN] = useState(
+    defaultRequireBitLockerPIN
+  );
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   // because we pull the default state for no teams from the config,
   // we need to update the config when the user toggles the checkbox
@@ -64,8 +73,12 @@ const DiskEncryption = ({
     }
   };
 
-  const onToggleCheckbox = (value: boolean) => {
+  const onToggleDiskEncryption = (value: boolean) => {
     setDiskEncryptionEnabled(value);
+  };
+
+  const onToggleRequireBitLockerPIN = (value: boolean) => {
+    setRequireBitLockerPIN(value);
   };
 
   useQuery<ILoadTeamResponse, Error, ITeamConfig>(
@@ -79,6 +92,8 @@ const DiskEncryption = ({
       onSuccess: (res) => {
         const enableDiskEncryption = res.mdm?.enable_disk_encryption ?? false;
         setDiskEncryptionEnabled(enableDiskEncryption);
+        const pinRequired = res.mdm?.windows_require_bitlocker_pin ?? false;
+        setRequireBitLockerPIN(pinRequired);
         setShowAggregate(enableDiskEncryption);
         setIsLoadingTeam(false);
       },
@@ -89,6 +104,7 @@ const DiskEncryption = ({
     try {
       await diskEncryptionAPI.updateDiskEncryption(
         diskEncryptionEnabled,
+        requireBitLockerPIN,
         currentTeamId
       );
       renderFlash(
@@ -196,7 +212,7 @@ const DiskEncryption = ({
               )}
               <Checkbox
                 disabled={config?.gitops.gitops_mode_enabled}
-                onChange={onToggleCheckbox}
+                onChange={onToggleDiskEncryption}
                 value={diskEncryptionEnabled}
                 className={`${baseClass}__checkbox`}
               >
@@ -211,6 +227,44 @@ const DiskEncryption = ({
                   newTab
                 />
               </p>
+              {diskEncryptionEnabled && featureFlags.showBitLockerPINOption && (
+                <div>
+                  <RevealButton
+                    className={`${baseClass}__accordion-title`}
+                    isShowing={showAdvancedOptions}
+                    showText="Advanced options"
+                    hideText="Advanced options"
+                    caretPosition="after"
+                    onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                  />
+                  {showAdvancedOptions && (
+                    <Checkbox
+                      disabled={config?.gitops.gitops_mode_enabled}
+                      onChange={onToggleRequireBitLockerPIN}
+                      value={requireBitLockerPIN}
+                      className={`${baseClass}__checkbox`}
+                    >
+                      <TooltipWrapper
+                        tipContent={
+                          <div>
+                            <p>
+                              If enabled, end users on Windows hosts will be
+                              required to set a BitLocker PIN.
+                            </p>
+                            <br />
+                            <p>
+                              When the PIN is set, it&rsquo;s required to unlock
+                              Windows hosts during startup.
+                            </p>
+                          </div>
+                        }
+                      >
+                        Require BitLocker PIN
+                      </TooltipWrapper>
+                    </Checkbox>
+                  )}
+                </div>
+              )}
               <GitOpsModeTooltipWrapper
                 tipOffset={-12}
                 renderChildren={(d) => (

@@ -1,0 +1,1 @@
+Fixed an issue where Fleet desktop would stop showing "Migrate to Fleet" for several minutes every hour after a device token refresh

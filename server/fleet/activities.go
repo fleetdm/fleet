@@ -208,10 +208,15 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCanceledUninstallSoftware{},
 	ActivityTypeCanceledInstallAppStoreApp{},
 
+	ActivityTypeRanScriptBatch{},
+	ActivityTypeBatchScriptScheduled{},
+
 	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeEnabledConditionalAccessAutomations{},
 	ActivityTypeDisabledConditionalAccessAutomations{},
+
+	ActivityTypeEscrowedDiskEncryptionKey{},
 }
 
 type ActivityDetails interface {
@@ -234,6 +239,13 @@ type ActivityHosts interface {
 type AutomatableActivity interface {
 	ActivityDetails
 	WasFromAutomation() bool
+}
+
+// ActivityHostOnly is the optional additional interface that can be implemented by activities that
+// we want to exclude from the global activity feed, and only show on the Hosts details page
+type ActivityHostOnly interface {
+	ActivityDetails
+	HostOnly() bool
 }
 
 type ActivityTypeEnabledActivityAutomations struct {
@@ -345,8 +357,10 @@ func (a ActivityTypeAppliedSpecPack) Documentation() (activity string, details s
 }
 
 type ActivityTypeCreatedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   int64   `json:"team_id,omitempty"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedPolicy) ActivityName() string {
@@ -357,15 +371,21 @@ func (a ActivityTypeCreatedPolicy) Documentation() (activity string, details str
 	return `Generated when creating policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the created policy.
-- "policy_name": the name of the created policy.`, `{
+- "policy_name": the name of the created policy.
+- "team_id": the ID of the team the policy belongs to.
+- "team_name": the name of the team the policy belongs to.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeEditedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   *uint   `json:"team_id,omitempty"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeEditedPolicy) ActivityName() string {
@@ -376,15 +396,21 @@ func (a ActivityTypeEditedPolicy) Documentation() (activity string, details stri
 	return `Generated when editing policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
-- "policy_name": the name of the edited policy.`, `{
+- "policy_name": the name of the edited policy.
+- "team_id": the ID of the team the policy belongs to.
+- "team_name": the name of the team the policy belongs to.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   int64   `json:"team_id,omitempty"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedPolicy) ActivityName() string {
@@ -395,9 +421,13 @@ func (a ActivityTypeDeletedPolicy) Documentation() (activity string, details str
 	return `Generated when deleting policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
-- "policy_name": the name of the deleted policy.`, `{
+- "policy_name": the name of the deleted policy.
+- "team_id": the ID of the team the policy belonged to.
+- "team_name": the name of the team the policy belonged to.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
@@ -442,8 +472,10 @@ func (a ActivityTypeAppliedSpecPolicy) Documentation() (activity string, details
 }
 
 type ActivityTypeCreatedSavedQuery struct {
-	ID   uint   `json:"query_id"`
-	Name string `json:"query_name"`
+	ID       uint    `json:"query_id"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedSavedQuery) ActivityName() string {
@@ -454,15 +486,21 @@ func (a ActivityTypeCreatedSavedQuery) Documentation() (activity string, details
 	return `Generated when creating a new query.`,
 		`This activity contains the following fields:
 - "query_id": the ID of the created query.
-- "query_name": the name of the created query.`, `{
+- "query_name": the name of the created query.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeEditedSavedQuery struct {
-	ID   uint   `json:"query_id"`
-	Name string `json:"query_name"`
+	ID       uint    `json:"query_id"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeEditedSavedQuery) ActivityName() string {
@@ -473,14 +511,20 @@ func (a ActivityTypeEditedSavedQuery) Documentation() (activity string, details 
 	return `Generated when editing a saved query.`,
 		`This activity contains the following fields:
 - "query_id": the ID of the query being edited.
-- "query_name": the name of the query being edited.`, `{
+- "query_name": the name of the query being edited.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedSavedQuery struct {
-	Name string `json:"query_name"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
@@ -490,13 +534,19 @@ func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
 func (a ActivityTypeDeletedSavedQuery) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when deleting a saved query.`,
 		`This activity contains the following fields:
-- "query_name": the name of the query being deleted.`, `{
-	"query_name": "foo"
+- "query_name": the name of the query being deleted.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedMultipleSavedQuery struct {
-	IDs []uint `json:"query_ids"`
+	IDs      []uint  `json:"query_ids"`
+	Teamid   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
@@ -506,8 +556,13 @@ func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
 func (a ActivityTypeDeletedMultipleSavedQuery) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when deleting multiple saved queries.`,
 		`This activity contains the following fields:
-- "query_ids": list of IDs of the deleted saved queries.`, `{
-	"query_ids": [1, 42, 100]
+- "query_ids": list of IDs of the deleted saved queries.
+- "team_id": the ID of the team the queries belonged to. -1 for global queries, null for no team.
+- "team_name": the name of the team the queries belonged to. null for global or no team queries.`,
+		`{
+	"query_ids": [1, 42, 100],
+	"team_id": 123,
+	"team_name": "Workstations"
 }`
 }
 
@@ -895,10 +950,12 @@ func (a ActivityTypeFleetEnrolled) Documentation() (activity string, details str
 }
 
 type ActivityTypeMDMEnrolled struct {
-	HostSerial       string `json:"host_serial"`
-	HostDisplayName  string `json:"host_display_name"`
-	InstalledFromDEP bool   `json:"installed_from_dep"`
-	MDMPlatform      string `json:"mdm_platform"`
+	HostSerial       *string `json:"host_serial"`
+	HostDisplayName  string  `json:"host_display_name"`
+	InstalledFromDEP bool    `json:"installed_from_dep"`
+	MDMPlatform      string  `json:"mdm_platform"`
+	// EnrollmentID is the unique identifier for the MDM BYOD enrollments. It is nil for other enrollments.
+	EnrollmentID *string `json:"enrollment_id"`
 }
 
 func (a ActivityTypeMDMEnrolled) ActivityName() string {
@@ -911,14 +968,17 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
 - "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
 - "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
-- "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.`, `{
+- "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
+- "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.`, `{
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
   "mdm_platform": "apple"
+  "enrollment_id": null
 }`
 }
 
+// TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
 type ActivityTypeMDMUnenrolled struct {
 	HostSerial       string `json:"host_serial"`
 	HostDisplayName  string `json:"host_display_name"`
@@ -1365,6 +1425,7 @@ type ActivityTypeRanScript struct {
 	HostID              uint    `json:"host_id"`
 	HostDisplayName     string  `json:"host_display_name"`
 	ScriptExecutionID   string  `json:"script_execution_id"`
+	BatchExecutionID    *string `json:"batch_execution_id"`
 	ScriptName          string  `json:"script_name"`
 	Async               bool    `json:"async"`
 	PolicyID            *uint   `json:"policy_id"`
@@ -1380,6 +1441,10 @@ func (a ActivityTypeRanScript) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+func (a ActivityTypeRanScript) HostOnly() bool {
+	return a.BatchExecutionID != nil
+}
+
 func (a ActivityTypeRanScript) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
 }
@@ -1390,6 +1455,7 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "batch_execution_id": Batch execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
 - "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
@@ -1398,6 +1464,7 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "batch_execution_id": "3274d95a-c140-4b17-b185-fb33c93b84e3",
   "async": false,
   "policy_id": 123,
   "policy_name": "Ensure photon torpedoes are primed"
@@ -2497,7 +2564,7 @@ func (a ActivityTypeCanceledInstallAppStoreApp) Documentation() (string, string,
 
 type ActivityTypeRanScriptBatch struct {
 	ScriptName       string `json:"script_name"`
-	BatchExeuctionID string `json:"batch_execution_id"`
+	BatchExecutionID string `json:"batch_execution_id"`
 	HostCount        uint   `json:"host_count"`
 	TeamID           *uint  `json:"team_id"`
 }
@@ -2515,6 +2582,32 @@ func (a ActivityTypeRanScriptBatch) Documentation() (string, string, string) {
   "script_name": "set-timezones.sh",
   "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "host_count": 12
+}`
+}
+
+type ActivityTypeBatchScriptScheduled struct {
+	BatchExecutionID string     `json:"batch_execution_id"`
+	ScriptName       *string    `json:"script_name,omitempty"`
+	HostCount        uint       `json:"host_count"`
+	TeamID           *uint      `json:"team_id"`
+	NotBefore        *time.Time `json:"not_before"`
+}
+
+func (a ActivityTypeBatchScriptScheduled) ActivityName() string {
+	return "batch_script_scheduled"
+}
+
+func (a ActivityTypeBatchScriptScheduled) Documentation() (string, string, string) {
+	return "Generated when a batch script is scheduled.",
+		`This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+- "not_before": Time that the batch activity is scheduled to launch.`, `{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
+  "host_count": 12,
+  "not_before": "2025-08-06T17:49:21.810204Z"
 }`
 }
 
@@ -2575,5 +2668,28 @@ func (a ActivityTypeDisabledConditionalAccessAutomations) Documentation() (strin
 - "team_name": The name of the team (empty for "No team").`, `{
   "team_id": 5,
   "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEscrowedDiskEncryptionKey struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeEscrowedDiskEncryptionKey) ActivityName() string {
+	return "escrowed_disk_encryption_key"
+}
+
+func (a ActivityTypeEscrowedDiskEncryptionKey) WasFromAutomation() bool {
+	return true
+}
+
+func (a ActivityTypeEscrowedDiskEncryptionKey) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a disk encryption key is escrowed.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+	"host_id": "123",
+	"host_display_name": "PWNED-VM-123"
 }`
 }

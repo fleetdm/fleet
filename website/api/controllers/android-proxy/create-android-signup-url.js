@@ -18,6 +18,7 @@ module.exports = {
   exits: {
     success: { description: 'A signup URL has been sent to the requesting Fleet server.'},
     enterpriseAlreadyExists: { description: 'An Android enterprise already exists for this Fleet instance.', statusCode: 409 },
+    invalidCallbackUrl: { description: 'The provided callbackUrl could not be used to create an Android enterprise signup URL.', responseType: 'badRequest'}
   },
 
 
@@ -60,6 +61,8 @@ module.exports = {
         projectId: sails.config.custom.androidEnterpriseProjectId,
       });
       return createSignupUrlResponse.data;
+    }).intercept({status: 400}, (unusedErr)=>{
+      return {'invalidCallbackUrl': 'The provided Callback Url could not be used to create an Android enterprise signup URL.'};
     }).intercept((err)=>{
       return new Error(`When attempting to create a singup url for a new Android enterprise, an error occurred. Error: ${err}`);
     });

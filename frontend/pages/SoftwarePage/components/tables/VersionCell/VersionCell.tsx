@@ -11,7 +11,7 @@ interface IVersionCellProps<T extends { version: string }> {
 const VersionCell = <T extends { version: string }>({
   versions,
 }: IVersionCellProps<T>) => {
-  if (!versions || versions.length === 0) {
+  if (!versions || versions.length === 0 || versions[0].version === "") {
     return <TextCell value={DEFAULT_EMPTY_CELL_VALUE} grey />;
   }
 

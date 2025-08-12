@@ -8,7 +8,7 @@ import DataSet from "components/DataSet";
 import {
   TargetTitle,
   TargetValue,
-} from "../SoftwareDetailsModal/SoftwareDetailsModal";
+} from "../LibrarySoftwareDetailsModal/LibrarySoftwareDetailsModal";
 
 const baseClass = "vpp-details-modal";
 

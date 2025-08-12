@@ -1,0 +1,1 @@
+- Improved accuracy of auto-install queries for custom MSI packages by using a better identifier.

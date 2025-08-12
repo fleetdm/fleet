@@ -33,6 +33,7 @@ func TestVPP(t *testing.T) {
 		{"GetVPPAppByTeamAndTitleID", testGetVPPAppByTeamAndTitleID},
 		{"VPPTokensCRUD", testVPPTokensCRUD},
 		{"VPPTokenAppTeamAssociations", testVPPTokenAppTeamAssociations},
+		{"VPPTokenReassignTeamsToAllTeams", testVPPTokenReassignTeamsToAllTeams},
 		{"GetOrInsertSoftwareTitleForVPPApp", testGetOrInsertSoftwareTitleForVPPApp},
 		{"DeleteVPPAssignedToPolicy", testDeleteVPPAssignedToPolicy},
 		{"TestVPPTokenTeamAssignment", testVPPTokenTeamAssignment},
@@ -361,7 +362,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, h3, false)
 
 	// move h3 to team1
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{h3.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h3.ID}))
 	require.NoError(t, err)
 
 	// simulate an install request of vpp1 on h1
@@ -1540,6 +1541,46 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.Error(t, err)
 }
 
+func testVPPTokenReassignTeamsToAllTeams(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Set up two teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "All Teams Reassign Team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "All Teams Reassign Team 2"})
+	require.NoError(t, err)
+
+	// Insert token
+	tokenData, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Org For Reassign", "Loc For Reassign")
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, tokenData)
+	require.NoError(t, err)
+	tokenID := tok.ID
+
+	// Assign token to team1 and team2
+	upTok, err := ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{team1.ID, team2.ID})
+	require.NoError(t, err)
+	require.Len(t, upTok.Teams, 2)
+
+	// Now, reassign to ALL TEAMS (teams = [])
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{})
+	require.NoError(t, err)
+	require.NotNil(t, upTok.Teams)
+	require.Len(t, upTok.Teams, 0, "After reassigning to all teams, Teams should be zero-length (all teams)")
+
+	// Confirm that the assignment is present as "All teams"
+	gotTok, err := ds.GetVPPToken(ctx, tokenID)
+	require.NoError(t, err)
+	require.NotNil(t, gotTok.Teams)
+	require.Len(t, gotTok.Teams, 0, "After reassigning to all teams, Teams should be zero-length (all teams)")
+
+	// Now, assign back to just team1
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{team1.ID})
+	require.NoError(t, err)
+	require.Len(t, upTok.Teams, 1)
+	require.Equal(t, team1.ID, upTok.Teams[0].ID)
+}
+
 func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -2028,5 +2069,4 @@ func testGetUnverifiedVPPInstallsForHost(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Len(t, x, step.after)
 	}
-
 }

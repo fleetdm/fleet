@@ -26,6 +26,7 @@ windows_updates:
   grace_period_days: 2
 windows_enabled_and_configured: true
 windows_migration_enabled: true
+windows_require_bitlocker_pin: false
 enable_disk_encryption: true
 macos_migration: # Available in Fleet Premium
   enable: true

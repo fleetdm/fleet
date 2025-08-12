@@ -77,10 +77,6 @@ On subsequent GitOps syncs, if a secret variable used by a configuration profile
 
 > Profiles with secret variables are not entirely validated during a GitOps dry run because secret variables may not be present/correct in the database during the dry run. Hence, there is an increased chance of GitOps non-dry run failure when using a profile with a secret variable. Try uploading this profile to a test team first.
 
-## Escaping and interpolation
-
-The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
-
 ## Known limitations and issues
 
 - After changing a secret used by a Windows profile, that profile is currently not re-sent to the device when the GitHub action (or GitLab pipeline) runs: [story #27351](https://github.com/fleetdm/fleet/issues/27351)

@@ -23,19 +23,23 @@ type encryptionKey struct {
 	NotFound  bool
 }
 
-func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, encryptedBase64Key, clientError string,
+func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(
+	ctx context.Context,
+	host *fleet.Host,
+	encryptedBase64Key,
+	clientError string,
 	decryptable *bool,
-) error {
+) (bool, error) {
 	existingKey, err := ds.getExistingHostDiskEncryptionKey(ctx, host)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting existing key, if present")
+		return false, ctxerr.Wrap(ctx, err, "getting existing key, if present")
 	}
 
 	// We use the same timestamp for base and archive tables so that it can be used as an additional debug tool if needed.
 	incomingKey := encryptionKey{Base: encryptedBase64Key, CreatedAt: time.Now().UTC()}
-	err = ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)
+	archived, err := ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "archiving key")
+		return archived, ctxerr.Wrap(ctx, err, "archiving key")
 	}
 
 	if existingKey.NotFound {
@@ -45,7 +49,7 @@ INSERT INTO host_disk_encryption_keys
 VALUES
   (?, ?, ?, ?, ?)`, host.ID, incomingKey.Base, clientError, decryptable, incomingKey.CreatedAt)
 		if err == nil {
-			return nil
+			return archived, nil
 		}
 		var mysqlErr *mysql.MySQLError
 		switch {
@@ -54,7 +58,7 @@ VALUES
 				host)
 			// This should never happen unless there is a bug in the code or an infra issue (like huge replication lag).
 		default:
-			return ctxerr.Wrap(ctx, err, "inserting key")
+			return archived, ctxerr.Wrap(ctx, err, "inserting key")
 		}
 	}
 
@@ -71,9 +75,9 @@ UPDATE host_disk_encryption_keys SET
 WHERE host_id = ?
 `, incomingKey.Base, decryptable, incomingKey.Base, clientError, host.ID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating key")
+		return archived, ctxerr.Wrap(ctx, err, "updating key")
 	}
-	return nil
+	return archived, nil
 }
 
 func (ds *Datastore) getExistingHostDiskEncryptionKey(ctx context.Context, host *fleet.Host) (encryptionKey, error) {
@@ -90,9 +94,17 @@ func (ds *Datastore) getExistingHostDiskEncryptionKey(ctx context.Context, host 
 	return existingKey, nil
 }
 
-func (ds *Datastore) archiveHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, incomingKey encryptionKey,
+// archiveHostDiskEncryptionKey archives the existing key into the archive table.
+// If the incoming key is different from the existing key, it is archived.
+// If the incoming key is the same as the existing key, it is not archived.
+// If the incoming key is empty, it is not archived.
+// Returns whether the key was archived.
+func (ds *Datastore) archiveHostDiskEncryptionKey(
+	ctx context.Context,
+	host *fleet.Host,
+	incomingKey encryptionKey,
 	existingKey encryptionKey,
-) error {
+) (bool, error) {
 	// We archive only valid and different keys to reduce noise.
 	if (incomingKey.Base != "" && existingKey.Base != incomingKey.Base) ||
 		(incomingKey.Salt != "" && existingKey.Salt != incomingKey.Salt) {
@@ -103,10 +115,11 @@ VALUES (?, ?, ?, ?, ?, ?)`
 			incomingKey.Salt,
 			incomingKey.KeySlot, incomingKey.CreatedAt)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting key into archive")
+			return false, ctxerr.Wrap(ctx, err, "inserting key into archive")
 		}
+		return true, nil
 	}
-	return nil
+	return false, nil
 }
 
 func (ds *Datastore) DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error {
@@ -117,16 +130,20 @@ DELETE FROM host_disk_encryption_keys WHERE host_id = ? AND key_slot = ?`, hostI
 	})
 }
 
-func (ds *Datastore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string,
+func (ds *Datastore) SaveLUKSData(
+	ctx context.Context,
+	host *fleet.Host,
+	encryptedBase64Passphrase string,
+	encryptedBase64Salt string,
 	keySlot uint,
-) error {
+) (bool, error) {
 	if encryptedBase64Passphrase == "" || encryptedBase64Salt == "" { // should have been caught at service level
-		return errors.New("passphrase and salt must be set")
+		return false, errors.New("passphrase and salt must be set")
 	}
 
 	existingKey, err := ds.getExistingHostDiskEncryptionKey(ctx, host)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting existing LUKS key, if present")
+		return false, ctxerr.Wrap(ctx, err, "getting existing LUKS key, if present")
 	}
 
 	// We use the same timestamp for base and archive tables so that it can be used as an additional debug tool if needed.
@@ -134,9 +151,9 @@ func (ds *Datastore) SaveLUKSData(ctx context.Context, host *fleet.Host, encrypt
 		Base: encryptedBase64Passphrase, Salt: encryptedBase64Salt, KeySlot: &keySlot,
 		CreatedAt: time.Now().UTC(),
 	}
-	err = ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)
+	archived, err := ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "archiving LUKS key")
+		return archived, ctxerr.Wrap(ctx, err, "archiving LUKS key")
 	}
 
 	if existingKey.NotFound {
@@ -146,7 +163,7 @@ INSERT INTO host_disk_encryption_keys
 VALUES
   (?, ?, ?, ?, TRUE, ?)`, host.ID, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, incomingKey.CreatedAt)
 		if err == nil {
-			return nil
+			return archived, nil
 		}
 		var mysqlErr *mysql.MySQLError
 		switch {
@@ -156,7 +173,7 @@ VALUES
 				host)
 			// This should never happen unless there is a bug in the code or an infra issue (like huge replication lag).
 		default:
-			return ctxerr.Wrap(ctx, err, "inserting LUKS key")
+			return archived, ctxerr.Wrap(ctx, err, "inserting LUKS key")
 		}
 	}
 
@@ -171,9 +188,9 @@ UPDATE host_disk_encryption_keys SET
 WHERE host_id = ?
 `, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, host.ID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating LUKS key")
+		return archived, ctxerr.Wrap(ctx, err, "updating LUKS key")
 	}
-	return nil
+	return archived, nil
 }
 
 func (ds *Datastore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {

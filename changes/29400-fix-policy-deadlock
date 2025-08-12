@@ -1,1 +1,0 @@
-* Added retries in `PATCH` policies API requests to fix deadlock errors in "Manage automations" page.

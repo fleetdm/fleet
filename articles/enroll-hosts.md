@@ -29,8 +29,6 @@ A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment sec
 
 To generate fleetd for an Arm Linux or Windows host, use the `--arch=arm64` flag.
 
-> **Fleetd for Arm Windows is an experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 #### Example
 
 Generate fleetd on macOS (.pkg)
@@ -307,7 +305,7 @@ fleetctl package
 ```
 If this setting is not used, you will need to configure client TLS certificates on devices' browsers.
 
-#### fleetd Chrome browswer extension
+#### fleetd Chrome browser extension
 
 To use mTLS use the [AutoSelectCertificateForUrls policy](https://chromeenterprise.google/policies/?policy=AutoSelectCertificateForUrls) to point Chrome to your client certificates
 

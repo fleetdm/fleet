@@ -137,11 +137,12 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 	return server
 }
 
-// AuthConfig defines configs related to user authorization
+// AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
-	BcryptCost               int           `yaml:"bcrypt_cost"`
-	SaltKeySize              int           `yaml:"salt_key_size"`
-	SsoSessionValidityPeriod time.Duration `yaml:"sso_session_validity_period"`
+	BcryptCost                  int           `yaml:"bcrypt_cost"`
+	SaltKeySize                 int           `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
+	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -1112,6 +1113,8 @@ func (man Manager) addConfigs() {
 		"Size of salt for passwords")
 	man.addConfigDuration("auth.sso_session_validity_period", 5*time.Minute,
 		"Timeout from SSO start to SSO callback")
+	man.addConfigBool("auth.require_http_message_signature", false,
+		"Require HTTP message signatures for fleetd requests (Premium feature)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1531,9 +1534,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			VPPVerifyRequestDelay:       man.getConfigDuration("server.vpp_verify_request_delay"),
 		},
 		Auth: AuthConfig{
-			BcryptCost:               man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize:              man.getConfigInt("auth.salt_key_size"),
-			SsoSessionValidityPeriod: man.getConfigDuration("auth.sso_session_validity_period"),
+			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
+			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -2050,9 +2054,10 @@ func TestConfig() FleetConfig {
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			BcryptCost:               6, // Low cost keeps tests fast
-			SaltKeySize:              24,
-			SsoSessionValidityPeriod: 5 * time.Minute,
+			BcryptCost:                  6, // Low cost keeps tests fast
+			SaltKeySize:                 24,
+			SsoSessionValidityPeriod:    5 * time.Minute,
+			RequireHTTPMessageSignature: false,
 		},
 		Session: SessionConfig{
 			KeySize:  64,

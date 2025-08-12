@@ -1,1 +1,0 @@
-- Fixed software title ID + installer status filters to return an empty array with 0 count instead of 404 when an installer is not present on a team

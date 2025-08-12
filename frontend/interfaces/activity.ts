@@ -121,6 +121,7 @@ export enum ActivityType {
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
+  EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -182,7 +183,7 @@ export interface IActivityDetails {
   deadline_days?: number;
   deadline?: string;
   email?: string;
-  enrollment_id?: string;
+  enrollment_id?: string | null; // unique identifier for MDM BYOD enrollments; null for other enrollments
   global?: boolean;
   grace_period_days?: number;
   host_display_name?: string;
@@ -202,7 +203,6 @@ export interface IActivityDetails {
   name?: string;
   pack_id?: number;
   pack_name?: string;
-  personal_host?: boolean;
   platform?: Platform; // software platform
   policy_id?: number;
   policy_name?: string;

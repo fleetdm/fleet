@@ -340,7 +340,7 @@ func testDeleteOutOfDateOSVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Delete out of date vulns
-	err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour)
+	err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, time.Now().UTC().Add(-time.Hour))
 	require.NoError(t, err)
 
 	actual, err := ds.ListOSVulnerabilitiesByOS(ctx, 1)

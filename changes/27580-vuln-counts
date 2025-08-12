@@ -1,0 +1,1 @@
+* Fixed cases where the vulnerabilities list endpoint would count the same CVE multiple times for the `count` field returned with a result set

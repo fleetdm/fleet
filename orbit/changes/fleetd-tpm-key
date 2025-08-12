@@ -1,0 +1,1 @@
+- Added support to generate a TPM 2.0 private key and issue a SCEP certificate for signing of HTTP requests (via new environment variable `ORBIT_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE`).

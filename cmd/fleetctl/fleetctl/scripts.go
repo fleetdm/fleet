@@ -29,7 +29,7 @@ func runScriptCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "run-script",
 		Aliases:   []string{"run_script"},
-		Usage:     `Run a script on one host and get results back.`,
+		Usage:     `Run a script on one online host and get results back.`,
 		UsageText: `fleetctl run-script [options]`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{

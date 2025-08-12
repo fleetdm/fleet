@@ -24,6 +24,7 @@ At a high level, Fleet consists of:
 4. **Storage**:
    - **MySQL**: Primary database for storing configuration, device information, and query results
    - **Redis**: Used for caching and managing live query results
+   - **S3/object storage**: Used for storing software installers and file carve results
 
 5. **External Services**:
    - **TUF Server**: Provides secure updates for the agent components

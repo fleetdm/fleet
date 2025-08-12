@@ -366,6 +366,21 @@ policies:
 	assert.ErrorContains(t, err, "duplicate policy names")
 }
 
+func TestManualLabelEmptyHostList(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{})
+	config += `
+labels:
+  - name: TestLabel
+    description: Label for testing
+    hosts:
+    label_membership_type: manual`
+
+	gitops, err := gitOpsFromString(t, config)
+	require.NoError(t, err)
+	assert.NotNil(t, gitops.Labels[0].Hosts)
+}
+
 func TestDuplicateQueryNames(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"queries"})
@@ -515,7 +530,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"name"})
 					config += "name: [2]\n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal name")
+					assert.ErrorContains(t, err, "expected type string but got array")
 
 					// Missing team name
 					config = getConfig([]string{"name"})
@@ -527,7 +542,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"team_settings"})
 					config += "team_settings:\n  path: [2]\n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal team_settings")
+					assert.ErrorContains(t, err, "expected type string but got array")
 
 					// Invalid team_settings in a separate file
 					tmpFile, err := os.CreateTemp(t.TempDir(), "*team_settings.yml")
@@ -537,7 +552,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"team_settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "team_settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal team settings file")
+					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"team_settings"})
@@ -591,7 +606,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"org_settings"})
 					config += "org_settings:\n  path: [2]\n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal org_settings")
+					assert.ErrorContains(t, err, "expected type string but got array")
 
 					// Invalid org_settings in a separate file
 					tmpFile, err := os.CreateTemp(t.TempDir(), "*org_settings.yml")
@@ -601,7 +616,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"org_settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "org_settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal org settings file")
+					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"org_settings"})
@@ -626,7 +641,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config := getConfig([]string{"agent_options"})
 				config += "agent_options:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal agent_options")
+				assert.ErrorContains(t, err, "expected type string but got array")
 
 				// Invalid agent_options in a separate file
 				tmpFile, err := os.CreateTemp(t.TempDir(), "*agent_options.yml")
@@ -636,13 +651,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"agent_options"})
 				config += fmt.Sprintf("%s:\n  path: %s\n", "agent_options", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal agent options file")
+				assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
 
 				// Invalid controls
 				config = getConfig([]string{"controls"})
 				config += "controls:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal controls")
+				assert.ErrorContains(t, err, "expected type string but got array")
 
 				// Invalid controls in a separate file
 				tmpFile, err = os.CreateTemp(t.TempDir(), "*controls.yml")
@@ -652,13 +667,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"controls"})
 				config += fmt.Sprintf("%s:\n  path: %s\n", "controls", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal controls file")
+				assert.ErrorContains(t, err, "expected type spec.GitOpsControls but got array")
 
 				// Invalid policies
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal policies")
+				assert.ErrorContains(t, err, "expected type []spec.Policy but got object")
 
 				// Invalid policies in a separate file
 				tmpFile, err = os.CreateTemp(t.TempDir(), "*policies.yml")
@@ -668,7 +683,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"policies"})
 				config += fmt.Sprintf("%s:\n  - path: %s\n", "policies", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal policies file")
+				assert.ErrorContains(t, err, "expected type spec.Policy but got number")
 
 				// Policy name missing
 				config = getConfig([]string{"policies"})
@@ -686,7 +701,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"queries"})
 				config += "queries:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal queries")
+				assert.ErrorContains(t, err, "expected type []spec.Query but got object")
 
 				// Invalid policies in a separate file
 				tmpFile, err = os.CreateTemp(t.TempDir(), "*queries.yml")
@@ -696,7 +711,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"queries"})
 				config += fmt.Sprintf("%s:\n  - path: %s\n", "queries", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal queries file")
+				assert.ErrorContains(t, err, "expected type spec.Query but got number")
 
 				// Query name missing
 				config = getConfig([]string{"queries"})
@@ -1102,7 +1117,7 @@ software:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
+	assert.ErrorContains(t, err, "at \"policy.install_software.package_path\", expected type fleet.SoftwarePackageSpec but got string")
 }
 
 func TestGitOpsWithStrayScriptEntryWithNoPath(t *testing.T) {

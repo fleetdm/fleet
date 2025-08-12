@@ -28,15 +28,26 @@ export const SOFTWARE_TITLES_DROPDOWN_OPTIONS = [
   },
 ];
 
+export const CUSTOM_SEVERITY_OPTION = {
+  disabled: false,
+  label: "Custom severity",
+  value: "custom",
+  helpText: "Custom CVSS score range",
+  minSeverity: undefined,
+  maxSeverity: undefined,
+};
+
+export const ANY_SEVERITY_OPTION = {
+  disabled: false,
+  label: "Any severity",
+  value: "any",
+  helpText: "CVSS score 0-10",
+  minSeverity: 0,
+  maxSeverity: 10,
+};
+
 export const SEVERITY_DROPDOWN_OPTIONS = [
-  {
-    disabled: false,
-    label: "Any severity",
-    value: "any",
-    helpText: "CVSS score 0-10",
-    minSeverity: undefined,
-    maxSeverity: undefined,
-  },
+  ANY_SEVERITY_OPTION,
   {
     disabled: false,
     label: "Critical severity",
@@ -69,6 +80,7 @@ export const SEVERITY_DROPDOWN_OPTIONS = [
     minSeverity: 0.1,
     maxSeverity: 3.9,
   },
+  CUSTOM_SEVERITY_OPTION,
 ];
 
 export const buildSoftwareFilterQueryParams = (
@@ -164,6 +176,14 @@ export const findOptionBySeverityRange = (
   minSeverityValue: number | undefined,
   maxSeverityValue: number | undefined
 ) => {
+  // Check for "empty" (undefined/null) min and max, treat as "Any severity"
+  if (
+    (minSeverityValue === undefined || minSeverityValue === null) &&
+    (maxSeverityValue === undefined || maxSeverityValue === null)
+  ) {
+    return ANY_SEVERITY_OPTION;
+  }
+
   const severityOption = SEVERITY_DROPDOWN_OPTIONS.find(
     (option) =>
       option.minSeverity === minSeverityValue &&
