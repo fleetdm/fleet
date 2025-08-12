@@ -126,11 +126,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 			require.NoError(t, s.ds.InsertKernelSoftwareMapping(ctx))
 
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				mysql.DumpTable(t, q, "kernels")
-				return nil
-			})
-
 			var osVersionsResp osVersionsResponse
 			s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 			var osVersion *fleet.OSVersion
