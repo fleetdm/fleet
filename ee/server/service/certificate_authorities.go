@@ -94,8 +94,6 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 			return nil, err
 		}
 
-		// TODO Add a check for multiple NDES here(better error than just returning a duplicate name
-		// error)
 		caToCreate.Name = "NDES"
 		caToCreate.Type = string(fleet.CATypeNDESSCEPProxy)
 		caToCreate.URL = p.NDESSCEPProxy.URL
