@@ -9102,18 +9102,21 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	s.uploadSoftwareInstallerWithErrorNameReason(t, payloadEmacsMissingUnSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID",
 		"uninstall script")
 
+	// not specifiying a team_id translates to "no team" or team_id of 0
 	payloadEmacs := &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "emacs.deb",
-		SelfService:   true,
+		InstallScript:    "install",
+		Filename:         "emacs.deb",
+		SelfService:      true,
+		AutomaticInstall: true,
 	}
 	s.uploadSoftwareInstaller(t, payloadEmacs, http.StatusOK, "")
 
 	payloadVim := &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "vim.deb",
-		SelfService:   true,
-		TeamID:        ptr.Uint(0),
+		InstallScript:    "install",
+		Filename:         "vim.deb",
+		SelfService:      true,
+		TeamID:           ptr.Uint(0),
+		AutomaticInstall: true,
 	}
 	s.uploadSoftwareInstaller(t, payloadVim, http.StatusOK, "")
 
