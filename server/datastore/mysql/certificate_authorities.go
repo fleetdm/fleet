@@ -3,8 +3,8 @@ package mysql
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -19,32 +19,31 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	if ca.CertificateUserPrincipalNames != nil {
 		upns, err = json.Marshal(ca.CertificateUserPrincipalNames)
 		if err != nil {
-			// TODO EJM wrap all these errors
-			return nil, fmt.Errorf("failed to marshal certificate user principal names for new CA %s: %w", ca.Name, err)
+			return nil, ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for new certificate authority")
 		}
 	}
 	if ca.APIToken != nil {
 		encryptedAPIToken, err = encrypt([]byte(*ca.APIToken), ds.serverPrivateKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encrypt API token for new CA %s: %w", ca.Name, err)
+			return nil, ctxerr.Wrap(ctx, err, "encrypting API token for new certificate authority")
 		}
 	}
 	if ca.Password != nil {
 		encryptedPassword, err = encrypt([]byte(*ca.Password), ds.serverPrivateKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encrypt password for new CA %s: %w", ca.Name, err)
+			return nil, ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
 		}
 	}
 	if ca.Challenge != nil {
 		encryptedChallenge, err = encrypt([]byte(*ca.Challenge), ds.serverPrivateKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encrypt challenge for new CA %s: %w", ca.Name, err)
+			return nil, ctxerr.Wrap(ctx, err, "encrypting challenge for new certificate authority")
 		}
 	}
 	if ca.ClientSecret != nil {
 		encryptedClientSecret, err = encrypt([]byte(*ca.ClientSecret), ds.serverPrivateKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encrypt client secret for new CA %s: %w", ca.Name, err)
+			return nil, ctxerr.Wrap(ctx, err, "encrypting client secret for new certificate authority")
 		}
 	}
 	args := []interface{}{
@@ -81,12 +80,12 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to insert new certificate authority %s: %w", ca.Name, err)
+		return nil, ctxerr.Wrap(ctx, err, "inserting new certificate authority")
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last insert ID for new certificate authority %s: %w", ca.Name, err)
+		return nil, ctxerr.Wrap(ctx, err, "getting last insert ID for new certificate authority")
 	}
-	ca.ID = uint(id)
+	ca.ID = uint(id) //nolint:gosec // dismiss G115
 	return ca, nil
 }

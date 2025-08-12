@@ -1,6 +1,8 @@
 package fleet
 
 import (
+	"context"
+	"slices"
 	"time"
 )
 
@@ -59,10 +61,37 @@ type CertificateAuthority struct {
 }
 
 type CertificateAuthorityPayload struct {
-	DigiCert        *DigiCertIntegration        `json:"digicert,omitempty"`
-	NDESSCEPProxy   *NDESSCEPProxyIntegration   `json:"ndes_scep_proxy,omitempty"`
-	CustomSCEPProxy *CustomSCEPProxyIntegration `json:"custom_scep_proxy,omitempty"`
-	Hydrant         *HydrantCA                  `json:"hydrant,omitempty"`
+	DigiCert        *DigiCertCA        `json:"digicert,omitempty"`
+	NDESSCEPProxy   *NDESSCEPProxyCA   `json:"ndes_scep_proxy,omitempty"`
+	CustomSCEPProxy *CustomSCEPProxyCA `json:"custom_scep_proxy,omitempty"`
+	Hydrant         *HydrantCA         `json:"hydrant,omitempty"`
+}
+
+type DigiCertCA struct {
+	Name                          string   `json:"name"`
+	URL                           string   `json:"url"`
+	APIToken                      string   `json:"api_token"`
+	ProfileID                     string   `json:"profile_id"`
+	CertificateCommonName         string   `json:"certificate_common_name"`
+	CertificateUserPrincipalNames []string `json:"certificate_user_principal_names"`
+	CertificateSeatID             string   `json:"certificate_seat_id"`
+}
+
+func (d *DigiCertCA) Equals(other *DigiCertCA) bool {
+	return d.Name == other.Name &&
+		d.URL == other.URL &&
+		(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) &&
+		d.ProfileID == other.ProfileID &&
+		d.CertificateCommonName == other.CertificateCommonName &&
+		slices.Equal(d.CertificateUserPrincipalNames, other.CertificateUserPrincipalNames) &&
+		d.CertificateSeatID == other.CertificateSeatID
+}
+
+func (d *DigiCertCA) NeedToVerify(other *DigiCertCA) bool {
+	return d.Name != other.Name ||
+		d.URL != other.URL ||
+		!(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) ||
+		d.ProfileID != other.ProfileID
 }
 
 type HydrantCA struct {
@@ -84,6 +113,32 @@ func (h *HydrantCA) NeedToVerify(other *HydrantCA) bool {
 		h.URL != other.URL ||
 		h.ClientID != other.ClientID ||
 		!(h.ClientSecret == "" || h.ClientSecret == MaskedPassword || h.ClientSecret == other.ClientSecret)
+}
+
+// NDESSCEPProxyCA configures SCEP proxy for NDES SCEP server. Premium feature.
+type NDESSCEPProxyCA struct {
+	URL      string `json:"url"`
+	AdminURL string `json:"admin_url"`
+	Username string `json:"username"`
+	Password string `json:"password"` // not stored here -- encrypted in DB
+}
+
+type SCEPConfigService interface {
+	ValidateNDESSCEPAdminURL(ctx context.Context, proxy NDESSCEPProxyCA) error
+	GetNDESSCEPChallenge(ctx context.Context, proxy NDESSCEPProxyCA) (string, error)
+	ValidateSCEPURL(ctx context.Context, url string) error
+}
+
+type CustomSCEPProxyCA struct {
+	Name      string `json:"name"`
+	URL       string `json:"url"`
+	Challenge string `json:"challenge"`
+}
+
+func (s *CustomSCEPProxyCA) Equals(other *CustomSCEPProxyCA) bool {
+	return s.Name == other.Name &&
+		s.URL == other.URL &&
+		(s.Challenge == "" || s.Challenge == MaskedPassword || s.Challenge == other.Challenge)
 }
 
 func (c *CertificateAuthority) AuthzType() string {

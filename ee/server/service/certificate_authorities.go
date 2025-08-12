@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -11,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
+	"github.com/go-kit/log/level"
 )
 
 func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.CertificateAuthorityPayload) (*fleet.CertificateAuthority, error) {
@@ -123,6 +125,9 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
 		if strings.Contains(err.Error(), "idx_ca_type_name") {
+			if caToCreate.Type == string(fleet.CATypeNDESSCEPProxy) {
+				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%s. Only a single NDES CA can be added.", errPrefix)}
+			}
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%s\"%s\" name is already used by another %s certificate authority. Please choose a different name and try again.", errPrefix, caToCreate.Name, caDisplayType)}
 		}
 	}
@@ -134,7 +139,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	return createdCA, nil
 }
 
-func (svc *Service) validateDigicert(ctx context.Context, digicertCA *fleet.DigiCertIntegration, errPrefix string) error {
+func (svc *Service) validateDigicert(ctx context.Context, digicertCA *fleet.DigiCertCA, errPrefix string) error {
 	if err := validateURL(digicertCA.URL, "DigiCert", errPrefix); err != nil {
 		return err
 	}
@@ -158,7 +163,8 @@ func (svc *Service) validateDigicert(ctx context.Context, digicertCA *fleet.Digi
 	}
 
 	if err := svc.digiCertService.VerifyProfileID(ctx, *digicertCA); err != nil {
-		return err
+		level.Error(svc.logger).Log("msg", "Failed to validate DigiCert profile GUID", "err", err)
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sCould not verify DigiCert profile ID: %s. Please correct and try again.", errPrefix, err.Error())}
 	}
 	return nil
 }
@@ -244,11 +250,13 @@ func validateDigicertUserPrincipalNames(userPrincipalNames []string, errPrefix s
 }
 
 func validateHydrant(hydrantCA *fleet.HydrantCA, errPrefix string) error {
-	validateCAName(hydrantCA.Name, errPrefix)
+	if err := validateCAName(hydrantCA.Name, errPrefix); err != nil {
+		return err
+	}
 	if err := validateURL(hydrantCA.URL, "Hydrant", errPrefix); err != nil {
 		return err
 	}
-	// TODO HCA Validate Hydrant Parameters
+	// TODO HCA Validate Hydrant Parameters by actually connecting to Hydrant(ideally)
 	if hydrantCA.ClientID == "" {
 		return fleet.NewInvalidArgumentError("client_id", fmt.Sprintf("%sInvalid Hydrant Client ID. Please correct and try again.", errPrefix))
 	}
@@ -267,20 +275,29 @@ func validateURL(caURL, displayType, errPrefix string) error {
 	return nil
 }
 
-func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.NDESSCEPProxyIntegration, errPrefix string) error {
+func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.NDESSCEPProxyCA, errPrefix string) error {
 	if err := validateURL(ndesSCEP.URL, "NDES SCEP", errPrefix); err != nil {
 		return err
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, ndesSCEP.URL); err != nil {
-		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix))
+		level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP URL", "err", err)
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 	}
 	if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, *ndesSCEP); err != nil {
-		return fleet.NewInvalidArgumentError("admin_url", fmt.Sprintf("%sInvalid admin URL or credentials. Please correct and try again.", errPrefix))
+		level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP admin URL", "err", err)
+		switch {
+		case errors.As(err, &NDESPasswordCacheFullError{}):
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
+		case errors.As(err, &NDESInsufficientPermissionsError{}):
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInsufficient permissions for NDES SCEP admin URL. Please correct and try again.", errPrefix)}
+		default:
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL or credentials. Please correct and try again.", errPrefix)}
+		}
 	}
 	return nil
 }
 
-func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fleet.CustomSCEPProxyIntegration, errPrefix string) error {
+func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fleet.CustomSCEPProxyCA, errPrefix string) error {
 	if err := validateURL(customSCEP.URL, "SCEP", errPrefix); err != nil {
 		return err
 	}
@@ -288,7 +305,8 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 		return fleet.NewInvalidArgumentError("challenge", fmt.Sprintf("%sCustom SCEP Proxy challenge cannot be empty", errPrefix))
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, customSCEP.URL); err != nil {
-		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix))
+		level.Error(svc.logger).Log("msg", "Failed to validate custom SCEP URL", "err", err)
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 	}
 	return nil
 }
