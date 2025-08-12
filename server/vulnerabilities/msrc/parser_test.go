@@ -1540,6 +1540,7 @@ func TestParser(t *testing.T) {
 }
 
 func Test_ignoreKnownBadCVEs(t *testing.T) {
+	t.Errorf("Fail deliberately to make sure the ci runs this function")
 	full := "Windows 10 Version 22H2 for x64-based Systems"
 	require.NotEmpty(t, parsed.NewProductFromFullName(full).Name(), "parsed didn’t recognize product full name: %q", full)
 
