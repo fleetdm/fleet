@@ -12939,7 +12939,7 @@ Creates a custom variable that can be used in scripts and profiles prefixed with
 
 #### Example
 
-`POST /api/v1/fleet/spec/custom_variables`
+`POST /api/v1/fleet/custom_variables`
 
 ##### Request body
 
