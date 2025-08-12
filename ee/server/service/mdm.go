@@ -787,7 +787,7 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 		u, err := url.Parse(originalURL)
 		if err != nil {
 			logging.WithErr(ctx, err)
-			return "/enroll?error=" + url.QueryEscape("Failed to parse original URL."), ""
+			return "/enroll?error=" + url.QueryEscape("An error occurred. : Failed to parse original URL."), ""
 		}
 		// port over the query string values, which will copy over the enrollment
 		// secret
