@@ -2137,6 +2137,7 @@ func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (
 			num_canceled,
 			created_at,
 			updated_at,
+			started_at,
 			finished_at,
 			canceled
 		FROM
@@ -2170,6 +2171,7 @@ func (ds *Datastore) GetBatchActivityByJobID(ctx context.Context, jobID uint) (*
 			num_canceled,
 			created_at,
 			updated_at,
+			started_at,
 			finished_at,
 			canceled
 		FROM

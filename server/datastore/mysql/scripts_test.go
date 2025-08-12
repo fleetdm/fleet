@@ -2171,12 +2171,17 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
 	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now())
-	hostTeam1 := test.NewHost(t, ds, "hostTeam1", "10.0.0.5", "hostTeam1key", "hostTeam1uuid", time.Now(), test.WithTeamID(team1.ID))
+
+	host4 := test.NewHost(t, ds, "host4", "10.0.0.5", "host4key", "host4uuid", time.Now())
+	hostTeam1 := test.NewHost(t, ds, "hostTeam1", "10.0.0.6", "hostTeam1key", "hostTeam1uuid", time.Now(), test.WithTeamID(team1.ID))
+	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"))
 
 	test.SetOrbitEnrollment(t, host1, ds)
 	test.SetOrbitEnrollment(t, host2, ds)
 	test.SetOrbitEnrollment(t, host3, ds)
 	test.SetOrbitEnrollment(t, hostTeam1, ds)
+	test.SetOrbitEnrollment(t, host4, ds)
+	test.SetOrbitEnrollment(t, hostWindows, ds)
 
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "script1.sh",
@@ -2208,6 +2213,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	batchActivity, err := ds.GetBatchActivity(ctx, execID)
 	require.NoError(t, err)
 	require.Equal(t, execID, batchActivity.BatchExecutionID)
+	require.Nil(t, batchActivity.StartedAt)
 	require.Equal(t, user.ID, *batchActivity.UserID)
 	require.Equal(t, fleet.BatchExecutionActivityScript, batchActivity.ActivityType)
 	require.Equal(t, job.ID, *batchActivity.JobID)
@@ -2217,10 +2223,85 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)
 	require.Len(t, hostResults, 3)
+	for _, hostResult := range hostResults {
+		require.Equal(t, execID, hostResult.BatchExecutionID)
+		require.Nil(t, hostResult.HostExecutionID)
+	}
 
 	batchActivityJobID, err := ds.GetBatchActivityByJobID(ctx, *batchActivity.JobID)
 	require.NoError(t, err)
 	require.Equal(t, batchActivity.BatchExecutionID, batchActivityJobID.BatchExecutionID)
+
+	// Run it manually, the same as the job running it but without waiting for the time
+	err = ds.RunScheduledBatchActivity(ctx, execID)
+	require.NoError(t, err)
+
+	batchActivity, err = ds.GetBatchActivity(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, execID, batchActivity.BatchExecutionID)
+	require.NotNil(t, batchActivity.StartedAt)
+	require.Equal(t, user.ID, *batchActivity.UserID)
+	require.Equal(t, fleet.BatchExecutionActivityScript, batchActivity.ActivityType)
+	require.Equal(t, job.ID, *batchActivity.JobID)
+	require.Equal(t, fleet.BatchExecutionStarted, batchActivity.Status)
+	require.Equal(t, uint(3), *batchActivity.NumTargeted)
+
+	hostResults, err = ds.GetBatchActivityHostResults(ctx, execID)
+	require.NoError(t, err)
+	require.Len(t, hostResults, 3)
+	for _, hostResult := range hostResults {
+		require.Equal(t, execID, hostResult.BatchExecutionID)
+		require.NotNil(t, hostResult.HostExecutionID)
+		upcomingScripts, err := ds.ListPendingHostScriptExecutions(ctx, hostResult.HostID, false)
+		require.NoError(t, err)
+		require.Len(t, upcomingScripts, 1)
+	}
+
+	// Schedule script where most hosts will fail for various reaons
+	execID, err = ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host4.ID, hostWindows.ID, hostTeam1.ID}, scheduledTime)
+	require.NoError(t, err)
+	require.NotEmpty(t, execID)
+
+	err = ds.RunScheduledBatchActivity(ctx, execID)
+	require.NoError(t, err)
+
+	batchActivity, err = ds.GetBatchActivity(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, execID, batchActivity.BatchExecutionID)
+	require.NotNil(t, batchActivity.StartedAt)
+	require.Equal(t, fleet.BatchExecutionStarted, batchActivity.Status)
+	require.Equal(t, uint(3), *batchActivity.NumTargeted)
+
+	hostResults, err = ds.GetBatchActivityHostResults(ctx, execID)
+	require.NoError(t, err)
+	require.Len(t, hostResults, 3)
+	for _, hostResult := range hostResults {
+		require.Equal(t, execID, hostResult.BatchExecutionID)
+		upcomingScripts, err := ds.ListPendingHostScriptExecutions(ctx, hostResult.HostID, false)
+		require.NoError(t, err)
+		switch hostResult.HostID {
+		case host4.ID:
+			// The only valid host in the group
+			require.NotNil(t, hostResult.HostExecutionID)
+			require.Len(t, upcomingScripts, 1)
+		case hostWindows.ID:
+			// Bad platform
+			require.Len(t, upcomingScripts, 0)
+			require.NotNil(t, hostResult.Error)
+			require.Equal(t, fleet.BatchExecuteIncompatiblePlatform, *hostResult.Error)
+		case hostTeam1.ID:
+			// Bad team
+			require.Len(t, upcomingScripts, 0)
+			require.NotNil(t, hostResult.Error)
+			require.Equal(t, fleet.BatchExecuteIncompatibleTeam, *hostResult.Error)
+		default:
+			require.Fail(t, "forgot to check a host")
+		}
+	}
+}
+
+func testBatchScriptRunScheduled(t *testing.T, ds *Datastore) {
+
 }
 
 func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
