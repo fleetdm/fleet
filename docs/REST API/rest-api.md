@@ -12911,13 +12911,15 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
 
 `GET /api/v1/fleet/custom_variables`
 
-##### Request body
+##### Default response
+
+`Status: 200`
 
 ```json
 {
   "custom_variables": [
     {
-      "id": 123
+      "id": 123,
       "name": "SOME_API_TOKEN"
     }
   ],
