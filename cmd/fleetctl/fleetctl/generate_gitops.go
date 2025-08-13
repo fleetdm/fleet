@@ -1344,7 +1344,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 					labelKey = "labels_exclude_any"
 				}
 				if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
-					softwareSpec["install_during_setup"] = true
+					softwareSpec["setup_experience"] = true
 				}
 			} else {
 				if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
@@ -1356,7 +1356,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 					labelKey = "labels_exclude_any"
 				}
 				if _, exists := setupSoftwareByVppApp[softwareTitle.AppStoreApp.AdamID]; exists {
-					softwareSpec["install_during_setup"] = true
+					softwareSpec["setup_experience"] = true
 				}
 			}
 			if len(labels) > 0 {

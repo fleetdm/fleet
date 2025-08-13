@@ -2,7 +2,7 @@ packages:
   - categories:
     - Browsers
     hash_sha256: software-package-hash ___GITOPS_COMMENT_0___
-    install_during_setup: true
+    setup_experience: true
     install_script:
       path: ../lib/some-team/scripts/my-software-package-darwin-install
     labels_include_any:
