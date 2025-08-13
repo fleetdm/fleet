@@ -17,7 +17,6 @@ import EmptyTable from "components/EmptyTable";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
 import DeleteSecretModal from "./components/DeleteSecretModal";
-import { set } from "lodash";
 
 const baseClass = "secrets-batch-paginated-list";
 
