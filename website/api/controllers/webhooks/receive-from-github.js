@@ -1193,7 +1193,7 @@ module.exports = {
     }
 
     /**
-     * Gets or initializes the BigQuery client (singleton pattern)
+     * Initializes the BigQuery client
      *
      * @param {Object} gcpServiceAccountKey - The GCP service account key
      * @returns {BigQuery} The BigQuery client instance
