@@ -30,6 +30,7 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 		{"DeleteOSVulnerabilities", testDeleteOSVulnerabilities},
 		{"DeleteOutOfDateOSVulnerabilities", testDeleteOutOfDateOSVulnerabilities},
 		{"TestListKernelsByOS", testListKernelsByOS},
+		{"TestKernelVulnsHostCount", testKernelVulnsHostCount},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -481,13 +482,6 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 			require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
 
-			if !tt.team {
-				// Insert some fake counts, this should be ignored in ListKernelsByOS
-				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, "INSERT IGNORE INTO software_host_counts (software_id, hosts_count, team_id, global_stats) VALUES (?, ?, ?, ?)", tt.host.Software[0].ID, 999, 0, true)
-					return err
-				})
-			}
 			kernels, err := ds.ListKernelsByOS(ctx, os.OSVersionID, &teamID)
 			require.NoError(t, err)
 
@@ -532,4 +526,73 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 
 		})
 	}
+}
+
+func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host_ubuntu2410", "", "hostkey_ubuntu2410", "hostuuid_ubuntu2410", time.Now(), test.WithPlatform("linux"))
+	host2 := test.NewHost(t, ds, "host_ubuntu2404", "", "hostkey_ubuntu2404", "hostuuid_ubuntu2404", time.Now(), test.WithPlatform("linux"))
+	host3 := test.NewHost(t, ds, "host_ubuntu2404_2", "", "hostkey_ubuntu2404_2", "hostuuid_ubuntu2404_2", time.Now(), test.WithPlatform("linux"))
+
+	os1 := &fleet.OperatingSystem{Name: "Ubuntu", Version: "24.10", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"}
+	os2 := &fleet.OperatingSystem{Name: "Ubuntu", Version: "24.04", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"}
+
+	kernel := fleet.Software{Name: "linux-image-6.11.0-9-generic", Version: "6.11.0-9.9", Source: "deb_packages", IsKernel: true}
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_" + t.Name()})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID, host2.ID, host3.ID})))
+
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host1.ID, *os1))
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host2.ID, *os2))
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host3.ID, *os2))
+
+	os1, err = ds.GetHostOperatingSystem(ctx, host1.ID)
+	require.NoError(t, err)
+
+	os2, err = ds.GetHostOperatingSystem(ctx, host2.ID)
+	require.NoError(t, err)
+
+	var vulnsToInsert []fleet.SoftwareVulnerability
+
+	for _, h := range []*fleet.Host{host1, host2, host3} {
+		_, err = ds.UpdateHostSoftware(ctx, h.ID, []fleet.Software{kernel})
+		require.NoError(t, err)
+		require.NoError(t, ds.LoadHostSoftware(ctx, h, false))
+
+		_, err = ds.UpsertSoftwareCPEs(ctx, []fleet.SoftwareCPE{{SoftwareID: h.Software[0].ID, CPE: "somecpe"}})
+		require.NoError(t, err)
+
+		for _, cve := range []string{"CVE-2025-0001", "CVE-2025-0002"} {
+			vulnsToInsert = append(vulnsToInsert, fleet.SoftwareVulnerability{
+				SoftwareID: h.Software[0].ID,
+				CVE:        cve,
+			})
+		}
+	}
+
+	for _, v := range vulnsToInsert {
+		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, ds.UpdateOSVersions(ctx))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
+
+	kernels, err := ds.ListKernelsByOS(ctx, os1.OSVersionID, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, kernels, 1)
+	assert.ElementsMatchf(t, []string{"CVE-2025-0001", "CVE-2025-0002"}, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
+	assert.Equal(t, uint(1), kernels[0].HostsCount) // host1
+
+	kernels, err = ds.ListKernelsByOS(ctx, os2.OSVersionID, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, kernels, 1)
+	assert.ElementsMatchf(t, []string{"CVE-2025-0001", "CVE-2025-0002"}, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
+	assert.Equal(t, uint(2), kernels[0].HostsCount) // host2 + host3
+
 }
