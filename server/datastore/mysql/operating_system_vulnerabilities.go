@@ -236,9 +236,7 @@ WHERE
 	}
 
 	kernelSet := make(map[uint]*fleet.Kernel)
-	if teamID == nil {
-		fmt.Printf("results: %+v\n", results)
-	}
+
 	for _, result := range results {
 		k, ok := kernelSet[result.ID]
 		if !ok {
