@@ -399,7 +399,7 @@ module.exports.custom = {
 
   /***************************************************************************
    *                                                                          *
-   * GitHub Projects v2 configuration for engineering metrics                 *
+   * GitHub Projects configuration for engineering metrics                    *
    *                                                                          *
    ***************************************************************************/
   githubProjectsV2: {
@@ -421,7 +421,6 @@ module.exports.custom = {
   // GitHub bot:
   // githubAccessToken: '…',
   // githubBotWebhookSecret: '…',
-  // githubProjectsV2ItemWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
 
