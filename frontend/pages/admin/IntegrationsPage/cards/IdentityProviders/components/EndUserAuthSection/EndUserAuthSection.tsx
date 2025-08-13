@@ -23,9 +23,9 @@ import {
   validateFormDataIdp,
 } from "./helpers";
 
-const baseClass = "idp-section";
+const baseClass = "end-user-auth-section";
 
-const IdpSection = () => {
+const EndUserAuthSection = () => {
   const { config, isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
@@ -202,4 +202,4 @@ const IdpSection = () => {
   );
 };
 
-export default IdpSection;
+export default EndUserAuthSection;
