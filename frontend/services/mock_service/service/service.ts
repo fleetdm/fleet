@@ -85,7 +85,10 @@ export const sendRequest = async (
   console.log("Mock service request body: ", data);
 
   requestPath = trim(requestPath, "/").replace(ENDPOINT, "");
-  let response: Record<string, unknown> | undefined;
+  let response:
+    | Record<string, unknown>
+    | ((requestPath: string, data?: unknown) => Record<string, unknown>)
+    | undefined;
   let responseKey: string | undefined;
 
   try {
@@ -102,6 +105,12 @@ export const sendRequest = async (
 
   if (responseKey) {
     response = RESPONSES?.[method]?.[responseKey];
+    if (typeof response === "function") {
+      response = (response as (
+        requestPath: string,
+        data?: unknown
+      ) => Record<string, unknown>)(requestPath, data);
+    }
   }
 
   if (!responseKey || !response) {

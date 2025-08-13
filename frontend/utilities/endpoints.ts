@@ -289,5 +289,5 @@ export default {
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
 
   // custom variables (secrets) endpoints
-  SECRETS: `/${API_VERSION}/fleet/secrets`,
+  SECRETS: `/${API_VERSION}/fleet/custom_variables`,
 };

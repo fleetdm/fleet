@@ -6,9 +6,23 @@
 
 import RESPONSES from "./responses";
 
-type IResponses = Record<string, Record<string, Record<string, unknown>>>;
+interface IResponses {
+  [httpMethod: string]:
+    | {
+        [endpoint: string]:
+          | Record<string, unknown>
+          | ((
+              url: string,
+              data?: any
+            ) => Record<string, unknown> | Promise<Record<string, unknown>>);
+      }
+    | ((
+        requestPath: string,
+        data?: unknown
+      ) => Record<string, unknown> | Promise<Record<string, unknown>>);
+}
 
-const DELAY = 5000;
+const DELAY = 500;
 
 const ENDPOINT = "/latest/fleet";
 
@@ -36,6 +50,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     "queries?team_id=13": RESPONSES.teamQueries,
     "queries/113/report?order_key=host_name&order_direction=asc":
       RESPONSES.queryReport,
+    "custom_variables?page=*&per_page=*": RESPONSES.secrets,
   },
   POST: {
     // request body is ISelectedTargets
@@ -56,7 +71,11 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       platform: "linux",
     },
     "autofill/policies": RESPONSES.aiAutofillPolicy,
+    custom_variables: RESPONSES.addSecret,
   },
+  DELETE: {
+    "custom_variables/*": RESPONSES.deleteSecret,
+  }
 } as IResponses;
 
 export default { DELAY, ENDPOINT, WILDCARDS, REQUEST_RESPONSE_MAPPINGS };

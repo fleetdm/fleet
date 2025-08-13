@@ -20,7 +20,7 @@ import DeleteSecretModal from "./components/DeleteSecretModal";
 
 const baseClass = "secrets-batch-paginated-list";
 
-export const SECRETS_PAGE_SIZE = 1;
+export const SECRETS_PAGE_SIZE = 20;
 
 const Secrets = () => {
   const { renderFlash } = useContext(NotificationContext);
@@ -60,7 +60,10 @@ const Secrets = () => {
       );
 
       return fetchPromise.then(
-        ({ secrets, count: numSecrets }: IListSecretsResponse) => {
+        ({
+          custom_variables: secrets,
+          count: numSecrets,
+        }: IListSecretsResponse) => {
           setCount(numSecrets);
           setIsLoading(false);
           return secrets || [];
@@ -75,7 +78,7 @@ const Secrets = () => {
     if (count !== null) {
       return Promise.resolve(count);
     }
-    return null;
+    return Promise.resolve(0);
   }, [count]);
 
   const onClickAddSecret = () => {
@@ -238,7 +241,7 @@ const Secrets = () => {
       </p>
       <PaginatedList<ISecret>
         ref={paginatedListRef}
-        pageSize={1}
+        pageSize={SECRETS_PAGE_SIZE}
         renderItemRow={renderSecretRow}
         count={count || 0}
         fetchCount={fetchCount}
