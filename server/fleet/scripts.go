@@ -625,6 +625,10 @@ type BatchActivityHostResult struct {
 	Error            *string `db:"error"`
 }
 
+type BatchActivityScriptJobArgs struct {
+	ExecutionID string `json:"execution_id"`
+}
+
 type BatchExecutionStatus string
 
 var (
