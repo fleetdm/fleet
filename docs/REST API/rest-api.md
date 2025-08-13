@@ -10167,7 +10167,7 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 
 #### Example
 
-`PATCH /api/v1/fleet/software/titles/33/icon?team_id=2`
+`PUT /api/v1/fleet/software/titles/33/icon?team_id=2`
 
 ##### Request header
 

@@ -3229,7 +3229,7 @@ Lists the software installed on the current device.
     },
     {
       "id": 143,
-      "name": "Firefox.app",
+      "name": "Slack.app",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
       "software_package": null,
       "app_store_app": null,
@@ -3239,15 +3239,15 @@ Lists the software installed on the current device.
         {
           "version": "125.6",
           "last_opened_at": "2024-04-01T23:03:07Z",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-          "installed_paths": ["/Applications/Firefox.app"]
+          "vulnerabilities": [],
+          "installed_paths": ["/Applications/Slack.app"]
         }
       ],
       "software_package": null,
       "app_store_app": {
-        "app_store_id": "18783545",
+        "app_store_id": "618783545",
         "categories": ["Communication"],
-        "version": "25.07.50",
+        "version": "25.08.10",
         "self_service": false,
         "last_install": null
       },
