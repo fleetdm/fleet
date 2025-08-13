@@ -20,7 +20,7 @@ import DeleteSecretModal from "./components/DeleteSecretModal";
 
 const baseClass = "secrets-batch-paginated-list";
 
-export const SECRETS_PAGE_SIZE = 6;
+export const SECRETS_PAGE_SIZE = 1;
 
 const Secrets = () => {
   const { renderFlash } = useContext(NotificationContext);
@@ -36,14 +36,13 @@ const Secrets = () => {
   const [showAddModal, setShowAddModal] = useState(false);
 
   const [count, setCount] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Fetch a single page of scripts.
   const queryClient = useQueryClient();
 
+  // Fetch a single page of secrets.
   const fetchPage = useCallback(
     (pageNumber: number) => {
-      // scripts not supported for All teams
       setIsLoading(true);
       const fetchPromise = queryClient.fetchQuery(
         [
@@ -54,23 +53,39 @@ const Secrets = () => {
         ],
         ({ queryKey }) => {
           return secretsAPI.getSecrets(queryKey[0]);
+        },
+        {
+          staleTime: 100,
         }
       );
 
-      return fetchPromise.then(({ secrets }: IListSecretsResponse) => {
-        setCount(secrets?.length ?? 0);
-        setIsLoading(false);
-        return secrets || [];
-      });
+      return fetchPromise.then(
+        ({ secrets, count: numSecrets }: IListSecretsResponse) => {
+          setCount(numSecrets);
+          setIsLoading(false);
+          return secrets || [];
+        }
+      );
     },
     [queryClient]
   );
 
-  const onAddSecret = () => {
+  // Allow the list to fetch the count of secrets.
+  const fetchCount = useCallback(() => {
+    if (count !== null) {
+      return Promise.resolve(count);
+    }
+    return null;
+  }, [count]);
+
+  const onClickAddSecret = () => {
     setShowAddModal(true);
   };
 
-  const onSave = (secretName: string, secretValue: string): Promise<object> => {
+  const onSaveSecret = (
+    secretName: string,
+    secretValue: string
+  ): Promise<object> => {
     const newSecret: ISecretPayload = {
       name: secretName,
       value: secretValue,
@@ -80,7 +95,14 @@ const Secrets = () => {
     addSecretPromise
       .then(() => {
         setShowAddModal(false);
-        paginatedListRef.current?.reload({ keepPage: true });
+        // If we're showing a list right now, tell it to reload.
+        if (paginatedListRef.current) {
+          paginatedListRef.current?.reload({ keepPage: true });
+        } else {
+          // If we were showing the empty state, fetch the first page
+          // to populate the list.
+          fetchPage(0);
+        }
       })
       .catch((error) => {
         if (error.status !== 409) {
@@ -90,16 +112,16 @@ const Secrets = () => {
           );
         }
       });
-    // The modal will handle errors and display appropriate messages.
+    // The modal will handle conflict errors and display appropriate messages.
     return addSecretPromise;
   };
 
-  const onDeleteSecret = (secret: ISecret) => {
+  const onClickDeleteSecret = (secret: ISecret) => {
     setSecretToDelete(secret);
     setShowDeleteModal(true);
   };
 
-  const onDelete = useCallback(() => {
+  const onDeleteSecret = useCallback(() => {
     if (!secretToDelete) {
       return;
     }
@@ -168,7 +190,7 @@ const Secrets = () => {
         variant="text-icon"
         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.stopPropagation();
-          onDeleteSecret(secret);
+          onClickDeleteSecret(secret);
         }}
       >
         <>
@@ -178,40 +200,55 @@ const Secrets = () => {
     </>
   );
 
-  return (
-    <div className={`${baseClass}`}>
-      {isLoading && (
-        <div className={`${baseClass}__loading`}>
-          <Spinner />
-        </div>
-      )}
-      {count === 0 && (
+  if (count === null && !isLoading) {
+    fetchPage(0);
+  }
+  if (isLoading && count === null) {
+    return (
+      <div className={`${baseClass}__loading`}>
+        <Spinner />
+      </div>
+    );
+  }
+  if (count === 0) {
+    return (
+      <>
         <EmptyTable
           header="No custom variables created yet"
           info="Add a custom variable to make it available in scripts and profiles."
           primaryButton={
-            <Button onClick={onAddSecret}>Add custom variable</Button>
+            <Button onClick={onClickAddSecret}>Add custom variable</Button>
           }
         />
-      )}
-      {count !== null && count > 0 && (
-        <p>
-          Manage custom variables that will be available in scripts and
-          profiles.
-        </p>
-      )}
+        {showAddModal && (
+          <AddSecretModal
+            onCancel={() => setShowAddModal(false)}
+            onSubmit={(secretName: string, secretValue: string) => {
+              return onSaveSecret(secretName, secretValue);
+            }}
+          />
+        )}
+      </>
+    );
+  }
+  return (
+    <div className={baseClass}>
+      <p>
+        Manage custom variables that will be available in scripts and profiles.
+      </p>
       <PaginatedList<ISecret>
         ref={paginatedListRef}
         pageSize={1}
         renderItemRow={renderSecretRow}
         count={count || 0}
+        fetchCount={fetchCount}
         fetchPage={fetchPage}
         onClickRow={(secret) => secret}
         heading={
           <div className={`${baseClass}__header`}>
             <span>Custom variables</span>
             <span>
-              <Button variant="text-icon" onClick={onAddSecret}>
+              <Button variant="text-icon" onClick={onClickAddSecret}>
                 <Icon name="plus" />
                 <span>Add custom variable</span>
               </Button>
@@ -229,7 +266,7 @@ const Secrets = () => {
         <AddSecretModal
           onCancel={() => setShowAddModal(false)}
           onSubmit={(secretName: string, secretValue: string) => {
-            return onSave(secretName, secretValue);
+            return onSaveSecret(secretName, secretValue);
           }}
         />
       )}
@@ -237,7 +274,7 @@ const Secrets = () => {
         <DeleteSecretModal
           secret={secretToDelete}
           onCancel={() => setShowDeleteModal(false)}
-          onDelete={onDelete}
+          onDelete={onDeleteSecret}
         />
       )}
     </div>

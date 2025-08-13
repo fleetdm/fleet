@@ -287,4 +287,7 @@ export default {
   CONFIG_PROFILE_STATUS: (uuid: string) =>
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
+
+  // custom variables (secrets) endpoints
+  SECRETS: `/${API_VERSION}/fleet/secrets`,
 };

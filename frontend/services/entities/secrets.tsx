@@ -12,6 +12,7 @@ export interface IListSecretsResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  count: number;
 }
 
 let mockSecrets: ISecret[] = [
@@ -35,12 +36,17 @@ export default {
   ): Promise<IListSecretsResponse> {
     // Stubbed out for now, as the secrets endpoint is not yet implemented.
     console.log("getSecrets called with params:", params);
+    const startIndex = (params.page || 0) * (params.per_page || 1);
+    const endIndex = startIndex + (params.per_page || 1);
+    const hasNextResults = endIndex < mockSecrets.length;
+    const hasPreviousResults = startIndex > 0;
     return Promise.resolve({
-      secrets: [...mockSecrets],
+      secrets: [...mockSecrets].slice(startIndex, endIndex),
       meta: {
-        has_next_results: false,
-        has_previous_results: false,
+        has_next_results: hasNextResults,
+        has_previous_results: hasPreviousResults,
       },
+      count: mockSecrets.length,
     });
     // const { SECRETS } = endpoints;
     // const path = `${SECRETS}?${buildQueryStringFromParams({
@@ -70,6 +76,13 @@ export default {
       } as ISecret,
     ];
     return Promise.resolve({});
+    // const { SECRETS } = endpoints;
+    // const path = `${SECRETS}?${buildQueryStringFromParams({
+    //   page,
+    //   per_page,
+    // })}`
+
+    // return sendRequest("GET", path);
   },
 
   deleteSecret(secretId: number) {
