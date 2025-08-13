@@ -59,8 +59,16 @@ func main() {
 		panicif(err)
 	}
 
+	knownVulnsToRemove := map[string]struct{}{
+		"CVE-2025-36350": {},
+		"CVE-2025-36357": {},
+	}
+
 	fmt.Println("Saving bulletins...")
 	for _, b := range bulletins {
+		for cve := range knownVulnsToRemove {
+			delete(b.Vulnerabities, cve)
+		}
 		err := serialize(b, now, outPath)
 		panicif(err)
 	}
