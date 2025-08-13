@@ -909,6 +909,13 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register stats schedule")
 			}
 
+			if err := cronSchedules.StartCronSchedule(
+				func() (fleet.CronSchedule, error) {
+					return newBatchActivitiesSchedule(ctx, instanceID, ds, logger)
+				}); err != nil {
+				initFatal(err, "failed to register batch activities schedule")
+			}
+
 			vulnerabilityScheduleDisabled := false
 			if config.Vulnerabilities.DisableSchedule {
 				vulnerabilityScheduleDisabled = true

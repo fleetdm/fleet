@@ -1900,7 +1900,7 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 				ON DUPLICATE KEY UPDATE status = VALUES(status), started_at = VALUES(started_at)`,
 			batchExecID,
 			script.ID,
-			fleet.BatchExecutionStarted,
+			fleet.ScheduledBatchExecutionStarted,
 			fleet.BatchExecutionActivityScript,
 		)
 		if err != nil {
@@ -1999,7 +1999,7 @@ func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scri
 			job.ID,
 			scriptID,
 			userID,
-			fleet.BatchExecutionScheduled,
+			fleet.ScheduledBatchExecutionScheduled,
 			fleet.BatchExecutionActivityScript,
 			len(hostIDs),
 		)
@@ -2070,7 +2070,7 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "getting batch activity")
 	}
 
-	if activity.Status == fleet.BatchExecutionFinished {
+	if activity.Status == fleet.ScheduledBatchExecutionFinished {
 		return nil
 	}
 
@@ -2089,7 +2089,7 @@ WHERE
 			}
 		}
 
-		if activity.Status == fleet.BatchExecutionStarted {
+		if activity.Status == fleet.ScheduledBatchExecutionStarted {
 			// If the batch activity has started, we need to cancel anything in progress or queued
 			toCancel := []struct {
 				HostExecutionID string `db:"host_execution_id"`
@@ -2221,6 +2221,14 @@ func (ds *Datastore) RunScheduledBatchActivity(ctx context.Context, executionID 
 	batchActivity, err := ds.GetBatchActivity(ctx, executionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting batch activity")
+	}
+
+	if batchActivity.Status != fleet.ScheduledBatchExecutionScheduled {
+		return ctxerr.New(ctx, "batch job has already been started")
+	}
+
+	if batchActivity.Canceled {
+		return ctxerr.New(ctx, "batch job was canceled")
 	}
 
 	if batchActivity.ScriptID == nil {

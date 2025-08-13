@@ -2219,7 +2219,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, user.ID, *batchActivity.UserID)
 	require.Equal(t, fleet.BatchExecutionActivityScript, batchActivity.ActivityType)
 	require.Equal(t, job.ID, *batchActivity.JobID)
-	require.Equal(t, fleet.BatchExecutionScheduled, batchActivity.Status)
+	require.Equal(t, fleet.ScheduledBatchExecutionScheduled, batchActivity.Status)
 	require.Equal(t, uint(3), *batchActivity.NumTargeted)
 
 	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
@@ -2245,7 +2245,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, user.ID, *batchActivity.UserID)
 	require.Equal(t, fleet.BatchExecutionActivityScript, batchActivity.ActivityType)
 	require.Equal(t, job.ID, *batchActivity.JobID)
-	require.Equal(t, fleet.BatchExecutionStarted, batchActivity.Status)
+	require.Equal(t, fleet.ScheduledBatchExecutionStarted, batchActivity.Status)
 	require.Equal(t, uint(3), *batchActivity.NumTargeted)
 
 	hostResults, err = ds.GetBatchActivityHostResults(ctx, execID)
@@ -2258,6 +2258,20 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Len(t, upcomingScripts, 1)
 	}
+
+	// Make sure we can't run the same scheduled script again after it's started
+	err = ds.RunScheduledBatchActivity(ctx, execID)
+	require.Error(t, err)
+
+	// Make sure we can't run a canceled scheduled script after it's been canceled
+	execID, err = ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host1.ID}, scheduledTime)
+	require.NoError(t, err)
+
+	err = ds.CancelBatchScript(ctx, execID)
+	require.NoError(t, err)
+
+	err = ds.RunScheduledBatchActivity(ctx, execID)
+	require.Error(t, err)
 
 	// Schedule script where most hosts will fail for various reaons
 	// These would be checked for some validity before insertion if submitted by a user
@@ -2272,7 +2286,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, execID, batchActivity.BatchExecutionID)
 	require.NotNil(t, batchActivity.StartedAt)
-	require.Equal(t, fleet.BatchExecutionStarted, batchActivity.Status)
+	require.Equal(t, fleet.ScheduledBatchExecutionStarted, batchActivity.Status)
 	require.Equal(t, uint(5), *batchActivity.NumTargeted)
 
 	executions, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
@@ -2406,7 +2420,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	// First activity should be marked as finished and updated accordingly.
 	batchActivity, err := ds.GetBatchActivity(ctx, execID)
 	require.NoError(t, err)
-	require.Equal(t, fleet.BatchExecutionFinished, batchActivity.Status)
+	require.Equal(t, fleet.ScheduledBatchExecutionFinished, batchActivity.Status)
 	require.Equal(t, uint(5), *batchActivity.NumTargeted)
 	require.Equal(t, uint(1), *batchActivity.NumRan)
 	require.Equal(t, uint(1), *batchActivity.NumErrored)
@@ -2417,7 +2431,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	// Second activity should still be in "started" status.
 	batchActivity2, err := ds.GetBatchActivity(ctx, execID2)
 	require.NoError(t, err)
-	require.Equal(t, fleet.BatchExecutionStarted, batchActivity2.Status)
+	require.Equal(t, fleet.ScheduledBatchExecutionStarted, batchActivity2.Status)
 }
 
 func testBatchScriptCancel(t *testing.T, ds *Datastore) {
@@ -2454,7 +2468,7 @@ func testBatchScriptCancel(t *testing.T, ds *Datastore) {
 	summary1, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID1})
 	require.NoError(t, err)
 	require.Len(t, summary1, 1)
-	require.Equal(t, fleet.BatchExecutionStarted, summary1[0].Status)
+	require.Equal(t, fleet.ScheduledBatchExecutionStarted, summary1[0].Status)
 	require.False(t, summary1[0].Canceled)
 	require.Equal(t, uint(2), *summary1[0].NumTargeted)
 	require.Equal(t, uint(2), *summary1[0].NumPending)
@@ -2481,7 +2495,7 @@ func testBatchScriptCancel(t *testing.T, ds *Datastore) {
 	summary1, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID1})
 	require.NoError(t, err)
 	require.Len(t, summary1, 1)
-	require.Equal(t, fleet.BatchExecutionFinished, summary1[0].Status)
+	require.Equal(t, fleet.ScheduledBatchExecutionFinished, summary1[0].Status)
 	require.True(t, summary1[0].Canceled)
 	require.Equal(t, uint(0), *summary1[0].NumPending)
 	require.Equal(t, uint(1), *summary1[0].NumRan)
@@ -2506,7 +2520,7 @@ func testBatchScriptCancel(t *testing.T, ds *Datastore) {
 	summary2, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID2})
 	require.NoError(t, err)
 	require.Len(t, summary2, 1)
-	require.Equal(t, fleet.BatchExecutionScheduled, summary2[0].Status)
+	require.Equal(t, fleet.ScheduledBatchExecutionScheduled, summary2[0].Status)
 	require.False(t, summary2[0].Canceled)
 	require.Equal(t, uint(2), *summary2[0].NumTargeted)
 	require.Equal(t, uint(2), *summary2[0].NumPending)
@@ -2525,7 +2539,7 @@ func testBatchScriptCancel(t *testing.T, ds *Datastore) {
 	summary2, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID2})
 	require.NoError(t, err)
 	require.Len(t, summary2, 1)
-	require.Equal(t, fleet.BatchExecutionFinished, summary2[0].Status)
+	require.Equal(t, fleet.ScheduledBatchExecutionFinished, summary2[0].Status)
 	require.True(t, summary2[0].Canceled)
 	require.Equal(t, uint(0), *summary2[0].NumPending)
 	require.Equal(t, uint(0), *summary2[0].NumRan)

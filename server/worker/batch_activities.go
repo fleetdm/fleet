@@ -28,6 +28,21 @@ func (b *BatchScripts) Run(ctx context.Context, jobArgs json.RawMessage) error {
 		return ctxerr.Wrap(ctx, err, "unmarshal json")
 	}
 
+	activity, err := b.Datastore.GetBatchActivity(ctx, args.ExecutionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "could not find batch activity")
+	}
+
+	// The job was already started, close the job
+	if activity.Status != fleet.ScheduledBatchExecutionScheduled {
+		return nil
+	}
+
+	// The activity was canceled, close the job
+	if activity.Canceled {
+		return nil
+	}
+
 	if err := b.Datastore.RunScheduledBatchActivity(ctx, args.ExecutionID); err != nil {
 		return ctxerr.Wrap(ctx, err, "running scheduled batch script")
 	}
