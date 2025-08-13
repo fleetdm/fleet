@@ -2059,6 +2059,11 @@ type Datastore interface {
 	// metadata by the installer's hash.
 	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*ExistingSoftwareInstaller, error)
 
+	// TeamIDsWithSetupExperienceIdPEnabled returns the list of team IDs that
+	// have the setup experience IdP (End user authentication) enabled. It uses
+	// id 0 to represent "No team", should IdP be enabled for that team.
+	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 	//

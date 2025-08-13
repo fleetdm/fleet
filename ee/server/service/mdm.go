@@ -686,7 +686,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 
 const appleMDMAccountDrivenEnrollmentUrl = "/api/mdm/apple/account_driven_enroll"
 
-func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
@@ -727,13 +727,20 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 		return "", 0, "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	// originalURL is unused in the Setup Experience initiated MDM flow
-	// however because we need slightly different behavior for account driven
-	// enrollment we use it to signal proper behavior on the callback.
 	originalURL := "/"
-	if initiator == "account_driven_enroll" {
+	switch initiator {
+	case "account_driven_enroll":
+		// originalURL is unused in the Setup Experience initiated MDM flow
+		// however because we need slightly different behavior for account driven
+		// enrollment we use it to signal proper behavior on the callback.
 		originalURL = appleMDMAccountDrivenEnrollmentUrl
+	case "ota_enroll":
+		// for ota_enroll, we support the custom original URL argument, as the
+		// enroll secret used to enroll varies. Other initiators do not support
+		// a custom original URL (and should receive an empty string).
+		originalURL = customOriginalURL
 	}
+
 	sessionDurationSeconds = int(svc.config.Auth.SsoSessionValidityPeriod.Seconds())
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
 		samlProvider, svc.ssoSessionStore, originalURL,
@@ -746,7 +753,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 	return sessionID, sessionDurationSeconds, idpURL, nil
 }
 
-func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
+func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -756,25 +763,43 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 	profileToken, enrollmentRef, eulaToken, originalURL, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
-		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
-	}
-
-	// For account driven enrollment we have to use this special protocol URL scheme to pass the
-	// access token back to Apple which it will then use to request the enrollment profile.
-	if originalURL == appleMDMAccountDrivenEnrollmentUrl {
-		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef)
+		return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
 	}
 
 	q := url.Values{
 		"profile_token":        {profileToken},
 		"enrollment_reference": {enrollmentRef},
 	}
-
 	if eulaToken != "" {
 		q.Add("eula_token", eulaToken)
 	}
 
-	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
+	switch {
+	case originalURL == appleMDMAccountDrivenEnrollmentUrl:
+		// For account driven enrollment we have to use this special protocol URL scheme to pass the
+		// access token back to Apple which it will then use to request the enrollment profile.
+		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", enrollmentRef), ""
+
+	case strings.HasPrefix(originalURL, "/enroll?"):
+		// redirect to the original URL with a cookie that identifies this device
+		// as authenticated and links it to the authenticated email (the enrollment
+		// reference).
+		u, err := url.Parse(originalURL)
+		if err != nil {
+			logging.WithErr(ctx, err)
+			return "/enroll?error=" + url.QueryEscape("An error occurred. : Failed to parse original URL."), ""
+		}
+		// port over the query string values, which will copy over the enrollment
+		// secret
+		for k, v := range u.Query() {
+			q.Add(k, v[0])
+		}
+		u.RawQuery = q.Encode()
+		return u.String(), enrollmentRef
+
+	default:
+		return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode()), ""
+	}
 }
 
 func (svc *Service) mdmSSOHandleCallbackAuth(
