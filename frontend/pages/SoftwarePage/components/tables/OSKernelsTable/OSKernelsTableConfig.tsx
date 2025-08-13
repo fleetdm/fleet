@@ -1,6 +1,12 @@
 import React from "react";
 
 import { getPathWithQueryParams } from "utilities/url";
+
+import { CellProps } from "react-table";
+import {
+  INumberCellProps,
+  IStringCellProps,
+} from "interfaces/datatable_config";
 import { IOperatingSystemKernels } from "interfaces/operating_system";
 
 import PATHS from "router/paths";
@@ -16,33 +22,10 @@ interface IOsKernelsTableConfigProps {
   teamId?: number;
 }
 
-interface ICellProps {
-  cell: {
-    value: number | string | string[];
-  };
-  row: {
-    original: IOperatingSystemKernels;
-    index: number;
-  };
-}
-
-interface IVersionCellProps extends ICellProps {
-  cell: {
-    value: string;
-  };
-}
-
-interface INumberCellProps extends ICellProps {
-  cell: {
-    value: number;
-  };
-}
-
-interface IVulnCellProps extends ICellProps {
-  cell: {
-    value: string[];
-  };
-}
+type IHostCountCellProps = INumberCellProps<IOperatingSystemKernels>;
+type IVersionCellProps = IStringCellProps<IOperatingSystemKernels>;
+type IViewAllHostsLinkProps = CellProps<IOperatingSystemKernels>;
+type IVulnCellProps = CellProps<IOperatingSystemKernels, string[] | null>;
 
 const generateTableConfig = ({ teamId }: IOsKernelsTableConfigProps) => {
   const tableHeaders = [
@@ -101,7 +84,7 @@ const generateTableConfig = ({ teamId }: IOsKernelsTableConfigProps) => {
       },
       disableSortBy: true,
       accessor: "hosts_count",
-      Cell: (cellProps: INumberCellProps): JSX.Element => (
+      Cell: (cellProps: IHostCountCellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
     },
@@ -110,7 +93,7 @@ const generateTableConfig = ({ teamId }: IOsKernelsTableConfigProps) => {
       Header: "",
       accessor: "linkToFilteredHosts",
       disableSortBy: true,
-      Cell: (cellProps: ICellProps) => {
+      Cell: (cellProps: IViewAllHostsLinkProps) => {
         return (
           <>
             {cellProps.row.original && (
