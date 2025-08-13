@@ -150,7 +150,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 		t.Run("if idp account does not exist", func(t *testing.T) {
 			enableAndroidMDM()
-			secret := "global-no-idp-account"
+			secret := "global-no-idp-account" // nolint: gosec
 			createTeamAndSecret(secret, secret, false)
 			resp := s.DoRawWithHeaders(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusUnprocessableEntity, map[string]string{
 				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, "test-uuid"),
