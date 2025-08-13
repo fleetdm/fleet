@@ -624,10 +624,11 @@ func (s DiskEncryptionStatus) IsValid() bool {
 type BatchScriptExecutionStatus string
 
 const (
-	BatchScriptExecutionRan       BatchScriptExecutionStatus = "ran"
-	BatchScriptExecutionPending   BatchScriptExecutionStatus = "pending"
-	BatchScriptExecutionErrored   BatchScriptExecutionStatus = "errored"
-	BatchScriptExecutionCancelled BatchScriptExecutionStatus = "cancelled"
+	BatchScriptExecutionRan          BatchScriptExecutionStatus = "ran"
+	BatchScriptExecutionPending      BatchScriptExecutionStatus = "pending"
+	BatchScriptExecutionErrored      BatchScriptExecutionStatus = "errored"
+	BatchScriptExecutionCanceled     BatchScriptExecutionStatus = "canceled"
+	BatchScriptExecutionIncompatible BatchScriptExecutionStatus = "incompatible"
 )
 
 func (s BatchScriptExecutionStatus) IsValid() bool {
@@ -636,7 +637,8 @@ func (s BatchScriptExecutionStatus) IsValid() bool {
 		BatchScriptExecutionRan,
 		BatchScriptExecutionPending,
 		BatchScriptExecutionErrored,
-		BatchScriptExecutionCancelled:
+		BatchScriptExecutionIncompatible,
+		BatchScriptExecutionCanceled:
 		return true
 	default:
 		return false
