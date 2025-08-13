@@ -415,9 +415,8 @@ type SoftwareInstallerPayload struct {
 	SHA256          string   `json:"sha256"`
 	Categories      []string `json:"categories"`
 	// This is to support FMAs
-	Slug             *string        `json:"slug"`
-	AutomaticInstall *bool          `json:"automatic_install"`
-	MaintainedApp    *MaintainedApp `json:"-"`
+	Slug          *string        `json:"slug"`
+	MaintainedApp *MaintainedApp `json:"-"`
 }
 
 type HostLockWipeStatus struct {
