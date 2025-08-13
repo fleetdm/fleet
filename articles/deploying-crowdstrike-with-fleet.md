@@ -1,5 +1,6 @@
 # Deploy CrowdStrike with Fleet
 
+![Fleet and CrowdStrike](../website/assets/images/articles/fleet-crowdstrike-cover-800x450@2x.png)
 CrowdStrike Falcon is a popular, highly-regarded cybersecurity platform. Falcon provides endpoint detection and response capabilities by using artificial intelligence, machine learning, and behavioral analytics to detect and prevent sophisticated attacks, including advanced persistent threats (APTs), malware, ransomware, and zero-day exploits. This guide covers CrowdStrike Falcon deployment and configuration across macOS, Windows, and Linux hosts using Fleet.
 
 For reference, Crowdstrike Falcon install documentation can be found at:
