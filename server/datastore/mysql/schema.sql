@@ -1036,7 +1036,9 @@ CREATE TABLE `kernel_host_counts` (
   `hosts_count` int unsigned NOT NULL,
   `team_id` int unsigned NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_kernels_unique_mapping` (`os_version_id`,`software_id`)
+  UNIQUE KEY `idx_kernels_unique_mapping` (`os_version_id`,`software_id`),
+  KEY `software_title_id` (`software_title_id`),
+  CONSTRAINT `kernel_host_counts_ibfk_1` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
