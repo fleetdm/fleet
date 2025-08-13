@@ -18,9 +18,10 @@ chmod 600 "${KEY_NAME}.pem"
 echo "✅ Key pair created: ${KEY_NAME}.pem"
 
 echo "🏗️  Deploying CloudFormation stack..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 aws cloudformation create-stack \
     --stack-name "$STACK_NAME" \
-    --template-body file://cf-template.yaml \
+    --template-body file://"$SCRIPT_DIR"/cf-template.yaml \
     --parameters \
         ParameterKey=KeyName,ParameterValue="$KEY_NAME" \
         ParameterKey=InstanceType,ParameterValue="$INSTANCE_TYPE" \
