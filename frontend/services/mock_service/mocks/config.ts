@@ -1,19 +1,16 @@
 import RESPONSES from "./responses";
 
+type MockResponse = Record<string, unknown>;
+
+type MockResponseFunction = (
+  url: string,
+  data?: any
+) => MockResponse | Promise<MockResponse>;
+
+export type MockEndpointHandler = MockResponse | MockResponseFunction;
+
 interface IResponses {
-  [httpMethod: string]:
-    | {
-        [endpoint: string]:
-          | Record<string, unknown>
-          | ((
-              url: string,
-              data?: any
-            ) => Record<string, unknown> | Promise<Record<string, unknown>>);
-      }
-    | ((
-        requestPath: string,
-        data?: unknown
-      ) => Record<string, unknown> | Promise<Record<string, unknown>>);
+  [httpMethod: string]: MockEndpointHandler;
 }
 
 const DELAY = 500;

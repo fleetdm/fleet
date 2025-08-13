@@ -5,7 +5,7 @@
 
 import { trim } from "lodash";
 
-import CONFIG from "../mocks/config";
+import CONFIG, { MockEndpointHandler } from "../mocks/config";
 
 const {
   DELAY,
@@ -104,17 +104,15 @@ export const sendRequest = async (
   }
 
   if (responseKey) {
-    response = (RESPONSES?.[method] as Record<string, unknown> | undefined)?.[
-      responseKey
-    ] as
-      | Record<string, unknown>
-      | ((requestPath: string, data?: unknown) => Record<string, unknown>)
+    const methodHandlers = RESPONSES[method] as
+      | Record<string, MockEndpointHandler>
       | undefined;
-    if (typeof response === "function") {
-      response = (response as (
-        requestPath: string,
-        data?: unknown
-      ) => Record<string, unknown>)(requestPath, data);
+    const handler = methodHandlers?.[responseKey];
+
+    if (typeof handler === "function") {
+      response = await handler(requestPath, data);
+    } else {
+      response = handler;
     }
   }
 
