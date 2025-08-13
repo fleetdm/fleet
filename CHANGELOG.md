@@ -1,4 +1,5 @@
-## Fleet 4.72.0 (Jul 25, 2025)
+
+## Fleet 4.72.0 (Aug 13, 2025)
 
 ### Security Engineers
 - Added support for issuing host identity certificates through SCEP (Simple Certificate Enrollment Protocol) that `fleetd` can use with TPM 2.0 hardware to cryptographically sign all HTTP requests.
@@ -31,7 +32,7 @@
 - Added back software mutation on ingestion to fix non-semver-compliant software versions, starting with DCV Viewer.
 - Increased timeouts on `/fleet/mdm/profiles/batch` to better support customer workflows with large numbers of profiles.
 - Made consistent and update the Install and Uninstall detail modals for VPP and non-VPP apps across the Fleet UI.
-- Updated go to 1.24.5.
+- Updated go to 1.24.6.
 - Fixed issue with package ids ordering causing software installers' scripts to be inconsistently generated.
 - Fixed incorrectly displayed status in controls OS Settings page, if a host was only pending or failing on declaration for removal.
 - Fixed bug with `mdm_bridge` Orbit table that caused panics due to invalid COM initialization.
@@ -50,6 +51,7 @@
 - Fixed cases where the vulnerabilities list endpoint would count the same CVE multiple times for the `count` field returned with a result set.
 - Fixed an issue where SSO URLs with trailing slashes would cause authentication failures due to double slashes in the ACS URL. Both regular SSO and MDM SSO URLs now properly handle trailing slashes.
 - Fixed an issue during the DEP sync where errors such as 404 from the DEP API could result in devices never being assigned a cloud configuration profile.
+- Fixed server panic when listing software titles for "All teams" with page that contains a software title with a policy automation in "No team".
 
 ## Fleet 4.71.0 (Jul 23, 2025)
 
