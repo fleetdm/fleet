@@ -225,6 +225,7 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 	return nil
 }
 
+// We take in the AndroidDatastore here, so it can also be called from the android package until https://github.com/fleetdm/fleet/issues/31218 is done
 func RequiresEnrollOTAAuthentication(ctx context.Context, ds fleet.AndroidDatastore, enrollSecret string, noTeamIdPEnabled bool) (bool, error) {
 	secret, err := ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil && !fleet.IsNotFound(err) {
