@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -12,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: Revisit this test, as it seems rather useless (at least the success case) due to it's simplicity
+// and not being possible atm. to mock/call free service methods.
 func TestDeleteCertificateAuthority(t *testing.T) {
 	t.Parallel()
 
@@ -24,13 +27,11 @@ func TestDeleteCertificateAuthority(t *testing.T) {
 
 	t.Run("successfully deletes certificate", func(t *testing.T) {
 		ds.DeleteCertificateAuthorityFunc = func(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthority, error) {
-			return &fleet.CertificateAuthority{
-				Type: string(fleet.CATypeHydrant),
-				Name: "Hydrant",
-			}, nil
+			return nil, errors.New("forced error to short-circuit activity creation")
 		}
 		err := svc.DeleteCertificateAuthority(ctx, 1)
-		require.NoError(t, err)
+		require.Error(t, err)
+		require.Equal(t, "forced error to short-circuit activity creation", err.Error())
 	})
 
 	t.Run("returns not found error if certificate authority does not exist", func(t *testing.T) {
