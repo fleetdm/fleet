@@ -16,7 +16,7 @@ interface IRowData {
   hosts: number;
 }
 
-const STATUS_ORDER = ["ran", "pending", "errored"];
+const STATUS_ORDER = ["ran", "pending", "errored", "canceled"];
 
 export interface IStatusCellValue {
   displayName: string;
@@ -36,6 +36,10 @@ const STATUS_DISPLAY_OPTIONS = {
   errored: {
     displayName: "Error",
     indicatorStatus: "error",
+  },
+  canceled: {
+    displayName: "Canceled",
+    indicatorStatus: "failure",
   },
 } as const;
 
