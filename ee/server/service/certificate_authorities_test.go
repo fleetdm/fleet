@@ -26,7 +26,7 @@ func TestDeleteCertificateAuthority(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 	t.Run("successfully deletes certificate", func(t *testing.T) {
-		ds.DeleteCertificateAuthorityFunc = func(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthority, error) {
+		ds.DeleteCertificateAuthorityFunc = func(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error) {
 			return nil, errors.New("forced error to short-circuit activity creation")
 		}
 		err := svc.DeleteCertificateAuthority(ctx, 1)
@@ -35,7 +35,7 @@ func TestDeleteCertificateAuthority(t *testing.T) {
 	})
 
 	t.Run("returns not found error if certificate authority does not exist", func(t *testing.T) {
-		ds.DeleteCertificateAuthorityFunc = func(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthority, error) {
+		ds.DeleteCertificateAuthorityFunc = func(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error) {
 			return nil, common_mysql.NotFound("certificate authority")
 		}
 		err := svc.DeleteCertificateAuthority(ctx, 999)

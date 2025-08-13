@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 )
 
 // Create CA. MUST include secrets
@@ -96,9 +97,25 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthority, error) {
-	// TODO: Get the certificate before deleting to return it so we can create an activity event.
-	stmt := "DELETE FROM certificate_authorities WHERE id = ?"
+func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error) {
+	stmt := `
+	SELECT
+		id, name, type
+	FROM
+		certificate_authorities
+	WHERE
+		id = ?
+	`
+
+	var ca fleet.CertificateAuthoritySummary
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &ca, stmt, certificateAuthorityID); err != nil {
+		if strings.Contains(err.Error(), "no rows in result set") {
+			return nil, common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "check certificate authority existence")
+	}
+
+	stmt = "DELETE FROM certificate_authorities WHERE id = ?"
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateAuthorityID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("deleting certificate authority with id %d", certificateAuthorityID))
@@ -113,5 +130,5 @@ func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificate
 		return nil, common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
 	}
 
-	return nil, nil
+	return &ca, nil
 }

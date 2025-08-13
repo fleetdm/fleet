@@ -50,10 +50,10 @@ func testDeleteCertificateAuthority(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 1, count)
 	// TODO: ^END
 
-	ca, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
+	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
 	require.NoError(t, err)
 
-	ca, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
+	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not found")
 }
