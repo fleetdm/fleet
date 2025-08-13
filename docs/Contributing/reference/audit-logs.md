@@ -1933,8 +1933,42 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": "123",
+	"host_id": 123,
 	"host_display_name": "PWNED-VM-123"
+}
+```
+
+## created_custom_variable
+
+Generated when custom variable is added.
+
+This activity contains the following fields:
+- "custom_variable_id": the id of the new custom variable.
+- "custom_variable_name": the name of the new custom variable.
+
+#### Example
+
+```json
+{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
+## deleted_custom_variable
+
+Generated when custom variable is deleted.
+
+This activity contains the following fields:
+- "custom_variable_id": the id of the custom variable.
+- "custom_variable_name": the name of the custom variable.
+
+#### Example
+
+```json
+{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
 }
 ```
 

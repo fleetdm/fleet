@@ -6251,19 +6251,19 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// Upload a valid secret
 	secretValue := "abc123"
-	req := secretVariablesRequest{
+	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
-				Name:  "FLEET_SECRET_TestRunHostScript",
+				Name:  "FLEET_SECRET_TEST_RUN_HOST_SCRIPT",
 				Value: secretValue,
 			},
 		},
 	}
-	secretResp := secretVariablesResponse{}
+	secretResp := createSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// create a valid script execution request
-	expectedScriptContents := "echo ${FLEET_SECRET_TestRunHostScript}"
+	expectedScriptContents := "echo ${FLEET_SECRET_TEST_RUN_HOST_SCRIPT}"
 	expectedScriptContentsWithSecret := fmt.Sprintf("echo %s", secretValue)
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
 		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: expectedScriptContents}, http.StatusAccepted, &runResp)

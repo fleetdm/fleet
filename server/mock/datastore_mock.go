@@ -1353,6 +1353,12 @@ type ResendHostCustomSCEPProfileFunc func(ctx context.Context, hostUUID string, 
 
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
 
+type CreateSecretVariableFunc func(ctx context.Context, name string, value string) (id uint, err error)
+
+type ListSecretVariablesFunc func(ctx context.Context, opt fleet.ListOptions) (secretVariables []fleet.SecretVariableIdentifier, meta *fleet.PaginationMetadata, count int, err error)
+
+type DeleteSecretVariableFunc func(ctx context.Context, id uint) (name string, err error)
+
 type GetSecretVariablesFunc func(ctx context.Context, names []string) ([]fleet.SecretVariable, error)
 
 type ValidateEmbeddedSecretsFunc func(ctx context.Context, documents []string) error
@@ -3446,6 +3452,15 @@ type DataStore struct {
 
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
 	UpsertSecretVariablesFuncInvoked bool
+
+	CreateSecretVariableFunc        CreateSecretVariableFunc
+	CreateSecretVariableFuncInvoked bool
+
+	ListSecretVariablesFunc        ListSecretVariablesFunc
+	ListSecretVariablesFuncInvoked bool
+
+	DeleteSecretVariableFunc        DeleteSecretVariableFunc
+	DeleteSecretVariableFuncInvoked bool
 
 	GetSecretVariablesFunc        GetSecretVariablesFunc
 	GetSecretVariablesFuncInvoked bool
@@ -8250,6 +8265,27 @@ func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables [
 	s.UpsertSecretVariablesFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpsertSecretVariablesFunc(ctx, secretVariables)
+}
+
+func (s *DataStore) CreateSecretVariable(ctx context.Context, name string, value string) (id uint, err error) {
+	s.mu.Lock()
+	s.CreateSecretVariableFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateSecretVariableFunc(ctx, name, value)
+}
+
+func (s *DataStore) ListSecretVariables(ctx context.Context, opt fleet.ListOptions) (secretVariables []fleet.SecretVariableIdentifier, meta *fleet.PaginationMetadata, count int, err error) {
+	s.mu.Lock()
+	s.ListSecretVariablesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSecretVariablesFunc(ctx, opt)
+}
+
+func (s *DataStore) DeleteSecretVariable(ctx context.Context, id uint) (name string, err error) {
+	s.mu.Lock()
+	s.DeleteSecretVariableFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSecretVariableFunc(ctx, id)
 }
 
 func (s *DataStore) GetSecretVariables(ctx context.Context, names []string) ([]fleet.SecretVariable, error) {
