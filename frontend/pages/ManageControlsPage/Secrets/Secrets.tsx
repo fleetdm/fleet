@@ -239,6 +239,7 @@ const Secrets = () => {
             onSubmit={(secretName: string, secretValue: string) => {
               return onSaveSecret(secretName, secretValue);
             }}
+            isSaving={isSaving}
           />
         )}
       </>
