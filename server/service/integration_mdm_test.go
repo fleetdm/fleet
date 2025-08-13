@@ -10223,6 +10223,11 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	}
 	applyResp = applyTeamSpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, &applyResp)
+
+	t.Cleanup(func() {
+		acResp.MDM.MacOSSetup.EnableEndUserAuthentication = false
+		s.ds.SaveAppConfig(context.Background(), &acResp.AppConfig)
+	})
 }
 
 func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
