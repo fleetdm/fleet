@@ -34,18 +34,20 @@ type Config struct {
 
 // Client manages host identity certificates and HTTP message signing
 type Client struct {
-	config            Config
-	hostIdentityCert  *x509.Certificate
-	hostIdentityKey   *ecdsa.PrivateKey
-	httpSigner        *httpsig.Signer
-	useHTTPSignatures bool
+	config                       Config
+	hostIdentityCert             *x509.Certificate
+	hostIdentityKey              *ecdsa.PrivateKey
+	httpSigner                   *httpsig.Signer
+	useHTTPSignatures            bool
+	httpMessageSignatureP384Prob float64
 }
 
 // NewClient creates a new host identity client
-func NewClient(config Config, useHTTPSignatures bool) *Client {
+func NewClient(config Config, useHTTPSignatures bool, httpMessageSignatureP384Prob float64) *Client {
 	return &Client{
-		config:            config,
-		useHTTPSignatures: useHTTPSignatures,
+		config:                       config,
+		useHTTPSignatures:            useHTTPSignatures,
+		httpMessageSignatureP384Prob: httpMessageSignatureP384Prob,
 	}
 }
 
@@ -91,10 +93,10 @@ func (c *Client) RequestCertificate() error {
 
 	// Create ECC private key (randomly choose P384 or P256 with 50-50 probability)
 	var curve elliptic.Curve
-	if rand.Float64() < 0.5 { // nolint:gosec // ignore weak randomizer
-		curve = elliptic.P256()
-	} else {
+	if rand.Float64() < c.httpMessageSignatureP384Prob { // nolint:gosec // ignore weak randomizer
 		curve = elliptic.P384()
+	} else {
+		curve = elliptic.P256()
 	}
 	eccPrivateKey, err := ecdsa.GenerateKey(curve, cryptorand.Reader)
 	if err != nil {
