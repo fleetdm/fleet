@@ -123,7 +123,7 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
-		authRequired, err := requiresEnrollOTAAuthentication(r.Context(), ds,
+		authRequired, err := RequiresEnrollOTAAuthentication(r.Context(), ds,
 			enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 		if err != nil {
 			herr(w, "check if authentication is required err: "+err.Error())
@@ -225,7 +225,7 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 	return nil
 }
 
-func requiresEnrollOTAAuthentication(ctx context.Context, ds fleet.Datastore, enrollSecret string, noTeamIdPEnabled bool) (bool, error) {
+func RequiresEnrollOTAAuthentication(ctx context.Context, ds fleet.AndroidDatastore, enrollSecret string, noTeamIdPEnabled bool) (bool, error) {
 	secret, err := ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil && !fleet.IsNotFound(err) {
 		return false, ctxerr.Wrap(ctx, err, "verify enroll secret")
@@ -255,7 +255,7 @@ func requiresEnrollOTAAuthentication(ctx context.Context, ds fleet.Datastore, en
 }
 
 func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Request, enrollSecret string) error {
-	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMAppleSSO(r.Context(), "ota_enroll", "/enroll?enroll_secret="+url.QueryEscape(enrollSecret))
+	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMSSO(r.Context(), "ota_enroll", "/enroll?enroll_secret="+url.QueryEscape(enrollSecret))
 	if err != nil {
 		return err
 	}
