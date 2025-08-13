@@ -686,7 +686,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 
 const appleMDMAccountDrivenEnrollmentUrl = "/api/mdm/apple/account_driven_enroll"
 
-func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
@@ -747,13 +747,13 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator, customOr
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
 	)
 	if err != nil {
-		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateMDMAppleSSO creating authorization")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateMDMSSO creating authorization")
 	}
 
 	return sessionID, sessionDurationSeconds, idpURL, nil
 }
 
-func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string) {
+func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -764,6 +764,18 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, s
 	if err != nil {
 		logging.WithErr(ctx, err)
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+	}
+
+	if !strings.HasPrefix(originalURL, "/enroll?") {
+		// for flows other than the /enroll BYOD, we have to ensure that Apple MDM
+		// is enabled (this was previously done in a middleware on the route, but
+		// we do it here now so the middleware is disabled for the BYOD flow, which
+		// handles the MDM not enabled differently, via a custom error page, as it
+		// supports not just Apple MDM).
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			logging.WithErr(ctx, err)
+			return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+		}
 	}
 
 	q := url.Values{

@@ -2305,6 +2305,8 @@ type AndroidDatastore interface {
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
 	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
+	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
+	Team(ctx context.Context, tid uint) (*Team, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
