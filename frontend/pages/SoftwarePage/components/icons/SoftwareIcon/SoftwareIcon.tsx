@@ -1,21 +1,22 @@
 import React from "react";
 import classnames from "classnames";
-
-import getMatchedSoftwareIcon from "../";
+import { getMatchedSoftwareIcon } from "../";
 
 const baseClass = "software-icon";
 
-type SoftwareIconSizes = "small" | "medium" | "large" | "xlarge";
+export type SoftwareIconSizes = "small" | "medium" | "large" | "xlarge";
 
 interface ISoftwareIconProps {
+  /** The software/application name */
   name?: string;
+  /** Optional source string (e.g. "apps", "programs", etc) */
   source?: string;
   size?: SoftwareIconSizes;
-  /** Accepts an image url to display for a the software icon image. */
+  /** Accepts an image url to display for the software icon image. */
   url?: string;
 }
 
-const SOFTWARE_ICON_SIZES: Record<SoftwareIconSizes, string> = {
+export const SOFTWARE_ICON_SIZES: Record<SoftwareIconSizes, string> = {
   small: "24",
   medium: "40",
   large: "64",
@@ -45,6 +46,7 @@ const SoftwareIcon = ({
   }
 
   const MatchedIcon = getMatchedSoftwareIcon({ name, source });
+
   return (
     <MatchedIcon
       width={SOFTWARE_ICON_SIZES[size]}

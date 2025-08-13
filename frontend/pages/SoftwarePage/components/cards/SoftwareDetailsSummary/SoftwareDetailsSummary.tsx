@@ -15,6 +15,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
+import OSIcon from "../../icons/OSIcon";
 
 const baseClass = "software-details-summary";
 
@@ -29,6 +30,7 @@ interface ISoftwareDetailsSummaryProps {
   source?: string;
   versions?: number;
   iconUrl?: string;
+  isOsDetailsSummary?: boolean;
 }
 
 const SoftwareDetailsSummary = ({
@@ -41,6 +43,7 @@ const SoftwareDetailsSummary = ({
   source,
   versions,
   iconUrl,
+  isOsDetailsSummary,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
   // Remove host count for tgz_packages only
@@ -48,7 +51,11 @@ const SoftwareDetailsSummary = ({
 
   return (
     <div className={baseClass}>
-      <SoftwareIcon name={name} source={source} url={iconUrl} size="xlarge" />
+      {isOsDetailsSummary ? (
+        <OSIcon name={name} />
+      ) : (
+        <SoftwareIcon name={name} source={source} url={iconUrl} size="xlarge" />
+      )}
       <dl className={`${baseClass}__info`}>
         <h1>{title}</h1>
         <dl className={`${baseClass}__description-list`}>
