@@ -28,7 +28,7 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 |:----------------------------------|:--------------------------|
 | Revenue DRI                       | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_
-| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_ <br> [Kevin Malkin](https://www.linkedin.com/in/kevin-malkin-04247120/) _([@kevinmalkin12](https://github.com/kevinmalkin12)_
+| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_ <br> [Kevin Malkin](https://www.linkedin.com/in/kevin-malkin-04247120/) _([@kevinmalkin12](https://github.com/kevinmalkin12))_
 | Pipeline DRI                      | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Account Development Rep (ADR)     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_  <br> [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
@@ -91,7 +91,7 @@ At Fleet, our GTM strategy consists of:
 
 ### Competition
 
-We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) (private document).
+We track competitors' capabilities and adjacent (or commonly integrated) products in [Competition](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) (private document).
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/680adba6-f5b7-4726-b2ea-73d0549a45eb">
 

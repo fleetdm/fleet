@@ -8355,6 +8355,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 			seenEscrowKeyActivityID = activity.ID
 		}
 	}
+	require.NotZero(t, seenEscrowKeyActivityID)
 	require.Equal(t, escrowKeyActivity.HostID, host.ID)
 	require.Equal(t, escrowKeyActivity.HostDisplayName, host.DisplayName())
 
@@ -13295,7 +13296,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			savedTmScript.Name,
@@ -13314,7 +13315,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s"}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
 		),
 		0,
@@ -13365,7 +13366,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			savedTmScript.Name,
@@ -13383,7 +13384,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s"}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
 		),
 		0,
@@ -13530,7 +13531,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			savedTmScript.Name,
@@ -13549,7 +13550,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s"}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
 		),
 		0,
