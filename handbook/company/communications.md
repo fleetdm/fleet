@@ -833,6 +833,10 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
 
+### Wellness budget 
+
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness.
+
 
 ### Payroll dates
 
