@@ -1451,7 +1451,7 @@ type UpdateHostIdentityCertHostIDBySerialFunc func(ctx context.Context, serialNu
 
 type NewCertificateAuthorityFunc func(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error)
 
-type DeleteCertificateAuthorityFunc func(ctx context.Context, certificateAuthorityID uint) error
+type DeleteCertificateAuthorityFunc func(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthority, error)
 
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
@@ -8605,7 +8605,7 @@ func (s *DataStore) NewCertificateAuthority(ctx context.Context, ca *fleet.Certi
 	return s.NewCertificateAuthorityFunc(ctx, ca)
 }
 
-func (s *DataStore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
+func (s *DataStore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthority, error) {
 	s.mu.Lock()
 	s.DeleteCertificateAuthorityFuncInvoked = true
 	s.mu.Unlock()

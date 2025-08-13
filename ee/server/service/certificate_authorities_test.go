@@ -23,16 +23,19 @@ func TestDeleteCertificateAuthority(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 	t.Run("successfully deletes certificate", func(t *testing.T) {
-		ds.DeleteCertificateAuthorityFunc = func(ctx context.Context, certificateAuthorityID int64) error {
-			return nil
+		ds.DeleteCertificateAuthorityFunc = func(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthority, error) {
+			return &fleet.CertificateAuthority{
+				Type: string(fleet.CATypeHydrant),
+				Name: "Hydrant",
+			}, nil
 		}
 		err := svc.DeleteCertificateAuthority(ctx, 1)
 		require.NoError(t, err)
 	})
 
 	t.Run("returns not found error if certificate authority does not exist", func(t *testing.T) {
-		ds.DeleteCertificateAuthorityFunc = func(ctx context.Context, certificateAuthorityID int64) error {
-			return common_mysql.NotFound("certificate authority")
+		ds.DeleteCertificateAuthorityFunc = func(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthority, error) {
+			return nil, common_mysql.NotFound("certificate authority")
 		}
 		err := svc.DeleteCertificateAuthority(ctx, 999)
 		require.Error(t, err)

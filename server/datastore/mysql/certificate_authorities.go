@@ -96,21 +96,22 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
+func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthority, error) {
+	// TODO: Get the certificate before deleting to return it so we can create an activity event.
 	stmt := "DELETE FROM certificate_authorities WHERE id = ?"
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateAuthorityID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, fmt.Sprintf("deleting certificate authority with id %d", certificateAuthorityID))
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("deleting certificate authority with id %d", certificateAuthorityID))
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting rows affected by delete certificate authority")
+		return nil, ctxerr.Wrap(ctx, err, "getting rows affected by delete certificate authority")
 	}
 
 	if rowsAffected < 1 {
-		return common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
+		return nil, common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
 	}
 
-	return nil
+	return nil, nil
 }
