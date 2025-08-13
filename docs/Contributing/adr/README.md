@@ -42,3 +42,4 @@ To create a new ADR:
 - [ADR-0002: Do not use GitHub Discussions](0002-github-discussions.md)
 - [ADR-0003: Fork management](0003-fork-management.md) (Rejected)
 - [ADR-0004: Third-party library vendoring](0004-third-party-vendoring.md)
+- [ADR-0005: Standardize on OpenTelemetry for observability](0005-opentelemetry-standardization.md)
