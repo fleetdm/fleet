@@ -595,65 +595,6 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 	require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
 
-	// TODO: Remove
-	// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-	// DumpTable(t, q, "kernel_host_counts")
-	// DumpTable(t, q, "hosts", "id", "team_id")
-	// DumpTable(t, q, "host_software", "host_id", "software_id")
-	// DumpTable(t, q, "host_operating_system")
-	// 		var results []struct {
-	// 			TitleID     uint `db:"software_title_id"`
-	// 			SoftwareID  uint `db:"software_id"`
-	// 			OSVersionID uint `db:"os_version_id"`
-	// 			HostsCount  uint `db:"hosts_count"`
-	// 			TeamID      uint `db:"team_id"`
-	// 		}
-	// 		s := `
-	// 		SELECT
-	// 			software_titles.id AS software_title_id,
-	// 			software.id AS software_id,
-	// 			operating_systems.os_version_id AS os_version_id,
-	// 			COUNT(host_operating_system.host_id) AS hosts_count,
-	// 			hosts.team_id AS team_id
-	// 		FROM
-	// 			software_titles
-	// 			JOIN software ON software.title_id = software_titles.id
-	// 			JOIN host_software ON host_software.software_id = software.id
-	// 			JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
-	// 			JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
-	// 			JOIN hosts ON hosts.id = host_software.host_id
-	// 		WHERE
-	// 			software_titles.is_kernel = TRUE
-	// 		GROUP BY
-	// 			software_title_id,
-	// 			software_id,
-	// 			os_version_id,
-	// 			team_id
-	// 		`
-	// 		err := sqlx.SelectContext(ctx, q, &results, s)
-	// 		require.NoError(t, err)
-	// 		fmt.Printf("results: %+v\n", results)
-	// 		var r []struct {
-	// 			ID         uint    `db:"id"`
-	// 			CVE        *string `db:"cve"`
-	// 			Version    string  `db:"version"`
-	// 			HostsCount uint    `db:"hosts_count"`
-	// 		}
-	// 		s = `SELECT DISTINCT
-	// 			software.id AS id,
-	// 			software.version AS version,
-	//     SUM(kernel_host_counts.hosts_count) AS hosts_count
-	// FROM
-	// 			software
-	// 			LEFT JOIN software_cve ON software.id = software_cve.software_id
-	// 			JOIN kernel_host_counts ON kernel_host_counts.software_id = software.id
-	// WHERE
-	// 			kernel_host_counts.os_version_id = ? GROUP BY id, version `
-	// 		require.NoError(t, sqlx.SelectContext(ctx, q, &r, s, 2))
-	// 		fmt.Printf("r: %+v\n", r)
-	// return nil
-	// })
-
 	expectedCVEs := []string{"CVE-2025-0001", "CVE-2025-0002"}
 
 	kernels, err := ds.ListKernelsByOS(ctx, os1.OSVersionID, &team1.ID)
