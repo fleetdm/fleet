@@ -985,7 +985,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return job, nil
 	}
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []string) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		return &profile, nil
 	}
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -2953,6 +2953,55 @@ func TestGitOpsSSOSettings(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Nil(t, appConfig.SSOSettings)
+}
+
+func TestGitOpsSSOServerURL(t *testing.T) {
+	tmpDir := t.TempDir()
+	globalFile, err := os.CreateTemp(tmpDir, "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: ` + fleetServerURL + `
+  org_info:
+    org_name: ` + orgName + `
+  sso_settings:
+    entity_id: "test-entity"
+    idp_name: "Test IdP"
+    metadata: "<xml>test-metadata</xml>"
+    enable_sso: true
+    sso_server_url: "https://sso.example.com"
+  secrets:
+    - secret: test-secret
+`)
+	require.NoError(t, err)
+	globalFile.Close()
+
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Run GitOps with SSO settings including sso_url
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	require.NoError(t, err)
+
+	require.NotNil(t, appConfig.SSOSettings)
+	require.Equal(t, "https://sso.example.com", appConfig.SSOSettings.SSOServerURL)
+	require.Equal(t, "test-entity", appConfig.SSOSettings.EntityID)
+	require.True(t, appConfig.SSOSettings.EnableSSO)
 }
 
 func TestGitOpsSMTPSettings(t *testing.T) {

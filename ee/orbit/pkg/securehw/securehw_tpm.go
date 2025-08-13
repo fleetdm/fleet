@@ -11,7 +11,9 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	keyfile "github.com/foxboron/go-tpm-keyfiles"
 	"github.com/google/go-tpm/tpm2"
 	"github.com/google/go-tpm/tpm2/transport"
@@ -46,7 +48,7 @@ func NewTestSecureHW(device transport.TPMCloser, metadataDir string, logger zero
 	return &tpm2SecureHW{
 		device:      device,
 		logger:      logger.With().Str("component", "securehw-test").Logger(),
-		keyFilePath: filepath.Join(metadataDir, "host_identity_tpm_test.pem"),
+		keyFilePath: filepath.Join(metadataDir, constant.FleetHTTPSignatureTPMKeyFileName),
 	}, nil
 }
 
@@ -93,6 +95,8 @@ func (t *tpm2SecureHW) CreateKey() (Key, error) {
 		InPublic:     eccTemplate,
 	}.Execute(t.device)
 	if err != nil {
+		// Flush the parent key before returning error
+		t.flushHandle(parentKeyHandle.Handle, "parent")
 		return nil, fmt.Errorf("create child key: %w", err)
 	}
 
@@ -103,18 +107,20 @@ func (t *tpm2SecureHW) CreateKey() (Key, error) {
 		InPublic:     createKey.OutPublic,
 	}.Execute(t.device)
 	if err != nil {
+		// Flush the parent key before returning error
+		t.flushHandle(parentKeyHandle.Handle, "parent")
 		return nil, fmt.Errorf("load key: %w", err)
 	}
+
+	// Flush the parent key as it's no longer needed
+	t.flushHandle(parentKeyHandle.Handle, "parent")
 
 	t.logger.Debug().
 		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
 		Msg("key loaded successfully")
 
 	cleanUpOnError := func() {
-		flush := tpm2.FlushContext{
-			FlushHandle: loadedKey.ObjectHandle,
-		}
-		_, _ = flush.Execute(t.device)
+		t.flushHandle(loadedKey.ObjectHandle, "child")
 	}
 
 	t.logger.Info().
@@ -229,10 +235,7 @@ func (t *tpm2SecureHW) selectBestECCCurve() (tpm2.TPMECCCurve, string) {
 	}
 
 	// Clean up the test key
-	flush := tpm2.FlushContext{
-		FlushHandle: testKey.ObjectHandle,
-	}
-	_, _ = flush.Execute(t.device)
+	t.flushHandle(testKey.ObjectHandle, "test")
 
 	t.logger.Debug().Msg("TPM supports P-384")
 	return tpm2.TPMECCNistP384, "P-384"
@@ -290,12 +293,13 @@ func (t *tpm2SecureHW) LoadKey() (Key, error) {
 		InPublic:     *public,
 	}.Execute(t.device)
 	if err != nil {
+		// Flush the parent key before returning error
+		t.flushHandle(parentKeyHandle.Handle, "parent")
 		return nil, fmt.Errorf("load parent key: %w", err)
 	}
 
-	t.logger.Debug().
-		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
-		Msg("key loaded successfully")
+	// Flush the parent key as it's no longer needed
+	t.flushHandle(parentKeyHandle.Handle, "parent")
 
 	t.logger.Info().
 		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
@@ -312,12 +316,28 @@ func (t *tpm2SecureHW) LoadKey() (Key, error) {
 	}, nil
 }
 
+// flushHandle flushes a TPM handle, logging any errors but not returning them
+func (t *tpm2SecureHW) flushHandle(handle tpm2.TPMHandle, handleType string) {
+	flush := tpm2.FlushContext{
+		FlushHandle: handle,
+	}
+	if _, err := flush.Execute(t.device); err != nil {
+		t.logger.Warn().Err(err).Str("handle_type", handleType).Msg("failed to flush TPM handle")
+	}
+}
+
 // Close partially implements SecureHW.
 func (t *tpm2SecureHW) Close() error {
 	t.logger.Info().Msg("closing TPM device")
 	if t.device != nil {
 		err := t.device.Close()
 		if err != nil {
+			// Check if it's an already closed error
+			if strings.Contains(err.Error(), "already closed") || strings.Contains(err.Error(), "use of closed") {
+				t.logger.Debug().Msg("TPM device was already closed")
+				t.device = nil
+				return nil
+			}
 			t.logger.Error().Err(err).Msg("error closing TPM device")
 			return err
 		}

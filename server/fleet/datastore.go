@@ -968,14 +968,16 @@ type Datastore interface {
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 
-	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error)
+	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
+	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
-	// a host
-	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *Host, encryptedBase64Key, clientError string, decryptable *bool) error
+	// a host, returns whether the current key was archived or not due to the current one being updated/replaced.
+	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *Host, encryptedBase64Key, clientError string, decryptable *bool) (bool, error)
 	// SaveLUKSData sets base64'd encrypted LUKS passphrase, key slot, and salt data for a host that has successfully
-	// escrowed LUKS data
-	SaveLUKSData(ctx context.Context, host *Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+	// escrowed LUKS data, returns whether the current key was archived or not due to the current one being
+	// updated/replaced.
+	SaveLUKSData(ctx context.Context, host *Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error)
 	// DeleteLUKSData deletes the LUKS encryption key associated with the provided host ID and key slot.
 	DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error
 
@@ -1066,12 +1068,19 @@ type Datastore interface {
 	// processed. If now is the zero time, the current time will be used.
 	GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*Job, error)
 
+	// GetFilteredQueuedJobs gets queued jobs from the jobs table (queue) ready to be
+	// processed, filtered by job names.
+	GetFilteredQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*Job, error)
+
 	// UpdateJobs updates an existing job. Call this after processing a job.
 	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
 
 	// CleanupWorkerJobs deletes jobs in a final state that are older than the
 	// provided durations. It returns the number of jobs deleted and an error.
 	CleanupWorkerJobs(ctx context.Context, failedSince, completedSince time.Duration) (int64, error)
+
+	// GetJob returns a job from the database
+	GetJob(ctx context.Context, jobID uint) (*Job, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
@@ -1117,7 +1126,7 @@ type Datastore interface {
 	// Apple MDM
 
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
-	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []string) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []FleetVarName) (*MDMAppleConfigProfile, error)
 
 	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
 	// profiles in bulk with the current payload.
@@ -1280,8 +1289,8 @@ type Datastore interface {
 
 	// ListMDMAppleProfilesToInstall returns all the profiles that should
 	// be installed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
-	ListMDMAppleProfilesToInstall(ctx context.Context) ([]*MDMAppleProfilePayload, error)
+	// registered in `host_mdm_apple_profiles`, except if the optional argument `hostUUID` is passed.
+	ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*MDMAppleProfilePayload, error)
 
 	// ListMDMAppleProfilesToRemove returns all the profiles that should
 	// be removed based on diffing the ideal state vs the state we have
@@ -1721,7 +1730,7 @@ type Datastore interface {
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
 	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
-	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
 	// The profile gets replaced if it already exists for the same team and name
@@ -1808,8 +1817,30 @@ type Datastore interface {
 	// execution ID.
 	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
+	// BatchExecuteScript queued a script to run on a set of hosts after notBefore and returns the
+	// batch execution ID.
+	BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+	// GetBatchActivity returns a batch activity with executionID
+	GetBatchActivity(ctx context.Context, executionID string) (*BatchActivity, error)
+
+	// GetBatchActivityHostResults returns all host results associated with batch executionID
+	GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*BatchActivityHostResult, error)
+
 	// BatchExecuteSummary returns the summary of a batch script execution
-	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)
+	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchActivity, error)
+
+	// CancelBatchScript cancels the execution of a batch script execution
+	CancelBatchScript(ctx context.Context, executionID string) error
+
+	// ListBatchScriptExecutions returns a filtered list of batch script executions, with summaries.
+	ListBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchActivity, error)
+
+	// CountBatchScriptExecutions returns the number of batch script executions matching the filter.
+	CountBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) (int64, error)
+
+	// MarkActivitiesAsCompleted updates the status of the specified activities to "completed".
+	MarkActivitiesAsCompleted(ctx context.Context) error
 
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)

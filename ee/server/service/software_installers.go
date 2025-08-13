@@ -146,7 +146,11 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	// get values for response object
-	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
+	var tmID uint
+	if payload.TeamID != nil {
+		tmID = *payload.TeamID
+	}
+	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &tmID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
 	}
@@ -1660,8 +1664,13 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+	if !dryRun {
+		// presence of these secrets are validated on the gitops side,
+		// we only want to ensure that secrets are in the database on the
+		// non-dry run case.
+		if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
+			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		}
 	}
 
 	// keyExpireTime is the current maximum time supported for retrieving

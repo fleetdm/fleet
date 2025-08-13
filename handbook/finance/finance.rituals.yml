@@ -6,7 +6,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/finance#communicate-the-status-of-customer-financial-actions"
   dri: "rfoo2015" 
   autoIssue:   
-    labels: [ "#g-finance" ] 
+    labels: [ ":help-finance" ] 
     repo: "confidential"
 -
   task: "AP invoice monitoring"
@@ -23,7 +23,17 @@
   moreInfoUrl: "https://fleetdm.com/handbook/finance#update-weekly-kpis"
   dri: "rfoo2015"
   autoIssue:   
-    labels: [ "#g-finance" ] 
+    labels: [ ":help-finance" ] 
+    repo: "confidential"
+-
+  task: "Vanta check" 
+  startedOn: "2025-06-09"
+  frequency: "Weekly"
+  description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#monitor-compliance-tests"
+  dri: "rfoo2015"
+  autoIssue:
+    labels: [ ":help-finance" ]
     repo: "confidential"
 -
   task: "Key review prep"
@@ -33,19 +43,35 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/leadership#key-reviews"
   dri: "rfoo2015"
   autoIssue:   
-    labels: [ "#g-finance" ] 
+    labels: [ ":help-finance" ] 
     repo: "confidential"
 -
   task: "Prioritize for next sprint" # Title that will actually show in rituals table
   startedOn: "2023-08-09" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Triweekly" # must be supported by https://github.com/fleetdm/fleet/blob/dbbb501358e226fa3fdf48865175efe3334c826c/website/scripts/build-static-content.js
-  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/digital-experiencemunication)"
+  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "rfoo2015" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-finance" ] # label to be applied to issue
+    labels: [ ":help-finance" ] # label to be applied to issue
     repo: "confidential" # The GitHub repo that issues will be created in
-    
+-
+  task: "Run US commission payroll"
+  startedOn: "2024-01-31"
+  frequency: "Monthly"
+  description: "Verify closed-won deal amounts, use commission calculators to determine commissions owed, and process payroll."
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-commission-payroll"
+  dri: "rfoo2015"
+  autoIssue:
+    labels: [ ":help-people" ]
+    repo: "confidential"
+-
+  task: "Run bonus payroll"
+  startedOn: "2024-01-31"
+  frequency: "Quarterly"
+  description: "Verify completion of any objective or outcome based bonus plans, and process payroll."
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-commission-payroll" # TODO update linked process and add a new process that captures MBO payment
+  dri: "rfoo2015"    
 -
   task: "Monthly accounting"
   startedOn: "2024-02-28" 
@@ -54,18 +80,8 @@
   moreInfoUrl: "https://fleetdm.com/handbook/finance#process-monthly-accounting"
   dri: "rfoo2015" 
   autoIssue:   
-    labels: [ "#g-finance" ] 
+    labels: [ ":help-finance" ] 
     repo: "confidential"
--
-  task: "Run regular payroll" 
-  startedOn: "2024-02-24" 
-  frequency: "Monthly" 
-  description: "Verify auto-populated payroll for all full time employees is accurate, and approve for processing." 
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-payroll"
-  dri: "ireedy" 
-  autoIssue:   
-    labels: [ "#g-finance" ] 
-    repo: "confidential" 
 -
   task: "Monthly mail review" # TODO tie this to a responsibility
   startedOn: "2024-04-15" 
@@ -74,35 +90,8 @@
   moreInfoUrl: null 
   dri: "rfoo2015"
   autoIssue:   
-    labels: [ "#g-finance" ] 
-    repo: "confidential"
--
-  task: "Run US contractor payroll" 
-  startedOn: "2024-02-27" 
-  frequency: "Monthly"
-  description: "Manually process US contractor payroll by verifying and syncing time contractor worked, then processing payment." 
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-contractor-payroll"
-  dri: "ireedy" 
-  autoIssue:   
-    labels: [ "#g-finance" ] 
+    labels: [ ":help-finance" ] 
     repo: "confidential" 
--
-  task: "Run US commission payroll" 
-  startedOn: "2024-01-31" 
-  frequency: "Monthly"
-  description: "Verify closed-won deal amounts, use commission calculators to determine commissions owed, and process payroll." 
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-commission-payroll"
-  dri: "ireedy" 
-  autoIssue:   
-    labels: [ "#g-finance" ] 
-    repo: "confidential"
--
-  task: "Run bonus payroll" 
-  startedOn: "2024-01-31" 
-  frequency: "Quarterly"
-  description: "Verify completion of any objective or outcome based bonus plans, and process payroll." 
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-commission-payroll" # TODO update linked process and add a new process that captures MBO payment
-  dri: "ireedy" 
 -
   task: "Review state filings for the previous quarter"
   startedOn: "2024-07-19" 
@@ -125,6 +114,13 @@
   moreInfoUrl: "https://fleetdm.com/handbook/finance#check-finances-for-quirks"
   dri: "rfoo2015"
 -
+  task: "Quarterly grants"
+  startedOn: "2024-02-01"
+  frequency: "Quarterly"
+  description: "Create the equity grants GitHub issue and walk through the steps."
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#grant-equity"
+  dri: "rfoo2015"
+-
   task: "Deliver annual report for venture line" 
   startedOn: "2024-12-01" 
   frequency: "Annually"
@@ -132,7 +128,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/finance#deliver-annual-report-for-venture-line"
   dri: "rfoo2015"
   autoIssue:   
-    labels: [ "#g-finance" ] 
+    labels: [ ":help-finance" ] 
     repo: "confidential"
 -
   task: "Tax preparation" # TODO tie this to a responsibility
@@ -142,7 +138,7 @@
   moreInfoUrl: 
   dri: "rfoo2015"
   autoIssue:   
-    labels: [ "#g-finance" ] 
+    labels: [ ":help-finance" ] 
     repo: "confidential"
 -
   task: "Check GitHub/GitLab terms"
@@ -152,12 +148,6 @@
   moreInfoUrl: "https://fleetdm.com/handbook/finance#check-github-terms"
   dri: "hollidayn"
   autoIssue:  
-    labels: [ "#g-finance" ] 
+    labels: [ ":help-finance" ] 
     repo: "confidential"
--
-  task: "Quarterly grants"
-  startedOn: "2024-02-01"
-  frequency: "Quarterly"
-  description: "Create the equity grants GitHub issue and walk through the steps."
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#grant-equity"
-  dri: "rfoo2015"
+

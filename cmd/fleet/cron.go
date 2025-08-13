@@ -1504,6 +1504,41 @@ func cronHostVitalsLabelMembership(
 	return nil
 }
 
+func newBatchActivityCompletionCheckerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name     = string(fleet.CronBatchActivityCompletionChecker)
+		interval = 5 * time.Minute
+	)
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob(
+			"cron_batch_activity_completion_checker",
+			func(ctx context.Context) error {
+				return cronBatchActivityCompletionChecker(ctx, ds)
+			},
+		),
+	)
+	return s, nil
+}
+
+func cronBatchActivityCompletionChecker(
+	ctx context.Context,
+	ds fleet.Datastore,
+) error {
+	if err := ds.MarkActivitiesAsCompleted(ctx); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark batch activities as completed")
+	}
+	// TODO -- add an entry in the global feed for each completed activity?
+	return nil
+}
+
 func stringSliceToUintSlice(s []string, logger kitlog.Logger) []uint {
 	result := make([]uint, 0, len(s))
 	for _, v := range s {

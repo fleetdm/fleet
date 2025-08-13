@@ -700,3 +700,20 @@ func TestFilterMacOSOnlyProfilesFromIOSIPadOS(t *testing.T) {
 
 	}
 }
+
+func TestFilterOutUserScopedProfiles(t *testing.T) {
+	systemScopedProfile := fleet.MDMAppleProfilePayload{
+		ProfileName: fleetmdm.FleetFileVaultProfileName,
+		Scope:       fleet.PayloadScopeSystem,
+	}
+	userScopedProfile := fleet.MDMAppleProfilePayload{
+		ProfileName: fleetmdm.FleetCAConfigProfileName,
+		Scope:       fleet.PayloadScopeUser,
+	}
+
+	profilesToFilter := []*fleet.MDMAppleProfilePayload{&systemScopedProfile, &userScopedProfile}
+
+	filteredProfiles := fleet.FilterOutUserScopedProfiles(profilesToFilter)
+
+	require.ElementsMatch(t, filteredProfiles, []*fleet.MDMAppleProfilePayload{&systemScopedProfile})
+}

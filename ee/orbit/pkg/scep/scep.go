@@ -42,6 +42,9 @@ type Client struct {
 
 	insecure bool
 	rootCA   string
+
+	// extraExtensions allows adding custom extensions to the CSR
+	extraExtensions []pkix.Extension
 }
 
 // Option is a functional option for configuring a SCEP Client
@@ -101,6 +104,13 @@ func WithTimeout(timeout *time.Duration) Option {
 func Insecure() Option {
 	return func(c *Client) {
 		c.insecure = true
+	}
+}
+
+// WithExtraExtensions adds custom extensions to the CSR
+func WithExtraExtensions(extensions []pkix.Extension) Option {
+	return func(c *Client) {
+		c.extraExtensions = extensions
 	}
 }
 
@@ -179,6 +189,7 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 			},
 			// Currently, signer.Public() will always be of type *ecdsa.PublicKey.
 			SignatureAlgorithm: x509.ECDSAWithSHA256,
+			ExtraExtensions:    c.extraExtensions,
 		},
 		ChallengePassword: c.scepChallenge,
 	}

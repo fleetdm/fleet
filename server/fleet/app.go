@@ -78,6 +78,10 @@ type SSOSettings struct {
 	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
 	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
 	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
+	// SSOServerURL is an optional URL to use for SSO authentication.
+	// When set, SSO will only work from this URL, not from the server URL.
+	// This is useful for organizations with separate URLs for admin access vs agent/API access.
+	SSOServerURL string `json:"sso_server_url"`
 }
 
 // ConditionalAccessSettings holds the global settings for the "Conditional access" feature.
@@ -228,6 +232,13 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+type DiskEncryptionConfig struct {
+	// Enabled indicates if disk encryption is enabled.
+	Enabled bool
+	// BitLockerPINRequired indicates if a PIN is required for BitLocker disk encryption.
+	BitLockerPINRequired bool
 }
 
 type UIGitOpsModeConfig struct {

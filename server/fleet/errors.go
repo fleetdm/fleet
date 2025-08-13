@@ -22,11 +22,14 @@ var (
 	ErrWindowsMDMNotConfigured = &WindowsMDMNotConfiguredError{}
 	ErrNotConfigured           = &NotConfiguredError{}
 
-	MDMNotConfiguredMessage              = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
-	WindowsMDMNotConfiguredMessage       = "Windows MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/windows-mdm"
-	AppleMDMNotConfiguredMessage         = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
-	AppleABMDefaultTeamDeprecatedMessage = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
-	CantTurnOffMDMForWindowsHostsMessage = "Can't turn off MDM for Windows hosts."
+	MDMNotConfiguredMessage               = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
+	WindowsMDMNotConfiguredMessage        = "Windows MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/windows-mdm"
+	AppleMDMNotConfiguredMessage          = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
+	AppleABMDefaultTeamDeprecatedMessage  = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
+	CantTurnOffMDMForWindowsHostsMessage  = "Can't turn off MDM for Windows hosts."
+	CantTurnOffMDMForPersonalHostsMessage = "Couldn't turn off MDM. This command isn't available for personal hosts."
+	CantWipePersonalHostsMessage          = "Couldn't wipe. This command isn't available for personal hosts."
+	CantLockPersonalHostsMessage          = "Couldn't lock. This command isn't available for personal hosts."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -656,7 +659,7 @@ const (
 // Error message variables
 var (
 	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarSCEPRenewalID)
-	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + FleetVarSCEPRenewalID + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + string(FleetVarSCEPRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

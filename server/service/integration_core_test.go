@@ -2988,7 +2988,7 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 	// set updated_at to longer than minute ago
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`UPDATE host_issues SET updated_at = ? WHERE host_id = ?`, time.Time{}, host.ID)
+			`UPDATE host_issues SET updated_at = ? WHERE host_id = ?`, time.Now().Add(-2*time.Minute), host.ID)
 		return err
 	})
 	// hit endpoint: should have been updated this time
@@ -10114,7 +10114,7 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 
 	// simulate ABM assignment
 	encTok := uuid.NewString()
-	abmToken, err := s.ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	abmToken, err := s.ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 	err = s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleetMDM}, abmToken.ID)
@@ -13468,10 +13468,10 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 				HardwareSerial: uuid.NewString(),
 			},
 			Device: &android.Device{
-				DeviceID:             uuid.NewString(),
+				DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
 				EnterpriseSpecificID: ptr.String(uuid.NewString()),
 				AndroidPolicyID:      ptr.Uint(1),
-				LastPolicySyncTime:   ptr.Time(time.Time{}),
+				LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)), // 1 hour ago
 			},
 		}
 		host.SetNodeKey(*host.Device.EnterpriseSpecificID)
@@ -13519,6 +13519,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			SHA1Sum:        sha1Sum[:],
 			SubjectCountry: "s" + name,
 			IssuerCountry:  "i" + name,
+			NotValidBefore: now.Add(-24 * time.Hour), // 1 day ago
 			NotValidAfter:  notValidAfterTimes[i],
 			Source:         fleet.SystemHostCertificate,
 		})

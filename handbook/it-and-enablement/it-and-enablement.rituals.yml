@@ -1,0 +1,47 @@
+# https://github.com/fleetdm/fleet/pull/13084
+-
+  task: "Prioritize for next sprint" # Title that will actually show in rituals table
+  startedOn: "2023-08-09" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
+  frequency: "Triweekly" # must be supported by https://github.com/fleetdm/fleet/blob/dbbb501358e226fa3fdf48865175efe3334c826c/website/scripts/build-static-content.js
+  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing
+  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
+  dri: "allenhouchins" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+  autoIssue:   
+    labels: [ ":help-it-and-enablement" ]
+    repo: "confidential"
+- 
+  task: "Complete IT & Enablement KPIs"
+  startedOn: "2024-08-30" 
+  frequency: "Weekly"
+  description: "Complete IT & Enablement KPIs for this week"
+  moreInfoUrl: 
+  dri: "sampfluger88"
+  autoIssue:   
+    labels: [ ":help-it-and-enablement" ]
+    repo: "fleet"
+-
+  task: "Confirm closed lost is happening within 30 days"
+  startedOn: "2025-01-25"
+  frequency: "Weekly"
+  description: "Check Salesforce for opportunities 30 days or older and escalate to sales manager who will follow up with prospect and return the deal to marketing via resting and changing the owner"
+  moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
+  dri: "Sampfluger88"
+  autoIssue:   
+    labels: [ ":help-it-and-enablement","#g-unicorns" ]
+    repo: "confidential"
+-
+  task: "Downgrade unused license seats" 
+  startedOn: "2024-03-31" 
+  frequency: "Quarterly"
+  description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
+  moreInfoUrl: "https://fleetdm.com/handbook/it-and-enablement#downgrade-an-unused-license-seat"
+  dri: "sampfluger88"
+-
+  task: "Prepare board deck"
+  startedOn: "2023-09-25"
+  frequency: "Quarterly"
+  description: "Prepare slide deck for the next board meeting"
+  dri: "sampfluger88"
+
+
+

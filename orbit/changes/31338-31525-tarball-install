@@ -1,0 +1,2 @@
+* Fixed tarball extraction failures due to unknown TAR headers
+* Fixed tarball extraction failures on archives that don't include a parent directory header before files in that directory

@@ -1372,6 +1372,7 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 
 		return h.host, nil
 	}
+	ds.HostFunc = mock.HostFunc(ds.HostLiteFunc)
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 		return nil, nil
 	}
