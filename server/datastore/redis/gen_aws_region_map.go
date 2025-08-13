@@ -115,13 +115,15 @@ func main() {
 	}
 	sort.Strings(sortedPrefixes)
 
-	// Create sorted map for template
-	sortedMap := make(map[string]string)
+	type entry struct {
+		Prefix string
+		Region string
+	}
+	var entries []entry
 	for _, prefix := range sortedPrefixes {
-		sortedMap[prefix] = regionMap[prefix]
+		entries = append(entries, entry{Prefix: prefix, Region: regionMap[prefix]})
 		fmt.Fprintf(os.Stderr, "  %s -> %s\n", prefix, regionMap[prefix])
 	}
-
 	// Generate output
 	tmpl, err := template.New("output").Parse(outputTemplate)
 	if err != nil {
