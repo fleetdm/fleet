@@ -31,7 +31,7 @@ func (ds *Datastore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) (
 	return r, nil
 }
 
-func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
 	r := fleet.Vulnerabilities{}
 
 	stmt := `
@@ -53,7 +53,10 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				JOIN kernel_host_counts ON kernel_host_counts.software_id = software_cve.software_id
 				JOIN operating_systems ON operating_systems.os_version_id = kernel_host_counts.os_version_id
 			WHERE
-				operating_systems.name = ? AND operating_systems.version = ?
+				operating_systems.name = ?
+				AND operating_systems.version = ?
+				AND kernel_host_counts.hosts_count > 0
+				%s
 			GROUP BY software_cve.cve
 
 			`
@@ -94,14 +97,28 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 					JOIN kernel_host_counts ON kernel_host_counts.software_id = software_cve.software_id
 					JOIN operating_systems ON operating_systems.os_version_id = kernel_host_counts.os_version_id
 				WHERE
-					operating_systems.name = ? AND operating_systems.version = ?
+					operating_systems.name = ?
+					AND operating_systems.version = ?
+					AND kernel_host_counts.hosts_count > 0
+					%s
 				GROUP BY software_cve.cve
 			) osv
 			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
 			`
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, name, version, name, version); err != nil {
+	var tmID uint
+	var teamFilter string
+	args := []any{name, version, name, version}
+	if teamID != nil {
+		tmID = *teamID
+		teamFilter = "AND kernel_host_counts.team_id = ?"
+		args = append(args, tmID)
+	}
+
+	stmt = fmt.Sprintf(stmt, teamFilter)
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
@@ -268,13 +285,13 @@ func (ds *Datastore) InsertKernelSoftwareMapping(ctx context.Context) error {
 	}
 
 	statsStmt := `
-INSERT IGNORE INTO kernel_host_counts (software_title_id, software_id, os_version_id, hosts_count, team_id)
+INSERT INTO kernel_host_counts (software_title_id, software_id, os_version_id, hosts_count, team_id)
 	SELECT
 		software_titles.id AS software_title_id,
 		software.id AS software_id,
 		operating_systems.os_version_id AS os_version_id,
 		COUNT(host_operating_system.host_id) AS hosts_count,
-		hosts.team_id AS team_id
+		COALESCE(hosts.team_id, 0) AS team_id
 	FROM
 		software_titles
 		JOIN software ON software.title_id = software_titles.id

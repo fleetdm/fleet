@@ -113,7 +113,7 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 		dbOS = append(dbOS, *os)
 	}
 
-	cves, err := ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false)
+	cves, err := ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false, nil)
 	require.NoError(t, err)
 	require.Empty(t, cves)
 
@@ -169,7 +169,7 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// test without CVS meta
-	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false)
+	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false, nil)
 	require.NoError(t, err)
 
 	expected := []string{"CVE-2021-1234", "CVE-2021-1235"}
@@ -180,7 +180,7 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 	}
 
 	// test with CVS meta
-	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", true)
+	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", true, nil)
 	require.NoError(t, err)
 	require.Len(t, cves, 2)
 
@@ -499,7 +499,7 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 				expectedSet[v.CVE] = struct{}{}
 			}
 
-			cves, err := ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, false)
+			cves, err := ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, false, &teamID)
 			require.NoError(t, err)
 			for _, g := range cves {
 				_, ok := expectedSet[g.CVE]
@@ -508,11 +508,11 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 
 			assert.Len(t, cves, len(tt.vulns))
 
-			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", false)
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", false, nil)
 			require.NoError(t, err)
 			require.Empty(t, cves)
 
-			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, true)
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, os.Version, true, nil)
 			require.NoError(t, err)
 			require.Len(t, cves, len(tt.vulns))
 			for _, g := range cves {
@@ -520,7 +520,7 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 				assert.True(t, ok)
 			}
 
-			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", true)
+			cves, err = ds.ListVulnsByOsNameAndVersion(ctx, os.Name, "not_found", true, nil)
 			require.NoError(t, err)
 			require.Empty(t, cves)
 
