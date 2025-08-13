@@ -1204,6 +1204,66 @@ This activity contains the following fields:
 }
 ```
 
+## created_android_profile
+
+Generated when a user adds a new Android configuration profile to a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "identifier": Identifier of the profile.
+- "team_id": The ID of the team that the profile applies to, `null` if it applies to hosts that are not in a team.
+- "team_name": The name of the team that the profile applies to, `null` if it applies to hosts that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "android-passcode-requirements",
+  "profile_identifier": "94e2ba9e-1417-4fed-b922-9dcd3969e3d2",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## deleted_android_profile
+
+Generated when a user removes Android configuration profile from a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "identifier": Identifier of the profile.
+- "team_id": The ID of the team that the profile applies to, `null` if it applies to hosts that are not in a team.
+- "team_name": The name of the team that the profile applies to, `null` if it applies to hosts that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "android-passcode-requirements",
+  "profile_identifier": "94e2ba9e-1417-4fed-b922-9dcd3969e3d2",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## edited_android_profile
+
+Generated when a user edits the Android profiles of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+
+- "team_id": The ID of the team that the profile applies to, `null` if it applies to hosts that are not in a team.
+- "team_name": The name of the team that the profile applies to, `null` if it applies to hosts that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## resent_configuration_profile
 
 Generated when a user resends a configuration profile to a host.
