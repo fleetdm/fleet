@@ -738,6 +738,7 @@ the way that the Fleet server works.
 				ds,
 				svc,
 				config.License.Key,
+				config.Server.PrivateKey,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")

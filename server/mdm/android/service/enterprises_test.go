@@ -23,7 +23,7 @@ func TestEnterprisesAuth(t *testing.T) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc)
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -123,22 +123,14 @@ func TestEnterpriseSignupMissingPrivateKey(t *testing.T) {
 	fleetDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
 
-	fleetDS.(*AndroidMockDS).Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			ServerSettings: fleet.ServerSettings{
-				ServerURL: "https://fleet.example.com",
-			},
-			MDM: fleet.MDM{
-				AndroidEnabledAndConfigured: false,
-			},
-		}, nil
-	}
-
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc)
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
 	require.NoError(t, err)
 
 	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
+
+	testSetEmptyPrivateKey = true
+	t.Cleanup(func() { testSetEmptyPrivateKey = false })
 
 	_, err = svc.EnterpriseSignup(ctx)
 	require.Error(t, err)
