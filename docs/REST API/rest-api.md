@@ -12943,7 +12943,7 @@ Creates a custom variable that can be used in scripts and profiles prefixed with
 
 | Name            | Type    | In    | Description                                                 |
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
-| name            | string  | body  | **Required.** The desired variable name, without the `$FLEET_SECRET` prefix. |
+| name            | string  | body  | **Required.** The desired variable name, without the `FLEET_SECRET_` prefix. |
 | value           | string  | body  | **Required.** The value for the custom variable. |
 
 
