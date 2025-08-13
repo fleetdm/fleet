@@ -289,6 +289,8 @@ INSERT IGNORE INTO kernel_host_counts (software_title_id, software_id, os_versio
 		software_id,
 		os_version_id,
 		team_id
+ON DUPLICATE KEY UPDATE
+	hosts_count=VALUES(hosts_count)
 	`
 
 	_, err = ds.writer(ctx).ExecContext(ctx, statsStmt)

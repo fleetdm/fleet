@@ -562,9 +562,8 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	os2, err = ds.GetHostOperatingSystem(ctx, host2.ID)
 	require.NoError(t, err)
 
-	var vulnsToInsert []fleet.SoftwareVulnerability
-
-	for _, h := range []*fleet.Host{host1, host2, host3, host4} {
+	addKernelToHost := func(h *fleet.Host) {
+		var vulnsToInsert []fleet.SoftwareVulnerability
 		_, err = ds.UpdateHostSoftware(ctx, h.ID, []fleet.Software{kernel})
 		require.NoError(t, err)
 		require.NoError(t, ds.LoadHostSoftware(ctx, h, false))
@@ -578,11 +577,15 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 				CVE:        cve,
 			})
 		}
+
+		for _, v := range vulnsToInsert {
+			_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+			require.NoError(t, err)
+		}
 	}
 
-	for _, v := range vulnsToInsert {
-		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
-		require.NoError(t, err)
+	for _, h := range []*fleet.Host{host1, host2, host3, host4} {
+		addKernelToHost(h)
 	}
 
 	for _, h := range []*fleet.Host{host1, host2, host3, host4} {
@@ -606,7 +609,8 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	kernels, err = ds.ListKernelsByOS(ctx, os2.OSVersionID, &team1.ID)
 	require.NoError(t, err)
 	require.Len(t, kernels, 1)
-	require.Equal(t, uint(2), kernels[0].HostsCount)
+	assert.ElementsMatchf(t, expectedCVEs, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
+	require.Equal(t, uint(2), kernels[0].HostsCount) // host2, host3
 
 	kernels, err = ds.ListKernelsByOS(ctx, os2.OSVersionID, &team2.ID)
 	require.NoError(t, err)
@@ -628,4 +632,31 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	require.Len(t, kernels, 1)
 	assert.ElementsMatchf(t, expectedCVEs, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
 	assert.Equal(t, uint(1), kernels[0].HostsCount)
+
+	// Add another host to team1, counts should update
+	host5 := test.NewHost(t, ds, "host_ubuntu2404_4", "", "hostkey_ubuntu2404_4", "hostuuid_ubuntu2404_4", time.Now(), test.WithPlatform("ubuntu"))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host5.ID})))
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host5.ID, *os2))
+	addKernelToHost(host5)
+
+	require.NoError(t, ds.UpdateOSVersions(ctx))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
+
+	kernels, err = ds.ListKernelsByOS(ctx, os2.OSVersionID, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, kernels, 1)
+	assert.ElementsMatchf(t, expectedCVEs, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
+	assert.Equal(t, uint(3), kernels[0].HostsCount) // host2, host3, host5
+
+	// "All teams" (aka team ID is nil)
+	// For os2, should be 4 since it's on host2, host3, host4, and now host5
+	kernels, err = ds.ListKernelsByOS(ctx, os2.OSVersionID, nil)
+	require.NoError(t, err)
+	require.Len(t, kernels, 1)
+	assert.ElementsMatchf(t, expectedCVEs, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
+	assert.Equal(t, uint(4), kernels[0].HostsCount)
+
 }
