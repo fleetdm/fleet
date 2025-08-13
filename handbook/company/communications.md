@@ -835,7 +835,7 @@ Compensation at Fleet is determined by benchmarking using [Pave](https://pave.co
 
 ### Wellness budget 
 
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness.
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions. 
 
 
 ### Payroll dates
