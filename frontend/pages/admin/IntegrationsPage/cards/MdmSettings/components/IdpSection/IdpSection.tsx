@@ -108,7 +108,8 @@ const IdpSection = () => {
       <form>
         <p>
           Connect Fleet to your identity provider to require end users to
-          authenticate when they first setup their new macOS hosts.{" "}
+          authenticate when they first setup their macOS, iOS, iPadOS, and
+          Android hosts.{" "}
           <CustomLink
             url="https://fleetdm.com/learn-more-about/end-user-authentication"
             text="Learn more"
