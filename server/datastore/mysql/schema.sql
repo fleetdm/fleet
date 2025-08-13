@@ -1028,6 +1028,21 @@ CREATE TABLE `jobs` (
 INSERT INTO `jobs` VALUES (1,'2024-03-20 00:00:00','2024-03-20 00:00:00','macos_setup_assistant','{\"task\": \"update_all_profiles\"}','queued',0,'','2024-03-20 00:00:00');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `kernel_host_counts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `software_title_id` int unsigned DEFAULT NULL,
+  `software_id` int unsigned DEFAULT NULL,
+  `os_version_id` int unsigned DEFAULT NULL,
+  `hosts_count` int unsigned NOT NULL,
+  `team_id` int unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_kernels_unique_mapping` (`os_version_id`,`team_id`,`software_id`),
+  KEY `software_title_id` (`software_title_id`),
+  CONSTRAINT `kernel_host_counts_ibfk_1` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `label_membership` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

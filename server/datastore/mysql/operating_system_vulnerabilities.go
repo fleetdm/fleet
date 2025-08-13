@@ -31,7 +31,7 @@ func (ds *Datastore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) (
 	return r, nil
 }
 
-func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
 	r := fleet.Vulnerabilities{}
 
 	stmt := `
@@ -50,13 +50,13 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				MIN(software_cve.created_at) created_at
 			FROM
 				software_cve
-				JOIN software ON software.id = software_cve.software_id
-				JOIN software_titles ON software_titles.id = software.title_id
-				JOIN host_software ON host_software.software_id = software.id
-				JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
-				JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
+				JOIN kernel_host_counts ON kernel_host_counts.software_id = software_cve.software_id
+				JOIN operating_systems ON operating_systems.os_version_id = kernel_host_counts.os_version_id
 			WHERE
-				operating_systems.name = ? AND operating_systems.version = ? AND software_titles.is_kernel = TRUE
+				operating_systems.name = ?
+				AND operating_systems.version = ?
+				AND kernel_host_counts.hosts_count > 0
+				%s
 			GROUP BY software_cve.cve
 
 			`
@@ -94,20 +94,31 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 					GROUP_CONCAT(DISTINCT software_cve.resolved_in_version SEPARATOR ',') resolved_in_version
 				FROM
 					software_cve
-					JOIN software ON software.id = software_cve.software_id
-					JOIN software_titles ON software_titles.id = software.title_id
-					JOIN host_software ON host_software.software_id = software.id
-					JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
-					JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
+					JOIN kernel_host_counts ON kernel_host_counts.software_id = software_cve.software_id
+					JOIN operating_systems ON operating_systems.os_version_id = kernel_host_counts.os_version_id
 				WHERE
-					operating_systems.name = ? AND operating_systems.version = ? AND software_titles.is_kernel = TRUE
+					operating_systems.name = ?
+					AND operating_systems.version = ?
+					AND kernel_host_counts.hosts_count > 0
+					%s
 				GROUP BY software_cve.cve
 			) osv
 			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
 			`
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, name, version, name, version); err != nil {
+	var tmID uint
+	var teamFilter string
+	args := []any{name, version, name, version}
+	if teamID != nil {
+		tmID = *teamID
+		teamFilter = "AND kernel_host_counts.team_id = ?"
+		args = append(args, tmID)
+	}
+
+	stmt = fmt.Sprintf(stmt, teamFilter)
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
@@ -203,39 +214,33 @@ func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src f
 	return nil
 }
 
-func (ds *Datastore) ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error) {
+func (ds *Datastore) ListKernelsByOS(ctx context.Context, osVersionID uint, teamID *uint) ([]*fleet.Kernel, error) {
 	var kernels []*fleet.Kernel
+
 	stmt := `
 SELECT DISTINCT
 	software.id AS id,
 	software_cve.cve AS cve,
 	software.version AS version,
-    software_host_counts.hosts_count AS hosts_count
+    SUM(kernel_host_counts.hosts_count) AS hosts_count
 FROM
 	software
 	LEFT JOIN software_cve ON software.id = software_cve.software_id
-	JOIN software_titles ON software_titles.id = software.title_id
-	JOIN host_software ON host_software.software_id = software.id
-	JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
-	JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
-    JOIN software_host_counts ON software_host_counts.software_id = software.id
+	JOIN kernel_host_counts ON kernel_host_counts.software_id = software.id
 WHERE
-	software_titles.is_kernel = TRUE AND
-	operating_systems.os_version_id = ? AND
-    software_host_counts.team_id = ? %s
-	`
+	kernel_host_counts.os_version_id = ? %s GROUP BY id, cve, version
+`
 
 	var tmID uint
+	var teamFilter string
+	args := []any{osVersionID}
 	if teamID != nil {
 		tmID = *teamID
+		teamFilter = "AND kernel_host_counts.team_id = ?"
+		args = append(args, tmID)
 	}
 
-	var globalStatsFilter string
-	if tmID == 0 {
-		globalStatsFilter = "AND software_host_counts.global_stats = 0"
-	}
-
-	stmt = fmt.Sprintf(stmt, globalStatsFilter)
+	stmt = fmt.Sprintf(stmt, teamFilter)
 
 	var results []struct {
 		ID         uint    `db:"id"`
@@ -243,11 +248,12 @@ WHERE
 		Version    string  `db:"version"`
 		HostsCount uint    `db:"hosts_count"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, osID, tmID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing kernels by OS name")
 	}
 
 	kernelSet := make(map[uint]*fleet.Kernel)
+
 	for _, result := range results {
 		k, ok := kernelSet[result.ID]
 		if !ok {
@@ -270,4 +276,54 @@ WHERE
 		kernels = append(kernels, kernel)
 	}
 	return kernels, nil
+}
+
+func (ds *Datastore) InsertKernelSoftwareMapping(ctx context.Context) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE kernel_host_counts SET hosts_count = 0`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "zero out existing kernel hosts counts")
+	}
+
+	statsStmt := `
+INSERT INTO kernel_host_counts (software_title_id, software_id, os_version_id, hosts_count, team_id)
+	SELECT
+		software_titles.id AS software_title_id,
+		software.id AS software_id,
+		operating_systems.os_version_id AS os_version_id,
+		COUNT(host_operating_system.host_id) AS hosts_count,
+		COALESCE(hosts.team_id, 0) AS team_id
+	FROM
+		software_titles
+		JOIN software ON software.title_id = software_titles.id
+		JOIN host_software ON host_software.software_id = software.id
+		JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
+		JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
+		JOIN hosts ON hosts.id = host_software.host_id
+	WHERE
+		software_titles.is_kernel = TRUE
+	GROUP BY
+		software_title_id,
+		software_id,
+		os_version_id,
+		team_id
+ON DUPLICATE KEY UPDATE
+	hosts_count=VALUES(hosts_count)
+	`
+
+	_, err = ds.writer(ctx).ExecContext(ctx, statsStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert kernel software mapping")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE k FROM kernel_host_counts k LEFT JOIN software ON k.software_id = software.id WHERE software.id IS NULL`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clean up orphan kernels by software id")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE k FROM kernel_host_counts k LEFT JOIN operating_systems ON k.os_version_id = operating_systems.os_version_id WHERE operating_systems.id IS NULL`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clean up orphan kernels by os version id")
+	}
+
+	return nil
 }

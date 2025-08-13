@@ -37,6 +37,21 @@ WHERE source IN ('rpm_packages', 'deb_packages')
 		return fmt.Errorf("failed to backfill software_titles.is_kernel column: %w", err)
 	}
 
+	if _, err := tx.Exec(`
+CREATE TABLE kernel_host_counts (
+  id int unsigned NOT NULL AUTO_INCREMENT,
+  software_title_id int unsigned DEFAULT NULL,
+  software_id int unsigned DEFAULT NULL,
+  os_version_id int unsigned DEFAULT NULL,
+  hosts_count int unsigned NOT NULL,
+  team_id int unsigned NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY idx_kernels_unique_mapping (os_version_id,team_id,software_id),
+  FOREIGN KEY (software_title_id) REFERENCES software_titles (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`); err != nil {
+		return fmt.Errorf("failed to create kernel_host_counts table: %w", err)
+	}
+
 	return nil
 }
 

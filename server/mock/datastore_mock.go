@@ -781,7 +781,7 @@ type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []f
 
 type ListOSVulnerabilitiesByOSFunc func(ctx context.Context, osID uint) ([]fleet.OSVulnerability, error)
 
-type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool) (fleet.Vulnerabilities, error)
+type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error)
 
 type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
@@ -792,6 +792,8 @@ type InsertOSVulnerabilityFunc func(ctx context.Context, vuln fleet.OSVulnerabil
 type DeleteOutOfDateOSVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error
 
 type ListKernelsByOSFunc func(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error)
+
+type InsertKernelSoftwareMappingFunc func(ctx context.Context) error
 
 type ListVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error)
 
@@ -2592,6 +2594,9 @@ type DataStore struct {
 
 	ListKernelsByOSFunc        ListKernelsByOSFunc
 	ListKernelsByOSFuncInvoked bool
+
+	InsertKernelSoftwareMappingFunc        InsertKernelSoftwareMappingFunc
+	InsertKernelSoftwareMappingFuncInvoked bool
 
 	ListVulnerabilitiesFunc        ListVulnerabilitiesFunc
 	ListVulnerabilitiesFuncInvoked bool
@@ -6215,11 +6220,11 @@ func (s *DataStore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([
 	return s.ListOSVulnerabilitiesByOSFunc(ctx, osID)
 }
 
-func (s *DataStore) ListVulnsByOsNameAndVersion(ctx context.Context, name string, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+func (s *DataStore) ListVulnsByOsNameAndVersion(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
 	s.mu.Lock()
 	s.ListVulnsByOsNameAndVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListVulnsByOsNameAndVersionFunc(ctx, name, version, includeCVSS)
+	return s.ListVulnsByOsNameAndVersionFunc(ctx, name, version, includeCVSS, teamID)
 }
 
 func (s *DataStore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
@@ -6255,6 +6260,13 @@ func (s *DataStore) ListKernelsByOS(ctx context.Context, osID uint, teamID *uint
 	s.ListKernelsByOSFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListKernelsByOSFunc(ctx, osID, teamID)
+}
+
+func (s *DataStore) InsertKernelSoftwareMapping(ctx context.Context) error {
+	s.mu.Lock()
+	s.InsertKernelSoftwareMappingFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertKernelSoftwareMappingFunc(ctx)
 }
 
 func (s *DataStore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {

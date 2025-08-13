@@ -39,7 +39,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 	}{
 		{
 			name:  "ubuntu",
-			host:  test.NewHost(t, s.ds, "host_ubuntu2410", "", "hostkey_ubuntu2410", "hostuuid_ubuntu2410", time.Now(), test.WithPlatform("linux")),
+			host:  test.NewHost(t, s.ds, "host_ubuntu2410", "", "hostkey_ubuntu2410", "hostuuid_ubuntu2410", time.Now(), test.WithPlatform("ubuntu")),
 			vulns: []fleet.SoftwareVulnerability{{CVE: "CVE-2025-0001"}, {CVE: "CVE-2025-0002"}, {CVE: "CVE-2025-0003"}},
 			vulnsByKernelVersion: map[string][]string{
 				kernel1.Version: {"CVE-2025-0001", "CVE-2025-0002"},
@@ -124,6 +124,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
 			require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 			require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+			require.NoError(t, s.ds.InsertKernelSoftwareMapping(ctx))
 
 			var osVersionsResp osVersionsResponse
 			s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
