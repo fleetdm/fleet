@@ -1364,6 +1364,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+
+  createdCustomVariable: (activity: IActivity) => {
+    const { custom_variable_name } = activity.details || {};
+    return (
+      <>
+        created custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
+
+  deletedCustomVariable: (activity: IActivity) => {
+    const { custom_variable_name } = activity.details || {};
+    return (
+      <>
+        deleted custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1676,6 +1694,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
 
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
+    }
+
+    case ActivityType.CreatedCustomVariable: {
+      return TAGGED_TEMPLATES.createdCustomVariable(activity);
+    }
+
+    case ActivityType.DeletedCustomVariable: {
+      return TAGGED_TEMPLATES.deletedCustomVariable(activity);
     }
 
     default: {
