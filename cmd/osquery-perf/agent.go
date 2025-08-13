@@ -415,6 +415,7 @@ func newAgent(
 	commonSoftwareNameSuffix string,
 	mdmProfileFailureProb float64,
 	httpMessageSignatureProb float64,
+	httpMessageSignatureP384Prob float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -519,7 +520,7 @@ func newAgent(
 		EnrollSecret:  enrollSecret,
 		HostUUID:      hostUUID,
 		AgentIndex:    agentIndex,
-	}, useHTTPSig)
+	}, useHTTPSig, httpMessageSignatureP384Prob)
 
 	return agent
 }
@@ -2799,7 +2800,9 @@ func main() {
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
-		httpMessageSignatureProb = flag.Float64("http_message_signature_prob", 0.1, "Probability of hosts using HTTP message signatures")
+		httpMessageSignatureProb     = flag.Float64("http_message_signature_prob", 0.1, "Probability of hosts using HTTP message signatures")
+		httpMessageSignatureP384Prob = flag.Float64("http_message_signature_p384_prob", 0.5,
+			"Probability of hosts using P384 elliptic curve (as opposed to P256) for HTTP message signatures")
 
 		// 50% failure probability is not realistic but this is our current baseline for the osquery-perf setup.
 		// We tried setting this to a more realistic value like 5% but it overloaded the MySQL Writer instance
@@ -3050,6 +3053,7 @@ func main() {
 			*commonSoftwareNameSuffix,
 			*mdmProfileFailureProb,
 			*httpMessageSignatureProb,
+			*httpMessageSignatureP384Prob,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
