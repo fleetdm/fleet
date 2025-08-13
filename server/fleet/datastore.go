@@ -1824,9 +1824,6 @@ type Datastore interface {
 	// GetBatchActivity returns a batch activity with executionID
 	GetBatchActivity(ctx context.Context, executionID string) (*BatchActivity, error)
 
-	// GetBatchActivityByJobID returns a batch activity with JobID
-	GetBatchActivityByJobID(ctx context.Context, jobID uint) (*BatchActivity, error)
-
 	// GetBatchActivityHostResults returns all host results associated with batch executionID
 	GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*BatchActivityHostResult, error)
 

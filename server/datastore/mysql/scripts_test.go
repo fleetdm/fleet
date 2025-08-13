@@ -2230,10 +2230,6 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 		require.Nil(t, hostResult.HostExecutionID)
 	}
 
-	batchActivityJobID, err := ds.GetBatchActivityByJobID(ctx, *batchActivity.JobID)
-	require.NoError(t, err)
-	require.Equal(t, batchActivity.BatchExecutionID, batchActivityJobID.BatchExecutionID)
-
 	// Run it manually, the same as the job running it but without waiting for the time
 	err = ds.RunScheduledBatchActivity(ctx, execID)
 	require.NoError(t, err)

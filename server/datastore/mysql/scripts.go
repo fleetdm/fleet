@@ -2165,40 +2165,6 @@ func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (
 	return batchActivity, nil
 }
 
-func (ds *Datastore) GetBatchActivityByJobID(ctx context.Context, jobID uint) (*fleet.BatchActivity, error) {
-	const stmt = `
-		SELECT
-			id,
-			script_id,
-			execution_id,
-			user_id,
-			job_id,
-			status,
-			activity_type,
-			num_targeted,
-			num_pending,
-			num_ran,
-			num_errored,
-			num_incompatible,
-			num_canceled,
-			created_at,
-			updated_at,
-			started_at,
-			finished_at,
-			canceled
-		FROM
-			batch_activities
-		WHERE
-			job_id = ?`
-
-	batchActivity := &fleet.BatchActivity{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), batchActivity, stmt, jobID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity")
-	}
-
-	return batchActivity, nil
-}
-
 func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error) {
 	const stmt = `
 		SELECT
