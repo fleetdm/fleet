@@ -16,7 +16,6 @@ type BatchScripts struct {
 	Log       kitlog.Logger
 }
 
-// Name returns the name of the job.
 func (b *BatchScripts) Name() string {
 	return batchScriptsName
 }
