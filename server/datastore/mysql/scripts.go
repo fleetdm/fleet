@@ -2240,7 +2240,7 @@ func (ds *Datastore) RunScheduledBatchActivity(ctx context.Context, executionID 
 
 	script, err := ds.Script(ctx, *batchActivity.ScriptID)
 	if err != nil {
-		ctxerr.Wrap(ctx, err, "could not get script")
+		return ctxerr.Wrap(ctx, err, "could not get script")
 	}
 
 	results, err := ds.GetBatchActivityHostResults(ctx, executionID)
