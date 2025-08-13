@@ -1,5 +1,11 @@
 .identity-providers {
 
+  &__content-container {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xxlarge;
+  }
+
   &__section-card-content {
     margin: 0;
   }

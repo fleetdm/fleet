@@ -1,18 +1,20 @@
 import React, { useCallback, useContext, useState } from "react";
+import { AxiosResponse } from "axios";
 
+import { expandErrorReasonRequired } from "interfaces/errors";
 import configAPI from "services/entities/config";
+import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink/CustomLink";
 import Button from "components/buttons/Button/Button";
 import SectionHeader from "components/SectionHeader";
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
-import { expandErrorReasonRequired } from "interfaces/errors";
-import { AxiosResponse } from "axios";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+
 import {
   IFormDataIdp,
   IFormErrorsIdp,
@@ -24,7 +26,7 @@ import {
 const baseClass = "idp-section";
 
 const IdpSection = () => {
-  const { config } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const { renderFlash } = useContext(NotificationContext);
@@ -34,7 +36,7 @@ const IdpSection = () => {
   const [formErrors, setFormErrors] = useState<IFormErrorsIdp | null>(null);
 
   const enableSaveButton =
-    // // TODO: it seems like we should allow saving an empty form so that the user can clear their IdP info
+    // TODO: it seems like we should allow saving an empty form so that the user can clear their IdP info
     // isEmptyFormData(formData) ||
     !isMissingAnyRequiredField(formData) && !formErrors;
 
@@ -87,19 +89,22 @@ const IdpSection = () => {
         if (ae.status === 422) {
           renderFlash(
             "error",
-            `Couldn’t update: ${expandErrorReasonRequired(err)}.`
+            `Couldn't update: ${expandErrorReasonRequired(err)}.`
           );
           return;
         }
-        renderFlash("error", "Couldn’t update. Please try again.");
+        renderFlash("error", "Couldn't update. Please try again.");
       }
     },
     [formData, renderFlash]
   );
 
-  return (
-    <div className={baseClass}>
-      <SectionHeader title="End user authentication" />
+  const renderContent = () => {
+    if (!isPremiumTier) {
+      return <PremiumFeatureMessage />;
+    }
+
+    return (
       <form>
         <p>
           Connect Fleet to your identity provider to require end users to
@@ -181,6 +186,17 @@ const IdpSection = () => {
           )}
         />
       </form>
+    );
+  };
+
+  if (!config?.mdm.apple_bm_enabled_and_configured) {
+    return null;
+  }
+
+  return (
+    <div className={baseClass}>
+      <SectionHeader title="End user authentication" />
+      {renderContent()}
     </div>
   );
 };

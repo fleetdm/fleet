@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
 import idpAPI from "services/entities/idp";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -15,6 +16,7 @@ import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import SectionCard from "../MdmSettings/components/SectionCard";
+import IdpSection from "../MdmSettings/components/IdpSection";
 
 const baseClass = "identity-providers";
 
@@ -112,7 +114,11 @@ const FailedEndUserInfoCard = ({
   );
 };
 
-const IdentityProviders = () => {
+interface IIdentityProvidersProps {
+  router: InjectedRouter;
+}
+
+const IdentityProviders = ({ router }: IIdentityProvidersProps) => {
   const { isPremiumTier } = useContext(AppContext);
 
   const { data: scimIdPDetails, isLoading, isError } = useQuery(
@@ -162,7 +168,10 @@ const IdentityProviders = () => {
   return (
     <div className={baseClass}>
       <SectionHeader title="Identity provider (IdP)" />
-      {renderContent()}
+      <div className={`${baseClass}__content-container`}>
+        {renderContent()}
+        <IdpSection />
+      </div>
     </div>
   );
 };
