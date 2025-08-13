@@ -5,6 +5,11 @@ STACK_NAME="${STACK_NAME:-fleet-elasticache-iam-test}"
 
 echo "🧹 Cleaning up test environment..."
 
+# Preflight
+if ! command -v aws >/dev/null 2>&1; then
+    echo "❌ aws CLI not found in PATH. Please install AWS CLI and try again."
+    exit 1
+fi
 if [ -f test-env-info.txt ]; then
     source test-env-info.txt
     
