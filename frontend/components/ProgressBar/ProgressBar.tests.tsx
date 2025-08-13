@@ -24,11 +24,11 @@ describe("ProgressBar component", () => {
     const sectionElements = screen.getAllByTestId(/section-/);
     expect(sectionElements.length).toBe(2);
 
-    expect(sectionElements[0]).toHaveStyle("backgroundColor: green");
+    expect(sectionElements[0]).toHaveStyle("background-color: green");
     expect(sectionElements[0]).toHaveStyle("width: 70%");
 
     // Check second section
-    expect(sectionElements[1]).toHaveStyle("backgroundColor: red");
+    expect(sectionElements[1]).toHaveStyle("background-color: red");
     expect(sectionElements[1]).toHaveStyle("width: 10%");
   });
 
@@ -39,6 +39,6 @@ describe("ProgressBar component", () => {
     render(<ProgressBar sections={sections} backgroundColor={customBgColor} />);
 
     const progressBar = screen.getByRole("progressbar");
-    expect(progressBar).toHaveStyle(`backgroundColor: ${customBgColor}`);
+    expect(progressBar).toHaveStyle(`background-color: ${customBgColor}`);
   });
 });
