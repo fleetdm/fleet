@@ -116,6 +116,37 @@ func TestEnterprisesAuth(t *testing.T) {
 	})
 }
 
+func TestEnterpriseSignupMissingPrivateKey(t *testing.T) {
+	androidAPIClient := android_mock.Client{}
+	androidAPIClient.InitCommonMocks()
+	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	fleetDS := InitCommonDSMocks()
+	fleetSvc := mockService{}
+
+	fleetDS.(*AndroidMockDS).Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{
+				ServerURL: "https://fleet.example.com",
+			},
+			MDM: fleet.MDM{
+				AndroidEnabledAndConfigured: false,
+			},
+		}, nil
+	}
+
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc)
+	require.NoError(t, err)
+
+	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
+
+	_, err = svc.EnterpriseSignup(ctx)
+	require.Error(t, err)
+
+	require.Contains(t, err.Error(), "missing required private key")
+	require.Contains(t, err.Error(), "https://fleetdm.com/learn-more-about/fleet-server-private-key")
+}
+
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	t.Helper()
 	if shouldFail {
