@@ -7,6 +7,7 @@ interface DeleteSecretModalProps {
   secret: ISecret | undefined;
   onCancel: () => void;
   onDelete: () => void;
+  isDeleting?: boolean;
 }
 
 const baseClass = "fleet-delete-secret-modal";
@@ -15,6 +16,7 @@ const DeleteSecretModal = ({
   secret,
   onCancel,
   onDelete,
+  isDeleting,
 }: DeleteSecretModalProps) => {
   return (
     <Modal title="Add custom variable" onExit={onCancel} className={baseClass}>
@@ -29,7 +31,7 @@ const DeleteSecretModal = ({
           To resolve, edit the configuration profile or script.
         </p>
         <div className="modal-cta-wrap">
-          <Button variant="alert" onClick={onDelete}>
+          <Button variant="alert" onClick={onDelete} isLoading={isDeleting}>
             Delete
           </Button>
           <Button variant="inverse-alert" onClick={onCancel}>

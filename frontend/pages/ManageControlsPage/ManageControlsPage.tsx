@@ -113,11 +113,6 @@ const ManageControlsPage = ({
         return navItem.name !== "OS updates" && navItem.name !== "Variables";
       });
     }
-    if (!featureFlags.showControlsVariables) {
-      renderedSubNav = renderedSubNav.filter(
-        (navItem) => navItem.name !== "Variables"
-      );
-    }
     return renderedSubNav;
   }, [isGlobalAdmin, isTeamAdmin]);
 

@@ -17,6 +17,7 @@ import EmptyTable from "components/EmptyTable";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
 import DeleteSecretModal from "./components/DeleteSecretModal";
+import { set } from "lodash";
 
 const baseClass = "secrets-batch-paginated-list";
 
@@ -37,6 +38,8 @@ const Secrets = () => {
 
   const [count, setCount] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const queryClient = useQueryClient();
 
@@ -89,6 +92,7 @@ const Secrets = () => {
     secretName: string,
     secretValue: string
   ): Promise<object> => {
+    setIsSaving(true);
     const newSecret: ISecretPayload = {
       name: secretName,
       value: secretValue,
@@ -114,6 +118,9 @@ const Secrets = () => {
             "An error occurred while saving the secret. Please try again."
           );
         }
+      })
+      .finally(() => {
+        setIsSaving(false);
       });
     // The modal will handle conflict errors and display appropriate messages.
     return addSecretPromise;
@@ -128,6 +135,7 @@ const Secrets = () => {
     if (!secretToDelete) {
       return;
     }
+    setIsDeleting(true);
     secretsAPI
       .deleteSecret(secretToDelete.id)
       .then(() => {
@@ -136,6 +144,9 @@ const Secrets = () => {
       })
       .catch((error) => {
         console.error("Error deleting secret:", error);
+      })
+      .finally(() => {
+        setIsDeleting(false);
       });
   }, [secretToDelete]);
 
@@ -271,6 +282,7 @@ const Secrets = () => {
           onSubmit={(secretName: string, secretValue: string) => {
             return onSaveSecret(secretName, secretValue);
           }}
+          isSaving={isSaving}
         />
       )}
       {showDeleteModal && (
@@ -278,6 +290,7 @@ const Secrets = () => {
           secret={secretToDelete}
           onCancel={() => setShowDeleteModal(false)}
           onDelete={onDeleteSecret}
+          isDeleting={isDeleting}
         />
       )}
     </div>

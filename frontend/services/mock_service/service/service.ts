@@ -104,7 +104,12 @@ export const sendRequest = async (
   }
 
   if (responseKey) {
-    response = RESPONSES?.[method]?.[responseKey];
+    response = (RESPONSES?.[method] as Record<string, unknown> | undefined)?.[
+      responseKey
+    ] as
+      | Record<string, unknown>
+      | ((requestPath: string, data?: unknown) => Record<string, unknown>)
+      | undefined;
     if (typeof response === "function") {
       response = (response as (
         requestPath: string,

@@ -10,6 +10,7 @@ const baseClass = "fleet-add-secret-modal";
 interface AddSecretModalProps {
   onCancel: () => void;
   onSubmit: (secretName: string, secretValue: string) => Promise<object>;
+  isSaving: boolean;
 }
 
 export interface IAddSecretModalScheduleFormData {
@@ -17,7 +18,11 @@ export interface IAddSecretModalScheduleFormData {
   value: string;
 }
 
-const AddSecretModal = ({ onCancel, onSubmit }: AddSecretModalProps) => {
+const AddSecretModal = ({
+  onCancel,
+  onSubmit,
+  isSaving,
+}: AddSecretModalProps) => {
   const [secretName, setSecretName] = useState("");
   const [secretValue, setSecretValue] = useState("");
 
@@ -97,6 +102,7 @@ const AddSecretModal = ({ onCancel, onSubmit }: AddSecretModalProps) => {
               onSave(secretName, secretValue);
             }}
             disabled={!formValidation.isValid}
+            isLoading={isSaving}
           >
             Save
           </Button>
