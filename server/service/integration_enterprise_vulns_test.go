@@ -39,7 +39,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 	}{
 		{
 			name:  "ubuntu",
-			host:  test.NewHost(t, s.ds, "host_ubuntu2410", "", "hostkey_ubuntu2410", "hostuuid_ubuntu2410", time.Now(), test.WithPlatform("linux")),
+			host:  test.NewHost(t, s.ds, "host_ubuntu2410", "", "hostkey_ubuntu2410", "hostuuid_ubuntu2410", time.Now(), test.WithPlatform("ubuntu")),
 			vulns: []fleet.SoftwareVulnerability{{CVE: "CVE-2025-0001"}, {CVE: "CVE-2025-0002"}, {CVE: "CVE-2025-0003"}},
 			vulnsByKernelVersion: map[string][]string{
 				kernel1.Version: {"CVE-2025-0001", "CVE-2025-0002"},

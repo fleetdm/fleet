@@ -531,12 +531,12 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	host1 := test.NewHost(t, ds, "host_ubuntu2410", "", "hostkey_ubuntu2410", "hostuuid_ubuntu2410", time.Now(), test.WithPlatform("linux"))
-	host2 := test.NewHost(t, ds, "host_ubuntu2404", "", "hostkey_ubuntu2404", "hostuuid_ubuntu2404", time.Now(), test.WithPlatform("linux"))
-	host3 := test.NewHost(t, ds, "host_ubuntu2404_2", "", "hostkey_ubuntu2404_2", "hostuuid_ubuntu2404_2", time.Now(), test.WithPlatform("linux"))
+	host1 := test.NewHost(t, ds, "host_ubuntu2410", "", "hostkey_ubuntu2410", "hostuuid_ubuntu2410", time.Now(), test.WithPlatform("ubuntu"))
+	host2 := test.NewHost(t, ds, "host_ubuntu2404", "", "hostkey_ubuntu2404", "hostuuid_ubuntu2404", time.Now(), test.WithPlatform("ubuntu"))
+	host3 := test.NewHost(t, ds, "host_ubuntu2404_2", "", "hostkey_ubuntu2404_2", "hostuuid_ubuntu2404_2", time.Now(), test.WithPlatform("ubuntu"))
 
 	// Same as host 2 and 3, but on a different team
-	host4 := test.NewHost(t, ds, "host_ubuntu2404_3", "", "hostkey_ubuntu2404_3", "hostuuid_ubuntu2404_3", time.Now(), test.WithPlatform("linux"))
+	host4 := test.NewHost(t, ds, "host_ubuntu2404_3", "", "hostkey_ubuntu2404_3", "hostuuid_ubuntu2404_3", time.Now(), test.WithPlatform("ubuntu"))
 
 	os1 := &fleet.OperatingSystem{Name: "Ubuntu", Version: "24.10", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"}
 	os2 := &fleet.OperatingSystem{Name: "Ubuntu", Version: "24.04", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"}
