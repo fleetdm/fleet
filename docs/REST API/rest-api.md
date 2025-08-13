@@ -9859,7 +9859,6 @@ Returns information about the specified software version.
 {
   "software": {
     "id": 425224,
-    "software_title_id": 1337,
     "name": "Firefox.app",
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
