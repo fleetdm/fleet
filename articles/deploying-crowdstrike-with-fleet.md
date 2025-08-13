@@ -1,7 +1,7 @@
 # Deploy CrowdStrike with Fleet
 
 ![Fleet and CrowdStrike](../website/assets/images/articles/fleet-crowdstrike-cover-800x450@2x.png)
-CrowdStrike Falcon is a popular, highly-regarded cybersecurity platform. Falcon provides endpoint detection and response capabilities by using artificial intelligence, machine learning, and behavioral analytics to detect and prevent sophisticated attacks, including advanced persistent threats (APTs), malware, ransomware, and zero-day exploits. This guide covers CrowdStrike Falcon deployment and configuration across macOS, Windows, and Linux hosts using Fleet.
+This guide shows you how to deploy the CrowdStrike Falcon sensor on macOS, Windows, and Linux using Fleet. It covers uploading the required configuration profiles, installing the sensor, and passing your Customer ID for activation.
 
 For reference, Crowdstrike Falcon install documentation can be found at:
 
@@ -13,29 +13,36 @@ https://github.com/CrowdStrike/falcon-scripts
 
 CrowdStrike requires multiple `.mobileconfig` payloads on macOS. Each serves an important operational function.
 
-> It's possible these profiles can be combined into one payload, but we've kept them separate here for troubleshooting purposes.
+> You can combine these into one payload, but we've kept them separate for troubleshooting purposes.
 
-`crowdstrike-service-management.mobileconfig` - This payload is used to configure managed login items. A login item is an application or service that automatically launches when a user logs in.
+`crowdstrike-service-management.mobileconfig` - Configures managed login items so CrowdStrike services start automatically at login.
 
-`crowdstrike-notification.mobileconfig` - It's often easiest for an admin to control the notifications and various banners that an application presents to reduce end-user interaction and confusion. This profile helps supress items such as `ShowInLockScreen`.
+`crowdstrike-notification.mobileconfig` - Suppresses notifications and banners to reduce end-user interaction.
 
-`crowdstrike-system-extension` - An improvement on the classic macOS kernel extension, or kext, this validates the CrowdStrike Falcon extension in addition to preventing tampering and modification by your end users. The profile complements the other CrowdStrike configurations by ensuring users cannot disable or remove the network monitoring component through the macOS System Settings interface, maintaining continuous security protection on the device.
+`crowdstrike-system-extension` - Approves the CrowdStrike system extension and prevents tampering through System Settings.
 
-`crowdstrike-web-filter.mobileconfig` - This payload configures web filtering capabilities. It allows CrowdStrike to monitor network traffic at the socket level (FilterSockets is `true`) while not filtering individual packets (FilterPackets is `false`). A key component to comprehensive device protection, the filter is properly validated with Apple's security requirements and operates at the firewall level.
+`crowdstrike-web-filter.mobileconfig` - Enables web filtering to monitor network traffic at the socket level.
 
-`crowdstrike-full-disk-access.mobileconfig` - This privacy preference payload grants full disk access to CrowdStrike Falcon. It uses the CrowdStrike Apple Developer team identifier to grant the Falcon application the necessary macOS entitlements for modifying Privacy controls.
+`crowdstrike-full-disk-access.mobileconfig` - Grants full disk access to CrowdStrike components.
 
-### Installer
+### Upload the installer
 
-From your Falcon console, click **Host setup and management** > **Sensor Downloads**. Click **Download** for the appropriate OS and architecture.
+1. In the Falcon console, click **Host setup and management** > **Sensor Downloads**. 
+2. Download the installer for the appropriate OS and architecture.
+3. In Fleet, go to **Software > Add software > Custom package** to upload the installer
+4. Select **Automatic install** or **Self-service** if those options apply to your environment.
 
-From the **Software** tab in Fleet, select **Add software** > **Custom package**. Upload the installer from the previous step. Select **Automatic install** or **Self-service** if those options apply to your environment. 
+ 
 
->Working with different hardware architectures? Use labels to scope installs based on hardware.
+>Use [labels](https://fleetdm.com/guides/managing-labels-in-fleet) to scope installs for different hardware architectures.
 
-### Post-Install Script
+### Add a post-install script
 
-The **Customer ID** is used to assign hosts to your tenant and validate the CrowdStrike Falcon license using a script that calls the `falconctl` binary. Your Customer ID can be found on the Sensor download page. In Fleet, define the following post-install script for the CrwdStrike Falcon installer:
+The **Customer ID** is used to assign hosts to your tenant and validate the CrowdStrike Falcon license using a script that calls the `falconctl` binary.
+
+> Your Customer ID can be found on the Sensor download page.
+
+In Fleet, define the following post-install script for the CrowdStrike Falcon installer:
 
 ```
 #!/bin/bash
@@ -55,17 +62,28 @@ fi
 
 >If your org is using GitOps and you want to pass the site key as a secret, follow this guide: https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles
 
->For admins that are leveraging the macOS Setup Experience in Fleet, we recommend adding the software to the list of items installed on first boot.
+>For admins using the macOS Setup Experience in Fleet, we recommend adding the software to the list of items installed on first boot.
 
 ## Windows
 
 CrowdStrike offers `.exe` and `.msi` Falcon installers for Windows. Using the `.msi` is preferred as this installer type performs a silent, fully-automated installation when using the **Automatic install** option in Fleet.
 
-### Installer + script
+### Upload the installer
 
-After downloading the latest CrowdStrike Falcon `.msi` installer and retrieving your Customer ID from your admin console, navigate to the **Software** tab in Fleet, then select **Add software** > **Custom package**. Upload the installer from the previous step. Select **Automatic install** or **Self-service** if those options apply to your environment. 
+1. In the Falcon console, click **Host setup and management** > **Sensor Downloads**. 
+2. Download the installer for the appropriate OS and architecture.
+3. In Fleet, go to **Software > Add software > Custom package** to upload the installer
+4. Select **Automatic install** or **Self-service** if those options apply to your environment.
 
-The CrowdStrike Falcon tenant needs to collect the Customer ID from the host at time of install which we can be done with an **Install Script**. Copy and paste the code snippet below in Fleet and populate the value of the `$FalconCid` variable with your Customer ID string:
+> Use [labels](https://fleetdm.com/guides/managing-labels-in-fleet) to scope installs for different hardware architectures.
+
+### Add a post install script
+
+The **Customer ID** is used to assign hosts to your tenant and validate the CrowdStrike Falcon license using a script that calls the `falconctl` binary.
+
+> Your Customer ID can be found on the Sensor download page.
+
+In Fleet, define the following post-install script for the CrowdStrike Falcon installer, populating the value of the `$FalconCid` variable with your Customer ID string:
 
 ```
 # Set your Customer ID here
@@ -88,13 +106,20 @@ There are several other optional flags that can be added. Check the documentatio
 
 ## Linux
 
-As in previous steps, find the latest installer for your Linux distro and **Download**.
+### Upload the installer
 
-From the **Software** tab in Fleet, select **Add software** > **Custom package**. Upload the installer. Select **Automatic install** or **Self-service** if those options apply to your environment.
+1. In the Falcon console, click **Host setup and management** > **Sensor Downloads**. 
+2. Download the installer for the appropriate OS and architecture.
+3. In Fleet, go to **Software > Add software > Custom package** to upload the installer
+4. Select **Automatic install** or **Self-service** if those options apply to your environment.
+> Use [labels](https://fleetdm.com/guides/managing-labels-in-fleet) to scope installs for different hardware architectures.```
 
-### Post-install script
 
-The default install script that is populated in Fleet is sufficient, but, a post-install script is needed to set the site token and start the agent services. Below is an example post-install script that will set the token, start the service and check the status. Adjust the sleep time if needed. Also, populate the value of the `$FalconCid` variable with your Customer ID string.
+### Add a post-install script
+
+The **Customer ID** is used to assign hosts to your tenant and validate the CrowdStrike Falcon license using a script that calls the `falconctl` binary.
+> Your Customer ID can be found on the Sensor download page.
+In Fleet, define the following post-install script for the CrowdStrike Falcon installer, populating the value of the `$FalconCid` variable with your Customer ID string:
 
 ```
 #!/bin/bash
@@ -128,7 +153,6 @@ Admins can verify the installation by running a command searching for the falcon
 
 Fleet offers admins a straight-forward approach to deploying the CrowdStrike Falcon application across your macOS, Linux and Windows hosts.
 
-Want to learn more or need additional information? Reach out directly to me or the [team at Fleet](https://fleetdm.com/contact) today!
 
 
 <meta name="articleTitle" value="Deploy CrowdStrike with Fleet">
