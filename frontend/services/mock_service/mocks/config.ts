@@ -75,7 +75,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
   },
   DELETE: {
     "custom_variables/*": RESPONSES.deleteSecret,
-  }
+  },
 } as IResponses;
 
 export default { DELAY, ENDPOINT, WILDCARDS, REQUEST_RESPONSE_MAPPINGS };

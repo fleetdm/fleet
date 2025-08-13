@@ -10685,5 +10685,5 @@ export default {
   hostDetailsiOS,
   secrets,
   addSecret,
-  deleteSecret
+  deleteSecret,
 };
