@@ -2210,6 +2210,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.BatchActivityJobName, job.Name)
 	// Time from DB isn't super accurate
 	require.Equal(t, scheduledTime.Truncate(time.Minute), job.NotBefore.Truncate(time.Minute))
+	assert.JSONEq(t, fmt.Sprintf(`{"execution_id":%q}`, execID), string(*job.Args))
 
 	batchActivity, err := ds.GetBatchActivity(ctx, execID)
 	require.NoError(t, err)
