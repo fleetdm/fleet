@@ -180,6 +180,8 @@ To start the Fleet server backed by the Docker development infrastructure, run t
 ./build/fleet serve --dev
 ```
 
+> To develop Fleet's MDM features, you have to pass a `--fleet_server_private_key` in your `fleet serve --dev` command. Learn how to generate a private key in [Fleet's server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
+
 ### Developing the Fleet UI
 
 When the Fleet server is running, the Fleet UI is accessible by default at
