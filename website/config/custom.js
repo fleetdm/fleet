@@ -397,6 +397,20 @@ module.exports.custom = {
     'qq.com',
   ],
 
+  /***************************************************************************
+   *                                                                          *
+   * GitHub Projects v2 configuration for engineering metrics                 *
+   *                                                                          *
+   ***************************************************************************/
+  githubProjectsV2: {
+    projects: {
+      orchestration: 71,
+      mdm: 58,
+      software: 70
+    },
+    excludeWeekends: true
+  },
+
   // Zapier:
   // zapierWebhookSecret: '…',
 
