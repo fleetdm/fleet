@@ -19,7 +19,11 @@ const DeleteSecretModal = ({
   isDeleting,
 }: DeleteSecretModalProps) => {
   return (
-    <Modal title="Add custom variable" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Delete custom variable?"
+      onExit={onCancel}
+      className={baseClass}
+    >
       <>
         <p>
           This will delete the <b>{secret?.name}</b> custom variable.

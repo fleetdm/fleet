@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { useQueryClient } from "react-query";
 
@@ -103,7 +109,7 @@ const Secrets = () => {
         setShowAddModal(false);
         // If we're showing a list right now, tell it to reload.
         if (paginatedListRef.current) {
-          paginatedListRef.current?.reload({ keepPage: true });
+          paginatedListRef.current?.reload();
         } else {
           // If we were showing the empty state, fetch the first page
           // to populate the list.
@@ -138,7 +144,7 @@ const Secrets = () => {
     secretsAPI
       .deleteSecret(secretToDelete.id)
       .then(() => {
-        paginatedListRef.current?.reload({ keepPage: true });
+        paginatedListRef.current?.reload();
         setShowDeleteModal(false);
       })
       .catch((error) => {
@@ -173,6 +179,15 @@ const Secrets = () => {
 
     return false;
   };
+
+  // Cleanup timeout on unmount.
+  useEffect(() => {
+    return () => {
+      if (copyMessageTimeoutIdRef.current) {
+        clearTimeout(copyMessageTimeoutIdRef.current);
+      }
+    };
+  }, []);
 
   const renderSecretRow = (secret: ISecret) => (
     <>

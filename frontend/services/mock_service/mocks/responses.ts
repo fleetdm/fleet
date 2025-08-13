@@ -10608,6 +10608,7 @@ let mockSecrets = new Array(39).fill(null).map((_, index) => ({
   created_at: new Date(Date.now() - index * 1000 * 60 * 60 * 24).toISOString(), // Created 1 day apart
   updated_at: new Date(Date.now() - index * 1000 * 60 * 60 * 24).toISOString(), // Updated 1 day apart
 }));
+let nextSecretId = mockSecrets.length + 1;
 
 const SECRETS_PAGE_SIZE = 20;
 const secrets = (url: string) => {
@@ -10645,7 +10646,7 @@ const addSecret = (url: string, secret: any) => {
     ...mockSecrets,
     {
       name: secret.name,
-      id: mockSecrets.length + 1,
+      id: (nextSecretId += 1),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },

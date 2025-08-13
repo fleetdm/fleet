@@ -19,7 +19,7 @@ const baseClass = "paginated-list";
 // the list of dirty items.
 export interface IPaginatedListHandle<TItem> {
   getDirtyItems: () => TItem[];
-  reload: (opts?: { keepPage?: boolean }) => Promise<void>;
+  reload: () => Promise<void>;
 }
 interface IPaginatedListProps<TItem> {
   /** Function to fetch one page of data.
@@ -196,14 +196,12 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     getDirtyItems() {
       return Object.values(dirtyItems);
     },
-    reload: async ({ keepPage } = {}) => {
-      const pageToLoad = keepPage ? currentPage : 0;
+    reload: async () => {
       try {
         setIsLoadingPage(true);
         setError(null);
-        const result = await fetchPage(pageToLoad);
+        const result = await fetchPage(currentPage);
         setItems(result);
-        if (!keepPage) setCurrentPage(0);
       } catch (e) {
         setError(e as Error);
       } finally {
