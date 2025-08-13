@@ -65,7 +65,9 @@ const EndUserAuthForm = ({
           Require end users to authenticate with your identity provider (IdP)
           and agree to an end user license agreement (EULA) when they setup
           their new macOS, iOS, iPadOS and Android hosts.{" "}
-          <Link to={PATHS.ADMIN_INTEGRATIONS_MDM}>View IdP and EULA</Link>
+          <Link to={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}>
+            View IdP and EULA
+          </Link>
         </p>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
