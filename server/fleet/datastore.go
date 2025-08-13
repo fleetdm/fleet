@@ -1831,8 +1831,8 @@ type Datastore interface {
 	GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*BatchActivityHostResult, error)
 
 	// RunScheduledBatchActivity takes a scheduled batch script avtivity and executes it, queueing
-	// the script on the hosts. Note that it does not check the `not_before` column and assumes it
-	// is being executed at the right time.
+	// the script on the hosts. Note that it does not know about the `not_before` column on the jobs
+	// table and assumes it is being executed at the right time.
 	RunScheduledBatchActivity(ctx context.Context, executionID string) error
 
 	// BatchExecuteSummary returns the summary of a batch script execution
