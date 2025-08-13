@@ -1,4 +1,3 @@
-
 ## Fleet 4.72.0 (Aug 13, 2025)
 
 ### Security Engineers
