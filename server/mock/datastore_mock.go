@@ -1171,6 +1171,12 @@ type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.
 
 type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
+type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
+
+type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
+
 type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
 type ListBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error)
@@ -1178,12 +1184,6 @@ type ListBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchE
 type CountBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error)
 
 type MarkActivitiesAsCompletedFunc func(ctx context.Context) error
-
-type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
-
-type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
-
-type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
 
 type GetHostLockWipeStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error)
 
@@ -1304,6 +1304,8 @@ type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string,
 type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
 type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error)
+
+type TeamIDsWithSetupExperienceIdPEnabledFunc func(ctx context.Context) ([]uint, error)
 
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
@@ -3182,13 +3184,13 @@ type DataStore struct {
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
 
-	LastBatchScriptExecutionsFunc        ListBatchScriptExecutionsFunc
-	LastBatchScriptExecutionsFuncInvoked bool
+	ListBatchScriptExecutionsFunc        ListBatchScriptExecutionsFunc
+	ListBatchScriptExecutionsFuncInvoked bool
 
 	CountBatchScriptExecutionsFunc        CountBatchScriptExecutionsFunc
 	CountBatchScriptExecutionsFuncInvoked bool
 
-	MarkActivitiesAsCompletedFunc		MarkActivitiesAsCompletedFunc
+	MarkActivitiesAsCompletedFunc        MarkActivitiesAsCompletedFunc
 	MarkActivitiesAsCompletedFuncInvoked bool
 
 	GetHostLockWipeStatusFunc        GetHostLockWipeStatusFunc
@@ -3370,6 +3372,9 @@ type DataStore struct {
 
 	GetTeamsWithInstallerByHashFunc        GetTeamsWithInstallerByHashFunc
 	GetTeamsWithInstallerByHashFuncInvoked bool
+
+	TeamIDsWithSetupExperienceIdPEnabledFunc        TeamIDsWithSetupExperienceIdPEnabledFunc
+	TeamIDsWithSetupExperienceIdPEnabledFuncInvoked bool
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
@@ -7635,9 +7640,9 @@ func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string)
 
 func (s *DataStore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
 	s.mu.Lock()
-	s.LastBatchScriptExecutionsFuncInvoked = true
+	s.ListBatchScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.LastBatchScriptExecutionsFunc(ctx, filter)
+	return s.ListBatchScriptExecutionsFunc(ctx, filter)
 }
 
 func (s *DataStore) CountBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error) {
@@ -8072,6 +8077,13 @@ func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 stri
 	s.GetTeamsWithInstallerByHashFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetTeamsWithInstallerByHashFunc(ctx, sha256, url)
+}
+
+func (s *DataStore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error) {
+	s.mu.Lock()
+	s.TeamIDsWithSetupExperienceIdPEnabledFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamIDsWithSetupExperienceIdPEnabledFunc(ctx)
 }
 
 func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
