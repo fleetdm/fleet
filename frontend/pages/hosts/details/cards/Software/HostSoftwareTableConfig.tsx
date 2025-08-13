@@ -12,7 +12,6 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -25,6 +24,7 @@ import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/Vulnerabil
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import { sourcesWithLastOpenedTime } from "pages/hosts/details/components/InventoryVersions/InventoryVersions";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -141,26 +141,21 @@ export const generateSoftwareTableHeaders = ({
         ); // cellProps.cell.value = mostRecent;
       },
       Cell: (cellProps: ITableStringCellProps) => {
-        const { source } = cellProps.row.original;
-        const shouldShowNever =
-          !cellProps.cell.value &&
-          (source === "programs" ||
-            source === "apps" ||
-            source === "deb_packages" ||
-            source === "rpm_packages");
-
-        let displayValue;
         if (cellProps.cell.value) {
-          displayValue = (
-            <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
+          return (
+            <TextCell
+              value={
+                <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
+              }
+            />
           );
-        } else if (!shouldShowNever) {
-          displayValue = "Not supported";
-        } else {
-          return <TextCell value="Never" />;
         }
 
-        return <TextCell value={displayValue} grey={!cellProps.cell.value} />;
+        return sourcesWithLastOpenedTime.has(cellProps.row.original.source) ? (
+          <TextCell value="Never" />
+        ) : (
+          <TextCell value="Not supported" grey />
+        );
       },
     },
     {

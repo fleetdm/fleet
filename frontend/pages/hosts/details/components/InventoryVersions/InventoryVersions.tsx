@@ -12,6 +12,13 @@ import {
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 
+export const sourcesWithLastOpenedTime = new Set([
+  "programs",
+  "apps",
+  "deb_packages",
+  "rpm_packages",
+]);
+
 const generateVulnerabilitiesValue = (vulnerabilities: string[]) => {
   const first3 = vulnerabilities.slice(0, 3);
   const rest = vulnerabilities.slice(3);
@@ -57,11 +64,7 @@ const InventoryVersion = ({
         {bundleIdentifier && (
           <DataSet title="Bundle identifier" value={bundleIdentifier} />
         )}
-        {version.last_opened_at ||
-        source === "programs" ||
-        source === "apps" ||
-        source === "deb_packages" ||
-        source === "rpm_packages" ? (
+        {version.last_opened_at || sourcesWithLastOpenedTime.has(source) ? (
           <DataSet
             title="Last opened"
             value={
