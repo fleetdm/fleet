@@ -2336,10 +2336,6 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testBatchScriptRunScheduled(t *testing.T, ds *Datastore) {
-
-}
-
 func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
