@@ -1,9 +1,3 @@
-/*
- * NOTE: This is an example of how to define data for your mock responses.
- * Be sure to copy this file into `../mocks` and only edit that copy!
- * Also please check the README for how to use the mock service :)
- */
-
 import { createMockIosHostResponse } from "__mocks__/hostMock";
 import { createMockPoliciesResponse } from "__mocks__/policyMock";
 

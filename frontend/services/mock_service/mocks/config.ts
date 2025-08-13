@@ -1,9 +1,3 @@
-/*
- * NOTE: This is an example of how to configure your mock service.
- * Be sure to copy this file into `../mocks` and only edit that copy!
- * Also please check the README for how to use the mock service :)
- */
-
 import RESPONSES from "./responses";
 
 interface IResponses {
