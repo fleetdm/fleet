@@ -54,6 +54,8 @@ To turn on Android MDM, use a Chrome private window (so that you are not logged 
 
 If it fails enabling Android MDM due to an already existing enterprise (error "This enterprise is already enrolled with another EMM." when attempting to enable it again) and a personal (gmail) account was used, you must go to https://play.google.com/work, click "Admin settings", and delete the organization that was created the last time (e.g. "test.com"). You will then be able to enable Android MDM again.
 
+There's also a command-line tool in `tools/android` that can list/delete/etc. enterprises associated with the service account.
+
 ## Known issues and limitations
 - The Fleet server URL must be public for pub/sub to work properly.
 - The Fleet server URL cannot change -- pub/sub is set up with one URL. See issue [Allow Fleet server URL update when using Android](https://github.com/fleetdm/fleet/issues/29878)
