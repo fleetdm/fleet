@@ -1181,6 +1181,8 @@ type GetBatchActivityByJobIDFunc func(ctx context.Context, jobID uint) (*fleet.B
 
 type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
 
+type RunScheduledBatchActivityFunc func(ctx context.Context, executionID string) error
+
 type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
 type CancelBatchScriptFunc func(ctx context.Context, executionID string) error
@@ -3190,6 +3192,9 @@ type DataStore struct {
 
 	GetBatchActivityHostResultsFunc        GetBatchActivityHostResultsFunc
 	GetBatchActivityHostResultsFuncInvoked bool
+
+	RunScheduledBatchActivityFunc        RunScheduledBatchActivityFunc
+	RunScheduledBatchActivityFuncInvoked bool
 
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
@@ -7653,6 +7658,13 @@ func (s *DataStore) GetBatchActivityHostResults(ctx context.Context, executionID
 	s.GetBatchActivityHostResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetBatchActivityHostResultsFunc(ctx, executionID)
+}
+
+func (s *DataStore) RunScheduledBatchActivity(ctx context.Context, executionID string) error {
+	s.mu.Lock()
+	s.RunScheduledBatchActivityFuncInvoked = true
+	s.mu.Unlock()
+	return s.RunScheduledBatchActivityFunc(ctx, executionID)
 }
 
 func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {

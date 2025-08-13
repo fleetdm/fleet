@@ -22,19 +22,13 @@ func (b *BatchScripts) Name() string {
 }
 
 func (b *BatchScripts) Run(ctx context.Context, jobArgs json.RawMessage) error {
-	ds := b.Datastore
 	var args fleet.BatchActivityScriptJobArgs
 
 	if err := json.Unmarshal(jobArgs, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal json")
 	}
 
-	activity, err := ds.GetBatchActivity(ctx, args.ExecutionID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting batch activity")
-	}
-
-	if err := ds.RunScheduledBatchActivity(ctx, activity.BatchExecutionID); err != nil {
+	if err := b.Datastore.RunScheduledBatchActivity(ctx, args.ExecutionID); err != nil {
 		return ctxerr.Wrap(ctx, err, "running scheduled batch script")
 	}
 
