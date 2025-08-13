@@ -36,6 +36,7 @@ const (
 	CronUpcomingActivitiesMaintenance  CronScheduleName = "upcoming_activities_maintenance"
 	CronHostVitalsLabelMembership      CronScheduleName = "host_vitals_label_membership"
 	CronBatchActivityCompletionChecker CronScheduleName = "batch_activity_completion_checker"
+	CronScheduledBatchActivities       CronScheduleName = "scheduled_batch_activities"
 )
 
 type CronSchedulesService interface {

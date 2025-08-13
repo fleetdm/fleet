@@ -1728,3 +1728,40 @@ func newUpcomingActivitiesSchedule(
 
 	return s, nil
 }
+
+func newBatchActivitiesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronScheduledBatchActivities)
+		defaultInterval = 2 * time.Minute
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+
+	w := worker.NewWorker(ds, logger)
+
+	scriptsJob := &worker.BatchScripts{
+		Datastore: ds,
+		Log:       logger,
+	}
+
+	w.Register(scriptsJob)
+
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("batch_activities_worker", func(ctx context.Context) error {
+			if err := w.ProcessJobs(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "processing batch activity worker jobs")
+			}
+
+			return nil
+		}),
+	)
+
+	return s, nil
+}
