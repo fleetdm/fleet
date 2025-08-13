@@ -200,7 +200,9 @@ This setting should not usually be used.
 
 ### mysql_sts_assume_role_arn
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for MySQL authentication.
+Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for MySQL authentication. 
+
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `mysql_username` and `mysql_password` or `mysql_password_path`.
 
 - Default value: `""`
 - Environment variable: `FLEET_MYSQL_STS_ASSUME_ROLE_ARN`
@@ -299,7 +301,9 @@ Use a TLS connection to the Redis server.
 
 ### redis_sts_assume_role_arn
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Redis authentication.
+Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Redis authentication. 
+
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `redis_username` and `redis_password` optional.
 
 - Default value: `""`
 - Environment variable: `FLEET_REDIS_STS_ASSUME_ROLE_ARN`
@@ -1402,6 +1406,8 @@ This flag only has effect if one of the following is true:
 
 Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Firehose authentication.
 
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `firehose_access_key_id` and `firehose_secret_access_key`.
+
 - Default value: none
 - Environment variable: `FLEET_FIREHOSE_STS_ASSUME_ROLE_ARN`
 - Config file format:
@@ -1550,6 +1556,8 @@ This flag only has effect if one of the following is true:
 
 Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Kinesis authentication.
 
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `kinesis_access_key_id` and `kinesis_secret_access_key`.
+
 - Default value: none
 - Environment variable: `FLEET_KINESIS_STS_ASSUME_ROLE_ARN`
 - Config file format:
@@ -1697,6 +1705,8 @@ This flag only has effect if one of the following is true:
 - `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
 Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Lambda authentication.
+
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `lambda_access_key_id` and `lambda_secret_access_key`.
 
 - Default value: none
 - Environment variable: `FLEET_LAMBDA_STS_ASSUME_ROLE_ARN`
@@ -2037,6 +2047,8 @@ This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to 
 
 Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Simple Email Service (SES) authentication.
 
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `ses_access_key_id` and `ses_secret_access_key`.
+
 - Default value: none
 - Environment variable: `FLEET_SES_STS_ASSUME_ROLE_ARN`
 - Config file format:
@@ -2144,6 +2156,8 @@ AWS secret access key to use for S3 authentication.
 *Available in Fleet Premium.*
 
 Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for S3 authentication.
+
+If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN`
