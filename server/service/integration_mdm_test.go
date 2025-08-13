@@ -10226,7 +10226,8 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 
 	t.Cleanup(func() {
 		acResp.MDM.MacOSSetup.EnableEndUserAuthentication = false
-		s.ds.SaveAppConfig(context.Background(), &acResp.AppConfig)
+		err := s.ds.SaveAppConfig(context.Background(), &acResp.AppConfig)
+		require.NoError(t, err)
 	})
 }
 
