@@ -32,7 +32,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 		Name     string `db:"name"`
 		Platform string `db:"platform"`
 	}
-	existingLabels := make(map[string]existingLabel)
+	existingLabels := make(map[string]existingLabel, len(specs))
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// TODO: do we want to allow on duplicate updating label_type or
@@ -48,7 +48,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			var labels []existingLabel
-			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, args...); err != nil {
+			if err := sqlx.SelectContext(ctx, tx, &labels, stmt, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "query existing labels")
 			}
 
