@@ -205,20 +205,25 @@ SELECT DISTINCT
 	software.id AS id,
 	software_cve.cve AS cve,
 	software.version AS version,
-    kernel_host_counts.hosts_count AS hosts_count
+    SUM(kernel_host_counts.hosts_count) AS hosts_count
 FROM
 	software
 	LEFT JOIN software_cve ON software.id = software_cve.software_id
 	JOIN kernel_host_counts ON kernel_host_counts.software_id = software.id
 WHERE
-	kernel_host_counts.os_version_id = ? AND
-	kernel_host_counts.team_id = ?
+	kernel_host_counts.os_version_id = ? %s GROUP BY id, cve, version
 `
 
 	var tmID uint
+	var teamFilter string
+	args := []any{osVersionID}
 	if teamID != nil {
 		tmID = *teamID
+		teamFilter = "AND kernel_host_counts.team_id = ?"
+		args = append(args, tmID)
 	}
+
+	stmt = fmt.Sprintf(stmt, teamFilter)
 
 	var results []struct {
 		ID         uint    `db:"id"`
@@ -226,11 +231,14 @@ WHERE
 		Version    string  `db:"version"`
 		HostsCount uint    `db:"hosts_count"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, osVersionID, tmID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing kernels by OS name")
 	}
 
 	kernelSet := make(map[uint]*fleet.Kernel)
+	if teamID == nil {
+		fmt.Printf("results: %+v\n", results)
+	}
 	for _, result := range results {
 		k, ok := kernelSet[result.ID]
 		if !ok {
@@ -263,7 +271,7 @@ func (ds *Datastore) InsertKernelSoftwareMapping(ctx context.Context) error {
 
 	statsStmt := `
 INSERT IGNORE INTO kernel_host_counts (software_title_id, software_id, os_version_id, hosts_count, team_id)
-	SELECT DISTINCT
+	SELECT
 		software_titles.id AS software_title_id,
 		software.id AS software_id,
 		operating_systems.os_version_id AS os_version_id,
@@ -275,7 +283,7 @@ INSERT IGNORE INTO kernel_host_counts (software_title_id, software_id, os_versio
 		JOIN host_software ON host_software.software_id = software.id
 		JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
 		JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
-		JOIN hosts on hosts.id = host_software.host_id
+		JOIN hosts ON hosts.id = host_software.host_id
 	WHERE
 		software_titles.is_kernel = TRUE
 	GROUP BY

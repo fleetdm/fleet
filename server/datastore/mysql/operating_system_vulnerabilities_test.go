@@ -535,6 +535,9 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host_ubuntu2404", "", "hostkey_ubuntu2404", "hostuuid_ubuntu2404", time.Now(), test.WithPlatform("linux"))
 	host3 := test.NewHost(t, ds, "host_ubuntu2404_2", "", "hostkey_ubuntu2404_2", "hostuuid_ubuntu2404_2", time.Now(), test.WithPlatform("linux"))
 
+	// Same as host 2 and 3, but on a different team
+	host4 := test.NewHost(t, ds, "host_ubuntu2404_3", "", "hostkey_ubuntu2404_3", "hostuuid_ubuntu2404_3", time.Now(), test.WithPlatform("linux"))
+
 	os1 := &fleet.OperatingSystem{Name: "Ubuntu", Version: "24.10", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"}
 	os2 := &fleet.OperatingSystem{Name: "Ubuntu", Version: "24.04", Arch: "x86_64", KernelVersion: "6.11.0-9-generic", Platform: "ubuntu"}
 
@@ -542,11 +545,16 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_" + t.Name()})
 	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2_" + t.Name()})
+	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID, host2.ID, host3.ID})))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host4.ID})))
 
 	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host1.ID, *os1))
 	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host2.ID, *os2))
 	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host3.ID, *os2))
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host4.ID, *os2))
 
 	os1, err = ds.GetHostOperatingSystem(ctx, host1.ID)
 	require.NoError(t, err)
@@ -556,7 +564,7 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 
 	var vulnsToInsert []fleet.SoftwareVulnerability
 
-	for _, h := range []*fleet.Host{host1, host2, host3} {
+	for _, h := range []*fleet.Host{host1, host2, host3, host4} {
 		_, err = ds.UpdateHostSoftware(ctx, h.ID, []fleet.Software{kernel})
 		require.NoError(t, err)
 		require.NoError(t, ds.LoadHostSoftware(ctx, h, false))
@@ -577,22 +585,106 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
+	for _, h := range []*fleet.Host{host1, host2, host3, host4} {
+		require.NoError(t, ds.LoadHostSoftware(ctx, h, false))
+	}
+
 	require.NoError(t, ds.UpdateOSVersions(ctx))
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 	require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
 
+	// TODO: Remove
+	// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	// DumpTable(t, q, "kernel_host_counts")
+	// DumpTable(t, q, "hosts", "id", "team_id")
+	// DumpTable(t, q, "host_software", "host_id", "software_id")
+	// DumpTable(t, q, "host_operating_system")
+	// 		var results []struct {
+	// 			TitleID     uint `db:"software_title_id"`
+	// 			SoftwareID  uint `db:"software_id"`
+	// 			OSVersionID uint `db:"os_version_id"`
+	// 			HostsCount  uint `db:"hosts_count"`
+	// 			TeamID      uint `db:"team_id"`
+	// 		}
+	// 		s := `
+	// 		SELECT
+	// 			software_titles.id AS software_title_id,
+	// 			software.id AS software_id,
+	// 			operating_systems.os_version_id AS os_version_id,
+	// 			COUNT(host_operating_system.host_id) AS hosts_count,
+	// 			hosts.team_id AS team_id
+	// 		FROM
+	// 			software_titles
+	// 			JOIN software ON software.title_id = software_titles.id
+	// 			JOIN host_software ON host_software.software_id = software.id
+	// 			JOIN host_operating_system ON host_operating_system.host_id = host_software.host_id
+	// 			JOIN operating_systems ON operating_systems.id = host_operating_system.os_id
+	// 			JOIN hosts ON hosts.id = host_software.host_id
+	// 		WHERE
+	// 			software_titles.is_kernel = TRUE
+	// 		GROUP BY
+	// 			software_title_id,
+	// 			software_id,
+	// 			os_version_id,
+	// 			team_id
+	// 		`
+	// 		err := sqlx.SelectContext(ctx, q, &results, s)
+	// 		require.NoError(t, err)
+	// 		fmt.Printf("results: %+v\n", results)
+	// 		var r []struct {
+	// 			ID         uint    `db:"id"`
+	// 			CVE        *string `db:"cve"`
+	// 			Version    string  `db:"version"`
+	// 			HostsCount uint    `db:"hosts_count"`
+	// 		}
+	// 		s = `SELECT DISTINCT
+	// 			software.id AS id,
+	// 			software.version AS version,
+	//     SUM(kernel_host_counts.hosts_count) AS hosts_count
+	// FROM
+	// 			software
+	// 			LEFT JOIN software_cve ON software.id = software_cve.software_id
+	// 			JOIN kernel_host_counts ON kernel_host_counts.software_id = software.id
+	// WHERE
+	// 			kernel_host_counts.os_version_id = ? GROUP BY id, version `
+	// 		require.NoError(t, sqlx.SelectContext(ctx, q, &r, s, 2))
+	// 		fmt.Printf("r: %+v\n", r)
+	// return nil
+	// })
+
+	expectedCVEs := []string{"CVE-2025-0001", "CVE-2025-0002"}
+
 	kernels, err := ds.ListKernelsByOS(ctx, os1.OSVersionID, &team1.ID)
 	require.NoError(t, err)
 	require.Len(t, kernels, 1)
-	assert.ElementsMatchf(t, []string{"CVE-2025-0001", "CVE-2025-0002"}, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
+	assert.ElementsMatchf(t, expectedCVEs, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
 	assert.Equal(t, uint(1), kernels[0].HostsCount) // host1
 
 	kernels, err = ds.ListKernelsByOS(ctx, os2.OSVersionID, &team1.ID)
 	require.NoError(t, err)
 	require.Len(t, kernels, 1)
-	assert.ElementsMatchf(t, []string{"CVE-2025-0001", "CVE-2025-0002"}, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
-	assert.Equal(t, uint(2), kernels[0].HostsCount) // host2 + host3
+	require.Equal(t, uint(2), kernels[0].HostsCount)
 
+	kernels, err = ds.ListKernelsByOS(ctx, os2.OSVersionID, &team2.ID)
+	require.NoError(t, err)
+	require.Len(t, kernels, 1)
+	assert.ElementsMatchf(t, expectedCVEs, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
+	assert.Equal(t, uint(1), kernels[0].HostsCount) // host4
+
+	// "All teams" (aka team ID is nil)
+	// For os2, should be 3 since it's on host2, host3, and host4
+	kernels, err = ds.ListKernelsByOS(ctx, os2.OSVersionID, nil)
+	require.NoError(t, err)
+	require.Len(t, kernels, 1)
+	assert.ElementsMatchf(t, expectedCVEs, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
+	assert.Equal(t, uint(3), kernels[0].HostsCount)
+
+	// For os1, should be 1 since it's on host1
+	kernels, err = ds.ListKernelsByOS(ctx, os1.OSVersionID, nil)
+	require.NoError(t, err)
+	require.Len(t, kernels, 1)
+	assert.ElementsMatchf(t, expectedCVEs, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
+	assert.Equal(t, uint(1), kernels[0].HostsCount)
 }
