@@ -52,6 +52,12 @@ const CustomLink = ({
     [`${baseClass}--multiline`]: multiline,
   });
 
+  // Needed to not trigger clickable parent elements
+  // e.g. cell/row handlers with a tooltip that has a custom link inside
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   const target = newTab ? "_blank" : "";
 
   const multilineText = text.substring(0, text.lastIndexOf(" ") + 1);
@@ -91,6 +97,7 @@ const CustomLink = ({
       rel="noopener noreferrer"
       className={customLinkClass}
       tabIndex={disableKeyboardNavigation ? -1 : 0}
+      onClick={handleClick}
     >
       {content}
     </a>

@@ -8,6 +8,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------|
 | Head of Customers                     | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_
 | Account Executive (AE)                | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
 
 

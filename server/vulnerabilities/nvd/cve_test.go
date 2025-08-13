@@ -553,6 +553,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:google:chrome:138.0.7204.91:*:*:*:*:linux:*:*": {
+			excludedCVEs:      []string{"CVE-2025-6554"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:google:chrome:138.0.7204.92:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2025-6554"},
+			continuesToUpdate: true,
+		},
 	}
 
 	cveOSTests := []struct {

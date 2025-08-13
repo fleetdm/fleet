@@ -69,24 +69,22 @@ All bug fix pull requests should reference the issue they resolve with the issue
 
 ### Review a community pull request
 
-If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
+If you're assigned a community pull request (PR) for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor. This applies to PRs from Fleeties, open source contributors, member of the Customer Success team, etc.
 
 If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
 
+Make sure to create a Github issue and link it to the PR so that we can track the changes in our release process. Make sure to assign the correct milestone to the issue (by having an issue, QA will make sure the fix is not causing regressions).
+
 **For PRs that change the product:**
 
-- Assign the PR to the appropriate product group EM (Engineering Manager).
-- Notify the EM in the #help-engineering Slack channel.
+- Assign the PR to the appropriate Product Designer (PD).
+- Notify the relevant PD in the #g-mdm, #g-software, or #g-orchestration Slack channel.
 
-The EM will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The EM should:
+The PD will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The PD should:
 
 - Set the PR to draft.
-- Thank the contributor for their hard work, explain that all changes to the product go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized), and ask them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describe the change their PR is introducing.
-
-**For PRs that will not be merged:**
-
-- Thank the contributor for their effort and explain why the changes won't be merged.
-- Close the PR.
+- Immediately decide whether to prioritize a user story and bring it through drafting or put the change to the side (not prioritize).
+- Thank the contributor for their hard work, notify them on whether their change was prioritized or put to the side. If the change was put to the side, ask the contributor to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describes the change, let them know that it only means the change has been rejected _at that time_, and close the PR.
 
 
 ### Merge a community pull request
@@ -104,6 +102,9 @@ When merging a pull request from a community contributor:
 
 If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
 
+### Close a stale community PR
+
+If a community PR hasn't had any updates or response from the author after one week, convert the PR to draft and add a comment tagging the author to let them know they are welcome to push any updates and convert it back to non-draft. After one year, our bot will auto-close it with a comment if it doesn't get updated.
 
 ### Schedule developer on-call workload
 

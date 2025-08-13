@@ -19,8 +19,18 @@ import (
 const (
 	testUsername = "root"
 	testPassword = "toor"
-	testAddress  = "localhost:3307"
 )
+
+var (
+	testAddress = getTestAddress()
+)
+
+func getTestAddress() string {
+	if port := os.Getenv("FLEET_MYSQL_TEST_PORT"); port != "" {
+		return "localhost:" + port
+	}
+	return "localhost:3307"
+}
 
 func panicif(err error) {
 	if err != nil {

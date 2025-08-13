@@ -1841,7 +1841,7 @@ func (s *integrationMDMTestSuite) TestEscrowBuddyBackwardsCompat() {
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	// set the status as non-decryptable so a notification should be sent
-	err := s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "", ptr.Bool(false))
+	_, err := s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "", ptr.Bool(false))
 	require.NoError(t, err)
 
 	// notification is false because the escrow buddy capability is not set
@@ -1988,7 +1988,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	require.NoError(t, err)
 	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
 
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64EncryptedKey, "", nil)
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64EncryptedKey, "", nil)
 	require.NoError(t, err)
 
 	// get that host - it has an encryption key with unknown decryptability, so
@@ -2178,7 +2178,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusForbidden, &resp)
 
 	// clear the current key and archived key still exists
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "", nil)
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "", nil)
 	require.NoError(t, err)
 
 	// switch to the admin token to get the key
@@ -2222,7 +2222,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	encryptedKey, err := microsoft_mdm.Encrypt(recoveryKey, cert.Leaf)
 	require.NoError(t, err)
 
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, encryptedKey, "", ptr.Bool(true))
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, encryptedKey, "", ptr.Bool(true))
 	require.NoError(t, err)
 
 	resp = getHostEncryptionKeyResponse{}
@@ -2233,7 +2233,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 		fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID), 0)
 
 	// update the key to blank with a client error
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "failed", nil)
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "failed", nil)
 	require.NoError(t, err)
 
 	resp = getHostEncryptionKeyResponse{}
@@ -2417,7 +2417,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 			})
 			require.NoError(t, err)
 			oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
-			err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "test-key", "", nil)
+			_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "test-key", "", nil)
 			require.NoError(t, err)
 			err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, decryptable, oneMinuteAfterThreshold)
 			require.NoError(t, err)
@@ -5882,8 +5882,8 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 
 	// add two profiles to no team, one that uses the IdP username and one that uses groups
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: mobileconfigForTest("N1", "I1", fleet.FleetVarHostEndUserIDPUsername)},
-		{Name: "N2", Contents: mobileconfigForTest("N2", "I2", fleet.FleetVarHostEndUserIDPGroups)},
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1", string(fleet.FleetVarHostEndUserIDPUsername))},
+		{Name: "N2", Contents: mobileconfigForTest("N2", "I2", string(fleet.FleetVarHostEndUserIDPGroups))},
 	}}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 
@@ -6174,11 +6174,17 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
 			require.NoError(t, err)
 		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = map[string]string{
+				prof.Devices[0]: string(fleet.DEPAssignProfileResponseSuccess),
+			}
 			encoder := json.NewEncoder(w)
-			err := encoder.Encode(godep.ProfileResponse{
-				ProfileUUID: "abc",
-				Devices:     map[string]string{},
-			})
+			err = encoder.Encode(resp)
 			require.NoError(t, err)
 		case "/server/devices", "/devices/sync":
 			// This endpoint  is used to get an initial list of
@@ -8235,7 +8241,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(true)
 
 	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost, "test-key", "", nil)
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost, "test-key", "", nil)
 	require.NoError(t, err)
 	checkNotification(true)
 
@@ -8283,7 +8289,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(true)
 
 	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost, "test-key", "", nil)
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost, "test-key", "", nil)
 	require.NoError(t, err)
 	checkNotification(true)
 
@@ -8335,6 +8341,24 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NotNil(t, hdek.Decryptable)
 	require.True(t, *hdek.Decryptable)
 
+	// check a new activity entry is created ...
+	activities, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	escrowKeyActivity := fleet.ActivityTypeEscrowedDiskEncryptionKey{}
+	var seenEscrowKeyActivityID uint
+	for _, activity := range activities {
+		if activity.Type == escrowKeyActivity.ActivityName() {
+			err := json.Unmarshal(*activity.Details, &escrowKeyActivity)
+			require.NoError(t, err)
+			require.True(t, activity.FleetInitiated)
+
+			seenEscrowKeyActivityID = activity.ID
+		}
+	}
+	require.NotZero(t, seenEscrowKeyActivityID)
+	require.Equal(t, escrowKeyActivity.HostID, host.ID)
+	require.Equal(t, escrowKeyActivity.HostDisplayName, host.DisplayName())
+
 	// mark it as non-server
 	err = s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
@@ -8383,6 +8407,22 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NoError(t, err)
 	require.NotNil(t, hdek.Decryptable)
 	require.True(t, *hdek.Decryptable)
+
+	// escrowing a new encryption key should create a new acitivy entry
+	activities, _, err = s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	escrowKeyActivity = fleet.ActivityTypeEscrowedDiskEncryptionKey{}
+	for _, activity := range activities {
+		if activity.Type == escrowKeyActivity.ActivityName() && activity.ID != seenEscrowKeyActivityID {
+			err := json.Unmarshal(*activity.Details, &escrowKeyActivity)
+			require.NoError(t, err)
+			require.True(t, activity.FleetInitiated)
+
+			seenEscrowKeyActivityID = activity.ID
+		}
+	}
+	require.Equal(t, escrowKeyActivity.HostID, host.ID)
+	require.Equal(t, escrowKeyActivity.HostDisplayName, host.DisplayName())
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	require.Nil(t, hostResp.Host.DiskEncryptionEnabled) // the disk encryption status of the host is not set by the orbit request
@@ -9953,6 +9993,19 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				assert.Equal(t, lastSubmittedProfile.URL, lastSubmittedProfile.ConfigurationWebURL)
 			}
 			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = map[string]string{
+				prof.Devices[0]: string(fleet.DEPAssignProfileResponseSuccess),
+			}
+			encoder := json.NewEncoder(w)
+			err = encoder.Encode(resp)
 			require.NoError(t, err)
 		default:
 			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
@@ -13243,7 +13296,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			savedTmScript.Name,
@@ -13262,7 +13315,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s"}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
 		),
 		0,
@@ -13313,7 +13366,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			savedTmScript.Name,
@@ -13331,7 +13384,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s"}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
 		),
 		0,
@@ -13478,7 +13531,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "script_name": "%s", "async": true, "policy_id": %d, "policy_name": "%s", "script_execution_id": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			savedTmScript.Name,
@@ -13497,7 +13550,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.lastActivityMatchesExtended(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s"}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": %d, "policy_name": "%s", "batch_execution_id": null}`,
 			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
 		),
 		0,
@@ -14681,9 +14734,9 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		URL:                           digiCertServer.server.URL,
 		APIToken:                      "api_token",
 		ProfileID:                     "profile_id",
-		CertificateCommonName:         "$FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + " $FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP,
-		CertificateUserPrincipalNames: []string{"_${FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + "}_"},
-		CertificateSeatID:             "_${FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + "}_",
+		CertificateCommonName:         "$FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + " $FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP),
+		CertificateUserPrincipalNames: []string{"_${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}_"},
+		CertificateSeatID:             "_${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}_",
 	}
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{

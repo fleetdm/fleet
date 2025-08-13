@@ -155,9 +155,9 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 			break
 		}
 	}
-
 	if !versionFound {
-		return errors.New("invalid discover message: Request.RequestVersion")
+		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q not in supported versions %v",
+			req.Body.Discover.Request.RequestVersion, syncml.SupportedEnrollmentVersions)
 	}
 
 	// Traverse the AuthPolicies slice and check for valid values

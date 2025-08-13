@@ -5,7 +5,7 @@ The simplest way to get started with Fleet at scale is to use AWS with Terraform
 This workflow takes about 30 minutes to complete and supports between 10 and 350,000 hosts.
 
 
-### Prerequisites
+## Prerequisites
 
 - A new or existing Amazon Web Services (AWS) account
 
@@ -17,7 +17,7 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 - A fully qualified domain name (FQDN) for hosting Fleet
 
-### Instructions
+## Instructions
 
 1. [Download](https://github.com/fleetdm/fleet-terraform/blob/main/example/main.tf) the Fleet `main.tf` Terraform file.
 
@@ -80,6 +80,10 @@ terraform apply
 ```
 
 12. That’s it! You should now be able to log in to Fleet and [enroll a host](https://fleetdm.com/docs/using-fleet/enroll-hosts).
+
+## Advanced
+
+Fleet's best practice Terraform, already supports putting the [`server_private_key`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key) and other secrets in AWS secrets manager. Check out how in the [best practice Terraform](https://github.com/fleetdm/fleet-terraform/blob/def4b3320640cd70de83ccdae4e77a388ad1ff96/byo-vpc/byo-db/byo-ecs/main.tf#L100).
 
 <meta name="articleTitle" value="Deploy Fleet on AWS with Terraform">
 <meta name="authorGitHubUsername" value="edwardsb">

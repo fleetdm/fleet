@@ -29,6 +29,8 @@ import {
 
 interface IGetStatusMessageProps {
   isDUP?: boolean;
+  /** "pending" is an edge case here where VPP install activities that were added to the feed prior to v4.57
+   * (when we split pending into pending_install/pending_uninstall) will list the status as "pending" rather than "pending_install" */
   displayStatus: SoftwareInstallStatus | "pending";
   isMDMStatusNotNow: boolean;
   isMDMStatusAcknowledged: boolean;
@@ -56,6 +58,21 @@ export const getStatusMessage = ({
         })})`
       : null;
 
+  // Handles "pending" value prior to 4.57
+  const isPendingInstall = ["pending_install", "pending"].includes(
+    displayStatus
+  );
+
+  // Handles the case where software is installed manually by the user and not through Fleet
+  // This app_store_app modal matches software_packages installed manually shown with SoftwareInstallDetailsModal
+  if (displayStatus === "installed" && !commandUpdatedAt) {
+    return (
+      <>
+        <b>{appName}</b> is installed.
+      </>
+    );
+  }
+
   // Handle NotNow case separately
   if (isMDMStatusNotNow) {
     return (
@@ -75,7 +92,7 @@ export const getStatusMessage = ({
   }
 
   // VPP Verify command pending state
-  if (displayStatus === "pending_install" && isMDMStatusAcknowledged) {
+  if (isPendingInstall && isMDMStatusAcknowledged) {
     return (
       <>
         The MDM command (request) to install <b>{appName}</b>
@@ -117,7 +134,7 @@ export const getStatusMessage = ({
       <>
         {" "}
         on {formattedHost}
-        {displayStatus === "pending_install" && " when it comes online"}
+        {isPendingInstall && " when it comes online"}
         {displayTimeStamp && <> {displayTimeStamp}</>}
       </>
     );
@@ -134,7 +151,8 @@ export const getStatusMessage = ({
 const baseClass = "vpp-install-details-modal";
 
 export type IVppInstallDetails = {
-  fleetInstallStatus: SoftwareInstallStatus;
+  /** Status: null when a host manually installed not using Fleet */
+  fleetInstallStatus: SoftwareInstallStatus | null;
   hostDisplayName: string;
   appName: string;
   commandUuid?: string;
@@ -216,9 +234,16 @@ export const VppInstallDetailsModal = ({
     }
   );
 
-  const displayStatus =
-    (fleetInstallStatus as SoftwareInstallStatus) || "pending_install";
+  // Fallback to "installed" if no status is provided
+  const displayStatus = fleetInstallStatus ?? "installed";
   const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
+
+  // Handles "pending" value prior to 4.57 AND never shows error state on pending_install
+  // as some cases have command results not available for pending_installs
+  // which we don't want to show a UI error state for
+  const isPendingInstall = ["pending_install", "pending"].includes(
+    displayStatus
+  );
 
   // Note: We need to reconcile status values from two different sources. From props, we
   // get the status of the Fleet install operation (which can be "failed", "pending", or
@@ -230,7 +255,7 @@ export const VppInstallDetailsModal = ({
 
   const excludeVersions =
     !deviceAuthToken &&
-    ["pending_install", "failed_install"].includes(fleetInstallStatus);
+    ["pending_install", "failed_install", "pending"].includes(displayStatus);
 
   const isInstalledByFleet = hostSoftware
     ? !!hostSoftware.app_store_app?.last_install
@@ -286,7 +311,7 @@ export const VppInstallDetailsModal = ({
       return <Spinner />;
     }
 
-    if (isErrorVPPCommandResult) {
+    if (isErrorVPPCommandResult && !isPendingInstall) {
       if (errorVPPCommandResult?.status === 404) {
         return deviceAuthToken ? (
           <DeviceUserError />
@@ -317,7 +342,7 @@ export const VppInstallDetailsModal = ({
           <span>{statusMessage}</span>
         </div>
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-        {fleetInstallStatus !== "pending_install" &&
+        {!isPendingInstall &&
           isInstalledByFleet &&
           renderInstallDetailsSection()}
       </div>
@@ -325,7 +350,7 @@ export const VppInstallDetailsModal = ({
   };
 
   const renderCta = () => {
-    if (deviceAuthToken && fleetInstallStatus === "failed_install") {
+    if (deviceAuthToken && displayStatus === "failed_install") {
       return (
         <div className="modal-cta-wrap">
           <Button type="submit" onClick={onClickRetry}>
