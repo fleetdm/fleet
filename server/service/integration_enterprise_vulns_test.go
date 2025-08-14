@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"testing"
@@ -118,8 +119,14 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 				require.NoError(t, err)
 			}
 
-			// Aggregate OS versions
+			// Entity endpoint kernels field should be empty
 			require.NoError(t, s.ds.UpdateOSVersions(ctx))
+			resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", 0))
+			bodyBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			assert.Contains(t, string(bodyBytes), `"kernels": []`)
+
+			// Aggregate OS versions
 			require.NoError(t, s.ds.UpdateOSVersions(ctx))
 			require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
 			require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))

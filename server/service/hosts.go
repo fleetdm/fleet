@@ -2306,7 +2306,10 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 		if err != nil {
 			return err
 		}
-		osVersion.Kernels = kernels
+
+		if len(kernels) > 0 {
+			osVersion.Kernels = kernels
+		}
 	}
 
 	return nil
