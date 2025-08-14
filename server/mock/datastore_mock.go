@@ -763,6 +763,8 @@ type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
 
+type NewJobTxFunc func(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error)
+
 type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error)
 
 type GetFilteredQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error)
@@ -1182,6 +1184,8 @@ type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID ui
 type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
 type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
+
+type RunScheduledBatchActivityFunc func(ctx context.Context, executionID string) error
 
 type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
@@ -2566,6 +2570,9 @@ type DataStore struct {
 	NewJobFunc        NewJobFunc
 	NewJobFuncInvoked bool
 
+	NewJobTxFunc        NewJobTxFunc
+	NewJobTxFuncInvoked bool
+
 	GetQueuedJobsFunc        GetQueuedJobsFunc
 	GetQueuedJobsFuncInvoked bool
 
@@ -3195,6 +3202,9 @@ type DataStore struct {
 
 	GetBatchActivityHostResultsFunc        GetBatchActivityHostResultsFunc
 	GetBatchActivityHostResultsFuncInvoked bool
+
+	RunScheduledBatchActivityFunc        RunScheduledBatchActivityFunc
+	RunScheduledBatchActivityFuncInvoked bool
 
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
@@ -6197,6 +6207,13 @@ func (s *DataStore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, err
 	return s.NewJobFunc(ctx, job)
 }
 
+func (s *DataStore) NewJobTx(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error) {
+	s.mu.Lock()
+	s.NewJobTxFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewJobTxFunc(ctx, tx, job)
+}
+
 func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
 	s.mu.Lock()
 	s.GetQueuedJobsFuncInvoked = true
@@ -7665,6 +7682,13 @@ func (s *DataStore) GetBatchActivityHostResults(ctx context.Context, executionID
 	s.GetBatchActivityHostResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetBatchActivityHostResultsFunc(ctx, executionID)
+}
+
+func (s *DataStore) RunScheduledBatchActivity(ctx context.Context, executionID string) error {
+	s.mu.Lock()
+	s.RunScheduledBatchActivityFuncInvoked = true
+	s.mu.Unlock()
+	return s.RunScheduledBatchActivityFunc(ctx, executionID)
 }
 
 func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
