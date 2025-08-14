@@ -91,11 +91,6 @@ const ScriptBatchProgress = ({
           return scriptsAPI
             .getRunScriptBatchSummaries(queryKey[0])
             .then((r) => {
-              // there is some slightly round-about data flow here – this fetchPage is called by
-              // PaginatedList, and the batchCount state this sets controls rendering of an empty
-              // state that causes PaginatedList to not be rendered. This works because
-              // `batchCount`'s default value is undefined, while the empty state renders when it
-              // === 0.
               setBatchCount(r.count);
               return r.batch_executions;
             })
@@ -263,6 +258,7 @@ const ScriptBatchProgress = ({
     }
   }, [batchCount, updating, fetchPage]);
 
+  // Reset to first tab if status is invalid.
   useEffect(() => {
     if (!isValidScriptBatchStatus(statusParam)) {
       handleTabChange(0);
