@@ -10224,6 +10224,12 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	}
 	applyResp = applyTeamSpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, &applyResp)
+
+	t.Cleanup(func() {
+		acResp.MDM.MacOSSetup.EnableEndUserAuthentication = false
+		err := s.ds.SaveAppConfig(context.Background(), &acResp.AppConfig)
+		require.NoError(t, err)
+	})
 }
 
 func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
@@ -13831,6 +13837,23 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			err := mdmDevice.Enroll()
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "404 Not Found")
+		})
+
+		t.Run("if idp uuid is required but not set", func(t *testing.T) {
+			var specResp applyTeamSpecsResponse
+			teamSecret := "team_secret"
+			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
+			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+			hwModel := "MacBookPro16,1"
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				"team_secret",
+				hwModel,
+			)
+			err := mdmDevice.Enroll()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "403 Forbidden")
 		})
 	})
 
