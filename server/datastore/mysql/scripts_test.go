@@ -2202,12 +2202,12 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	// find our job
 	var job *fleet.Job
 	for _, j := range jobs {
-		if j.Name == fleet.BatchActivityJobName {
+		if j.Name == fleet.BatchActivityScriptsJobName {
 			job = j
 		}
 	}
 	require.NotNil(t, job)
-	require.Equal(t, fleet.BatchActivityJobName, job.Name)
+	require.Equal(t, fleet.BatchActivityScriptsJobName, job.Name)
 	// Time from DB isn't super accurate
 	require.Equal(t, scheduledTime.Truncate(time.Minute), job.NotBefore.Truncate(time.Minute))
 	assert.JSONEq(t, fmt.Sprintf(`{"execution_id":%q}`, execID), string(*job.Args))

@@ -1967,7 +1967,7 @@ func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scri
 
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		job, err := ds.NewJob(ctx, &fleet.Job{
-			Name:      fleet.BatchActivityJobName,
+			Name:      fleet.BatchActivityScriptsJobName,
 			Args:      (*json.RawMessage)(&argBytes),
 			State:     fleet.JobStateQueued,
 			NotBefore: notBefore.UTC(),

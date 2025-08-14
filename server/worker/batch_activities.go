@@ -9,15 +9,13 @@ import (
 	kitlog "github.com/go-kit/log"
 )
 
-const batchScriptsName = "batch_scripts"
-
 type BatchScripts struct {
 	Datastore fleet.Datastore
 	Log       kitlog.Logger
 }
 
 func (b *BatchScripts) Name() string {
-	return batchScriptsName
+	return fleet.BatchActivityScriptsJobName
 }
 
 func (b *BatchScripts) Run(ctx context.Context, jobArgs json.RawMessage) error {
