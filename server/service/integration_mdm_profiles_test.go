@@ -205,7 +205,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	secretType := "secret.type.1"
 	secretName := "secretName"
 	secretProfile := string(mobileconfigForTest("NS1", "IS1"))
-	req := secretVariablesRequest{
+	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_IDENTIFIER",
@@ -225,7 +225,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 			},
 		},
 	}
-	secretResp := secretVariablesResponse{}
+	secretResp := createSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// set new team profiles (delete + addition)
@@ -272,7 +272,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
 	secretName = "newSecretName"
-	req = secretVariablesRequest{
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_NAME",
@@ -343,7 +343,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
 	secretName = "new2SecretName"
-	req = secretVariablesRequest{
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_NAME",
@@ -5672,7 +5672,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	assertBodyContains(t, res, `Secret variable \"$FLEET_SECRET_BASH\" missing`)
 
 	// Add secret(s) to server
-	req := secretVariablesRequest{
+	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",
@@ -5684,7 +5684,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 			},
 		},
 	}
-	secretResp := secretVariablesResponse{}
+	secretResp := createSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	var resp newMDMConfigProfileResponse
@@ -7449,5 +7449,4 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	require.Equal(t, "ProfileNoVars", (*hostRespNoVars.Host.MDM.Profiles)[0].Name)
 	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespNoVars.Host.MDM.Profiles)[0].Status,
 		"Profile should be verified in host details API for no-vars host")
-
 }

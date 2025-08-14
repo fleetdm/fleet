@@ -2158,7 +2158,17 @@ type Datastore interface {
 	// UpsertSecretVariables inserts or updates secret variables in the database.
 	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) error
 
-	// GetSecretVariables retrieves secret variables from the database.
+	// CreateSecretVariable inserts a secret variable (value encrypted) and returns its ID.
+	// Returns an AlreadyExistsError error if there's already a secret variable with the same name.
+	CreateSecretVariable(ctx context.Context, name string, value string) (id uint, err error)
+	// ListSecretVariables returns a list of secret variable identifiers filtered with the provided sorting and pagination options.
+	// Returns a count of total secret variable identifiers on all (filtered) pages, and pagination metadata if opt.IncludeMetadata is true.
+	ListSecretVariables(ctx context.Context, opt ListOptions) (secretVariables []SecretVariableIdentifier, meta *PaginationMetadata, count int, err error)
+	// DeleteSecretVariable deletes a secret variable by ID and returns the name of the deleted variable.
+	// Returns a NotFoundError error if there's no secret variable with such ID.
+	DeleteSecretVariable(ctx context.Context, id uint) (name string, err error)
+
+	// GetSecretVariables retrieves secret variables from the database that match the given names.
 	GetSecretVariables(ctx context.Context, names []string) ([]SecretVariable, error)
 
 	// ValidateEmbeddedSecrets parses fleet secrets from a list of

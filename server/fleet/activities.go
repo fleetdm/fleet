@@ -217,6 +217,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDisabledConditionalAccessAutomations{},
 
 	ActivityTypeEscrowedDiskEncryptionKey{},
+
+	ActivityCreatedCustomVariable{},
+	ActivityDeletedCustomVariable{},
 }
 
 type ActivityDetails interface {
@@ -2689,7 +2692,45 @@ func (a ActivityTypeEscrowedDiskEncryptionKey) Documentation() (activity string,
 		`This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.`, `{
-	"host_id": "123",
+	"host_id": 123,
 	"host_display_name": "PWNED-VM-123"
+}`
+}
+
+type ActivityCreatedCustomVariable struct {
+	CustomVariableID   uint   `json:"custom_variable_id"`
+	CustomVariableName string `json:"custom_variable_name"`
+}
+
+func (a ActivityCreatedCustomVariable) ActivityName() string {
+	return "created_custom_variable"
+}
+
+func (a ActivityCreatedCustomVariable) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when custom variable is added.`,
+		`This activity contains the following fields:
+- "custom_variable_id": the id of the new custom variable.
+- "custom_variable_name": the name of the new custom variable.`, `{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
+}`
+}
+
+type ActivityDeletedCustomVariable struct {
+	CustomVariableID   uint   `json:"custom_variable_id"`
+	CustomVariableName string `json:"custom_variable_name"`
+}
+
+func (a ActivityDeletedCustomVariable) ActivityName() string {
+	return "deleted_custom_variable"
+}
+
+func (a ActivityDeletedCustomVariable) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when custom variable is deleted.`,
+		`This activity contains the following fields:
+- "custom_variable_id": the id of the custom variable.
+- "custom_variable_name": the name of the custom variable.`, `{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
 }`
 }
