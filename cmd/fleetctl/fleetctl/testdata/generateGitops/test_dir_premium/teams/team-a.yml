@@ -72,7 +72,6 @@ software:
   - categories:
     - Browsers
     hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 13.37
-    setup_experience: true
     install_script:
       path: ../lib/team-a/scripts/my-software-package-darwin-install
     labels_include_any:
@@ -83,6 +82,7 @@ software:
     pre_install_query:
       path: ../lib/team-a/queries/my-software-package-darwin-preinstallquery.yml
     self_service: true
+    setup_experience: true
     uninstall_script:
       path: ../lib/team-a/scripts/my-software-package-darwin-uninstall
     url: https://example.com/download/my-software.pkg
