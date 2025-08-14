@@ -2595,7 +2595,7 @@ type ActivityTypeBatchScriptScheduled struct {
 }
 
 func (a ActivityTypeBatchScriptScheduled) ActivityName() string {
-	return "batch_script_scheduled"
+	return "scheduled_script_batch"
 }
 
 func (a ActivityTypeBatchScriptScheduled) Documentation() (string, string, string) {
@@ -2620,7 +2620,7 @@ type ActivityTypeBatchScriptCanceled struct {
 }
 
 func (a ActivityTypeBatchScriptCanceled) ActivityName() string {
-	return "canceled_batch_script"
+	return "canceled_script_batch"
 }
 
 func (a ActivityTypeBatchScriptCanceled) Documentation() (string, string, string) {
