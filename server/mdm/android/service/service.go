@@ -22,6 +22,9 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
+// Used for overriding the private key validation in testing
+var testSetEmptyPrivateKey bool
+
 // We use numbers for policy names for easier mapping/indexing with Fleet DB.
 const (
 	defaultAndroidPolicyID   = 1
@@ -35,6 +38,7 @@ type Service struct {
 	ds               fleet.AndroidDatastore
 	androidAPIClient androidmgmt.Client
 	fleetSvc         fleet.Service
+	serverPrivateKey string
 
 	// SignupSSEInterval can be overwritten in tests.
 	SignupSSEInterval time.Duration
@@ -48,6 +52,7 @@ func NewService(
 	ds fleet.AndroidDatastore,
 	fleetSvc fleet.Service,
 	licenseKey string,
+	serverPrivateKey string,
 ) (android.Service, error) {
 	var client androidmgmt.Client
 	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
@@ -55,7 +60,7 @@ func NewService(
 	} else {
 		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
 	}
-	return NewServiceWithClient(logger, ds, client, fleetSvc)
+	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey)
 }
 
 func NewServiceWithClient(
@@ -63,6 +68,7 @@ func NewServiceWithClient(
 	ds fleet.AndroidDatastore,
 	client androidmgmt.Client,
 	fleetSvc fleet.Service,
+	serverPrivateKey string,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -75,6 +81,7 @@ func NewServiceWithClient(
 		ds:                ds,
 		androidAPIClient:  client,
 		fleetSvc:          fleetSvc,
+		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
 	}, nil
 }
@@ -93,6 +100,11 @@ func enterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Se
 
 func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
 	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	// Check if server private key is configured (required for Android MDM)
+	if err := svc.checkServerPrivateKey(ctx); err != nil {
 		return nil, err
 	}
 
@@ -146,6 +158,22 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 	}
 
 	return signupDetails, nil
+}
+
+func (svc *Service) checkServerPrivateKey(ctx context.Context) error {
+	if testSetEmptyPrivateKey {
+		return &fleet.BadRequestError{
+			Message: "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key",
+		}
+	}
+
+	if svc.serverPrivateKey == "" {
+		return &fleet.BadRequestError{
+			Message: "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key",
+		}
+	}
+
+	return nil
 }
 
 func (svc *Service) checkIfAndroidAlreadyConfigured(ctx context.Context) (*fleet.AppConfig, error) {
