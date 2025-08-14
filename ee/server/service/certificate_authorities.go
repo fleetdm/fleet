@@ -322,6 +322,9 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 }
 
 func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fleet.CustomSCEPProxyCA, errPrefix string) error {
+	if err := validateCAName(customSCEP.Name, errPrefix); err != nil {
+		return err
+	}
 	if err := validateURL(customSCEP.URL, "SCEP", errPrefix); err != nil {
 		return err
 	}
