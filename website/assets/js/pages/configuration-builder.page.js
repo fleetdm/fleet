@@ -2721,7 +2721,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Maximum number of failed attempts before device locks.',
+                name: 'Maximum number of failed attempts before device is wiped.',
                 uniqueSlug: 'android-password-max-failed-attempts',
                 tooltip: `Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.`,
                 category: 'Device lock',
@@ -2794,7 +2794,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Enforce password complexity',
                 uniqueSlug: 'android-password-complexity',
-                tooltip: 'The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when passwordQuality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.',
+                tooltip: 'Password quality requirements.',
                 category: 'Device lock',
                 payloadGroup: 'Password',
                 formInput: {
@@ -2809,23 +2809,23 @@ parasails.registerPage('configuration-builder', {
                       value: 'SOMETHING'
                     },
                     {
-                      name: 'The password must contain numeric characters.',
+                      name: 'Numeric - The password must contain numeric characters.',
                       value: 'NUMERIC',
                     },
                     {
-                      name: 'The password must contain numeric characters with no repeating (4444) or ordered (1234, 4321, 2468) sequences.',
+                      name: 'Complex numeric - The password must contain numeric characters with no repeating (4444) or ordered (1234, 4321, 2468) sequences.',
                       value: 'NUMERIC_COMPLEX',
                     },
                     {
-                      name: 'The password must contain alphabetic (or symbol) characters.',
+                      name: 'Alphabetic - The password must contain alphabetic (or symbol) characters.',
                       value: 'ALPHABETIC',
                     },
                     {
-                      name: 'The password must contain both numeric and alphabetic (or symbol) characters.',
+                      name: 'Alphanumeric - The password must contain both numeric and alphabetic (or symbol) characters.',
                       value: 'ALPHANUMERIC',
                     },
                     {
-                      name: 'The password must contain both numeric and alphabetic (or symbol) characters.',
+                      name: 'Complex - The password must meet the requirments set by this policy',
                       value: 'COMPLEX',
                     },
                   ]
@@ -2838,7 +2838,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Minimum password length',
                 uniqueSlug: 'android-min-password-length',
-                tooltip: 'The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when passwordQuality is NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, or COMPLEX.',
+                tooltip: 'The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password complexity is set to numeric, complex numeric, alphabetic, alphanumeric, or complex.',
                 category: 'Device lock',
                 payloadGroup: 'Password',
                 formInput: {
@@ -2853,13 +2853,19 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Minimum number of letters in password',
                 uniqueSlug: 'android-min-password-letters',
-                tooltip: 'Minimum number of letters required in the password. Only enforced when passwordQuality is COMPLEX.',
+                tooltip: 'Minimum number of letters required in the password. Only enforced when password complexity is set to complex.',
                 category: 'Device lock',
                 payloadGroup: 'Password',
                 formInput: {
                   type: 'number',
                   unitLabel: 'letters'
                 },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
                 formOutput: {
                   settingFormat: 'number',
                   settingTargetPath: 'passwordRequirements.passwordMinimumLetters',
@@ -2868,13 +2874,19 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Minimum number of lower case letters in password',
                 uniqueSlug: 'android-min-password-letters-lower-case',
-                tooltip: 'Minimum number of lower case letters required in the password. Only enforced when passwordQuality is COMPLEX.',
+                tooltip: 'Minimum number of lower case letters required in the password. Only enforced when password complexity is set to complex.',
                 category: 'Device lock',
                 payloadGroup: 'Password',
                 formInput: {
                   type: 'number',
                   unitLabel: 'lower case letters'
                 },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
                 formOutput: {
                   settingFormat: 'number',
                   settingTargetPath: 'passwordRequirements.passwordMinimumLowerCase',
@@ -2883,13 +2895,19 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Minimum number of upper case letters in password',
                 uniqueSlug: 'android-min-password-letters-upper-case',
-                tooltip: 'Minimum number of upper case letters required in the password. Only enforced when passwordQuality is COMPLEX.',
+                tooltip: 'Minimum number of upper case letters required in the password. Only enforced when password complexity is set to complex.',
                 category: 'Device lock',
                 payloadGroup: 'Password',
                 formInput: {
                   type: 'number',
                   unitLabel: 'lower case letters'
                 },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
                 formOutput: {
                   settingFormat: 'number',
                   settingTargetPath: 'passwordRequirements.passwordMinimumUpperCase',
@@ -2898,13 +2916,19 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Minimum number of non-letter characters in password',
                 uniqueSlug: 'android-min-password-non-letters',
-                tooltip: 'Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when passwordQuality is COMPLEX.',
+                tooltip: 'Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password complexity is set to complex.',
                 category: 'Device lock',
                 payloadGroup: 'Password',
                 formInput: {
                   type: 'number',
                   unitLabel: 'characters'
                 },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
                 formOutput: {
                   settingFormat: 'number',
                   settingTargetPath: 'passwordRequirements.passwordMinimumNonLetter',
@@ -2913,13 +2937,19 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Minimum number of numerical digits in password',
                 uniqueSlug: 'android-min-password-numeric',
-                tooltip: 'Minimum number of numerical digits required in the password. Only enforced when passwordQuality is COMPLEX.',
+                tooltip: 'Minimum number of numerical digits required in the password. Only enforced when password complexity is set is COMPLEX.',
                 category: 'Device lock',
                 payloadGroup: 'Password',
                 formInput: {
                   type: 'number',
                   unitLabel: 'digits'
                 },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
                 formOutput: {
                   settingFormat: 'number',
                   settingTargetPath: 'passwordRequirements.passwordMinimumNumeric',
@@ -2928,13 +2958,19 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Minimum number of symbols in password',
                 uniqueSlug: 'android-min-password-symbols',
-                tooltip: 'Minimum number of symbols required in the password. Only enforced when passwordQuality is COMPLEX.',
+                tooltip: 'Minimum number of symbols required in the password. Only enforced when password complexity is set is COMPLEX.',
                 category: 'Device lock',
                 payloadGroup: 'Password',
                 formInput: {
                   type: 'number',
                   unitLabel: 'symbols'
                 },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
                 formOutput: {
                   settingFormat: 'number',
                   settingTargetPath: 'passwordRequirements.passwordMinimumSymbols',
@@ -2999,7 +3035,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'boolean',
-                  settingTargetPath: 'uninstallAppsDisabled',
+                  settingTargetPath: 'installAppsDisabled',
                 },
               },
               {
@@ -3070,7 +3106,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'string',
-                  settingTargetPath: 'advancedSecurityOverrides.untrustedAppsPolicy',
+                  settingTargetPath: 'advancedSecurityOverrides.googlePlayProtectVerifyApps',
                 },
               },
             ]
@@ -3146,8 +3182,12 @@ parasails.registerPage('configuration-builder', {
       };
       let payloadsToUse = _.clone(selectedPayloads);
       for(let payload of payloadsToUse ){
-        _.set(thisProfile, payload.formOutput.settingTargetPath, this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
-
+        if(payload.formOutput.settingFormat === 'number'){
+          let formDataCastToANumber = Number(this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
+          _.set(thisProfile, payload.formOutput.settingTargetPath, formDataCastToANumber);
+        } else {
+          _.set(thisProfile, payload.formOutput.settingTargetPath, this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
+        }
       }
       let profileDownloadUrl = URL.createObjectURL(new Blob([JSON.stringify(thisProfile)], { type: 'text/json;' }));
       let exportDownloadLink = document.createElement('a');
