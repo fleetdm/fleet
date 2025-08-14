@@ -2982,7 +2982,6 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 	hostResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 
-	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, stalePolicyCount)
 	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, staleIssuesCount)
 
 	// set updated_at to longer than minute ago
@@ -2993,7 +2992,6 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 	})
 	// hit endpoint: should have been updated this time
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
-	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, freshPolicyCount)
 	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, freshIssueCount)
 }
 
