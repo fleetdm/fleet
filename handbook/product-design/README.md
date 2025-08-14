@@ -126,7 +126,7 @@ You'll know it's time for expedited drafting when:
 
 What happens during expedited drafting?
 
-1. If we cut planned functionality, the PD notifies the [customer support DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). Up to the PD to let the customer support DRI know if we're still planning on building the functionality in a later release and if so, when. The customer support DRI should confirm that the updated scope and/or timeline still meets the requester's need.
+1. If we cut planned functionality, the PD notifies the [customer support DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). Up to the PD to let the customer support DRI know if we're still planning on building the functionality in a later release and if so, when. The customer support DRI should confirm that the updated scope and/or timeline still meets the requester's needs.
 2. The PD notifies the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) (release DRI), Head of Product Design, and the the product group's Engineering Manager (EM) and Qaulity Assurance (QA) Engineer in the `#g-mdm`, `#g-orchestration`, or `#g-software` Slack channel.
   - If the user story wasn't "Ready for spec" by the last estimation session, decision to allow the user story to make it into the sprint is up to the release DRI.
   - If the user story is already in a sprint and there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
