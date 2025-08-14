@@ -566,6 +566,8 @@ const HostsFilterBlock = ({
       { value: "ran", label: "Ran" },
       { value: "errored", label: "Error" },
       { value: "pending", label: "Pending" },
+      { value: "incompatible", label: "Incompatible" },
+      { value: "canceled", label: "Canceled" },
     ];
     return (
       <>
