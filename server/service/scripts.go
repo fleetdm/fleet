@@ -1236,9 +1236,10 @@ func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID stri
 	}
 
 	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptCanceled{
-		ScriptName:    batchActivity.ScriptName,
-		HostCount:     targeted,
-		CanceledCount: canceled,
+		BatchExecutionID: batchExecutionID,
+		ScriptName:       batchActivity.ScriptName,
+		HostCount:        targeted,
+		CanceledCount:    canceled,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for cancel batch script")
 	}

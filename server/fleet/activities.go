@@ -2613,9 +2613,10 @@ func (a ActivityTypeBatchScriptScheduled) Documentation() (string, string, strin
 }
 
 type ActivityTypeBatchScriptCanceled struct {
-	ScriptName    string `json:"script_name"`
-	HostCount     uint   `json:"host_count"`
-	CanceledCount uint   `json:"canceled_count"`
+	BatchExecutionID string `json:"batch_execution_id"`
+	ScriptName       string `json:"script_name"`
+	HostCount        uint   `json:"host_count"`
+	CanceledCount    uint   `json:"canceled_count"`
 }
 
 func (a ActivityTypeBatchScriptCanceled) ActivityName() string {
@@ -2625,9 +2626,11 @@ func (a ActivityTypeBatchScriptCanceled) ActivityName() string {
 func (a ActivityTypeBatchScriptCanceled) Documentation() (string, string, string) {
 	return "Generated when a batch script is canceled.",
 		`This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
 - "script_name": Name of the script.
 - "host_count": Number of hosts in the batch.
 - "canceled_count": Number of hosts the job was canceled for.`, `{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "script_name": "set-timezones.sh",
   "host_count": 12,
   "canceled_count": 5

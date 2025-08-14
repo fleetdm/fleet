@@ -6809,7 +6809,7 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeBatchScriptCanceled{}.ActivityName(),
-		fmt.Sprintf(`{"host_count":2, "canceled_count": 2, "script_name":"%s"}`, script.Name),
+		fmt.Sprintf(`{"batch_execution_id": "%s", "host_count":2, "canceled_count": 2, "script_name":"%s"}`, batchRes.BatchExecutionID, script.Name),
 		0,
 	)
 
@@ -6838,7 +6838,7 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeBatchScriptCanceled{}.ActivityName(),
-		fmt.Sprintf(`{"host_count":2, "canceled_count": 2, "script_name":"%s"}`, script.Name),
+		fmt.Sprintf(`{"batch_execution_id": "%s", "host_count":2, "canceled_count": 2, "script_name":"%s"}`, batchResScheduled.BatchExecutionID, script.Name),
 		0,
 	)
 
