@@ -76,6 +76,8 @@ const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
       } finally {
         setIsSaving(false);
       }
+    } else {
+      setFormValidation(validation);
     }
   };
 
