@@ -51,6 +51,8 @@ fi
 
 CrowdStrike Falcon requires multiple `.mobileconfig` payloads on macOS.
 
+[Download the required configuration profiles](https://github.com/fleetdm/fleet/tree/main/assets/configuration-profiles)
+
 >These payloads can be combined into a single Configuration Profile, or, delivered in separate Configuration Profiles for modularity and easier reading.
 
 `crowdstrike-service-management.mobileconfig` - Configure CrowdStrike Falcon as a managed login item so its services can't be stopped by end users.
