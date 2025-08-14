@@ -3238,7 +3238,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, s := range hostInstalledSoftware {
+	for _, origS := range hostInstalledSoftware {
+		s := *origS
+		if origS.LastOpenedAt != nil {
+			timeCopy := *origS.LastOpenedAt
+			s.LastOpenedAt = &timeCopy
+		}
+
 		if unInstalled, ok := uninstallQuarantineSet[s.ID]; ok {
 			// We have an uninstall record according to host_software_installs,
 			// however, osquery says the software is installed.
@@ -3247,15 +3253,19 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
-			bySoftwareTitleID[s.ID] = s
-		} else {
-			bySoftwareTitleID[s.ID].LastOpenedAt = s.LastOpenedAt
+			sCopy := s
+			bySoftwareTitleID[s.ID] = &sCopy
+		} else if (bySoftwareTitleID[s.ID].LastOpenedAt == nil) ||
+			(s.LastOpenedAt != nil && bySoftwareTitleID[s.ID].LastOpenedAt != nil &&
+				s.LastOpenedAt.After(*bySoftwareTitleID[s.ID].LastOpenedAt)) {
+			existing := bySoftwareTitleID[s.ID]
+			existing.LastOpenedAt = s.LastOpenedAt
 		}
 
 		hostInstalledSoftwareTitleSet[s.ID] = struct{}{}
 		if s.SoftwareID != nil {
-			bySoftwareID[*s.SoftwareID] = s
-			hostInstalledSoftwareSet[*s.SoftwareID] = s
+			bySoftwareID[*s.SoftwareID] = origS
+			hostInstalledSoftwareSet[*s.SoftwareID] = origS
 		}
 	}
 
