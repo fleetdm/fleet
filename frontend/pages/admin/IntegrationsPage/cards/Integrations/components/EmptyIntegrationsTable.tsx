@@ -14,7 +14,7 @@ const EmptyIntegrationsTable = ({
   return (
     <EmptyTable
       graphicName="empty-integrations"
-      header="Set up integrations"
+      header="Ticket destinations"
       info="Create tickets automatically when Fleet detects new software vulnerabilities or hosts failing policies."
       additionalInfo={
         <>
@@ -31,7 +31,7 @@ const EmptyIntegrationsTable = ({
           className={`${className}__add-button`}
           onClick={onActionButtonClick}
         >
-          Add integration
+          Add
         </Button>
       }
     />

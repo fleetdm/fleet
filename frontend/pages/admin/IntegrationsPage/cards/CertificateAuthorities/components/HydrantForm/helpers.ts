@@ -1,4 +1,4 @@
-import { ICertificatesIntegrationHydrant } from "interfaces/integration";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 import valid_url from "components/forms/validators/valid_url";
 
@@ -29,11 +29,12 @@ interface IValidation {
 
 type IFormValidations = Record<
   IFormValidationKey,
+  // The order of the validations determines the precedence when validating
   { validations: IValidation[] }
 >;
 
 export const generateFormValidations = (
-  hydrantIntegrations: ICertificatesIntegrationHydrant[],
+  certAuthorities: ICertificateAuthorityPartial[],
   isEditing: boolean
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
@@ -46,7 +47,7 @@ export const generateFormValidations = (
           },
         },
         {
-          name: "invalidCharacters",
+          name: "validCharacters",
           isValid: (formData: IHydrantFormData) => {
             return /^[a-zA-Z0-9_]+$/.test(formData.name);
           },
@@ -58,9 +59,8 @@ export const generateFormValidations = (
           isValid: (formData: IHydrantFormData) => {
             return (
               isEditing ||
-              hydrantIntegrations.find(
-                (cert) => cert.name === formData.name
-              ) === undefined
+              certAuthorities.find((cert) => cert.name === formData.name) ===
+                undefined
             );
           },
           message: "Name is already used by another Hydrant CA.",

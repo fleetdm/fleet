@@ -1,6 +1,6 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
-import { AppContext } from "context/app";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -22,6 +22,7 @@ export interface IHydrantFormData {
 }
 
 interface IHydrantFormProps {
+  certAuthorities?: ICertificateAuthorityPartial[];
   formData: IHydrantFormData;
   submitBtnText: string;
   isSubmitting: boolean;
@@ -32,6 +33,7 @@ interface IHydrantFormProps {
 }
 
 const HydrantForm = ({
+  certAuthorities,
   formData,
   submitBtnText,
   isSubmitting,
@@ -40,13 +42,9 @@ const HydrantForm = ({
   onSubmit,
   onCancel,
 }: IHydrantFormProps) => {
-  const { config } = useContext(AppContext);
   const validations = useMemo(
-    () =>
-      // @ts-ignore
-      // ignore for now as this will be changing with the API update PR
-      generateFormValidations(config?.integrations.digicert ?? [], isEditing),
-    [config?.integrations.digicert, isEditing]
+    () => generateFormValidations(certAuthorities ?? [], isEditing),
+    [certAuthorities, isEditing]
   );
 
   const [formValidation, setFormValidation] = useState<IHydrantFormValidation>(
