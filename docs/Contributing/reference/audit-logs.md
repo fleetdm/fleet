@@ -970,6 +970,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "batch_execution_id": Batch execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
 - "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
@@ -983,6 +984,7 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "batch_execution_id": "3274d95a-c140-4b17-b185-fb33c93b84e3",
   "async": false,
   "policy_id": 123,
   "policy_name": "Ensure photon torpedoes are primed"
@@ -1833,6 +1835,46 @@ This activity contains the following fields:
 }
 ```
 
+## ran_script_batch
+
+Generated when a script is run on a batch of hosts.
+
+This activity contains the following fields:
+- "script_name": Name of the script.
+- "batch_execution_id": Execution ID of the batch script run.
+- "host_count": Number of hosts in the batch.
+
+#### Example
+
+```json
+{
+  "script_name": "set-timezones.sh",
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "host_count": 12
+}
+```
+
+## batch_script_scheduled
+
+Generated when a batch script is scheduled.
+
+This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+- "not_before": Time that the batch activity is scheduled to launch.
+
+#### Example
+
+```json
+{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
+  "host_count": 12,
+  "not_before": "2025-08-06T17:49:21.810204Z"
+}
+```
+
 ## added_conditional_access_integration_microsoft
 
 Generated when Microsoft Entra is connected for conditonal access.
@@ -1876,6 +1918,23 @@ This activity contains the following field:
 {
   "team_id": 5,
   "team_name": "Workstations"
+}
+```
+
+## escrowed_disk_encryption_key
+
+Generated when a disk encryption key is escrowed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+	"host_id": "123",
+	"host_display_name": "PWNED-VM-123"
 }
 ```
 

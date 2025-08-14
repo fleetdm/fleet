@@ -16,5 +16,10 @@ reviews:
   path_instructions:
     - path: "**/*.go"
       instructions: "When reviewing SQL queries that are added or modified, ensure that appropriate filtering criteria are applied—especially when a query is intended to return data for a specific entity (e.g., a single host). Check for missing WHERE clauses or incorrect filtering that could lead to incorrect or non-deterministic results (e.g., returning the first row instead of the correct one). Flag any queries that may return unintended results due to lack of precise scoping."
+  tools:
+    github-checks:
+      # Engineers should be looking at any CI failures.
+      # CodeRabbit should not need to wait for these to complete before giving review recommendations.
+      enabled: false
 chat:
   auto_reply: false

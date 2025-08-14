@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -24,13 +23,11 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import RevealButton from "components/buttons/RevealButton";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
+import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const baseClass = "disk-encryption";
-interface IDiskEncryptionProps {
-  currentTeamId: number;
-  onMutation: () => void;
-  router: InjectedRouter;
-}
+
+export type IDiskEncryptionProps = IOSSettingsCommonProps;
 
 const DiskEncryption = ({
   currentTeamId,
@@ -227,44 +224,42 @@ const DiskEncryption = ({
                   newTab
                 />
               </p>
-              {diskEncryptionEnabled && featureFlags.showBitLockerPINOption && (
-                <div>
-                  <RevealButton
-                    className={`${baseClass}__accordion-title`}
-                    isShowing={showAdvancedOptions}
-                    showText="Advanced options"
-                    hideText="Advanced options"
-                    caretPosition="after"
-                    onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                  />
-                  {showAdvancedOptions && (
-                    <Checkbox
-                      disabled={config?.gitops.gitops_mode_enabled}
-                      onChange={onToggleRequireBitLockerPIN}
-                      value={requireBitLockerPIN}
-                      className={`${baseClass}__checkbox`}
+              <div>
+                <RevealButton
+                  className={`${baseClass}__accordion-title`}
+                  isShowing={showAdvancedOptions}
+                  showText="Advanced options"
+                  hideText="Advanced options"
+                  caretPosition="after"
+                  onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                />
+                {showAdvancedOptions && (
+                  <Checkbox
+                    disabled={config?.gitops.gitops_mode_enabled}
+                    onChange={onToggleRequireBitLockerPIN}
+                    value={requireBitLockerPIN}
+                    className={`${baseClass}__checkbox`}
+                  >
+                    <TooltipWrapper
+                      tipContent={
+                        <div>
+                          <p>
+                            If enabled, end users on Windows hosts will be
+                            required to set a BitLocker PIN.
+                          </p>
+                          <br />
+                          <p>
+                            When the PIN is set, it&rsquo;s required to unlock
+                            Windows hosts during startup.
+                          </p>
+                        </div>
+                      }
                     >
-                      <TooltipWrapper
-                        tipContent={
-                          <div>
-                            <p>
-                              If enabled, end users on Windows hosts will be
-                              required to set a BitLocker PIN.
-                            </p>
-                            <br />
-                            <p>
-                              When the PIN is set, it&rsquo;s required to unlock
-                              Windows hosts during startup.
-                            </p>
-                          </div>
-                        }
-                      >
-                        Require BitLocker PIN
-                      </TooltipWrapper>
-                    </Checkbox>
-                  )}
-                </div>
-              )}
+                      Require BitLocker PIN
+                    </TooltipWrapper>
+                  </Checkbox>
+                )}
+              </div>
               <GitOpsModeTooltipWrapper
                 tipOffset={-12}
                 renderChildren={(d) => (

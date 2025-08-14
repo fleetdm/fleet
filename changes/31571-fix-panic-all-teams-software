@@ -1,0 +1,1 @@
+* Fixed server panic when listing software titles for "All teams" with page that contains a software title with a policy automation in "No team".

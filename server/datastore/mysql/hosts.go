@@ -1222,8 +1222,10 @@ func (ds *Datastore) applyHostFilters(
 				batchScriptExecutionIDFilter += ` AND ((ua.execution_id IS NOT NULL) OR (hsr.host_id is NOT NULL AND hsr.exit_code IS NULL AND hsr.canceled = 0 AND bsehr.error IS NULL))`
 			case fleet.BatchScriptExecutionErrored:
 				// TODO - remove exit code condition when we split up "errored" and "failed"
-				batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL OR hsr.exit_code > 0`
-			case fleet.BatchScriptExecutionCancelled:
+				batchScriptExecutionIDFilter += ` AND hsr.exit_code > 0`
+			case fleet.BatchScriptExecutionIncompatible:
+				batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL`
+			case fleet.BatchScriptExecutionCanceled:
 				batchScriptExecutionIDFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 1`
 			}
 		}
@@ -4184,6 +4186,16 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 		`UPDATE host_disks SET encrypted = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE host_id = ?`,
 		`INSERT INTO host_disks (encrypted, host_id) VALUES (?, ?)`,
 		encrypted, hostID,
+	)
+}
+
+// SetOrUpdateHostDiskTpmPIN sets the host's flag indicating if the disk has a TPM PIN protector set
+func (ds *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_disks SET tpm_pin_set = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (tpm_pin_set, host_id) VALUES (?, ?)`,
+		pinSet, hostID,
 	)
 }
 

@@ -1,0 +1,2 @@
+* Fixed invalid rate limiting applied on Fleet Desktop requests for which a public IP could not be determined.
+* Improved public IP extraction for Fleet Desktop requests.

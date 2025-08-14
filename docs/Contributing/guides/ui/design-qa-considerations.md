@@ -57,6 +57,10 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Vulnerability scans
 - Automatic software install
 - Label-scoped software install
+- Host software
+  - Actions: Install, uninstall, update software
+  - Statuses
+  - Activities (host upcoming, host past, global)
 
 ## Policy
 
@@ -113,6 +117,40 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Host callback times other than 1hr
 - DB primary / replica
 - Async ingestion of policies
+
+## Tables
+
+- Pagination (client side vs. server side)
+- Filters: sort column, direction, search, dropdowns, advanced
+- URL query parameters (source of truth) vs. self-contained parameters
+- Empty states
+  - Cell empty states
+  - Whole table empty states (e.g. true empty, search empty, etc)
+- Loading/Error states
+
+## GitOps mode
+
+- Disable certain actions with Gitops mode tooltip
+- Copy changes
+
+## Forms
+
+- Error states (conditions, clientside vs. server side, location of error message, trigger onBlur/onChange/onSubmit)
+- Disabled states (conditions, on button, on form fields)
+- Dynamic views (show/hide buttons, dynamic help text, edge case views)
+
+## Responsiveness and low-width browsers
+- Long database names rendered in the UI e.g. team names, scripts, software titles...
+- Wide tables with many columns or wide columns (horizontal scroll vs. old, bad pattern of hiding columns)
+
+## Actionable components (e.g. buttons, links, form fields, navigation)
+- Keyboard accessibility
+- States: Default, Hover (with mouse), Active (when clicked), Focus (keyboard highlight)
+
+## User permissions
+- Premium vs. Free
+- Global user (Admin, Maintainer, Observer, Observer+, API only)
+- Team level user (Admin, Maintainer, Observer, Observer+, API only)
 
 
 <meta name="pageOrderInSection" value="3300">

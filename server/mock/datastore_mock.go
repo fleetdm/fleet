@@ -699,11 +699,13 @@ type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAv
 
 type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error)
 
+type SetOrUpdateHostDiskTpmPINFunc func(ctx context.Context, hostID uint, pinSet bool) error
+
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
-type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) error
+type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) (bool, error)
 
-type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error)
 
 type DeleteLUKSDataFunc func(ctx context.Context, hostID uint, keySlot uint) error
 
@@ -769,6 +771,8 @@ type UpdateJobFunc func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Jo
 
 type CleanupWorkerJobsFunc func(ctx context.Context, failedSince time.Duration, completedSince time.Duration) (int64, error)
 
+type GetJobFunc func(ctx context.Context, jobID uint) (*fleet.Job, error)
+
 type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
@@ -779,7 +783,7 @@ type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []f
 
 type ListOSVulnerabilitiesByOSFunc func(ctx context.Context, osID uint) ([]fleet.OSVulnerability, error)
 
-type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool) (fleet.Vulnerabilities, error)
+type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error)
 
 type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
@@ -788,6 +792,10 @@ type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fle
 type InsertOSVulnerabilityFunc func(ctx context.Context, vuln fleet.OSVulnerability, source fleet.VulnerabilitySource) (bool, error)
 
 type DeleteOutOfDateOSVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error
+
+type ListKernelsByOSFunc func(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error)
+
+type InsertKernelSoftwareMappingFunc func(ctx context.Context) error
 
 type ListVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error)
 
@@ -799,7 +807,7 @@ type UpdateVulnerabilityHostCountsFunc func(ctx context.Context, maxRoutines int
 
 type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
-type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error)
+type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error)
 
 type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
 
@@ -1125,7 +1133,7 @@ type GetMDMWindowsProfilesContentsFunc func(ctx context.Context, profileUUIDs []
 
 type BulkDeleteMDMWindowsHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error
 
-type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error)
+type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error)
 
 type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error
 
@@ -1169,7 +1177,21 @@ type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.
 
 type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
-type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error)
+type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
+
+type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
+
+type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
+
+type CancelBatchScriptFunc func(ctx context.Context, executionID string) error
+
+type ListBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error)
+
+type CountBatchScriptExecutionsFunc func(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error)
+
+type MarkActivitiesAsCompletedFunc func(ctx context.Context) error
 
 type GetHostLockWipeStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error)
 
@@ -2448,6 +2470,9 @@ type DataStore struct {
 	GetConfigEnableDiskEncryptionFunc        GetConfigEnableDiskEncryptionFunc
 	GetConfigEnableDiskEncryptionFuncInvoked bool
 
+	SetOrUpdateHostDiskTpmPINFunc        SetOrUpdateHostDiskTpmPINFunc
+	SetOrUpdateHostDiskTpmPINFuncInvoked bool
+
 	SetOrUpdateHostDisksEncryptionFunc        SetOrUpdateHostDisksEncryptionFunc
 	SetOrUpdateHostDisksEncryptionFuncInvoked bool
 
@@ -2553,6 +2578,9 @@ type DataStore struct {
 	CleanupWorkerJobsFunc        CleanupWorkerJobsFunc
 	CleanupWorkerJobsFuncInvoked bool
 
+	GetJobFunc        GetJobFunc
+	GetJobFuncInvoked bool
+
 	InnoDBStatusFunc        InnoDBStatusFunc
 	InnoDBStatusFuncInvoked bool
 
@@ -2582,6 +2610,12 @@ type DataStore struct {
 
 	DeleteOutOfDateOSVulnerabilitiesFunc        DeleteOutOfDateOSVulnerabilitiesFunc
 	DeleteOutOfDateOSVulnerabilitiesFuncInvoked bool
+
+	ListKernelsByOSFunc        ListKernelsByOSFunc
+	ListKernelsByOSFuncInvoked bool
+
+	InsertKernelSoftwareMappingFunc        InsertKernelSoftwareMappingFunc
+	InsertKernelSoftwareMappingFuncInvoked bool
 
 	ListVulnerabilitiesFunc        ListVulnerabilitiesFunc
 	ListVulnerabilitiesFuncInvoked bool
@@ -3153,8 +3187,29 @@ type DataStore struct {
 	BatchExecuteScriptFunc        BatchExecuteScriptFunc
 	BatchExecuteScriptFuncInvoked bool
 
+	BatchScheduleScriptFunc        BatchScheduleScriptFunc
+	BatchScheduleScriptFuncInvoked bool
+
+	GetBatchActivityFunc        GetBatchActivityFunc
+	GetBatchActivityFuncInvoked bool
+
+	GetBatchActivityHostResultsFunc        GetBatchActivityHostResultsFunc
+	GetBatchActivityHostResultsFuncInvoked bool
+
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
+
+	CancelBatchScriptFunc        CancelBatchScriptFunc
+	CancelBatchScriptFuncInvoked bool
+
+	ListBatchScriptExecutionsFunc        ListBatchScriptExecutionsFunc
+	ListBatchScriptExecutionsFuncInvoked bool
+
+	CountBatchScriptExecutionsFunc        CountBatchScriptExecutionsFunc
+	CountBatchScriptExecutionsFuncInvoked bool
+
+	MarkActivitiesAsCompletedFunc        MarkActivitiesAsCompletedFunc
+	MarkActivitiesAsCompletedFuncInvoked bool
 
 	GetHostLockWipeStatusFunc        GetHostLockWipeStatusFunc
 	GetHostLockWipeStatusFuncInvoked bool
@@ -5918,6 +5973,13 @@ func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *u
 	return s.GetConfigEnableDiskEncryptionFunc(ctx, teamID)
 }
 
+func (s *DataStore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error {
+	s.mu.Lock()
+	s.SetOrUpdateHostDiskTpmPINFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateHostDiskTpmPINFunc(ctx, hostID, pinSet)
+}
+
 func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDisksEncryptionFuncInvoked = true
@@ -5925,14 +5987,14 @@ func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID u
 	return s.SetOrUpdateHostDisksEncryptionFunc(ctx, hostID, encrypted)
 }
 
-func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) error {
+func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) (bool, error) {
 	s.mu.Lock()
 	s.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, host, encryptedBase64Key, clientError, decryptable)
 }
 
-func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error {
+func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error) {
 	s.mu.Lock()
 	s.SaveLUKSDataFuncInvoked = true
 	s.mu.Unlock()
@@ -6163,6 +6225,13 @@ func (s *DataStore) CleanupWorkerJobs(ctx context.Context, failedSince time.Dura
 	return s.CleanupWorkerJobsFunc(ctx, failedSince, completedSince)
 }
 
+func (s *DataStore) GetJob(ctx context.Context, jobID uint) (*fleet.Job, error) {
+	s.mu.Lock()
+	s.GetJobFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetJobFunc(ctx, jobID)
+}
+
 func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
 	s.mu.Lock()
 	s.InnoDBStatusFuncInvoked = true
@@ -6198,11 +6267,11 @@ func (s *DataStore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([
 	return s.ListOSVulnerabilitiesByOSFunc(ctx, osID)
 }
 
-func (s *DataStore) ListVulnsByOsNameAndVersion(ctx context.Context, name string, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+func (s *DataStore) ListVulnsByOsNameAndVersion(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
 	s.mu.Lock()
 	s.ListVulnsByOsNameAndVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListVulnsByOsNameAndVersionFunc(ctx, name, version, includeCVSS)
+	return s.ListVulnsByOsNameAndVersionFunc(ctx, name, version, includeCVSS, teamID)
 }
 
 func (s *DataStore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
@@ -6231,6 +6300,20 @@ func (s *DataStore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, source
 	s.DeleteOutOfDateOSVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteOutOfDateOSVulnerabilitiesFunc(ctx, source, olderThan)
+}
+
+func (s *DataStore) ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error) {
+	s.mu.Lock()
+	s.ListKernelsByOSFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListKernelsByOSFunc(ctx, osID, teamID)
+}
+
+func (s *DataStore) InsertKernelSoftwareMapping(ctx context.Context) error {
+	s.mu.Lock()
+	s.InsertKernelSoftwareMappingFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertKernelSoftwareMappingFunc(ctx)
 }
 
 func (s *DataStore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
@@ -6268,7 +6351,7 @@ func (s *DataStore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, er
 	return s.IsCVEKnownToFleetFunc(ctx, cve)
 }
 
-func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
+func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
@@ -7409,11 +7492,11 @@ func (s *DataStore) BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context,
 	return s.BulkDeleteMDMWindowsHostsConfigProfilesFunc(ctx, payload)
 }
 
-func (s *DataStore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+func (s *DataStore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMWindowsConfigProfileFunc(ctx, cp)
+	return s.NewMDMWindowsConfigProfileFunc(ctx, cp, usesFleetVars)
 }
 
 func (s *DataStore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
@@ -7563,11 +7646,60 @@ func (s *DataStore) BatchExecuteScript(ctx context.Context, userID *uint, script
 	return s.BatchExecuteScriptFunc(ctx, userID, scriptID, hostIDs)
 }
 
-func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+func (s *DataStore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
+	s.mu.Lock()
+	s.BatchScheduleScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchScheduleScriptFunc(ctx, userID, scriptID, hostIDs, notBefore)
+}
+
+func (s *DataStore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
+	s.mu.Lock()
+	s.GetBatchActivityFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetBatchActivityFunc(ctx, executionID)
+}
+
+func (s *DataStore) GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error) {
+	s.mu.Lock()
+	s.GetBatchActivityHostResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetBatchActivityHostResultsFunc(ctx, executionID)
+}
+
+func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 	s.mu.Lock()
 	s.BatchExecuteSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchExecuteSummaryFunc(ctx, executionID)
+}
+
+func (s *DataStore) CancelBatchScript(ctx context.Context, executionID string) error {
+	s.mu.Lock()
+	s.CancelBatchScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelBatchScriptFunc(ctx, executionID)
+}
+
+func (s *DataStore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
+	s.mu.Lock()
+	s.ListBatchScriptExecutionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListBatchScriptExecutionsFunc(ctx, filter)
+}
+
+func (s *DataStore) CountBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) (int64, error) {
+	s.mu.Lock()
+	s.CountBatchScriptExecutionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountBatchScriptExecutionsFunc(ctx, filter)
+}
+
+func (s *DataStore) MarkActivitiesAsCompleted(ctx context.Context) error {
+	s.mu.Lock()
+	s.MarkActivitiesAsCompletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkActivitiesAsCompletedFunc(ctx)
 }
 
 func (s *DataStore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {

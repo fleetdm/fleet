@@ -153,12 +153,21 @@ else
         echo "New deadline (4 Sundays from today): $new_deadline"
 
         # Check if team updates are needed
-        if [ "$current_workstations_version" != "$latest_macos_version" ] || [ "$current_workstations_deadline" != "$new_deadline" ]; then
+        # Only update deadline if there's a new macOS version
+        if [ "$current_workstations_version" != "$latest_macos_version" ]; then
+            team_updates_needed=true
+            updates_needed=true
+        elif [ "$current_workstations_deadline" != "$new_deadline" ] && [ "$policy_update_needed" = true ]; then
+            # Only update deadline if policy was updated (meaning there's a new version)
             team_updates_needed=true
             updates_needed=true
         fi
 
-        if [ "$current_workstations_canary_version" != "$latest_macos_version" ] || [ "$current_workstations_canary_deadline" != "$new_deadline" ]; then
+        if [ "$current_workstations_canary_version" != "$latest_macos_version" ]; then
+            team_updates_needed=true
+            updates_needed=true
+        elif [ "$current_workstations_canary_deadline" != "$new_deadline" ] && [ "$policy_update_needed" = true ]; then
+            # Only update deadline if policy was updated (meaning there's a new version)
             team_updates_needed=true
             updates_needed=true
         fi
@@ -257,9 +266,8 @@ if [ "$updates_needed" = true ]; then
     # Prepare the reviewers data payload
     reviewers_data=$(jq -n \
         --arg r1 "harrisonravazzolo" \
-        --arg r2 "nonpunctual" \
-        --arg r3 "ddribeiro" \
-        '{reviewers: [$r1, $r2, $r3]}')
+        --arg r2 "tux234" \
+        '{reviewers: [$r1, $r2]}')
 
     # Request reviewers for the pull request
     review_response=$(curl -s -X POST \

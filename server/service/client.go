@@ -1111,7 +1111,6 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 
 		if si.Slug != nil {
 			softwarePayloads[i].Slug = si.Slug
-			softwarePayloads[i].AutomaticInstall = si.AutomaticInstall
 		}
 	}
 
@@ -1473,14 +1472,7 @@ func extractTmSpecsFleetMaintainedApps(tmSpecs []json.RawMessage) map[string][]f
 				packages = []fleet.SoftwarePackageSpec{}
 			} else {
 				for _, app := range software.FleetMaintainedApps.Value {
-					packages = append(packages, fleet.SoftwarePackageSpec{
-						Slug:             &app.Slug,
-						AutomaticInstall: app.AutomaticInstall,
-						SelfService:      app.SelfService,
-						LabelsIncludeAny: app.LabelsIncludeAny,
-						LabelsExcludeAny: app.LabelsExcludeAny,
-						Categories:       app.Categories,
-					})
+					packages = append(packages, app.ToSoftwarePackageSpec())
 				}
 			}
 			m[spec.Name] = packages
@@ -2150,13 +2142,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	}
 	for _, software := range config.Software.FleetMaintainedApps {
 		if software != nil {
-			packages = append(packages, fleet.SoftwarePackageSpec{
-				Slug:             &software.Slug,
-				AutomaticInstall: software.AutomaticInstall,
-				SelfService:      software.SelfService,
-				LabelsIncludeAny: software.LabelsIncludeAny,
-				LabelsExcludeAny: software.LabelsExcludeAny,
-			})
+			packages = append(packages, software.ToSoftwarePackageSpec())
 		}
 	}
 
