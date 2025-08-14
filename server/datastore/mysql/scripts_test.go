@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -2208,6 +2209,9 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	}
 	require.NotNil(t, job)
 	require.Equal(t, fleet.BatchActivityScriptsJobName, job.Name)
+	// Make sure the name matches the name on the worker job
+	batchJob := worker.BatchScripts{}
+	require.Equal(t, batchJob.Name(), job.Name)
 	// Time from DB isn't super accurate
 	require.Equal(t, scheduledTime.Truncate(time.Minute), job.NotBefore.Truncate(time.Minute))
 	assert.JSONEq(t, fmt.Sprintf(`{"execution_id":%q}`, execID), string(*job.Args))
