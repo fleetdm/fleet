@@ -68,6 +68,7 @@ export const SummaryCard = ({
         team_id: teamIdForApi,
       }}
       name={osVersion.platform}
+      isOperatingSystem
     />
   </Card>
 );

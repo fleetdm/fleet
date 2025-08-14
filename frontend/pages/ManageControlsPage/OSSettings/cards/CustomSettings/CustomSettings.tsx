@@ -28,24 +28,20 @@ import ProfileListItem from "./components/ProfileListItem";
 import ProfileListHeading from "./components/ProfileListHeading";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
 import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
+import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const PROFILES_PER_PAGE = 10;
 
 const baseClass = "custom-settings";
 
-interface ICustomSettingsProps {
-  currentTeamId: number;
-  router: InjectedRouter; // v3
-  currentPage: number;
-  /** handler that fires when a change occures on the section (e.g. disk encryption
-   * enabled, profile uploaded) */
-  onMutation: () => void;
-}
+export type ICustomSettingsProps = IOSSettingsCommonProps & {
+  currentPage?: number;
+};
 
 const CustomSettings = ({
   currentTeamId,
   router,
-  currentPage,
+  currentPage = 0,
   onMutation,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);

@@ -21,7 +21,7 @@ import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
 import {
   INumberCellProps,
   IStringCellProps,
@@ -85,7 +85,7 @@ const generateDefaultTableHeaders = (
           path={softwareOsDetailsPath}
           customOnClick={onClickSoftware}
           tooltipTruncate
-          prefix={<SoftwareIcon name={platform} />}
+          prefix={<OSIcon name={platform} />}
           value={name_only}
         />
       );
