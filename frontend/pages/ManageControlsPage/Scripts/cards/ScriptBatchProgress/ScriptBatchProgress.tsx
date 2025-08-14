@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
@@ -127,6 +127,9 @@ const ScriptBatchProgress = ({
           newQuery ? `?${newQuery}` : ""
         )
       );
+
+      setBatchCount(null);
+      setUpdating(false);
     },
     [location?.search, router]
   );
@@ -259,11 +262,6 @@ const ScriptBatchProgress = ({
       </>
     );
   };
-
-  // Whenever the tab changes, reset the list state.
-  useEffect(() => {
-    setBatchCount(null);
-  }, [selectedStatus]);
 
   // Fetch the first page of the list when first visiting a tab.
   if (batchCount === null && !updating) {
