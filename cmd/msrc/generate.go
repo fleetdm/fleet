@@ -22,7 +22,7 @@ func panicif(err error) {
 	}
 }
 
-var cleanEnvVar = "MSRC_CLEAN"
+const cleanEnvVar = "MSRC_CLEAN"
 
 func main() {
 	wd, err := os.Getwd()
