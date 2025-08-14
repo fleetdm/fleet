@@ -2970,11 +2970,11 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 	hosts := s.createHosts(t, "linux")
 	host := hosts[0]
 
-	stalePolicyCount, staleIssuesCount, freshPolicyCount, freshIssueCount := uint64(50), uint64(500), uint64(0), uint64(0)
+	staleIssuesCount, freshIssueCount := uint64(500), uint64(0)
 	// create host_issues for it with stale data
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count) VALUES (?, ?, ?)`, host.ID, stalePolicyCount, staleIssuesCount)
+			`INSERT INTO host_issues (host_id, total_issues_count) VALUES (?, ?)`, host.ID, staleIssuesCount)
 		return err
 	})
 
