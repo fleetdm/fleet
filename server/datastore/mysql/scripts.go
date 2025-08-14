@@ -1880,12 +1880,13 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 
 		_, err := tx.ExecContext(
 			ctx,
-			`INSERT INTO batch_activities (execution_id, script_id, status, activity_type, started_at) VALUES (?, ?, ?, ?, NOW())
+			`INSERT INTO batch_activities (execution_id, script_id, status, activity_type, num_targeted, started_at) VALUES (?, ?, ?, ?, ?, NOW())
 				ON DUPLICATE KEY UPDATE status = VALUES(status), started_at = VALUES(started_at)`,
 			batchExecID,
 			script.ID,
 			fleet.ScheduledBatchExecutionStarted,
 			fleet.BatchExecutionActivityScript,
+			len(hostIDs),
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to insert new batch execution")

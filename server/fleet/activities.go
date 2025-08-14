@@ -210,6 +210,7 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeRanScriptBatch{},
 	ActivityTypeBatchScriptScheduled{},
+	ActivityTypeBatchScriptCanceled{},
 
 	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
@@ -2608,6 +2609,25 @@ func (a ActivityTypeBatchScriptScheduled) Documentation() (string, string, strin
   "script_name": "set-timezones.sh",
   "host_count": 12,
   "not_before": "2025-08-06T17:49:21.810204Z"
+}`
+}
+
+type ActivityTypeBatchScriptCanceled struct {
+	ScriptName *string `json:"script_name,omitempty"`
+	HostCount  uint    `json:"host_count"`
+}
+
+func (a ActivityTypeBatchScriptCanceled) ActivityName() string {
+	return "canceled_batch_script"
+}
+
+func (a ActivityTypeBatchScriptCanceled) Documentation() (string, string, string) {
+	return "Generated when a batch script is canceled.",
+		`This activity contains the following fields:
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.`, `{
+  "script_name": "set-timezones.sh",
+  "host_count": 12
 }`
 }
 

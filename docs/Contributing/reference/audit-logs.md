@@ -1875,6 +1875,23 @@ This activity contains the following fields:
 }
 ```
 
+## canceled_batch_script
+
+Generated when a batch script is canceled.
+
+This activity contains the following fields:
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+
+#### Example
+
+```json
+{
+  "script_name": "set-timezones.sh",
+  "host_count": 12
+}
+```
+
 ## added_conditional_access_integration_microsoft
 
 Generated when Microsoft Entra is connected for conditonal access.
