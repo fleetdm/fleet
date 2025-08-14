@@ -17,7 +17,7 @@ import ProgressBar from "components/ProgressBar";
 import SectionHeader from "components/SectionHeader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
+import PaginatedList from "components/PaginatedList";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon/Icon";
 
@@ -67,9 +67,6 @@ const ScriptBatchProgress = ({
   ] = useState<IScriptBatchDetailsForSummary | null>(null);
   const [batchCount, setBatchCount] = useState<number | null>(null);
   const [updating, setUpdating] = useState(false);
-  const paginatedListRef = useRef<IPaginatedListHandle<IScriptBatchSummaryV2>>(
-    null
-  );
 
   const statusParam = location?.query.status;
 
