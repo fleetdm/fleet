@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
@@ -21,6 +22,83 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGetCertificateAuthorityByID(t *testing.T) {
+	t.Parallel()
+
+	ds := new(mock.Store)
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	svc := newTestService(t, ds)
+
+	t.Run("GET a CA - Happy path", func(t *testing.T) {
+		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
+			require.False(t, includeSecrets, "includeSecrets should be false - the API should never return the secrets")
+			return &fleet.CertificateAuthority{
+				ID:                            1,
+				Name:                          "Test CA",
+				URL:                           "https://example.com",
+				Type:                          string(fleet.CATypeDigiCert),
+				APIToken:                      ptr.String(fleet.MaskedPassword),
+				ProfileID:                     ptr.String("digicert-profile-id"),
+				CertificateCommonName:         ptr.String("digicert-common-name"),
+				CertificateUserPrincipalNames: []string{"digicert-upn1"},
+				CertificateSeatID:             ptr.String("digicert-seat-id"),
+			}, nil
+		}
+
+		returnedCA, err := svc.GetCertificateAuthority(ctx, 1)
+		require.NoError(t, err)
+		require.NotNil(t, returnedCA)
+	})
+
+	t.Run("GET a CA - CA not found", func(t *testing.T) {
+		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
+			require.False(t, includeSecrets, "includeSecrets should be false - the API should never return the secrets")
+			return nil, common_mysql.NotFound("CertificateAuthority").WithID(id)
+		}
+
+		returnedCA, err := svc.GetCertificateAuthority(ctx, 1)
+		require.ErrorContains(t, err, "not found")
+		require.Nil(t, returnedCA)
+	})
+}
+
+func TestListCertificateAuthorities(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	t.Run("GET all CAs - Happy path", func(t *testing.T) {
+		ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+			return []*fleet.CertificateAuthoritySummary{
+				{
+					ID:   1,
+					Name: "TestDigicertCA",
+					Type: string(fleet.CATypeDigiCert),
+				},
+				{
+					ID:   2,
+					Name: "TestSCEPCA",
+					Type: string(fleet.CATypeCustomSCEPProxy),
+				},
+			}, nil
+		}
+
+		returnedCAs, err := svc.ListCertificateAuthorities(ctx)
+		require.NoError(t, err)
+		require.Len(t, returnedCAs, 2)
+	})
+
+	t.Run("GET all CAs - No CAs found", func(t *testing.T) {
+		ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+			return []*fleet.CertificateAuthoritySummary{}, nil
+		}
+
+		returnedCAs, err := svc.ListCertificateAuthorities(ctx)
+		require.NoError(t, err)
+		require.Len(t, returnedCAs, 0)
+	})
+}
 
 func TestCreatingCertificateAuthorities(t *testing.T) {
 	// Setup mock digicert server
