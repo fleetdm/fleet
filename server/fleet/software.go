@@ -323,7 +323,8 @@ type PathSignatureInformation struct {
 // HostSoftware is the set of software installed on a specific host
 type HostSoftware struct {
 	// Software is the software information.
-	Software []HostSoftwareEntry `json:"software" csv:"-"`
+	// Software []HostSoftwareEntry `json:"software" csv:"-"`
+	Software []HostSoftwareEntry `json:"software,omitempty" csv:"-"`
 
 	// SoftwareUpdatedAt is the time that the host software was last updated
 	SoftwareUpdatedAt time.Time `json:"software_updated_at" db:"software_updated_at" csv:"software_updated_at"`
