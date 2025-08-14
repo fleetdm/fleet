@@ -65,7 +65,7 @@ parasails.registerPage('configuration-builder', {
     downloadProfileFormData: {},
     profileFilename: undefined,
     profileDescription: undefined,
-    // mac OS payloads.
+    // macOS payloads.
     macosCategoriesAndPayloads: [
       {
         categoryName: 'Privacy & security',
@@ -92,31 +92,10 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'forcePIN',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
                 },
               },
               {
-                name: 'Allow simple password',
-                uniqueSlug: 'macos-enable-allow-simple-pin',
-                tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowSimple',
-                  trueValue: '<true/>',
-                  falseValue: '<false/>',
-                },
-              },
-              {
-                name: 'Max inactivity time before device locks',
+                name: 'Maximum inactivity time before device locks',
                 uniqueSlug: 'macos-max-inactivity',
                 tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
                 category: 'Device lock',
@@ -154,6 +133,23 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
+                name: 'Allow simple password',
+                uniqueSlug: 'macos-enable-allow-simple-pin',
+                tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowSimple',
+                },
+              },
+              {
                 name: 'Require alphanumeric password',
                 uniqueSlug: 'macos-require-alphanumeric-password',
                 tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
@@ -168,80 +164,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'requireAlphanumeric',
-                },
-              },
-              {
-                name: 'Change passcode at next login',
-                uniqueSlug: 'macos-change-at-next-auth',
-                tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'changeAtNextAuth',
-                },
-              },
-              {
-                name: 'Maximum number of failed attempts',
-                uniqueSlug: 'macos-max-failed-attempts',
-                tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 11,
-                  minValue: 2,
-                  maxValue: 11,
-                  unitLabel: 'attempts'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxFailedAttempts',
-                },
-              },
-              {
-                name: 'Max grace period',
-                uniqueSlug: 'macos-max-grace-period',
-                tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 999,
-                  unitLabel: 'minutes'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxGracePeriod',
-                },
-              },
-              {
-                name: 'Max passcode age',
-                uniqueSlug: 'macos-max-pin-age',
-                tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 999,
-                  unitLabel: 'days'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxPINAgeInDays',
                 },
               },
               {
@@ -264,9 +186,26 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Minutes until failed login reset',
-                uniqueSlug: 'macos-minutes-until-failed-login-reset',
-                tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
+                name: 'Change passcode at next login',
+                uniqueSlug: 'macos-change-at-next-auth',
+                tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'changeAtNextAuth',
+                },
+              },
+              {
+                name: 'Maximum grace period',
+                uniqueSlug: 'macos-max-grace-period',
+                tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
                 category: 'Device lock',
                 payload: 'Passcode',
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
@@ -274,12 +213,12 @@ parasails.registerPage('configuration-builder', {
                   type: 'number',
                   defaultValue: 0,
                   minValue: 0,
-                  maxValue: 4,
+                  maxValue: 999,
                   unitLabel: 'minutes'
                 },
                 formOutput: {
                   settingFormat: 'integer',
-                  settingKey: 'minutesUntilFailedLoginReset',
+                  settingKey: 'maxGracePeriod',
                 },
               },
               {
@@ -297,6 +236,63 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'integer',
                   settingKey: 'pinHistory',
+                },
+              },
+              {
+                name: 'Maximum passcode age',
+                uniqueSlug: 'macos-max-pin-age',
+                tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 999,
+                  unitLabel: 'days'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'maxPINAgeInDays',
+                },
+              },
+              {
+                name: 'Maximum number of failed attempts',
+                uniqueSlug: 'macos-max-failed-attempts',
+                tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 11,
+                  minValue: 2,
+                  maxValue: 11,
+                  unitLabel: 'attempts'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'maxFailedAttempts',
+                },
+              },
+              {
+                name: 'Minutes until failed login reset',
+                uniqueSlug: 'macos-minutes-until-failed-login-reset',
+                tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 4,
+                  unitLabel: 'minutes'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'minutesUntilFailedLoginReset',
                 },
               },
             ],
@@ -1079,7 +1075,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max inactivity time before device locks',
+                name: 'Maximum inactivity time before device locks',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks',
                 category: 'Device lock',
                 tooltip: 'The number of seconds a device can remain inactive before a password is required to unlock the device.',
@@ -1102,7 +1098,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max inactivity time before device locks with external display',
+                name: 'Maximum inactivity time before device locks with external display',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks-with-external-display',
                 category: 'Device lock',
                 tooltip: 'The number of seconds a device can remain inactive while using an external monitor before a password is required to unlock the device.',
@@ -1158,7 +1154,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max failed attempts',
+                name: 'Maximum failed attempts',
                 tooltip: 'The number of authentication failures allowed before the device will be wiped. A value of 0 disables device wipe functionality.',
                 uniqueSlug: 'windows-device-lock-max-failed-attempts',
                 category: 'Device lock',
@@ -1182,7 +1178,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max password age',
+                name: 'Maximum password age',
                 tooltip: `Determines the period of time (in days) that a password can be used before the system requires the user to change it. You can set passwords to expire after a number of days between 1 and 999, or you can specify that passwords never expire by setting the number of days to 0.`,
                 uniqueSlug: 'windows-device-lock-max-password-age',
                 category: 'Device lock',
@@ -2681,6 +2677,443 @@ parasails.registerPage('configuration-builder', {
         ],
       }
     ],
+    // Android payloads
+    androidCategoriesAndPayloads: [
+      {
+        categoryName: 'Privacy & security',
+        categorySlug: 'android-privacy-and-security',
+        subcategories: [
+          {
+            subcategoryName: 'Device lock',
+            subcategorySlug: 'android-device-lock',
+            description: 'Settings related to screen lock and passwords.',
+            learnMoreLinkUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
+            payloads: [
+              {
+                name: 'Maximum inactivity time before device locks',
+                uniqueSlug: 'android-max-inactivity',
+                tooltip: 'Maximum time in milliseconds for user activity until the device locks. A value of 0 means there is no restriction.',
+                category: 'Device lock',
+                payloadGroup: 'Screen lock',// determines the
+
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'milliseconds'
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'maximumTimeToLock',
+                },
+              },
+              {
+                name: 'Password history length',
+                uniqueSlug: 'android-password-history',
+                tooltip: `The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'passwords'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordHistoryLength',
+                },
+              },
+              {
+                name: 'Maximum number of failed attempts before device is wiped.',
+                uniqueSlug: 'android-password-max-failed-attempts',
+                tooltip: `Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'attempts'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.maximumFailedPasswordsForWipe',
+                },
+              },
+              {
+                name: 'Password scope',
+                uniqueSlug: 'android-password-scope',
+                tooltip: `The scope that the password requirement applies to.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'SCOPE_UNSPECIFIED'
+                    },
+                    {
+                      name: 'Device',
+                      value: 'SCOPE_DEVICE'
+                    },
+                    {
+                      name: 'Work profile',
+                      value: 'SCOPE_PROFILE',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'passwordRequirements.passwordScope',
+                },
+              },
+              {
+                name: 'Amount of time after unlocking before a password is required again',
+                uniqueSlug: 'android-require-password-unlock-timeout',
+                tooltip: `The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.`,
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED'
+                    },
+                    {
+                      name: `Device's default`,
+                      value: 'USE_DEFAULT_DEVICE_TIMEOUT'
+                    },
+                    {
+                      name: 'Every 24 hours',
+                      value: 'REQUIRE_EVERY_DAY',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'passwordRequirements.requirePasswordUnlock',
+                },
+              },
+              {
+                name: 'Enforce password complexity',
+                uniqueSlug: 'android-password-complexity',
+                tooltip: 'Password quality requirements.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'The device must be secured with a low-security biometric recognition technology, at minimum. This includes technologies that can recognize the identity of an individual that are roughly equivalent to a 3-digit PIN',
+                      value: 'BIOMETRIC_WEAK'
+                    },
+                    {
+                      name: 'A password is required, but there are no restrictions on what the password must contain.',
+                      value: 'SOMETHING'
+                    },
+                    {
+                      name: 'Numeric - The password must contain numeric characters.',
+                      value: 'NUMERIC',
+                    },
+                    {
+                      name: 'Complex numeric - The password must contain numeric characters with no repeating (4444) or ordered (1234, 4321, 2468) sequences.',
+                      value: 'NUMERIC_COMPLEX',
+                    },
+                    {
+                      name: 'Alphabetic - The password must contain alphabetic (or symbol) characters.',
+                      value: 'ALPHABETIC',
+                    },
+                    {
+                      name: 'Alphanumeric - The password must contain both numeric and alphabetic (or symbol) characters.',
+                      value: 'ALPHANUMERIC',
+                    },
+                    {
+                      name: 'Complex - The password must meet the requirments set by this policy',
+                      value: 'COMPLEX',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'passwordRequirements.passwordQuality',
+                },
+              },
+              {
+                name: 'Minimum password length',
+                uniqueSlug: 'android-min-password-length',
+                tooltip: 'The minimum allowed password length. A value of 0 means there is no restriction. Only enforced when password complexity is set to numeric, complex numeric, alphabetic, alphanumeric, or complex.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'characters'
+                },
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumLength',
+                },
+              },
+              {
+                name: 'Minimum number of letters in password',
+                uniqueSlug: 'android-min-password-letters',
+                tooltip: 'Minimum number of letters required in the password. Only enforced when password complexity is set to complex.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'letters'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumLetters',
+                },
+              },
+              {
+                name: 'Minimum number of lower case letters in password',
+                uniqueSlug: 'android-min-password-letters-lower-case',
+                tooltip: 'Minimum number of lower case letters required in the password. Only enforced when password complexity is set to complex.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'lower case letters'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumLowerCase',
+                },
+              },
+              {
+                name: 'Minimum number of upper case letters in password',
+                uniqueSlug: 'android-min-password-letters-upper-case',
+                tooltip: 'Minimum number of upper case letters required in the password. Only enforced when password complexity is set to complex.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'lower case letters'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumUpperCase',
+                },
+              },
+              {
+                name: 'Minimum number of non-letter characters in password',
+                uniqueSlug: 'android-min-password-non-letters',
+                tooltip: 'Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password complexity is set to complex.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'characters'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumNonLetter',
+                },
+              },
+              {
+                name: 'Minimum number of numerical digits in password',
+                uniqueSlug: 'android-min-password-numeric',
+                tooltip: 'Minimum number of numerical digits required in the password. Only enforced when password complexity is set is COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'digits'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumNumeric',
+                },
+              },
+              {
+                name: 'Minimum number of symbols in password',
+                uniqueSlug: 'android-min-password-symbols',
+                tooltip: 'Minimum number of symbols required in the password. Only enforced when password complexity is set is COMPLEX.',
+                category: 'Device lock',
+                payloadGroup: 'Password',
+                formInput: {
+                  type: 'number',
+                  unitLabel: 'symbols'
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'android-password-complexity',
+                    dependingOnSettingValue: 'COMPLEX',
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'number',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumSymbols',
+                },
+              },
+            ],
+          },
+        ]
+      },
+      {
+        categoryName: 'Software & updates',
+        categorySlug: 'android-software-and-updates',
+        subcategories: [
+          {
+            subcategoryName: 'Applications',
+            subcategorySlug: 'android-applications',
+            description: 'Settings related to Applications and the Google play store on Android devices.',
+            learnMoreLinkUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
+            payloads: [
+              {
+                name: 'Apply device-wide app update policy',
+                uniqueSlug: 'android-app-auto-update-policy',
+                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'APP_AUTO_UPDATE_POLICY_UNSPECIFIED'
+                    },
+                    {
+                      name: 'The user can control auto-updates.',
+                      value: 'CHOICE_TO_THE_USER'
+                    },
+                    {
+                      name: 'Apps are never auto-updated',
+                      value: 'NEVER',
+                    },
+                    {
+                      name: 'Apps are auto-updated over Wi-Fi only.',
+                      value: 'WIFI_ONLY',
+                    },
+                    {
+                      name: 'Apps are auto-updated at any time.',
+                      value: 'ALWAYS',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'appAutoUpdatePolicy',
+                },
+              },
+              {
+                name: 'Disable app installation',
+                uniqueSlug: 'android-disable-app-install',
+                tooltip: `Whether user installation of apps is disabled.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'installAppsDisabled',
+                },
+              },
+              {
+                name: 'Disable app uninstallation',
+                uniqueSlug: 'android-disable-app-uninstall',
+                tooltip: `Whether user uninstallation of applications is disabled.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'uninstallAppsDisabled',
+                },
+              },
+              {
+                name: 'Allow installation of untrusted applications',
+                uniqueSlug: 'android-untrusted-apps',
+                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'UNTRUSTED_APPS_POLICY_UNSPECIFIED'
+                    },
+                    {
+                      name: 'Disallow untrusted app installs on entire device.',
+                      value: 'DISALLOW_INSTALL'
+                    },
+                    {
+                      name: 'For devices with work profiles, allow untrusted app installs in the device\'s personal profile only.',
+                      value: 'ALLOW_INSTALL_IN_PERSONAL_PROFILE_ONLY',
+                    },
+                    {
+                      name: 'Allow untrusted app installs on entire device.',
+                      value: 'ALLOW_INSTALL_DEVICE_WIDE',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'advancedSecurityOverrides.untrustedAppsPolicy',
+                },
+              },
+              {
+                name: 'Enforce Google Play protect verification',
+                uniqueSlug: 'android-google-play-protect',
+                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Unspecified',
+                      value: 'GOOGLE_PLAY_PROTECT_VERIFY_APPS_UNSPECIFIED'
+                    },
+                    {
+                      name: 'Enforce app verification.',
+                      value: 'VERIFY_APPS_ENFORCED'
+                    },
+                    {
+                      name: 'Allows the user to choose whether to enable app verification.',
+                      value: 'VERIFY_APPS_USER_CHOICE',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingTargetPath: 'advancedSecurityOverrides.googlePlayProtectVerifyApps',
+                },
+              },
+            ]
+          }
+        ]
+      }
+    ]
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -2727,6 +3160,8 @@ parasails.registerPage('configuration-builder', {
           await this.buildWindowsProfile(this.selectedPayloads);
         } else if(this.selectedPlatform === 'macos') {
           await this.buildMacOSProfile(this.selectedPayloads);
+        } else if(this.selectedPlatform === 'android') {
+          await this.buildAndroidProfile(this.selectedPayloads);
         }
       }
     },
@@ -2739,6 +3174,28 @@ parasails.registerPage('configuration-builder', {
       } else if(this.selectedPlatform === 'macos') {
         await this.buildMacOSProfile(this.selectedPayloads);
       }
+    },
+    buildAndroidProfile: function(selectedPayloads) {
+      let thisProfile = {
+        name: this.downloadProfileFormData.name,
+        version: this.downloadProfileFormData.version,
+      };
+      let payloadsToUse = _.clone(selectedPayloads);
+      for(let payload of payloadsToUse ){
+        if(payload.formOutput.settingFormat === 'number'){
+          let formDataCastToANumber = Number(this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
+          _.set(thisProfile, payload.formOutput.settingTargetPath, formDataCastToANumber);
+        } else {
+          _.set(thisProfile, payload.formOutput.settingTargetPath, this.configurationBuilderFormData[payload.uniqueSlug+'-value']);
+        }
+      }
+      let profileDownloadUrl = URL.createObjectURL(new Blob([JSON.stringify(thisProfile)], { type: 'text/json;' }));
+      let exportDownloadLink = document.createElement('a');
+      exportDownloadLink.href = profileDownloadUrl;
+      exportDownloadLink.download = `${this.downloadProfileFormData.name}.json`;
+      exportDownloadLink.click();
+      URL.revokeObjectURL(profileDownloadUrl);
+      this.syncing = false;
     },
     buildWindowsProfile: function(payloadsToUse) {
       let xmlString = '';
@@ -2936,7 +3393,7 @@ parasails.registerPage('configuration-builder', {
     },
     // When users click the download all button.
     handleSubmittingConfigurationBuilderForm: function() {
-      if(_.keysIn(this.selectedPayloadsGroupedByCategory).length > 1) {
+      if(_.keysIn(this.selectedPayloadsGroupedByCategory).length > 1 && this.selectedPlatform !== 'android') {
         // If there is more than one payload in this profile, show a warning in a modal.
         this.modal = 'multiple-payloads-selected';
       } else {
@@ -2953,7 +3410,7 @@ parasails.registerPage('configuration-builder', {
     },
     openDownloadModal: function() {
       this.modal = 'download-profile';
-      if(this.selectedPlatform === 'macos'){
+      if(this.selectedPlatform === 'macos') {
         this.downloadProfileFormRules = {
           name: {required: true},
           uuid: {required: true},
@@ -2961,6 +3418,11 @@ parasails.registerPage('configuration-builder', {
         };
         // Generate a uuid to prefill for the download profile form.
         this.downloadProfileFormData.uuid = crypto.randomUUID();
+      } else if(this.selectedPlatform === 'android') {
+        this.downloadProfileFormRules = {
+          name: {required: true},
+          version: { required: true }
+        };
       }
       this._enableToolTips();
     },
@@ -3060,7 +3522,7 @@ parasails.registerPage('configuration-builder', {
         }
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
         this.selectedPayloadSettings[payloadSlug] = true;
-        // console.log(this.configurationBuilderFormData);
+
       } else {
         // Remove the payload option and all dependencies
         let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: payloadSlug});
