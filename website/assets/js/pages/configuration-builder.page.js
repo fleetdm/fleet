@@ -95,24 +95,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Allow simple password',
-                uniqueSlug: 'macos-enable-allow-simple-pin',
-                tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'allowSimple',
-                },
-              },
-              {
-                name: 'Max inactivity time before device locks',
+                name: 'Maximum inactivity time before device locks',
                 uniqueSlug: 'macos-max-inactivity',
                 tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
                 category: 'Device lock',
@@ -150,6 +133,23 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
+                name: 'Allow simple password',
+                uniqueSlug: 'macos-enable-allow-simple-pin',
+                tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowSimple',
+                },
+              },
+              {
                 name: 'Require alphanumeric password',
                 uniqueSlug: 'macos-require-alphanumeric-password',
                 tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
@@ -164,80 +164,6 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'requireAlphanumeric',
-                },
-              },
-              {
-                name: 'Change passcode at next login',
-                uniqueSlug: 'macos-change-at-next-auth',
-                tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
-                },
-                formOutput: {
-                  settingFormat: 'boolean',
-                  settingKey: 'changeAtNextAuth',
-                },
-              },
-              {
-                name: 'Maximum number of failed attempts',
-                uniqueSlug: 'macos-max-failed-attempts',
-                tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 11,
-                  minValue: 2,
-                  maxValue: 11,
-                  unitLabel: 'attempts'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxFailedAttempts',
-                },
-              },
-              {
-                name: 'Max grace period',
-                uniqueSlug: 'macos-max-grace-period',
-                tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 999,
-                  unitLabel: 'minutes'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxGracePeriod',
-                },
-              },
-              {
-                name: 'Max passcode age',
-                uniqueSlug: 'macos-max-pin-age',
-                tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
-                category: 'Device lock',
-                payload: 'Passcode',
-                payloadType: 'com.apple.mobiledevice.passwordpolicy',
-                formInput: {
-                  type: 'number',
-                  defaultValue: 0,
-                  minValue: 0,
-                  maxValue: 999,
-                  unitLabel: 'days'
-                },
-                formOutput: {
-                  settingFormat: 'integer',
-                  settingKey: 'maxPINAgeInDays',
                 },
               },
               {
@@ -260,9 +186,26 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Minutes until failed login reset',
-                uniqueSlug: 'macos-minutes-until-failed-login-reset',
-                tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
+                name: 'Change passcode at next login',
+                uniqueSlug: 'macos-change-at-next-auth',
+                tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'changeAtNextAuth',
+                },
+              },
+              {
+                name: 'Maximum grace period',
+                uniqueSlug: 'macos-max-grace-period',
+                tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
                 category: 'Device lock',
                 payload: 'Passcode',
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
@@ -270,12 +213,12 @@ parasails.registerPage('configuration-builder', {
                   type: 'number',
                   defaultValue: 0,
                   minValue: 0,
-                  maxValue: 4,
+                  maxValue: 999,
                   unitLabel: 'minutes'
                 },
                 formOutput: {
                   settingFormat: 'integer',
-                  settingKey: 'minutesUntilFailedLoginReset',
+                  settingKey: 'maxGracePeriod',
                 },
               },
               {
@@ -293,6 +236,63 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'integer',
                   settingKey: 'pinHistory',
+                },
+              },
+              {
+                name: 'Maximum passcode age',
+                uniqueSlug: 'macos-max-pin-age',
+                tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 999,
+                  unitLabel: 'days'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'maxPINAgeInDays',
+                },
+              },
+              {
+                name: 'Maximum number of failed attempts',
+                uniqueSlug: 'macos-max-failed-attempts',
+                tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 11,
+                  minValue: 2,
+                  maxValue: 11,
+                  unitLabel: 'attempts'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'maxFailedAttempts',
+                },
+              },
+              {
+                name: 'Minutes until failed login reset',
+                uniqueSlug: 'macos-minutes-until-failed-login-reset',
+                tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 4,
+                  unitLabel: 'minutes'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'minutesUntilFailedLoginReset',
                 },
               },
             ],
@@ -1075,7 +1075,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max inactivity time before device locks',
+                name: 'Maximum inactivity time before device locks',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks',
                 category: 'Device lock',
                 tooltip: 'The number of seconds a device can remain inactive before a password is required to unlock the device.',
@@ -1098,7 +1098,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max inactivity time before device locks with external display',
+                name: 'Maximum inactivity time before device locks with external display',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks-with-external-display',
                 category: 'Device lock',
                 tooltip: 'The number of seconds a device can remain inactive while using an external monitor before a password is required to unlock the device.',
@@ -1154,7 +1154,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max failed attempts',
+                name: 'Maximum failed attempts',
                 tooltip: 'The number of authentication failures allowed before the device will be wiped. A value of 0 disables device wipe functionality.',
                 uniqueSlug: 'windows-device-lock-max-failed-attempts',
                 category: 'Device lock',
@@ -1178,7 +1178,7 @@ parasails.registerPage('configuration-builder', {
                 },
               },
               {
-                name: 'Max password age',
+                name: 'Maximum password age',
                 tooltip: `Determines the period of time (in days) that a password can be used before the system requires the user to change it. You can set passwords to expire after a number of days between 1 and 999, or you can specify that passwords never expire by setting the number of days to 0.`,
                 uniqueSlug: 'windows-device-lock-max-password-age',
                 category: 'Device lock',
@@ -2690,7 +2690,7 @@ parasails.registerPage('configuration-builder', {
             learnMoreLinkUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
             payloads: [
               {
-                name: 'Max inactivity time before device locks',
+                name: 'Maximum inactivity time before device locks',
                 uniqueSlug: 'android-max-inactivity',
                 tooltip: 'Maximum time in milliseconds for user activity until the device locks. A value of 0 means there is no restriction.',
                 category: 'Device lock',
