@@ -2717,7 +2717,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'number',
-                  settingTargetPath: 'PasswordRequirements.passwordHistoryLength',
+                  settingTargetPath: 'passwordRequirements.passwordHistoryLength',
                 },
               },
               {
@@ -2732,7 +2732,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'number',
-                  settingTargetPath: 'PasswordRequirements.maximumFailedPasswordsForWipe',
+                  settingTargetPath: 'passwordRequirements.maximumFailedPasswordsForWipe',
                 },
               },
               {
@@ -2760,7 +2760,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'string',
-                  settingTargetPath: 'PasswordRequirements.passwordScope',
+                  settingTargetPath: 'passwordRequirements.passwordScope',
                 },
               },
               {
@@ -2788,7 +2788,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'string',
-                  settingTargetPath: 'PasswordRequirements.requirePasswordUnlock',
+                  settingTargetPath: 'passwordRequirements.requirePasswordUnlock',
                 },
               },
               {
@@ -2832,7 +2832,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'string',
-                  settingTargetPath: 'PasswordRequirements.passwordQuality',
+                  settingTargetPath: 'passwordRequirements.passwordQuality',
                 },
               },
               {
@@ -2847,7 +2847,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'number',
-                  settingTargetPath: 'PasswordRequirements.passwordMinimumLength',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumLength',
                 },
               },
               {
@@ -2862,7 +2862,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'number',
-                  settingTargetPath: 'PasswordRequirements.passwordMinimumLetters',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumLetters',
                 },
               },
               {
@@ -2877,7 +2877,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'number',
-                  settingTargetPath: 'PasswordRequirements.passwordMinimumLowerCase',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumLowerCase',
                 },
               },
               {
@@ -2892,7 +2892,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'number',
-                  settingTargetPath: 'PasswordRequirements.passwordMinimumUpperCase',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumUpperCase',
                 },
               },
               {
@@ -2907,7 +2907,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'number',
-                  settingTargetPath: 'PasswordRequirements.passwordMinimumNonLetter',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumNonLetter',
                 },
               },
               {
@@ -2922,7 +2922,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'number',
-                  settingTargetPath: 'PasswordRequirements.passwordMinimumNumeric',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumNumeric',
                 },
               },
               {
@@ -2937,7 +2937,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'number',
-                  settingTargetPath: 'PasswordRequirements.passwordMinimumSymbols',
+                  settingTargetPath: 'passwordRequirements.passwordMinimumSymbols',
                 },
               },
             ],
@@ -2986,7 +2986,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'string',
-                  settingTargetPath: 'AppAutoUpdatePolicy',
+                  settingTargetPath: 'appAutoUpdatePolicy',
                 },
               },
               {
@@ -3043,7 +3043,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'string',
-                  settingTargetPath: 'AdvancedSecurityOverrides.untrustedAppsPolicy',
+                  settingTargetPath: 'advancedSecurityOverrides.untrustedAppsPolicy',
                 },
               },
               {
@@ -3070,7 +3070,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'string',
-                  settingTargetPath: 'AdvancedSecurityOverrides.untrustedAppsPolicy',
+                  settingTargetPath: 'advancedSecurityOverrides.untrustedAppsPolicy',
                 },
               },
             ]
