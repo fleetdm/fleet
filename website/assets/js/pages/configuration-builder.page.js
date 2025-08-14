@@ -2707,13 +2707,13 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Password history length',
-                uniqueSlug: 'android-min-password-numeric',
+                uniqueSlug: 'android-password-history',
                 tooltip: `The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history. A value of 0 means there is no restriction.`,
                 category: 'Device lock',
                 payloadGroup: 'Password',
                 formInput: {
                   type: 'number',
-                  unitLabel: 'characters'
+                  unitLabel: 'passwords'
                 },
                 formOutput: {
                   settingFormat: 'number',
@@ -2728,7 +2728,7 @@ parasails.registerPage('configuration-builder', {
                 payloadGroup: 'Password',
                 formInput: {
                   type: 'number',
-                  unitLabel: 'characters'
+                  unitLabel: 'attempts'
                 },
                 formOutput: {
                   settingFormat: 'number',
@@ -2999,7 +2999,20 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'boolean',
-                  settingTargetPath: 'AppAutoUpdatePolicy',
+                  settingTargetPath: 'uninstallAppsDisabled',
+                },
+              },
+              {
+                name: 'Disable app uninstallation',
+                uniqueSlug: 'android-disable-app-uninstall',
+                tooltip: `Whether user uninstallation of applications is disabled.`,
+                category: 'Applications',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'uninstallAppsDisabled',
                 },
               },
               {
@@ -3046,7 +3059,7 @@ parasails.registerPage('configuration-builder', {
                       value: 'GOOGLE_PLAY_PROTECT_VERIFY_APPS_UNSPECIFIED'
                     },
                     {
-                      name: 'Force-enables app verification.',
+                      name: 'Enforce app verification.',
                       value: 'VERIFY_APPS_ENFORCED'
                     },
                     {
