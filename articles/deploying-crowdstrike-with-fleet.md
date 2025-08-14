@@ -17,6 +17,8 @@ Your CrowdStrike **Customer ID** can be found on the Sensor download page in the
 
 The **Customer ID** _must be collected_ during the installation to activate the Falcon application. Adding the platfom-specifc scripts below as a post-install action to the uploaded CrowdStrike Falcon custom package settings in Fleet will allow the host on which the application has been installed to collect the **Customer ID** for activation in the CrowdStrike tenant. 
 
+![Add software advanced options](../website/assets/images/articles/fleet-crowdstrike-post-install-script-800x450@2x.png)
+
 >For reference, Crowdstrike Falcon scripts and install documentation can be found at: https://github.com/CrowdStrike/falcon-scripts
 
 ## macOS
