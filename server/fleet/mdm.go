@@ -37,7 +37,7 @@ const (
 	//
 	// NOTE: if you add new variables, make sure you create a DB migration to insert them
 	// in the fleet_variables table. At some point we should refactor those constants/regexp
-	// and the findFleetVariables logic to use the DB table instead of hardcoding them here
+	// and the FindFleetVariables logic to use the DB table instead of hardcoding them here
 	// (not doing it now because of time constraints to finish the story for the release).
 	FleetVarNDESSCEPChallenge               FleetVarName = "NDES_SCEP_CHALLENGE"
 	FleetVarNDESSCEPProxyURL                FleetVarName = "NDES_SCEP_PROXY_URL"
@@ -805,20 +805,6 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	return clone
 }
 
-type CAConfigAssetType string
-
-const (
-	CAConfigNDES            CAConfigAssetType = "ndes"
-	CAConfigDigiCert        CAConfigAssetType = "digicert"
-	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
-)
-
-type CAConfigAsset struct {
-	Name  string            `db:"name"`
-	Value []byte            `db:"value"`
-	Type  CAConfigAssetType `db:"type"`
-}
-
 // MDMPlatform returns "darwin" or "windows" as MDM platforms
 // derived from a host's platform (hosts.platform field).
 //
@@ -1027,7 +1013,7 @@ type MDMProfileUUIDFleetVariables struct {
 	ProfileUUID string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
-	// findFleetVariables).
+	// FindFleetVariables).
 	FleetVariables []FleetVarName
 }
 
@@ -1039,7 +1025,7 @@ type MDMProfileIdentifierFleetVariables struct {
 	Identifier string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
-	// findFleetVariables).
+	// FindFleetVariables).
 	FleetVariables []FleetVarName
 }
 

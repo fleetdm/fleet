@@ -14377,7 +14377,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	caBad := getDigiCertIntegration(testServer.URL, "ca")
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{caBad},
+			"digicert": []fleet.DigiCertCA{caBad},
 		},
 	}
 	raw, err := json.Marshal(appConfig)
@@ -14399,7 +14399,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	ca2.APIToken = "api_token2"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca0, ca1, ca2},
+			"digicert": []fleet.DigiCertCA{ca0, ca1, ca2},
 		},
 	}
 	raw, err = json.Marshal(appConfig)
@@ -14451,7 +14451,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	ca3.APIToken = "api_token3"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca3, ca2, ca1},
+			"digicert": []fleet.DigiCertCA{ca3, ca2, ca1},
 		},
 	}
 	raw, err = json.Marshal(appConfig)
@@ -14561,7 +14561,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	ca.APIToken = "api_token0"
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca},
+			"digicert": []fleet.DigiCertCA{ca},
 		},
 	}
 	raw, err := json.Marshal(appConfig)
@@ -14673,7 +14673,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	caFail.CertificateCommonName = "Fail"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca, caFail},
+			"digicert": []fleet.DigiCertCA{ca, caFail},
 		},
 	}
 	raw, err = json.Marshal(appConfig)
@@ -14729,7 +14729,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 
 		return err
 	})
-	caFleetVars := fleet.DigiCertIntegration{
+	caFleetVars := fleet.DigiCertCA{
 		Name:                          "FleetVars",
 		URL:                           digiCertServer.server.URL,
 		APIToken:                      "api_token",
@@ -14740,7 +14740,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca, caFail, caFleetVars},
+			"digicert": []fleet.DigiCertCA{ca, caFail, caFleetVars},
 		},
 	}
 	raw, err = json.Marshal(appConfig)
@@ -14906,7 +14906,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	caFleetVars.CertificateSeatID = "seat_id"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca, caFail, caFleetVars},
+			"digicert": []fleet.DigiCertCA{ca, caFail, caFleetVars},
 		},
 	}
 	raw, err = json.Marshal(appConfig)
@@ -15071,7 +15071,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	caBad := getCustomSCEPIntegration(testServer.URL, "ca")
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{caBad},
+			"custom_scep_proxy": []fleet.CustomSCEPProxyCA{caBad},
 		},
 	}
 	raw, err := json.Marshal(appConfig)
@@ -15093,7 +15093,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	ca2.Challenge = "challenge2"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1, ca2},
+			"custom_scep_proxy": []fleet.CustomSCEPProxyCA{ca0, ca1, ca2},
 		},
 	}
 	raw, err = json.Marshal(appConfig)
@@ -15145,7 +15145,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	ca3.Challenge = "challenge3"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca3, ca2, ca1},
+			"custom_scep_proxy": []fleet.CustomSCEPProxyCA{ca3, ca2, ca1},
 		},
 	}
 	raw, err = json.Marshal(appConfig)
@@ -15251,7 +15251,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	scepServerURL := scepServer.URL + "/scep"
 
 	// parseSCEPProfile returns the parsed SCEP profile along with the identifier from the profile URL
-	parseSCEPProfile := func(t *testing.T, raw []byte, scepConfig fleet.CustomSCEPProxyIntegration) (SCEPProfileContent, string) {
+	parseSCEPProfile := func(t *testing.T, raw []byte, scepConfig fleet.CustomSCEPProxyCA) (SCEPProfileContent, string) {
 		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(raw, &fullCmd))
 		require.NotNil(t, fullCmd.Command)
@@ -15375,7 +15375,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	t.Logf("scepName2 challenge:%s", ca1.Challenge)
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1},
+			"custom_scep_proxy": []fleet.CustomSCEPProxyCA{ca0, ca1},
 		},
 	}
 	raw, err := json.Marshal(appConfig)

@@ -5,6 +5,7 @@ import {
   ICertificateIntegration,
   ICertificatesIntegrationCustomSCEP,
   ICertificatesIntegrationDigicert,
+  ICertificatesIntegrationHydrant,
   IGlobalIntegrations,
 } from "interfaces/integration";
 import { useCallback, useContext } from "react";
@@ -248,6 +249,8 @@ export const generateCertAuthorityDisplayName = (
       return (certAuthority as ICertificatesIntegrationDigicert).name;
     case "custom":
       return (certAuthority as ICertificatesIntegrationCustomSCEP).name;
+    case "hydrant":
+      return (certAuthority as ICertificatesIntegrationHydrant).name;
     default:
       return "";
   }

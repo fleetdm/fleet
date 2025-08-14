@@ -700,6 +700,8 @@ the way that the Fleet server works.
 			}
 
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
+			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
 				ctx,
@@ -725,8 +727,8 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
-				eeservice.NewSCEPConfigService(logger, nil),
-				digicert.NewService(digicert.WithLogger(logger)),
+				scepConfigMgr,
+				digiCertService,
 				conditionalAccessMicrosoftProxy,
 			)
 			if err != nil {
@@ -817,6 +819,8 @@ the way that the Fleet server works.
 					bootstrapPackageStore,
 					distributedLock,
 					redis_key_value.New(redisPool),
+					scepConfigMgr,
+					digiCertService,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
