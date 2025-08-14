@@ -11,6 +11,8 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import CertificateAuthorityList from "./components/CertificateAuthorityList";
 import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
@@ -46,6 +48,7 @@ const CertificateAuthorities = () => {
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      select: (data) => data.certificate_authorities,
     }
   );
 
@@ -66,6 +69,14 @@ const CertificateAuthorities = () => {
   const renderContent = () => {
     if (!isPremiumTier) {
       return <PremiumFeatureMessage />;
+    }
+
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (isError) {
+      return <DataError />;
     }
 
     const pageDescription = (
