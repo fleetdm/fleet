@@ -73,56 +73,45 @@ module.exports = {
       adjustedEndTime.setUTCHours(0, 0, 0, 0);
     }
 
+    // Count weekend days between adjusted dates
+    // Make local copies for weekend counting
+    let weekendStartDate = new Date(adjustedStartTime);
+    let weekendEndDate = new Date(adjustedEndTime);
+
+    // Ensure weekendStartDate is before weekendEndDate
+    if (weekendStartDate > weekendEndDate) {
+      [weekendStartDate, weekendEndDate] = [weekendEndDate, weekendStartDate];
+    }
+
+    // Make sure start dates and end dates are not on weekends. We just want to count the weekend days between them.
+    if (weekendStartDate.getUTCDay() === 0) {
+      weekendStartDate.setUTCDate(weekendStartDate.getUTCDate() + 1);
+    } else if (weekendStartDate.getUTCDay() === 6) {
+      weekendStartDate.setUTCDate(weekendStartDate.getUTCDate() + 2);
+    }
+    if (weekendEndDate.getUTCDay() === 0) {
+      weekendEndDate.setUTCDate(weekendEndDate.getUTCDate() - 2);
+    } else if (weekendEndDate.getUTCDay() === 6) {
+      weekendEndDate.setUTCDate(weekendEndDate.getUTCDate() - 1);
+    }
+
+    let weekendDays = 0;
+    const current = new Date(weekendStartDate);
+
+    while (current <= weekendEndDate) {
+      const day = current.getUTCDay();
+      if (day === 0 || day === 6) {
+        // Sunday (0) or Saturday (6)
+        weekendDays++;
+      }
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
     // Calculate raw time difference in milliseconds
-    const weekendDays = countWeekendDays(adjustedStartTime, adjustedEndTime);
     const diffMs = adjustedEndTime - adjustedStartTime - weekendDays * 24 * 60 * 60 * 1000;
 
     // Ensure we don't return negative values
     return Math.max(0, Math.floor(diffMs / 1000));
-
-    /**
-     * Counts the number of weekend days between two dates (inlined helper function)
-     *
-     * @param {Date} startDate - The start date
-     * @param {Date} endDate - The end date
-     * @returns {number} Number of weekend days
-     */
-    function countWeekendDays(startDate, endDate) {
-      // Make local copies of dates
-      startDate = new Date(startDate);
-      endDate = new Date(endDate);
-
-      // Ensure startDate is before endDate
-      if (startDate > endDate) {
-        [startDate, endDate] = [endDate, startDate];
-      }
-
-      // Make sure start dates and end dates are not on weekends. We just want to count the weekend days between them.
-      if (startDate.getUTCDay() === 0) {
-        startDate.setUTCDate(startDate.getUTCDate() + 1);
-      } else if (startDate.getUTCDay() === 6) {
-        startDate.setUTCDate(startDate.getUTCDate() + 2);
-      }
-      if (endDate.getUTCDay() === 0) {
-        endDate.setUTCDate(endDate.getUTCDate() - 2);
-      } else if (endDate.getUTCDay() === 6) {
-        endDate.setUTCDate(endDate.getUTCDate() - 1);
-      }
-
-      let count = 0;
-      const current = new Date(startDate);
-
-      while (current <= endDate) {
-        const day = current.getUTCDay();
-        if (day === 0 || day === 6) {
-          // Sunday (0) or Saturday (6)
-          count++;
-        }
-        current.setUTCDate(current.getUTCDate() + 1);
-      }
-
-      return count;
-    }
   }
 
 };
