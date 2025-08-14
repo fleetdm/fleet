@@ -350,7 +350,30 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	_, err = ds.applyChangesForNewSoftwareDB(ctx, host2.ID, []fleet.Software{*sw, *sw2})
 	require.NoError(t, err)
 
+	// make sure a no-op on applied changes touches host software last updated
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		"UPDATE host_updates SET software_updated_at = NOW() - INTERVAL 5 MINUTE WHERE host_id = ?",
+		host2.ID,
+	)
+	require.NoError(t, err)
+
+	// This shouldn't be a no-op but is due to #28584
+	_, err = ds.applyChangesForNewSoftwareDB(ctx, host2.ID, []fleet.Software{*sw2})
+	require.NoError(t, err)
+	var wasSoftwareUpdatedAtTouched bool
+	// read from writer to avoid replication lag issues
+	require.NoError(t, ds.writer(ctx).GetContext(
+		ctx,
+		&wasSoftwareUpdatedAtTouched,
+		"SELECT software_updated_at >= NOW() - INTERVAL 5 SECOND FROM host_updates WHERE host_id = ?",
+		host2.ID,
+	))
+	require.True(t, wasSoftwareUpdatedAtTouched)
+
 	err = sqlx.SelectContext(ctx, ds.reader(ctx),
+		// 		&software, `SELECT id, name, bundle_identifier, title_id FROM software JOIN host_software hs ON hs.host_id = ? AND hs.software_id = software.id`, host2.ID,
+		//      should be the above but isn't because of #28584
 		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
 	)
 

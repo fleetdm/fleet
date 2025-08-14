@@ -364,7 +364,10 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 	current, incoming, notChanged := nothingChanged(currentSoftware, software, ds.minLastOpenedAtDiff)
 	if notChanged {
-		return r, nil
+		// still touch software last updated timestamp; caveat here is that we'll show a no-op if last-opened-at diff
+		// is less than a specified amount (see defaultMinLastOpenedAtDiff) on all inventoried software and there are
+		// no other changes
+		return r, updateSoftwareUpdatedAt(ctx, ds.writer(ctx), hostID)
 	}
 
 	existingSoftware, incomingByChecksum, existingTitlesForNewSoftware, existingBundleIDsToUpdate, err := ds.getExistingSoftware(ctx, current, incoming)
