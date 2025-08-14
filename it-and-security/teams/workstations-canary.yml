@@ -109,6 +109,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
         labels_include_any:
           - "Santa test devices"
+      - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
+        labels_include_any:
+          - "Nudge test devices"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
@@ -146,6 +149,7 @@ controls:
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
     - path: ../lib/macos/scripts/install-santa-extension.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
+    - path: ../lib/macos/scripts/install-nudge.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -179,6 +183,8 @@ software:
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
     - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
+    - path: ../lib/macos/software/nudge.yml # Nudge for macOS 
+    - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
