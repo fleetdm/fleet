@@ -24,7 +24,6 @@ import EmptyTable from "components/EmptyTable";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
 import DeleteSecretModal from "./components/DeleteSecretModal";
-import { isTeamMaintainer } from "utilities/permissions/permissions";
 
 const baseClass = "secrets-batch-paginated-list";
 
