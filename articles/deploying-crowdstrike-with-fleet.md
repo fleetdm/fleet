@@ -15,11 +15,13 @@ This guide will show you how to deploy CrowdStrike Falcon on macOS, Linux and Wi
 
 Your CrowdStrike **Customer ID** can be found on the Sensor download page in the CrowdStrike console.
 
-The **Customer ID** _must be collected_ during the installation to activate the Falcon application. Adding the platfom-specifc scripts below as a post-install action to the uploaded CrowdStrike Falcon custom package settings in Fleet will allow the host on which the application has been installed to collect the **Customer ID** for activation in the CrowdStrike tenant. 
+The **Customer ID** _must be collected_ during the installation to activate the Falcon application. 
+
+Adding the platfom-specifc scripts below to the CrowdStrike Falcon custom package settings in Fleet will allow the host on which the application has been installed to collect the **Customer ID** for activation in the CrowdStrike tenant. 
+
+>After following the instructions above to upload a CrowdStrike Falcon package, you can click on **Advanced options** to expand the **Custom package** settings and reveal the **Post-install script** field for pasting in a script. See the screen shot below for details. For further reference, Crowdstrike Falcon scripts and install documentation can be found at: https://github.com/CrowdStrike/falcon-scripts
 
 ![Add software advanced options](../website/assets/images/articles/fleet-crowdstrike-post-install-script-800x450@2x.png)
-
->For reference, Crowdstrike Falcon scripts and install documentation can be found at: https://github.com/CrowdStrike/falcon-scripts
 
 ## macOS
 
@@ -51,19 +53,17 @@ fi
 
 CrowdStrike Falcon requires multiple `.mobileconfig` payloads on macOS.
 
-[Download the required configuration profiles](https://github.com/fleetdm/fleet/tree/main/assets/configuration-profiles)
+>[Download the required CrowdStrike Falcon macOS configuration profiles](https://github.com/fleetdm/fleet/tree/main/assets/configuration-profiles)
 
->These payloads can be combined into a single Configuration Profile, or, delivered in separate Configuration Profiles for modularity and easier reading.
+Below is an explanation of what each of the macOS CrowdStrike Falcon payloads does:
 
-`crowdstrike-service-management.mobileconfig` - Configure CrowdStrike Falcon as a managed login item so its services can't be stopped by end users.
+- `crowdstrike-service-management.mobileconfig` - Configure CrowdStrike Falcon as a managed login item so its services can't be stopped by end users.
+- `crowdstrike-notification.mobileconfig` - Suppress notifications to reduce end user notifcation fatigue. (This is a best practice for many fully-managed applications.)
+- `crowdstrike-system-extension` - Install the CrowdStrike Falcon System Extension to allow all necessary application entitlements and access to the macOS kernel.
+- `crowdstrike-web-filter.mobileconfig` - Enable web filtering to monitor network traffic at the socket level.
+- `crowdstrike-full-disk-access.mobileconfig` - Grant full disk access to all CrowdStrike application processes using the CrowdStrike Apple Developer team identifier.
 
-`crowdstrike-notification.mobileconfig` - Suppress notifications to reduce end user notifcation fatigue. (This is a best practice for many fully-managed applications.)
-
-`crowdstrike-system-extension` - Install the CrowdStrike Falcon System Extension to allow all necessary application entitlements and access to the macOS kernel.
-
-`crowdstrike-web-filter.mobileconfig` - Enable web filtering to monitor network traffic at the socket level.
-
-`crowdstrike-full-disk-access.mobileconfig` - Grant full disk access to all CrowdStrike application processes using the CrowdStrike Apple Developer team identifier.
+These payloads can be combined and delivered as a single Configuration Profile, or, delivered in separate Configuration Profiles for modularity and easier reading.
 
 ## Linux
 
