@@ -53,7 +53,7 @@ fi
 
 CrowdStrike Falcon requires multiple `.mobileconfig` payloads on macOS.
 
->[Download the required CrowdStrike Falcon macOS configuration profiles](https://github.com/fleetdm/fleet/tree/main/assets/configuration-profiles)
+>[Download the required CrowdStrike Falcon macOS Configuration Profiles](https://github.com/fleetdm/fleet/tree/main/assets/configuration-profiles)
 
 Below is an explanation of what each of the macOS CrowdStrike Falcon payloads does:
 
