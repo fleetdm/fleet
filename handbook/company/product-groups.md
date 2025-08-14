@@ -402,7 +402,7 @@ To make a feature request or advocate for a feature request from a customer or c
 
 New requests are reviewed daily by the Head of Product Design and a former IT admin during the ["Unpacking the why"](https://fleetdm.com/handbook/product-design#unpacking-the-why) call. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
-> **Fast track for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label.
+> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label.
 
 
 ### Criteria for prioritization
@@ -511,7 +511,7 @@ Remove the “:reproduce” label, add the following labels:
 2. The `:incoming` label indicates that it is a new bug to be triaged.
 3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release.
 
-> **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
+> **Fast for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
 
 
 #### In product drafting

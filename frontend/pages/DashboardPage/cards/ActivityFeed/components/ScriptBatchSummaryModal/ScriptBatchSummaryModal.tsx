@@ -1,12 +1,11 @@
-import React, { useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 
 import classnames from "classnames";
 
 import { IActivityDetails } from "interfaces/activity";
-import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
-import paths from "router/paths";
+import { NotificationContext } from "context/notification";
 
 import Modal from "components/Modal";
 import DataSet from "components/DataSet";
@@ -17,7 +16,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryResponse,
+  IScriptBatchSummaryResponseV1,
 } from "services/entities/scripts";
 import { AxiosError } from "axios";
 import Spinner from "components/Spinner";
@@ -28,8 +27,13 @@ import ScriptBatchStatusTable from "../ScriptBatchStatusTable";
 
 const baseClass = "script-batch-summary-modal";
 
+export type IScriptBatchDetailsForSummary = Pick<
+  IActivityDetails,
+  "batch_execution_id" | "created_at" | "script_name" | "host_count"
+>;
+
 interface IScriptBatchSummaryModal {
-  scriptBatchExecutionDetails: IActivityDetails;
+  scriptBatchExecutionDetails: IScriptBatchDetailsForSummary;
   onCancel: () => void;
   router: InjectedRouter;
 }
@@ -40,11 +44,12 @@ const ScriptBatchSummaryModal = ({
   router,
 }: IScriptBatchSummaryModal) => {
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
 
   const { data: statusData, isLoading, isError } = useQuery<
-    IScriptBatchSummaryResponse,
+    IScriptBatchSummaryResponseV1,
     AxiosError,
-    IScriptBatchSummaryResponse,
+    IScriptBatchSummaryResponseV1,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -64,8 +69,14 @@ const ScriptBatchSummaryModal = ({
   const toggleCancelModal = () => {
     setShowCancelModal(!showCancelModal);
   };
+
   const renderTable = () => {
-    if (!details.batch_execution_id || isLoading || !statusData) {
+    if (
+      !details.batch_execution_id ||
+      isLoading ||
+      !statusData ||
+      isCanceling
+    ) {
       return <Spinner />;
     }
     if (isError) {
@@ -81,11 +92,13 @@ const ScriptBatchSummaryModal = ({
   };
 
   let activityCreatedAt: Date | null = null;
-  try {
-    activityCreatedAt = new Date(details?.created_at || "");
-  } catch (e) {
-    // invalid date string
-    activityCreatedAt = null;
+  if (details?.created_at) {
+    try {
+      activityCreatedAt = new Date(details?.created_at || "");
+    } catch (e) {
+      // invalid date string
+      activityCreatedAt = null;
+    }
   }
 
   const targetedTitle = (
@@ -98,6 +111,31 @@ incompatible or cancelled."
     </TooltipWrapper>
   );
 
+  const { renderFlash } = useContext(NotificationContext);
+
+  const onConfirmCancel = useCallback(
+    async (batchExecutionId: string) => {
+      setIsCanceling(true);
+
+      try {
+        await scriptsAPI.cancelScriptBatch(batchExecutionId);
+        renderFlash(
+          "success",
+          <span className={`${baseClass}__success-message`}>
+            <span>Successfully canceled script.</span>
+          </span>
+        );
+        setShowCancelModal(false);
+        onCancel();
+      } catch (error) {
+        renderFlash("error", "Could not cancel script. Please try again.");
+      } finally {
+        setIsCanceling(false);
+      }
+    },
+    [renderFlash]
+  );
+
   const renderCancelModal = () => {
     const cancelBaseClass = "script-batch-cancel-modal";
     if (!statusData) {
@@ -108,7 +146,7 @@ incompatible or cancelled."
 
     return (
       <Modal
-        title="Cancel script"
+        title="Cancel script?"
         onExit={toggleCancelModal}
         onEnter={toggleCancelModal}
         className={cancelBaseClass}
@@ -116,27 +154,25 @@ incompatible or cancelled."
         <>
           <div className={`${cancelBaseClass}__content`}>
             <p>
-              To cancel all pending runs of this script, edit or delete the
-              script.
+              This will cancel any pending script runs for{" "}
+              <b>{details?.script_name || "this script"}</b>.
             </p>
+            <p>
+              If this script is currently running on a host, it will complete,
+              but results won&rsquo;t appear in Fleet.
+            </p>
+            <p>You cannot undo this action.</p>
             <div className="modal-cta-wrap">
-              <Button onClick={toggleCancelModal}>Done</Button>
               <Button
                 onClick={() =>
-                  router.push(
-                    `${paths.CONTROLS_SCRIPTS}/?team_id=${
-                      // as of this writing, API_NO_TEAM_ID and APP_CONTEXT_NO_TEAM_ID are both 0.
-                      // It's still good to explicitly differentiate them like this since there are sometime
-                      // discrepancies between API and UI-logic team IDs
-                      statusData.team_id === API_NO_TEAM_ID
-                        ? APP_CONTEXT_NO_TEAM_ID
-                        : statusData.team_id
-                    }`
-                  )
+                  onConfirmCancel(details.batch_execution_id || "")
                 }
-                variant="inverse"
+                variant="alert"
               >
-                Go to scripts
+                Cancel script
+              </Button>
+              <Button variant="inverse-alert" onClick={toggleCancelModal}>
+                Back
               </Button>
             </div>
           </div>

@@ -1098,7 +1098,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store
 	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]OSVulnerability, error)
-	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool) (Vulnerabilities, error)
+	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (Vulnerabilities, error)
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
 	// InsertOSVulnerability will either insert a new vulnerability in the datastore (in which
@@ -1108,6 +1108,10 @@ type Datastore interface {
 	// DeleteOutOfDateOSVulnerabilities deletes 'operating_system_vulnerabilities' entries from the provided source where
 	// the updated_at timestamp is older than the supplied timestamp
 	DeleteOutOfDateOSVulnerabilities(ctx context.Context, source VulnerabilitySource, olderThan time.Time) error
+
+	ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*Kernel, error)
+
+	InsertKernelSoftwareMapping(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
