@@ -7,6 +7,8 @@ import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import certificatesAPI from "services/entities/certificates";
 
 import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import {
   generateDefaultFormData,
@@ -91,6 +93,14 @@ const EditCertAuthorityModal = ({
   };
 
   const renderForm = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (isError) {
+      return <DataError className={`${baseClass}__data-error`} />;
+    }
+
     const FormComponent = getFormComponent();
     if (!FormComponent || !formData) return <></>;
 
