@@ -774,10 +774,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.PATCH("/api/_version_/fleet/vpp_tokens/{id}/renew", patchVPPTokenRenewEndpoint, patchVPPTokenRenewRequest{})
 	ue.DELETE("/api/_version_/fleet/vpp_tokens/{id}", deleteVPPToken, deleteVPPTokenRequest{})
 
-	// certificate authority endpoints
-	ue.GET("/api/_version_/fleet/certificate_authorities", listCertificateAuthoritiesEndpoint, listCertificateAuthoritiesRequest{})
-	ue.GET("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", getCertificateAuthorityEndpoint, getCertificateAuthorityRequest{})
-
 	// Batch VPP Associations
 	ue.POST("/api/_version_/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsEndpoint, batchAssociateAppStoreAppsRequest{})
 
@@ -801,8 +797,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// input to `fleetctl apply`
 	ue.POST("/api/_version_/fleet/mdm/profiles/batch", batchSetMDMProfilesEndpoint, batchSetMDMProfilesRequest{})
 
-	// Certificae Authority endpoints
+	// Certificate Authority endpoints
 	ue.POST("/api/_version_/fleet/certificate_authorities", createCertificateAuthorityEndpoint, createCertificateAuthorityRequest{})
+	ue.GET("/api/_version_/fleet/certificate_authorities", listCertificateAuthoritiesEndpoint, listCertificateAuthoritiesRequest{})
+	ue.GET("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", getCertificateAuthorityEndpoint, getCertificateAuthorityRequest{})
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 
