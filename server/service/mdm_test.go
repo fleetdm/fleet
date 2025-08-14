@@ -1127,7 +1127,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	ds.DeleteMDMWindowsConfigProfileFunc = func(ctx context.Context, profileUUID string) error {
 		return nil
 	}
-	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 		return &cp, nil
 	}
 	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
@@ -1205,7 +1205,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
 		return nil
 	}
-	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 		if bytes.Contains(cp.SyncML, []byte("duplicate")) {
 			return nil, &alreadyExistsError{}
 		}
@@ -1524,7 +1524,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		{
 			"only macOS",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
+			true,
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
@@ -2246,4 +2246,153 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		LabelsExcludeAny: []string{"baddy"},
 	}}, true, false, ptr.Bool(true), false)
 	require.NoError(t, err)
+}
+
+func TestValidateWindowsProfileFleetVariablesLicense(t *testing.T) {
+	t.Parallel()
+	profileWithVars := `<Replace>
+			<Item>
+				<Target>
+					<LocURI>./Device/Vendor/MSFT/Accounts/DomainName</LocURI>
+				</Target>
+				<Data>Host UUID: $FLEET_VAR_HOST_UUID</Data>
+			</Item>
+		</Replace>`
+
+	// Test with free license
+	freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, err := validateWindowsProfileFleetVariables(profileWithVars, freeLic)
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+	// Test with premium license
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	vars, err := validateWindowsProfileFleetVariables(profileWithVars, premiumLic)
+	require.NoError(t, err)
+	require.Contains(t, vars, "HOST_UUID")
+
+	// Test profile without variables (should work with free license)
+	profileNoVars := `<Replace>
+			<Item>
+				<Target>
+					<LocURI>./Device/Vendor/MSFT/Accounts/DomainName</LocURI>
+				</Target>
+				<Data>Static Value</Data>
+			</Item>
+		</Replace>`
+	vars, err = validateWindowsProfileFleetVariables(profileNoVars, freeLic)
+	require.NoError(t, err)
+	require.Nil(t, vars)
+}
+
+func TestValidateWindowsProfileFleetVariables(t *testing.T) {
+	tests := []struct {
+		name        string
+		profileXML  string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "no variables",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>1</Data>
+				</Item>
+			</Replace>`,
+			wantErr: false,
+		},
+		{
+			name: "HOST_UUID variable",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>$FLEET_VAR_HOST_UUID</Data>
+				</Item>
+			</Replace>`,
+			wantErr: false,
+		},
+		{
+			name: "HOST_UUID variable with braces",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>${FLEET_VAR_HOST_UUID}</Data>
+				</Item>
+			</Replace>`,
+			wantErr: false,
+		},
+		{
+			name: "multiple HOST_UUID variables",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>$FLEET_VAR_HOST_UUID-${FLEET_VAR_HOST_UUID}</Data>
+				</Item>
+			</Replace>`,
+			wantErr: false,
+		},
+		{
+			name: "unsupported variable",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>$FLEET_VAR_HOST_HARDWARE_SERIAL</Data>
+				</Item>
+			</Replace>`,
+			wantErr:     true,
+			errContains: "Fleet variable $FLEET_VAR_HOST_HARDWARE_SERIAL is not supported in Windows profiles",
+		},
+		{
+			name: "HOST_UUID with another unsupported variable",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>$FLEET_VAR_HOST_UUID-$FLEET_VAR_HOST_END_USER_EMAIL_IDP</Data>
+				</Item>
+			</Replace>`,
+			wantErr:     true,
+			errContains: "Fleet variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP is not supported in Windows profiles",
+		},
+		{
+			name: "unknown Fleet variable",
+			profileXML: `<Replace>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
+					</Target>
+					<Data>${FLEET_VAR_UNKNOWN_VAR}</Data>
+				</Item>
+			</Replace>`,
+			wantErr:     true,
+			errContains: "Fleet variable $FLEET_VAR_UNKNOWN_VAR is not supported in Windows profiles",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Pass a premium license for testing (we're not testing license validation here)
+			premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+			_, err := validateWindowsProfileFleetVariables(tt.profileXML, premiumLic)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errContains != "" {
+					require.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

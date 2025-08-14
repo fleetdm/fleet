@@ -1,8 +1,11 @@
-import { IHostScript, IScript } from "interfaces/script";
+import { IHostScript, IScript, ScriptBatchStatus } from "interfaces/script";
 import sendRequest from "services";
+
+import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
+
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
-
+import { PaginationMeta } from "./common";
 /** Single script response from GET /script/:id */
 export type IScriptResponse = IScript;
 
@@ -96,6 +99,7 @@ export interface IScriptBatchSupportedFilters {
 }
 interface IRunScriptBatchRequestBase {
   script_id: number;
+  not_before?: string; // ISO 8601 date-time string
 }
 
 interface IByFilters extends IRunScriptBatchRequestBase {
@@ -121,23 +125,68 @@ export interface IScriptBatchSummaryQueryKey extends IScriptBatchSummaryParams {
   scope: "script_batch_summary";
 }
 
-export interface IScriptBatchExecutionStatuses {
+export interface IScriptBatchHostCountsV1 {
   ran: number;
   pending: number;
   errored: number;
+  canceled: number;
 }
-export type ScriptBatchExecutionStatus = keyof IScriptBatchExecutionStatuses;
+export type ScriptBatchHostCountV1 = keyof IScriptBatchHostCountsV1;
 // 200 successful response
-export interface IScriptBatchSummaryResponse
-  extends IScriptBatchExecutionStatuses {
+
+export interface IScriptBatchSummaryResponseV1
+  extends IScriptBatchHostCountsV1 {
   team_id: number;
   script_name: string;
   created_at: string;
   // below fields not yet used by the UI
-  canceled: number;
   targeted: number;
   script_id: number;
 }
+
+export interface IScriptBatchHostCountsV2 {
+  targeted_host_count: number;
+  ran_host_count: number;
+  pending_host_count: number;
+  errored_host_count: number;
+  incompatible_host_count: number;
+  canceled_host_count: number;
+}
+
+export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
+  batch_execution_id: string;
+  /** ISO 8601 date-time string. When the script batch run was created (NOT when it is/was scheduled
+   * to run by, which is represented by `not_before`. */
+  created_at: string;
+  script_id: number;
+  script_name: string;
+  team_id: number;
+  status: ScriptBatchStatus;
+  canceled: boolean;
+  /** ISO 8601 date-time string. Always present as of Fleet 4.73.0 - `null`able for backwards compatibility with older batch runs. */
+  not_before: string | null;
+  // /** ISO 8601 date-time string. If present, this script batch run has started. */
+  started_at: string | null;
+  /** ISO 8601 date-time string. If present, this script has completed running. */
+  finished_at: string | null;
+}
+export interface IScriptBatchSummariesParams {
+  team_id: number;
+  status: ScriptBatchStatus;
+  page: number;
+  per_page: number;
+}
+export interface IScriptBatchSummariesQueryKey
+  extends IScriptBatchSummariesParams {
+  scope: "script_batch_summaries";
+}
+
+export interface IScriptBatchSummariesResponse {
+  batch_executions: IScriptBatchSummaryV2[];
+  meta: PaginationMeta;
+  count: number;
+}
+
 export default {
   getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
     const { HOST_SCRIPTS } = endpoints;
@@ -213,12 +262,25 @@ export default {
     const { SCRIPT_RUN_BATCH } = endpoints;
     return sendRequest("POST", SCRIPT_RUN_BATCH, request);
   },
+  cancelScriptBatch(batchExecutionId: string) {
+    const { SCRIPT_CANCEL_BATCH } = endpoints;
+    return sendRequest("POST", SCRIPT_CANCEL_BATCH(batchExecutionId));
+  },
+  /** calls the deprecated endpoint */
   getRunScriptBatchSummary({
     batch_execution_id,
-  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryResponse> {
+  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryResponseV1> {
     return sendRequest(
       "GET",
       `${endpoints.SCRIPT_RUN_BATCH_SUMMARY(batch_execution_id)}`
     );
+  },
+  async getRunScriptBatchSummaries(
+    params: IScriptBatchSummariesParams
+  ): Promise<IScriptBatchSummariesResponse> {
+    const path = `${
+      endpoints.SCRIPT_RUN_BATCH_SUMMARIES
+    }?${buildQueryStringFromParams({ ...params })}`;
+    return sendRequest("GET", path);
   },
 };

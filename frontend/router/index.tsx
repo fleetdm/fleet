@@ -287,6 +287,7 @@ const routes = (
                 <Route path="os-settings/:section" component={OSSettings} />
                 <Route path="setup-experience" component={SetupExperience} />
                 <Route path="scripts" component={Scripts} />
+                <Route path="scripts/:section" component={Scripts} />
                 <Route path="variables" component={Secrets} />
                 <Route
                   path="setup-experience/:section"
