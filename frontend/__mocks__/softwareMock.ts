@@ -111,6 +111,7 @@ const DEFAULT_OS_VERSION_MOCK = {
   platform: "darwin",
   hosts_count: 42,
   generated_cpes: [],
+  kernels: [],
   vulnerabilities: [],
 };
 
