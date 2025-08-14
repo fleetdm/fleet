@@ -64,9 +64,16 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 		require.NoError(t, err)
 	}
 
-	createTeamAndSecret := func(name, secret string) {
+	createTeamAndSecret := func(name, secret string, enableEndUserAuth bool) {
 		team, err := s.DS.NewTeam(t.Context(), &fleet.Team{
 			Name: name,
+			Config: fleet.TeamConfig{
+				MDM: fleet.TeamMDM{
+					MacOSSetup: fleet.MacOSSetup{
+						EnableEndUserAuthentication: enableEndUserAuth,
+					},
+				},
+			},
 		})
 		require.NoError(t, err)
 		err = s.DS.ApplyEnrollSecrets(t.Context(), &team.ID, []*fleet.EnrollSecret{
@@ -132,8 +139,8 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 		t.Run("if android enterprise is missing", func(t *testing.T) {
 			enableAndroidMDM()
-			secret := "global"
-			createTeamAndSecret("global", secret)
+			secret := "global-enterprise-missing"
+			createTeamAndSecret(secret, secret, false)
 			resp := s.Do(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusNotFound, "enroll_secret", secret)
 			je := decodeJsonError(t, resp)
 
@@ -143,14 +150,22 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 		t.Run("if idp account does not exist", func(t *testing.T) {
 			enableAndroidMDM()
-			secret := "global"
-			createTeamAndSecret("global", secret)
+			secret := "global-no-idp-account" // nolint: gosec
+			createTeamAndSecret(secret, secret, false)
 			resp := s.DoRawWithHeaders(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusUnprocessableEntity, map[string]string{
 				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, "test-uuid"),
-			}, "enroll_secret", "global")
+			}, "enroll_secret", secret)
 			je := decodeJsonError(t, resp)
 
 			require.Contains(t, "validating idp account existence", je.Errors[0]["base"])
+			mysql.TruncateTables(t, s.DS)
+		})
+
+		t.Run("if idp is required but not set", func(t *testing.T) {
+			enableAndroidMDM()
+			secret := "team"
+			createTeamAndSecret("team", secret, true)
+			s.DoRaw(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusUnauthorized, "enroll_secret", secret)
 		})
 
 		t.Cleanup(func() {
@@ -159,12 +174,13 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 	})
 
 	t.Run("succeeds", func(t *testing.T) {
-		enableAndroidMDM()
 		globalSecret := "global"
-		createTeamAndSecret("global", globalSecret)
-		setupAndroidEnterprise()
 
 		t.Run("when enroll secret is passed", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, false)
+			setupAndroidEnterprise()
+
 			var resp android.EnrollmentTokenResponse
 			s.DoJSON(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusOK, &resp, "enroll_secret", globalSecret)
 
@@ -180,9 +196,16 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
 			require.Equal(t, "", enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysql.TruncateTables(t, s.DS)
+			})
 		})
 
 		t.Run("when enroll and idp uuid is set", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, true)
+			setupAndroidEnterprise()
 			idpEmail := "test@local.com"
 			err := s.DS.InsertMDMIdPAccount(t.Context(), &fleet.MDMIdPAccount{
 				Username: "test",
@@ -214,6 +237,10 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 
 			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
 			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysql.TruncateTables(t, s.DS)
+			})
 		})
 	})
 }
