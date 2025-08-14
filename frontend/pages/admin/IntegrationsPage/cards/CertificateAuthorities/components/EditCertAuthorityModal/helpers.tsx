@@ -4,6 +4,7 @@ import {
   ICertificatesIntegrationCustomSCEP,
   isCustomSCEPCertIntegration,
   isDigicertCertIntegration,
+  isHydrantCertIntegration,
   isNDESCertIntegration,
 } from "interfaces/integration";
 
@@ -12,6 +13,7 @@ import { getDisplayErrMessage } from "../AddCertAuthorityModal/helpers";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
+import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 
 export const getCertificateAuthorityType = (
   certAuthority: ICertificateIntegration
@@ -41,6 +43,13 @@ export const generateDefaultFormData = (
       userPrincipalName:
         certAuthority.certificate_user_principal_names?.[0] ?? "",
       certificateSeatId: certAuthority.certificate_seat_id,
+    };
+  } else if (isHydrantCertIntegration(certAuthority)) {
+    return {
+      name: certAuthority.name,
+      url: certAuthority.url,
+      clientId: certAuthority.client_id,
+      clientSecret: certAuthority.client_secret,
     };
   }
 
@@ -89,6 +98,22 @@ export const updateFormData = (
       return {
         ...newData,
         challenge: formData.challenge === "********" ? "" : formData.challenge,
+      };
+    }
+  } else if (isHydrantCertIntegration(certAuthority)) {
+    // for Hydrant, we reset clientId and clientSecret if name or url changes
+    // and the fields have not been updated. We do this to force users to send
+    // the correct clientId and clientSecret for the new name or url.
+    const formData = prevFormData as IHydrantFormData;
+    if (update.name === "name" || update.name === "url") {
+      return {
+        ...newData,
+        clientId:
+          formData.clientId === certAuthority.client_id
+            ? ""
+            : formData.clientId,
+        clientSecret:
+          formData.clientSecret === "********" ? "" : formData.clientSecret,
       };
     }
   }

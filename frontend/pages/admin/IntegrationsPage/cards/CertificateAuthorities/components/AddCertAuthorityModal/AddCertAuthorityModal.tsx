@@ -18,9 +18,12 @@ import NDESForm from "../NDESForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
+import HydrantForm from "../HydrantForm";
+import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 
 export type ICertFormData =
   | IDigicertFormData
+  | IHydrantFormData
   | INDESFormData
   | ICustomSCEPFormData;
 
@@ -46,6 +49,12 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     commonName: "",
     userPrincipalName: "",
     certificateSeatId: "",
+  });
+  const [hydrantFormData, setHydrantFormData] = useState({
+    name: "",
+    url: "",
+    clientId: "",
+    clientSecret: "",
   });
   const [ndesFormData, setNDESFormData] = useState<INDESFormData>({
     scepURL: "",
@@ -78,6 +87,10 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
         setFormData = setDigicertFormData;
         formData = digicertFormData;
         break;
+      case "hydrant":
+        setFormData = setHydrantFormData;
+        formData = hydrantFormData;
+        break;
       case "ndes":
         setFormData = setNDESFormData;
         formData = ndesFormData;
@@ -101,6 +114,9 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     switch (certAuthorityType) {
       case "digicert":
         formData = digicertFormData;
+        break;
+      case "hydrant":
+        formData = hydrantFormData;
         break;
       case "ndes":
         formData = ndesFormData;
@@ -139,6 +155,17 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
         return (
           <DigicertForm
             formData={digicertFormData}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "hydrant":
+        return (
+          <HydrantForm
+            formData={hydrantFormData}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}
             onChange={onChangeForm}
