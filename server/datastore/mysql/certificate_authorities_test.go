@@ -197,10 +197,10 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 
 	// NDES CA
 	ndesCA := &fleet.CertificateAuthority{
-		Name:      "NDES",
-		URL:       "https://ndes.example.com",
-		Type:      string(fleet.CATypeNDESSCEPProxy),
-		Challenge: ptr.String("ndes-challenge"),
+		Name:     "NDES",
+		URL:      "https://ndes.example.com",
+		Type:     string(fleet.CATypeNDESSCEPProxy),
+		Password: ptr.String("ndes-password"),
 	}
 
 	casToCreate := []*fleet.CertificateAuthority{
