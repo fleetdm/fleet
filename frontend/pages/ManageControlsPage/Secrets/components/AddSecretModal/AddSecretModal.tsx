@@ -1,13 +1,12 @@
 import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { ISecret, ISecretPayload } from "interfaces/secrets";
-import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
+import { ISecretPayload } from "interfaces/secrets";
+import secretsAPI from "services/entities/secrets";
 import { NotificationContext } from "context/notification";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import { validateFormData, IAddSecretModalFormValidation } from "./helpers";
-import { AxiosError } from "axios";
 
 const baseClass = "fleet-add-secret-modal";
 

@@ -1,13 +1,15 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { ISecret } from "interfaces/secrets";
+import { NotificationContext } from "context/notification";
+
+import secretsAPI from "services/entities/secrets";
 
 interface DeleteSecretModalProps {
   secret: ISecret | undefined;
   onCancel: () => void;
   onDelete: () => void;
-  isDeleting?: boolean;
 }
 
 const baseClass = "fleet-delete-secret-modal";
@@ -16,8 +18,29 @@ const DeleteSecretModal = ({
   secret,
   onCancel,
   onDelete,
-  isDeleting,
 }: DeleteSecretModalProps) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const { renderFlash } = useContext(NotificationContext);
+
+  const onClickDelete = async () => {
+    if (!secret) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await secretsAPI.deleteSecret(secret.id);
+      onDelete();
+    } catch (error) {
+      renderFlash(
+        "error",
+        "An error occurred while deleting the secret. Please try again."
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Modal
       title="Delete custom variable?"
@@ -35,7 +58,12 @@ const DeleteSecretModal = ({
           To resolve, edit the configuration profile or script.
         </p>
         <div className="modal-cta-wrap">
-          <Button variant="alert" onClick={onDelete} isLoading={isDeleting}>
+          <Button
+            variant="alert"
+            onClick={onClickDelete}
+            isLoading={isDeleting}
+            disabled={isDeleting}
+          >
             Delete
           </Button>
           <Button variant="inverse-alert" onClick={onCancel}>

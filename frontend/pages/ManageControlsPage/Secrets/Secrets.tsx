@@ -1,16 +1,9 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { useQueryClient } from "react-query";
 
-import { NotificationContext } from "context/notification";
 import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
-import { ISecret, ISecretPayload } from "interfaces/secrets";
+import { ISecret } from "interfaces/secrets";
 
 import { stringToClipboard } from "utilities/copy_text";
 import CustomLink from "components/CustomLink";
@@ -29,8 +22,6 @@ const baseClass = "secrets-batch-paginated-list";
 export const SECRETS_PAGE_SIZE = 20;
 
 const Secrets = () => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const paginatedListRef = useRef<IPaginatedListHandle<ISecret>>(null);
 
   const [copyMessage, setCopyMessage] = useState("");
@@ -43,8 +34,6 @@ const Secrets = () => {
 
   const [count, setCount] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const queryClient = useQueryClient();
 
@@ -102,24 +91,10 @@ const Secrets = () => {
     setShowDeleteModal(true);
   };
 
-  const onDeleteSecret = useCallback(() => {
-    if (!secretToDelete) {
-      return;
-    }
-    setIsDeleting(true);
-    secretsAPI
-      .deleteSecret(secretToDelete.id)
-      .then(() => {
-        paginatedListRef.current?.reload();
-        setShowDeleteModal(false);
-      })
-      .catch((error) => {
-        console.error("Error deleting secret:", error);
-      })
-      .finally(() => {
-        setIsDeleting(false);
-      });
-  }, [secretToDelete]);
+  const onDeleteSecret = () => {
+    paginatedListRef.current?.reload();
+    setShowDeleteModal(false);
+  };
 
   const getTokenFromSecretName = (secretName: string): string => {
     return `$FLEET_SECRET_${secretName.toUpperCase()}`;
@@ -264,7 +239,6 @@ const Secrets = () => {
           secret={secretToDelete}
           onCancel={() => setShowDeleteModal(false)}
           onDelete={onDeleteSecret}
-          isDeleting={isDeleting}
         />
       )}
     </div>
