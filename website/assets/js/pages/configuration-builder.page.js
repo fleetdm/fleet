@@ -2765,7 +2765,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Amount of time after unlocking before a password is required again',
-                uniqueSlug: 'android-password-scope',
+                uniqueSlug: 'android-require-password-unlock-timeout',
                 tooltip: `The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile.`,
                 category: 'Device lock',
                 payloadGroup: 'Password',
@@ -2927,13 +2927,13 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Minimum number of symbols in password',
-                uniqueSlug: 'android-min-password-numeric',
+                uniqueSlug: 'android-min-password-symbols',
                 tooltip: 'Minimum number of symbols required in the password. Only enforced when passwordQuality is COMPLEX.',
                 category: 'Device lock',
                 payloadGroup: 'Password',
                 formInput: {
                   type: 'number',
-                  unitLabel: 'characters'
+                  unitLabel: 'symbols'
                 },
                 formOutput: {
                   settingFormat: 'number',
