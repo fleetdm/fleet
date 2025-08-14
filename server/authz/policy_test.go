@@ -2438,3 +2438,40 @@ func TestMDMAppleEULA(t *testing.T) {
 		{user: test.UserTeamMaintainerTeam2, object: eula, action: write, allow: false},
 	})
 }
+
+func TestAuthorizeSecretVariables(t *testing.T) {
+	t.Parallel()
+
+	secretVariable := &fleet.SecretVariable{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: secretVariable, action: read, allow: false},
+
+		{user: test.UserNoRoles, object: secretVariable, action: read, allow: false},
+
+		// Global admins, maintainers, and gitops can read/write.
+		{user: test.UserAdmin, object: secretVariable, action: read, allow: true},
+		{user: test.UserAdmin, object: secretVariable, action: write, allow: true},
+		{user: test.UserMaintainer, object: secretVariable, action: read, allow: true},
+		{user: test.UserMaintainer, object: secretVariable, action: write, allow: true},
+		{user: test.UserGitOps, object: secretVariable, action: read, allow: true},
+		{user: test.UserGitOps, object: secretVariable, action: write, allow: true},
+
+		// Global observers and observer_plus can read but cannot write.
+		{user: test.UserObserver, object: secretVariable, action: read, allow: true},
+		{user: test.UserObserver, object: secretVariable, action: write, allow: false},
+		{user: test.UserObserverPlus, object: secretVariable, action: read, allow: true},
+		{user: test.UserObserverPlus, object: secretVariable, action: write, allow: false},
+
+		// Team users can read but cannot write.
+		{user: test.UserTeamAdminTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: secretVariable, action: write, allow: false},
+	})
+}
