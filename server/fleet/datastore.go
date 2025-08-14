@@ -1064,9 +1064,6 @@ type Datastore interface {
 	// NewJob inserts a new job into the jobs table (queue).
 	NewJob(ctx context.Context, job *Job) (*Job, error)
 
-	// NewJobTx is like NewJob inserts a new job as part fo a transaction
-	NewJobTx(ctx context.Context, tx sqlx.ExtContext, job *Job) (*Job, error)
-
 	// GetQueuedJobs gets queued jobs from the jobs table (queue) ready to be
 	// processed. If now is the zero time, the current time will be used.
 	GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*Job, error)

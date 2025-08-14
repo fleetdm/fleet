@@ -641,6 +641,8 @@ type BatchExecutionActivityType string
 
 var BatchExecutionActivityScript BatchExecutionActivityType = "script"
 
+const BatchActivityJobName = "batch_activity"
+
 // ValidateScriptPlatform returns whether a script can run on a host based on its host.Platform
 func ValidateScriptPlatform(scriptName, platform string) bool {
 	switch filepath.Ext(scriptName) {
