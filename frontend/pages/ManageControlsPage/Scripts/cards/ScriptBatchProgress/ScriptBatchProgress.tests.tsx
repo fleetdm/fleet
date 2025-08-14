@@ -1,10 +1,9 @@
 import React from "react";
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
-  waitForLoadingToFinish,
 } from "test/test-utils";
 import mockServer from "test/mock-server";
 import { http, HttpResponse } from "msw";
@@ -17,6 +16,14 @@ import ScriptBatchProgress, {
   EMPTY_STATE_DETAILS,
 } from "./ScriptBatchProgress";
 import { ScriptsLocation } from "../../Scripts";
+
+const waitForLoadingToFinish = async (container: HTMLElement) => {
+  await waitFor(() => {
+    expect(
+      container.querySelector(".script-batch-progress__loading")
+    ).not.toBeInTheDocument();
+  });
+};
 
 const emptyTeamBatchSummariesHandler = http.get(baseUrl("/scripts/batch"), () =>
   HttpResponse.json({

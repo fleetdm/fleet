@@ -1,5 +1,5 @@
 import { ISecret, ISecretPayload } from "interfaces/secrets";
-import { sendRequest } from "services/mock_service/service/service";
+import sendRequest from "services";
 import { buildQueryStringFromParams } from "utilities/url";
 import endpoints from "utilities/endpoints";
 
