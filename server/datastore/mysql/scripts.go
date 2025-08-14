@@ -5,7 +5,6 @@ import (
 	"crypto/md5" //nolint:gosec
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -1958,19 +1958,9 @@ func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scri
 	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, job_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?, ?)`
 	const batchHostsStmt = `INSERT INTO batch_activity_host_results (batch_execution_id, host_id) VALUES (:exec_id, :host_id)`
 
-	argBytes, err := json.Marshal(fleet.BatchActivityScriptJobArgs{
-		ExecutionID: batchExecID,
-	})
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "encooding job args")
-	}
-
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		job, err := ds.NewJob(ctx, &fleet.Job{
-			Name:      fleet.BatchActivityJobName,
-			Args:      (*json.RawMessage)(&argBytes),
-			State:     fleet.JobStateQueued,
-			NotBefore: notBefore.UTC(),
+		job, err := worker.QueueBatchScriptJob(ctx, ds, tx, notBefore, fleet.BatchActivityScriptJobArgs{
+			ExecutionID: batchExecID,
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "creating new job")

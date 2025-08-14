@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+func (ds *Datastore) NewJobTx(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error) {
 	query := `
 INSERT INTO jobs (
     name,
@@ -26,7 +26,7 @@ VALUES (?, ?, ?, ?, ?, COALESCE(?, NOW()))
 	if !job.NotBefore.IsZero() {
 		notBefore = &job.NotBefore
 	}
-	result, err := ds.writer(ctx).ExecContext(ctx, query, job.Name, job.Args, job.State, job.Retries, job.Error, notBefore)
+	result, err := tx.ExecContext(ctx, query, job.Name, job.Args, job.State, job.Retries, job.Error, notBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -35,6 +35,10 @@ VALUES (?, ?, ?, ?, ?, COALESCE(?, NOW()))
 	job.ID = uint(id) //nolint:gosec // dismiss G115
 
 	return job, nil
+}
+
+func (ds *Datastore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+	return ds.NewJobTx(ctx, ds.writer(ctx), job)
 }
 
 func (ds *Datastore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
