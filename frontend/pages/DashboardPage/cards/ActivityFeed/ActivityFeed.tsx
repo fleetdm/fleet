@@ -171,6 +171,7 @@ const ActivityFeed = ({
         setVppDetails({ ...details });
         break;
       case ActivityType.RanScriptBatch:
+      case ActivityType.CanceledScriptBatch:
         setScriptBatchExecutionDetails({ ...details, created_at });
         break;
       default:
