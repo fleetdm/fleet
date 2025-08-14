@@ -199,7 +199,9 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 	ndesCA := &fleet.CertificateAuthority{
 		Name:     "NDES",
 		URL:      "https://ndes.example.com",
+		AdminURL: ptr.String("https://ndes-admin.example.com"),
 		Type:     string(fleet.CATypeNDESSCEPProxy),
+		Username: ptr.String("ndes-username"),
 		Password: ptr.String("ndes-password"),
 	}
 
