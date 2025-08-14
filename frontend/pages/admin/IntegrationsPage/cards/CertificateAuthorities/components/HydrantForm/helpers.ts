@@ -29,6 +29,7 @@ interface IValidation {
 
 type IFormValidations = Record<
   IFormValidationKey,
+  // The order of the validations determines the precedence when validating
   { validations: IValidation[] }
 >;
 
@@ -46,7 +47,7 @@ export const generateFormValidations = (
           },
         },
         {
-          name: "invalidCharacters",
+          name: "validCharacters",
           isValid: (formData: IHydrantFormData) => {
             return /^[a-zA-Z0-9_]+$/.test(formData.name);
           },
