@@ -1,9 +1,17 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { useQueryClient } from "react-query";
 
 import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
 import { ISecret } from "interfaces/secrets";
+
+import { AppContext } from "context/app";
 
 import { stringToClipboard } from "utilities/copy_text";
 import CustomLink from "components/CustomLink";
@@ -16,6 +24,7 @@ import EmptyTable from "components/EmptyTable";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
 import DeleteSecretModal from "./components/DeleteSecretModal";
+import { isTeamMaintainer } from "utilities/permissions/permissions";
 
 const baseClass = "secrets-batch-paginated-list";
 
@@ -36,6 +45,16 @@ const Secrets = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const queryClient = useQueryClient();
+
+  const {
+    isGlobalAdmin,
+    isTeamAdmin,
+    isGlobalMaintainer,
+    isTeamMaintainer,
+  } = useContext(AppContext);
+
+  const canEdit =
+    isGlobalAdmin || isTeamAdmin || isGlobalMaintainer || isTeamMaintainer;
 
   // Fetch a single page of secrets.
   const fetchPage = useCallback(
@@ -155,17 +174,19 @@ const Secrets = () => {
           </span>
         }
       />
-      <Button
-        variant="text-icon"
-        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-          e.stopPropagation();
-          onClickDeleteSecret(secret);
-        }}
-      >
-        <>
-          <Icon name="trash" color="ui-fleet-black-75" />
-        </>
-      </Button>
+      {canEdit && (
+        <Button
+          variant="text-icon"
+          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            onClickDeleteSecret(secret);
+          }}
+        >
+          <>
+            <Icon name="trash" color="ui-fleet-black-75" />
+          </>
+        </Button>
+      )}
     </>
   );
 
@@ -186,7 +207,9 @@ const Secrets = () => {
           header="No custom variables created yet"
           info="Add a custom variable to make it available in scripts and profiles."
           primaryButton={
-            <Button onClick={onClickAddSecret}>Add custom variable</Button>
+            canEdit ? (
+              <Button onClick={onClickAddSecret}>Add custom variable</Button>
+            ) : undefined
           }
         />
         {showAddModal && (
@@ -213,12 +236,14 @@ const Secrets = () => {
         heading={
           <div className={`${baseClass}__header`}>
             <span>Custom variables</span>
-            <span>
-              <Button variant="text-icon" onClick={onClickAddSecret}>
-                <Icon name="plus" />
-                <span>Add custom variable</span>
-              </Button>
-            </span>
+            {canEdit && (
+              <span>
+                <Button variant="text-icon" onClick={onClickAddSecret}>
+                  <Icon name="plus" />
+                  <span>Add custom variable</span>
+                </Button>
+              </span>
+            )}
           </div>
         }
         helpText={

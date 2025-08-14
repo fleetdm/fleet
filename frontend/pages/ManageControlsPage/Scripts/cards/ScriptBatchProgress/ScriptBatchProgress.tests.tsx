@@ -16,7 +16,6 @@ import ScriptBatchProgress, {
   EMPTY_STATE_DETAILS,
 } from "./ScriptBatchProgress";
 import { ScriptsLocation } from "../../Scripts";
-import { wait } from "@testing-library/user-event/dist/types/utils";
 
 const waitForLoadingToFinish = async (container: HTMLElement) => {
   await waitFor(() => {
