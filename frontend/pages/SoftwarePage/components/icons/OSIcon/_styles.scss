@@ -1,7 +1,7 @@
-/** Styles are repetitive with .os-icon
+/** Styles are repetitive with .software-icon
 * Future iteration: Better way to combine styling */
 
-.software-icon {
+.os-icon {
   flex-shrink: 0;
 
   &__small {
@@ -20,12 +20,12 @@
     border-radius: $border-radius-xxlarge;
   }
 
-  &__software-img {
+  &__os-img {
     display: block;
   }
 
-  // These following classs are when a software icon is passed a url prop. In
-  // this case we need to add custom width,height, and padding to show these
+  // These following classes are when an OS icon is passed a url prop. In
+  // this case we need to add custom width, height, and padding to show these
   // icons correctly.
 
   // we use this selector to give higher specifity than the selector
