@@ -2833,7 +2833,7 @@ Returns the information of the specified host.
     "policy_updated_at": "2023-06-26T18:33:15Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z", 
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
@@ -3109,7 +3109,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "policy_updated_at": "2022-10-14T17:07:12Z",
     "last_enrolled_at": "2022-02-10T02:29:13Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z", 
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
     "software_updated_at": "2020-11-05T05:09:44Z",
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
@@ -3320,7 +3320,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
     "label_updated_at": "2021-08-19T21:07:53Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z", 
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
@@ -4900,7 +4900,7 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
 | name        | string  | body | The label's name.             |
 | description | string  | body | The label's description.      |
 | hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. The provided list fully replaces the previous list.  Only one of either `hosts` or `host_ids` can be included in the request.  |
-| host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request. 
+| host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request.
 
 
 
@@ -6327,6 +6327,7 @@ List software that can or will be automatically installed during macOS setup. If
     {
       "id": 12,
       "name": "Firefox.app",
+      "icon_url": "/api/latest/fleet/software/titles/12/icon?team_id=3",
       "software_package": {
         "name": "FirefoxInsall.pkg",
         "platform": "darwin",
@@ -8941,7 +8942,7 @@ The script will be added to each host's list of upcoming activities.
 | query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
-| team_id                           | number  | ID of the team to filter by. | 
+| team_id                           | number  | ID of the team to filter by. |
 
 
 #### Example
@@ -9814,7 +9815,7 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 345,
           "name": "[Install software] Logic Pro",
           "fleet_maintained": false
-        } 
+        }
       ],
       "status": {
         "installed": 3,
@@ -10159,11 +10160,13 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 
 #### Parameters
 
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | ID of the software title being updated. |
-| team_id         | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
-| icon            | file    | form | Must be PNG format. It must be a square with dimensions ranging from 120x120 px to 1024x1024 px. |
+| Name        | Type    | In   | Description                                      |
+| ----        | ------- | ---- | --------------------------------------------     |
+| id          | integer | path | ID of the software title being updated. |
+| team_id     | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
+| icon        | file    | form | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
+| hash_sha256 | string  | form | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
+| filename    | string  | form | Filename to record for the icon image, if `hash_sha256` was supplied. |
 
 #### Example
 
@@ -10202,7 +10205,7 @@ Content-Type: image/png
 
 _Available in Fleet Premium._
 
-Download the icon added via [Update software icon](#update-software-icon) or icon from App Store (VPP).
+Download the icon added via [Update software icon](#update-software-icon) or icon from App Store (VPP). **This endpoint requires authentication.**
 
 `GET /api/v1/fleet/software/titles/:id/icon`
 
@@ -10212,6 +10215,8 @@ Download the icon added via [Update software icon](#update-software-icon) or ico
 | ----            | ------- | ---- | --------------------------------------------     |
 | id              | integer | path | ID of the software title to get icon for. |
 | team_id         | integer | query | **Required**. The team ID. |
+
+This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
 
 #### Example
 
@@ -10422,7 +10427,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
         "id": 345,
         "name": "[Install software] Logic Pro",
         "fleet_maintained": false
-      } 
+      }
     ],
     "status": {
       "installed": 3,
@@ -11603,7 +11608,7 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        | 
+| enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                                      |
 
 <br/>
