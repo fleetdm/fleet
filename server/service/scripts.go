@@ -1230,7 +1230,6 @@ func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID stri
 
 	ctxUser := authz.UserFromContext(ctx)
 
-	fmt.Printf("batchActivity: %#v\n", batchActivity)
 	targeted := uint(0)
 	if batchActivity.NumTargeted != nil {
 		// No nil dereference in case this is not set for some reason
