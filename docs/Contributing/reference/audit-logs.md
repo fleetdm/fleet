@@ -1556,13 +1556,15 @@ This activity contains the following fields:
 - "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "icon_url": URL of the icon that will added to the software title.
 
 #### Example
 
 ```json
 {
-  "software_title": "Logic Pro",
+  "software_title": "Slack",
   "software_title_id": 123,
+  "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": true,
