@@ -26,6 +26,7 @@ import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
+import { isLinuxLike } from "interfaces/platform";
 
 type ITableColumnConfig = Column<IOperatingSystemVersion>;
 
@@ -65,7 +66,7 @@ const generateDefaultTableHeaders = (
         );
       }
 
-      const { name, os_version_id, platform } = cellProps.row.original;
+      const { name_only, os_version_id, platform } = cellProps.row.original;
 
       const softwareOsDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_OS_DETAILS(os_version_id),
@@ -85,7 +86,7 @@ const generateDefaultTableHeaders = (
           customOnClick={onClickSoftware}
           tooltipTruncate
           prefix={<SoftwareIcon name={platform} />}
-          value={name}
+          value={name_only}
         />
       );
     },
@@ -104,7 +105,11 @@ const generateDefaultTableHeaders = (
     accessor: "vulnerabilities",
     Cell: (cellProps: IVulnCellProps) => {
       const platform = cellProps.row.original.platform;
-      if (platform !== "darwin" && platform !== "windows") {
+      if (
+        platform !== "darwin" &&
+        platform !== "windows" &&
+        !isLinuxLike(platform)
+      ) {
         return <TextCell value="Not supported" grey />;
       }
       return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
