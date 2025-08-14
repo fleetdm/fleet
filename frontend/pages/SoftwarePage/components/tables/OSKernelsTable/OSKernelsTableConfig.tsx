@@ -1,38 +1,33 @@
 import React from "react";
 
-import {
-  ISoftwareTitleVersion,
-  ISoftwareVulnerability,
-} from "interfaces/software";
-import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
+import { CellProps } from "react-table";
 import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import { CellProps } from "react-table";
+import { IOperatingSystemKernels } from "interfaces/operating_system";
 
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import PATHS from "router/paths";
+
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import TooltipWrapper from "components/TooltipWrapper";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import VulnerabilitiesCell from "../VulnerabilitiesCell";
 
-import VulnerabilitiesCell from "../../../components/tables/VulnerabilitiesCell";
-
-interface ISoftwareTitleVersionsTableConfigProps {
+interface IOsKernelsTableConfigProps {
   teamId?: number;
-  isIPadOSOrIOSApp: boolean;
 }
 
-type IVersionCellProps = IStringCellProps<ISoftwareTitleVersion>;
-type IVulnCellProps = CellProps<ISoftwareTitleVersion, string[] | null>;
-type IHostCountCellProps = INumberCellProps<ISoftwareTitleVersion>;
-type IViewAllHostsLinkProps = CellProps<ISoftwareTitleVersion>;
+type IHostCountCellProps = INumberCellProps<IOperatingSystemKernels>;
+type IVersionCellProps = IStringCellProps<IOperatingSystemKernels>;
+type IViewAllHostsLinkProps = CellProps<IOperatingSystemKernels>;
+type IVulnCellProps = CellProps<IOperatingSystemKernels, string[] | null>;
 
-const generateSoftwareTitleVersionsTableConfig = ({
-  teamId,
-  isIPadOSOrIOSApp,
-}: ISoftwareTitleVersionsTableConfigProps) => {
+const generateTableConfig = ({ teamId }: IOsKernelsTableConfigProps) => {
   const tableHeaders = [
     {
       title: "Version",
@@ -63,24 +58,30 @@ const generateSoftwareTitleVersionsTableConfig = ({
       title: "Vulnerabilities",
       Header: "Vulnerabilities",
       disableSortBy: true,
-      // the "vulnerabilities" accessor is used but the data is actually coming
-      // from the version attribute. We do this as we already have a "versions"
-      // attribute used for the "Version" column and we cannot reuse. This is a
-      // limitation of react-table.
-      // With the versions data, we can sum up the vulnerabilities to get the
-      // total number of vulnerabilities for the software title
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
-        if (isIPadOSOrIOSApp) {
-          return <TextCell value="Not supported" grey />;
-        }
         return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
-        // TODO: tooltip
       },
     },
     {
       title: "Hosts",
-      Header: "Hosts",
+      Header: () => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                Linux hosts may have multiple kernels
+                <br /> installed. Containers do not have their
+                <br /> own kernel.
+              </>
+            }
+            className="status-header"
+          >
+            Hosts
+          </TooltipWrapper>
+        );
+        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+      },
       disableSortBy: true,
       accessor: "hosts_count",
       Cell: (cellProps: IHostCountCellProps): JSX.Element => (
@@ -114,4 +115,4 @@ const generateSoftwareTitleVersionsTableConfig = ({
   return tableHeaders;
 };
 
-export default generateSoftwareTitleVersionsTableConfig;
+export default generateTableConfig;
