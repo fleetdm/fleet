@@ -16,6 +16,7 @@ import ScriptBatchProgress, {
   EMPTY_STATE_DETAILS,
 } from "./ScriptBatchProgress";
 import { ScriptsLocation } from "../../Scripts";
+import { wait } from "@testing-library/user-event/dist/types/utils";
 
 const waitForLoadingToFinish = async (container: HTMLElement) => {
   await waitFor(() => {
@@ -172,11 +173,13 @@ describe("ScriptBatchProgress", () => {
 
     await waitForLoadingToFinish(container);
 
-    expect(screen.getByText("Test Script 1")).toBeInTheDocument();
-    expect(screen.getByText("less than a minute ago")).toBeInTheDocument();
-    // (ran + errored) / targeted
-    expect(screen.getByText(/65\s+\/\s+100/m)).toBeInTheDocument();
-    expect(screen.getByText(/hosts/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Test Script 1")).toBeInTheDocument();
+      expect(screen.getByText("less than a minute ago")).toBeInTheDocument();
+      // (ran + errored) / targeted
+      expect(screen.getByText(/65\s+\/\s+100/m)).toBeInTheDocument();
+      expect(screen.getByText(/hosts/)).toBeInTheDocument();
+    });
   });
 
   it("Renders the 'scheduled' tab with appropriate scripts list", async () => {
@@ -196,9 +199,11 @@ describe("ScriptBatchProgress", () => {
 
     await waitForLoadingToFinish(container);
 
-    expect(screen.getByText("Test Script 1")).toBeInTheDocument();
-    expect(screen.getByText(/Scheduled to start/)).toBeInTheDocument();
-    expect(screen.getByText(/in over \d+ years/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Test Script 1")).toBeInTheDocument();
+      expect(screen.getByText(/Scheduled to start/)).toBeInTheDocument();
+      expect(screen.getByText(/in over \d+ years/)).toBeInTheDocument();
+    });
   });
 
   it("Renders the 'finished' tab with appropriate scripts list", async () => {
@@ -220,11 +225,13 @@ describe("ScriptBatchProgress", () => {
 
     // Not a 100% awesome test because we're not correlating the script names
     // with the summaries.
-    expect(screen.getByText(/Test Script 1/)).toBeInTheDocument();
-    expect(screen.getByText(/Completed/)).toBeInTheDocument();
-    expect(screen.getByText(/65\s+\/\s+100/m)).toBeInTheDocument();
-    expect(screen.getByText("Test Script 2")).toBeInTheDocument();
-    expect(screen.getByText(/Canceled/)).toBeInTheDocument();
-    expect(screen.getByText(/20\s+\/\s+50/m)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Test Script 1/)).toBeInTheDocument();
+      expect(screen.getByText(/Completed/)).toBeInTheDocument();
+      expect(screen.getByText(/65\s+\/\s+100/m)).toBeInTheDocument();
+      expect(screen.getByText("Test Script 2")).toBeInTheDocument();
+      expect(screen.getByText(/Canceled/)).toBeInTheDocument();
+      expect(screen.getByText(/20\s+\/\s+50/m)).toBeInTheDocument();
+    });
   });
 });

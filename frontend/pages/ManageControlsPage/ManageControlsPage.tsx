@@ -116,7 +116,7 @@ const ManageControlsPage = ({
     let renderedSubNav = controlsSubNav;
     if (!isGlobalAdmin && !isTeamAdmin) {
       renderedSubNav = controlsSubNav.filter((navItem) => {
-        return navItem.name !== "OS updates" && navItem.name !== "Variables";
+        return navItem.name !== "OS updates";
       });
     }
     return renderedSubNav;
