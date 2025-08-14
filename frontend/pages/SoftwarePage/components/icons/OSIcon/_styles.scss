@@ -21,7 +21,7 @@
     display: block;
   }
 
-  // These following classs are when a os icon is passed a url prop. In
+  // These following classes are when a os icon is passed a url prop. In
   // this case we need to add custom width,height, and padding to show these
   // icons correctly.
 
@@ -29,28 +29,28 @@
   // ".core-wrapper a img" which is in /styles/global/_styles.scss
   // TODO: we should change ".core-wrapper a img" selector in that file
   // as it too generic and can affect other parts of the app.
-  > img.os-icon__os-img-small {
+  > img.software-icon__software-img-small {
     width: 24px;
     height: 24px;
     border-radius: $border-radius-small;
     margin-left: 0;
   }
 
-  > img.os-icon__os-img-medium {
+  > img.software-icon__software-img-medium {
     width: 40px;
     height: 40px;
     border-radius: $border-radius-xlarge;
     margin-left: 0;
   }
 
-  > img.os-icon__os-img-large {
+  > img.software-icon__software-img-large {
     width: 64px;
     height: 64px;
     border-radius: $border-radius-xxlarge;
     margin-left: 0;
   }
 
-  > img.os-icon__os-img-xlarge {
+  > img.software-icon__software-img-xlarge {
     width: 96px;
     height: 96px;
     border-radius: $border-radius-xxlarge;

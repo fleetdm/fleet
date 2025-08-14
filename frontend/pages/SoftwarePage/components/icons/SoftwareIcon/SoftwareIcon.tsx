@@ -1,10 +1,11 @@
+/** Renders software icons app-wide */
+
 import React from "react";
 import classnames from "classnames";
+import { SOFTWARE_ICON_SIZES, SoftwareIconSizes } from "styles/var/icon_sizes";
 import { getMatchedSoftwareIcon } from "../";
 
 const baseClass = "software-icon";
-
-export type SoftwareIconSizes = "small" | "medium" | "large" | "xlarge";
 
 interface ISoftwareIconProps {
   /** The software/application name */
@@ -15,13 +16,6 @@ interface ISoftwareIconProps {
   /** Accepts an image url to display for the software icon image. */
   url?: string;
 }
-
-export const SOFTWARE_ICON_SIZES: Record<SoftwareIconSizes, string> = {
-  small: "24",
-  medium: "40",
-  large: "64",
-  xlarge: "96",
-};
 
 const SoftwareIcon = ({
   name = "",

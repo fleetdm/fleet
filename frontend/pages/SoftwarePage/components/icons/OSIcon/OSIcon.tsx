@@ -1,10 +1,10 @@
+/** Renders operating system icons app-wide */
+
 import React from "react";
 import classnames from "classnames";
+
+import { SOFTWARE_ICON_SIZES, SoftwareIconSizes } from "styles/var/icon_sizes";
 import { getMatchedOsIcon } from "..";
-import {
-  SoftwareIconSizes,
-  SOFTWARE_ICON_SIZES,
-} from "../SoftwareIcon/SoftwareIcon";
 
 const baseClass = "os-icon";
 

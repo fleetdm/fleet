@@ -30,7 +30,8 @@ interface ISoftwareDetailsSummaryProps {
   source?: string;
   versions?: number;
   iconUrl?: string;
-  isOsDetailsSummary?: boolean;
+  /** Displays OS icon instead of Software icon */
+  isOperatingSystem?: boolean;
 }
 
 const SoftwareDetailsSummary = ({
@@ -43,7 +44,7 @@ const SoftwareDetailsSummary = ({
   source,
   versions,
   iconUrl,
-  isOsDetailsSummary,
+  isOperatingSystem,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
   // Remove host count for tgz_packages only
@@ -51,8 +52,8 @@ const SoftwareDetailsSummary = ({
 
   return (
     <div className={baseClass}>
-      {isOsDetailsSummary ? (
-        <OSIcon name={name} />
+      {isOperatingSystem ? (
+        <OSIcon name={name} size="xlarge" />
       ) : (
         <SoftwareIcon name={name} source={source} url={iconUrl} size="xlarge" />
       )}
