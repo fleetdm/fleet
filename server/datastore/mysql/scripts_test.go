@@ -2290,7 +2290,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Len(t, executions, 1)
-	require.Equal(t, uint(4), *executions[0].NumIncompatible)
+	require.Equal(t, uint(3), *executions[0].NumIncompatible)
 
 	hostResults, err = ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)
@@ -2314,9 +2314,8 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 			require.Equal(t, fleet.BatchExecuteIncompatiblePlatform, *hostResult.Error)
 		case hostTeam1.ID:
 			// Bad team
-			require.Len(t, upcomingScripts, 0)
-			require.NotNil(t, hostResult.Error)
-			require.Equal(t, fleet.BatchExecuteIncompatibleTeam, *hostResult.Error)
+			require.Len(t, upcomingScripts, 1)
+			require.Nil(t, hostResult.Error)
 		case hostNoScripts.ID:
 			// Host doesn't support scripts
 			require.Len(t, upcomingScripts, 0)

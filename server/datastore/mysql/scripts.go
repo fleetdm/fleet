@@ -1809,7 +1809,6 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 	}
 
 	invalidHostIDPlatform := "batch-invalid-hostid"
-	invalidHostTeamPlatform := "batch-invalid-teamid"
 
 	// We need full host info to check if hosts are able to run scripts, see svc.RunHostScript
 	fullHosts := make([]*fleet.Host, 0, len(hostIDs))
@@ -1828,15 +1827,6 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 			continue
 		}
 
-		// All hosts must be on the same team as the script
-		if !teamIDEq(host.TeamID, script.TeamID) {
-			fullHosts = append(fullHosts, &fleet.Host{
-				ID:       hostID,
-				Platform: invalidHostTeamPlatform,
-			})
-			continue
-		}
-
 		fullHosts = append(fullHosts, host)
 	}
 
@@ -1847,15 +1837,6 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 				executions = append(executions, fleet.BatchExecutionHost{
 					HostID: host.ID,
 					Error:  &fleet.BatchExecuteInvalidHost,
-				})
-				continue
-			}
-
-			// Host isn't on the right team anymore, can't execure script
-			if host.Platform == invalidHostTeamPlatform {
-				executions = append(executions, fleet.BatchExecutionHost{
-					HostID: host.ID,
-					Error:  &fleet.BatchExecuteIncompatibleTeam,
 				})
 				continue
 			}
