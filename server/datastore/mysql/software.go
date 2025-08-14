@@ -4139,8 +4139,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			vulnerabilitiesBySoftwareID[cve.SoftwareID] = append(vulnerabilitiesBySoftwareID[cve.SoftwareID], cve.CVE)
 		}
 
-		// Grab the automatic install policies, if any exist
-		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, append(vppTitleIds, softwareTitleIds...), host.TeamID)
+		// Grab the automatic install policies, if any exist.
+		teamID := uint(0) // "No team" host
+		if host.TeamID != nil {
+			teamID = *host.TeamID // Team host
+		}
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, append(vppTitleIds, softwareTitleIds...), teamID)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
 		}
@@ -4293,10 +4297,18 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 
 			if policies, ok := policiesBySoftwareTitleId[softwareTitleRecord.ID]; ok {
-				if softwareTitleRecord.AppStoreApp != nil {
+				switch {
+				case softwareTitleRecord.AppStoreApp != nil:
 					softwareTitleRecord.AppStoreApp.AutomaticInstallPolicies = policies
-				} else {
+				case softwareTitleRecord.SoftwarePackage != nil:
 					softwareTitleRecord.SoftwarePackage.AutomaticInstallPolicies = policies
+				default:
+					level.Warn(ds.logger).Log(
+						"team_id", teamID,
+						"host_id", host.ID,
+						"software_title_id", softwareTitleRecord.ID,
+						"msg", "software title record should have an associated VPP application or software package",
+					)
 				}
 			}
 

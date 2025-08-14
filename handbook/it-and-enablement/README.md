@@ -60,6 +60,19 @@ When procuring SaaS tools and services, analyze the purchase of these subscripti
 - Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
 
 
+### Cancel a vendor or subscription
+
+Once the decision has been made not to renew a tool or subscription on Fleet's behalf, use the following steps to churn/cancel a vendor or subscription:
+
+1. Cancel the subscription, including recurring billing. If invoiced, then send churn notice.
+2. Update ["¶ 🧮 The numbers" spreadsheet (confidential doc)](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit?gid=2112277278#gid=2112277278).
+  - Prepend the recurring expense title with "CANCELLED - ".
+  - Zero-out "Projected monthly burn" and "Projected invoice amount".
+3. Remove references from integrated systems and references (i.e. unplug the tool from any other integrations)
+4. Remove any shared access from 1Password vaults.
+5. Update any reference to the tool or subscription and afterwards communicate the change (e.g. by linking to your merged PR in Slack).
+
+
 ### Secure company-issued equipment for a team member
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
@@ -158,97 +171,95 @@ Please see [handbook/product-design#update-a-company-brand-front](https://fleetd
 ##### Prepare "Let's get you set up!" meeting notes
 Please see [handbook/marketing#prepare-lets-get-you-set-up-meeting-notes](https://fleetdm.com/handbook/marketing#prepare-lets-get-you-set-up-meeting-notes)
 
-### Process the CEO's inbox
+##### Process the CEO's inbox
 Please see [handbook/ceo#process-the-ceos-inbox](https://fleetdm.com/handbook/ceo#process-the-ceos-inbox)
 
-### Process the CEO's calendar
+##### Process the CEO's calendar
 Please see [handbook/ceo#process-the-ceos-calendar](https://fleetdm.com/handbook/ceo#process-the-ceos-calendar)
 
-### Check LinkedIn for new activity 
+##### Check LinkedIn for new activity 
 Please see [handbook/ceo#check-linkedin-for-new-activity](https://fleetdm.com/handbook/ceo#check-linkedin-for-new-activity)
 
-### Add LinkedIn connections to CRM
+##### Add LinkedIn connections to CRM
 Please see [handbook/ceo#add-linkedin-connections-to-crm](https://fleetdm.com/handbook/ceo#add-linkedin-connections-to-crm)
 
-### Connect with active community members
+##### Connect with active community members
 Please see [handbook/ceo#connect-with-active-community-members](https://fleetdm.com/handbook/ceo#connect-with-active-community-members)
 
-### Schedule travel for the CEO
+##### Schedule travel for the CEO
 Please see [handbook/ceo#schedule-travel-for-the-ceo](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo)
 
-### Schedule CEO interview
+##### Schedule CEO interview
 Please see [handbook/ceo#schedule-ceo-interview](https://fleetdm.com/handbook/ceo#schedule-ceo-interview)
 
-### Confirm CEO shadow dates
+##### Confirm CEO shadow dates
 Please see [handbook/ceo#confirm-ceo-shadow-dates](https://fleetdm.com/handbook/ceo#confirm-ceo-shadow-dates)
 
-### Program the CEO to do something
+##### Program the CEO to do something
 Please see [handbook/ceo#program-the-ceo-to-do-something](https://fleetdm.com/handbook/ceo#program-the-ceo-to-do-something)
 
-### Process and backup Sid agenda
+##### Process and backup Sid agenda
 Please see [handbook/ceo#process-and-backup-sid-agenda](https://fleetdm.com/handbook/ceo#process-and-backup-sid-agenda)
 
-### Process and backup E-group agenda 
+##### Process and backup E-group agenda 
 Please see [handbook/ceo#process-and-backup-e-group-agenda](https://fleetdm.com/handbook/ceo#process-and-backup-e-group-agenda)
 
-### Process the help-being-ceo Slack channel
+##### Process the help-being-ceo Slack channel
 Please see [handbook/ceo#process-the-help-being-ceo-slack-channel](https://fleetdm.com/handbook/ceo#process-the-help-being-ceo-slack-channel)
 
-### Unroll a Slack thread
+##### Unroll a Slack thread
 Please see [handbook/ceo#unroll-a-slack-thread](https://fleetdm.com/handbook/ceo#unroll-a-slack-thread)
 
-### Delete an accidental meeting recording
+##### Delete an accidental meeting recording
 Please see [handbook/ceo#delete-an-accidental-meeting-recording](https://fleetdm.com/handbook/ceo#delete-an-accidental-meeting-recording)
 
-### Communicate Fleet's potential energy to stakeholders
+##### Communicate Fleet's potential energy to stakeholders
 Please see [handbook/ceo#communicate-fleets-potential-energy-to-stakeholders](https://fleetdm.com/handbook/ceo#communicate-fleets-potential-energy-to-stakeholders)
 
-### Archive a document
+##### Archive a document
 Please see [handbook/ceo#archive-a-document](https://fleetdm.com/handbook/ceo#archive-a-document)
 
-### Approve a new position
+##### Approve a new position
 Please see [handbook/people#approve-a-new-position](https://fleetdm.com/handbook/people#approve-a-new-position)
 
-### Inform managers about hours worked
+##### Inform managers about hours worked
 Please see [handbook/people#inform-managers-about-hours-worked](https://fleetdm.com/handbook/people#inform-managers-about-hours-worked)
 
-### Prepare for the All hands
+##### Prepare for the All hands
 Please see [handbook/people#prepare-for-the-all-hands](https://fleetdm.com/handbook/people#prepare-for-the-all-hands)
 
-### Share recording of all hands meeting
+##### Share recording of all hands meeting
 Please see [handbook/people#share-recording-of-all-hands-meeting](https://fleetdm.com/handbook/people#share-recording-of-all-hands-meeting)
 
-### Update personnel details
+##### Update personnel details
 Please see [handbook/people#update-personnel-details](https://fleetdm.com/handbook/people#update-personnel-details)
 
-### Change a Fleetie's role
+##### Change a Fleetie's role
 Please see [handbook/people#change-a-fleeties-role](https://fleetdm.com/handbook/people#change-a-fleeties-role)
 
-### Change a Fleetie's manager
+##### Change a Fleetie's manager
 Please see [handbook/people#change-a-fleeties-manager](https://fleetdm.com/handbook/people#change-a-fleeties-manager)
 
-### Prepare salary benchmarking information
+##### Prepare salary benchmarking information
 Please see [handbook/people#prepare-salary-benchmarking-information](https://fleetdm.com/handbook/people#prepare-salary-benchmarking-information)
 
-### Recognize employee workiversaries
+##### Recognize employee workiversaries
 Please see [handbook/people#recognize-employee-workiversaries](https://fleetdm.com/handbook/people#recognize-employee-workiversaries)
 
-### Update a team member's compensation
+##### Update a team member's compensation
 Please see [handbook/people#update-a-team-members-compensation](https://fleetdm.com/handbook/people#update-a-team-members-compensation)
 
-### Change the DRI of a consultant
+##### Change the DRI of a consultant
 Please see [handbook/people#change-the-dri-of-a-consultant](https://fleetdm.com/handbook/people#change-the-dri-of-a-consultant)
 
-### Add an advisor
+##### Add an advisor
 Please see [handbook/people#add-an-advisor](https://fleetdm.com/handbook/people#add-an-advisor)
 
-### Convert a Fleetie to a consultant
+##### Convert a Fleetie to a consultant
 Please see [handbook/people#convert-a-fleetie-to-a-consultant](https://fleetdm.com/handbook/people#convert-a-fleetie-to-a-consultant)
 
-### Review Fleet's US company benefits
+##### Review Fleet's US company benefits
 Please see [handbook/people#review-Fleets-us-company-benefits](https://fleetdm.com/handbook/people#review-Fleets-us-company-benefits)
-
-
 
 
 <meta name="maintainedBy" value="allenhouchins">

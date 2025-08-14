@@ -82,6 +82,8 @@ interface ITableContainerProps<T = any> {
   // TODO - consolidate this functionality within `filters`
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
+  /** Only used on self-service page client side pagination because clicking on a action re-orders the data and we don't want that to trigger reset to page 0 */
+  disableAutoResetPage?: boolean;
   /** Used to set URL to correct path and include page query param */
   onClientSidePaginationChange?: (pageIndex: number) => void;
   /** Sets the table to filter the data on the client */
@@ -160,6 +162,7 @@ const TableContainer = <T,>({
   secondarySelectActions,
   searchToolTipText,
   isClientSidePagination,
+  disableAutoResetPage = false,
   onClientSidePaginationChange,
   isClientSideFilter,
   isMultiColumnFilter,
@@ -201,10 +204,14 @@ const TableContainer = <T,>({
 
   // Client side pagination is being overridden to previous page without this
   useEffect(() => {
-    if (isClientSidePagination && currentPageIndex !== DEFAULT_PAGE_INDEX) {
+    if (
+      isClientSidePagination &&
+      currentPageIndex !== DEFAULT_PAGE_INDEX &&
+      !disableAutoResetPage
+    ) {
       setCurrentPageIndex(DEFAULT_PAGE_INDEX);
     }
-  }, [currentPageIndex, isClientSidePagination]);
+  }, [currentPageIndex, isClientSidePagination, disableAutoResetPage]);
 
   // pageIndex must update currentPageIndex anytime it's changed or else it causes bugs
   // e.g. bug of filter dd not reverting table to page 0
@@ -545,6 +552,7 @@ const TableContainer = <T,>({
                 defaultPageSize={pageSize}
                 defaultPageIndex={pageIndex}
                 defaultSelectedRows={defaultSelectedRows}
+                autoResetPage={!disableAutoResetPage}
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}

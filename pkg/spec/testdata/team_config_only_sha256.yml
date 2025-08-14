@@ -56,3 +56,11 @@ software:
       categories:
         - Productivity
         - Developer tools
+      install_script:
+        path: ./lib/install.sh
+      uninstall_script:
+        path: ./lib/uninstall-box.sh
+      post_install_script:
+        path: ./lib/post-install.sh
+      pre_install_query:
+        path: ./lib/preinstall-query.yml

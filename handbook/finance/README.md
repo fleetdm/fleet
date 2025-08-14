@@ -211,6 +211,53 @@ Thanks,
 7. Review the [Accounts receivable](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001oc9Z2AQ/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Finance board.
 
 
+### Create an offer in AWS Marketplace
+
+1. Use gmail to log in to AWS SSO.
+
+2. Use this URL [https://aws.amazon.com/marketplace/management/offers/](https://aws.amazon.com/marketplace/management/offers/) to login.  
+
+3. Click "create private offer"
+
+4. Product type is "SaaS product"
+
+5. Product is "Fleet Premium".
+
+6. Click "continue to offer details." This should bring you to "Step 1: Provide offer information."
+
+7. For offer name use the naming convention [YYYY] [Customer name] [initial term or renewal]. Example, "2025 Horus renewal."
+
+8. You can leave the offer description blank.
+
+9. Select whether the offer is a renewal or not.
+
+10. If it is a renewal, you'll need to select whether it is an existing customer moving to AWS Marketplace with Fleet for the first time, or whether they are an existing AWS Marketplace customer of Fleet.
+
+11. Enter an appropriate date for the offer to expire (may need to consult with AE or CX person that owns the account). Then click next.
+
+12. This will bring you to Step 2: Configure offer pricing and duration. The pricing model is contract pricing with up front payment.
+
+13. Contract start date: Select start at a future date and enter the start date of the term on the order form.
+
+14. Contract duration: Select enter an end date and enter the date of the first annual term on the order form.
+
+15. Currency: Select USD unless the order form specifies something different.
+
+16. Purchasing options: you can leave multiple dimensions per contract selected.
+
+17. Pricing per contract dimension: Enter the number of hosts for annual cost per host.
+
+18. Enter the total contract value and select annually for billing. If it is a multi-year deal, hit generate installment plan and then make sure the annual billing details match the order form.
+
+19. Click next to proceed to Step 3: Add buyers.
+
+20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configurel egal terms and offer documents.
+
+21. Select "custom legal terms" and upload the applicable terms. Note this could be two documents: an order form, and master subscription terms if separate from the order form.
+
+22. Click "Next" to go to Step 5: Review and create. Verify the information is accurate and submit the offer. Let the AE or CX account owner know that you have done so.
+    
+
 ### Obtain a copy of Fleet's W-9
 
 A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
