@@ -81,14 +81,6 @@ const Secrets = () => {
     [queryClient]
   );
 
-  // Allow the list to fetch the count of secrets.
-  const fetchCount = useCallback(() => {
-    if (count !== null) {
-      return Promise.resolve(count);
-    }
-    return Promise.resolve(0);
-  }, [count]);
-
   const onClickAddSecret = () => {
     setShowAddModal(true);
   };
@@ -270,7 +262,6 @@ const Secrets = () => {
         pageSize={SECRETS_PAGE_SIZE}
         renderItemRow={renderSecretRow}
         count={count || 0}
-        fetchCount={fetchCount}
         fetchPage={fetchPage}
         onClickRow={(secret) => secret}
         heading={

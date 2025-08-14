@@ -183,6 +183,16 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     };
   }, [fetchCount]);
 
+  // If the total items count is passed in, set it.
+  // This is useful if the parent already knows the total count
+  // and doesn't need to fetch it.
+  useEffect(() => {
+    // If the total items count is passed in, set it.
+    if (count !== undefined && count !== null) {
+      setTotalItems(count);
+    }
+  }, [count]);
+
   // Whenever the dirty items list changes, notify the parent.
   useEffect(() => {
     if (onUpdate) {
