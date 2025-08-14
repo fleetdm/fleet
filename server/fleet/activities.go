@@ -2613,8 +2613,8 @@ func (a ActivityTypeBatchScriptScheduled) Documentation() (string, string, strin
 }
 
 type ActivityTypeBatchScriptCanceled struct {
-	ScriptName *string `json:"script_name,omitempty"`
-	HostCount  uint    `json:"host_count"`
+	ScriptName string `json:"script_name"`
+	HostCount  uint   `json:"host_count"`
 }
 
 func (a ActivityTypeBatchScriptCanceled) ActivityName() string {
