@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
@@ -97,10 +97,10 @@ const ScriptBatchProgress = ({
               // `batchCount`'s default value is undefined, while the empty state renders when it
               // === 0.
               setBatchCount(r.count);
-              // tracking updating state at this level allows coordination of PaginatedList's
-              // internal loading state with showing/hiding the batch count
-              setUpdating(false);
               return r.batch_executions;
+            })
+            .finally(() => {
+              setUpdating(false);
             });
         },
         {
@@ -130,10 +130,6 @@ const ScriptBatchProgress = ({
     },
     [location?.search, router]
   );
-
-  if (!isValidScriptBatchStatus(statusParam)) {
-    handleTabChange(0); // Default to the first tab if the status is invalid
-  }
 
   const onClickRow = (r: IScriptBatchSummaryV2) => {
     setShowBatchDetailsForSummary({
@@ -261,9 +257,17 @@ const ScriptBatchProgress = ({
   };
 
   // Fetch the first page of the list when first visiting a tab.
-  if (batchCount === null && !updating) {
-    fetchPage(0);
-  }
+  useEffect(() => {
+    if (batchCount === null && !updating) {
+      fetchPage(0);
+    }
+  }, [batchCount, updating, fetchPage]);
+
+  useEffect(() => {
+    if (!isValidScriptBatchStatus(statusParam)) {
+      handleTabChange(0);
+    }
+  }, [statusParam, handleTabChange]);
 
   const renderTabContent = (status: ScriptBatchStatus) => {
     // If we're switching to a new tab, show the loading spinner
@@ -288,8 +292,6 @@ const ScriptBatchProgress = ({
           </div>
         )}
         <PaginatedList<IScriptBatchSummaryV2>
-          ref={paginatedListRef}
-          // ancestralUpdating={updating}
           count={batchCount || 0}
           fetchPage={fetchPage}
           onClickRow={onClickRow}
