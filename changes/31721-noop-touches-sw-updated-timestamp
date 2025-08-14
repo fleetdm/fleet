@@ -1,0 +1,1 @@
+* Fixed a bug where a host's software_updated_at timestamp wouldn't be bumped if a successful refetch detected no software changes
