@@ -85,42 +85,16 @@ const Secrets = () => {
     setShowAddModal(true);
   };
 
-  const onSaveSecret = (
-    secretName: string,
-    secretValue: string
-  ): Promise<object> => {
-    setIsSaving(true);
-    const newSecret: ISecretPayload = {
-      name: secretName,
-      value: secretValue,
-    };
-    const addSecretPromise = secretsAPI.addSecret(newSecret);
-    // Handle success by closing the modal and reloading the list.
-    addSecretPromise
-      .then(() => {
-        setShowAddModal(false);
-        // If we're showing a list right now, tell it to reload.
-        if (paginatedListRef.current) {
-          paginatedListRef.current?.reload();
-        } else {
-          // If we were showing the empty state, fetch the first page
-          // to populate the list.
-          fetchPage(0);
-        }
-      })
-      .catch((error) => {
-        if (error.status !== 409) {
-          renderFlash(
-            "error",
-            "An error occurred while saving the secret. Please try again."
-          );
-        }
-      })
-      .finally(() => {
-        setIsSaving(false);
-      });
-    // The modal will handle conflict errors and display appropriate messages.
-    return addSecretPromise;
+  const onSaveSecret = () => {
+    setShowAddModal(false);
+    // If we're showing a list right now, tell it to reload.
+    if (paginatedListRef.current) {
+      paginatedListRef.current?.reload();
+    } else {
+      // If we were showing the empty state, fetch the first page
+      // to populate the list.
+      fetchPage(0);
+    }
   };
 
   const onClickDeleteSecret = (secret: ISecret) => {
@@ -243,10 +217,7 @@ const Secrets = () => {
         {showAddModal && (
           <AddSecretModal
             onCancel={() => setShowAddModal(false)}
-            onSubmit={(secretName: string, secretValue: string) => {
-              return onSaveSecret(secretName, secretValue);
-            }}
-            isSaving={isSaving}
+            onSave={onSaveSecret}
           />
         )}
       </>
@@ -285,10 +256,7 @@ const Secrets = () => {
       {showAddModal && (
         <AddSecretModal
           onCancel={() => setShowAddModal(false)}
-          onSubmit={(secretName: string, secretValue: string) => {
-            return onSaveSecret(secretName, secretValue);
-          }}
-          isSaving={isSaving}
+          onSave={onSaveSecret}
         />
       )}
       {showDeleteModal && (

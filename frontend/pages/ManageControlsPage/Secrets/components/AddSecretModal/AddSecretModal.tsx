@@ -1,16 +1,19 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import { ISecret, ISecretPayload } from "interfaces/secrets";
+import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
+import { NotificationContext } from "context/notification";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import { validateFormData, IAddSecretModalFormValidation } from "./helpers";
+import { AxiosError } from "axios";
 
 const baseClass = "fleet-add-secret-modal";
 
 interface AddSecretModalProps {
   onCancel: () => void;
-  onSubmit: (secretName: string, secretValue: string) => Promise<object>;
-  isSaving: boolean;
+  onSave: () => void;
 }
 
 export interface IAddSecretModalScheduleFormData {
@@ -18,13 +21,12 @@ export interface IAddSecretModalScheduleFormData {
   value: string;
 }
 
-const AddSecretModal = ({
-  onCancel,
-  onSubmit,
-  isSaving,
-}: AddSecretModalProps) => {
+const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
   const [secretName, setSecretName] = useState("");
   const [secretValue, setSecretValue] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const { renderFlash } = useContext(NotificationContext);
 
   const [
     formValidation,
@@ -52,22 +54,29 @@ const AddSecretModal = ({
     );
   };
 
-  const onSave = (name: string, value: string) => {
+  const onClickSave = async (name: string, value: string) => {
     const validation = validateFormData({ name, value }, true);
     if (validation.isValid) {
-      onSubmit(name, value).catch((error) => {
+      setIsSaving(true);
+      const newSecret: ISecretPayload = {
+        name: secretName,
+        value: secretValue,
+      };
+      try {
+        await secretsAPI.addSecret(newSecret);
+        onSave();
+      } catch (error: any) {
         if (error.status === 409) {
-          setFormValidation({
-            ...validation,
-            name: {
-              isValid: false,
-              message: "A secret with this name already exists.",
-            },
-          });
+          renderFlash("error", "A secret with this name already exists.");
+        } else {
+          renderFlash(
+            "error",
+            "An error occurred while saving the secret. Please try again."
+          );
         }
-      });
-    } else {
-      setFormValidation(validation);
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -99,9 +108,9 @@ const AddSecretModal = ({
         <div className="modal-cta-wrap">
           <Button
             onClick={() => {
-              onSave(secretName, secretValue);
+              onClickSave(secretName, secretValue);
             }}
-            disabled={!formValidation.isValid}
+            disabled={!formValidation.isValid || isSaving}
             isLoading={isSaving}
           >
             Save
