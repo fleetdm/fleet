@@ -6807,6 +6807,12 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 	var batchCancelResp batchScriptCancelResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchRes.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
 
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeBatchScriptCanceled{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id": "%s", "host_count":2, "canceled_count": 2, "script_name":"%s"}`, batchRes.BatchExecutionID, script.Name),
+		0,
+	)
+
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
 	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
@@ -6829,6 +6835,12 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 	require.Equal(t, *batchStatusResp.NumPending, uint(2))
 
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeBatchScriptCanceled{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id": "%s", "host_count":2, "canceled_count": 2, "script_name":"%s"}`, batchResScheduled.BatchExecutionID, script.Name),
+		0,
+	)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, *batchStatusResp.ScriptID, script.ID)

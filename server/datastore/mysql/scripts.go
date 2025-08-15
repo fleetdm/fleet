@@ -1880,12 +1880,13 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 
 		_, err := tx.ExecContext(
 			ctx,
-			`INSERT INTO batch_activities (execution_id, script_id, status, activity_type, started_at) VALUES (?, ?, ?, ?, NOW())
+			`INSERT INTO batch_activities (execution_id, script_id, status, activity_type, num_targeted, started_at) VALUES (?, ?, ?, ?, ?, NOW())
 				ON DUPLICATE KEY UPDATE status = VALUES(status), started_at = VALUES(started_at)`,
 			batchExecID,
 			script.ID,
 			fleet.ScheduledBatchExecutionStarted,
 			fleet.BatchExecutionActivityScript,
+			len(hostIDs),
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to insert new batch execution")
@@ -2115,26 +2116,29 @@ WHERE
 func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 	const stmt = `
 		SELECT
-			id,
-			script_id,
-			execution_id,
-			user_id,
-			job_id,
-			status,
-			activity_type,
-			num_targeted,
-			num_pending,
-			num_ran,
-			num_errored,
-			num_incompatible,
-			num_canceled,
-			created_at,
-			updated_at,
-			started_at,
-			finished_at,
-			canceled
+			ba.id,
+			ba.script_id,
+			s.name as script_name,
+			ba.execution_id,
+			ba.user_id,
+			ba.job_id,
+			ba.status,
+			ba.activity_type,
+			ba.num_targeted,
+			ba.num_pending,
+			ba.num_ran,
+			ba.num_errored,
+			ba.num_incompatible,
+			ba.num_canceled,
+			ba.created_at,
+			ba.updated_at,
+			ba.started_at,
+			ba.finished_at,
+			ba.canceled
 		FROM
-			batch_activities
+			batch_activities ba
+		LEFT JOIN
+			scripts s ON s.id = ba.script_id
 		WHERE
 			execution_id = ?`
 
