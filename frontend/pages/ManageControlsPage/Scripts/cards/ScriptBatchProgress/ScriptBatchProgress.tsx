@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
@@ -12,6 +12,7 @@ import { isDateTimePast } from "utilities/helpers";
 
 import { COLORS } from "styles/var/colors";
 
+import Spinner from "components/Spinner";
 import ProgressBar from "components/ProgressBar";
 import SectionHeader from "components/SectionHeader";
 import TabNav from "components/TabNav";
@@ -64,35 +65,11 @@ const ScriptBatchProgress = ({
     batchDetailsForSummary,
     setShowBatchDetailsForSummary,
   ] = useState<IScriptBatchDetailsForSummary | null>(null);
-  const [batchCount, setBatchCount] = useState<number | undefined>(undefined);
+  const [batchCount, setBatchCount] = useState<number | null>(null);
   const [updating, setUpdating] = useState(false);
 
-  const handleTabChange = useCallback(
-    (index: number) => {
-      // it's necessary to reset the batchCount when changing tabs due to the tricky data flow
-      // described below in `fetchPage`. Without setting here, any empty states rendered for a
-      // tab/status with 0 summaries would persist even when switching to a new tab.
-      setBatchCount(undefined);
-
-      const newStatus = STATUS_BY_INDEX[index];
-
-      const newParams = new URLSearchParams(location?.search);
-      newParams.set("status", newStatus);
-      const newQuery = newParams.toString();
-
-      router.push(
-        PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS.concat(
-          newQuery ? `?${newQuery}` : ""
-        )
-      );
-    },
-    [location?.search, router]
-  );
   const statusParam = location?.query.status;
 
-  if (!isValidScriptBatchStatus(statusParam)) {
-    handleTabChange(0); // Default to the first tab if the status is invalid
-  }
   const selectedStatus = statusParam as ScriptBatchStatus;
 
   const queryClient = useQueryClient();
@@ -114,21 +91,39 @@ const ScriptBatchProgress = ({
           return scriptsAPI
             .getRunScriptBatchSummaries(queryKey[0])
             .then((r) => {
-              // there is some slightly round-about data flow here – this fetchPage is called by
-              // PaginatedList, and the batchCount state this sets controls rendering of an empty
-              // state that causes PaginatedList to not be rendered. This works because
-              // `batchCount`'s default value is undefined, while the empty state renders when it
-              // === 0.
               setBatchCount(r.count);
-              // tracking updating state at this level allows coordination of PaginatedList's
-              // internal loading state with showing/hiding the batch count
-              setUpdating(false);
               return r.batch_executions;
+            })
+            .finally(() => {
+              setUpdating(false);
             });
+        },
+        {
+          staleTime: 100,
         }
       );
     },
     [queryClient, selectedStatus, teamId]
+  );
+
+  const handleTabChange = useCallback(
+    (index: number) => {
+      const newStatus = STATUS_BY_INDEX[index];
+
+      const newParams = new URLSearchParams(location?.search);
+      newParams.set("status", newStatus);
+      const newQuery = newParams.toString();
+
+      router.push(
+        PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS.concat(
+          newQuery ? `?${newQuery}` : ""
+        )
+      );
+
+      setBatchCount(null);
+      setUpdating(false);
+    },
+    [location?.search, router]
   );
 
   const onClickRow = (r: IScriptBatchSummaryV2) => {
@@ -256,10 +251,35 @@ const ScriptBatchProgress = ({
     );
   };
 
+  // Fetch the first page of the list when first visiting a tab.
+  useEffect(() => {
+    if (batchCount === null && !updating) {
+      fetchPage(0);
+    }
+  }, [batchCount, updating, fetchPage]);
+
+  // Reset to first tab if status is invalid.
+  useEffect(() => {
+    if (!isValidScriptBatchStatus(statusParam)) {
+      handleTabChange(0);
+    }
+  }, [statusParam, handleTabChange]);
+
   const renderTabContent = (status: ScriptBatchStatus) => {
+    // If we're switching to a new tab, show the loading spinner
+    // while we get the first page and # of results.
+    if (updating && batchCount === null) {
+      return (
+        <div className={`${baseClass}__loading`}>
+          <Spinner />
+        </div>
+      );
+    }
+
     if (batchCount === 0) {
       return getEmptyState(status);
     }
+
     return (
       <div className={`${baseClass}__tab-content`}>
         {!updating && batchCount && (
@@ -268,8 +288,7 @@ const ScriptBatchProgress = ({
           </div>
         )}
         <PaginatedList<IScriptBatchSummaryV2>
-          ancestralUpdating={updating}
-          count={batchCount}
+          count={batchCount || 0}
           fetchPage={fetchPage}
           onClickRow={onClickRow}
           renderItemRow={renderRow}

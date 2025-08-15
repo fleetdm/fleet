@@ -122,6 +122,8 @@ export enum ActivityType {
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
+  CreatedCustomVariable = "created_custom_variable",
+  DeletedCustomVariable = "deleted_custom_variable",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -230,4 +232,5 @@ export interface IActivityDetails {
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
+  custom_variable_name?: string;
 }
