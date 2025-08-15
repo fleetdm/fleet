@@ -207,3 +207,9 @@ export const isOsSettingsDisplayPlatform = (
   }
   return OS_SETTINGS_DISPLAY_PLATFORMS.includes(platform);
 };
+
+const VULNS_SUPPORTED_LINUX_PLATFORMS = ["ubuntu", "debian", "amzn"];
+
+export const isVulnsSupportedLinuxPlatform = (platform: string) => {
+  return VULNS_SUPPORTED_LINUX_PLATFORMS.includes(platform);
+};

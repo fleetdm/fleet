@@ -17,9 +17,11 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import VulnerabilitiesCell from "../VulnerabilitiesCell";
+import { isVulnsSupportedLinuxPlatform } from "interfaces/platform";
 
 interface IOsKernelsTableConfigProps {
   teamId?: number;
+  platform: string;
 }
 
 type IHostCountCellProps = INumberCellProps<IOperatingSystemKernels>;
@@ -27,7 +29,10 @@ type IVersionCellProps = IStringCellProps<IOperatingSystemKernels>;
 type IViewAllHostsLinkProps = CellProps<IOperatingSystemKernels>;
 type IVulnCellProps = CellProps<IOperatingSystemKernels, string[] | null>;
 
-const generateTableConfig = ({ teamId }: IOsKernelsTableConfigProps) => {
+const generateTableConfig = ({
+  teamId,
+  platform,
+}: IOsKernelsTableConfigProps) => {
   const tableHeaders = [
     {
       title: "Version",
@@ -60,6 +65,10 @@ const generateTableConfig = ({ teamId }: IOsKernelsTableConfigProps) => {
       disableSortBy: true,
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
+        if (!isVulnsSupportedLinuxPlatform(platform)) {
+          return <TextCell value="Not supported" grey />;
+        }
+
         return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
       },
     },

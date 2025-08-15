@@ -140,6 +140,7 @@ export const KernelsCard = ({
       isLoading={isLoading}
       router={router}
       teamIdForApi={teamIdForApi}
+      platform={osVersion.platform}
     />
   </Card>
 );

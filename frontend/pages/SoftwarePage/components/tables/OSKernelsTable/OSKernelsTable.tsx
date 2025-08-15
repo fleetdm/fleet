@@ -44,6 +44,7 @@ interface ISoftwareVulnerabilitiesTableProps {
   className?: string;
   router: InjectedRouter;
   teamIdForApi?: number;
+  platform: string;
 }
 
 interface IRowProps extends Row {
@@ -58,6 +59,7 @@ const OSKernelsTable = ({
   className,
   router,
   teamIdForApi,
+  platform,
 }: ISoftwareVulnerabilitiesTableProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -76,7 +78,10 @@ const OSKernelsTable = ({
     }
   };
 
-  const tableHeaders = generateTableConfig({ teamId: teamIdForApi });
+  const tableHeaders = generateTableConfig({
+    teamId: teamIdForApi,
+    platform,
+  });
 
   const rendersOsKernelsVersionCount = () => (
     <TableCount name="items" count={data?.length} />

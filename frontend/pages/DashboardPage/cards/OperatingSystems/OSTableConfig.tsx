@@ -26,7 +26,10 @@ import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import { isLinuxLike } from "interfaces/platform";
+import {
+  isLinuxLike,
+  isVulnsSupportedLinuxPlatform,
+} from "interfaces/platform";
 
 type ITableColumnConfig = Column<IOperatingSystemVersion>;
 
@@ -108,7 +111,7 @@ const generateDefaultTableHeaders = (
       if (
         platform !== "darwin" &&
         platform !== "windows" &&
-        !isLinuxLike(platform)
+        !isVulnsSupportedLinuxPlatform(platform)
       ) {
         return <TextCell value="Not supported" grey />;
       }
