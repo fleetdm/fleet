@@ -1,0 +1,5 @@
+hash_sha256: 4497673bda128fbb485f19dd96ba0b0b787d6cdbbbce569a084d326b63e3c866
+self_service: false
+categories:
+labels_include_any:
+  - "Nudge test devices"
