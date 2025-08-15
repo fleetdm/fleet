@@ -146,7 +146,11 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	// get values for response object
-	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
+	var tmID uint
+	if payload.TeamID != nil {
+		tmID = *payload.TeamID
+	}
+	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &tmID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
 	}
@@ -1660,8 +1664,13 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+	if !dryRun {
+		// presence of these secrets are validated on the gitops side,
+		// we only want to ensure that secrets are in the database on the
+		// non-dry run case.
+		if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
+			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		}
 	}
 
 	// keyExpireTime is the current maximum time supported for retrieving
@@ -1710,8 +1719,12 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	if app.SHA256 != noCheckHash {
 		payload.SHA256 = app.SHA256
 	}
-	payload.InstallScript = app.InstallScript
-	payload.UninstallScript = app.UninstallScript
+	if payload.InstallScript == "" {
+		payload.InstallScript = app.InstallScript
+	}
+	if payload.UninstallScript == "" {
+		payload.UninstallScript = app.UninstallScript
+	}
 	payload.FleetMaintained = true
 	payload.MaintainedApp = app
 	if len(payload.Categories) == 0 {
@@ -1995,7 +2008,6 @@ func (svc *Service) softwareBatchUpload(
 					}
 				}
 				extension := strings.TrimLeft(filepath.Ext(installer.Filename), ".")
-				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
 				installer.Title = appName
 				installer.Version = p.MaintainedApp.Version
 
@@ -2021,8 +2033,6 @@ func (svc *Service) softwareBatchUpload(
 				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
 				installer.StorageID = p.MaintainedApp.SHA256
 				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
-				installer.AutomaticInstall = p.AutomaticInstall != nil && *p.AutomaticInstall
-				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
 			}
 
 			var ext string
@@ -2365,10 +2375,10 @@ func UninstallSoftwareMigration(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	logger kitlog.Logger,
 ) error {
-	// Find software installers without package_id
-	idMap, err := ds.GetSoftwareInstallersWithoutPackageIDs(ctx)
+	// Find software installers that should have their uninstall script populated
+	idMap, err := ds.GetSoftwareInstallersPendingUninstallScriptPopulation(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting software installers without package_id")
+		return ctxerr.Wrap(ctx, err, "getting software installers to modufy")
 	}
 	if len(idMap) == 0 {
 		return nil

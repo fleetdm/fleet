@@ -48,6 +48,10 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 				{Verb: "Replace", LocURI: "L3", Data: "D3"},
 				{Verb: "Add", LocURI: "L3.1", Data: "D3.1"},
 			})},
+			"N4": {Name: "N4", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{
+				{Verb: "Replace", LocURI: "L4", Data: "<![CDATA[D4]]>"},
+				{Verb: "Add", LocURI: "L4.1", Data: "<![CDATA[D4.1]]>"},
+			})},
 		}, nil
 	}
 	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
@@ -77,6 +81,8 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 			{"L2", "D2", "N2", "2736786183"},
 			{"L3", "D3", "N3", "894211447"},
 			{"L3.1", "D3.1", "N3", "3410477854"},
+			{"L4", "D4", "N4", "4141459399"},
+			{"L4.1", "D4.1", "N4", "236794510"},
 		},
 		got,
 	)
@@ -288,8 +294,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
 					Verb:   "Replace",
 					LocURI: "L1",
-					Data: `
-      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+					Data: `<![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
       <data id="Listbox_ModuleNames" value="*"/>
       <data id="OutputDirectory" value="false"/>
       <data id="EnableScriptBlockInvocationLogging" value="true"/>
@@ -298,7 +303,11 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			},
 			report: []osqueryReport{{
 				"N1", "200", "L1",
-				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+				`<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="Listbox_ModuleNames" value="*"/>
+      <data id="OutputDirectory" value="false"/>
+      <data id="EnableScriptBlockInvocationLogging" value="true"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>`,
 			}},
 			toVerify: []string{"N1"},
 			toFail:   []string{},
@@ -312,13 +321,14 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 					Verb:   "Replace",
 					LocURI: "L1",
 					Data: `
-      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+<![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
       <data id="SourcePathForUpdateHelp" value="false"/>]]>`,
 				}}), 0},
 			},
 			report: []osqueryReport{{
 				"N1", "200", "L1",
-				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+				`<disabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>`,
 			}},
 			toVerify: []string{},
 			toFail:   []string{},
@@ -809,4 +819,75 @@ type hostProfile struct {
 	Name        string
 	RawContents []byte
 	RetryCount  uint
+}
+
+func TestPreprocessWindowsProfileContents(t *testing.T) {
+	tests := []struct {
+		name             string
+		hostUUID         string
+		profileContents  string
+		expectedContents string
+	}{
+		{
+			name:             "no fleet variables",
+			hostUUID:         "test-uuid-123",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Simple Value</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Simple Value</Data></Item></Replace>`,
+		},
+		{
+			name:             "fleet variable without braces",
+			hostUUID:         "test-uuid-456",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: test-uuid-456</Data></Item></Replace>`,
+		},
+		{
+			name:             "fleet variable with braces",
+			hostUUID:         "test-uuid-789",
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: ${FLEET_VAR_HOST_UUID}</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>Device ID: test-uuid-789</Data></Item></Replace>`,
+		},
+		{
+			name:             "multiple fleet variables",
+			hostUUID:         "test-uuid-abc",
+			profileContents:  `<Replace><Item><Data>First: $FLEET_VAR_HOST_UUID, Second: ${FLEET_VAR_HOST_UUID}</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Data>First: test-uuid-abc, Second: test-uuid-abc</Data></Item></Replace>`,
+		},
+		{
+			name:             "fleet variable with special XML characters in UUID",
+			hostUUID:         "test<>&\"uuid",
+			profileContents:  `<Replace><Item><Data>Device: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Data>Device: test&lt;&gt;&amp;&#34;uuid</Data></Item></Replace>`,
+		},
+		{
+			name:             "fleet variable with apostrophe in UUID",
+			hostUUID:         "test<>&\"'uuid",
+			profileContents:  `<Replace><Data>ID: $FLEET_VAR_HOST_UUID</Data></Replace>`,
+			expectedContents: `<Replace><Data>ID: test&lt;&gt;&amp;&#34;&#39;uuid</Data></Replace>`,
+		},
+		{
+			name:             "unsupported variable ignored",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><Data>ID: $FLEET_VAR_HOST_UUID, Other: $FLEET_VAR_UNSUPPORTED</Data></Replace>`,
+			expectedContents: `<Replace><Data>ID: test-host-1234-uuid, Other: $FLEET_VAR_UNSUPPORTED</Data></Replace>`,
+		},
+		{
+			name:             "fleet variable with CmdID in profile",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><CmdID>1</CmdID><Item><Data>Device ID: $FLEET_VAR_HOST_UUID</Data></Item></Replace>`,
+			expectedContents: `<Replace><CmdID>1</CmdID><Item><Data>Device ID: test-host-1234-uuid</Data></Item></Replace>`,
+		},
+		{
+			name:             "fleet variable with both formats in same profile",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><Data>ID1: $FLEET_VAR_HOST_UUID, ID2: ${FLEET_VAR_HOST_UUID}</Data></Replace>`,
+			expectedContents: `<Replace><Data>ID1: test-host-1234-uuid, ID2: test-host-1234-uuid</Data></Replace>`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := PreprocessWindowsProfileContents(tt.hostUUID, tt.profileContents)
+			require.Equal(t, tt.expectedContents, result)
+		})
+	}
 }

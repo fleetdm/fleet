@@ -3,7 +3,10 @@ import classnames from "classnames";
 
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
-import { MDM_ENROLLMENT_STATUS_UI_MAP } from "interfaces/mdm";
+import {
+  isPersonalEnrollmentInMdm,
+  MDM_ENROLLMENT_STATUS_UI_MAP,
+} from "interfaces/mdm";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
@@ -52,7 +55,7 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
     // for all host types, we show the Enrollment ID dataset if the host
     // is enrolled in MDM personally. Personal (BYOD) devices do not report
     // their serial numbers, so we show the Enrollment ID instead.
-    if (mdm && mdm.enrollment_status === "On (personal)") {
+    if (mdm && isPersonalEnrollmentInMdm(mdm.enrollment_status)) {
       deviceIdDataSet = (
         <DataSet
           title={

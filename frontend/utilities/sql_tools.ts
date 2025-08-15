@@ -1,5 +1,5 @@
 // @ts-ignore
-import { Parser } from "node-sql-parser";
+import { Parser } from "utilities/node-sql-parser/sqlite";
 import { intersection, isPlainObject, uniq } from "lodash";
 import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {

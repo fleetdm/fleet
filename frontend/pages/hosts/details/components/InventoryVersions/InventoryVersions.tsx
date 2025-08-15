@@ -12,6 +12,13 @@ import {
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 
+export const sourcesWithLastOpenedTime = new Set([
+  "programs",
+  "apps",
+  "deb_packages",
+  "rpm_packages",
+]);
+
 const generateVulnerabilitiesValue = (vulnerabilities: string[]) => {
   const first3 = vulnerabilities.slice(0, 3);
   const rest = vulnerabilities.slice(3);
@@ -57,9 +64,14 @@ const InventoryVersion = ({
         {bundleIdentifier && (
           <DataSet title="Bundle identifier" value={bundleIdentifier} />
         )}
-        {version.last_opened_at && (
-          <DataSet title="Last used" value={dateAgo(version.last_opened_at)} />
-        )}
+        {version.last_opened_at || sourcesWithLastOpenedTime.has(source) ? (
+          <DataSet
+            title="Last opened"
+            value={
+              version.last_opened_at ? dateAgo(version.last_opened_at) : "Never"
+            }
+          />
+        ) : null}
       </div>
       {vulnerabilities && vulnerabilities.length !== 0 && (
         <div className={`${baseClass}__row`}>
@@ -95,13 +107,17 @@ const InventoryVersion = ({
 
 interface IInventoryVersionsProps {
   hostSoftware: IHostSoftware;
+  showLabel?: boolean;
 }
-const InventoryVersions = ({ hostSoftware }: IInventoryVersionsProps) => {
+const InventoryVersions = ({
+  hostSoftware,
+  showLabel = true,
+}: IInventoryVersionsProps) => {
   const installedVersions = hostSoftware.installed_versions;
 
   if (!installedVersions || installedVersions.length === 0) {
     return (
-      <div className={`${baseClass}__software-details`}>
+      <div className={baseClass}>
         <Card
           className={`${baseClass}__version-details`}
           color="grey"
@@ -120,16 +136,23 @@ const InventoryVersions = ({ hostSoftware }: IInventoryVersionsProps) => {
 
   return (
     <div className={baseClass}>
-      {installedVersions.map((installedVersion) => {
-        return (
-          <InventoryVersion
-            key={installedVersion.version}
-            version={installedVersion}
-            source={hostSoftware.source}
-            bundleIdentifier={hostSoftware.bundle_identifier}
-          />
-        );
-      })}
+      {showLabel && (
+        <div className={`${baseClass}__label`}>
+          Current version{installedVersions.length > 1 && "s"}:
+        </div>
+      )}
+      <div className={`${baseClass}__versions`}>
+        {installedVersions.map((installedVersion) => {
+          return (
+            <InventoryVersion
+              key={installedVersion.version}
+              version={installedVersion}
+              source={hostSoftware.source}
+              bundleIdentifier={hostSoftware.bundle_identifier}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 };

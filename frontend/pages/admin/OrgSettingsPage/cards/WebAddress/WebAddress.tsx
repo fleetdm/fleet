@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { size } from "lodash";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -10,7 +12,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import { IAppConfigFormProps } from "../constants";
 
 interface IWebAddressFormData {
   serverURL: string;
@@ -53,7 +55,7 @@ const WebAddress = ({
 
   const [formErrors, setFormErrors] = useState<IWebAddressFormErrors>({});
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validateFormData(newFormData);

@@ -320,11 +320,12 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 ) (updates fleet.MDMProfilesUpdates, err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
+		// Pass profilesVariablesByIdentifier to Windows profiles to save variable associations
+		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
 		}
 
-		// for now, only apple profiles support Fleet variables
+		// Apple profiles also support Fleet variables
 		if updates.AppleConfigProfile, err = ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
@@ -1864,13 +1865,13 @@ func batchSetProfileVariableAssociationsDB(
 		for _, v := range pv.FleetVariables {
 			// variables received here do not have the FLEET_VAR_ prefix, but variables
 			// in the fleet_variables table do.
-			v = "FLEET_VAR_" + v
+			varWithPrefix := "FLEET_VAR_" + string(v)
 			for _, def := range varDefs {
-				if !def.IsPrefix && def.Name == v {
+				if !def.IsPrefix && def.Name == varWithPrefix {
 					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
 					break
 				}
-				if def.IsPrefix && strings.HasPrefix(v, def.Name) {
+				if def.IsPrefix && strings.HasPrefix(varWithPrefix, def.Name) {
 					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
 					break
 				}
@@ -1991,12 +1992,13 @@ GROUP BY
 		return counts, err
 	}
 
+	// Note that hosts with "BitLocker action required" are counted as pending.
 	for _, row := range rows {
 		switch row.Status {
 		case "failed":
 			counts.Failed = row.Count
 		case "pending":
-			counts.Pending = row.Count
+			counts.Pending += row.Count
 		case "verifying":
 			counts.Verifying = row.Count
 		case "verified":

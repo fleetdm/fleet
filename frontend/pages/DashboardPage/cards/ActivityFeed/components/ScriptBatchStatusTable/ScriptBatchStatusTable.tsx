@@ -1,7 +1,7 @@
 import EmptyTable from "components/EmptyTable";
 import TableContainer from "components/TableContainer";
 import React, { useMemo } from "react";
-import { IScriptBatchSummaryResponse } from "services/entities/scripts";
+import { IScriptBatchSummaryResponseV1 } from "services/entities/scripts";
 import {
   generateTableConfig,
   generateTableData,
@@ -10,7 +10,7 @@ import {
 const baseClass = "script-batch-status-table";
 
 interface IScriptBatchStatusTableProps {
-  statusData: IScriptBatchSummaryResponse;
+  statusData: IScriptBatchSummaryResponseV1;
   batchExecutionId: string;
   onClickCancel: () => void;
 }

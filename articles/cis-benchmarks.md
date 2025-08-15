@@ -14,7 +14,7 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 
 [Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](https://fleetdm.com/docs/rest-api/rest-api#policies) in Fleet. 
 
-These policy queries are intended to assess your organization's security posture against the CIS benchmarks. Because the policy queries alone do not remediate security issues, a host may fail a CIS Benchmark policy if there is no device profile or script in place to enforce the setting. By enabling [automations](https://fleetdm.com/guides/automations#basic-article) in Fleet, these policy queries can used as the basis for managing security compliance and remediation in Fleet.
+These policy queries are intended to assess your organization's security posture against the CIS benchmarks. Because the policy queries alone do not remediate security issues, a host may fail a CIS Benchmark policy if there is no device profile or script in place to enforce the setting. By enabling [automations](https://fleetdm.com/guides/automations#basic-article) in Fleet, these policy queries can be used as the basis for managing security compliance and remediation in Fleet.
 
 For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
 

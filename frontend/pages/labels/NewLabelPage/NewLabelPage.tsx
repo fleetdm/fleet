@@ -40,7 +40,7 @@ import {
   LabelMembershipType,
 } from "interfaces/label";
 import { IHost } from "interfaces/host";
-import { IFormField } from "interfaces/form_field";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import SQLEditor from "components/SQLEditor";
 import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
@@ -266,7 +266,10 @@ const NewLabelPage = ({
 
   // form handlers
 
-  const onInputChange = ({ name: fieldName, value }: IFormField) => {
+  const onInputChange = ({
+    name: fieldName,
+    value,
+  }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [fieldName]: value };
     setFormData(newFormData);
     const newErrs = validate(newFormData);
@@ -433,7 +436,7 @@ const NewLabelPage = ({
               options={availableCriteria}
               classname={`${baseClass}__criteria-dropdown`}
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
-              helpText="Currently, label criteria can be IdP group or department."
+              helpText="Currently, label criteria can be IdP group or department on macOS hosts."
             />
             <p>is equal to</p>
             <InputField
