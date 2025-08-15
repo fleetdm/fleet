@@ -2,24 +2,27 @@
 
 * Added support for fleetd TUF extensions on Linux arm64 and Windows arm64 devices.
 
-* Fixed offline indicator to be less sensitive to transient network failures and faster recovery when connectivity is restored.
+* Fixed Fleet Desktop offline indicator to be less sensitive to transient network failures and faster recovery when connectivity is restored.
+
+* Fixed bug on Fleet Desktop, 'About Fleet' menu item was not showing after the host is back online.
 
 * Switched to `runuser` and `runcon` to launch fleet desktop with the correct SELinux context and user.
 
 * Added support to generate a TPM 2.0 private key and issue a SCEP certificate for signing of HTTP requests (via new environment variable `ORBIT_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE`).
 
-* Fixed bug on Fleet Desktop, 'About Fleet' menu item was not showing after the host is back online.
+* Added new Orbit config flag, set if Disk Encryption is enforced enabled and the require BitLocker PIN flag is set.
 
-* Added new Orbit config flag, set iff Disk Encryption is enforced enabled and the require BitLocker PIN flag is set.
+* Added new fleetd table 'bitlocker_key_protectors' that returns what key protectors are setup on the system.
 
-* Added new Fleetd table 'bitlocker_key_protectors' that returns what key protectors are setup on the system.
+* Fixed an issue where Fleet Desktop would stop showing "Migrate to Fleet" for several minutes every hour after a device token refresh.
 
-* Fixed an issue where Fleet desktop would stop showing "Migrate to Fleet" for several minutes every hour after a device token refresh
+* Fixed tarball extraction failures due to unknown TAR headers.
 
-* Fixed tarball extraction failures due to unknown TAR headers
-* Fixed tarball extraction failures on archives that don't include a parent directory header before files in that directory
+* Fixed tarball extraction failures on archives that don't include a parent directory header before files in that directory.
 
-* Updated go to 1.24.5
+* Updated go to 1.24.5.
+
+* Fixed bug with `mdm_bridge` Orbit table that caused panics due to invalid COM initialization.
 
 ## Orbit 1.45.1 (Jul 14th, 2025)
 
