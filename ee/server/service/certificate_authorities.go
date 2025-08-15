@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -336,4 +339,63 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 	}
 	return nil
+}
+
+type oauthIntrospectionResponse struct {
+	Username *string `json:"username"`
+	// Only active is required in the body by the spec
+	Active bool `json:"active"`
+}
+
+func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCertificatePayload) (string, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.RequestCertificatePayload{}, fleet.ActionWrite); err != nil {
+		return "", err
+	}
+	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, p.ID, true)
+	if err != nil {
+		return "", err
+	}
+	if ca.Type != string(fleet.CATypeHydrant) {
+		return "", &fleet.BadRequestError{Message: "Only Hydrant certificate authorities support requesting certificates via Fleet."}
+	}
+
+	if p.IDPClientID == nil || p.IDPToken == nil || p.IDPOauthURL == nil {
+		return "", &fleet.BadRequestError{Message: "IDP Client ID, Token, and OAuth URL must be provided for requesting a certificate."}
+	}
+	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(20 * time.Second))
+	introspectionRequest := url.Values{
+		"client_id": []string{*p.IDPClientID},
+		"token":     []string{*p.IDPToken},
+	}
+	introspectionBody := introspectionRequest.Encode()
+	req, err := http.NewRequestWithContext(ctx, "POST", *p.IDPOauthURL, strings.NewReader(introspectionBody))
+	if err != nil {
+		return "", &fleet.BadRequestError{Message: fmt.Sprintf("Failed to create introspection request: %s", err.Error())}
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "", &fleet.BadRequestError{Message: fmt.Sprintf("Failed to introspect IDP token: %s", err.Error())}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", &fleet.BadRequestError{Message: fmt.Sprintf("IDP token introspection failed with status code %d", resp.StatusCode)}
+	}
+
+	csr := strings.ReplaceAll(p.CSR, "-----BEGIN CERTIFICATE REQUEST-----", "")
+	csr = strings.ReplaceAll(csr, "-----END CERTIFICATE REQUEST-----", "")
+	csr = strings.ReplaceAll(csr, "\\n", "")
+
+	certificate, err := svc.hydrantService.GetCertificate(ctx, fleet.HydrantCA{
+		Name:         ca.Name,
+		URL:          ca.URL,
+		ClientID:     *p.IDPClientID,
+		ClientSecret: *p.IDPToken,
+	}, csr)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "Failed to get Hydrant certificate", "error", err)
+		return "", &fleet.BadRequestError{Message: fmt.Sprintf("Failed to get certificate from Hydrant: %s", err.Error())}
+	}
+	// TODO Do we need to convert this?
+	return "-----BEGIN CERTIFICATE-----\n" + string(certificate.Certificate) + "\n-----END CERTIFICATE-----", nil
 }

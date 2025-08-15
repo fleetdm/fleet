@@ -1285,6 +1285,7 @@ type Service interface {
 	ListCertificateAuthorities(ctx context.Context) ([]*CertificateAuthoritySummary, error)
 	GetCertificateAuthority(ctx context.Context, id uint) (*CertificateAuthority, error)
 	NewCertificateAuthority(ctx context.Context, p CertificateAuthorityPayload) (*CertificateAuthority, error)
+	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (string, error)
 }
 
 type KeyValueStore interface {
