@@ -455,10 +455,11 @@ func checkNVDVulnerabilities(
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
 		opts := nvd.SyncOptions{
-			VulnPath:           config.DatabasesPath,
-			CPEDBURL:           config.CPEDatabaseURL,
-			CPETranslationsURL: config.CPETranslationsURL,
-			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
+			VulnPath:             config.DatabasesPath,
+			CPEDBURL:             config.CPEDatabaseURL,
+			CPETranslationsURL:   config.CPETranslationsURL,
+			CVEFeedPrefixURL:     config.CVEFeedPrefixURL,
+			CISAKnownExploitsURL: config.CISAKnownExploitsURL,
 		}
 		err := nvd.Sync(opts, logger)
 		if err != nil {
@@ -1723,6 +1724,43 @@ func newUpcomingActivitiesSchedule(
 			const maxUnblockHosts = 500
 			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
 			return err
+		}),
+	)
+
+	return s, nil
+}
+
+func newBatchActivitiesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronScheduledBatchActivities)
+		defaultInterval = 2 * time.Minute
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+
+	w := worker.NewWorker(ds, logger)
+
+	scriptsJob := &worker.BatchScripts{
+		Datastore: ds,
+		Log:       logger,
+	}
+
+	w.Register(scriptsJob)
+
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("batch_activities_worker", func(ctx context.Context) error {
+			if err := w.ProcessJobs(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "processing batch activity worker jobs")
+			}
+
+			return nil
 		}),
 	)
 

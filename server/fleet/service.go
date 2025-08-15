@@ -1197,6 +1197,9 @@ type Service interface {
 
 	BatchScriptExecutionList(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchActivity, int64, error)
 
+	// BatchScriptCancel cancels a batch script execution
+	BatchScriptCancel(ctx context.Context, batchExecutionID string) error
+
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
@@ -1255,6 +1258,17 @@ type Service interface {
 
 	// CreateSecretVariables creates secret variables for scripts and profiles.
 	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
+	// CreateSecretVariable creates a secret variable and returns its ID.
+	// Returns an AlreadyExistsError error if there's already a secret variable with the same name.
+	CreateSecretVariable(ctx context.Context, name string, value string) (id uint, err error)
+	// ListSecretVariables returns a list of secret variable identifiers filtered with the pagination options.
+	// Currently only Page and PerPage in opts are supported/used.
+	// Default value fo the other options is MatchQuery="", After="", IncludeMetadata=true, OrderKey="name", OrderDirection=fleet.OrderAscending.
+	// Returns a count of total secret variable identifiers on all (filtered) pages.
+	ListSecretVariables(ctx context.Context, opts ListOptions) (secretVariables []SecretVariableIdentifier, meta *PaginationMetadata, count int, err error)
+	// DeleteSecretVariable deletes a secret variable by ID.
+	// Returns a NotFoundError error if there's no secret variable with such ID.
+	DeleteSecretVariable(ctx context.Context, id uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM

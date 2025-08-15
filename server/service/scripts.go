@@ -1166,6 +1166,87 @@ func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecut
 	return summary, nil
 }
 
+type batchScriptCancelRequest struct {
+	BatchExecutionID string `url:"batch_execution_id"`
+}
+
+type batchScriptCancelResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchScriptCancelResponse) Error() error { return r.Err }
+
+func batchScriptCancelEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptCancelRequest)
+	if err := svc.BatchScriptCancel(ctx, req.BatchExecutionID); err != nil {
+		return batchScriptCancelResponse{Err: err}, nil
+	}
+
+	return batchScriptCancelResponse{}, nil
+}
+
+func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID string) error {
+	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &batchExecutionID,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get batch script summary")
+	}
+
+	// If the list is empty, it means the batch execution does not exist.
+	if len(summaryList) == 0 {
+		// If the user can see a no-team script, we can return a 404 because they have global access.
+		// Otherwise, we return a 403 to avoid leaking info about which IDs exist.
+		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
+			return err
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "get batch script status")
+	}
+
+	if len(summaryList) > 1 {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("batch_execution_id", "expected a single batch execution status, got multiple"))
+	}
+
+	summary := (summaryList)[0]
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	if err := svc.ds.CancelBatchScript(ctx, batchExecutionID); err != nil {
+		return ctxerr.Wrap(ctx, err, "canceling batch script")
+	}
+
+	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting canceled activity stats")
+	}
+
+	ctxUser := authz.UserFromContext(ctx)
+
+	targeted := uint(0)
+	if batchActivity.NumTargeted != nil {
+		// No nil dereference in case this is not set for some reason
+		targeted = *batchActivity.NumTargeted
+	}
+
+	canceled := uint(0)
+	if batchActivity.NumCanceled != nil {
+		canceled = *batchActivity.NumCanceled
+	}
+
+	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptCanceled{
+		BatchExecutionID: batchExecutionID,
+		ScriptName:       batchActivity.ScriptName,
+		HostCount:        targeted,
+		CanceledCount:    canceled,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for cancel batch script")
+	}
+
+	return nil
+}
+
 func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
 	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &batchExecutionID,
@@ -1373,7 +1454,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	}
 
 	notBeforeUTC := notBefore.UTC()
-	batchID, err := svc.ds.BatchScheduleScript(ctx, userId, scriptID, hostIDs, notBeforeUTC)
+	batchID, err := svc.ds.BatchScheduleScript(ctx, userId, scriptID, hostIDsToExecute, notBeforeUTC)
 	if err != nil {
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}

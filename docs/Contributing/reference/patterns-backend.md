@@ -42,13 +42,20 @@ Exceptions:
 - Extra range of unsigned needed for a specific use case
 - Specific performance/memory requirements
 
-### Unit testing
+### Automated testing
 
-Use multiple hosts in unit tests and manual QA. For example, use a Windows VM and a Windows bare metal host when testing Windows profiles. Since our customers run Fleet on many hosts, we must be vigilant regarding multi-host use cases. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8290454302335084423).
+#### Multiple hosts
+
+Use multiple hosts in automated tests and manual QA. For example, use a Windows VM and a Windows bare metal host when testing Windows profiles. Since our customers run Fleet on many hosts, we must be vigilant regarding multi-host use cases. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8290454302335084423).
 
 See [the migration test in PR #28601](https://github.com/fleetdm/fleet/pull/28601/files#diff-53ce88f00ff80a0f7c0a1a2e23b14f6cb7ed5d7a7d91146236f499a756935869)
 and [the test added in PR #30578](https://github.com/fleetdm/fleet/pull/30578/files#diff-124b43a1afae8960d4eb3765b2a5d5525c5ffba57c9b59ff78eb6cd222532e1c)
 for examples of multi-host automated testing added to validate P0 bugfixes.
+
+#### Multiple teams
+
+Use multiple teams in your automated tests and manual QA. Make sure your code works as expected for the `No team` team, as well as for "All teams" (when relevant).
+For example, aggregate counts/stats should factor in teams when being calculated.
 
 #### Assert vs require
 
@@ -122,7 +129,7 @@ We need to keep this data in dedicated table(s). When a `user` row is deleted, a
 ### Re-usable transactionable functions
 
 Sometimes we want to encapsulate a piece of functionality in such a way that it can be use both
-independently and as part of a transaction. To do so, create a private function in the following way: 
+independently and as part of a transaction. To do so, create a private function in the following way:
 
 ```go
 func myTransactionableFunction(ctx context.Context, tx sqlx.ExtContext, yourArgsHere any) error {

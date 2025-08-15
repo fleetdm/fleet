@@ -3464,8 +3464,8 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Contains(t, expectedHostIds, hosts[2].ID)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionRan}, 0)
-	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCancelled}, 0)
-	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionErrored}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCanceled}, 0)
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionIncompatible}, 2)
 	expectedHostIds = []uint{hostNoScripts.ID, hostWindows.ID}
 	require.Contains(t, expectedHostIds, hosts[0].ID)
 	require.Contains(t, expectedHostIds, hosts[1].ID)
@@ -3484,8 +3484,8 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Contains(t, expectedHostIds, hosts[2].ID)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionRan}, 0)
-	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCancelled}, 0)
-	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionErrored}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionErrored}, 0)
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionIncompatible}, 2)
 	expectedHostIds = []uint{hostNoScripts.ID, hostWindows.ID}
 	require.Contains(t, expectedHostIds, hosts[0].ID)
 	require.Contains(t, expectedHostIds, hosts[1].ID)
@@ -3523,20 +3523,24 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	// At this point, filtering by:
 	// - `pending` should return zero hosts
 	// - `ran` should return host 1
-	// - `errored` should return host2, hostNoScripts and hostWindows
+	// - `errored` should return host2
+	// - `incompatible` should return hostNoScripts and hostWindows
 	// - `cancelled` should return host 3
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionPending}, 0)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionRan}, 1)
 	require.Equal(t, host1.ID, hosts[0].ID)
 
-	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionErrored}, 3)
-	expectedHostIds = []uint{host2.ID, hostNoScripts.ID, hostWindows.ID}
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionErrored}, 1)
+	expectedHostIds = []uint{host2.ID}
+	require.Contains(t, expectedHostIds, hosts[0].ID)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionIncompatible}, 2)
+	expectedHostIds = []uint{hostNoScripts.ID, hostWindows.ID}
 	require.Contains(t, expectedHostIds, hosts[0].ID)
 	require.Contains(t, expectedHostIds, hosts[1].ID)
-	require.Contains(t, expectedHostIds, hosts[2].ID)
 
-	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCancelled}, 1)
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCanceled}, 1)
 	require.Equal(t, host3.ID, hosts[0].ID)
 }
 
@@ -3834,7 +3838,7 @@ func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
 		CreatedAt:        time.Now(),
 		UploadedAt:       time.Now(),
 	}
-	noTeamWindowsProfile, err := ds.NewMDMWindowsConfigProfile(ctx, windowsProfile)
+	noTeamWindowsProfile, err := ds.NewMDMWindowsConfigProfile(ctx, windowsProfile, nil)
 	require.NoError(t, err)
 
 	// verified status

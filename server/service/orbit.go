@@ -953,6 +953,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					ScriptExecutionID:   hsr.ExecutionID,
+					BatchExecutionID:    hsr.BatchExecutionID,
 					ScriptName:          scriptName,
 					Async:               !hsr.SyncRequest,
 					PolicyID:            hsr.PolicyID,
@@ -1102,6 +1103,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 			"msg", "record fleet disk encryption key escrowed activity",
 			"err", err,
 		)
+		ctxerr.Handle(ctx, err)
 	}
 
 	return nil
@@ -1185,6 +1187,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 			"msg", "record fleet disk encryption key escrowed activity",
 			"err", err,
 		)
+		ctxerr.Handle(ctx, err)
 	}
 
 	return nil

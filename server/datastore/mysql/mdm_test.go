@@ -672,11 +672,13 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMWindowsConfigProfile(
 			ctx,
 			fleet.MDMWindowsConfigProfile{Name: name, TeamID: &team.ID, SyncML: winProf},
+			nil,
 		)
 		require.NoError(t, err)
 		_, err = ds.NewMDMWindowsConfigProfile(
 			ctx,
 			fleet.MDMWindowsConfigProfile{Name: name, TeamID: nil, SyncML: winProf},
+			nil,
 		)
 		require.NoError(t, err)
 	}
@@ -698,6 +700,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	profB, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
 		fleet.MDMWindowsConfigProfile{Name: "B", TeamID: &team.ID, SyncML: winProf},
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -760,7 +763,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				{LabelName: labels[5].Name, LabelID: labels[5].ID},
 			}
 		}
-		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp)
+		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp, nil)
 		require.NoError(t, err)
 
 		wcp = fleet.MDMWindowsConfigProfile{
@@ -774,7 +777,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				{LabelName: labels[7].Name, LabelID: labels[7].ID},
 			}
 		}
-		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp)
+		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp, nil)
 		require.NoError(t, err)
 	}
 
@@ -6467,6 +6470,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			TeamID: nil,
 			SyncML: []byte("<Replace></Replace>"),
 		},
+		nil,
 	)
 	require.NoError(t, err)
 	otherWinProfile, err := ds.NewMDMWindowsConfigProfile(
@@ -6476,6 +6480,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			TeamID: nil,
 			SyncML: []byte("<Replace></Replace>"),
 		},
+		nil,
 	)
 	require.NoError(t, err)
 

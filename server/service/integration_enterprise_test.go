@@ -2552,14 +2552,20 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "Repository URL is required when GitOps mode is enabled")
 
-	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"gitops": { "gitops_mode_enabled": true, "repository_url": "a.b.cc" }
+	  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "Git repository URL must include protocol (e.g. https://)")
+
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"gitops": { "gitops_mode_enabled": true, "repository_url": "https://a.b.cc" }
 	  }`), http.StatusOK)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledGitOpsMode{}.ActivityName(), "", 0)
 
 	// turn off, persists repo url
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"gitops": { "gitops_mode_enabled": false, "repository_url": "a.b.cc" }
+			"gitops": { "gitops_mode_enabled": false, "repository_url": "https://a.b.cc" }
 	  }`), http.StatusOK)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledGitOpsMode{}.ActivityName(), "", 0)
 
@@ -2569,7 +2575,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 	  }`), http.StatusOK)
 	config, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, "a.b.cc", config.UIGitOpsMode.RepositoryURL)
+	assert.Equal(t, "https://a.b.cc", config.UIGitOpsMode.RepositoryURL)
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
@@ -6245,19 +6251,19 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// Upload a valid secret
 	secretValue := "abc123"
-	req := secretVariablesRequest{
+	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
-				Name:  "FLEET_SECRET_TestRunHostScript",
+				Name:  "FLEET_SECRET_TEST_RUN_HOST_SCRIPT",
 				Value: secretValue,
 			},
 		},
 	}
-	secretResp := secretVariablesResponse{}
+	secretResp := createSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// create a valid script execution request
-	expectedScriptContents := "echo ${FLEET_SECRET_TestRunHostScript}"
+	expectedScriptContents := "echo ${FLEET_SECRET_TEST_RUN_HOST_SCRIPT}"
 	expectedScriptContentsWithSecret := fmt.Sprintf("echo %s", secretValue)
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
 		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: expectedScriptContents}, http.StatusAccepted, &runResp)
@@ -6590,11 +6596,11 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Empty(t, batchRes.BatchExecutionID)
 
 	// verify that no script was queued for orbit
-	var orbitResp orbitGetConfigResponse
+	var orbitRespHost1 orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
-		http.StatusOK, &orbitResp)
-	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+		http.StatusOK, &orbitRespHost1)
+	require.Empty(t, orbitRespHost1.Notifications.PendingScriptExecutionIDs)
 
 	// Good request
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
@@ -6602,6 +6608,38 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		HostIDs:  []uint{host1.ID, host2.ID},
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	// verify that script was queued for orbit
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
+		http.StatusOK, &orbitRespHost1)
+	require.Len(t, orbitRespHost1.Notifications.PendingScriptExecutionIDs, 1)
+
+	var orbitRespHost2 orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host2.OrbitNodeKey)),
+		http.StatusOK, &orbitRespHost2)
+	require.Len(t, orbitRespHost2.Notifications.PendingScriptExecutionIDs, 1)
+
+	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID),
+		nil, http.StatusOK, &hostActivitiesResp)
+
+	expectedActivityDetail := fmt.Sprintf(`
+	{
+		"async": true,
+		"host_id": %d,
+		"policy_id": null,
+		"policy_name": null,
+		"batch_execution_id": "%s",
+		"script_execution_id": "%s",
+		"script_name": "%s",
+		"host_display_name": "%s"
+	}
+	`, host1.ID, batchRes.BatchExecutionID, orbitRespHost1.Notifications.PendingScriptExecutionIDs[0], script.Name, host1.DisplayName())
+	require.Len(t, hostActivitiesResp.Activities, 1)
+	require.NotNil(t, hostActivitiesResp.Activities[0].Details)
+	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
 
 	// Check status of the batch execution
 	var batchStatusResp batchScriptExecutionStatusResponse
@@ -6653,16 +6691,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(2))
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(2))
 
-	// verify that script was queued for orbit
-	s.DoJSON("POST", "/api/fleet/orbit/config",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
-		http.StatusOK, &orbitResp)
-	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
-	s.DoJSON("POST", "/api/fleet/orbit/config",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host2.OrbitNodeKey)),
-		http.StatusOK, &orbitResp)
-	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
-
+	var batchResUpcoming batchScriptRunResponse
 	// Queue scripts again, now in upcoming activities queue
 	// Scheduling something in the past makes it run right now
 	scheduledPast := time.Now().Add(-2 * time.Hour)
@@ -6670,14 +6699,42 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		ScriptID:  script.ID,
 		HostIDs:   []uint{host1.ID, host2.ID},
 		NotBefore: &scheduledPast,
-	}, http.StatusOK, &batchRes)
-	require.NotEmpty(t, batchRes.BatchExecutionID)
+	}, http.StatusOK, &batchResUpcoming)
+	require.NotEmpty(t, batchResUpcoming.BatchExecutionID)
 
+	// save a result via the orbit endpoint
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host1.OrbitNodeKey, orbitRespHost1.Notifications.PendingScriptExecutionIDs[0])),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// individual script executions don't get added to the global feed, only the batch job
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null}`, batchResUpcoming.BatchExecutionID, script.Name),
 		0,
 	)
+
+	// batch script executions do get added to the host feed
+	var hostPastActivitiesResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID),
+		nil, http.StatusOK, &hostPastActivitiesResp)
+
+	expectedPastActivityDetail := fmt.Sprintf(`
+	{
+		"async": true,
+		"host_id": %d,
+		"policy_id": null,
+		"policy_name": null,
+		"batch_execution_id": "%s",
+		"script_execution_id": "%s",
+		"script_name": "%s",
+		"host_display_name": "%s"
+	}
+	`, host1.ID, batchRes.BatchExecutionID, orbitRespHost1.Notifications.PendingScriptExecutionIDs[0], script.Name, host1.DisplayName())
+	require.Len(t, hostPastActivitiesResp.Activities, 1)
+	require.NotNil(t, hostPastActivitiesResp.Activities[0].Details)
+	require.JSONEq(t, expectedPastActivityDetail, string(*hostPastActivitiesResp.Activities[0].Details))
 
 	// Queue upcoming execution
 	scheduledTime := time.Now().Add(10 * time.Hour)
@@ -6693,6 +6750,103 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
 		0,
 	)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID},
+	}, http.StatusOK, &batchResUpcoming)
+	require.NotEmpty(t, batchResUpcoming.BatchExecutionID)
+
+	// Queue again this time using a filter
+	filters := map[string]any{
+		"team_id": 0,
+	}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID:  script.ID,
+		Filters:   &filters,
+		NotBefore: &scheduledTime,
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeBatchScriptScheduled{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
+		0,
+	)
+
+}
+
+func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
+	t := s.T()
+	ctx := context.Background()
+
+	host1 := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	host2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
+	host3 := createOrbitEnrolledHost(t, "linux", "host3", s.ds)
+	host4 := createOrbitEnrolledHost(t, "linux", "host4", s.ds)
+
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		ScriptContents: "echo bonjour",
+	})
+	require.NoError(t, err)
+
+	// Immediate execution
+	var batchRes batchScriptRunResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID},
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	var batchStatusResp batchScriptExecutionStatusResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+
+	var batchCancelResp batchScriptCancelResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchRes.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeBatchScriptCanceled{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id": "%s", "host_count":2, "canceled_count": 2, "script_name":"%s"}`, batchRes.BatchExecutionID, script.Name),
+		0,
+	)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(0))
+	require.Equal(t, *batchStatusResp.NumCanceled, uint(2))
+
+	// Future execution
+	var batchResScheduled batchScriptRunResponse
+	scheduleTime := time.Now().Add(3 * time.Hour)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID:  script.ID,
+		HostIDs:   []uint{host3.ID, host4.ID},
+		NotBefore: &scheduleTime,
+	}, http.StatusOK, &batchResScheduled)
+	require.NotEmpty(t, batchResScheduled.BatchExecutionID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeBatchScriptCanceled{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id": "%s", "host_count":2, "canceled_count": 2, "script_name":"%s"}`, batchResScheduled.BatchExecutionID, script.Name),
+		0,
+	)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
+	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
+	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
+	require.Equal(t, *batchStatusResp.NumPending, uint(0))
+	require.Equal(t, *batchStatusResp.NumCanceled, uint(2))
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -6791,7 +6945,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	s.lastActivityMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null, "batch_execution_id": null}`,
 			host.ID, host.DisplayName(), savedNoTmScript.Name, scriptResultResp.ExecutionID,
 		),
 		0,
@@ -9179,18 +9333,21 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	s.uploadSoftwareInstallerWithErrorNameReason(t, payloadEmacsMissingUnSecret, http.StatusUnprocessableEntity, "$FLEET_SECRET_INVALID",
 		"uninstall script")
 
+	// not specifiying a team_id translates to "no team" or team_id of 0
 	payloadEmacs := &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "emacs.deb",
-		SelfService:   true,
+		InstallScript:    "install",
+		Filename:         "emacs.deb",
+		SelfService:      true,
+		AutomaticInstall: true,
 	}
 	s.uploadSoftwareInstaller(t, payloadEmacs, http.StatusOK, "")
 
 	payloadVim := &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "vim.deb",
-		SelfService:   true,
-		TeamID:        ptr.Uint(0),
+		InstallScript:    "install",
+		Filename:         "vim.deb",
+		SelfService:      true,
+		TeamID:           ptr.Uint(0),
+		AutomaticInstall: true,
 	}
 	s.uploadSoftwareInstaller(t, payloadVim, http.StatusOK, "")
 
@@ -11969,9 +12126,9 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	})
 	require.NoError(t, err)
 
-	// basic fleet maintained app
+	// basic fleet maintained app with install script override
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{Slug: &maintained1.Slug},
+		{Slug: &maintained1.Slug, InstallScript: "echo 'Hello world'"},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
@@ -11979,6 +12136,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.NotNil(t, packages[0].TitleID)
 	require.NotNil(t, packages[0].URL)
 	require.Nil(t, packages[0].TeamID)
+
+	var softwareTitleResponse getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &softwareTitleResponse, "teamId", "0")
+	require.Equal(t, "echo 'Hello world'", softwareTitleResponse.SoftwareTitle.SoftwarePackage.InstallScript)
+	require.Contains(t, softwareTitleResponse.SoftwareTitle.SoftwarePackage.UninstallScript, "LOGGED_IN_USER") // should pass through FMA script
 
 	// with a team
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
@@ -13542,7 +13704,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null, "batch_execution_id": null}`,
 			host.ID, host.DisplayName(), scriptExecID), 0)
 
 	// create a saved script execution request
@@ -13564,7 +13726,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 		http.StatusOK)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "script1.sh", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null}`,
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "script1.sh", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null, "batch_execution_id": null}`,
 			host.ID, host.DisplayName(), savedScriptExecID), 0)
 
 	// get the anonymous script result details

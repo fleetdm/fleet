@@ -412,7 +412,7 @@ doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
 	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 
-generate-doc: doc vex-report
+generate-doc: doc
 
 .help-short--deps:
 	@echo "Install dependent programs and libraries"
@@ -520,7 +520,7 @@ binary-arch: .pre-binary-arch .pre-binary-bundle .pre-fleet
 # Drop, create, and migrate the e2e test database
 e2e-reset-db:
 	docker compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | MYSQL_PWD=toor mysql -uroot'
-	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --mysql_database=e2e
+	./build/fleet prepare db --mysql_address=localhost:$${FLEET_MYSQL_TEST_PORT:-3307}  --mysql_username=root --mysql_password=toor --mysql_database=e2e
 
 e2e-setup:
 	./build/fleetctl config set --context e2e --address https://localhost:8642 --tls-skip-verify true
@@ -540,10 +540,10 @@ e2e-setup-with-software:
 	./tools/backup_db/restore_e2e_software_test.sh
 
 e2e-serve-free: e2e-reset-db
-	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
+	./build/fleet serve --mysql_address=localhost:$${FLEET_MYSQL_TEST_PORT:-3307} --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
 e2e-serve-premium: e2e-reset-db
-	./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
+	./build/fleet serve  --dev_license --mysql_address=localhost:$${FLEET_MYSQL_TEST_PORT:-3307} --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
 # Associate a host with a Fleet Desktop token.
 #

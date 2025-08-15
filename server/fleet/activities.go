@@ -208,7 +208,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCanceledUninstallSoftware{},
 	ActivityTypeCanceledInstallAppStoreApp{},
 
+	ActivityTypeRanScriptBatch{},
 	ActivityTypeBatchScriptScheduled{},
+	ActivityTypeBatchScriptCanceled{},
 
 	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
 	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
@@ -216,6 +218,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDisabledConditionalAccessAutomations{},
 
 	ActivityTypeEscrowedDiskEncryptionKey{},
+
+	ActivityCreatedCustomVariable{},
+	ActivityDeletedCustomVariable{},
 }
 
 type ActivityDetails interface {
@@ -238,6 +243,13 @@ type ActivityHosts interface {
 type AutomatableActivity interface {
 	ActivityDetails
 	WasFromAutomation() bool
+}
+
+// ActivityHostOnly is the optional additional interface that can be implemented by activities that
+// we want to exclude from the global activity feed, and only show on the Hosts details page
+type ActivityHostOnly interface {
+	ActivityDetails
+	HostOnly() bool
 }
 
 type ActivityTypeEnabledActivityAutomations struct {
@@ -1417,6 +1429,7 @@ type ActivityTypeRanScript struct {
 	HostID              uint    `json:"host_id"`
 	HostDisplayName     string  `json:"host_display_name"`
 	ScriptExecutionID   string  `json:"script_execution_id"`
+	BatchExecutionID    *string `json:"batch_execution_id"`
 	ScriptName          string  `json:"script_name"`
 	Async               bool    `json:"async"`
 	PolicyID            *uint   `json:"policy_id"`
@@ -1432,6 +1445,10 @@ func (a ActivityTypeRanScript) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+func (a ActivityTypeRanScript) HostOnly() bool {
+	return a.BatchExecutionID != nil
+}
+
 func (a ActivityTypeRanScript) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
 }
@@ -1442,6 +1459,7 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "batch_execution_id": Batch execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
 - "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
@@ -1450,6 +1468,7 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "batch_execution_id": "3274d95a-c140-4b17-b185-fb33c93b84e3",
   "async": false,
   "policy_id": 123,
   "policy_name": "Ensure photon torpedoes are primed"
@@ -2579,7 +2598,7 @@ type ActivityTypeBatchScriptScheduled struct {
 }
 
 func (a ActivityTypeBatchScriptScheduled) ActivityName() string {
-	return "batch_script_scheduled"
+	return "scheduled_script_batch"
 }
 
 func (a ActivityTypeBatchScriptScheduled) Documentation() (string, string, string) {
@@ -2593,6 +2612,31 @@ func (a ActivityTypeBatchScriptScheduled) Documentation() (string, string, strin
   "script_name": "set-timezones.sh",
   "host_count": 12,
   "not_before": "2025-08-06T17:49:21.810204Z"
+}`
+}
+
+type ActivityTypeBatchScriptCanceled struct {
+	BatchExecutionID string `json:"batch_execution_id"`
+	ScriptName       string `json:"script_name"`
+	HostCount        uint   `json:"host_count"`
+	CanceledCount    uint   `json:"canceled_count"`
+}
+
+func (a ActivityTypeBatchScriptCanceled) ActivityName() string {
+	return "canceled_script_batch"
+}
+
+func (a ActivityTypeBatchScriptCanceled) Documentation() (string, string, string) {
+	return "Generated when a batch script is canceled.",
+		`This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+- "canceled_count": Number of hosts the job was canceled for.`, `{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
+  "host_count": 12,
+  "canceled_count": 5
 }`
 }
 
@@ -2674,7 +2718,45 @@ func (a ActivityTypeEscrowedDiskEncryptionKey) Documentation() (activity string,
 		`This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.`, `{
-	"host_id": "123",
+	"host_id": 123,
 	"host_display_name": "PWNED-VM-123"
+}`
+}
+
+type ActivityCreatedCustomVariable struct {
+	CustomVariableID   uint   `json:"custom_variable_id"`
+	CustomVariableName string `json:"custom_variable_name"`
+}
+
+func (a ActivityCreatedCustomVariable) ActivityName() string {
+	return "created_custom_variable"
+}
+
+func (a ActivityCreatedCustomVariable) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when custom variable is added.`,
+		`This activity contains the following fields:
+- "custom_variable_id": the id of the new custom variable.
+- "custom_variable_name": the name of the new custom variable.`, `{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
+}`
+}
+
+type ActivityDeletedCustomVariable struct {
+	CustomVariableID   uint   `json:"custom_variable_id"`
+	CustomVariableName string `json:"custom_variable_name"`
+}
+
+func (a ActivityDeletedCustomVariable) ActivityName() string {
+	return "deleted_custom_variable"
+}
+
+func (a ActivityDeletedCustomVariable) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when custom variable is deleted.`,
+		`This activity contains the following fields:
+- "custom_variable_id": the id of the custom variable.
+- "custom_variable_name": the name of the custom variable.`, `{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
 }`
 }
