@@ -90,7 +90,6 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	return nil, fleet.ErrMissingLicense
 }
 
-<<<<<<< HEAD
 type requestCertificateRequest struct {
 	fleet.RequestCertificatePayload
 }

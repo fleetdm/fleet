@@ -341,7 +341,6 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	return nil
 }
 
-<<<<<<< HEAD
 type oauthIntrospectionResponse struct {
 	Username *string `json:"username"`
 	// Only active is required in the body by the spec
