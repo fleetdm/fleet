@@ -387,6 +387,7 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 	return nil
 }
 
+// This code largely adapted from fleet/website/api/controllers/get-est-device-certificate.js
 func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCertificatePayload) (*string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.RequestCertificatePayload{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -418,25 +419,39 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		return nil, &fleet.BadRequestError{Message: "IDP token introspection response does not contain a username."}
 	}
 
-	csr := strings.ReplaceAll(p.CSR, "-----BEGIN CERTIFICATE REQUEST-----", "")
-	csr = strings.ReplaceAll(csr, "-----END CERTIFICATE REQUEST-----", "")
-	csr = strings.ReplaceAll(csr, "\\n", "")
+	_, csrEmail, csrUsername, err := svc.parseCSR(ctx, p.CSR)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse CSR: %s", err.Error())}
+	}
+
+	if !strings.HasPrefix(csrEmail, csrUsername) {
+		// Throw an error about invalid CSR
+		return nil, &fleet.BadRequestError{Message: "CSR email does not match CSR username"}
+	}
+	if csrEmail != *introspectionResponse.Username {
+		// The email in the CSR must match the username from the IDP token introspection
+		return nil, &fleet.BadRequestError{Message: "CSR email does not match IDP token username"}
+	}
+
+	csrForRequest := strings.ReplaceAll(p.CSR, "-----BEGIN CERTIFICATE REQUEST-----", "")
+	csrForRequest = strings.ReplaceAll(csrForRequest, "-----END CERTIFICATE REQUEST-----", "")
+	csrForRequest = strings.ReplaceAll(csrForRequest, "\\n", "")
 
 	certificate, err := svc.hydrantService.GetCertificate(ctx, fleet.HydrantCA{
 		Name:         ca.Name,
 		URL:          ca.URL,
 		ClientID:     *ca.ClientID,
 		ClientSecret: *ca.ClientSecret,
-	}, csr)
+	}, csrForRequest)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to get Hydrant certificate", "error", err)
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Failed to get certificate from Hydrant: %s", err.Error())}
 	}
-	// TODO Do we need to convert this?
+	// TODO Do we need to convert this in any way?
 	return ptr.String("-----BEGIN CERTIFICATE-----\n" + string(certificate.Certificate) + "\n-----END CERTIFICATE-----"), nil
 }
 
-func (s *Service) introspectIDPToken(ctx context.Context, idpClientID, idpToken, idpOauthURL string) (*oauthIntrospectionResponse, error) {
+func (svc *Service) introspectIDPToken(ctx context.Context, idpClientID, idpToken, idpOauthURL string) (*oauthIntrospectionResponse, error) {
 	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(20 * time.Second))
 	introspectionRequest := url.Values{
 		"client_id": []string{idpClientID},
@@ -465,11 +480,11 @@ func (s *Service) introspectIDPToken(ctx context.Context, idpClientID, idpToken,
 	return oauthIntrospectionResponse, nil
 }
 
-func (s *Service) parseCSR(ctx context.Context, csr string) (*x509.CertificateRequest, string, string, error) {
+func (svc *Service) parseCSR(ctx context.Context, csr string) (*x509.CertificateRequest, string, string, error) {
 	// unescape newlines
 	block, _ := pem.Decode([]byte(strings.ReplaceAll(csr, "\\n", "\n")))
 	if block == nil {
-		return nil, "", "", fmt.Errorf("invalid CSR format")
+		return nil, "", "", ctxerr.New(ctx, "invalid CSR format")
 	}
 
 	req, err := x509.ParseCertificateRequest(block.Bytes)
