@@ -47,7 +47,6 @@ We track public issues for customers and prospects who wish to remain anonymous 
 
 ### Prepare for routine customer meeting
 
-#### CSM responsibility
 Before a routine customer call, the CSM prepares an agenda including the following items:
 1. Customer and Fleet expected attendees
 2. Release notes for the latest version of Fleet
@@ -55,12 +54,14 @@ Before a routine customer call, the CSM prepares an agenda including the followi
 4. Follow ups to the agenda from the previous call or Slack
 5. Provide updates to open feature requests (can be done monthly or quarterly)
 
-#### CSE or CSA responsibility 
-On call days, have a morning ritual to gather status updates for open issues:
-1. Search Unthread for open conversations by the Customer name
-2. Search GitHub issues for label:bug and label:customer-codename
-3. Debrief with any internal resources in order to gather information if needed
-4. Be prepared to provide a status update
+
+### Gather status updates for open issues
+
+When on call, CSEs/CSAs will start their day by following these steps to gather status updates for open issues:
+1. Search Unthread for open conversations by the customer name.
+2. Search GitHub issues for `label:bug` and `label:customer-codename`.
+3. Debrief with any internal resources in order to gather information if needed, and be prepared to provide a status update.
+
 
 ### Invite new customer DRI
 
@@ -113,8 +114,8 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
 ### File a customer bug report
 
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure to do the following:
-- Include a "customer-codename" label
-  - Search the confidential repo labels for an existing codename [here](https://github.com/fleetdm/confidential/labels) or create a new one if one does not exist. See [here](https://github.com/fleetdm/confidential/labels) for instructions to create a new codename.
+- Include a "customer-codename" label.
+  - [Search the confidential repo labels](https://github.com/fleetdm/confidential/labels) for an existing codename or [create a new one](https://github.com/fleetdm/confidential/labels) if one does not exist.
 - Include required details that will help speed up time to resolution:
     - Fleet server version
     - Agent version 
@@ -140,7 +141,8 @@ Locate the relevant issue or create it if it doesn't already exist (to avoid dup
     - The output of fleetctl debug archive
 - Have we provided a link to that issue for the customer to remind everyone of the plan and for the sake of visibility, so other folks who weren't directly involved are up to speed  (e.g., "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")?
 
-### Escalating customer bug reports
+
+### Escalate a customer bug report
 
 1. When a CSE suspects that a customer is impacted by a bug, a [bug report](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) is filed immediately.
 2. Remove `:incoming` and `:reproduce` labels, and include the `~investigate` [label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A~investigate) and the `:help-customers` label.
@@ -149,13 +151,15 @@ Locate the relevant issue or create it if it doesn't already exist (to avoid dup
     1. If we are able to reproduce the bug, the issue can be sent straight to the `:product` drafting board for review and triage by the Head of Product Design.
     2. If we are unable to reproduce the bug, the `:incoming` and `:reproduce` labels should be added back in so the bug can be triaged by the QA team.
 
-#### Timeboxing an investigation
+
+### Timebox an investigation
+
 During the window of time available to investigate an issue, use the resources at your disposal such as:
-  - Request applicable logs from the customer
-  - Jump on a Zoom call with the customer if it would help gather reproduction steps (coordinate with the CSM)
-  - Block time on your calendar (maximum 1 hour at a time) to dig into the issue further
-  - Escalate to other CSE's or CSA's
-  - Contact the developer on-call
+  - Request applicable logs from the customer.
+  - Jump on a Zoom call with the customer if it would help gather reproduction steps (coordinate with the CSM).
+  - Block time on your calendar (maximum 1 hour at a time) to dig into the issue further.
+  - Escalate to other CSE's or CSA's.
+  - Contact the developer on-call.
 
 
 ### Contact the developer on-call
