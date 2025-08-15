@@ -763,6 +763,8 @@ type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
 
+type NewJobTxFunc func(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error)
+
 type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error)
 
 type GetFilteredQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error)
@@ -783,7 +785,7 @@ type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []f
 
 type ListOSVulnerabilitiesByOSFunc func(ctx context.Context, osID uint) ([]fleet.OSVulnerability, error)
 
-type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool) (fleet.Vulnerabilities, error)
+type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error)
 
 type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
@@ -792,6 +794,10 @@ type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fle
 type InsertOSVulnerabilityFunc func(ctx context.Context, vuln fleet.OSVulnerability, source fleet.VulnerabilitySource) (bool, error)
 
 type DeleteOutOfDateOSVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error
+
+type ListKernelsByOSFunc func(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error)
+
+type InsertKernelSoftwareMappingFunc func(ctx context.Context) error
 
 type ListVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error)
 
@@ -1179,6 +1185,8 @@ type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.
 
 type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
 
+type RunScheduledBatchActivityFunc func(ctx context.Context, executionID string) error
+
 type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
 type CancelBatchScriptFunc func(ctx context.Context, executionID string) error
@@ -1352,6 +1360,12 @@ type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID strin
 type ResendHostCustomSCEPProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
 
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
+
+type CreateSecretVariableFunc func(ctx context.Context, name string, value string) (id uint, err error)
+
+type ListSecretVariablesFunc func(ctx context.Context, opt fleet.ListOptions) (secretVariables []fleet.SecretVariableIdentifier, meta *fleet.PaginationMetadata, count int, err error)
+
+type DeleteSecretVariableFunc func(ctx context.Context, id uint) (name string, err error)
 
 type GetSecretVariablesFunc func(ctx context.Context, names []string) ([]fleet.SecretVariable, error)
 
@@ -2562,6 +2576,9 @@ type DataStore struct {
 	NewJobFunc        NewJobFunc
 	NewJobFuncInvoked bool
 
+	NewJobTxFunc        NewJobTxFunc
+	NewJobTxFuncInvoked bool
+
 	GetQueuedJobsFunc        GetQueuedJobsFunc
 	GetQueuedJobsFuncInvoked bool
 
@@ -2606,6 +2623,12 @@ type DataStore struct {
 
 	DeleteOutOfDateOSVulnerabilitiesFunc        DeleteOutOfDateOSVulnerabilitiesFunc
 	DeleteOutOfDateOSVulnerabilitiesFuncInvoked bool
+
+	ListKernelsByOSFunc        ListKernelsByOSFunc
+	ListKernelsByOSFuncInvoked bool
+
+	InsertKernelSoftwareMappingFunc        InsertKernelSoftwareMappingFunc
+	InsertKernelSoftwareMappingFuncInvoked bool
 
 	ListVulnerabilitiesFunc        ListVulnerabilitiesFunc
 	ListVulnerabilitiesFuncInvoked bool
@@ -3186,6 +3209,9 @@ type DataStore struct {
 	GetBatchActivityHostResultsFunc        GetBatchActivityHostResultsFunc
 	GetBatchActivityHostResultsFuncInvoked bool
 
+	RunScheduledBatchActivityFunc        RunScheduledBatchActivityFunc
+	RunScheduledBatchActivityFuncInvoked bool
+
 	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
 	BatchExecuteSummaryFuncInvoked bool
 
@@ -3446,6 +3472,15 @@ type DataStore struct {
 
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
 	UpsertSecretVariablesFuncInvoked bool
+
+	CreateSecretVariableFunc        CreateSecretVariableFunc
+	CreateSecretVariableFuncInvoked bool
+
+	ListSecretVariablesFunc        ListSecretVariablesFunc
+	ListSecretVariablesFuncInvoked bool
+
+	DeleteSecretVariableFunc        DeleteSecretVariableFunc
+	DeleteSecretVariableFuncInvoked bool
 
 	GetSecretVariablesFunc        GetSecretVariablesFunc
 	GetSecretVariablesFuncInvoked bool
@@ -6187,6 +6222,13 @@ func (s *DataStore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, err
 	return s.NewJobFunc(ctx, job)
 }
 
+func (s *DataStore) NewJobTx(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error) {
+	s.mu.Lock()
+	s.NewJobTxFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewJobTxFunc(ctx, tx, job)
+}
+
 func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
 	s.mu.Lock()
 	s.GetQueuedJobsFuncInvoked = true
@@ -6257,11 +6299,11 @@ func (s *DataStore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([
 	return s.ListOSVulnerabilitiesByOSFunc(ctx, osID)
 }
 
-func (s *DataStore) ListVulnsByOsNameAndVersion(ctx context.Context, name string, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+func (s *DataStore) ListVulnsByOsNameAndVersion(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
 	s.mu.Lock()
 	s.ListVulnsByOsNameAndVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListVulnsByOsNameAndVersionFunc(ctx, name, version, includeCVSS)
+	return s.ListVulnsByOsNameAndVersionFunc(ctx, name, version, includeCVSS, teamID)
 }
 
 func (s *DataStore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
@@ -6290,6 +6332,20 @@ func (s *DataStore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, source
 	s.DeleteOutOfDateOSVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteOutOfDateOSVulnerabilitiesFunc(ctx, source, olderThan)
+}
+
+func (s *DataStore) ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*fleet.Kernel, error) {
+	s.mu.Lock()
+	s.ListKernelsByOSFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListKernelsByOSFunc(ctx, osID, teamID)
+}
+
+func (s *DataStore) InsertKernelSoftwareMapping(ctx context.Context) error {
+	s.mu.Lock()
+	s.InsertKernelSoftwareMappingFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertKernelSoftwareMappingFunc(ctx)
 }
 
 func (s *DataStore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
@@ -7643,6 +7699,13 @@ func (s *DataStore) GetBatchActivityHostResults(ctx context.Context, executionID
 	return s.GetBatchActivityHostResultsFunc(ctx, executionID)
 }
 
+func (s *DataStore) RunScheduledBatchActivity(ctx context.Context, executionID string) error {
+	s.mu.Lock()
+	s.RunScheduledBatchActivityFuncInvoked = true
+	s.mu.Unlock()
+	return s.RunScheduledBatchActivityFunc(ctx, executionID)
+}
+
 func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 	s.mu.Lock()
 	s.BatchExecuteSummaryFuncInvoked = true
@@ -8250,6 +8313,27 @@ func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables [
 	s.UpsertSecretVariablesFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpsertSecretVariablesFunc(ctx, secretVariables)
+}
+
+func (s *DataStore) CreateSecretVariable(ctx context.Context, name string, value string) (id uint, err error) {
+	s.mu.Lock()
+	s.CreateSecretVariableFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateSecretVariableFunc(ctx, name, value)
+}
+
+func (s *DataStore) ListSecretVariables(ctx context.Context, opt fleet.ListOptions) (secretVariables []fleet.SecretVariableIdentifier, meta *fleet.PaginationMetadata, count int, err error) {
+	s.mu.Lock()
+	s.ListSecretVariablesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSecretVariablesFunc(ctx, opt)
+}
+
+func (s *DataStore) DeleteSecretVariable(ctx context.Context, id uint) (name string, err error) {
+	s.mu.Lock()
+	s.DeleteSecretVariableFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSecretVariableFunc(ctx, id)
 }
 
 func (s *DataStore) GetSecretVariables(ctx context.Context, names []string) ([]fleet.SecretVariable, error) {

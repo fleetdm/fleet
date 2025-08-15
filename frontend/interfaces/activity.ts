@@ -83,6 +83,8 @@ export enum ActivityType {
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
   RanScriptBatch = "ran_script_batch",
+  ScheduledScriptBatch = "scheduled_script_batch",
+  CanceledScriptBatch = "canceled_script_batch",
   AddedScript = "added_script",
   UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
@@ -122,6 +124,8 @@ export enum ActivityType {
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
+  CreatedCustomVariable = "created_custom_variable",
+  DeletedCustomVariable = "deleted_custom_variable",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -191,6 +195,7 @@ export interface IActivityDetails {
   host_id?: number;
   host_ids?: number[];
   host_count?: number;
+  canceled_count?: number;
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;
@@ -230,4 +235,5 @@ export interface IActivityDetails {
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
+  custom_variable_name?: string;
 }

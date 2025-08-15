@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -624,10 +625,11 @@ func (s DiskEncryptionStatus) IsValid() bool {
 type BatchScriptExecutionStatus string
 
 const (
-	BatchScriptExecutionRan       BatchScriptExecutionStatus = "ran"
-	BatchScriptExecutionPending   BatchScriptExecutionStatus = "pending"
-	BatchScriptExecutionErrored   BatchScriptExecutionStatus = "errored"
-	BatchScriptExecutionCancelled BatchScriptExecutionStatus = "cancelled"
+	BatchScriptExecutionRan          BatchScriptExecutionStatus = "ran"
+	BatchScriptExecutionPending      BatchScriptExecutionStatus = "pending"
+	BatchScriptExecutionErrored      BatchScriptExecutionStatus = "errored"
+	BatchScriptExecutionCanceled     BatchScriptExecutionStatus = "canceled"
+	BatchScriptExecutionIncompatible BatchScriptExecutionStatus = "incompatible"
 )
 
 func (s BatchScriptExecutionStatus) IsValid() bool {
@@ -636,7 +638,8 @@ func (s BatchScriptExecutionStatus) IsValid() bool {
 		BatchScriptExecutionRan,
 		BatchScriptExecutionPending,
 		BatchScriptExecutionErrored,
-		BatchScriptExecutionCancelled:
+		BatchScriptExecutionIncompatible,
+		BatchScriptExecutionCanceled:
 		return true
 	default:
 		return false
@@ -1018,23 +1021,13 @@ var HostRpmPackageOSs = map[string]struct{}{
 }
 
 func IsLinux(hostPlatform string) bool {
-	for _, linuxPlatform := range HostLinuxOSs {
-		if linuxPlatform == hostPlatform {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(HostLinuxOSs, hostPlatform)
 }
 
 func IsUnixLike(hostPlatform string) bool {
 	unixLikeOSs := HostLinuxOSs
 	unixLikeOSs = append(unixLikeOSs, "darwin")
-	for _, p := range unixLikeOSs {
-		if p == hostPlatform {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(unixLikeOSs, hostPlatform)
 }
 
 // PlatformFromHost converts the given host platform into
@@ -1317,10 +1310,18 @@ type VulnerableOS struct {
 	ResolvedInVersion *string `json:"resolved_in_version"`
 }
 
+// Kernel represents a Linux kernel found on a host.
+type Kernel struct {
+	ID              uint     `json:"id"`
+	Version         string   `json:"version"`
+	Vulnerabilities []string `json:"vulnerabilities"`
+	HostsCount      uint     `json:"hosts_count"`
+}
+
 type OSVersion struct {
 	// ID is the unique id of the operating system.
 	ID uint `json:"id,omitempty"`
-	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
+	// OSVersionID is a unique NameOnly/Version combination for the operating system.
 	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
@@ -1339,7 +1340,13 @@ type OSVersion struct {
 	// in NVD (macOS only)
 	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
 	// Vulnerabilities are the vulnerabilities associated with the operating system.
+	// For Linux-based operating systems, these are vulnerabilities associated with the Linux kernel.
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
+	// Kernels is a list of Linux kernels found on this operating system.
+	// This list is only populated for Linux-based operating systems.
+	// Vulnerabilities are pulled based on the software entries for the kernels.
+	// Kernels are associated based on enrolled hosts with the selected OS version.
+	Kernels []*Kernel `json:"kernels"`
 }
 
 type HostDetailOptions struct {

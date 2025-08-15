@@ -144,6 +144,7 @@ How to unenroll a host from Fleet:
 - [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
 - [Using mTLS](#using-mtls)
+- [Using host identity certificates](#using-host-identity-certificates)
 - [Specifying update channels](#specifying-update-channels)
 - [Testing osquery queries locally](#testing-osquery-queries-locally)
 - [Finding fleetd logs](#finding-fleetd-logs)
@@ -322,6 +323,27 @@ This provides a level of security similar to [mTLS](#using-mtls), but the certif
 The certificate is issued for 365 days. 180 days before expiration, fleetd will automatically try to renew the certificate using a new TPM-based private key. The original enrollment secret is not needed for renewal. The renewal process is based on proof-of-possession of the existing certificate's private key.
 
 Currently, host identity certificates are only supported for Linux hosts (`.deb` and `.rpm` fleetd agents) with TPM 2.0 hardware (or vTPM for VMs) and Linux kernel 4.12 or later.
+
+#### Generating fleetd with host identity certificates
+
+To use host identity certificates, generate fleetd with the `--fleet-managed-host-identity-certificate` flag:
+
+```sh
+fleetctl package \
+  --type deb \
+  --fleet-url=https://fleet.example.com \
+  --enroll-secret=your-enroll-secret \
+  --fleet-managed-host-identity-certificate
+```
+
+#### Important considerations
+
+- Hosts without TPM 2.0 will fail to enroll when this option is enabled
+- This feature cannot be combined with other client certificate options (`--fleet-tls-client-certificate`)
+- SCEP certificate requests can be throttled by the [osquery_enroll_cooldown](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-enroll-cooldown) server option, similar to how fleetd enrollments are throttled
+- When a host requests a host identity certificate, the server will expect all future traffic from that host to be signed with HTTP message signatures. This allows mixed environments where some hosts use managed client certificates and others do not
+- Fleet administrators can enforce HTTP message signature requirements server-wide using the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option
+
 
 ### Specifying update channels
 

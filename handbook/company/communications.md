@@ -468,7 +468,7 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 3. Click _"Commit changes...."_
 4. Give your proposed change a title or _["Commit message"](https://about.gitlab.com/topics/version-control/version-control-best-practices/#write-descriptive-commit-messages)_ and optional _"Extended description"_ (good commit messages help page maintainers quickly understand the proposed changes).
  - **Note:** _Keep commit messages short and clear. (e.g. "Add DRI automation")_ 
-5. Click _"Propose changes"_
+5. Click _"Propose changes."_
 6. Request a review from the page maintainer, and finally, press “Create pull request.”
 7. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
 8. Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
@@ -832,6 +832,10 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 ### Compensation
 
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
+
+### Wellness budget 
+
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions. 
 
 
 ### Payroll dates
