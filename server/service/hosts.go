@@ -1168,11 +1168,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		if err := svc.ds.LoadHostSoftware(ctx, host, opts.IncludeCVEScores); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host software")
 		}
-	} 
-	
+	}
+
 	if host.HostSoftware.Software == nil {
 		host.HostSoftware.Software = []fleet.HostSoftwareEntry{}
-	}
 	}
 
 	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
