@@ -6401,7 +6401,7 @@ List software that can or will be automatically installed during macOS or Linux 
 
 _Available in Fleet Premium_
 
-> `PUT /api/v1/fleet/setup_experience/software` is deprecated as of Fleet 4.74.0. It is maintained for backwards compatibility. Please use `PUT /api/v1/fleet/setup_experience/macos` to update macOS setup experience software.
+> `PUT /api/v1/fleet/setup_experience/software` is deprecated as of Fleet 4.74.0. It is maintained for backwards compatibility. Please use `PUT /api/v1/fleet/setup_experience/macos/software` to update macOS setup experience software.
 
 Set software that will be automatically installed during macOS setup. Software that isn't included in the request will be unset.
 
