@@ -1290,7 +1290,7 @@ type Service interface {
 	NewCertificateAuthority(ctx context.Context, p CertificateAuthorityPayload) (*CertificateAuthority, error)
 	// DeleteCertificateAuthority deletes the certificate authority of the given id, returns nil if successful or not found error
 	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error
-	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (string, error)	
+	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (*string, error)
 }
 
 type KeyValueStore interface {
