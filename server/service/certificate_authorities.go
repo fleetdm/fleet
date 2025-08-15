@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -89,6 +90,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	return nil, fleet.ErrMissingLicense
 }
 
+<<<<<<< HEAD
 type requestCertificateRequest struct {
 	fleet.RequestCertificatePayload
 }
@@ -115,4 +117,32 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	// skipauth: No authorization check needed due to implementation returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 	return nil, fleet.ErrMissingLicense
+}
+
+type deleteCertificateAuthorityRequest struct {
+	ID uint `url:"id"`
+}
+
+type deleteCertificateAuthorityResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteCertificateAuthorityResponse) Error() error { return r.Err }
+func (r deleteCertificateAuthorityResponse) Status() int  { return http.StatusNoContent }
+
+func deleteCertificateAuthorityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*deleteCertificateAuthorityRequest)
+
+	err := svc.DeleteCertificateAuthority(ctx, req.ID)
+	if err != nil {
+		return &deleteCertificateAuthorityResponse{Err: err}, nil
+	}
+
+	return &deleteCertificateAuthorityResponse{}, nil
+}
+
+func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
+	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return fleet.ErrMissingLicense
 }

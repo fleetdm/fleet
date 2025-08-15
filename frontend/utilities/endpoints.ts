@@ -287,4 +287,12 @@ export default {
   CONFIG_PROFILE_STATUS: (uuid: string) =>
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
+
+  // Certificate authority endpoints
+  CERTIFICATE_AUTHORITIES: `/${API_VERSION}/fleet/certificate_authorities`,
+  CERTIFICATE_AUTHORITY: (id: number) =>
+    `/${API_VERSION}/fleet/certificate_authorities/${id}`,
+  CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
+    return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
+  },
 };

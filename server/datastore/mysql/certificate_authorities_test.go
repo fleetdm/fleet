@@ -22,9 +22,11 @@ func TestCertificateAuthority(t *testing.T) {
 		{"GetAllCertificateAuthorities", testGetAllCertificateAuthorities},
 		{"ListCertificateAuthorities", testListCertificateAuthorities},
 		{"CreateCertificateAuthority", testCreateCertificateAuthority},
+		{"Delete", testDeleteCertificateAuthority},
 	}
 
 	for _, c := range cases {
+		t.Helper()
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
 			c.fn(t, ds)
@@ -223,7 +225,7 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 
 		// Try to create the same CA again, it should return an error
 		_, err = ds.NewCertificateAuthority(ctx, ca)
-		require.Error(t, err)
+		require.ErrorAs(t, err, &fleet.ConflictError{})
 
 		// Get the CA and ensure it matches with and without secrets
 		retrievedCA, err := ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
@@ -301,7 +303,39 @@ func testListCertificateAuthorities(t *testing.T, ds *Datastore) {
 	// list is empty
 	cas, err := ds.ListCertificateAuthorities(ctx)
 	require.NoError(t, err)
+	// Should return an empty list, not nil
+	require.NotNil(t, cas)
 	require.Empty(t, cas)
 
 	// testCreateCertificateAuthority will create several CAs and test this list method more thoroughly
+}
+
+func testDeleteCertificateAuthority(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	ca, err := ds.GetCertificateAuthorityByID(ctx, 1, true)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, ca)
+
+	ca, err = ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeHydrant),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, ca)
+
+	ca, err = ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
+	require.NoError(t, err)
+	require.NotNil(t, ca)
+
+	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
+	require.NoError(t, err)
+
+	deletedCA, err := ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, deletedCA)
+
+	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not found")
 }
