@@ -637,8 +637,10 @@ const DeviceUserPage = ({
                       </li>
                       <li>
                         <p>
-                          <b>Choose Enter a PIN (recommended)</b> and follow the
-                          prompts to create a PIN.
+                          Choose <b>Enter a PIN (recommended)</b> and follow the
+                          prompts to create a PIN.  If you don't see this option, 
+                          wait 1 minute and refresh the <b>BitLocker Drive Encrypion</b> 
+                          window.
                         </p>
                       </li>
                       <li>
