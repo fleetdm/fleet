@@ -83,6 +83,8 @@ export enum ActivityType {
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
   RanScriptBatch = "ran_script_batch",
+  ScheduledScriptBatch = "scheduled_script_batch",
+  CanceledScriptBatch = "canceled_script_batch",
   AddedScript = "added_script",
   UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
@@ -193,6 +195,7 @@ export interface IActivityDetails {
   host_id?: number;
   host_ids?: number[];
   host_count?: number;
+  canceled_count?: number;
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;
