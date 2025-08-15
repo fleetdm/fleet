@@ -1105,3 +1105,11 @@ allow {
   subject.global_role == [admin, gitops][_]
   action == [read, write, list][_]
 }
+
+# Global admins and maintainers can write a certificate request. # TODO HCA is this the right way to
+# model this?
+allow {
+  object.type == "certificate_request"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}

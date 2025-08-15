@@ -152,3 +152,15 @@ func (s *CustomSCEPProxyCA) Equals(other *CustomSCEPProxyCA) bool {
 func (c *CertificateAuthority) AuthzType() string {
 	return "certificate_authority"
 }
+
+type RequestCertificatePayload struct {
+	ID          uint    `json:"id"`
+	CSR         string  `json:"csr"`
+	IDPOauthURL *string `json:"idp_oauth_url"`
+	IDPToken    *string `json:"idp_token"`
+	IDPClientID *string `json:"idp_client_id"`
+}
+
+func (c *RequestCertificatePayload) AuthzType() string {
+	return "certificate_request"
+}

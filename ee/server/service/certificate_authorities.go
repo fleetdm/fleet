@@ -2,13 +2,21 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/asn1"
+	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -98,7 +106,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	if p.Hydrant != nil {
 		p.Hydrant.Name = fleet.Preprocess(p.Hydrant.Name)
 		p.Hydrant.URL = fleet.Preprocess(p.Hydrant.URL)
-		if err := validateHydrant(p.Hydrant, errPrefix); err != nil {
+		if err := svc.validateHydrant(ctx, p.Hydrant, errPrefix); err != nil {
 			return nil, err
 		}
 
@@ -273,19 +281,21 @@ func validateDigicertUserPrincipalNames(userPrincipalNames []string, errPrefix s
 	return nil
 }
 
-func validateHydrant(hydrantCA *fleet.HydrantCA, errPrefix string) error {
+func (svc *Service) validateHydrant(ctx context.Context, hydrantCA *fleet.HydrantCA, errPrefix string) error {
 	if err := validateCAName(hydrantCA.Name, errPrefix); err != nil {
 		return err
 	}
 	if err := validateURL(hydrantCA.URL, "Hydrant", errPrefix); err != nil {
 		return err
 	}
-	// TODO HCA Validate Hydrant Parameters by actually connecting to Hydrant(ideally)
 	if hydrantCA.ClientID == "" {
 		return fleet.NewInvalidArgumentError("client_id", fmt.Sprintf("%sInvalid Hydrant Client ID. Please correct and try again.", errPrefix))
 	}
 	if hydrantCA.ClientSecret == "" {
 		return fleet.NewInvalidArgumentError("client_secret", fmt.Sprintf("%sInvalid Hydrant Client Secret. Please correct and try again.", errPrefix))
+	}
+	if err := svc.hydrantService.ValidateHydrantURL(ctx, *hydrantCA); err != nil {
+		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sInvalid Hydrant URL. Please correct and try again.", errPrefix))
 	}
 	return nil
 }
@@ -338,6 +348,12 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	return nil
 }
 
+type oauthIntrospectionResponse struct {
+	Username *string `json:"username"`
+	// Only active is required in the body by the spec
+	Active bool `json:"active"`
+}
+
 func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
 		return err
@@ -371,4 +387,175 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 	}
 
 	return nil
+}
+
+// This code largely adapted from fleet/website/api/controllers/get-est-device-certificate.js
+func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCertificatePayload) (*string, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.RequestCertificatePayload{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, p.ID, true)
+	if err != nil {
+		return nil, err
+	}
+	if ca.ClientSecret == nil {
+		// TODO We should probably return a 5xx of some sort here - likely a bug
+		return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a client secret configured."}
+	}
+	if ca.Type != string(fleet.CATypeHydrant) {
+		return nil, &fleet.BadRequestError{Message: "Only Hydrant certificate authorities support requesting certificates via Fleet."}
+	}
+
+	if p.IDPClientID == nil || p.IDPToken == nil || p.IDPOauthURL == nil {
+		return nil, &fleet.BadRequestError{Message: "IDP Client ID, Token, and OAuth URL must be provided for requesting a certificate."}
+	}
+
+	introspectionResponse, err := svc.introspectIDPToken(ctx, *p.IDPClientID, *p.IDPToken, *p.IDPOauthURL)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Failed to introspect IDP token: %s", err.Error())}
+	}
+	if !introspectionResponse.Active {
+		return nil, &fleet.BadRequestError{Message: "IDP token is not active."}
+	}
+	if introspectionResponse.Username == nil || len(*introspectionResponse.Username) == 0 {
+		return nil, &fleet.BadRequestError{Message: "IDP token introspection response does not contain a username."}
+	}
+
+	_, csrEmail, csrUsername, err := svc.parseCSR(ctx, p.CSR)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse CSR: %s", err.Error())}
+	}
+
+	if !strings.HasPrefix(csrEmail, csrUsername) {
+		// Throw an error about invalid CSR
+		return nil, &fleet.BadRequestError{Message: "CSR email does not match CSR username"}
+	}
+	if csrEmail != *introspectionResponse.Username {
+		// The email in the CSR must match the username from the IDP token introspection
+		return nil, &fleet.BadRequestError{Message: "CSR email does not match IDP token username"}
+	}
+
+	csrForRequest := strings.ReplaceAll(p.CSR, "-----BEGIN CERTIFICATE REQUEST-----", "")
+	csrForRequest = strings.ReplaceAll(csrForRequest, "-----END CERTIFICATE REQUEST-----", "")
+	csrForRequest = strings.ReplaceAll(csrForRequest, "\\n", "")
+
+	certificate, err := svc.hydrantService.GetCertificate(ctx, fleet.HydrantCA{
+		Name:         ca.Name,
+		URL:          ca.URL,
+		ClientID:     *ca.ClientID,
+		ClientSecret: *ca.ClientSecret,
+	}, csrForRequest)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "Failed to get Hydrant certificate", "error", err)
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Failed to get certificate from Hydrant: %s", err.Error())}
+	}
+	// TODO Do we need to convert this in any way?
+	return ptr.String("-----BEGIN CERTIFICATE-----\n" + string(certificate.Certificate) + "\n-----END CERTIFICATE-----"), nil
+}
+
+func (svc *Service) introspectIDPToken(ctx context.Context, idpClientID, idpToken, idpOauthURL string) (*oauthIntrospectionResponse, error) {
+	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(20 * time.Second))
+	introspectionRequest := url.Values{
+		"client_id": []string{idpClientID},
+		"token":     []string{idpToken},
+	}
+	introspectionBody := introspectionRequest.Encode()
+	req, err := http.NewRequestWithContext(ctx, "POST", idpOauthURL, strings.NewReader(introspectionBody))
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Failed to create introspection request: %s", err.Error())}
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Failed to introspect IDP token: %s", err.Error())}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("IDP token introspection failed with status code %d", resp.StatusCode)}
+	}
+
+	oauthIntrospectionResponse := &oauthIntrospectionResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(oauthIntrospectionResponse); err != nil {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Failed to decode IDP token introspection response: %s", err.Error())}
+	}
+
+	return oauthIntrospectionResponse, nil
+}
+
+func (svc *Service) parseCSR(ctx context.Context, csr string) (*x509.CertificateRequest, string, string, error) {
+	// unescape newlines
+	block, _ := pem.Decode([]byte(strings.ReplaceAll(csr, "\\n", "\n")))
+	if block == nil {
+		return nil, "", "", ctxerr.New(ctx, "invalid CSR format")
+	}
+
+	req, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		// logger.Log("msg", "Failed to parse CSR", "error", err)
+		return nil, "", "", ctxerr.Wrap(ctx, err, "failed to parse CSR")
+	}
+	if len(req.EmailAddresses) < 1 {
+		return nil, "", "", ctxerr.Wrap(ctx, err, "CSR does not contain an email address")
+	}
+	// TODO Do we actually need this check
+	if len(req.EmailAddresses) > 1 {
+		return nil, "", "", ctxerr.Wrap(ctx, err, "CSR contains multiple email addresses, only one is supported")
+	}
+	csrEmail := req.EmailAddresses[0]
+
+	upn, err := extractCSRUPN(req)
+	if err != nil {
+		return nil, "", "", ctxerr.Wrap(ctx, err, "failed to extract UPN from CSR")
+	}
+	if upn == nil {
+		return nil, "", "", ctxerr.New(ctx, "CSR does not contain a UPN")
+	}
+
+	return req, csrEmail, *upn, nil
+}
+
+// The go standard library does not provide a way to extract the UPN from a CSR, so we must do it
+// manually by first finding the SAN extension then looking in othernames for the UPN
+func extractCSRUPN(csr *x509.CertificateRequest) (*string, error) {
+	sanOID := asn1.ObjectIdentifier{2, 5, 29, 17}
+	upnOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}
+	for _, ext := range csr.Extensions {
+		if ext.Id.Equal(sanOID) {
+			nameValues := []asn1.RawValue{}
+			if _, err := asn1.Unmarshal(ext.Value, &nameValues); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal SAN extension: %w", err)
+			}
+			for _, names := range nameValues {
+				// We are looking for the othernames(tag 0) in the SAN extension
+				if names.Tag == 0 {
+					var oid asn1.ObjectIdentifier
+					var rawValue asn1.RawValue
+					var err error
+					remainingBytes := names.Bytes
+					// This will be a sequence of OID-value pairs that we must parse
+					for len(remainingBytes) > 0 {
+						remainingBytes, err = asn1.Unmarshal(names.Bytes, &oid)
+						if err != nil {
+							return nil, fmt.Errorf("failed to unmarshal othername OID: %w", err)
+						}
+						remainingBytes, err = asn1.Unmarshal(remainingBytes, &rawValue)
+						if err != nil {
+							return nil, fmt.Errorf("failed to unmarshal othername value: %w", err)
+						}
+						if oid.Equal(upnOID) {
+							// UPN found, now to unmarshal its value
+							var upn asn1.RawValue
+
+							if _, err := asn1.Unmarshal(rawValue.Bytes, &upn); err != nil {
+								return nil, fmt.Errorf("failed to unmarshal UPN value: %w", err)
+							}
+							upnString := string(upn.Bytes)
+							return &upnString, nil
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil, nil // No UPN found
 }
