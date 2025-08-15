@@ -34,6 +34,10 @@ const controlsSubNav: IControlsSubNavItem[] = [
     name: "Scripts",
     pathname: PATHS.CONTROLS_SCRIPTS,
   },
+  {
+    name: "Variables",
+    pathname: PATHS.CONTROLS_VARIABLES,
+  },
 ];
 
 // params to strip when navigating between tabs
