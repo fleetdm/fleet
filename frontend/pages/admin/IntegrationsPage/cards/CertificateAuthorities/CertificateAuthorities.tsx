@@ -41,7 +41,12 @@ const CertificateAuthorities = () => {
     setSelectedCertAuthority,
   ] = useState<ICertificateAuthorityPartial | null>(null);
 
-  const { data: certAuthorities, isLoading, isError } = useQuery(
+  const {
+    data: certAuthorities,
+    isLoading,
+    isError,
+    refetch: refetchCertAuthorities,
+  } = useQuery(
     "certAuthorities",
     () => {
       return certificatesAPI.getCertificateAuthoritiesList();
@@ -56,14 +61,29 @@ const CertificateAuthorities = () => {
     setShowAddCertAuthorityModal(true);
   };
 
+  const onAddedNewCertAuthority = () => {
+    refetchCertAuthorities();
+    setShowAddCertAuthorityModal(false);
+  };
+
   const onEditCertAuthority = (cert: ICertificateAuthorityPartial) => {
     setSelectedCertAuthority(cert);
     setShowEditCertAuthorityModal(true);
   };
 
+  const onEditedCertAuthority = () => {
+    refetchCertAuthorities();
+    setShowEditCertAuthorityModal(false);
+  };
+
   const onDeleteCertAuthority = (cert: ICertificateAuthorityPartial) => {
     setSelectedCertAuthority(cert);
     setShowDeleteCertAuthorityModal(true);
+  };
+
+  const onDeletedCertAuthority = () => {
+    refetchCertAuthorities();
+    setShowDeleteCertAuthorityModal(false);
   };
 
   const renderContent = () => {
@@ -124,19 +144,19 @@ const CertificateAuthorities = () => {
       {showAddCertAuthorityModal && certAuthorities && (
         <AddCertAuthorityModal
           certAuthorities={certAuthorities}
-          onExit={() => setShowAddCertAuthorityModal(false)}
+          onExit={onAddedNewCertAuthority}
         />
       )}
       {showEditCertAuthorityModal && selectedCertAuthority && (
         <EditCertAuthorityModal
           certAuthority={selectedCertAuthority}
-          onExit={() => setShowEditCertAuthorityModal(false)}
+          onExit={onEditedCertAuthority}
         />
       )}
       {showDeleteCertAuthorityModal && selectedCertAuthority && (
         <DeleteCertificateAuthorityModal
           certAuthority={selectedCertAuthority}
-          onExit={() => setShowDeleteCertAuthorityModal(false)}
+          onExit={onDeletedCertAuthority}
         />
       )}
     </div>
