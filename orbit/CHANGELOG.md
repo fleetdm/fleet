@@ -14,7 +14,7 @@
 
 * Added new Fleetd table 'bitlocker_key_protectors' that returns what key protectors are setup on the system.
 
-Fixed an issue where Fleet desktop would stop showing "Migrate to Fleet" for several minutes every hour after a device token refresh
+* Fixed an issue where Fleet desktop would stop showing "Migrate to Fleet" for several minutes every hour after a device token refresh
 
 * Fixed tarball extraction failures due to unknown TAR headers
 * Fixed tarball extraction failures on archives that don't include a parent directory header before files in that directory
