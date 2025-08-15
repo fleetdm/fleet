@@ -766,6 +766,9 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+		return []*fleet.CertificateAuthority{}, nil
+	}
 
 	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
 	require.NoError(t, err)
@@ -2630,6 +2633,9 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		appCfg.MDM.EnabledAndConfigured = true
 		return appCfg, nil
 	}
+	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+		return []*fleet.CertificateAuthority{}, nil
+	}
 
 	ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, p []*fleet.MDMAppleConfigProfile) error {
 		return nil
@@ -3028,6 +3034,9 @@ func TestPreprocessProfileContents(t *testing.T) {
 	appCfg.MDM.EnabledAndConfigured = true
 	appCfg.Integrations.NDESSCEPProxy.Valid = true
 	ds := new(mock.Store)
+	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+		return []*fleet.CertificateAuthority{}, nil
+	}
 
 	// No-op
 	svc := eeservice.NewSCEPConfigService(logger, nil)
@@ -3131,6 +3140,19 @@ func TestPreprocessProfileContents(t *testing.T) {
 		return nil
 	}
 
+	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+		adminUrl := "https://example.com"
+		username := "admin"
+		password := "test-password"
+		return []*fleet.CertificateAuthority{
+			{
+				Type:     string(fleet.CATypeNDESSCEPProxy),
+				AdminURL: &adminUrl,
+				Username: &username,
+				Password: &password,
+			},
+		}, nil
+	}
 	// Could not get NDES SCEP challenge
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPChallenge),
@@ -3336,6 +3358,9 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	populateTargets()
 	appCfg.Integrations.NDESSCEPProxy.Valid = false // NDES will fail
+	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+		return []*fleet.CertificateAuthority{}, nil
+	}
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL),
 		"p2": []byte("$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP),
@@ -4763,6 +4788,9 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		assert.Equal(t, expectedStatus, *profile.Status)
 		return nil
 	}
+	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+		return []*fleet.CertificateAuthority{}, nil
+	}
 
 	cases := []struct {
 		desc           string
@@ -5081,7 +5109,9 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 
 func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	t.Parallel()
-	appConfig := &fleet.AppConfig{}
+	ctx := context.Background()
+	/*appConfig := &fleet.AppConfig{}*/
+	ds := new(mock.Store)
 	profileWithVars := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -5102,12 +5132,16 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 
 	// Test with free license
 	freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
-	_, err := validateConfigProfileFleetVariables(appConfig, profileWithVars, freeLic)
+	_, err := validateConfigProfileFleetVariables(ctx, ds, profileWithVars, freeLic)
 	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+		return []*fleet.CertificateAuthority{}, nil
+	}
 
 	// Test with premium license
 	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-	vars, err := validateConfigProfileFleetVariables(appConfig, profileWithVars, premiumLic)
+	vars, err := validateConfigProfileFleetVariables(ctx, ds, profileWithVars, premiumLic)
 	require.NoError(t, err)
 	require.Contains(t, vars, "HOST_END_USER_EMAIL_IDP")
 
@@ -5129,32 +5163,54 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	</array>
 </dict>
 </plist>`
-	vars, err = validateConfigProfileFleetVariables(appConfig, profileNoVars, freeLic)
+	vars, err = validateConfigProfileFleetVariables(ctx, ds, profileNoVars, freeLic)
 	require.NoError(t, err)
 	require.Empty(t, vars)
 }
 
 func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	t.Parallel()
-	appConfig := &fleet.AppConfig{
-		Integrations: fleet.Integrations{
-			DigiCert: optjson.Slice[fleet.DigiCertCA]{
-				Set:   true,
-				Valid: true,
-				Value: []fleet.DigiCertCA{
-					getDigiCertIntegration("https://example.com", "caName"),
-					getDigiCertIntegration("https://example.com", "caName2"),
-				},
+	ctx := context.Background()
+	ds := new(mock.Store)
+	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+		digiCertOne := getDigiCertIntegration("https://example.com", "caName")
+		digiCertTwo := getDigiCertIntegration("https://example.com", "caName2")
+		customScepOne := getCustomSCEPIntegration("https://example.com", "scepName")
+		customScepTwo := getCustomSCEPIntegration("https://example.com", "scepName2")
+		return []*fleet.CertificateAuthority{
+			{
+				Type:                          string(fleet.CATypeDigiCert),
+				Name:                          digiCertOne.Name,
+				URL:                           digiCertOne.URL,
+				APIToken:                      &digiCertOne.APIToken,
+				ProfileID:                     &digiCertOne.ProfileID,
+				CertificateCommonName:         &digiCertOne.CertificateCommonName,
+				CertificateUserPrincipalNames: digiCertOne.CertificateUserPrincipalNames,
+				CertificateSeatID:             &digiCertOne.CertificateSeatID,
 			},
-			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyCA]{
-				Set:   true,
-				Valid: true,
-				Value: []fleet.CustomSCEPProxyCA{
-					getCustomSCEPIntegration("https://example.com", "scepName"),
-					getCustomSCEPIntegration("https://example.com", "scepName2"),
-				},
+			{
+				Type:                          string(fleet.CATypeDigiCert),
+				Name:                          digiCertTwo.Name,
+				URL:                           digiCertTwo.URL,
+				APIToken:                      &digiCertTwo.APIToken,
+				ProfileID:                     &digiCertTwo.ProfileID,
+				CertificateCommonName:         &digiCertTwo.CertificateCommonName,
+				CertificateUserPrincipalNames: digiCertTwo.CertificateUserPrincipalNames,
+				CertificateSeatID:             &digiCertTwo.CertificateSeatID,
 			},
-		},
+			{
+				Type:      string(fleet.CATypeCustomSCEPProxy),
+				Name:      customScepOne.Name,
+				URL:       customScepOne.URL,
+				Challenge: &customScepOne.Challenge,
+			},
+			{
+				Type:      string(fleet.CATypeCustomSCEPProxy),
+				Name:      customScepTwo.Name,
+				URL:       customScepTwo.URL,
+				Challenge: &customScepTwo.Challenge,
+			},
+		}, nil
 	}
 
 	cases := []struct {
@@ -5430,7 +5486,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Pass a premium license for testing (we're not testing license validation here)
 			premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-			vars, err := validateConfigProfileFleetVariables(appConfig, tc.profile, premiumLic)
+			vars, err := validateConfigProfileFleetVariables(ctx, ds, tc.profile, premiumLic)
 			if tc.errMsg != "" {
 				assert.ErrorContains(t, err, tc.errMsg)
 				assert.Empty(t, vars)
