@@ -3238,10 +3238,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, origS := range hostInstalledSoftware {
-		s := *origS
-		if origS.LastOpenedAt != nil {
-			timeCopy := *origS.LastOpenedAt
+	for _, pointerToSoftware := range hostInstalledSoftware {
+		s := *pointerToSoftware
+		if pointerToSoftware.LastOpenedAt != nil {
+			timeCopy := *pointerToSoftware.LastOpenedAt
 			s.LastOpenedAt = &timeCopy
 		}
 
@@ -3264,8 +3264,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 		hostInstalledSoftwareTitleSet[s.ID] = struct{}{}
 		if s.SoftwareID != nil {
-			bySoftwareID[*s.SoftwareID] = origS
-			hostInstalledSoftwareSet[*s.SoftwareID] = origS
+			bySoftwareID[*s.SoftwareID] = pointerToSoftware
+			hostInstalledSoftwareSet[*s.SoftwareID] = pointerToSoftware
 		}
 	}
 
