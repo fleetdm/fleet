@@ -1,1 +1,0 @@
-* When multiple version of a software are installed the last used timestamp for each version is properly returned in the host inventory
