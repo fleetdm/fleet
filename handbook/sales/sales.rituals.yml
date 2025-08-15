@@ -6,9 +6,6 @@
   description: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
   moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
   dri: "alexmitchelliii"
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-unicorns" ] # label to be applied to issue
-    repo: "confidential"
 -
   task: "Communicate Gross new ARR added"
   startedOn: "2025-07-18"

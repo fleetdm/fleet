@@ -24,17 +24,9 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     order_key: "name",
     order_direction: "asc",
     per_page: 10,
-    vulnerable: true,
-    available_for_install: false,
-    min_cvss_score: undefined,
-    max_cvss_score: undefined,
-    exploit: false,
     category_id: undefined,
-    self_service: false,
   },
   router: createMockRouter(),
-  onShowInstallDetails: noop,
-  onShowUninstallDetails: noop,
   refetchHostDetails: noop,
   isHostDetailsPolling: false,
   hostDisplayName: DEFAULT_HOST_HOSTNAME,
@@ -58,12 +50,12 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findByText("test1");
+    await screen.findAllByText("test1");
 
-    expect(true).toBe(true);
-    expect(screen.getByText("test1")).toBeInTheDocument();
-    expect(screen.getByText("test2")).toBeInTheDocument();
-    expect(screen.getByText("test3")).toBeInTheDocument();
+    // Truncated tooltip causes multiple text rendering
+    expect(screen.getAllByText("test1")).toHaveLength(2);
+    expect(screen.getAllByText("test2")).toHaveLength(2);
+    expect(screen.getAllByText("test3")).toHaveLength(2);
   });
 
   it("should render the contact link text for self-service section if contact url is provided", () => {
@@ -95,7 +87,7 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findByText("test-software");
+    await screen.findAllByText("test-software");
 
     expect(
       screen.getByTestId("install-status-cell__status--test")
@@ -123,7 +115,7 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findByText("test-software");
+    await screen.findAllByText("test-software");
 
     expect(
       screen.getByTestId("install-status-cell__status--test")
@@ -149,7 +141,7 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findByText("test-software");
+    await screen.findAllByText("test-software");
 
     expect(
       screen.getByTestId("install-status-cell__status--test")
@@ -178,7 +170,7 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findByText("test-software");
+    await screen.findAllByText("test-software");
 
     expect(
       screen.getByTestId("install-status-cell__status--test")

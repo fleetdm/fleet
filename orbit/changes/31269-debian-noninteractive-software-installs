@@ -1,0 +1,2 @@
+- Orbit now sets `DEBIAN_FRONTEND=noninteractive` by default when installing Debian packages. This prevents package installation from hanging for debconf questions. Administrators may override this in install scripts if desired.
+  - Note that installs can still hang when a configuration file differs from the version originally installed by the package. You'll need to include `--force-confdef` (or `confnew` or `confold`) in the `dpkg` command (wrap with `-o Dpkg::Options='...'` if installing using `apt`) to prevent dpkg from hanging in these cases.

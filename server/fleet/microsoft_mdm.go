@@ -155,9 +155,9 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 			break
 		}
 	}
-
 	if !versionFound {
-		return errors.New("invalid discover message: Request.RequestVersion")
+		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q not in supported versions %v",
+			req.Body.Discover.Request.RequestVersion, syncml.SupportedEnrollmentVersions)
 	}
 
 	// Traverse the AuthPolicies slice and check for valid values
@@ -1421,6 +1421,18 @@ func (cmd *SyncMLCmd) GetTargetData() string {
 	}
 
 	return ""
+}
+
+// GetNormalizedTargetDataForVerification returns the first protocol commands target data
+// and normalizes for verification processes
+func (cmd *SyncMLCmd) GetNormalizedTargetDataForVerification() string {
+	content := cmd.GetTargetData()
+
+	content = strings.TrimSpace(content)
+	content = strings.TrimPrefix(content, "<![CDATA[")
+	content = strings.TrimSuffix(content, "]]>")
+
+	return content
 }
 
 func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {

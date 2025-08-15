@@ -176,7 +176,7 @@ const (
 )
 
 // Supported MS-MDE2 enrollment versions
-var SupportedEnrollmentVersions = []string{"4.0", "5.0", "6.0"}
+var SupportedEnrollmentVersions = []string{"4.0", "5.0", "6.0", "7.0"}
 
 // MS-MDE2 Message constants
 const (

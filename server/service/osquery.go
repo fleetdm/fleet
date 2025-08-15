@@ -1170,6 +1170,22 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
+	if host.DiskEncryptionKeyEscrowed {
+		if err := svc.NewActivity(
+			ctx,
+			nil,
+			fleet.ActivityTypeEscrowedDiskEncryptionKey{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			},
+		); err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "record fleet disk encryption key escrowed activity",
+				"err", err,
+			)
+		}
+	}
+
 	return nil
 }
 

@@ -406,6 +406,8 @@ Gets the current SSO configuration.
 
 `POST /api/v1/fleet/sso`
 
+A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that needs to be sent on the `POST /api/v1/fleet/sso/callback` request (this HTTP cookie is used to identify the SSO login session).
+
 #### Parameters
 
 | Name      | Type   | In   | Description                                                                 |
@@ -427,6 +429,11 @@ Gets the current SSO configuration.
 ##### Default response
 
 `Status: 200`
+
+Example response cookie in the HTTP `Set-Cookie` header:
+```
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=300; HttpOnly; Secure
+```
 
 ##### Unknown error
 
@@ -450,11 +457,15 @@ This is the callback endpoint that the identity provider will use to send securi
 
 `POST /api/v1/fleet/sso/callback`
 
+The `__Host-FLEETSSOSESSIONID` HTTP cookie must be set for non-IdP initiated SSO login requests. The value for this cookie is returned in the `POST /api/v1/fleet/sso` request.
+For IdP-initiated SSO logins the cookie doesn't need to be set.
+
 #### Parameters
 
-| Name         | Type   | In   | Description                                                 |
-| ------------ | ------ | ---- | ----------------------------------------------------------- |
-| SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
+| Name                     | Type   | In     | Description                                                                                                         |
+| ------------------------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| SAMLResponse             | string | body   | **Required**. The SAML response from the identity provider.                                                         |
+| __Host-FLEETSSOSESSIONID | string | cookie | HTTP Cookie returned in the `POST /api/v1/fleet/sso` request. This is not set/required for IdP initiated SSO logins |
 
 #### Example
 
@@ -466,6 +477,11 @@ This is the callback endpoint that the identity provider will use to send securi
 {
   "SAMLResponse": "<SAML response from IdP>"
 }
+```
+
+Example session cookie set in the `Cookie` request header:
+```
+Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 ```
 
 ##### Default response
@@ -489,8 +505,12 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
+| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| query | string | query | Search query keywords. Searchable fields include `user_name` and `user_email`.
+| activity_type | string | query | Indicates the activity `type` to filter by. See available activity types on the [Audit logs page](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md).
+| start_created_at | string | query | Filters to include only activities that happened after this date. If not specified, set to the earliest possible date.
+| end_created_at | string | query | Filters to include only activities that happened before this date. If not specified, set to now.
 
 #### Example
 
@@ -706,6 +726,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Fleet configuration
 
+- [Get certificate](#get-certificate)
 - [Get configuration](#get-configuration)
 - [Modify configuration](#modify-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
@@ -801,7 +822,8 @@ None.
     "idp_name": "",
     "enable_sso": false,
     "enable_sso_idp_login": false,
-    "enable_jit_provisioning": false
+    "enable_jit_provisioning": false,
+    "sso_server_url": ""
   },
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",
@@ -1134,7 +1156,8 @@ Modifies the Fleet's configuration with the supplied information.
     "idp_name": "",
     "enable_sso": false,
     "enable_sso_idp_login": false,
-    "enable_jit_provisioning": false
+    "enable_jit_provisioning": false,
+    "sso_server_url": "https://instance.fleet.com"
   },
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",
@@ -1354,6 +1377,8 @@ Modifies the Fleet's configuration with the supplied information.
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
 | query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`) |
 
+> Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
+
 <br/>
 
 ##### Example request body
@@ -1422,6 +1447,7 @@ Modifies the Fleet's configuration with the supplied information.
 | metadata                          | string  |  Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided.                                                                   |
 | enable_sso_idp_login              | boolean | Determines whether Identity Provider (IdP) initiated login for Single sign-on (SSO) is enabled for the Fleet application.                                              |
 | enable_jit_provisioning           | boolean | _Available in Fleet Premium._ When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). |
+| sso_server_url           | boolean | Update this URL if you want your Fleet users (admins, maintainers, observers) to login via SSO using a URL that's different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance. |
 
 <br/>
 
@@ -1438,7 +1464,8 @@ Modifies the Fleet's configuration with the supplied information.
     "metadata": "",
     "idp_name": "",
     "enable_sso_idp_login": false,
-    "enable_jit_provisioning": false
+    "enable_jit_provisioning": false,
+    "sso_server_url": ""
   }
 }
 ```
@@ -2833,7 +2860,7 @@ Returns the information of the specified host.
     "policy_updated_at": "2023-06-26T18:33:15Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z", 
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
@@ -3014,7 +3041,6 @@ Returns the information of the specified host.
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
-        "browser": "",
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -3109,7 +3135,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "policy_updated_at": "2022-10-14T17:07:12Z",
     "last_enrolled_at": "2022-02-10T02:29:13Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z", 
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
     "software_updated_at": "2020-11-05T05:09:44Z",
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
@@ -3243,7 +3269,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "name": "Automat",
         "version": "0.8.0",
         "source": "python_packages",
-        "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null,
         "installed_paths": ["/usr/lib/some_path/"]
@@ -3320,7 +3345,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
     "label_updated_at": "2021-08-19T21:07:53Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z", 
+    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
@@ -3435,7 +3460,6 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
-        "browser": "",
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -3861,10 +3885,11 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 {
   "counts_updated_at": "2021-03-21T12:32:44Z",
   "mobile_device_management_enrollment_status": {
-    "enrolled_manual_hosts_count": 0,
-    "enrolled_automated_hosts_count": 2,
+    "enrolled_manual_hosts_count": 10,
+    "enrolled_automated_hosts_count": 200,
+    "enrolled_personal_hosts_count": 30,
     "unenrolled_hosts_count": 0,
-    "hosts_count": 2
+    "hosts_count": 240
   },
   "mobile_device_management_solution": [
     {
@@ -4050,6 +4075,8 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+
+On macOS hosts, `last_opened_at` represents the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again. On Windows and Linux hosts, it represents the last open time of any version.
 
 #### Example
 
@@ -4898,7 +4925,7 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
 | name        | string  | body | The label's name.             |
 | description | string  | body | The label's description.      |
 | hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. The provided list fully replaces the previous list.  Only one of either `hosts` or `host_ids` can be included in the request.  |
-| host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request. 
+| host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request.
 
 
 
@@ -6326,7 +6353,7 @@ List software that can or will be automatically installed during macOS setup. If
       "id": 12,
       "name": "Firefox.app",
       "software_package": {
-        "name": "FirefoxInsall.pkg",
+        "name": "FirefoxInstall.pkg",
         "platform": "darwin",
         "version": "125.6",
         "self_service": true,
@@ -6335,7 +6362,6 @@ List software that can or will be automatically installed during macOS setup. If
       "app_store_app": null,
       "versions_count": 3,
       "source": "apps",
-      "browser": "",
       "hosts_count": 48,
       "versions": [
         {
@@ -6552,11 +6578,11 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 ### Get MDM command results
 
-> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [[Archived docuemntation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
+> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [[Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
 
 This endpoint returns the results for a specific custom MDM command.
 
-In the reponse, the possible `status` values for macOS, iOS, and iPadOS hosts are the following:
+In the response, the possible `status` values for macOS, iOS, and iPadOS hosts are the following:
 
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
 * NotNow: the host responded with "NotNow" status via the MDM protocol: the host received the command, but couldn’t execute it. The host will try to run the command the next time it comes online.
@@ -7951,7 +7977,7 @@ Returns the query report specified by ID.
       "host_name": "bar",
       "last_fetched": "2021-01-19T17:20:00Z",
       "columns": {
-        "model": "USB Reciever",
+        "model": "USB Receiver",
         "vendor": "Logitech"
       }
     },
@@ -7960,7 +7986,7 @@ Returns the query report specified by ID.
       "host_name": "bar",
       "last_fetched": "2021-01-19T17:20:00Z",
       "columns": {
-        "model": "USB Reciever",
+        "model": "USB Receiver",
         "vendor": "Logitech"
       }
     },
@@ -8031,7 +8057,7 @@ Returns a query report for a single host.
     },
     {
       "columns": {
-        "model": "USB Reciever",
+        "model": "USB Receiver",
         "vendor": "Logitech"
       }
     }
@@ -8619,7 +8645,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 | id              | integer | path  | **Required**. The team's ID.                                                                                                  |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
+| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
 #### Example
@@ -8939,7 +8965,7 @@ The script will be added to each host's list of upcoming activities.
 | query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
-| team_id                           | number  | ID of the team to filter by. | 
+| team_id                           | number  | ID of the team to filter by. |
 
 
 #### Example
@@ -8995,14 +9021,6 @@ Get statuses and host counts for a batch-run script.
 #### Example
 
 `GET /api/v1/fleet/scripts/batch/summary/abc-def`
-
-##### Request body
-
-```json
-{
-  "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-}
-```
 
 ##### Default response
 
@@ -9425,7 +9443,7 @@ Get a list of all software.
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
-        "name": "FirefoxInsall.pkg",
+        "name": "FirefoxInstall.pkg",
         "version": "125.6",
         "self_service": true,
         "automatic_install_policies": [
@@ -9439,7 +9457,6 @@ Get a list of all software.
       "app_store_app": null,
       "versions_count": 3,
       "source": "apps",
-      "browser": "",
       "hosts_count": 48,
       "versions": [
         {
@@ -9467,7 +9484,6 @@ Get a list of all software.
       "app_store_app": null,
       "versions_count": 5,
       "source": "apps",
-      "browser": "",
       "hosts_count": 345,
       "versions": [
         {
@@ -9560,7 +9576,6 @@ Get a list of all software versions.
         "name": "glibc",
         "version": "2.12",
         "source": "rpm_packages",
-        "browser": "",
         "release": "1.212.el6",
         "vendor": "CentOS",
         "arch": "x86_64",
@@ -9714,7 +9729,7 @@ Returns information about the specified software. By default, `versions` are sor
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
-      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
@@ -9744,7 +9759,6 @@ Returns information about the specified software. By default, `versions` are sor
     "app_store_app": null,
     "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
-    "browser": "",
     "hosts_count": 48,
     "versions": [
       {
@@ -9805,7 +9819,7 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 345,
           "name": "[Install software] Logic Pro",
           "fleet_maintained": false
-        } 
+        }
       ],
       "status": {
         "installed": 3,
@@ -9814,7 +9828,6 @@ Returns information about the specified software. By default, `versions` are sor
       }
     },
     "source": "apps",
-    "browser": "",
     "hosts_count": 48,
     "versions": [
       {
@@ -9853,12 +9866,10 @@ Returns information about the specified software version.
 {
   "software": {
     "id": 425224,
-    "software_title_id": 1337,
     "name": "Firefox.app",
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
-    "browser": "",
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
     "vulnerabilities": [
       {
@@ -10026,7 +10037,7 @@ Content-Type: application/octet-stream
     "installer_id": 23,
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
-    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
@@ -10124,7 +10135,7 @@ Content-Type: application/octet-stream
     "installer_id": 23,
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
-    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
@@ -10306,7 +10317,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
         "id": 345,
         "name": "[Install software] Logic Pro",
         "fleet_maintained": false
-      } 
+      }
     ],
     "status": {
       "installed": 3,
@@ -10758,7 +10769,6 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
       "name": "Docker Desktop",
       "version": "4.9.1",
       "source": "programs",
-      "browser": "",
       "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
       "hosts_count": 50,
       "resolved_in_version": "5.0.0"
@@ -11487,7 +11497,7 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        | 
+| enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                                      |
 
 <br/>

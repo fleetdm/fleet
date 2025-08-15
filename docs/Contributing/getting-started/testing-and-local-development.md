@@ -163,6 +163,18 @@ To run MySQL integration tests, set environment variables as follows:
 MYSQL_TEST=1 make test-go
 ```
 
+#### Configuring MySQL test port
+
+By default, the test MySQL instance uses port 3307. You can customize this port using the `FLEET_MYSQL_TEST_PORT` environment variable.
+
+For example, to use a different port:
+
+```sh
+export FLEET_MYSQL_TEST_PORT=3327
+docker-compose up -d mysql_test
+MYSQL_TEST=1 make test-go
+```
+
 ### Email tests
 
 To run email related integration tests using MailHog set environment as follows:

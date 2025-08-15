@@ -205,7 +205,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	secretType := "secret.type.1"
 	secretName := "secretName"
 	secretProfile := string(mobileconfigForTest("NS1", "IS1"))
-	req := secretVariablesRequest{
+	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_IDENTIFIER",
@@ -225,7 +225,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 			},
 		},
 	}
-	secretResp := secretVariablesResponse{}
+	secretResp := createSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// set new team profiles (delete + addition)
@@ -272,7 +272,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
 	secretName = "newSecretName"
-	req = secretVariablesRequest{
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_NAME",
@@ -343,7 +343,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
 	secretName = "new2SecretName"
-	req = secretVariablesRequest{
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_NAME",
@@ -386,11 +386,11 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	// add a new profile to the team
 	mcUUID := "a" + uuid.NewString()
-	prof := mcBytesForTest("name-"+mcUUID, "idenfifer-"+mcUUID, mcUUID)
+	prof := mcBytesForTest("name-"+mcUUID, "identifier-"+mcUUID, mcUUID)
 	wantTeamProfiles = append(wantTeamProfiles, prof)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
-		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, []byte("checksum-"+mcUUID))
+		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, test.MakeTestBytes())
 		return err
 	})
 	s.awaitTriggerProfileSchedule(t)
@@ -3552,9 +3552,9 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 			_, err = s.ds.NewMDMAppleConfigProfile(ctx, *tprof, nil)
 			require.NoError(t, err)
 		} else {
-			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, SyncML: []byte(`<Replace></Replace>`)})
+			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, SyncML: []byte(`<Replace></Replace>`)}, nil)
 			require.NoError(t, err)
-			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "t" + name, TeamID: &tm1.ID, SyncML: []byte(`<Replace></Replace>`)})
+			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "t" + name, TeamID: &tm1.ID, SyncML: []byte(`<Replace></Replace>`)}, nil)
 			require.NoError(t, err)
 		}
 	}
@@ -3590,7 +3590,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 			{LabelID: lblFoo.ID, LabelName: lblFoo.Name},
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// make tm2ProfH a "include-any" label-based profile
@@ -3602,7 +3602,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 			{LabelID: lblBaz.ID, LabelName: lblBaz.Name},
 		},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// break lblFoo by deleting it
@@ -4205,10 +4205,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// add a macOS profile to the team
 	mcUUID := "a" + uuid.NewString()
-	prof := mcBytesForTest("name-"+mcUUID, "idenfifer-"+mcUUID, mcUUID)
+	prof := mcBytesForTest("name-"+mcUUID, "identifier-"+mcUUID, mcUUID)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
-		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, []byte("checksum-"+mcUUID))
+		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, test.MakeTestBytes())
 		return err
 	})
 
@@ -5672,7 +5672,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	assertBodyContains(t, res, `Secret variable \"$FLEET_SECRET_BASH\" missing`)
 
 	// Add secret(s) to server
-	req := secretVariablesRequest{
+	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",
@@ -5684,7 +5684,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 			},
 		},
 	}
-	secretResp := secretVariablesResponse{}
+	secretResp := createSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	var resp newMDMConfigProfileResponse
@@ -5855,7 +5855,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	// A unique command is created for each host when this Fleet variable is used.
 	globalProfilesPlusOne := [][]byte{
 		globalProfiles[0],
-		mobileconfigForTest("N2", "$FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP),
+		mobileconfigForTest("N2", "$FLEET_VAR_"+string(fleet.FleetVarHostEndUserEmailIDP)),
 	}
 	// via the deprecated endpoint, this fails because variables are not supported
 	res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
@@ -6523,7 +6523,7 @@ func forceSetAppleHostDeclarationStatus(t *testing.T, ds *mysql.Datastore, hostU
 				status = VALUES(status),
 				operation_type = VALUES(operation_type)
 			`,
-			profile.Identifier, hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.DeclarationUUID)
+			profile.Identifier, hostUUID, actualStatus, operation, test.MakeTestBytes(), profile.Name, profile.DeclarationUUID)
 		return err
 	})
 }
@@ -7005,4 +7005,448 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: newTm1Profiles}, http.StatusNoContent,
 		"team_id", fmt.Sprint(tm1.ID))
+}
+
+func (s *integrationMDMTestSuite) TestWindowsProfilesWithFleetVariables() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a team for team-scoped tests
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test_windows_fleet_vars"})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name            string
+		profiles        []fleet.MDMProfileBatchPayload
+		teamID          *uint
+		wantStatus      int
+		wantErrContains string
+	}{
+		{
+			name: "HOST_UUID variable accepted for team",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "TestHostUUID",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
+					}),
+				},
+			},
+			teamID:     &tm.ID,
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "HOST_UUID variable with braces accepted",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "TestHostUUIDBraces",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "${FLEET_VAR_HOST_UUID}"},
+					}),
+				},
+			},
+			teamID:     &tm.ID,
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "unsupported variable rejected",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "TestUnsupported",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/Serial", Data: "$FLEET_VAR_HOST_HARDWARE_SERIAL"},
+					}),
+				},
+			},
+			teamID:          &tm.ID,
+			wantStatus:      http.StatusUnprocessableEntity,
+			wantErrContains: "Fleet variable $FLEET_VAR_HOST_HARDWARE_SERIAL is not supported in Windows profiles",
+		},
+		{
+			name: "mixed supported and unsupported variables rejected",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "TestMixed",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/Email", Data: "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+					}),
+				},
+			},
+			teamID:          &tm.ID,
+			wantStatus:      http.StatusUnprocessableEntity,
+			wantErrContains: "Fleet variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP is not supported in Windows profiles",
+		},
+		{
+			name: "HOST_UUID variable accepted globally",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "GlobalHostUUID",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
+					}),
+				},
+			},
+			teamID:     nil, // global profile
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "batch with regular and variable profiles accepted",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "RegularProfile",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/Policy/Config/System/AllowLocation", Data: "1"},
+					}),
+				},
+				{
+					Name: "ProfileWithVar",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
+					}),
+				},
+			},
+			teamID:     &tm.ID,
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "multiple HOST_UUID variables in single profile accepted",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "MultipleHostUUID",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "$FLEET_VAR_HOST_UUID"},
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/BackupID", Data: "${FLEET_VAR_HOST_UUID}"},
+					}),
+				},
+			},
+			teamID:     &tm.ID,
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name: "unknown Fleet variable rejected",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "UnknownVar",
+					Contents: syncml.ForTestWithData([]syncml.TestCommand{
+						{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/Policy/Config/System/SomeValue", Data: "${FLEET_VAR_UNKNOWN_VAR}"},
+					}),
+				},
+			},
+			teamID:          &tm.ID,
+			wantStatus:      http.StatusUnprocessableEntity,
+			wantErrContains: "Fleet variable $FLEET_VAR_UNKNOWN_VAR is not supported in Windows profiles",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp *http.Response
+
+			// Execute request with or without team_id
+			if tc.teamID != nil {
+				resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+					batchSetMDMProfilesRequest{Profiles: tc.profiles},
+					tc.wantStatus,
+					"team_id", fmt.Sprint(*tc.teamID))
+			} else {
+				resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+					batchSetMDMProfilesRequest{Profiles: tc.profiles},
+					tc.wantStatus)
+			}
+
+			// Check error message if expected
+			if tc.wantErrContains != "" {
+				errMsg := extractServerErrorText(resp.Body)
+				require.Contains(t, errMsg, tc.wantErrContains)
+			}
+		})
+	}
+}
+
+func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team"})
+	require.NoError(t, err)
+
+	// Create and enroll three Windows hosts (two global, one in team)
+	hostGlobal1, device1 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	hostGlobal2, device2 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	hostTeam, deviceTeam := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// Add the team host to the team
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hostTeam.ID}))
+	require.NoError(t, err)
+
+	// Create profiles with HOST_UUID variable for global and team
+	globalProfile := syncml.ForTestWithData([]syncml.TestCommand{
+		{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/UserSCEP_/SCEP/HostID", Data: "Device ID: $FLEET_VAR_HOST_UUID"},
+	})
+	teamProfile := syncml.ForTestWithData([]syncml.TestCommand{
+		{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/TeamDevice/ID", Data: "Team Device: ${FLEET_VAR_HOST_UUID}"},
+	})
+
+	// Upload global profile
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "GlobalProfileWithVar", Contents: globalProfile},
+		}},
+		http.StatusNoContent)
+
+	// Upload team profile
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "TeamProfileWithVar", Contents: teamProfile},
+		}},
+		http.StatusNoContent,
+		"team_id", fmt.Sprint(tm.ID))
+
+	// Helper to verify profile contains substituted UUID
+	verifyProfileSubstitution := func(device *mdmtest.TestWindowsMDMClient, expectedUUID string, expectedData string) {
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := device.StartManagementSession()
+		require.NoError(t, err)
+
+		// Find the Atomic command containing the profile
+		var foundProfile bool
+		msgID, err := device.GetCurrentMsgID()
+		require.NoError(t, err)
+
+		for _, cmd := range cmds {
+			// Send status response for each command
+			device.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmd.Cmd.CmdID.Value,
+				Cmd:     ptr.String(cmd.Verb),
+				Data:    ptr.String(syncml.CmdStatusOK),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+
+			if cmd.Verb == "Atomic" {
+				// Check if the command contains our expected data with UUID substituted
+				for _, replaceCmd := range cmd.Cmd.ReplaceCommands {
+					for _, item := range replaceCmd.Items {
+						if item.Data != nil && item.Data.Content != "" {
+							if strings.Contains(item.Data.Content, expectedData) {
+								// Verify the UUID was substituted correctly
+								require.Contains(t, item.Data.Content, expectedUUID)
+								require.NotContains(t, item.Data.Content, "$FLEET_VAR_HOST_UUID")
+								require.NotContains(t, item.Data.Content, "${FLEET_VAR_HOST_UUID}")
+								foundProfile = true
+							}
+						}
+					}
+				}
+			}
+		}
+		require.True(t, foundProfile, "Expected profile with UUID substitution not found")
+
+		// Send the response to complete the session
+		cmds, err = device.SendResponse()
+		require.NoError(t, err)
+		// the ack of the message should be the only returned command
+		require.Len(t, cmds, 1)
+	}
+
+	// Verify global hosts receive profile with their UUID substituted
+	verifyProfileSubstitution(device1, hostGlobal1.UUID, "Device ID: "+hostGlobal1.UUID)
+	verifyProfileSubstitution(device2, hostGlobal2.UUID, "Device ID: "+hostGlobal2.UUID)
+
+	// Verify team host receives team profile with UUID substituted
+	verifyProfileSubstitution(deviceTeam, hostTeam.UUID, "Team Device: "+hostTeam.UUID)
+
+	// Check that profile statuses are updated correctly in the database
+	checkHostProfileStatus := func(hostUUID string, profileName string, expectedStatus fleet.MDMDeliveryStatus) {
+		profiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
+		require.NoError(t, err)
+
+		// Find the specific profile by name
+		var foundProfile *fleet.HostMDMWindowsProfile
+		for _, p := range profiles {
+			if p.Name == profileName {
+				foundProfile = &p
+				break
+			}
+		}
+		require.NotNil(t, foundProfile, "Profile %s not found for host %s", profileName, hostUUID)
+		require.NotNil(t, foundProfile.Status, "Profile %s status is nil for host %s", profileName, hostUUID)
+		assert.Equal(t, expectedStatus, *foundProfile.Status, "Profile %s has unexpected status for host %s", profileName, hostUUID)
+	}
+
+	checkHostProfileStatus(hostGlobal1.UUID, "GlobalProfileWithVar", fleet.MDMDeliveryVerifying)
+	checkHostProfileStatus(hostGlobal2.UUID, "GlobalProfileWithVar", fleet.MDMDeliveryVerifying)
+	checkHostProfileStatus(hostTeam.UUID, "TeamProfileWithVar", fleet.MDMDeliveryVerifying)
+
+	// Now let's check profile verification
+	// Also create and test a host without Fleet variables to ensure normal verification still works
+	hostNoVars, deviceNoVars := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// Create a profile without variables
+	profileNoVars := syncml.ForTestWithData([]syncml.TestCommand{
+		{Verb: "Replace", LocURI: "./Device/Vendor/MSFT/DMClient/Provider/ProviderID/Static/Value", Data: "Static Value: NoSubstitution"},
+	})
+
+	// Upload profile without variables
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "ProfileNoVars", Contents: profileNoVars},
+		}},
+		http.StatusNoContent)
+
+	// Let the host get the profile
+	s.awaitTriggerProfileSchedule(t)
+	cmds, err := deviceNoVars.StartManagementSession()
+	require.NoError(t, err)
+	msgID, err := deviceNoVars.GetCurrentMsgID()
+	require.NoError(t, err)
+	for _, cmd := range cmds {
+		deviceNoVars.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID,
+			CmdRef:  &cmd.Cmd.CmdID.Value,
+			Cmd:     ptr.String(cmd.Verb),
+			Data:    ptr.String(syncml.CmdStatusOK),
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+		})
+	}
+	cmds, err = deviceNoVars.SendResponse()
+	require.NoError(t, err)
+	require.Len(t, cmds, 1) // ack
+
+	checkHostProfileStatus(hostNoVars.UUID, "ProfileNoVars", fleet.MDMDeliveryVerifying)
+
+	// To ensure any verification failures result in retry (pending) status instead of staying as verifying,
+	// we need to be outside the grace period. The grace period check is:
+	// hostDetailUpdatedAt.Before(profileEarliestInstallDate.Add(1 hour))
+	//
+	// We need to make sure the host checked in recently (detail_updated_at = now)
+	// but the profiles are old (created more than 1 hour ago)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		// Set profile timestamps to 2 hours ago
+		// IMPORTANT: uploaded_at is used as EarliestInstallDate in verification logic
+		_, err := q.ExecContext(ctx,
+			`UPDATE mdm_windows_configuration_profiles
+			 SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR),
+			     uploaded_at = DATE_SUB(NOW(), INTERVAL 2 HOUR)
+			 WHERE name IN (?, ?, ?)`,
+			"GlobalProfileWithVar", "TeamProfileWithVar", "ProfileNoVars")
+		if err != nil {
+			return err
+		}
+		// Also update the host profile associations to have old timestamps (only created_at)
+		_, err = q.ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles
+			 SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR)
+			 WHERE host_uuid IN (?, ?, ?, ?)`,
+			hostGlobal1.UUID, hostGlobal2.UUID, hostTeam.UUID, hostNoVars.UUID)
+		if err != nil {
+			return err
+		}
+		// Set host detail_updated_at to now (recent check-in)
+		_, err = q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = NOW() WHERE id IN (?, ?, ?, ?)`,
+			hostGlobal1.ID, hostGlobal2.ID, hostTeam.ID, hostNoVars.ID)
+		return err
+	})
+
+	// Helper to simulate osquery reporting back profile data
+	simulateOsqueryProfileReport := func(nodeKey string, profileName string, locURI string, reportedData string) {
+		// Build a SyncML response that osquery would send back after reading the profile from Windows
+		cmdRef := microsoft_mdm.HashLocURI(profileName, locURI)
+
+		var msg fleet.SyncML
+		msg.Xmlns = syncml.SyncCmdNamespace
+		msg.SyncHdr = fleet.SyncHdr{
+			VerDTD:    syncml.SyncMLSupportedVersion,
+			VerProto:  syncml.SyncMLVerProto,
+			SessionID: "2",
+			MsgID:     "2",
+		}
+
+		// Add status response (profile was successfully applied)
+		msg.AppendCommand(fleet.MDMRaw, fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			CmdRef:  &cmdRef,
+			Data:    ptr.String("200"),
+		})
+
+		// Add results with the data that osquery read from Windows
+		msg.AppendCommand(fleet.MDMRaw, fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdResults},
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			CmdRef:  &cmdRef,
+			Items: []fleet.CmdItem{
+				{
+					Target: ptr.String(locURI),
+					Data: &fleet.RawXmlData{
+						Content: reportedData,
+					},
+				},
+			},
+		})
+
+		rawResponse, err := xml.Marshal(msg)
+		require.NoError(t, err)
+
+		// Submit the results via osquery distributed write endpoint
+		distributedReq := SubmitDistributedQueryResultsRequest{
+			NodeKey: nodeKey,
+			Results: map[string][]map[string]string{
+				"fleet_detail_query_mdm_config_profiles_windows": {
+					{"raw_mdm_command_output": string(rawResponse)},
+				},
+			},
+			Statuses: map[string]fleet.OsqueryStatus{
+				"fleet_detail_query_mdm_config_profiles_windows": 0,
+			},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	}
+
+	// First verify that normal profile (without variables) verifies correctly
+	simulateOsqueryProfileReport(
+		*hostNoVars.NodeKey,
+		"ProfileNoVars",
+		"./Device/Vendor/MSFT/DMClient/Provider/ProviderID/Static/Value",
+		"Static Value: NoSubstitution", // osquery reports exactly what was sent
+	)
+
+	// Normal profile should be verified successfully
+	checkHostProfileStatus(hostNoVars.UUID, "ProfileNoVars", fleet.MDMDeliveryVerified)
+
+	// Simulate osquery reporting back for team host
+	simulateOsqueryProfileReport(
+		*hostTeam.NodeKey,
+		"TeamProfileWithVar",
+		"./Device/Vendor/MSFT/DMClient/Provider/ProviderID/TeamDevice/ID",
+		"Team Device: "+hostTeam.UUID, // osquery reports the substituted value
+	)
+
+	// Team host has TeamProfileWithVar which now correctly verifies with Fleet variables
+	// The fix has been implemented and the profile should be verified successfully
+	checkHostProfileStatus(hostTeam.UUID, "TeamProfileWithVar", fleet.MDMDeliveryVerified)
+
+	// Hit the host details API and check the status in the mdm.profiles section
+	// Verify team host
+	var hostRespTeam getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostTeam.ID), getHostRequest{}, http.StatusOK, &hostRespTeam)
+	require.NotNil(t, hostRespTeam.Host.MDM.Profiles)
+	require.Len(t, *hostRespTeam.Host.MDM.Profiles, 1)
+	require.Equal(t, "TeamProfileWithVar", (*hostRespTeam.Host.MDM.Profiles)[0].Name)
+	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespTeam.Host.MDM.Profiles)[0].Status,
+		"Profile should be verified in host details API for team host")
+
+	// Verify no-vars host
+	var hostRespNoVars getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostNoVars.ID), getHostRequest{}, http.StatusOK, &hostRespNoVars)
+	require.NotNil(t, hostRespNoVars.Host.MDM.Profiles)
+	require.Len(t, *hostRespNoVars.Host.MDM.Profiles, 1)
+	require.Equal(t, "ProfileNoVars", (*hostRespNoVars.Host.MDM.Profiles)[0].Name)
+	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespNoVars.Host.MDM.Profiles)[0].Status,
+		"Profile should be verified in host details API for no-vars host")
 }
