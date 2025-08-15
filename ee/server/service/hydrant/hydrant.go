@@ -3,7 +3,6 @@ package hydrant
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -85,9 +84,8 @@ func (s *Service) ValidateHydrantURL(ctx context.Context, hydrantCA fleet.Hydran
 		return ctxerr.Errorf(ctx, "unexpected Hydrant CA content type: %s", contentType)
 	}
 	// For now we are just verifying that there is a body of the reportedly correct format. We could
-	// possibly do more.
-	// TODO: A better implementation would be similar to Digicert's which validates the credentials in
-	// addition to the URL.
+	// possibly do more. A better implementation would be similar to Digicert's which validates the
+	// credentials in addition to the URL but I don't see a way to do that with Hydrant's API.
 	caCerts, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading Hydrant CA response body")
@@ -125,7 +123,7 @@ func (s *Service) GetCertificate(ctx context.Context, hydrantCA fleet.HydrantCA,
 		return nil, ctxerr.Wrap(ctx, err, "reading Hydrant CA response body")
 	}
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Response body: %s\n", string(bytes))
+		s.logger.Log("msg", "unexpected Hydrant CA status code", "status_code", resp.StatusCode, "response_body", string(bytes))
 		return nil, ctxerr.Errorf(ctx, "unexpected Hydrant CA status code: %d", resp.StatusCode)
 	}
 

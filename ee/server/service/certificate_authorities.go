@@ -106,7 +106,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	if p.Hydrant != nil {
 		p.Hydrant.Name = fleet.Preprocess(p.Hydrant.Name)
 		p.Hydrant.URL = fleet.Preprocess(p.Hydrant.URL)
-		if err := validateHydrant(p.Hydrant, errPrefix); err != nil {
+		if err := svc.validateHydrant(ctx, p.Hydrant, errPrefix); err != nil {
 			return nil, err
 		}
 
@@ -281,19 +281,21 @@ func validateDigicertUserPrincipalNames(userPrincipalNames []string, errPrefix s
 	return nil
 }
 
-func validateHydrant(hydrantCA *fleet.HydrantCA, errPrefix string) error {
+func (svc *Service) validateHydrant(ctx context.Context, hydrantCA *fleet.HydrantCA, errPrefix string) error {
 	if err := validateCAName(hydrantCA.Name, errPrefix); err != nil {
 		return err
 	}
 	if err := validateURL(hydrantCA.URL, "Hydrant", errPrefix); err != nil {
 		return err
 	}
-	// TODO HCA Validate Hydrant Parameters by actually connecting to Hydrant(ideally)
 	if hydrantCA.ClientID == "" {
 		return fleet.NewInvalidArgumentError("client_id", fmt.Sprintf("%sInvalid Hydrant Client ID. Please correct and try again.", errPrefix))
 	}
 	if hydrantCA.ClientSecret == "" {
 		return fleet.NewInvalidArgumentError("client_secret", fmt.Sprintf("%sInvalid Hydrant Client Secret. Please correct and try again.", errPrefix))
+	}
+	if err := svc.hydrantService.ValidateHydrantURL(ctx, *hydrantCA); err != nil {
+		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sInvalid Hydrant URL. Please correct and try again.", errPrefix))
 	}
 	return nil
 }
