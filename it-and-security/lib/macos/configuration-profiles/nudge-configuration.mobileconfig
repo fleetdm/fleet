@@ -138,14 +138,15 @@
 						<key>mainContentSubHeader</key>
 						<string>Updates can take around 30 minutes to complete</string>
 						<key>mainContentText</key>
-						<string>Your computer is behind on one or more critical updates and must be updated to the OS Version indicated on the left, by the indicated deadline.
+						<string>Your computer is behind on one or more critical updates and must be updated to the OS Version indicated on the left and by Date Required deadline.
 
 This window will appear periodically to remind you until your computer is fully updated, appearing more frequently as the deadline date gets closer.
-If you fail to update by the deadline, access and functionality may be limited. Please update now to avoid any downtime.
+
+If you fail to update by the deadline, access and functionality may be limited. Please update at your earliest convenience to avoid any downtime or work disruption.
 
 If you have any questions or would like more information, please reach out via #help-it-and-enablement.</string>
 						<key>mainHeader</key>
-						<string>Software updates required</string>
+						<string>Required software update now available</string>
 						<key>oneDayDeferralButtonText</key>
 						<string>One Day</string>
 						<key>oneHourDeferralButtonText</key>
@@ -155,10 +156,31 @@ If you have any questions or would like more information, please reach out via #
 						<key>secondaryQuitButtonText</key>
 						<string>I Understand</string>
 						<key>subHeader</key>
-						<string>A message from IT &amp; Enablement</string>
+						<string>A friendly reminder from the IT &amp; Enablement team</string>
 					</dict>
 				</array>
 			</dict>
+		</dict>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Allow Nudge background tasks</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.servicemanagement.9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
+			<key>PayloadType</key>
+			<string>com.apple.servicemanagement</string>
+			<key>PayloadUUID</key>
+			<string>9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Rules</key>
+			<array>
+				<dict>
+					<key>RuleType</key>
+					<string>BundleIdentifier</string>
+					<key>RuleValue</key>
+					<string>com.github.macadmins.Nudge</string>
+				</dict>
+			</array>
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
