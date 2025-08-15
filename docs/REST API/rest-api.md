@@ -4076,6 +4076,8 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 
+On macOS hosts, `last_opened_at` represents the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again. On Windows and Linux hosts, it represents the last open time of any version.
+
 #### Example
 
 `GET /api/v1/fleet/hosts/123/software`
