@@ -21,6 +21,8 @@ org_settings:
       metadata: |-
         $DOGFOOD_END_USER_SSO_METADATA
       metadata_url: ""
+    end_user_license_agreement:
+      path: ../lib/macos/misc/eula.pdf
     apple_business_manager:
     - organization_name: Fleet Device Management Inc.
       macos_team: "💻 Workstations" 
