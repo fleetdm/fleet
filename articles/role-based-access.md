@@ -90,7 +90,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Connect Android Enterprise                                                                                               |          |            |            | ✅    |         |
 | View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            |           | ✅    | ✅      |
-| Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                                  |          |            | ✅         | ✅    | ✅      |
+| Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                            |          |            | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            | ✅         | ✅    | ✅      |
 | View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅         | ✅    |         |
 | Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                               |          |            | ✅          | ✅    | ✅      |
@@ -167,7 +167,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            |           | ✅    | ✅      |
-| Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                        |               |                | ✅              | ✅         | ✅          |
+| Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                  |               |                | ✅              | ✅         | ✅          |
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Edit [team OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                |               |                | ✅               | ✅         | ✅          |
