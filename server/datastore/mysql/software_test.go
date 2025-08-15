@@ -81,6 +81,7 @@ func TestSoftware(t *testing.T) {
 		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
 		{"TestListHostSoftwareSelfServiceWithLabelScopingHostInstalled", testListHostSoftwareSelfServiceWithLabelScopingHostInstalled},
+		{"TestListHostSoftwareLastOpenedAt", testListHostSoftwareLastOpenedAt},
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 		{"SoftwareCategories", testSoftwareCategories},
 		{"LabelScopingTimestampLogic", testLabelScopingTimestampLogic},
@@ -7830,6 +7831,132 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
+}
+
+func testListHostSoftwareLastOpenedAt(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a host
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+
+	hostInventoryOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                             fleet.ListOptions{Page: 0, PerPage: 20},
+		SelfServiceOnly:                         false,
+		IncludeAvailableForInstall:              false,
+		IncludeAvailableForInstallExplicitlySet: true,
+		OnlyAvailableForInstall:                 false,
+		IsMDMEnrolled:                           true,
+	}
+
+	var err error
+	var parsedTimeOne time.Time
+	var parsedTimeTwo time.Time
+
+	updateSoftwareForHost := func(host *fleet.Host, software []fleet.Software) {
+		mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+		require.NoError(t, err)
+		require.Len(t, mutationResults.Inserted, len(software))
+		err = ds.ReconcileSoftwareTitles(ctx)
+		require.NoError(t, err)
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+		query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`
+		for i := range host.Software {
+			args := []interface{}{host.ID, host.Software[i].ID, fmt.Sprintf("/Applications/%s-%s.app", host.Software[i].Name, host.Software[i].Version)}
+			_, err = ds.writer(ctx).ExecContext(ctx, query, args...)
+			require.NoError(t, err)
+		}
+		require.NoError(t, err)
+	}
+
+	testCases := []struct {
+		name     string
+		before   func(ds *Datastore)
+		testFunc func(*testing.T, *Datastore)
+	}{
+		{
+			name: "older version has been opened, newer version not opened",
+			before: func(ds *Datastore) {
+				parsedTimeOne, err = time.Parse("2006-01-02 15:04", "2025-01-01 12:00")
+				require.NoError(t, err)
+
+				software := []fleet.Software{
+					{ID: 1, Name: "Spotify", Version: "1.2.69.449", LastOpenedAt: &parsedTimeOne, TitleID: ptr.Uint(1), Source: "apps", BundleIdentifier: "com.spotify"},
+					{ID: 2, Name: "Spotify", Version: "1.2.70.409", LastOpenedAt: nil, TitleID: ptr.Uint(1), Source: "apps", BundleIdentifier: "com.spotify"},
+				}
+
+				updateSoftwareForHost(host, software)
+			},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				expectedTimeStamps := map[string]*time.Time{
+					"1.2.69.449": &parsedTimeOne,
+					"1.2.70.409": nil,
+				}
+
+				sw, _, err := ds.ListHostSoftware(ctx, host, hostInventoryOpts)
+				require.NoError(t, err)
+				require.Len(t, sw, 1)
+				require.Len(t, sw[0].InstalledVersions, 2)
+
+				for _, installedVersion := range sw[0].InstalledVersions {
+					version := installedVersion.Version
+					if expectedTime, ok := expectedTimeStamps[version]; ok {
+						require.Equal(t, expectedTime, installedVersion.LastOpenedAt, "LastOpenedAt for version %s does not match expected value", version)
+					} else {
+						require.Nil(t, installedVersion.LastOpenedAt, "LastOpenedAt for version %s is not nil", version)
+					}
+				}
+			},
+		},
+		{
+			name: "Both versions have been opened",
+			before: func(ds *Datastore) {
+				parsedTimeOne, err = time.Parse("2006-01-02 15:04", "2025-01-01 12:00")
+				require.NoError(t, err)
+
+				parsedTimeTwo, err = time.Parse("2006-01-02 15:04", "2025-02-01 12:00")
+				require.NoError(t, err)
+
+				software := []fleet.Software{
+					{ID: 1, Name: "Spotify", Version: "1.2.69.449", LastOpenedAt: &parsedTimeOne, TitleID: ptr.Uint(1), Source: "apps", BundleIdentifier: "com.spotify"},
+					{ID: 2, Name: "Spotify", Version: "1.2.70.409", LastOpenedAt: &parsedTimeTwo, TitleID: ptr.Uint(1), Source: "apps", BundleIdentifier: "com.spotify"},
+				}
+
+				updateSoftwareForHost(host, software)
+			},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				sw, _, err := ds.ListHostSoftware(ctx, host, hostInventoryOpts)
+				require.NoError(t, err)
+				require.Len(t, sw, 1)
+				require.Len(t, sw[0].InstalledVersions, 2)
+
+				expectedTimeStamps := map[string]*time.Time{
+					"1.2.69.449": &parsedTimeOne,
+					"1.2.70.409": &parsedTimeTwo,
+				}
+
+				for _, installedVersion := range sw[0].InstalledVersions {
+					version := installedVersion.Version
+					if expectedTime, ok := expectedTimeStamps[version]; ok {
+						require.Equal(t, expectedTime, installedVersion.LastOpenedAt, "LastOpenedAt for version %s does not match expected value", version)
+					} else {
+						require.Nil(t, installedVersion.LastOpenedAt, "LastOpenedAt for version %s is not nil", version)
+					}
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+
+			tc.before(ds)
+
+			tc.testFunc(t, ds)
+		})
+	}
 }
 
 func testListHostSoftwareSelfServiceWithLabelScopingHostInstalled(t *testing.T, ds *Datastore) {
