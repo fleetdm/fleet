@@ -18,6 +18,8 @@ describe("SoftwareUninstallDetailsModal - StatusMessage component", () => {
         isDUP={false}
       />
     );
+
+    expect(screen.queryByTestId("pending-outline-icon")).toBeInTheDocument();
     expect(
       screen.getByText(/is uninstalling or will uninstall/)
     ).toBeInTheDocument();
@@ -38,6 +40,8 @@ describe("SoftwareUninstallDetailsModal - StatusMessage component", () => {
         contactUrl="http://support"
       />
     );
+
+    expect(screen.queryByTestId("error-icon")).toBeInTheDocument();
     expect(screen.getByText(/failed to uninstall/)).toBeInTheDocument();
     expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
     expect(screen.queryByText(/Test Host/)).not.toBeInTheDocument(); // Do not render host name
@@ -54,6 +58,8 @@ describe("SoftwareUninstallDetailsModal - StatusMessage component", () => {
         contactUrl="http://support"
       />
     );
+
+    expect(screen.queryByTestId("error-icon")).toBeInTheDocument();
     expect(screen.getByText(/failed to uninstall/)).toBeInTheDocument();
     expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
     expect(screen.getByText(/Test Host/)).toBeInTheDocument(); // Render host name
@@ -71,6 +77,8 @@ describe("SoftwareUninstallDetailsModal - StatusMessage component", () => {
         isDUP={false}
       />
     );
+
+    expect(screen.queryByTestId("success-icon")).toBeInTheDocument();
     expect(screen.getByText(/Fleet uninstalled/)).toBeInTheDocument();
     expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
     expect(screen.getByText(/Test Host/)).toBeInTheDocument();
