@@ -161,6 +161,27 @@ If you have any questions or would like more information, please reach out via #
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Allow Nudge background tasks</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.servicemanagement.9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
+			<key>PayloadType</key>
+			<string>com.apple.servicemanagement</string>
+			<key>PayloadUUID</key>
+			<string>9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Rules</key>
+			<array>
+				<dict>
+					<key>RuleType</key>
+					<string>BundleIdentifier</string>
+					<key>RuleValue</key>
+					<string>com.github.macadmins.Nudge</string>
+				</dict>
+			</array>
+		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
 	<string>Nudge settings</string>
