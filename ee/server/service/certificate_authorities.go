@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"net/http"
@@ -433,4 +435,52 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 	}
 
 	return nil
+}
+
+func extractCSRUPN(csr *x509.CertificateRequest) (*string, error) {
+	sanOID := asn1.ObjectIdentifier{2, 5, 29, 17}
+	upnOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}
+	for _, ext := range csr.Extensions {
+		if ext.Id.Equal(sanOID) {
+			nameValues := []asn1.RawValue{}
+			if _, err := asn1.Unmarshal(ext.Value, &nameValues); err != nil {
+				// TODO Wrap err logger.Log("msg", "Failed to unmarshal SAN extension", "error", err)
+				return nil, err
+			}
+			for _, names := range nameValues {
+				// We are looking for the othernames in the SAN extension(tag 0)
+				if names.Tag == 0 {
+					var oid asn1.ObjectIdentifier
+					var rawValue asn1.RawValue
+					var err error
+					remainingBytes := names.Bytes
+					for len(remainingBytes) > 0 {
+						// Parse the sequence of OIDs and Values looking for the UPN OID
+						remainingBytes, err = asn1.Unmarshal(names.Bytes, &oid)
+						if err != nil {
+							// TODO Wrap err logger.Log("msg", "Failed to unmarshal othername OID", "error", err)
+							return nil, err
+						}
+						remainingBytes, err = asn1.Unmarshal(remainingBytes, &rawValue)
+						if err != nil {
+							// TODO Wrap err logger.Log("msg", "Failed to unmarshal othername value", "error", err)
+							return nil, err
+						}
+						if oid.Equal(upnOID) {
+							// UPN found, now to unmarshal its value
+							var upn asn1.RawValue
+
+							if _, err := asn1.Unmarshal(rawValue.Bytes, &upn); err != nil {
+								// TODO Wrap err logger.Log("msg", "Failed to unmarshal UPN value", "error", err)
+								return nil, err
+							}
+							upnString := string(upn.Bytes)
+							return &upnString, nil
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil, nil // No UPN found
 }
