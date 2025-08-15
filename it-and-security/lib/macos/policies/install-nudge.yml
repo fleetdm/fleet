@@ -1,5 +1,5 @@
 - name: macOS - Nudge installed and configured
-  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM macos_profiles WHERE identifier = "com.fleetdm.nudge.preferences") AND EXISTS (SELECT 1 FROM apps WHERE name = "Nudge");
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM macos_profiles WHERE identifier = "com.fleetdm.nudge.managed") AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = "com.github.macadmins.Nudge");
   critical: false
   description: This policy ensures the Nudge is installed and configured.
   resolution: "If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-it-and-enablement."
