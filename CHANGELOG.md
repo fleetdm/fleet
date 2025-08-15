@@ -1,3 +1,78 @@
+## Fleet 4.73.0 (Aug 15, 2025)
+
+### Bug fixes
+
+* Fixed cases where the uninstall script population job introduced in Fleet 4.57.0 would attempt to extract package IDs on software that we don't generate uninstall scripts for, causing errors in logs and retries of the job.
+Clear label membership when label platform changes (via GitOps).
+* Revised stale vulnerabilities deletion (for false positive cleanup) to clear vulnerabilities touched before the current vulnerabilities run, instead of using a hard-coded threshold based on how often the vulns cron runs.
+- add permissions to os updates page so that only global admins and the team admin can see the page
+* Fleet UI: Removed unintended broken sort on Fleet Desktop > Software > type column
+- Validate Gitops mode URL on frontend and backend
+Fixed potential panic in error handler when Redis is down.
+* When multiple version of a software are installed the last used timestamp for each version is properly returned in the host inventory
+* Mark DDM profiles as failed if response comes back with Unknown Declaration Type error, and improve upload validation for declaration type.
+* Added new global activity created when a new disk encryption key is escrowed.
+- `fleetctl api` now supports sending data in the body of non-GET requests using the `-F` flag.
+  - For methods other than `GET`, using the syntax `-F field=<path`, the file at "path" will be read and the field will be set to the file's contents.
+  - For methods other than `GET`, using the syntax `-F field=@path`, the file at "path" will be uploaded as a multipart upload.
+  - When no file uploads are present, the body is encoded as a JSON dictionary.
+  - To ensure JSON values can be passed correctly, it is no longer possible to set multiple values for a repeatable flag using a comma (`,`). You must now specify the flag multiple times.
+  - `fleetctl` will attempt to parse values as JSON. If successful, the value will be embedded in the JSON body. For example, `fleetctl api -F field=true endpoint` will encode as `{"field":true}`. To use the literal string "true", write `-F 'field="true"'`.
+  - If the value cannot be parsed as JSON, it is sent as a string.
+  - When `--debug` is specified, the body is written to standard error, unless it contains non-Unicode characters.
+  - To upload a software package, use `fleetctl api -X POST -F software=@/path/to/software.pkg -F team_id=0 -F install_script=... -F uninstall_script=... software/package`
+* Added new detail query, only executed if TPM PIN enforcement is required, for determining whether a BitLocker PIN is set.
+* Fixes a potential race condition issue, where a host might get released because no profiles has been sent for installation before releasing the device, by checking the currently installed profiles against what is expected.
+- Added backend APIs for adding, deleting and listing secret variables.
+- Modified `PUT /api/v1/fleet/spec/secret_variables` endpoint to only accept secret variables with uppercase letters, numbers and underscores.
+* Fixed invalid rate limiting applied on Fleet Desktop requests for which a public IP could not be determined.
+* Improved public IP extraction for Fleet Desktop requests.
+- Fleet UI: Fixed VPP token dropdown to allow user to choose "All teams" selection
+- Added "Get batch script" and "List batch scripts" APIs
+* Do not log an error if EULA is missing for the `/setup_experience/eula/metadata` endpoint
+- Updated macOS 15 CIS policies to align with CIS Benchmark v1.1.0 (from v1.0.0).
+- Updated macOS 14 CIS policies to align with CIS Benchmark v2.1.0 (from v2.0.0).
+- Updated macOS 13 CIS policies to align with CIS Benchmark v3.1.0 (from v3.0.0).
+- Add cron job to launch scheduled batch scripts
+* Loosened validation during gitops dry runs for software installer install/uninstall scripts that contain fleet secrets 
+- Added ability to add and delete custom variables in the UI
+* Allowed filtering host and team software by minimum and maximum CVSS score in the Fleet Premium UI
+* Updated go to 1.24.6
+Added missing checks for invalid values before trying to store them in DB.
+- Added batch script cancel endpoint
+* Fixed an issue where windows configuration profiles fails to validate due to escaping data sequence with `<![CDATA[...]]>` and profile verifier not stripping this away.
+* Fixed an issue where a host could be stuck with a "Unlock Pending" label even if the unlock script was canceled.
+* Allowed overriding install/uninstall scripts, and specifying pre-install queries and post-install scripts, for Fleet-maintained apps in GitOps
+- Added the ability to filter the hosts list to those hosts that were incompatible with the script in a batch run.
+Added additional logging information for Windows MDM discovery endpoint when errors occur.
+* Add support for last opened time for Linux software (DEB & RPM packages)
+- Added the ability to cancel batch script runs directly from the summary modal
+* Build side navigation on the Controls > Scripts page, with the previous Scripts page content under
+the "Library" tab and a new "Batch progress" tab containing details about started, scheduled, and
+finished scripts.
+- update styles for turn on mdm info banner button
+Fixed 5XX errors on /api/v1/fleet/calendar/webhook/* endpoint due to missing authorization checks.
+* Fixed server panic when listing software titles for "All teams" with page that contains a software title with a policy automation in "No team".
+- DEB and RPM packages generated by `fleetctl package` will now be safe to upgrade in-band through the Software page.
+  - Note that the package will need to be updated out-of-band once, because the pre-removal script from previously-generated packages is called upon an upgrade. The old pre-removal script stopped Orbit unconditionally.
+  - In other words, fleet-osquery can safely be updated through the Software page only _after_ a new package generated with this version of fleetctl has been installed through other means.
+* Added indication of whether software on a host was never opened, vs. being a software type where last opened time collection is not supported
+- Fixed operating system icons from accidentally bleeding into software icons
+Added support of $FLEET_VAR_HOST_UUID in Windows MDM configuration profiles.
+- add issuer and issued cells to the host details and my device page certificates table
+- Individual script executions from batch jobs are now hidden from the global feed
+- Batch execution IDs are now included in script run activities
+- Show kernel vulnerabilities in the operating system details page for Linux like systems
+* Attested the signed Windows Orbit binary instead of the unsigned one.
+* For both Fleet desktop and Osquery for macOS and Windows artifacts,
+  attested the binaries inside archives.
+* Made sure that if disk encryption is enabled and a TPM PIN is required, the user is able to set a TPM PIN protector.
+Updated Fleet's certificate ingestion to accept non-standard country codes of longer than 2 characters. In addition, updated ingestion of other fields to truncate long values and log an error instead of failing.
+* Added automatic install policies into host software responses
+* Added host identity certificate renewal support for TPM-backed certificates (Linux-only). When a certificate is within 180 days of expiration, orbit will automatically renew it using proof-of-possession with the existing certificate's private key.
+- Added ability to schedule batch script runs in advance to the "Run scripts" modal
+* Remove `DeferForceAtUserLoginMaxBypassAttempts` from FileVault profile, to use default value of 0 to indicate the FileVault enforcement can not be deferred on next login.
+
 ## Fleet 4.72.1 (Aug 27, 2025)
 
 ### Bug fixes
