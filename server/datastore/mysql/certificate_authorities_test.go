@@ -8,7 +8,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -226,7 +225,7 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 
 		// Try to create the same CA again, it should return an error
 		_, err = ds.NewCertificateAuthority(ctx, ca)
-		require.Error(t, err)
+		require.ErrorAs(t, err, &fleet.ConflictError{})
 
 		// Get the CA and ensure it matches with and without secrets
 		retrievedCA, err := ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
@@ -304,6 +303,8 @@ func testListCertificateAuthorities(t *testing.T, ds *Datastore) {
 	// list is empty
 	cas, err := ds.ListCertificateAuthorities(ctx)
 	require.NoError(t, err)
+	// Should return an empty list, not nil
+	require.NotNil(t, cas)
 	require.Empty(t, cas)
 
 	// testCreateCertificateAuthority will create several CAs and test this list method more thoroughly
@@ -312,26 +313,26 @@ func testListCertificateAuthorities(t *testing.T, ds *Datastore) {
 func testDeleteCertificateAuthority(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	var count int
-	// TODO: Replace with get single CA once implemented
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, "SELECT COUNT(*) FROM certificate_authorities WHERE id = ?", 1)
-	require.NoError(t, err)
-	require.EqualValues(t, 0, count)
-	// TODO: ^END
+	ca, err := ds.GetCertificateAuthorityByID(ctx, 1, true)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, ca)
 
-	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
-		Type: "hydrant",
+	ca, err = ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeHydrant),
 	})
 	require.NoError(t, err)
 
-	// TODO: Replace with get single CA once implemented
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, "SELECT COUNT(*) FROM certificate_authorities WHERE id = ?", ca.ID)
+	ca, err = ds.GetCertificateAuthorityByID(ctx, 1, true)
 	require.NoError(t, err)
-	require.EqualValues(t, 1, count)
-	// TODO: ^END
+	require.NotNil(t, ca)
 
 	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
 	require.NoError(t, err)
+
+	deletedCA, err := ds.GetCertificateAuthorityByID(ctx, 1, true)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, deletedCA)
 
 	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
 	require.Error(t, err)
