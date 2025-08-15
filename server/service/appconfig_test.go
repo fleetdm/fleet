@@ -1120,6 +1120,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:        "ssoMissingMetadata",
