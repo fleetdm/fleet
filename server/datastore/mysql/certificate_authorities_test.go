@@ -322,15 +322,16 @@ func testDeleteCertificateAuthority(t *testing.T, ds *Datastore) {
 		Type: string(fleet.CATypeHydrant),
 	})
 	require.NoError(t, err)
+	require.NotNil(t, ca)
 
-	ca, err = ds.GetCertificateAuthorityByID(ctx, 1, true)
+	ca, err = ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
 	require.NoError(t, err)
 	require.NotNil(t, ca)
 
 	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
 	require.NoError(t, err)
 
-	deletedCA, err := ds.GetCertificateAuthorityByID(ctx, 1, true)
+	deletedCA, err := ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, deletedCA)
 
