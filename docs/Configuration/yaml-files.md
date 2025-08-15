@@ -396,7 +396,6 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (c
 - `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`
 - `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
 - `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`
-- `$FLEET_VAR_HYDRANT_DATA_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [hydrant](#hydrant).)
 
 The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
 
