@@ -164,6 +164,8 @@ incompatible or cancelled."
             <p>You cannot undo this action.</p>
             <div className="modal-cta-wrap">
               <Button
+                isLoading={isCanceling}
+                disabled={isCanceling}
                 onClick={() =>
                   onConfirmCancel(details.batch_execution_id || "")
                 }
