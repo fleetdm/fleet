@@ -1213,9 +1213,35 @@ func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID stri
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
-
 	if err := svc.ds.CancelBatchScript(ctx, batchExecutionID); err != nil {
 		return ctxerr.Wrap(ctx, err, "canceling batch script")
+	}
+
+	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting canceled activity stats")
+	}
+
+	ctxUser := authz.UserFromContext(ctx)
+
+	targeted := uint(0)
+	if batchActivity.NumTargeted != nil {
+		// No nil dereference in case this is not set for some reason
+		targeted = *batchActivity.NumTargeted
+	}
+
+	canceled := uint(0)
+	if batchActivity.NumCanceled != nil {
+		canceled = *batchActivity.NumCanceled
+	}
+
+	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptCanceled{
+		BatchExecutionID: batchExecutionID,
+		ScriptName:       batchActivity.ScriptName,
+		HostCount:        targeted,
+		CanceledCount:    canceled,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for cancel batch script")
 	}
 
 	return nil
