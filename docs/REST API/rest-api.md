@@ -6297,6 +6297,7 @@ Delete an EULA file.
 
 _Available in Fleet Premium_
 
+
 Download an EULA file
 
 `GET /api/v1/fleet/setup_experience/eula/:token`
@@ -6327,12 +6328,17 @@ Body: <blob>
 
 _Available in Fleet Premium_
 
-List software that can or will be automatically installed during macOS setup. If `install_during_setup` is `true` it will be installed during setup.
+> `GET /api/v1/fleet/setup_experience/software` is deprecated as of Fleet 4.74.0. It is maintained for backwards compatibility. Please use `GET /api/v1/fleet/setup_experience/macos/software` to list macOS software for setup experience.
 
-`GET /api/v1/fleet/setup_experience/software`
+List software that can or will be automatically installed during macOS or Linux setup. If `install_during_setup` is `true` it will be installed during setup.
+
+`GET /api/v1/fleet/setup_experience/:platform/software`
+
+#### Parameters
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
+| platform | path  | query | **Required.** Platform to show compatible software for. Either `"macos"` or `"linux"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
@@ -6340,7 +6346,7 @@ List software that can or will be automatically installed during macOS setup. If
 
 #### Example
 
-`GET /api/v1/fleet/setup_experience/software?team_id=3`
+`GET /api/v1/fleet/setup_experience/macos/software?team_id=3`
 
 ##### Default response
 
@@ -6395,18 +6401,23 @@ List software that can or will be automatically installed during macOS setup. If
 
 _Available in Fleet Premium_
 
+> `PUT /api/v1/fleet/setup_experience/software` is deprecated as of Fleet 4.74.0. It is maintained for backwards compatibility. Please use `PUT /api/v1/fleet/setup_experience/macos` to update macOS setup experience software.
+
 Set software that will be automatically installed during macOS setup. Software that isn't included in the request will be unset.
 
-`PUT /api/v1/fleet/setup_experience/software`
+`PUT /api/v1/fleet/setup_experience/:platform/software`
+
+#### Parameters
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
+| platform | path  | query | **Required.** Platform to update software for. Either `"macos"` or `"linux"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
-| software_title_ids | array | body | The ID of software titles to install during macOS setup. |
+| software_title_ids | array | body | The ID of software titles to install during setup. |
 
 #### Example
 
-`PUT /api/v1/fleet/setup_experience/software?team_id=3`
+`PUT /api/v1/fleet/setup_experience/macos/software?team_id=3`
 
 ##### Default response
 
