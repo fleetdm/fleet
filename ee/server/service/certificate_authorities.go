@@ -309,3 +309,38 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	}
 	return nil
 }
+
+func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	ca, err := svc.ds.DeleteCertificateAuthority(ctx, certificateAuthorityID)
+	if err != nil {
+		return err
+	}
+
+	var activity fleet.ActivityDetails
+	switch ca.Type {
+	case string(fleet.CATypeCustomSCEPProxy):
+		activity = fleet.ActivityDeletedCustomSCEPProxy{
+			Name: ca.Name,
+		}
+	case string(fleet.CATypeDigiCert):
+		activity = fleet.ActivityDeletedDigiCert{
+			Name: ca.Name,
+		}
+	case string(fleet.CATypeNDESSCEPProxy):
+		activity = fleet.ActivityDeletedNDESSCEPProxy{}
+	case string(fleet.CATypeHydrant):
+		activity = fleet.ActivityDeletedHydrant{
+			Name: ca.Name,
+		}
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+		return err
+	}
+
+	return nil
+}
