@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,9 +23,11 @@ func TestCertificateAuthority(t *testing.T) {
 		{"GetAllCertificateAuthorities", testGetAllCertificateAuthorities},
 		{"ListCertificateAuthorities", testListCertificateAuthorities},
 		{"CreateCertificateAuthority", testCreateCertificateAuthority},
+		{"Delete", testDeleteCertificateAuthority},
 	}
 
 	for _, c := range cases {
+		t.Helper()
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
 			c.fn(t, ds)
@@ -304,4 +307,33 @@ func testListCertificateAuthorities(t *testing.T, ds *Datastore) {
 	require.Empty(t, cas)
 
 	// testCreateCertificateAuthority will create several CAs and test this list method more thoroughly
+}
+
+func testDeleteCertificateAuthority(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var count int
+	// TODO: Replace with get single CA once implemented
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, "SELECT COUNT(*) FROM certificate_authorities WHERE id = ?", 1)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, count)
+	// TODO: ^END
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: "hydrant",
+	})
+	require.NoError(t, err)
+
+	// TODO: Replace with get single CA once implemented
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, "SELECT COUNT(*) FROM certificate_authorities WHERE id = ?", ca.ID)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, count)
+	// TODO: ^END
+
+	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
+	require.NoError(t, err)
+
+	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not found")
 }

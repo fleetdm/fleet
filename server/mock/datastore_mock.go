@@ -1457,6 +1457,8 @@ type GetAllCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets b
 
 type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
 
+type DeleteCertificateAuthorityFunc func(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error)
+
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type DataStore struct {
@@ -3610,6 +3612,9 @@ type DataStore struct {
 
 	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
 	ListCertificateAuthoritiesFuncInvoked bool
+	
+	DeleteCertificateAuthorityFunc        DeleteCertificateAuthorityFunc
+	DeleteCertificateAuthorityFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -8634,6 +8639,13 @@ func (s *DataStore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.Ce
 	s.ListCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListCertificateAuthoritiesFunc(ctx)
+}
+
+func (s *DataStore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error) {
+	s.mu.Lock()
+	s.DeleteCertificateAuthorityFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCertificateAuthorityFunc(ctx, certificateAuthorityID)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

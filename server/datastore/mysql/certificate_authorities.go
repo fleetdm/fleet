@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
@@ -303,4 +304,40 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	}
 	ca.ID = uint(id) //nolint:gosec // dismiss G115
 	return ca, nil
+}
+
+func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error) {
+	stmt := `
+	SELECT
+		id, name, type
+	FROM
+		certificate_authorities
+	WHERE
+		id = ?
+	`
+
+	var ca fleet.CertificateAuthoritySummary
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &ca, stmt, certificateAuthorityID); err != nil {
+		if strings.Contains(err.Error(), "no rows in result set") {
+			return nil, common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "check certificate authority existence")
+	}
+
+	stmt = "DELETE FROM certificate_authorities WHERE id = ?"
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateAuthorityID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("deleting certificate authority with id %d", certificateAuthorityID))
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting rows affected by delete certificate authority")
+	}
+
+	if rowsAffected < 1 {
+		return nil, common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
+	}
+
+	return &ca, nil
 }
