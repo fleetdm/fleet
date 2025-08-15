@@ -20,7 +20,7 @@ Following are the currently deployed versions of fleetd components on the `stabl
 |--------------|--------|--------|---------|---------------|-----------------|
 | orbit        | 1.45.1 | 1.45.1 | 1.45.1  | 1.45.1        | 1.45.1          |
 | desktop      | 1.45.1 | 1.45.1 | 1.45.1  | 1.45.1        | 1.45.1          |
-| osqueryd     | 5.18.1 | 5.18.1 | 5.18.1  | 5.18.1        | 5.18.1          |
+| osqueryd     | 5.19.0 | 5.19.0 | 5.19.0  | 5.19.0        | 5.19.0          |
 | nudge        | -      | -      | -       | -             | -               |
 | swiftDialog  | -      | -      | -       | -             | -               |
 | escrowBuddy  | -      | -      | -       | -             | -               |
