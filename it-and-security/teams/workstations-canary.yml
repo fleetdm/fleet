@@ -186,6 +186,7 @@ software:
     - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
     - path: ../lib/macos/software/nudge.yml # Nudge for macOS 
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
+    - path: ../lib/macos/software/nudge-launchagent.yml # Nudge LaunchAgent for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
