@@ -2263,8 +2263,14 @@ type Datastore interface {
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
-
+	// NewCertificateAuthority creates a new certificate authority.
 	NewCertificateAuthority(ctx context.Context, ca *CertificateAuthority) (*CertificateAuthority, error)
+	// GetCertificateAuthorityByID gets a certificate authority by its ID.
+	GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*CertificateAuthority, error)
+	// GetAllCertificateAuthorities returns all certificate authorities.
+	GetAllCertificateAuthorities(ctx context.Context, includeSecrets bool) ([]*CertificateAuthority, error)
+	// ListCertificateAuthorities returns a summary of all certificate authorities.
+	ListCertificateAuthorities(ctx context.Context) ([]*CertificateAuthoritySummary, error)
 	// DeleteCertificateAuthority deletes the certificate authority of the provided ID, returns not found if it does not exist
 	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*CertificateAuthoritySummary, error)
 

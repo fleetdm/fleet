@@ -15,6 +15,31 @@ import (
 	"github.com/go-kit/log/level"
 )
 
+func (svc *Service) GetCertificateAuthority(ctx context.Context, id uint) (*fleet.CertificateAuthority, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, id, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return ca, nil
+}
+
+func (svc *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+	cas, err := svc.ds.ListCertificateAuthorities(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return cas, nil
+}
+
 func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.CertificateAuthorityPayload) (*fleet.CertificateAuthority, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -297,6 +322,9 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 }
 
 func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fleet.CustomSCEPProxyCA, errPrefix string) error {
+	if err := validateCAName(customSCEP.Name, errPrefix); err != nil {
+		return err
+	}
 	if err := validateURL(customSCEP.URL, "SCEP", errPrefix); err != nil {
 		return err
 	}
