@@ -19,9 +19,11 @@ The **Customer ID** _must be collected_ during the installation to activate the 
 
 Adding the platfom-specifc scripts below to the CrowdStrike Falcon custom package settings in Fleet will allow the host on which the application has been installed to collect the **Customer ID** for activation in the CrowdStrike tenant. 
 
->After following the instructions above to upload a CrowdStrike Falcon package, you can click on **Advanced options** to expand the **Custom package** settings and reveal the **Post-install script** field for pasting in a script. See the screen shot below for details. For further reference, Crowdstrike Falcon scripts and install documentation can be found at: https://github.com/CrowdStrike/falcon-scripts
+>After following the instructions above to upload a CrowdStrike Falcon package, you can click on **Advanced options** to expand the **Custom package** settings and reveal the **Post-install script** field for pasting in a script. See the screen shot below for details.
 
 ![Add software advanced options](../website/assets/images/articles/fleet-crowdstrike-post-install-script-800x450@2x.png)
+
+For further reference, Crowdstrike Falcon scripts and install documentation can be found at: https://github.com/CrowdStrike/falcon-scripts
 
 ## macOS
 
@@ -53,7 +55,7 @@ fi
 
 CrowdStrike Falcon requires multiple `.mobileconfig` payloads on macOS.
 
->[Download the required CrowdStrike Falcon macOS Configuration Profiles](https://github.com/fleetdm/fleet/tree/main/assets/configuration-profiles)
+>The payloads can be combined and delivered as a single Configuration Profile, or, delivered in separate Configuration Profiles for modularity and easier reading.
 
 Below is an explanation of what each of the macOS CrowdStrike Falcon payloads does:
 
@@ -63,7 +65,11 @@ Below is an explanation of what each of the macOS CrowdStrike Falcon payloads do
 - `crowdstrike-web-filter.mobileconfig` - Enable web filtering to monitor network traffic at the socket level.
 - `crowdstrike-full-disk-access.mobileconfig` - Grant full disk access to all CrowdStrike application processes using the CrowdStrike Apple Developer team identifier.
 
-These payloads can be combined and delivered as a single Configuration Profile, or, delivered in separate Configuration Profiles for modularity and easier reading.
+[Download the CrowdStrike Falcon macOS Configuration Profiles](https://github.com/fleetdm/fleet/tree/main/assets/configuration-profiles)
+
+>To upload Configuration Profiles to Fleet: go to **Controls > OS SEttings > Custom settings** then click **Add Profile**. See the screen shot below for details.
+
+<!-- Mike T Please add screen shot here -->
 
 ## Linux
 
