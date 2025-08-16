@@ -93,6 +93,7 @@ spec:
   refetch_critical_queries_until: null
   scripts_enabled: null
   seen_time: "0001-01-01T00:00:00Z"
+  software: []
   software_updated_at: "0001-01-01T00:00:00Z"
   status: offline
   team_id: null
