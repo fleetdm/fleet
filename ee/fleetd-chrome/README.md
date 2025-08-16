@@ -79,7 +79,7 @@ npm run test
    4. Select the production extension (fleeedmmihkfkeemmipgmhhjemlljidg), change its installation policy to "Block", and save your changes. This will remove the production extension from the selected devices so that you can test the beta.
    5. Select the beta extension (bfleegjcoffelppfmadimianphbcdjkb), change its installation policy to "Force install" and save your change. This will push the beta extension out to the selected devices.
    6. Verify that the beta extension has installed on a device using the Chrome extension manager, and test your changes!
-7. Once the beta release is tested and PR merged, tag the commit with `fleetd-chrome-vX.X.X`. This will trigger the release workflow.
+7. Once the beta release is tested, make a PR with the updates to the version and changelog and tag the commit with `fleetd-chrome-vX.X.X`. This will trigger the release workflow. 
 8. In the Google admin console, set the beta extension installation policy to "Block" and the production extension to "Force install".
 9. Announce the release in the #help-engineering channel in Slack.
 
