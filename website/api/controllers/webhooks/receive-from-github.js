@@ -28,19 +28,14 @@ module.exports = {
 
   fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label, release, projects_v2_item: projectsV2Item}) {
 
-    let ghNoun = this.req.get('X-GitHub-Event');// See https://developer.github.com/v3/activity/events/types/
-
-    // Platform doesn't apply to GitHub Projects V2 items, which has engineering metrics stored in BigQuery.
-    if (ghNoun !== 'projects_v2_item') {
-      // Grab the set of GitHub pull request numbers the bot considers "unfrozen" from the platform record.
-      // If there is more than one platform record, or it is missing, we'll throw an error.
-      let platformRecords = await Platform.find();
-      let platformRecord = platformRecords[0];
-      if(!platformRecord) {
-        throw new Error(`Consistency violation: when the GitHub webhook received an event, no platform record was found.`);
-      } else if(platformRecords.length > 1) {
-        throw new Error(`Consistency violation: when the GitHub webhook received an event, more than one platform record was found.`);
-      }
+    // Grab the set of GitHub pull request numbers the bot considers "unfrozen" from the platform record.
+    // If there is more than one platform record, or it is missing, we'll throw an error.
+    let platformRecords = await Platform.find();
+    let platformRecord = platformRecords[0];
+    if(!platformRecord) {
+      throw new Error(`Consistency violation: when the GitHub webhook received an event, no platform record was found.`);
+    } else if(platformRecords.length > 1) {
+      throw new Error(`Consistency violation: when the GitHub webhook received an event, more than one platform record was found.`);
     }
 
     // let pocketOfPrNumbersUnfrozen = platformRecord.currentUnfrozenGitHubPrNumbers;
@@ -140,6 +135,9 @@ module.exports = {
     }//•
 
     let issueOrPr = (pr || issue || undefined);
+
+
+    let ghNoun = this.req.get('X-GitHub-Event');// See https://developer.github.com/v3/activity/events/types/
     sails.log.verbose(`Received GitHub webhook request: ${ghNoun} :: ${action}: ${require('util').inspect({sender, repository: _.isObject(repository) ? repository.full_name : undefined, comment, label, issueOrPr}, {depth:null})}`);
 
     if (
