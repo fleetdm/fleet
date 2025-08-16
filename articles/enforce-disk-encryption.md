@@ -94,7 +94,7 @@ First, in Fleet, head to the host's **Host details** page in Fleet and check it'
 
 #### On (automatic)
 
-1. Login to [Microsoft Azure](portal.azure.com) (Entra) and navigate to the **Users** page.
+1. Login to [Microsoft Azure](https://portal.azure.com) (Entra) and navigate to the **Users** page.
 
 2. Select the end user's user and select **Reset password**.
 
