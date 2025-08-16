@@ -1,3 +1,4 @@
+<img width="66" height="16" alt="image" src="https://github.com/user-attachments/assets/b35b9258-dcef-4504-85fa-20a48c300945" />
 # Finance
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
@@ -153,7 +154,8 @@ To create a new invoice for a Fleet customer, follow these steps:
    - Validate if the email from the signed subscription agreement matches with the email in the email field on the invoice.
    - Make sure the start and end dates of the contract and amount match the subscription agreement.
    - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
-   - Ensure the wiring instructions for payment via SVB are listed in in the invoice. 
+   - Ensure the wiring instructions for payment via SVB are listed in in the invoice.
+   - For invoices that are not on annual payment schedule, note the invoicing schedule and invoice amount in the notes section of the invoice. 
 6. Download the completed invoice as a PDF.
    - Rename the pdf copy `[invoice number] Fleet invoice - [customer name]`.
    - Save a copy of the PDF into the invoice folder.
