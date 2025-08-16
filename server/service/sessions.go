@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -393,6 +395,20 @@ func deleteSSOCookie(w http.ResponseWriter) {
 	})
 }
 
+const cookieNameBYODAuthenticated = "__Host-FLEETSSOBYOD"
+
+func setBYODCookie(w http.ResponseWriter, value string, cookieDurationSeconds int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieNameBYODAuthenticated,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   cookieDurationSeconds,
+		Secure:   cookieSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode, // should be fine for this use-case
+	})
+}
+
 func (r initiateSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	setSSOCookie(w, r.sessionID, r.sessionDurationSeconds)
 }
@@ -480,6 +496,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(
 		ctx, samlProvider, svc.ssoSessionStore, redirectURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		"",
 	)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
@@ -498,7 +515,7 @@ type callbackSSORequest struct {
 }
 
 func (c callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	sessionID, samlResponse, err := decodeCallbackRequest(ctx, r)
+	sessionID, samlResponse, _, err := decodeCallbackRequest(ctx, r)
 	if err != nil {
 		return nil, err
 	}
@@ -511,6 +528,7 @@ func (c callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) 
 func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 	sessionID string,
 	decodedSAMLResponse []byte,
+	relayState string,
 	err error,
 ) {
 	cs, err := r.Cookie(cookieNameSSOSession)
@@ -520,32 +538,36 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 	case errors.Is(err, http.ErrNoCookie):
 		// SessionID cookie will be empty on IdP-initiated logins.
 	default:
-		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return "", nil, "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "failed to read SSO cookie session ID",
 		}, "cookie session ID in SSO callback")
 	}
 
 	if err := r.ParseForm(); err != nil {
-		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return "", nil, "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to parse form",
 			InternalErr: err,
 		}, "parse form in SSO callback")
 	}
 
+	fmt.Println(">>>>> SAML CALLBACK DATA: ")
+	spew.Dump(r.Form)
+
 	samlResponseValue := r.FormValue("SAMLResponse")
 	if samlResponseValue == "" {
-		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return "", nil, "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "missing SAMLResponse",
 		}, "missing SAMLResponse in SSO callback")
 	}
 	decodedSAMLResponseValue, err := sso.DecodeSAMLResponse(samlResponseValue)
 	if err != nil {
-		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return "", nil, "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to decode SAMLResponse",
 			InternalErr: err,
 		}, "decode SAMLResponse in SSO callback")
 	}
-	return sessionID, decodedSAMLResponseValue, nil
+	relayState = r.FormValue("RelayState")
+	return sessionID, decodedSAMLResponseValue, relayState, nil
 }
 
 type callbackSSOResponse struct {
