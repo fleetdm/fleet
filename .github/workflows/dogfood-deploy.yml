@@ -6,6 +6,10 @@ on:
       DOCKER_IMAGE:
         description: "The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.30.0). Note: do not use fleetdm/fleet:main directly.  Use the short hash instead.  If pull-rate limited, try using the quay.io/fleetdm/fleet mirror."
         required: true
+      dry_run:
+        description: Dry run only? No "terraform apply"
+        type: boolean
+        default: false
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -87,7 +91,7 @@ jobs:
         run: terraform plan -no-color
         continue-on-error: true
       - name: Slack Notification
-        if: success()
+        if: success() && inputs.dry_run == false
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
           payload: |
@@ -108,8 +112,10 @@ jobs:
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         # Note: This will cause the geolite2 image to be built twice, but that cannot be avoided without refactoring the terraform to not tag it based upon timestamp.
       - name: Terraform Apply Free
+        if: inputs.dry_run == false
         id: apply-free
         run: terraform apply -target=module.free -target=module.migrations_free -target=module.geolite2 -auto-approve
       - name: Terraform Apply
+        if: inputs.dry_run == false
         id: apply
         run: terraform apply -auto-approve

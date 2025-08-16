@@ -118,7 +118,7 @@ data "aws_ecr_authorization_token" "token" {}
 provider "docker" {
   # Configuration options
   registry_auth {
-    address  = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com"
+    address  = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.region}.amazonaws.com"
     username = data.aws_ecr_authorization_token.token.user_name
     password = data.aws_ecr_authorization_token.token.password
   }
@@ -218,11 +218,13 @@ resource "aws_ecs_task_definition" "osquery" {
 resource "aws_ecs_service" "osquery" {
   for_each = local.osquery_hosts
   # Name must match ^[A-Za-z-_]+$ e.g. 5.12.2-ubuntu22-04
-  name            = "osquery_${replace(each.key, ".", "-")}"
-  launch_type     = "FARGATE"
-  cluster         = module.free.byo-db.byo-ecs.service.cluster
-  task_definition = aws_ecs_task_definition.osquery[each.key].arn
-  desired_count   = 1
+  name                          = "osquery_${replace(each.key, ".", "-")}"
+  launch_type                   = "FARGATE"
+  cluster                       = module.free.byo-db.byo-ecs.service.cluster
+  task_definition               = aws_ecs_task_definition.osquery[each.key].arn
+  desired_count                 = 1
+  availability_zone_rebalancing = "ENABLED"
+
   # Spin down before spin up since we are specifying the host identifier manually
   deployment_minimum_healthy_percent = 0
   deployment_maximum_percent         = 100
