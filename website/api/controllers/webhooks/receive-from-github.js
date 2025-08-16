@@ -134,6 +134,10 @@ module.exports = {
       throw new Error('No GitHub access token configured!  (Please set `sails.config.custom.githubAccessToken`.)');
     }//•
 
+    if(!sails.config.custom.engMetricsGcpServiceAccountKey) {
+      throw new Error('No GCP service account key configured!  (Please set `sails.config.custom.engMetricsGcpServiceAccountKey`.)');
+    }//•
+
     let issueOrPr = (pr || issue || undefined);
 
 
