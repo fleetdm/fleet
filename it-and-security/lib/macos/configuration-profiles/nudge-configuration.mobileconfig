@@ -138,13 +138,13 @@
 						<key>mainContentSubHeader</key>
 						<string>Updates can take around 30 minutes to complete</string>
 						<key>mainContentText</key>
-						<string>Your computer is behind on one or more critical updates and must be updated to the OS Version indicated on the left and by Date Required deadline.
+						<string>Your computer is behind on one or more critical updates and must be updated to the Required OS Version indicated on the left and by the Required Date deadline.
 
 This window will appear periodically to remind you until your computer is fully updated, appearing more frequently as the deadline date gets closer.
 
 If you fail to update by the deadline, access and functionality may be limited. Please update at your earliest convenience to avoid any downtime or work disruption.
 
-If you have any questions or would like more information, please reach out via #help-it-and-enablement.</string>
+If you have any questions or need any assistance, please reach out via #help-it-and-enablement in Slack.</string>
 						<key>mainHeader</key>
 						<string>Required software update now available</string>
 						<key>oneDayDeferralButtonText</key>
