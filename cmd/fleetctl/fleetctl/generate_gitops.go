@@ -956,21 +956,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
-			// See if the team has macOS setup software configured.
-			setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(*teamId)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
-				return nil, err
-			}
-			hasSetupSoftware := false
-			for _, software := range setupSoftware {
-				pkg := software.SoftwarePackage
-				if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-					hasSetupSoftware = true
-					break
-				}
-			}
-
 			// See if the team has macOS bootstrap package configured.
 			bootstrapPackage, err := cmd.Client.GetBootstrapPackageMetadata(*teamId, false)
 			if err != nil && !strings.Contains(err.Error(), "bootstrap package for this team does not exist") {
@@ -996,7 +981,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			hasEnrollmentProfile := enrollmentProfile != nil
 
 			// If the team has any of these configured, we need to generate the macos_setup section.
-			if hasSetupSoftware || hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile || (teamMdm != nil && teamMdm.MacOSSetup.EnableEndUserAuthentication) {
+			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile || (teamMdm != nil && teamMdm.MacOSSetup.EnableEndUserAuthentication) {
 				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your macos_setup configuration"
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: teamName,
@@ -1243,6 +1228,28 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 	if len(software) == 0 {
 		return nil, nil
 	}
+
+	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
+	setupSoftwareByVppApp := make(map[string]struct{})
+	if cmd.AppConfig.MDM.EnabledAndConfigured {
+		// See if the team has macOS setup software configured.
+		setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(teamId)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
+			return nil, err
+		}
+		for _, software := range setupSoftware {
+			pkg := software.SoftwarePackage
+			if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
+			}
+			appStoreApp := software.AppStoreApp
+			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
+				setupSoftwareByVppApp[appStoreApp.AppStoreID] = struct{}{}
+			}
+		}
+	}
+
 	result := make(map[string]interface{})
 	packages := make([]map[string]interface{}, 0)
 	appStoreApps := make([]map[string]interface{}, 0)
@@ -1332,6 +1339,20 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			if softwareTitle.SoftwarePackage.URL != "" {
 				softwareSpec["url"] = softwareTitle.SoftwarePackage.URL
 			}
+
+			if softwareTitle.SoftwarePackage.Categories != nil {
+				softwareSpec["categories"] = softwareTitle.SoftwarePackage.Categories
+			}
+		}
+
+		if softwareTitle.AppStoreApp != nil {
+			if softwareTitle.AppStoreApp.SelfService {
+				softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
+			}
+
+			if softwareTitle.AppStoreApp.Categories != nil {
+				softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
+			}
 		}
 
 		if cmd.AppConfig.License.IsPremium() {
@@ -1346,6 +1367,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 					labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
 					labelKey = "labels_exclude_any"
 				}
+				if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
+					softwareSpec["setup_experience"] = true
+				}
 			} else {
 				if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
 					labels = softwareTitle.AppStoreApp.LabelsIncludeAny
@@ -1354,6 +1378,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 				if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
 					labels = softwareTitle.AppStoreApp.LabelsExcludeAny
 					labelKey = "labels_exclude_any"
+				}
+				if _, exists := setupSoftwareByVppApp[softwareTitle.AppStoreApp.AdamID]; exists {
+					softwareSpec["setup_experience"] = true
 				}
 			}
 			if len(labels) > 0 {
