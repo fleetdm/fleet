@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -114,6 +115,43 @@ func deleteCertificateAuthorityEndpoint(ctx context.Context, request interface{}
 
 func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
 	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return fleet.ErrMissingLicense
+}
+
+type updateCertificateAuthorityRequest struct {
+	ID uint `url:"id"`
+	fleet.CertificateAuthorityPayload
+	// Digicert        *fleet.DigiCertCA        `json:"digicert,omitempty"`
+	// NDESSCEPProxy   *fleet.NDESSCEPProxyCA   `json:"ndes_scep_proxy,omitempty"`
+	// CustomSCEPProxy *fleet.CustomSCEPProxyCA `json:"custom_scep_proxy,omitempty"`
+	// Hydrant         *fleet.HydrantCA         `json:"hydrant,omitempty"`
+}
+
+type updateCertificateAuthorityResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateCertificateAuthorityResponse) Error() error { return r.Err }
+
+func updateCertificateAuthorityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*updateCertificateAuthorityRequest)
+
+	// fmt.Printf(`request id: %d, stuct: %+v, full request: %+v`, req.ID, req.Digicert, req)
+	fmt.Printf(`request id: %d, full request: %+v`, req.ID, req)
+
+	// delete
+
+	err := svc.UpdateCertificateAuthority(ctx, req.ID, req.CertificateAuthorityPayload)
+	if err != nil {
+		return &updateCertificateAuthorityResponse{Err: err}, nil
+	}
+
+	return &updateCertificateAuthorityResponse{}, nil
+}
+
+// func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, updateData map[string]interface{}) error {
+func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, payload fleet.CertificateAuthorityPayload) error {
 	svc.authz.SkipAuthorization(ctx)
 	return fleet.ErrMissingLicense
 }
