@@ -14279,7 +14279,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	scepServer := scep_server.StartTestSCEPServer(t)
 
 	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
-	ca, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+	_, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:     string(fleet.CATypeNDESSCEPProxy),
 		Name:     "bad-url",
 		URL:      scepServer.URL + "/scep",
@@ -14907,7 +14907,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	caFleetVars.CertificateCommonName = "common_name"
 	caFleetVars.CertificateUserPrincipalNames = nil
 	caFleetVars.CertificateSeatID = "seat_id"
-	//TODO(HCA): Call update endpoint to follow logic below once implemented
+	// TODO(HCA): Call update endpoint to follow logic below once implemented
 	/* appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
 			"digicert": []fleet.DigiCertCA{ca, caFail, caFleetVars},
