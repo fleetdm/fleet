@@ -41,8 +41,12 @@ module.exports = {
 
   fn: async function ({ repo, issueNumber, gcpServiceAccountKey, tableId, additionalCondition }) {
     try {
-      const bigquery = await sails.helpers.engineeringMetrics.getBigqueryClient.with({
-        gcpServiceAccountKey: gcpServiceAccountKey
+      // Get BigQuery client
+      const {BigQuery} = require('@google-cloud/bigquery');
+
+      const bigquery = new BigQuery({
+        projectId: gcpServiceAccountKey.project_id,
+        credentials: gcpServiceAccountKey
       });
       const datasetId = 'github_metrics';
 
