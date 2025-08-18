@@ -1452,7 +1452,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	return nil
 }
 
-func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret string) ([]byte, error) {
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpUUID string) ([]byte, error) {
 	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
 	if err != nil {
 		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
@@ -1465,6 +1465,9 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret st
 
 	q := enrollURL.Query()
 	q.Set("enroll_secret", enrollSecret)
+	if idpUUID != "" {
+		q.Set("idp_uuid", idpUUID)
+	}
 	enrollURL.RawQuery = q.Encode()
 
 	var profileBuf bytes.Buffer
