@@ -22,6 +22,7 @@ import {
   ISoftwareVersion,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
+  isLinuxKernelThatSupportsVulns,
 } from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
 
@@ -118,7 +119,10 @@ const SoftwareVersionDetailsPage = ({
   );
 
   const renderVulnTable = (swVersion: ISoftwareVersion) => {
-    if (isIpadOrIphoneSoftwareSource(swVersion.source)) {
+    if (
+      isIpadOrIphoneSoftwareSource(swVersion.source) ||
+      !isLinuxKernelThatSupportsVulns(swVersion.source, swVersion.name)
+    ) {
       const platformText = swVersion.source === "ios_apps" ? "iOS" : "iPadOS";
       return <VulnsNotSupported platformText={platformText} />;
     }

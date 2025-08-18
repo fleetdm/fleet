@@ -184,6 +184,7 @@ export interface ISoftwareVersion {
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
+  is_kernel?: boolean;
 }
 
 export const SOURCE_TYPE_CONVERSION = {
@@ -553,6 +554,10 @@ export const hasHostSoftwareAppLastInstall = (
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
 
+export const isLinuxKernelThatSupportsVulns = (swVersion: ISoftwareVersion) =>
+  swVersion.is_kernel &&
+  swVersion.vendor !== "CentOS" &&
+  swVersion.vendor !== "Fedora Project";
 export interface IFleetMaintainedApp {
   id: number;
   name: string;

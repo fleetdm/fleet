@@ -1664,8 +1664,10 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			"s.extension_id",
 			"scv.cve",
 			"scv.created_at",
+			"st.is_kernel",
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
+		Join(goqu.I("software_titles").As("st"), goqu.On(goqu.I("st.id").Eq(goqu.I("s.title_id")))).
 		LeftJoin(
 			goqu.I("software_cpe").As("scp"),
 			goqu.On(

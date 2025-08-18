@@ -53,10 +53,10 @@ export const VulnsNotSupported = ({
   platformText,
 }: IVulnsNotSupportedProps) => (
   <EmptyTable
-    header="Vulnerabilities are not supported for this type of host"
+    header="Vulnerabilities are not supported for this software"
     info={
       <>
-        Interested in vulnerabilities in {platformText ?? "this platform"}?{" "}
+        Interested in vulnerabilities?{" "}
         <CustomLink url={CONTACT_FLEET_LINK} text="Let us know" newTab />
       </>
     }

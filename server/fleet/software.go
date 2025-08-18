@@ -94,7 +94,7 @@ type Software struct {
 	// TODO: should we create a separate type? Feels like this field shouldn't be here since it's
 	// just used for VPP install verification.
 	Installed bool `json:"-"`
-	IsKernel  bool `json:"-"`
+	IsKernel  bool `json:"is_kernel" db:"is_kernel"`
 }
 
 func (Software) AuthzType() string {
