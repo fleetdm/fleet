@@ -106,6 +106,7 @@ func TestIdentify(t *testing.T) {
 
 				assert.Equal(t, tt.expectedSubjects[count-1], cert.Subject.CommonName)
 			}
+			t.Fail() // BOZO
 		})
 	}
 }
