@@ -317,17 +317,22 @@ jobs:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
         path: /tmp/summary.txt
 
-    - name: Set fail status
-      if: failure()
+    - name: Set test status
+      if: always()
       run: |
-        echo "fail" > /tmp/fail
+        if [[ "${{ job.status }}" == "success" ]]; then
+          echo "success" > /tmp/status
+        else
+          echo "fail" > /tmp/status
+        fi
 
-    - name: Upload fail indicator
-      if: failure()
+    - name: Upload status indicator
+      if: always()
       uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
       with:
-        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-fail
-        path: /tmp/fail
+        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-status
+        path: /tmp/status
+        overwrite: true
 
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
@@ -468,13 +473,15 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
         with:
-          pattern: '*-fail'
+          pattern: '*-status'
 
       - name: Check for failures
         run: |
-          for dir in $(find ./ -type d -name '*-fail'); do
-            echo "Found $dir"
-            echo "❌ One or more test jobs failed."
-            exit 1
+          for status_file in $(find ./ -type f -name '*-status'); do
+            if grep -q "fail" "$status_file"; then
+              echo "❌ Test failed: $(dirname $status_file)"
+              echo "❌ One or more test jobs failed."
+              exit 1
+            fi
           done
           echo "✅ All test jobs succeeded."
