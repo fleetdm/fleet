@@ -657,6 +657,9 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
 	mockGetFuncWithTeamID := func(teamID uint) mock.GetMDMAppleConfigProfileFunc {
 		return func(ctx context.Context, puid string) (*fleet.MDMAppleConfigProfile, error) {
 			require.Equal(t, profUUID, puid)
@@ -766,8 +769,8 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
-		return []*fleet.CertificateAuthority{}, nil
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
 
 	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
@@ -2633,8 +2636,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		appCfg.MDM.EnabledAndConfigured = true
 		return appCfg, nil
 	}
-	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
-		return []*fleet.CertificateAuthority{}, nil
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
 
 	ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, p []*fleet.MDMAppleConfigProfile) error {
