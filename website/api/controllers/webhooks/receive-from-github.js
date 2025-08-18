@@ -799,361 +799,357 @@ module.exports = {
       });
 
 
-      try {
-        // Process the status change inline
-        let statusChange = null;
+      // Process the status change inline
+      let statusChange = null;
 
-        // Check if this is a project item update with status change
-        if (!changes || !changes.field_value) {
-          // Not a status change we care about
-          return;
-        }
+      // Check if this is a project item update with status change
+      if (!changes || !changes.field_value) {
+        // Not a status change we care about
+        return;
+      }
 
-        const fieldValue = changes.field_value;
-        // Check if this is a status field change
-        if (fieldValue.field_name !== 'Status') {
-          // Not a status field change
-          return;
-        }
+      const fieldValue = changes.field_value;
+      // Check if this is a status field change
+      if (fieldValue.field_name !== 'Status') {
+        // Not a status field change
+        return;
+      }
 
-        // Check if this is one of our tracked projects
-        const projectNumber = fieldValue.project_number;
-        const validProjects = Object.values(sails.config.custom.githubProjectsV2.projects);
+      // Check if this is one of our tracked projects
+      const projectNumber = fieldValue.project_number;
+      const validProjects = Object.values(sails.config.custom.githubProjectsV2.projects);
 
-        if (!validProjects.includes(projectNumber)) {
-          sails.log.verbose(`Ignoring status change for project ${projectNumber} - not a tracked project`);
-          return;
-        }
+      if (!validProjects.includes(projectNumber)) {
+        sails.log.verbose(`Ignoring status change for project ${projectNumber} - not a tracked project`);
+        return;
+      }
 
-        // Check if status changed to "in progress" from "ready" or null
-        // from and to are either objects with a name property or null
-        const fromStatus = fieldValue.from ? fieldValue.from.name.toLowerCase() : '';
-        const toStatus = fieldValue.to ? fieldValue.to.name.toLowerCase() : '';
+      // Check if status changed to "in progress" from "ready" or null
+      // from and to are either objects with a name property or null
+      const fromStatus = fieldValue.from ? fieldValue.from.name.toLowerCase() : '';
+      const toStatus = fieldValue.to ? fieldValue.to.name.toLowerCase() : '';
 
-        // Log the status change for debugging
-        sails.log.verbose(`Status change detected: "${fromStatus || '(null)'}" -> "${toStatus}"`);
+      // Log the status change for debugging
+      sails.log.verbose(`Status change detected: "${fromStatus || '(null)'}" -> "${toStatus}"`);
 
-        // Check if the "to" status includes "in progress", "awaiting qa", or "release"
-        const isToInProgress = toStatus.includes('in progress');
-        const isToAwaitingQa = toStatus.includes('awaiting qa');
-        const isToRelease = toStatus.includes('release');
+      // Check if the "to" status includes "in progress", "awaiting qa", or "release"
+      const isToInProgress = toStatus.includes('in progress');
+      const isToAwaitingQa = toStatus.includes('awaiting qa');
+      const isToRelease = toStatus.includes('release');
 
-        if (!isToInProgress && !isToAwaitingQa && !isToRelease) {
-          sails.log.verbose(`Ignoring status change - "to" status doesn't include "in progress", "awaiting qa", or "release": ${toStatus}`);
-          return;
-        }
+      if (!isToInProgress && !isToAwaitingQa && !isToRelease) {
+        sails.log.verbose(`Ignoring status change - "to" status doesn't include "in progress", "awaiting qa", or "release": ${toStatus}`);
+        return;
+      }
 
-        // Get issue details from the payload
-        if (!projectsV2Item || !projectsV2Item.content_node_id) {
-          sails.log.error('Missing projects_v2_item or content_node_id in payload');
-          return;
-        }
+      // Get issue details from the payload
+      if (!projectsV2Item || !projectsV2Item.content_node_id) {
+        sails.log.error('Missing projects_v2_item or content_node_id in payload');
+        return;
+      }
 
-        // Fetch issue details from GitHub API
-        // GitHub GraphQL API query to get issue details from node ID
-        const queryToFindThisIssueOnGithub = `
-          query($nodeId: ID!) {
-            node(id: $nodeId) {
-              ... on Issue {
-                number
-                repository {
-                  nameWithOwner
+      // Fetch issue details from GitHub API
+      // GitHub GraphQL API query to get issue details from node ID
+      const queryToFindThisIssueOnGithub = `
+        query($nodeId: ID!) {
+          node(id: $nodeId) {
+            ... on Issue {
+              number
+              repository {
+                nameWithOwner
+              }
+              assignees(first: 1) {
+                nodes {
+                  login
                 }
-                assignees(first: 1) {
-                  nodes {
-                    login
-                  }
-                }
-                labels(first: 20) {
-                  nodes {
-                    name
-                  }
+              }
+              labels(first: 20) {
+                nodes {
+                  name
                 }
               }
             }
           }
-        `;
+        }
+      `;
 
-        const graphqlQueryResponse = await sails.helpers.http.post('https://api.github.com/graphql',
-          {
-            query: queryToFindThisIssueOnGithub,
-            variables: { nodeId: projectsV2Item.content_node_id }
-          },
-          {
-            'Authorization': `Bearer ${sails.config.custom.githubAccessToken}`,
-            'Accept': 'application/vnd.github.v4+json',
-            'User-Agent': 'Fleet-Engineering-Metrics'
+      const graphqlQueryResponse = await sails.helpers.http.post('https://api.github.com/graphql',
+        {
+          query: queryToFindThisIssueOnGithub,
+          variables: { nodeId: projectsV2Item.content_node_id }
+        },
+        {
+          'Authorization': `Bearer ${sails.config.custom.githubAccessToken}`,
+          'Accept': 'application/vnd.github.v4+json',
+          'User-Agent': 'Fleet-Engineering-Metrics'
+        }
+      );
+
+      if (!graphqlQueryResponse.data || !graphqlQueryResponse.data.node) {
+        return;
+      }
+
+      const node = graphqlQueryResponse.data.node;
+      const assignee = node.assignees.nodes.length > 0 ? node.assignees.nodes[0].login : '';
+
+      // Extract label names
+      const labels = node.labels.nodes.map(label => label.name.toLowerCase());
+
+      // Determine issue type based on labels
+      let issueType = 'other';
+      if (labels.includes('bug')) {
+        issueType = 'bug';
+      } else if (labels.includes('story')) {
+        issueType = 'story';
+      } else if (labels.includes('~sub-task')) {
+        issueType = 'sub-task';
+      }
+
+      let issueDetails = {
+        repo: node.repository.nameWithOwner,
+        issueNumber: node.number,
+        assignee: assignee,
+        type: issueType
+      };
+
+      // Handle "in progress" status changes
+      if (isToInProgress) {
+        // Check if the "from" status is null or includes "ready"
+        const isFromNullOrReady = fieldValue.from === null || fromStatus.includes('ready');
+
+        if (!isFromNullOrReady) {
+          sails.log.verbose(`Status change from "${fromStatus}" to "in progress" - will check if already tracked`);
+          const exists = await sails.helpers.engineeringMetrics.checkIfRecordExists.with({
+            repo: issueDetails.repo,
+            issueNumber: issueDetails.issueNumber,
+            gcpServiceAccountKey: gcpServiceAccountKey,
+            tableId: 'issue_status_change',
+            additionalCondition: 'AND status = \'in_progress\''
+          });
+          if (exists) {
+            sails.log.verbose(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} already tracked as in_progress, skipping`);
+            return;
           }
-        );
+          sails.log.info(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} not yet tracked, will save as in_progress`);
+          // Prepare data for BigQuery
+          const statusChangeData = {
+            date: projectsV2Item.updated_at,  // Use the actual update time from webhook
+            repo: issueDetails.repo,
+            issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+            status: 'in_progress'
+          };
 
-        if (!graphqlQueryResponse.data || !graphqlQueryResponse.data.node) {
-          return;
+          // Save to BigQuery
+          await sails.helpers.engineeringMetrics.saveToBigquery.with({
+            data: statusChangeData,
+            gcpServiceAccountKey: gcpServiceAccountKey,
+            tableId: 'issue_status_change'
+          });
+          statusChange = statusChangeData;
+        } else {
+          // Prepare data for BigQuery
+          const statusChangeData = {
+            date: projectsV2Item.updated_at,  // Use the actual update time from webhook
+            repo: issueDetails.repo,
+            issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+            status: 'in_progress'
+          };
+
+          // Save to BigQuery
+          await sails.helpers.engineeringMetrics.saveToBigquery.with({
+            data: statusChangeData,
+            gcpServiceAccountKey: gcpServiceAccountKey,
+            tableId: 'issue_status_change'
+          });
+          statusChange = statusChangeData;
         }
+      }
 
-        const node = graphqlQueryResponse.data.node;
-        const assignee = node.assignees.nodes.length > 0 ? node.assignees.nodes[0].login : '';
+      // Handle "awaiting qa" status changes
+      if (isToAwaitingQa) {
+        // Check if from status is "in progress" or "review"
+        const isFromInProgressOrReview = fromStatus.includes('in progress') || fromStatus.includes('review');
 
-        // Extract label names
-        const labels = node.labels.nodes.map(label => label.name.toLowerCase());
+        // Check if we should create a new QA ready row
+        let shouldCreateQaRow = false;
 
-        // Determine issue type based on labels
-        let issueType = 'other';
-        if (labels.includes('bug')) {
-          issueType = 'bug';
-        } else if (labels.includes('story')) {
-          issueType = 'story';
-        } else if (labels.includes('~sub-task')) {
-          issueType = 'sub-task';
-        }
-
-        let issueDetails = {
-          repo: node.repository.nameWithOwner,
-          issueNumber: node.number,
-          assignee: assignee,
-          type: issueType
-        };
-
-        // Handle "in progress" status changes
-        if (isToInProgress) {
-          // Check if the "from" status is null or includes "ready"
-          const isFromNullOrReady = fieldValue.from === null || fromStatus.includes('ready');
-
-          if (!isFromNullOrReady) {
-            sails.log.verbose(`Status change from "${fromStatus}" to "in progress" - will check if already tracked`);
-            const exists = await sails.helpers.engineeringMetrics.checkIfRecordExists.with({
-              repo: issueDetails.repo,
-              issueNumber: issueDetails.issueNumber,
-              gcpServiceAccountKey: gcpServiceAccountKey,
-              tableId: 'issue_status_change',
-              additionalCondition: 'AND status = \'in_progress\''
-            });
-            if (exists) {
-              sails.log.verbose(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} already tracked as in_progress, skipping`);
-              return;
-            }
-            sails.log.info(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} not yet tracked, will save as in_progress`);
-            // Prepare data for BigQuery
-            const statusChangeData = {
-              date: projectsV2Item.updated_at,  // Use the actual update time from webhook
-              repo: issueDetails.repo,
-              issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
-              status: 'in_progress'
-            };
-
-            // Save to BigQuery
-            await sails.helpers.engineeringMetrics.saveToBigquery.with({
-              data: statusChangeData,
-              gcpServiceAccountKey: gcpServiceAccountKey,
-              tableId: 'issue_status_change'
-            });
-            statusChange = statusChangeData;
-          } else {
-            // Prepare data for BigQuery
-            const statusChangeData = {
-              date: projectsV2Item.updated_at,  // Use the actual update time from webhook
-              repo: issueDetails.repo,
-              issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
-              status: 'in_progress'
-            };
-
-            // Save to BigQuery
-            await sails.helpers.engineeringMetrics.saveToBigquery.with({
-              data: statusChangeData,
-              gcpServiceAccountKey: gcpServiceAccountKey,
-              tableId: 'issue_status_change'
-            });
-            statusChange = statusChangeData;
-          }
-        }
-
-        // Handle "awaiting qa" status changes
-        if (isToAwaitingQa) {
-          // Check if from status is "in progress" or "review"
-          const isFromInProgressOrReview = fromStatus.includes('in progress') || fromStatus.includes('review');
-
-          // Check if we should create a new QA ready row
-          let shouldCreateQaRow = false;
-
-          if (isFromInProgressOrReview) {
-            // Always create if transitioning from in progress or review
+        if (isFromInProgressOrReview) {
+          // Always create if transitioning from in progress or review
+          shouldCreateQaRow = true;
+        } else {
+          // Check if row already exists
+          const qaRowExists = await sails.helpers.engineeringMetrics.checkIfRecordExists.with({
+            repo: issueDetails.repo,
+            issueNumber: issueDetails.issueNumber,
+            gcpServiceAccountKey: gcpServiceAccountKey,
+            tableId: 'issue_qa_ready'
+          });
+          if (!qaRowExists) {
             shouldCreateQaRow = true;
           } else {
-            // Check if row already exists
-            const qaRowExists = await sails.helpers.engineeringMetrics.checkIfRecordExists.with({
-              repo: issueDetails.repo,
-              issueNumber: issueDetails.issueNumber,
-              gcpServiceAccountKey: gcpServiceAccountKey,
-              tableId: 'issue_qa_ready'
-            });
-            if (!qaRowExists) {
-              shouldCreateQaRow = true;
-            } else {
-              sails.log.verbose(`QA ready row already exists for ${issueDetails.repo}#${issueDetails.issueNumber}, skipping`);
-            }
-          }
-
-          if (shouldCreateQaRow) {
-            // Get the latest in_progress status from BigQuery
-            const inProgressData = await sails.helpers.engineeringMetrics.getLatestInProgressStatus.with({
-              repo: issueDetails.repo,
-              issueNumber: issueDetails.issueNumber,
-              gcpServiceAccountKey: gcpServiceAccountKey
-            });
-
-            if (inProgressData) {
-              // Calculate time to QA ready
-              const qaReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
-              const inProgressTime = new Date(inProgressData.date);
-              const timeToQaReadySeconds = await sails.helpers.engineeringMetrics.calculateTimeExcludingWeekends.with({
-                startTime: inProgressTime,
-                endTime: qaReadyTime
-              });
-
-              // Determine project name
-              let projectName = '';
-              switch (projectNumber) {
-                case sails.config.custom.githubProjectsV2.projects.orchestration:
-                  projectName = 'orchestration';
-                  break;
-                case sails.config.custom.githubProjectsV2.projects.mdm:
-                  projectName = 'mdm';
-                  break;
-                case sails.config.custom.githubProjectsV2.projects.software:
-                  projectName = 'software';
-                  break;
-              }
-
-              // Prepare QA ready data
-              const qaReadyData = {
-                qa_ready: qaReadyTime.toISOString().split('T')[0],  // eslint-disable-line camelcase
-                assignee: issueDetails.assignee || '',  // Get assignee from issue details
-                issue_url: `https://github.com/${issueDetails.repo}/issues/${issueDetails.issueNumber}`,  // eslint-disable-line camelcase
-                time_to_qa_ready_seconds: timeToQaReadySeconds,  // eslint-disable-line camelcase
-                repo: issueDetails.repo,
-                issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
-                qa_ready_time: qaReadyTime.toISOString(),  // eslint-disable-line camelcase
-                in_progress_time: inProgressTime.toISOString(),  // eslint-disable-line camelcase
-                project: projectName,
-                type: issueDetails.type  // Issue type based on labels
-              };
-
-              // Save to BigQuery
-              await sails.helpers.engineeringMetrics.saveToBigquery.with({
-                data: qaReadyData,
-                gcpServiceAccountKey: gcpServiceAccountKey,
-                tableId: 'issue_qa_ready'
-              });
-
-              sails.log.info('Saved QA ready metrics:', {
-                repo: issueDetails.repo,
-                issueNumber: issueDetails.issueNumber,
-                timeToQaReadySeconds,
-                project: projectName
-              });
-
-              statusChange = qaReadyData;
-            } else {
-              sails.log.warn(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate QA ready time`);
-            }
+            sails.log.verbose(`QA ready row already exists for ${issueDetails.repo}#${issueDetails.issueNumber}, skipping`);
           }
         }
 
-        // Handle "release" status changes
-        if (isToRelease) {
-          // Check if from status is "awaiting qa"
-          const isFromAwaitingQa = fromStatus.includes('awaiting qa');
+        if (shouldCreateQaRow) {
+          // Get the latest in_progress status from BigQuery
+          const inProgressData = await sails.helpers.engineeringMetrics.getLatestInProgressStatus.with({
+            repo: issueDetails.repo,
+            issueNumber: issueDetails.issueNumber,
+            gcpServiceAccountKey: gcpServiceAccountKey
+          });
 
-          // Check if we should save this release transition
-          let shouldSaveRelease = false;
-          if (!isFromAwaitingQa) {
-            // Not directly from "awaiting qa", check if issue has ever been in QA
-            const hasBeenInQa = await sails.helpers.engineeringMetrics.checkIfRecordExists.with({
+          if (inProgressData) {
+            // Calculate time to QA ready
+            const qaReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
+            const inProgressTime = new Date(inProgressData.date);
+            const timeToQaReadySeconds = await sails.helpers.engineeringMetrics.calculateTimeExcludingWeekends.with({
+              startTime: inProgressTime,
+              endTime: qaReadyTime
+            });
+
+            // Determine project name
+            let projectName = '';
+            switch (projectNumber) {
+              case sails.config.custom.githubProjectsV2.projects.orchestration:
+                projectName = 'orchestration';
+                break;
+              case sails.config.custom.githubProjectsV2.projects.mdm:
+                projectName = 'mdm';
+                break;
+              case sails.config.custom.githubProjectsV2.projects.software:
+                projectName = 'software';
+                break;
+            }
+
+            // Prepare QA ready data
+            const qaReadyData = {
+              qa_ready: qaReadyTime.toISOString().split('T')[0],  // eslint-disable-line camelcase
+              assignee: issueDetails.assignee || '',  // Get assignee from issue details
+              issue_url: `https://github.com/${issueDetails.repo}/issues/${issueDetails.issueNumber}`,  // eslint-disable-line camelcase
+              time_to_qa_ready_seconds: timeToQaReadySeconds,  // eslint-disable-line camelcase
               repo: issueDetails.repo,
-              issueNumber: issueDetails.issueNumber,
+              issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+              qa_ready_time: qaReadyTime.toISOString(),  // eslint-disable-line camelcase
+              in_progress_time: inProgressTime.toISOString(),  // eslint-disable-line camelcase
+              project: projectName,
+              type: issueDetails.type  // Issue type based on labels
+            };
+
+            // Save to BigQuery
+            await sails.helpers.engineeringMetrics.saveToBigquery.with({
+              data: qaReadyData,
               gcpServiceAccountKey: gcpServiceAccountKey,
               tableId: 'issue_qa_ready'
             });
-            if (hasBeenInQa) {
-              sails.log.info(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} transitioning to release (previously was in QA)`);
-              shouldSaveRelease = true;
-            } else {
-              sails.log.verbose(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} has never been in "awaiting qa", skipping release tracking`);
-            }
+
+            sails.log.info('Saved QA ready metrics:', {
+              repo: issueDetails.repo,
+              issueNumber: issueDetails.issueNumber,
+              timeToQaReadySeconds,
+              project: projectName
+            });
+
+            statusChange = qaReadyData;
           } else {
-            shouldSaveRelease = true;
+            sails.log.warn(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate QA ready time`);
           }
+        }
+      }
 
-          if (shouldSaveRelease) {
-            // Get the latest in_progress status from BigQuery
-            const inProgressData = await sails.helpers.engineeringMetrics.getLatestInProgressStatus.with({
-              repo: issueDetails.repo,
-              issueNumber: issueDetails.issueNumber,
-              gcpServiceAccountKey: gcpServiceAccountKey
+      // Handle "release" status changes
+      if (isToRelease) {
+        // Check if from status is "awaiting qa"
+        const isFromAwaitingQa = fromStatus.includes('awaiting qa');
+
+        // Check if we should save this release transition
+        let shouldSaveRelease = false;
+        if (!isFromAwaitingQa) {
+          // Not directly from "awaiting qa", check if issue has ever been in QA
+          const hasBeenInQa = await sails.helpers.engineeringMetrics.checkIfRecordExists.with({
+            repo: issueDetails.repo,
+            issueNumber: issueDetails.issueNumber,
+            gcpServiceAccountKey: gcpServiceAccountKey,
+            tableId: 'issue_qa_ready'
+          });
+          if (hasBeenInQa) {
+            sails.log.info(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} transitioning to release (previously was in QA)`);
+            shouldSaveRelease = true;
+          } else {
+            sails.log.verbose(`Issue ${issueDetails.repo}#${issueDetails.issueNumber} has never been in "awaiting qa", skipping release tracking`);
+          }
+        } else {
+          shouldSaveRelease = true;
+        }
+
+        if (shouldSaveRelease) {
+          // Get the latest in_progress status from BigQuery
+          const inProgressData = await sails.helpers.engineeringMetrics.getLatestInProgressStatus.with({
+            repo: issueDetails.repo,
+            issueNumber: issueDetails.issueNumber,
+            gcpServiceAccountKey: gcpServiceAccountKey
+          });
+
+          if (inProgressData) {
+            // Calculate time to release ready (from in_progress to release)
+            const releaseReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
+            const inProgressTime = new Date(inProgressData.date);
+            const timeToReleaseReadySeconds = await sails.helpers.engineeringMetrics.calculateTimeExcludingWeekends.with({
+              startTime: inProgressTime,
+              endTime: releaseReadyTime
             });
 
-            if (inProgressData) {
-              // Calculate time to release ready (from in_progress to release)
-              const releaseReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
-              const inProgressTime = new Date(inProgressData.date);
-              const timeToReleaseReadySeconds = await sails.helpers.engineeringMetrics.calculateTimeExcludingWeekends.with({
-                startTime: inProgressTime,
-                endTime: releaseReadyTime
-              });
-
-              // Determine project name
-              let projectName = '';
-              switch (projectNumber) {
-                case sails.config.custom.githubProjectsV2.projects.orchestration:
-                  projectName = 'orchestration';
-                  break;
-                case sails.config.custom.githubProjectsV2.projects.mdm:
-                  projectName = 'mdm';
-                  break;
-                case sails.config.custom.githubProjectsV2.projects.software:
-                  projectName = 'software';
-                  break;
-              }
-
-              // Prepare release ready data
-              const releaseReadyData = {
-                release_ready: releaseReadyTime.toISOString().split('T')[0],  // eslint-disable-line camelcase
-                assignee: issueDetails.assignee || '',  // Get assignee from issue details
-                issue_url: `https://github.com/${issueDetails.repo}/issues/${issueDetails.issueNumber}`,  // eslint-disable-line camelcase
-                time_to_release_ready_seconds: timeToReleaseReadySeconds,  // eslint-disable-line camelcase
-                repo: issueDetails.repo,
-                issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
-                release_ready_time: releaseReadyTime.toISOString(),  // eslint-disable-line camelcase
-                in_progress_time: inProgressTime.toISOString(),  // eslint-disable-line camelcase
-                project: projectName,
-                type: issueDetails.type  // Issue type based on labels
-              };
-
-              // Save to BigQuery
-              await sails.helpers.engineeringMetrics.saveToBigquery.with({
-                data: releaseReadyData,
-                gcpServiceAccountKey: gcpServiceAccountKey,
-                tableId: 'issue_release_ready'
-              });
-
-              sails.log.info('Saved release ready metrics:', {
-                repo: issueDetails.repo,
-                issueNumber: issueDetails.issueNumber,
-                timeToReleaseReadySeconds,
-                project: projectName
-              });
-
-              statusChange = releaseReadyData;
-            } else {
-              sails.log.warn(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate release ready time`);
+            // Determine project name
+            let projectName = '';
+            switch (projectNumber) {
+              case sails.config.custom.githubProjectsV2.projects.orchestration:
+                projectName = 'orchestration';
+                break;
+              case sails.config.custom.githubProjectsV2.projects.mdm:
+                projectName = 'mdm';
+                break;
+              case sails.config.custom.githubProjectsV2.projects.software:
+                projectName = 'software';
+                break;
             }
+
+            // Prepare release ready data
+            const releaseReadyData = {
+              release_ready: releaseReadyTime.toISOString().split('T')[0],  // eslint-disable-line camelcase
+              assignee: issueDetails.assignee || '',  // Get assignee from issue details
+              issue_url: `https://github.com/${issueDetails.repo}/issues/${issueDetails.issueNumber}`,  // eslint-disable-line camelcase
+              time_to_release_ready_seconds: timeToReleaseReadySeconds,  // eslint-disable-line camelcase
+              repo: issueDetails.repo,
+              issue_number: issueDetails.issueNumber,  // eslint-disable-line camelcase
+              release_ready_time: releaseReadyTime.toISOString(),  // eslint-disable-line camelcase
+              in_progress_time: inProgressTime.toISOString(),  // eslint-disable-line camelcase
+              project: projectName,
+              type: issueDetails.type  // Issue type based on labels
+            };
+
+            // Save to BigQuery
+            await sails.helpers.engineeringMetrics.saveToBigquery.with({
+              data: releaseReadyData,
+              gcpServiceAccountKey: gcpServiceAccountKey,
+              tableId: 'issue_release_ready'
+            });
+
+            sails.log.info('Saved release ready metrics:', {
+              repo: issueDetails.repo,
+              issueNumber: issueDetails.issueNumber,
+              timeToReleaseReadySeconds,
+              project: projectName
+            });
+
+            statusChange = releaseReadyData;
+          } else {
+            sails.log.warn(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate release ready time`);
           }
         }
+      }
 
-        if (statusChange) {
-          sails.log.info('Processed issue status change:', statusChange);
-        }
-      } catch (err) {
-        sails.log.error('Error processing webhook:', err);
+      if (statusChange) {
+        sails.log.info('Processed issue status change:', statusChange);
       }
     } else {
       //  ███╗   ███╗██╗███████╗ ██████╗
