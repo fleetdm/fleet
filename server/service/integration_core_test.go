@@ -5188,6 +5188,12 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Nil(t, getMeResp.User.Settings)
 	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
 
+	// Disable SMTP.
+	config, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	config.SMTPSettings.SMTPConfigured = false
+	require.NoError(s.T(), s.ds.SaveAppConfig(context.Background(), config))
+
 	// create a new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
@@ -5200,6 +5206,7 @@ func (s *integrationTestSuite) TestUsers() {
 	}
 	// mailer isn't set up, which fails prior to silently ignoring MFA
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusBadRequest, &createResp)
+
 	params.MFAEnabled = nil
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
