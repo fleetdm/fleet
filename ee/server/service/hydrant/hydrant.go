@@ -16,8 +16,6 @@ import (
 	kitlog "github.com/go-kit/log"
 )
 
-// REST client for https://one.digicert.com/mpki/docs/swagger-ui/index.html
-
 // defaultTimeout is the timeout for requests.
 const defaultTimeout = 20 * time.Second
 
@@ -26,7 +24,7 @@ type Service struct {
 	timeout time.Duration
 }
 
-// Compile-time check for DigiCertService interface
+// Compile-time check for HydrantService interface
 var _ fleet.HydrantService = (*Service)(nil)
 
 func NewService(opts ...Opt) fleet.HydrantService {
@@ -35,7 +33,7 @@ func NewService(opts ...Opt) fleet.HydrantService {
 	return s
 }
 
-// Opt is the type for DigiCert integration options.
+// Opt is the type for Hydrant integration options.
 type Opt func(*Service)
 
 // WithTimeout sets the timeout to use for the HTTP client.
