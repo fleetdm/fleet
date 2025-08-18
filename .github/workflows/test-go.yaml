@@ -477,11 +477,25 @@ jobs:
 
       - name: Check for failures
         run: |
+          echo "Checking test status files..."
+          failed_tests=""
           for status_file in $(find ./ -type f -name '*-status'); do
+            echo "Processing: $status_file"
+            status_content=$(cat "$status_file")
+            test_name=$(basename $(dirname "$status_file"))
+            echo "  Test: $test_name, Status: $status_content"
             if grep -q "fail" "$status_file"; then
-              echo "❌ Test failed: $(dirname $status_file)"
-              echo "❌ One or more test jobs failed."
-              exit 1
+              echo "  ❌ Test failed: $test_name"
+              failed_tests="${failed_tests}${test_name}, "
+            else
+              echo "  ✅ Test passed: $test_name"
             fi
           done
+          
+          if [[ -n "$failed_tests" ]]; then
+            echo ""
+            echo "❌ One or more test jobs failed: ${failed_tests%, }"
+            exit 1
+          fi
+          echo ""
           echo "✅ All test jobs succeeded."
