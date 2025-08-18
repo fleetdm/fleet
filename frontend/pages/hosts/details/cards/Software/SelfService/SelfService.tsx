@@ -126,6 +126,7 @@ export const parseSelfServiceQueryParams = (queryParams: {
   };
 };
 
+<<<<<<< HEAD
 const getInstallerName = (hostSW: IHostSoftwareWithUiStatus) => {
   if (hostSW.source === "apps" && hostSW.installed_versions) {
     const filePath = hostSW.installed_versions[0].installed_paths[0];
@@ -136,6 +137,8 @@ const getInstallerName = (hostSW: IHostSoftwareWithUiStatus) => {
   return hostSW.name;
 };
 
+=======
+>>>>>>> a387f224dc (FE: Refactor Updates Card into its own component)
 const SoftwareSelfService = ({
   contactUrl,
   deviceToken,
