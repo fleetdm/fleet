@@ -211,7 +211,7 @@
       - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
 
-- jobTitle: 🦢 Technical Product Designer
+- jobTitle: 🦢 Product Designer-Builder
   department: Product Design
   hiringManagerName: Noah Talerman
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/noah-talerman/
@@ -219,8 +219,9 @@
   onTargetEarnings: '$125,000 - $160,000'
   responsibilities: |
     - 📣 Design consistent interactions across the Fleet user experience, including API, CLI, and YAML.
+    - 💻 Write code to bring designs to life, ranging from prototypes to production-ready features.
     - 🧭 Prioritize work across competing customer needs, business goals, and technical constraints.
-    - 🎯 Own the full product development lifecycle for your product group—from identifying problems to defining scope, designing solutions, and writing specs.
+    - 🎯 Own the full product development lifecycle for your product group—from identifying problems to defining scope, designing solutions, writing specs, and shipping.
     - 🔎 Break down large ideas into shippable iterations and clearly communicate tradeoffs.
     - 👥 Collaborate with engineers and stakeholders to unblock work and ensure delivery.
   experience: |
@@ -230,6 +231,7 @@
     - 🧠 Strong product sense—you’re comfortable saying no, scoping down, and sequencing work for impact.
     - 🦉 Comfortable owning both the "why" and the "how"—from defining the problem to scoping and designing the solution.
     - 💖 Proficient in visual design and wireframing tools (we use Figma).
+    - 🎨 Skilled in modern frontend frameworks (we use React).
     - ✍️ Experienced in writing clear, concise product specs for engineering teams.
     - 📖 Maintain a design system that enables speed for designers and engineers.
     - 🤝 Collaboration: You work best in a participatory, team-based environment.
