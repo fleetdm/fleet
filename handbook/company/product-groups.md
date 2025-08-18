@@ -576,6 +576,8 @@ Create a bug (and link Sentry issue / right side 'issues' 'github' click and add
 * Blocks dogfooding, test flows, or automation
 * Actionable: stack trace points to our code (not 3rd-party noise) and we can repro or have a hypothesis
 
+> 1a) After creating or linking a bug to an open issue in guthub on-call should try to determine through code inspection how to reproduce or cause this bug, add reproduce steps to the issue in guthub so it can continue through the rest of our bug process.
+
 2) When to archive until it happens again (archive drop down option 'until this occurs again' 'one time')
 
 * If it looks like a debug testing error / low no impact
