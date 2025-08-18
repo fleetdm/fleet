@@ -1,7 +1,8 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { getStatusMessage, ModalButtons } from "./VppInstallDetailsModal";
 import { renderWithSetup } from "test/test-utils";
+
+import { getStatusMessage, ModalButtons } from "./VppInstallDetailsModal";
 
 describe("getStatusMessage helper function", () => {
   it("shows NotNow message when isStatusNotNow is true", () => {
