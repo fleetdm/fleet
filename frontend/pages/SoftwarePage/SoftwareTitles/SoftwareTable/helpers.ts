@@ -239,3 +239,22 @@ export const getVulnFilterRenderDetails = (
     tooltipText: tooltipTextWithLineBreaks(tooltipText),
   };
 };
+
+export const getVulnerabilities = <
+  T extends { vulnerabilities: string[] | null }
+>(
+  versions: T[]
+): string[] => {
+  if (!versions) {
+    return [];
+  }
+
+  const vulnerabilities = versions.reduce((acc, current) => {
+    if (current.vulnerabilities?.length) {
+      current.vulnerabilities.forEach((vuln) => acc.add(vuln));
+    }
+    return acc;
+  }, new Set<string>());
+
+  return [...vulnerabilities];
+};
