@@ -48,7 +48,7 @@ module.exports = {
       // Insert the data
       await table.insert([data]);
 
-      sails.log.debug(`Successfully saved data to BigQuery ${tableId}:`, {
+      sails.log.verbose(`Successfully saved data to BigQuery ${tableId}:`, {
         dataset: datasetId,
         table: tableId,
         data: data
@@ -68,19 +68,17 @@ module.exports = {
       // Handle specific BigQuery errors
       if (err.name === 'PartialFailureError') {
         // Log the specific rows that failed
-        sails.log.error(`Partial failure when ${operation}:`, err.errors);
+        throw new Error(`Partial failure when ${operation}:`, err.errors);
       } else if (err.code === 404) {
-        sails.log.error('BigQuery table or dataset not found. Please ensure the table exists:', {
+        throw new Error('BigQuery table or dataset not found. Please ensure the table exists:', {
           dataset: 'github_metrics',
           table: tableId,
           fullError: err.message
         });
       } else if (err.code === 403) {
-        sails.log.error('Permission denied when accessing BigQuery. Check service account permissions.');
-      } else {
-        sails.log.error(`Error ${operation}:`, err);
+        throw new Error('Permission denied when accessing BigQuery. Check service account permissions.');
       }
-      throw err;
+      throw new Error(`Error ${operation}:`, err);
     }
   }
 
