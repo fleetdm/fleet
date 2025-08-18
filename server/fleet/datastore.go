@@ -2269,6 +2269,8 @@ type Datastore interface {
 	GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*CertificateAuthority, error)
 	// GetAllCertificateAuthorities returns all certificate authorities.
 	GetAllCertificateAuthorities(ctx context.Context, includeSecrets bool) ([]*CertificateAuthority, error)
+	// GetGroupedCertificateAuthorities returns all certificate authorities grouped by type
+	GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*GroupedCertificateAuthorities, error)
 	// ListCertificateAuthorities returns a summary of all certificate authorities.
 	ListCertificateAuthorities(ctx context.Context) ([]*CertificateAuthoritySummary, error)
 	// DeleteCertificateAuthority deletes the certificate authority of the provided ID, returns not found if it does not exist

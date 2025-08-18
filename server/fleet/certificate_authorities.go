@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"time"
 )
@@ -163,4 +164,62 @@ type RequestCertificatePayload struct {
 
 func (c *RequestCertificatePayload) AuthzType() string {
 	return "certificate_request"
+}
+
+type GroupedCertificateAuthorities struct {
+	Hydrant         []HydrantCA
+	DigiCert        []DigiCertCA
+	NDESSCEP        *NDESSCEPProxyCA
+	CustomScepProxy []CustomSCEPProxyCA
+}
+
+func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCertificateAuthorities, error) {
+	grouped := &GroupedCertificateAuthorities{
+		DigiCert:        []DigiCertCA{},
+		Hydrant:         []HydrantCA{},
+		CustomScepProxy: []CustomSCEPProxyCA{},
+		NDESSCEP:        nil,
+	}
+
+	for _, ca := range cas {
+		switch ca.Type {
+		case string(CATypeDigiCert):
+			grouped.DigiCert = append(grouped.DigiCert, DigiCertCA{
+				Name:                          ca.Name,
+				CertificateCommonName:         *ca.CertificateCommonName,
+				CertificateSeatID:             *ca.CertificateSeatID,
+				CertificateUserPrincipalNames: ca.CertificateUserPrincipalNames,
+				APIToken:                      *ca.APIToken,
+				URL:                           ca.URL,
+				ProfileID:                     *ca.ProfileID,
+			})
+		case string(CATypeNDESSCEPProxy):
+			if grouped.NDESSCEP != nil {
+				return nil, errors.New("multiple NDESSCEP proxy CAs found when grouping")
+			}
+
+			grouped.NDESSCEP = &NDESSCEPProxyCA{
+				URL:      ca.URL,
+				AdminURL: *ca.AdminURL,
+				Username: *ca.Username,
+				Password: *ca.Password,
+			}
+
+		case string(CATypeHydrant):
+			grouped.Hydrant = append(grouped.Hydrant, HydrantCA{
+				Name:         ca.Name,
+				URL:          ca.URL,
+				ClientID:     *ca.ClientID,
+				ClientSecret: *ca.ClientSecret,
+			})
+		case string(CATypeCustomSCEPProxy):
+			grouped.CustomScepProxy = append(grouped.CustomScepProxy, CustomSCEPProxyCA{
+				Name:      ca.Name,
+				URL:       ca.URL,
+				Challenge: *ca.Challenge,
+			})
+		}
+	}
+
+	return grouped, nil
 }
