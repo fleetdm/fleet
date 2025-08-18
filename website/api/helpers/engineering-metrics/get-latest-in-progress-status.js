@@ -78,17 +78,17 @@ module.exports = {
       // Handle specific BigQuery errors
       if (err.name === 'PartialFailureError') {
         // Log the specific rows that failed
-        sails.log.error('Partial failure when getting latest in_progress status from BigQuery:', err.errors);
+        sails.log.warn('Partial failure when getting latest in_progress status from BigQuery:', err.errors);
       } else if (err.code === 404) {
-        sails.log.error('BigQuery table or dataset not found. Please ensure the table exists:', {
+        sails.log.warn('BigQuery table or dataset not found. Please ensure the table exists:', {
           dataset: 'github_metrics',
           table: 'issue_status_change',
           fullError: err.message
         });
       } else if (err.code === 403) {
-        sails.log.error('Permission denied when accessing BigQuery. Check service account permissions.');
+        sails.log.warn('Permission denied when accessing BigQuery. Check service account permissions.');
       } else {
-        sails.log.error('Error getting latest in_progress status from BigQuery:', err);
+        sails.log.warn('Error getting latest in_progress status from BigQuery:', err);
       }
       return null;
     }
