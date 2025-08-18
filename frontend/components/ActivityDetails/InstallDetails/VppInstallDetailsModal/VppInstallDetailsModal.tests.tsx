@@ -1,5 +1,7 @@
+import React from "react";
 import { render, screen } from "@testing-library/react";
-import { getStatusMessage } from "./VppInstallDetailsModal";
+import { getStatusMessage, ModalButtons } from "./VppInstallDetailsModal";
+import { renderWithSetup } from "test/test-utils";
 
 describe("getStatusMessage helper function", () => {
   it("shows NotNow message when isStatusNotNow is true", () => {
@@ -77,6 +79,20 @@ describe("getStatusMessage helper function", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows pending install on host when it comes online", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "pending_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+      })
+    );
+    expect(screen.getByText(/when it comes online/i)).toBeInTheDocument();
+  });
+
   it("shows default message for installed status", () => {
     render(
       getStatusMessage({
@@ -93,6 +109,22 @@ describe("getStatusMessage helper function", () => {
     expect(screen.getByText(/Marko's MacBook Pro/i)).toBeInTheDocument();
   });
 
+  it("shows manual install message when installed not through Fleet", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "installed",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "", // <-- empty
+      })
+    );
+
+    expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
+    expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
+  });
+
   it("shows default message with 'the host' if host_display_name is empty", () => {
     render(
       getStatusMessage({
@@ -106,5 +138,76 @@ describe("getStatusMessage helper function", () => {
     );
     expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
     expect(screen.getByText(/the host/i)).toBeInTheDocument();
+  });
+
+  it("shows relative timestamp when available", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: new Date().toISOString(),
+      })
+    );
+    expect(screen.getByText(/\(.*ago\)/i)).toBeInTheDocument();
+  });
+
+  it("on the device user page, does not show host info", () => {
+    render(
+      getStatusMessage({
+        isDUP: true,
+        displayStatus: "installed",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+      })
+    );
+    expect(screen.queryByText(/Marko's MacBook Pro/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("VPP Install Details Modal - ModalButtons component", () => {
+  it("renders Done button by default", async () => {
+    const onCancel = jest.fn();
+
+    const { user } = renderWithSetup(
+      <ModalButtons displayStatus="installed" onCancel={onCancel} />
+    );
+
+    const doneButton = screen.getByRole("button", { name: /done/i });
+    expect(doneButton).toBeInTheDocument();
+
+    await user.click(doneButton);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders Cancel + Retry when failed_install with deviceAuthToken", async () => {
+    const onCancel = jest.fn();
+    const onRetry = jest.fn();
+
+    const { user } = renderWithSetup(
+      <ModalButtons
+        displayStatus="failed_install"
+        deviceAuthToken="fake_token"
+        onCancel={onCancel}
+        onRetry={onRetry}
+        hostSoftwareId={123}
+      />
+    );
+
+    const cancelButton = screen.getByRole("button", { name: /cancel/i });
+    const retryButton = screen.getByRole("button", { name: /retry/i });
+
+    expect(cancelButton).toBeInTheDocument();
+    expect(retryButton).toBeInTheDocument();
+
+    // Retry should trigger onRetry + onCancel
+    await user.click(retryButton);
+    expect(onRetry).toHaveBeenCalledWith(123);
+    expect(onCancel).toHaveBeenCalled();
   });
 });

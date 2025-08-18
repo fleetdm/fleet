@@ -16,6 +16,7 @@ import deviceUserAPI from "services/entities/device_user";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
 import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import Textarea from "components/Textarea";
@@ -169,21 +170,23 @@ export const ModalButtons = ({
     };
 
     return (
-      <div className="modal-cta-wrap">
-        <Button type="submit" onClick={onClickRetry}>
-          Retry
-        </Button>
-        <Button variant="inverse" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
+      <ModalFooter
+        primaryButtons={
+          <>
+            <Button variant="inverse" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={onClickRetry}>
+              Retry
+            </Button>
+          </>
+        }
+      />
     );
   }
 
   return (
-    <div className="modal-cta-wrap">
-      <Button onClick={onCancel}>Done</Button>
-    </div>
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
   );
 };
 

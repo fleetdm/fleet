@@ -18,6 +18,7 @@ import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
 import Textarea from "components/Textarea";
 import RevealButton from "components/buttons/RevealButton";
@@ -120,21 +121,24 @@ export const ModalButtons = ({
 
   if (deviceAuthToken && uninstallStatus === "failed_uninstall") {
     return (
-      <div className="modal-cta-wrap">
-        <Button type="submit" onClick={onClickRetry}>
-          Retry
-        </Button>
-        <Button variant="inverse" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
+      <ModalFooter
+        primaryButtons={
+          <>
+            {" "}
+            <Button variant="inverse" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={onClickRetry}>
+              Retry
+            </Button>
+          </>
+        }
+      />
     );
   }
 
   return (
-    <div className="modal-cta-wrap">
-      <Button onClick={onCancel}>Done</Button>
-    </div>
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
   );
 };
 
