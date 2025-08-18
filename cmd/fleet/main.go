@@ -118,7 +118,7 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		cfg.S3.SoftwareInstallersBucket = "software-installers-dev"
 		cfg.S3.SoftwareInstallersRegion = "minio"
 		cfg.S3.SoftwareInstallersPrefix = "dev-prefix"
-		cfg.S3.SoftwareInstallersEndpointURL = "http://localhost:9000"
+		cfg.S3.SoftwareInstallersEndpointURL = "https://localhost:9000"
 		cfg.S3.SoftwareInstallersAccessKeyID = "minio"
 		cfg.S3.SoftwareInstallersSecretAccessKey = "minio123!"
 		cfg.S3.SoftwareInstallersDisableSSL = true

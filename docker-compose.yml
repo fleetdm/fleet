@@ -156,7 +156,7 @@ services:
   # s3 compatible object storage (file carving backend)
   minio:
     image: quay.io/minio/minio
-    command: server /data --console-address ":9001"
+    command: server /data --console-address ":9001" --certs-dir /certs
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -165,6 +165,7 @@ services:
       MINIO_ROOT_PASSWORD: minio123!
     volumes:
       - data-minio:/data
+      - ./tools/minio/test/certs:/certs
 
 volumes:
   mysql-persistent-volume:
