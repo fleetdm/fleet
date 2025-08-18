@@ -472,6 +472,31 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	dirPath, err := filepath.Abs(filepath.Clean(dirPath))
 	require.NoError(t, err)
 
+	// TODO(HCA): Remove this once gitops flow has been changed to hit new API endpoints instead of patching app config.
+	apiToken := "digicert_api_token" // nolint:gosec // G101: Potential hardcoded credentials
+	profileID := "digicert_profile_id"
+	certCN := "digicert_cn"
+	certSeatID := "digicert_seat_id"
+	_, err = s.DS.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
+		Type:                          string(fleet.CATypeDigiCert),
+		Name:                          "DigiCert",
+		URL:                           digiCertServer.URL,
+		APIToken:                      &apiToken,
+		ProfileID:                     &profileID,
+		CertificateCommonName:         &certCN,
+		CertificateUserPrincipalNames: []string{"digicert_upn"},
+		CertificateSeatID:             &certSeatID,
+	})
+	require.NoError(t, err)
+	challenge := "challenge"
+	_, err = s.DS.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      "CustomScepProxy",
+		URL:       scepServer.URL,
+		Challenge: &challenge,
+	})
+	require.NoError(t, err)
+
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	_, err = globalFile.WriteString(fmt.Sprintf(`

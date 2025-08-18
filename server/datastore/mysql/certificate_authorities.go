@@ -173,6 +173,15 @@ func (ds *Datastore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.C
 	return cas, nil
 }
 
+func (ds *Datastore) GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+	allCertificateAuthorities, err := ds.GetAllCertificateAuthorities(ctx, includeSecrets)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting all certificates for grouping")
+	}
+
+	return fleet.GroupCertificateAuthoritiesByType(allCertificateAuthorities)
+}
+
 // Create CA. MUST include secrets
 func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
 	var upns []byte
