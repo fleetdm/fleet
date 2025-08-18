@@ -417,7 +417,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to inactive IDP token")
 		return nil, &InvalidIDPTokenError{}
 	}
-	// This field is technically optional. This may indicate an incompatible IDP or setup
+	// This field is technically optional in the spec though its omittance may indicate an incompatible IDP or setup
 	if introspectionResponse.Username == nil || len(*introspectionResponse.Username) == 0 {
 		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to missing username in IDP token introspection response")
 		return nil, &InvalidIDPTokenError{}
@@ -435,6 +435,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		return nil, &InvalidCSRError{}
 	}
 	if csrEmail != *introspectionResponse.Username {
+		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to mismatch between CSR email and IDP token username", "csr_email", csrEmail, "idp_username", *introspectionResponse.Username)
 		// The email in the CSR must match the username from the IDP token introspection
 		return nil, &InvalidIDPTokenError{}
 	}
@@ -554,7 +555,7 @@ func extractCSRUPN(csr *x509.CertificateRequest) (*string, error) {
 							return nil, fmt.Errorf("failed to unmarshal othername value: %w", err)
 						}
 						if oid.Equal(upnOID) {
-							// We will need to unmarshal the raw value into a string
+							// Unmarshal the raw value into a string
 							var upn asn1.RawValue
 							if _, err := asn1.Unmarshal(rawValue.Bytes, &upn); err != nil {
 								return nil, fmt.Errorf("failed to unmarshal UPN value: %w", err)

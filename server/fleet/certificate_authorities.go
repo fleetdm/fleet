@@ -154,7 +154,7 @@ func (c *CertificateAuthority) AuthzType() string {
 }
 
 type RequestCertificatePayload struct {
-	ID          uint    `json:"id"`
+	ID          uint    `json:"id" url:"id"` // ID Of the CA the cert is to be requested from.
 	CSR         string  `json:"csr"`
 	IDPOauthURL *string `json:"idp_oauth_url"`
 	IDPToken    *string `json:"idp_token"`
