@@ -15062,7 +15062,6 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 	return mockServer
 }
 
-// TODO(HCA): FIX SCEP Config to use api instead of appCfg.
 func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	t := s.T()
 	ctx := context.Background()
