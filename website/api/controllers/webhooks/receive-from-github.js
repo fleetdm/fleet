@@ -765,15 +765,39 @@ module.exports = {
        */
 
       // Check and parse GCP service account key
-      let gcpServiceAccountKey;
-      try {
-        gcpServiceAccountKey = await sails.helpers.parseGcpServiceAccountKey.with({
-          gcpServiceAccountKey: sails.config.custom.engMetricsGcpServiceAccountKey
-        });
-      } catch (unused) {
-        // Error already logged in helper
-        return;
-      }
+      let gcpServiceAccountKey = await sails.helpers.flow.build(()=>{
+        let parsedKey;
+
+        // Check if it's already an object or needs parsing
+        if (typeof sails.config.custom.engMetricsGcpServiceAccountKey === 'object') {
+          parsedKey = sails.config.custom.engMetricsGcpServiceAccountKey;
+        } else if (typeof sails.config.custom.engMetricsGcpServiceAccountKey === 'string') {
+          // Fix common JSON formatting issues before parsing
+          let jsonString = sails.config.custom.engMetricsGcpServiceAccountKey;
+
+          // This handles cases where the private key has literal newlines
+          jsonString = jsonString.replace(/"private_key":\s*"([^"]+)"/g, (match, key) => {
+            // Replace actual newlines with escaped newlines only within the private key value
+            const fixedKey = key.replace(/\n/g, '\\n');
+            return `"private_key": "${fixedKey}"`;
+          });
+
+          // Parse the cleaned JSON
+          parsedKey = JSON.parse(jsonString);
+        } else {
+          throw new Error('Invalid GCP service account key type');
+        }
+
+        // Validate that it has the expected structure
+        if (!parsedKey.type || !parsedKey.project_id || !parsedKey.private_key) {
+          throw new Error('Invalid GCP service account key structure');
+        }
+
+        return parsedKey;
+      }).intercept((err)=>{
+        return new Error(`An error occured when parsing the set 'sails.config.custom.engMetricsGcpServiceAccountKey' value. `, err);
+      });
+
 
       try {
         // Process the status change inline
