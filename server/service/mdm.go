@@ -1867,9 +1867,14 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 ) (map[string]map[string]struct{}, error) {
 	var err error
 
+	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+	}
+
 	profileVarsByProfIdentifier := make(map[string]map[string]struct{})
 	for _, p := range appleProfiles {
-		profileVars, err := validateConfigProfileFleetVariables(ctx, ds, string(p.Mobileconfig), lic)
+		profileVars, err := validateConfigProfileFleetVariables(string(p.Mobileconfig), lic, groupedCAs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}

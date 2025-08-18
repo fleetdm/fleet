@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/Azure/go-ntlmssp"
-	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -117,13 +116,9 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier string, checkChallenge bool) (string,
 	error,
 ) {
-	certificateAuthorities, err := svc.ds.GetAllCertificateAuthorities(ctx, false)
+	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, false)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting all certificate authorities")
-	}
-	groupedCAs, err := certificate.GroupCertificateAuthoritiesByType(certificateAuthorities)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "grouping certificate authorities by type")
+		return "", ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
 	parsedID, err := url.PathUnescape(identifier)

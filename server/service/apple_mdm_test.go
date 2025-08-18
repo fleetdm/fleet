@@ -3032,16 +3032,12 @@ func TestPreprocessProfileContents(t *testing.T) {
 	appCfg := &fleet.AppConfig{}
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true
-	appCfg.Integrations.NDESSCEPProxy.Valid = true
 	ds := new(mock.Store)
-	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
-		return []*fleet.CertificateAuthority{}, nil
-	}
 
 	// No-op
 	svc := eeservice.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
-	err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, nil, nil, nil, nil)
+	err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	hostUUID := "host-1"
@@ -3084,7 +3080,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	// Can't use NDES SCEP proxy with free tier
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
-	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "Premium license")
@@ -3092,10 +3088,9 @@ func TestPreprocessProfileContents(t *testing.T) {
 
 	// Can't use NDES SCEP proxy without it being configured
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	appCfg.Integrations.NDESSCEPProxy.Valid = false
 	updatedPayload = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, &fleet.GroupedCertificateAuthorities{})
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "not configured")
@@ -3106,10 +3101,9 @@ func TestPreprocessProfileContents(t *testing.T) {
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_BOZO"),
 	}
-	appCfg.Integrations.NDESSCEPProxy.Valid = true
 	updatedPayload = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "FLEET_VAR_BOZO")
@@ -3140,19 +3134,18 @@ func TestPreprocessProfileContents(t *testing.T) {
 		return nil
 	}
 
-	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
-		adminUrl := "https://example.com"
-		username := "admin"
-		password := "test-password"
-		return []*fleet.CertificateAuthority{
-			{
-				Type:     string(fleet.CATypeNDESSCEPProxy),
-				AdminURL: &adminUrl,
-				Username: &username,
-				Password: &password,
-			},
-		}, nil
+	adminUrl := "https://example.com"
+	username := "admin"
+	password := "test-password"
+	groupedCAs := &fleet.GroupedCertificateAuthorities{
+		NDESSCEP: &fleet.NDESSCEPProxyCA{
+			URL:      "https://test-example.com",
+			AdminURL: adminUrl,
+			Username: username,
+			Password: password,
+		},
 	}
+
 	// Could not get NDES SCEP challenge
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPChallenge),
@@ -3168,7 +3161,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.Empty(t, payload) // no profiles to update since FLEET VAR could not be populated
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -3183,7 +3176,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -3198,7 +3191,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -3213,7 +3206,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -3241,7 +3234,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.NotNil(t, payload[0].ChallengeRetrievedAt)
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -3264,7 +3257,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.Empty(t, payload)
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -3285,7 +3278,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP)
@@ -3299,7 +3292,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -3323,7 +3316,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -3342,7 +3335,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "Unexpected number of hosts (0) for UUID")
@@ -3357,10 +3350,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		}
 	}
 	populateTargets()
-	appCfg.Integrations.NDESSCEPProxy.Valid = false // NDES will fail
-	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
-		return []*fleet.CertificateAuthority{}, nil
-	}
+	groupedCAs.NDESSCEP = nil
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL),
 		"p2": []byte("$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP),
@@ -3408,7 +3398,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		}
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotEmpty(t, targets)
 	assert.Len(t, targets, 3)
@@ -5090,7 +5080,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			updatedPayload = nil
 			updatedProfile = nil
 
-			err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+			err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
 			require.NoError(t, err)
 			var output string
 			if expectedStatus == fleet.MDMDeliveryFailed {
@@ -5109,9 +5099,6 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 
 func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
-	/*appConfig := &fleet.AppConfig{}*/
-	ds := new(mock.Store)
 	profileWithVars := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -5132,16 +5119,12 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 
 	// Test with free license
 	freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
-	_, err := validateConfigProfileFleetVariables(ctx, ds, profileWithVars, freeLic)
+	_, err := validateConfigProfileFleetVariables(profileWithVars, freeLic, nil)
 	require.ErrorIs(t, err, fleet.ErrMissingLicense)
-
-	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
-		return []*fleet.CertificateAuthority{}, nil
-	}
 
 	// Test with premium license
 	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-	vars, err := validateConfigProfileFleetVariables(ctx, ds, profileWithVars, premiumLic)
+	vars, err := validateConfigProfileFleetVariables(profileWithVars, premiumLic, &fleet.GroupedCertificateAuthorities{})
 	require.NoError(t, err)
 	require.Contains(t, vars, "HOST_END_USER_EMAIL_IDP")
 
@@ -5163,54 +5146,22 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	</array>
 </dict>
 </plist>`
-	vars, err = validateConfigProfileFleetVariables(ctx, ds, profileNoVars, freeLic)
+	vars, err = validateConfigProfileFleetVariables(profileNoVars, freeLic, &fleet.GroupedCertificateAuthorities{})
 	require.NoError(t, err)
 	require.Empty(t, vars)
 }
 
 func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
-	ds := new(mock.Store)
-	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
-		digiCertOne := getDigiCertIntegration("https://example.com", "caName")
-		digiCertTwo := getDigiCertIntegration("https://example.com", "caName2")
-		customScepOne := getCustomSCEPIntegration("https://example.com", "scepName")
-		customScepTwo := getCustomSCEPIntegration("https://example.com", "scepName2")
-		return []*fleet.CertificateAuthority{
-			{
-				Type:                          string(fleet.CATypeDigiCert),
-				Name:                          digiCertOne.Name,
-				URL:                           digiCertOne.URL,
-				APIToken:                      &digiCertOne.APIToken,
-				ProfileID:                     &digiCertOne.ProfileID,
-				CertificateCommonName:         &digiCertOne.CertificateCommonName,
-				CertificateUserPrincipalNames: digiCertOne.CertificateUserPrincipalNames,
-				CertificateSeatID:             &digiCertOne.CertificateSeatID,
-			},
-			{
-				Type:                          string(fleet.CATypeDigiCert),
-				Name:                          digiCertTwo.Name,
-				URL:                           digiCertTwo.URL,
-				APIToken:                      &digiCertTwo.APIToken,
-				ProfileID:                     &digiCertTwo.ProfileID,
-				CertificateCommonName:         &digiCertTwo.CertificateCommonName,
-				CertificateUserPrincipalNames: digiCertTwo.CertificateUserPrincipalNames,
-				CertificateSeatID:             &digiCertTwo.CertificateSeatID,
-			},
-			{
-				Type:      string(fleet.CATypeCustomSCEPProxy),
-				Name:      customScepOne.Name,
-				URL:       customScepOne.URL,
-				Challenge: &customScepOne.Challenge,
-			},
-			{
-				Type:      string(fleet.CATypeCustomSCEPProxy),
-				Name:      customScepTwo.Name,
-				URL:       customScepTwo.URL,
-				Challenge: &customScepTwo.Challenge,
-			},
-		}, nil
+	groupedCAs := &fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			getDigiCertIntegration("https://example.com", "caName"),
+			getDigiCertIntegration("https://example.com", "caName2"),
+		},
+		CustomScepProxy: []fleet.CustomSCEPProxyCA{
+			getCustomSCEPIntegration("https://example.com", "scepName"),
+			getCustomSCEPIntegration("https://example.com", "scepName2"),
+		},
 	}
 
 	cases := []struct {
@@ -5486,7 +5437,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Pass a premium license for testing (we're not testing license validation here)
 			premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-			vars, err := validateConfigProfileFleetVariables(ctx, ds, tc.profile, premiumLic)
+			vars, err := validateConfigProfileFleetVariables(tc.profile, premiumLic, groupedCAs)
 			if tc.errMsg != "" {
 				assert.ErrorContains(t, err, tc.errMsg)
 				assert.Empty(t, vars)

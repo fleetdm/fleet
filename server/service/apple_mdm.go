@@ -28,7 +28,6 @@ import (
 	"github.com/docker/go-units"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
-	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
@@ -404,7 +403,12 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		return nil, ctxerr.Wrap(ctx, err, "checking license")
 	}
 
-	profileVars, err := validateConfigProfileFleetVariables(ctx, svc.ds, expanded, lic)
+	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+	}
+
+	profileVars, err := validateConfigProfileFleetVariables(expanded, lic, groupedCAs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
@@ -487,7 +491,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
-func validateConfigProfileFleetVariables(ctx context.Context, ds fleet.Datastore, contents string, lic *fleet.LicenseInfo) (map[string]struct{}, error) {
+func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) (map[string]struct{}, error) {
 	fleetVars := variables.FindKeepDuplicates(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
@@ -496,15 +500,6 @@ func validateConfigProfileFleetVariables(ctx context.Context, ds fleet.Datastore
 	// Check for premium license if the profile contains Fleet variables
 	if lic == nil || !lic.IsPremium() {
 		return nil, fleet.ErrMissingLicense
-	}
-
-	certificateAuthorities, err := ds.GetAllCertificateAuthorities(ctx, true)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "fetching certificate authorities")
-	}
-	groupedCAs, err := certificate.GroupCertificateAuthoritiesByType(certificateAuthorities)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "grouping certificate authorities")
 	}
 
 	var (
@@ -4730,11 +4725,16 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
+	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+	}
+
 	// Insert variables into profile contents of install targets. Variables may be host-specific.
 	err = preprocessProfileContents(ctx, appConfig, ds,
 		eeservice.NewSCEPConfigService(logger, nil),
 		digicert.NewService(digicert.WithLogger(logger)),
-		logger, installTargets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+		logger, installTargets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	if err != nil {
 		return err
 	}
@@ -4860,6 +4860,7 @@ func preprocessProfileContents(
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
+	groupedCAs *fleet.GroupedCertificateAuthorities,
 ) error {
 	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile
 	// contents, generating a unique profile for each host. For a 2KB profile and
@@ -4871,15 +4872,6 @@ func preprocessProfileContents(
 		digiCertCAs   map[string]*fleet.DigiCertCA
 		customSCEPCAs map[string]*fleet.CustomSCEPProxyCA
 	)
-
-	certificateAuthorities, err := ds.GetAllCertificateAuthorities(ctx, true)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching certificate authorities")
-	}
-	groupedCAs, err := certificate.GroupCertificateAuthoritiesByType(certificateAuthorities)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "grouping certificate authorities by type")
-	}
 
 	// this is used to cache the host ID corresponding to the UUID, so we don't
 	// need to look it up more than once per host.
@@ -4922,7 +4914,7 @@ func preprocessProfileContents(
 		for fleetVar := range fleetVars {
 			switch {
 			case fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
-				configured, err := isNDESSCEPConfigured(ctx, groupedCAs.NDESSCEP, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, target)
+				configured, err := isNDESSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, target)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking NDES SCEP configuration")
 				}
@@ -4946,7 +4938,7 @@ func preprocessProfileContents(
 				if digiCertCAs == nil {
 					digiCertCAs = make(map[string]*fleet.DigiCertCA)
 				}
-				configured, err := isDigiCertConfigured(ctx, groupedCAs.DigiCert, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, digiCertCAs, profUUID, target, caName, fleetVar)
+				configured, err := isDigiCertConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, digiCertCAs, profUUID, target, caName, fleetVar)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking DigiCert configuration")
 				}
@@ -5562,7 +5554,7 @@ func (d *digiCertVarsFound) SetPassword(value string) (*digiCertVarsFound, bool)
 	return d, !alreadyPresent
 }
 
-func isDigiCertConfigured(ctx context.Context, allDigiCertCAs []fleet.DigiCertCA, ds fleet.Datastore,
+func isDigiCertConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
 	existingDigiCertCAs map[string]*fleet.DigiCertCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
@@ -5575,8 +5567,8 @@ func isDigiCertConfigured(ctx context.Context, allDigiCertCAs []fleet.DigiCertCA
 	}
 	configured := false
 	var digiCertCA *fleet.DigiCertCA
-	if len(allDigiCertCAs) > 0 {
-		for _, ca := range allDigiCertCAs {
+	if len(groupedCAs.DigiCert) > 0 {
+		for _, ca := range groupedCAs.DigiCert {
 			if ca.Name == caName {
 				digiCertCA = &ca
 				configured = true
@@ -5649,13 +5641,13 @@ func (n *ndesVarsFound) SetRenewalID() (*ndesVarsFound, bool) {
 	return n, !alreadyPresent
 }
 
-func isNDESSCEPConfigured(ctx context.Context, ndesScepCA *fleet.NDESSCEPProxyCA, ds fleet.Datastore,
+func isNDESSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, userEnrollmentsToHostUUIDsMap map[string]string, profUUID string, target *cmdTarget,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
-	if ndesScepCA == nil {
+	if groupedCAs.NDESSCEP == nil {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
 			"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.", ptr.Time(time.Now().UTC()))
 	}
