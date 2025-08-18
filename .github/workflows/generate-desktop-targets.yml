@@ -131,6 +131,9 @@ jobs:
   code-sign-windows:
     needs: desktop-windows
     uses: ./.github/workflows/code-sign-windows.yml
+    permissions:
+      id-token: write # required for attestations
+      attestations: write # required for attestations
     with:
       attest: "true"
       filename: fleet-desktop.exe
@@ -173,6 +176,9 @@ jobs:
   code-sign-windows-arm64:
     needs: desktop-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
+    permissions:
+      id-token: write # required for attestations
+      attestations: write # required for attestations
     with:
       attest: "true"
       filename: fleet-desktop.exe

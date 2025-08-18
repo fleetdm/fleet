@@ -69,6 +69,9 @@ jobs:
   code-sign:
     needs: build
     uses: ./.github/workflows/code-sign-windows.yml
+    permissions:
+      id-token: write # required for attestations
+      attestations: write # required for attestations
     with:
       filename: fleetd-base.msi
       upload_name: fleetd-base-msi
