@@ -43,7 +43,9 @@ describe("UpdatesCard", () => {
     );
     expect(screen.getByText("Updates")).toBeInTheDocument();
     expect(
-      screen.getByText(/The following app require updating/i)
+      screen.getByText(
+        /Your device has outdated software. Update to address potential security vulnerabilities or compatibility issues./i
+      )
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Update all" })).toBeEnabled();
   });

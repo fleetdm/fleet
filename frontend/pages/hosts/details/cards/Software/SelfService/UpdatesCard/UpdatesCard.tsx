@@ -19,7 +19,7 @@ const getUpdatesPageSize = (width: number): number => {
   return 2;
 };
 
-const baseClass = "software-self-service";
+const baseClass = "updates-card";
 
 interface IUpdatesCardProps {
   enhancedSoftware: IDeviceSoftwareWithUiStatus[];
