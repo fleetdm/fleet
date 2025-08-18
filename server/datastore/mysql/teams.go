@@ -489,3 +489,29 @@ func (ds *Datastore) DeleteIntegrationsFromTeams(ctx context.Context, deletedInt
 	}
 	return rows.Err()
 }
+
+func (ds *Datastore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error) {
+	const stmt = `
+		SELECT
+			id
+		FROM
+			teams
+		WHERE
+			config IS NOT NULL AND
+			config->'$.mdm.macos_setup.enable_end_user_authentication' = TRUE
+
+		UNION
+
+		SELECT
+			0
+		FROM
+			app_config_json
+		WHERE
+			json_value->'$.mdm.macos_setup.enable_end_user_authentication' = TRUE
+`
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select team IDs with setup experience IdP enabled")
+	}
+	return teamIDs, nil
+}

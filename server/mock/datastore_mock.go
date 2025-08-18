@@ -871,7 +871,7 @@ type UpsertMDMAppleHostDEPAssignmentsFunc func(ctx context.Context, hosts []flee
 
 type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device, abmTokenID uint, macOSTeam *fleet.Team, iosTeam *fleet.Team, ipadTeam *fleet.Team) (int64, error)
 
-type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID *uint, deviceInfo fleet.MDMAppleMachineInfo) error
+type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) error
 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error
 
@@ -1316,6 +1316,8 @@ type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string,
 type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
 type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error)
+
+type TeamIDsWithSetupExperienceIdPEnabledFunc func(ctx context.Context) ([]uint, error)
 
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
@@ -3406,6 +3408,9 @@ type DataStore struct {
 
 	GetTeamsWithInstallerByHashFunc        GetTeamsWithInstallerByHashFunc
 	GetTeamsWithInstallerByHashFuncInvoked bool
+
+	TeamIDsWithSetupExperienceIdPEnabledFunc        TeamIDsWithSetupExperienceIdPEnabledFunc
+	TeamIDsWithSetupExperienceIdPEnabledFuncInvoked bool
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
@@ -6600,11 +6605,11 @@ func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, device
 	return s.IngestMDMAppleDevicesFromDEPSyncFunc(ctx, devices, abmTokenID, macOSTeam, iosTeam, ipadTeam)
 }
 
-func (s *DataStore) IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, deviceInfo fleet.MDMAppleMachineInfo) error {
+func (s *DataStore) IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) error {
 	s.mu.Lock()
 	s.IngestMDMAppleDeviceFromOTAEnrollmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.IngestMDMAppleDeviceFromOTAEnrollmentFunc(ctx, teamID, deviceInfo)
+	return s.IngestMDMAppleDeviceFromOTAEnrollmentFunc(ctx, teamID, idpUUID, deviceInfo)
 }
 
 func (s *DataStore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
@@ -8159,6 +8164,13 @@ func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 stri
 	s.GetTeamsWithInstallerByHashFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetTeamsWithInstallerByHashFunc(ctx, sha256, url)
+}
+
+func (s *DataStore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error) {
+	s.mu.Lock()
+	s.TeamIDsWithSetupExperienceIdPEnabledFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamIDsWithSetupExperienceIdPEnabledFunc(ctx)
 }
 
 func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {

@@ -84,9 +84,9 @@ const SetupExperience = ({
   return (
     <div className={baseClass}>
       <p>
-        Customize the setup experience for macOS hosts that automatically enroll
-        in this team. Each step runs sequentially and will be required if
-        enabled before the end user finishes setup.
+        Customize the setup experience for macOS, iOS, iPadOS and Android hosts
+        that enroll in this team. Each step runs sequentially and will be
+        required if enabled before the end user finishes setup.
       </p>
       <SideNav
         className={`${baseClass}__side-nav`}

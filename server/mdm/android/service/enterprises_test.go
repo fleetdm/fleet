@@ -104,7 +104,6 @@ func TestEnterprisesAuth(t *testing.T) {
 			defer cancel()
 			_, err = svc.EnterpriseSignupSSE(ctx)
 			checkAuthErr(t, tt.shouldFailRead, err)
-
 		})
 	}
 
@@ -150,7 +149,7 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	}
 }
 
-func InitCommonDSMocks() fleet.AndroidDatastore {
+func InitCommonDSMocks() *AndroidMockDS {
 	ds := AndroidMockDS{}
 	ds.Datastore.InitCommonMocks()
 
@@ -164,7 +163,8 @@ func InitCommonDSMocks() fleet.AndroidDatastore {
 		return &fleet.User{ID: id}, nil
 	}
 	ds.Store.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		queryerContext sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		result := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(assetNames))
 		for _, name := range assetNames {
 			result[name] = fleet.MDMConfigAsset{Value: []byte("value")}
