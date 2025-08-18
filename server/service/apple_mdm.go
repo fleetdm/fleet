@@ -4957,7 +4957,7 @@ func preprocessProfileContents(
 				if customSCEPCAs == nil {
 					customSCEPCAs = make(map[string]*fleet.CustomSCEPProxyCA)
 				}
-				configured, err := isCustomSCEPConfigured(ctx, groupedCAs.CustomScepProxy, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, customSCEPCAs, profUUID, target, caName,
+				configured, err := isCustomSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, customSCEPCAs, profUUID, target, caName,
 					fleetVar)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking custom SCEP configuration")
@@ -5753,7 +5753,7 @@ func (cs *customSCEPVarsFound) SetRenewalID() (*customSCEPVarsFound, bool) {
 	return cs, !alreadyPresent
 }
 
-func isCustomSCEPConfigured(ctx context.Context, allCustomSCEPCAs []fleet.CustomSCEPProxyCA, ds fleet.Datastore,
+func isCustomSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
 	existingCustomSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
@@ -5766,8 +5766,8 @@ func isCustomSCEPConfigured(ctx context.Context, allCustomSCEPCAs []fleet.Custom
 	}
 	configured := false
 	var scepCA *fleet.CustomSCEPProxyCA
-	if len(allCustomSCEPCAs) > 0 {
-		for _, ca := range allCustomSCEPCAs {
+	if len(groupedCAs.CustomScepProxy) > 0 {
+		for _, ca := range groupedCAs.CustomScepProxy {
 			if ca.Name == caName {
 				scepCA = &ca
 				configured = true
