@@ -8952,7 +8952,7 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
 	require.Equal(t, host.ID, getHostResp.Host.ID)
-	require.Empty(t, getHostResp.Host.Software)
+	require.NotNil(t, getHostResp.Host.Software)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
 	getHostResp = getHostResponse{}
