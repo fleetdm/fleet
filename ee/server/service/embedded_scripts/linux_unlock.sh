@@ -26,6 +26,7 @@ done
 
 # Remove our custom lock message service
 if [ -f /etc/systemd/system/fleet-lock-message.service ]; then
+    systemctl stop fleet-lock-message.service 2>/dev/null || true
     systemctl disable fleet-lock-message.service 2>/dev/null
     rm /etc/systemd/system/fleet-lock-message.service
     systemctl daemon-reload
