@@ -1040,17 +1040,17 @@ module.exports = {
             // Handle specific BigQuery errors
             if (err.name === 'PartialFailureError') {
               // Log the specific rows that failed
-              sails.log.warn('Partial failure when getting latest in_progress status from BigQuery:', err.errors);
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Awaiting QA" column, there was a partial failure when getting latest in_progress status from BigQuery:`, err.errors);
             } else if (err.code === 404) {
-              sails.log.warn('BigQuery table or dataset not found. Please ensure the table exists:', {
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Awaiting QA" column, in progress data could not be found. BigQuery table or dataset not found. Please ensure the table exists:`, {
                 dataset: 'github_metrics',
                 table: 'issue_status_change',
                 fullError: err.message
               });
             } else if (err.code === 403) {
-              sails.log.warn('Permission denied when accessing BigQuery. Check service account permissions.');
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Awaiting QA" column, in progress data could not be found. Permission denied when accessing BigQuery. Check service account permissions.`);
             } else {
-              sails.log.warn('Error getting latest in_progress status from BigQuery:', err);
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Awaiting QA" column, There was an error getting latest in_progress status from BigQuery:`, err);
             }
             return null;
           });
@@ -1271,17 +1271,17 @@ module.exports = {
             // Handle specific BigQuery errors
             if (err.name === 'PartialFailureError') {
               // Log the specific rows that failed
-              sails.log.warn('Partial failure when getting latest in_progress status from BigQuery:', err.errors);
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Ready for release" column, there was a partial failure when getting latest in_progress status from BigQuery:`, err.errors);
             } else if (err.code === 404) {
-              sails.log.warn('BigQuery table or dataset not found. Please ensure the table exists:', {
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Ready for release" column, in progress data could not be found. BigQuery table or dataset not found. Please ensure the table exists:`, {
                 dataset: 'github_metrics',
                 table: 'issue_status_change',
                 fullError: err.message
               });
             } else if (err.code === 403) {
-              sails.log.warn('Permission denied when accessing BigQuery. Check service account permissions.');
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Ready for release" column, in progress data could not be found. Permission denied when accessing BigQuery. Check service account permissions.`);
             } else {
-              sails.log.warn('Error getting latest in_progress status from BigQuery:', err);
+              sails.log.warn(`When an issue (${issueDetails.repo}#${issueDetails.issueNumber}) was moved into the "Ready for release" column, There was an error getting latest in_progress status from BigQuery:`, err);
             }
             return null;
           });
