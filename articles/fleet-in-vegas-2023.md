@@ -1,6 +1,6 @@
 # Fleet takes on Vegas: Exploring cybersecurity's future at Black Hat, B-Sides, and DEF CON 31 
 
-[![BlackHat/B-Sides/DefCon 31 in Las Vegas](../website/assets/images/articles/fleet-in-vegas-2023@2x.jpg)](https://fleetdm.com/imagine/defcon-31)
+![BlackHat/B-Sides/DefCon 31 in Las Vegas](../website/assets/images/articles/fleet-in-vegas-2023-960x540@2x.jpg)
 
 Fleet is participating in Black Hat, Security B-Sides, and DEF CON 31 this year in Las Vegas, with representation by two of our key team members: Marcos Oviedo and Zach Wasserman.
 
