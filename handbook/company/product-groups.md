@@ -569,23 +569,27 @@ The on-call developer will review the latest [sentry](https://fleet-cm.sentry.io
 1) When to create a linked bug
 Create a bug (and link Sentry issue / right side 'issues' 'github' click and add labels bug and :reproduce) if any of these are true:
 
-* Customer- or user-visible impact
-* crash, 5xx, data loss/corruption, security/privacy, auth/session breaks
-* Regression from a recent release (first seen after last deploy)
-* Happens repeatedly: e.g., ≥ 10 events / 24h or ≥ 3 distinct users / 24h
-* Blocks dogfooding, test flows, or automation
-* Actionable: stack trace points to our code (not 3rd-party noise) and we can repro or have a hypothesis
+- Customer or user-visible impact
+- Crash, 5xx, data loss/corruption, security/privacy, auth/session breaks
+- Regression from a recent release (first seen after last deploy)
+- Happens repeatedly: e.g., ≥ 10 events / 24h or ≥ 3 distinct users / 24h
+- Blocks dogfooding, test flows, or automation
+- Actionable: stack trace points to our code (not 3rd-party noise) and we can repro or have a hypothesis
 
-> 1a) After creating or linking a bug to an open issue in guthub on-call should try to determine through code inspection how to reproduce or cause this bug, add reproduce steps to the issue in guthub so it can continue through the rest of our bug process.
+> After creating or linking a bug to an open issue in guthub on-call should try to determine through code inspection how to reproduce or cause this bug, add reproduce steps to the issue in guthub so it can continue through the rest of our bug process.
 
 2) When to archive until it happens again (archive drop down option 'until this occurs again' 'one time')
 
-* If it looks like a debug testing error / low no impact
-* less then 3 isolated occurences
+- If it looks like a debug testing error / low no impact
+- If less then 3 isolated occurences
 
 3) When to archive it forever (archive dropdown option 'forever')
 
-* Expected / benign behavior with no action we’ll take (documented)
+- Expected / benign behavior with no action we’ll take (documented)
+e.g., user canceled requests, 401/403 from expired tokens handled by refresh, client aborts, timeouts within known limits
+- Non-prod or obsolete versions only (and we won’t patch them)
+- 3rd-party noisy errors we cannot fix and have acceptable impact (e.g., analytics SDK debug logs)
+- Duplicates of a tracked Sentry issue with the same fingerprint (merge or ignore rule)
 e.g., user canceled requests, 401/403 from expired tokens handled by refresh, client aborts, timeouts within known limits
 * Non-prod or obsolete versions only (and we won’t patch them)
 * 3rd-party noisy errors we cannot fix and have acceptable impact (e.g., analytics SDK debug logs)
