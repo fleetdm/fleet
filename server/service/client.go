@@ -250,11 +250,17 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	resBody := &bytes.Buffer{}
 	resBodyReader := io.TeeReader(res.Body, resBody)
-	if _, err := io.Copy(os.Stderr, resBodyReader); err != nil {
-		fmt.Fprintf(os.Stderr, "Read body error: %v", err)
-		return nil, err
-	}
 	res.Body = io.NopCloser(resBody)
+
+	// Only print text output, don't flood the terminal with binary content
+	if utf8.Valid(resBody.Bytes()) {
+		fmt.Fprintf(os.Stderr, "[body length: %d bytes]\n", resBody.Len())
+		if _, err := io.Copy(os.Stderr, resBodyReader); err != nil {
+			fmt.Fprintf(os.Stderr, "Read body error: %v\n", err)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "[binary output suppressed: %d bytes]\n", resBody.Len())
+	}
 
 	return res, nil
 }
