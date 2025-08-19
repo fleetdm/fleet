@@ -1,6 +1,6 @@
 # Fleet is abuzz 🐝 for MacDevOps:YVR 
 
-[![MacDevOps:YVR June 21-22, 2023](../website/assets/images/articles/fleet-is-abuzz-for-macdevops-yvr-2023@2x.png)](https://mdoyvr.com/)
+[![MacDevOps:YVR June 21-22, 2023](../website/assets/images/articles/fleet-is-abuzz-for-macdevops-yvr-2023-960x540@2x.png)](https://mdoyvr.com/)
 
 _Pun Warning: If puns give you the heebie-jeebies, we apologize. MacDevOps:YVR has a bee 🐝 theme this year, and we frankly couldn't help ourselves. That's all._
 
