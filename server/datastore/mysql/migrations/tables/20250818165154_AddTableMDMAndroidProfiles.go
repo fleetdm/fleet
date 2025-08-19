@@ -71,8 +71,16 @@ CREATE TABLE host_mdm_google_profiles (
   detail text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
 	profile_uuid varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 	profile_name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-	-- TODO: link and FK with google requests  
-	-- request_uuid varchar(36) 
+
+	-- TODO: link and FK with google requests
+	-- request_uuid varchar(36)
+
+	-- TODO: need to store a version number, that will increment on each policy update
+	-- > Fleet should create a policy in Android Enterprise each time when new host is enrolled
+	-- > and assign it to a device in AE. In Fleet, users can create multiple configuration profiles
+	-- > (JSON files), but all of them will be merged into the policy that's assigned to the device
+	-- > in AE. Each time when user add new configuration profile or edits an existing one policy in
+	-- > AE gets patched, and the version number of the policy is increased.
 
 	created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
