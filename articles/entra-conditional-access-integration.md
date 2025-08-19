@@ -193,7 +193,7 @@ E.g. here's "Microsoft Teams" message on a blocked host:
 ![Microsoft Teams message user needs to login again](../website/assets/images/articles/entra-conditional-access-microsoft-teams-log-message-1311x111@2x.png)
 
 And here's the error message when trying to re-login:
-![User tries to log in again](../website/assets/images/articlesentra-conditional-access-relogin-828x577@2x.png)
+![User tries to log in again](../website/assets/images/articles/entra-conditional-access-relogin-828x577@2x.png)
 
 Clicking on "Check Compliance" redirects the user to https://fleetdm.com/microsoft-compliance-partner/remediate.
 The user will be able to log in again once the failing policies are remediated.
