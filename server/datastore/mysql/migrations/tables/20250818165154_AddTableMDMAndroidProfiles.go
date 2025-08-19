@@ -86,12 +86,28 @@ CREATE TABLE host_mdm_google_profiles (
 	// https://www.figma.com/design/sPlICOpfq9w3FG8vAuJFEO/-25557-Configuration-profiles-for-Android?node-id=5378-2783&t=RNOQg4AOkuIu31Wo-0
 
 	// TODO: add google_profile_uuid to mdm_configuration_profile_labels
-	// 	alterProfileLabelsTable := `
-	// ALTER TABLE mdm_configuration_profile_labels
-	// `
+	alterProfileLabelsTable := `
+ALTER TABLE mdm_configuration_profile_labels
+	ADD COLUMN google_profile_uuid VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+	ADD FOREIGN KEY (google_profile_uuid) REFERENCES mdm_google_configuration_profiles(profile_uuid) ON DELETE CASCADE,
+	ADD UNIQUE KEY idx_mdm_configuration_profile_labels_google_label_name (google_profile_uuid, label_name),
+	DROP CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows,
+	ADD CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows_google
+		CHECK (IF(ISNULL(apple_profile_uuid), 0, 1) + IF(ISNULL(windows_profile_uuid), 0, 1) + IF(ISNULL(google_profile_uuid), 0, 1) = 1)
+`
+	if _, err := tx.Exec(alterProfileLabelsTable); err != nil {
+		return fmt.Errorf("alter mdm_configuration_profile_labels table: %w", err)
+	}
+
 	// TODO: add google_profile_uuid to mdm_configuration_profile_variables (even
-	// if unsupported for now)? Opted not too, as I also did not add the
-	// variables updated at column.
+	// if unsupported for now)? Opted not to, as I also did not add the
+	// variables/secrets updated at columns.
+
+	// TODO: I think we should keep track of the fully merged profile and the
+	// requests/responses made to the android management API, a bit like we track
+	// declaration requests and mdm commands. We'd then add the API request uuid
+	// reference to the host mdm google profiles table.
+
 	return nil
 }
 
