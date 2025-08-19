@@ -56,7 +56,7 @@
 				</dict>
 				<dict>
 					<key>aboutUpdateURL</key>
-					<string>http://fleetdm.com</string>
+					<string>https://www.apple.com/os/macos</string>
 					<key>requiredMinimumOSVersion</key>
 					<string>latest-minor</string>
 					<key>targetedOSVersionsRule</key>
