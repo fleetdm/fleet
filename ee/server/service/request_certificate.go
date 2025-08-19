@@ -41,33 +41,33 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	introspectionResponse, err := svc.introspectIDPToken(ctx, *p.IDPClientID, *p.IDPToken, *p.IDPOauthURL)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to introspect IDP token during certificate request", "idp_url", *p.IDPOauthURL, "err", err)
-		return nil, &InvalidIDPTokenError{}
+		return nil, InvalidIDPTokenError{}
 	}
 	if !introspectionResponse.Active {
 		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to inactive IDP token", "idp_url", *p.IDPOauthURL)
-		return nil, &InvalidIDPTokenError{}
+		return nil, InvalidIDPTokenError{}
 	}
 	// This field is technically optional in the spec though its omittance may indicate an incompatible IDP or setup
 	if introspectionResponse.Username == nil || len(*introspectionResponse.Username) == 0 {
 		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to missing username in IDP token introspection response")
-		return nil, &InvalidIDPTokenError{}
+		return nil, InvalidIDPTokenError{}
 	}
 	_, csrEmail, csrUsername, err := svc.parseCSR(ctx, p.CSR)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to parse CSR during certificate request", "err", err)
-		return nil, &InvalidCSRError{}
+		return nil, InvalidCSRError{}
 	}
 
 	// the email should either equal the username or include it as a prefix, i.e.
 	// email=username@example.com and username=username
 	if !strings.HasPrefix(csrEmail, csrUsername) {
 		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to mismatch between CSR email and UPN", "csr_email", csrEmail, "csr_upn", csrUsername)
-		return nil, &InvalidCSRError{}
+		return nil, InvalidCSRError{}
 	}
 	if csrEmail != *introspectionResponse.Username {
 		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to mismatch between CSR email and IDP token username", "csr_email", csrEmail, "idp_username", *introspectionResponse.Username)
 		// The email in the CSR must match the username from the IDP token introspection
-		return nil, &InvalidIDPTokenError{}
+		return nil, InvalidIDPTokenError{}
 	}
 
 	csrForRequest := strings.ReplaceAll(p.CSR, "-----BEGIN CERTIFICATE REQUEST-----", "")

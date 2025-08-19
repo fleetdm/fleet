@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -120,9 +119,6 @@ func TestRequestCertificate(t *testing.T) {
 		ProfileID: ptr.String("test-profile-id"),
 	}
 
-	fmt.Printf("Good CSR: %s\n", goodCSR)
-	fmt.Printf("Bad CSR: %s\n", badCSR)
-
 	baseSetupForTests := func() (*Service, context.Context) {
 		ds := new(mock.Store)
 
@@ -161,7 +157,9 @@ func TestRequestCertificate(t *testing.T) {
 		return svc, ctx
 	}
 
-	// TODO EJM finish this test up
+	invalidCSR := InvalidCSRError{}
+	invalidIDP := InvalidIDPTokenError{}
+
 	t.Run("Request a certificate - Happy path", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 
@@ -204,7 +202,7 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-client-id"), // Missing client ID
 		})
-		require.ErrorAs(t, err, &InvalidIDPTokenError{})
+		require.ErrorAs(t, err, &invalidIDP)
 		require.Nil(t, cert)
 	})
 
@@ -220,7 +218,7 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-client-id"), // Missing client ID
 		})
-		require.ErrorAs(t, err, &InvalidIDPTokenError{})
+		require.ErrorAs(t, err, &invalidIDP)
 		require.Nil(t, cert)
 	})
 
@@ -237,7 +235,7 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-client-id"), // Missing client ID
 		})
-		require.ErrorAs(t, err, &InvalidIDPTokenError{})
+		require.ErrorAs(t, err, &invalidIDP)
 		require.Nil(t, cert)
 	})
 
@@ -310,7 +308,7 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-client-id"), // Missing client ID
 		})
-		require.ErrorAs(t, err, &InvalidCSRError{})
+		require.ErrorAs(t, err, &invalidCSR)
 	})
 
 	t.Run("Request certificate - CSR email and UPN do not match", func(t *testing.T) {
@@ -322,6 +320,6 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-client-id"), // Missing client ID
 		})
-		require.ErrorAs(t, err, &InvalidCSRError{})
+		require.ErrorAs(t, err, &invalidCSR)
 	})
 }
