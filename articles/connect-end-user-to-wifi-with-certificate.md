@@ -130,7 +130,7 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
-![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile.png)
+![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile-405x215@2x.png)
 
 #### Example configuration profile
 
