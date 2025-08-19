@@ -33,8 +33,9 @@ CREATE TABLE mdm_google_configuration_profiles (
 	-- unique across all profiles (all platforms), must be checked on insert with the apple,
 	-- windows and apple declaration names.
   name           VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  NOT NULL,
-	-- same content column as for the apple declarations json
-  raw_json       MEDIUMTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+	-- store as JSON so we can use JSON_CONTAINS to check if the applied JSON document
+	-- contains this profile's JSON.
+  raw_json       JSON CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 
 	-- see note comment above, needed for upserts
 	auto_increment BIGINT NOT NULL AUTO_INCREMENT UNIQUE,
@@ -85,14 +86,14 @@ CREATE TABLE host_mdm_google_profiles (
 	// which means checking the apple (profiles+decls) and windows tables on insert.
 	// https://www.figma.com/design/sPlICOpfq9w3FG8vAuJFEO/-25557-Configuration-profiles-for-Android?node-id=5378-2783&t=RNOQg4AOkuIu31Wo-0
 
-	// TODO: add google_profile_uuid to mdm_configuration_profile_labels
 	alterProfileLabelsTable := `
 ALTER TABLE mdm_configuration_profile_labels
 	ADD COLUMN google_profile_uuid VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
 	ADD FOREIGN KEY (google_profile_uuid) REFERENCES mdm_google_configuration_profiles(profile_uuid) ON DELETE CASCADE,
 	ADD UNIQUE KEY idx_mdm_configuration_profile_labels_google_label_name (google_profile_uuid, label_name),
 	DROP CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows,
-	ADD CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows_google
+	-- only one of apple, google or windows profile uuid must be set
+	ADD CONSTRAINT ck_mdm_configuration_profile_labels_profile_uuid
 		CHECK (IF(ISNULL(apple_profile_uuid), 0, 1) + IF(ISNULL(windows_profile_uuid), 0, 1) + IF(ISNULL(google_profile_uuid), 0, 1) = 1)
 `
 	if _, err := tx.Exec(alterProfileLabelsTable); err != nil {
@@ -106,7 +107,38 @@ ALTER TABLE mdm_configuration_profile_labels
 	// TODO: I think we should keep track of the fully merged profile and the
 	// requests/responses made to the android management API, a bit like we track
 	// declaration requests and mdm commands. We'd then add the API request uuid
-	// reference to the host mdm google profiles table.
+	// reference to the host mdm google profiles table. This table would store
+	// the fully resulved/merged profile (android policy) that was sent to be
+	// applied for the host.
+
+	// TODO: I think we may need a table to keep each setting set by each profile
+	// file, so that we can show it as failed or succeeded based on the status
+	// report from the Google API. E.g. top-level keys and associated value
+	// (maybe in JSON column). (because the setting in file a.json may be
+	// overwritten by file b.json, so in order to know if a.json succeeded or
+	// not, we'd check the status for the applied settings, see that the
+	// corresponding value is not the one declared in a.json but instead the one
+	// in b.json, so we mark a.json as failed and b.json as succeeded).
+	//
+	// Not having this lookup table would mean loading and unmarshaling the JSON
+	// for every applicable profile whenever we receive a status update, which
+	// would not be efficient.
+	//
+	// It looks like mysql's storage of JSON is normalized/canonicalized, so we
+	// can likely compare the JSON values directly even if the value is an object
+	// or array.
+	// https://dev.mysql.com/doc/refman/8.4/en/json.html#json-normalization
+	//
+	// But it may not even matter, as we could possibly use the JSON_CONTAINS
+	// JSON function to check if the profile's JSON document is contained as-is
+	// in the applied settings, and if so it succeeded, otherwise it failed.
+	// https://dev.mysql.com/doc/refman/8.4/en/json-search-functions.html#function_json-contains
+	//
+	// In which case we may not need a separate table for the key-values of the
+	// profile file's JSON document, we could just store the profile's JSON
+	// document as JSON in the mdm_google_configuration_profiles table.
+	// I'll go with that approach, we can revisit if the verification is not
+	// as straightforward as expected.
 
 	return nil
 }
