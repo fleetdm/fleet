@@ -47,6 +47,9 @@ func (t *RpmInfoTest) matches(software []fleet.Software) (int, int, []fleet.Soft
 	for _, p := range software {
 		for _, o := range t.Objects {
 			if p.Name == o {
+				// if p.Name == "kernel" {
+				// 	fmt.Printf("found kernel in o: %+v\n", o)
+				// }
 				nObjects++
 
 				r := make([]bool, 0)
@@ -58,6 +61,10 @@ func (t *RpmInfoTest) matches(software []fleet.Software) (int, int, []fleet.Soft
 					r = append(r, evalR)
 				}
 				if t.StateOperator.Eval(r...) {
+					// if p.Name == "kernel" {
+					// 	fmt.Printf("found match for kernel p: %+v\n\nt:%+v\n\n", p, t)
+					// 	// fmt.Printf("t.States[0].SignatureKeyId: %v\n", *t.States[0].SignatureKeyId)
+					// }
 					matches = append(matches, p)
 					nState++
 				}

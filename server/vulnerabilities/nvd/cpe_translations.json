@@ -613,5 +613,16 @@
       "product": ["iterm2"],
       "vendor": ["iterm2"]
     }
+  },
+  {
+    "software": {
+      "name": ["kernel-core"],
+      "source": ["rpm_packages"]
+    },
+    "filter": {
+      "product": ["linux_kernel"],
+      "vendor": ["linux"],
+      "part": "o"
+    }
   }
 ]

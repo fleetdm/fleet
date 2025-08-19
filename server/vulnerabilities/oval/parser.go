@@ -75,6 +75,7 @@ func parseRhelXML(reader io.Reader) (*oval_input.RhelResultXML, error) {
 		}
 
 		if t, ok := t.(xml.StartElement); ok {
+			fmt.Printf("parsing t.Name: %v\n", t.Name)
 			if t.Name.Local == "definition" {
 				def := oval_input.DefinitionXML{}
 				if err = d.DecodeElement(&def, &t); err != nil {
@@ -131,6 +132,22 @@ func parseRhelXML(reader io.Reader) (*oval_input.RhelResultXML, error) {
 				}
 				r.Variables[cVar.Id] = cVar
 			}
+			if t.Name.Local == "uname_test" {
+				fmt.Printf("got unametest elem: %v\n", t)
+				tst := oval_input.UnixUnameTestXML{}
+				if err = d.DecodeElement(&tst, &t); err != nil {
+					return nil, fmt.Errorf("decoding uname_test: %w", err)
+				}
+				r.UnameTests = append(r.UnameTests, tst)
+			}
+			if t.Name.Local == "uname_state" {
+				fmt.Printf("got unamestate elem: %v\n", t)
+				sta := oval_input.UnixUnameStateXML{}
+				if err = d.DecodeElement(&sta, &t); err != nil {
+					return nil, fmt.Errorf("decoding uname_state: %w", err)
+				}
+				r.UnameStates = append(r.UnameStates, sta)
+			}
 		}
 	}
 }
@@ -143,6 +160,8 @@ func mapToRhelResult(xmlResult *oval_input.RhelResultXML) (*oval_parsed.RhelResu
 
 	rpmVerifyObjToTst := make(map[string][]int)
 	rpmVerifyStaToTst := make(map[string][]int)
+
+	ustaToTst := make(map[string][]int)
 
 	for _, d := range xmlResult.Definitions {
 		if len(d.Vulnerabilities) > 0 {
@@ -237,6 +256,30 @@ func mapToRhelResult(xmlResult *oval_input.RhelResultXML) (*oval_parsed.RhelResu
 			t, ok := r.RpmVerifyFileTests[tId]
 			if ok {
 				t.State = *sta
+			} else {
+				return nil, fmt.Errorf("test not found: %d", tId)
+			}
+		}
+	}
+
+	for _, t := range xmlResult.UnameTests {
+		id, tst, err := mapUnixUnameTest(t)
+		if err != nil {
+			return nil, fmt.Errorf("mapping uname test: %w", err)
+		}
+
+		for _, sta := range t.States {
+			ustaToTst[sta.Id] = append(ustaToTst[sta.Id], id)
+		}
+		r.AddUnameTest(id, tst)
+	}
+
+	for _, s := range xmlResult.UnameStates {
+		sta := mapUnameState(s)
+		for _, tId := range ustaToTst[s.Id] {
+			t, ok := r.UnameTests[tId]
+			if ok {
+				t.States = append(t.States, *sta)
 			} else {
 				return nil, fmt.Errorf("test not found: %d", tId)
 			}

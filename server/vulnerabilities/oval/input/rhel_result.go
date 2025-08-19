@@ -11,4 +11,6 @@ type RhelResultXML struct {
 	RpmVerifyFileObjects []RpmVerifyFileObjectXML
 	RpmVerifyFileStates  []RpmVerifyFileStateXML
 	Variables            map[string]ConstantVariableXML
+	UnameTests           []UnixUnameTestXML
+	UnameStates          []UnixUnameStateXML
 }
