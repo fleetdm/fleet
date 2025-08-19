@@ -1270,3 +1270,135 @@ queries:
 	require.Equal(t, secretVariables[0].Name, secretName)
 	require.Equal(t, secretVariables[0].Value, secretValue)
 }
+
+// TestEnvSubstitutionInProfiles tests that only FLEET_SECRET_ prefixed env vars are saved as secrets
+func (s *enterpriseIntegrationGitopsTestSuite) TestEnvSubstitutionInProfiles() {
+	t := s.T()
+	ctx := t.Context()
+	tempDir := t.TempDir()
+
+	// Create a test configuration profile with both valid and invalid secret references
+	profileContent := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadDisplayName</key>
+            <string>Test Profile</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleet.test.env</string>
+            <key>PayloadType</key>
+            <string>Configuration</string>
+            <key>PayloadUUID</key>
+            <string>12345678-1234-1234-1234-123456789012</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>TestSecretValue</key>
+            <string>$FLEET_SECRET_TEST_SECRET</string>
+            <key>TestInvalidSecret</key>
+            <string>$FLEET_DUO_CERTIFICATE_SECRET</string>
+            <key>TestPlainValue</key>
+            <string>$HOME</string>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Test Profile</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleet.test.env</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>12345678-1234-1234-1234-123456789012</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>`
+
+	// Write the profile to a file
+	profilePath := filepath.Join(tempDir, "test-profile.mobileconfig")
+	err := os.WriteFile(profilePath, []byte(profileContent), 0644) //nolint:gosec // test code
+	require.NoError(t, err)
+
+	// Create a GitOps config file that references the profile
+	// Note: Environment variables in the YAML config itself get expanded,
+	// but not in the referenced profile files
+	gitopsConfig := fmt.Sprintf(`
+org_settings:
+  server_settings:
+    server_url: %s
+  secrets:
+    - secret: test_secret
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+queries: []
+policies: []
+`, s.Server.URL, profilePath)
+
+	configPath := filepath.Join(tempDir, "gitops.yml")
+	err = os.WriteFile(configPath, []byte(gitopsConfig), 0644) //nolint:gosec // test code
+	require.NoError(t, err)
+
+	// Create a GitOps user
+	gitOpsUser := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, gitOpsUser)
+
+	// Set the environment variable for the valid secret
+	t.Setenv("FLEET_SECRET_TEST_SECRET", "super_secret_value_123")
+	t.Setenv("FLEET_DUO_CERTIFICATE_SECRET", "should_not_be_saved")
+	t.Setenv("HOME", "also_not_saved")
+
+	// Run GitOps dry-run - should fail without the required secret
+	// First, unset the environment variable to trigger the error
+	_ = os.Unsetenv("FLEET_SECRET_TEST_SECRET")
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath, "--dry-run"})
+	require.ErrorContains(t, err, "FLEET_SECRET_TEST_SECRET")
+
+	// Set the env var again and run for real
+	t.Setenv("FLEET_SECRET_TEST_SECRET", "super_secret_value_123")
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
+
+	// Verify that the secret was saved to the server
+	secrets, err := s.DS.GetSecretVariables(ctx, []string{"TEST_SECRET"})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, "TEST_SECRET", secrets[0].Name)
+	assert.Equal(t, "super_secret_value_123", secrets[0].Value)
+
+	// Verify that non-FLEET_SECRET_ variables were NOT saved
+	notSaved, err := s.DS.GetSecretVariables(ctx, []string{"DUO_CERTIFICATE_SECRET", "HOME"})
+	require.NoError(t, err)
+	assert.Empty(t, notSaved, "Non-FLEET_SECRET_ variables should not be saved")
+
+	// Verify that the profile content has the expected substitutions:
+	// - $FLEET_SECRET_* variables should remain as-is (substituted at delivery time)
+	// - Other env vars should be expanded during GitOps
+	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+
+	foundProfile := false
+	for _, profile := range profiles {
+		t.Logf("Found profile: %s", profile.Name)
+		if strings.Contains(profile.Name, "test-profile") || strings.Contains(profile.Identifier, "com.fleet.test.env") {
+			foundProfile = true
+			// $FLEET_SECRET_* variables should NOT be expanded (they're expanded at delivery time)
+			assert.Contains(t, string(profile.Mobileconfig), "$FLEET_SECRET_TEST_SECRET")
+			// Non-FLEET_SECRET_/FLEET_VAR_ variables SHOULD be expanded during GitOps
+			assert.Contains(t, string(profile.Mobileconfig), "should_not_be_saved") // Value of $FLEET_DUO_CERTIFICATE_SECRET
+			assert.Contains(t, string(profile.Mobileconfig), "also_not_saved")      // Value of $HOME
+			// The original variable names should NOT be present
+			assert.NotContains(t, string(profile.Mobileconfig), "$FLEET_DUO_CERTIFICATE_SECRET")
+			assert.NotContains(t, string(profile.Mobileconfig), "$HOME")
+			break
+		}
+	}
+	assert.True(t, foundProfile, "Profile should be uploaded to the server")
+}
