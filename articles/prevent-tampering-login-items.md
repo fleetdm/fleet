@@ -8,7 +8,7 @@ Since the release of Ventura, users can now manage Login Items, LaunchAgents and
 
 Now in macOS, not only can users see which apps are set up for persistence, they can also control them from a single place in System Settings. Importantly, when apps add a LaunchAgent, LaunchDaemon, or Login Item, the system now displays a banner. 
 
-![Login Item Banner](../website/assets/images/articles/login-item-banner.png)
+![Login Item Banner](../website/assets/images/articles/login-item-banner-337x78@2x.png)
 
 ## Login items in the enterprise
 
@@ -16,7 +16,7 @@ While transparency and openness to see what is running on your machine is a [key
 
 To properly manage these “Login Items”, admins need to use an MDM to deploy a profile with the new `com.apple.servicemanagement` payload. This profile cannot be manually installed and it must be deployed from an MDM to a device. 
 
-![Profile Error](../website/assets/images/articles/user-profile-error.png)
+![Profile Error](../website/assets/images/articles/user-profile-error-389x327@2x.png)
 
 ## The anatomy of the payload
 
@@ -90,7 +90,7 @@ For a complete `.mobileconfig` example, check out [this repo.](https://github.co
 
 Upload this .mobileconfig to your MDM and once it’s deployed to your endpoints, you will see something like such in the Login Items section of the System Settings:
 
-![Profile Error](../website/assets/images/articles/locked-login-item.png)
+![Profile Error](../website/assets/images/articles/locked-login-item-606x76@2x.png)
 
 And that’s it!
 
