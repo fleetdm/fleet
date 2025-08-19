@@ -109,7 +109,7 @@ func (s *Service) GetCertificate(ctx context.Context, hydrantCA fleet.HydrantCA,
 		return nil, ctxerr.Wrap(ctx, err, "creating Hydrant CA request")
 	}
 	hydrantRequest.Header.Set("Content-Type", "application/pkcs10")
-	hydrantRequest.Header.Set("Accept", "application/pkcs12")
+	hydrantRequest.Header.Set("Accept", "application/pkcs7-mime")
 	hydrantRequest.Header.Set("Authorization", "Basic "+encodedCredential)
 	resp, err := client.Do(hydrantRequest)
 	if err != nil {
