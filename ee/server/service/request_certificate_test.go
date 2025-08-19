@@ -79,9 +79,8 @@ func TestRequestCertificate(t *testing.T) {
 				w.WriteHeader(http.StatusNotFound)
 				return
 			}
-			// TODO Some basic resp here
 			w.Header().Set("Content-Type", "application/pkcs7-mime")
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("Imagine if there was actually CA cert data here..."))
 			return
 		}
