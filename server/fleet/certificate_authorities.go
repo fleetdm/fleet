@@ -2,9 +2,13 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 )
 
 // TODO HCA these types can/should be removed once appconfig CA support is removed
@@ -210,4 +214,71 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 	}
 
 	return grouped, nil
+}
+
+// TODO: confirm this type works; may need to use pointers; confirm expected "patch" behaviors in
+// contxt of gitops
+type CertificateAuthoritiesSpec struct {
+	DigiCert optjson.Slice[DigiCertCA] `json:"digicert"`
+	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
+	NDESSCEPProxy   optjson.Any[NDESSCEPProxyCA]     `json:"ndes_scep_proxy"`
+	CustomSCEPProxy optjson.Slice[CustomSCEPProxyCA] `json:"custom_scep_proxy"`
+	Hydrant         optjson.Slice[HydrantCA]         `json:"hydrant"`
+}
+
+// TODO: handle optjson appropriately
+func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*CertificateAuthoritiesSpec, error) {
+	var spec interface{}
+	spec, ok := incoming.(map[string]interface{})
+	if !ok || incoming == nil {
+		spec = map[string]interface{}{}
+		fmt.Println("org_settings.certificate_authorities config is not a map, using empty map")
+		// group.AppConfig.(map[string]interface{})["integrations"] = integrations
+	} else {
+		spec = incoming.(map[string]interface{})
+	}
+	spec, ok = spec.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("foobar: org_settings.certificate_authorities config is not a map")
+	}
+
+	if ndesSCEPProxy, ok := spec.(map[string]interface{})["ndes_scep_proxy"]; !ok || ndesSCEPProxy == nil {
+		// Per backend patterns.md, best practice is to clear a JSON config field with `null`
+		spec.(map[string]interface{})["ndes_scep_proxy"] = nil
+	} else {
+		if _, ok = ndesSCEPProxy.(map[string]interface{}); !ok {
+			return nil, errors.New("org_settings.certificate_authorities.ndes_scep_proxy config is not a map")
+		}
+	}
+	if digicertIntegration, ok := spec.(map[string]interface{})["digicert"]; !ok || digicertIntegration == nil {
+		spec.(map[string]interface{})["digicert"] = nil
+	} else {
+		// We unmarshal DigiCert integration into its dedicated type for additional validation.
+		digicertJSON, err := json.Marshal(spec.(map[string]interface{})["digicert"])
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.digicert cannot be marshalled into JSON: %w", err)
+		}
+		var digicertData optjson.Slice[DigiCertCA]
+		err = json.Unmarshal(digicertJSON, &digicertData)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.digicert cannot be parsed: %w", err)
+		}
+		spec.(map[string]interface{})["digicert"] = digicertData
+	}
+	if customSCEPIntegration, ok := spec.(map[string]interface{})["custom_scep_proxy"]; !ok || customSCEPIntegration == nil {
+		spec.(map[string]interface{})["custom_scep_proxy"] = nil
+	} else {
+		// We unmarshal Custom SCEP integration into its dedicated type for additional validation
+		custonSCEPJSON, err := json.Marshal(spec.(map[string]interface{})["custom_scep_proxy"])
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.custom_scep_proxy cannot be marshalled into JSON: %w", err)
+		}
+		var customSCEPData optjson.Slice[CustomSCEPProxyCA]
+		err = json.Unmarshal(custonSCEPJSON, &customSCEPData)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.custom_scep_proxy cannot be parsed: %w", err)
+		}
+		spec.(map[string]interface{})["custom_scep_proxy"] = customSCEPData
+	}
+	return nil, nil
 }
