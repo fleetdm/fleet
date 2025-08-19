@@ -69,7 +69,7 @@ Below is an explanation of what each of the macOS CrowdStrike Falcon payloads do
 
 >To upload Configuration Profiles to Fleet: go to **Controls > OS SEttings > Custom settings** then click **Add Profile**. See the screen shot below for details.
 
-<!-- Mike T Please add screen shot here -->
+![Add software advanced options](../website/assets/images/articles/fleet-crowdstrike-add-profile-800x450@2x.png)
 
 ## Linux
 
