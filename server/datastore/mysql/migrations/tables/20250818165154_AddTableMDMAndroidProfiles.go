@@ -35,7 +35,7 @@ CREATE TABLE mdm_google_configuration_profiles (
   name           VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  NOT NULL,
 	-- store as JSON so we can use JSON_CONTAINS to check if the applied JSON document
 	-- contains this profile's JSON.
-  raw_json       JSON CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  raw_json       JSON NOT NULL,
 
 	-- see note comment above, needed for upserts
 	auto_increment BIGINT NOT NULL AUTO_INCREMENT UNIQUE,
