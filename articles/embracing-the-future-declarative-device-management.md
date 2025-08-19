@@ -1,6 +1,6 @@
 # Embracing the future: Declarative Device Management 
 
-![Embracing the future: Declarative Device Management](../website/assets/images/articles/embracing-the-future-declarative-device-management@2x.png)
+![Embracing the future: Declarative Device Management](../website/assets/images/articles/embracing-the-future-declarative-device-management-800x450@2x.png)
 
 As a Mac administrator, managing a fleet of Apple devices across your organization requires consistency and airtight security. With a variety of system services and background tasks to oversee, the challenge is not only to maintain uniform configurations but also to keep the organization's data secure. Recognizing these challenges, Apple has advanced a powerful new approach - Declarative Device Management (DDM).
 
