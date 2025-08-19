@@ -516,7 +516,7 @@ module "monitoring" {
 }
 
 module "logging_alb" {
-  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.5.0"
+  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.4.0"
   prefix        = local.customer
   enable_athena = true
 }
