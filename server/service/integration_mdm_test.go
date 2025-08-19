@@ -15171,11 +15171,9 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	scepServer := scep_server.StartTestSCEPServer(t)
 	scepServerURL := scepServer.URL + "/scep"
 
-	// Add custom SCEP integration with bad URL using local test server
-	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
-	defer cleanup()
+	// TODO(hca): Update test to use apply group CA endpoint?
 
-	caBad := getCustomSCEPIntegration(testServer.URL, "ca")
+	caBad := newMockCustomSCEPProxyCA(scepServer.URL, "ca")
 	certPayload := createCertificateAuthorityRequest{
 		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
 			CustomSCEPProxy: &caBad,
@@ -15185,11 +15183,11 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusBadRequest, &res)
 
 	// Add 3 CustomSCEPProxy integrations
-	ca0 := getCustomSCEPIntegration(scepServerURL, "ca0")
+	ca0 := newMockCustomSCEPProxyCA(scepServerURL, "ca0")
 	ca0.Challenge = "challenge0"
-	ca1 := getCustomSCEPIntegration(scepServerURL, "ca1")
+	ca1 := newMockCustomSCEPProxyCA(scepServerURL, "ca1")
 	ca1.Challenge = "challenge1"
-	ca2 := getCustomSCEPIntegration(scepServerURL, "ca2")
+	ca2 := newMockCustomSCEPProxyCA(scepServerURL, "ca2")
 	ca2.Challenge = "challenge2"
 	certPayload.CertificateAuthorityPayload.CustomSCEPProxy = &ca0
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
@@ -15250,7 +15248,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	// TODO(HCA): Re enable and switch out with endpoints once update endpoint is implemented.
 	/* // Add 1, modify 1, delete 1, keep 1 the same (CustomSCEPProxy integrations)
 	ca1.Challenge = "challenge1-modified"
-	ca3 := getCustomSCEPIntegration(scepServerURL, "ca3")
+	ca3 := newMockCustomSCEPProxyCA(scepServerURL, "ca3")
 	ca3.Challenge = "challenge3"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
@@ -15472,8 +15470,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 
 	// /////////////////////////////////////////
 	// Add custom SCEP config
-	ca0 := getCustomSCEPIntegration(scepServerURL, "scepName")
-	ca1 := getCustomSCEPIntegration(scepServerURL, "scepName2")
+	ca0 := newMockCustomSCEPProxyCA(scepServerURL, "scepName")
+	ca1 := newMockCustomSCEPProxyCA(scepServerURL, "scepName2")
 	t.Logf("scepName2 challenge:%s", ca1.Challenge)
 	certPayload := createCertificateAuthorityRequest{
 		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
