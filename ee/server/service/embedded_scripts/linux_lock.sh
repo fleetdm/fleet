@@ -65,6 +65,19 @@ fi
 echo "Locked by administrator" > /etc/nologin
 echo "Locked by administrator" > /run/nologin
 
+# Set a GDM banner for any system with GDM to make the lock visible
+# GDM GUI doesn't always display PAM nologin messages, so we need this banner
+if systemctl is-active --quiet gdm || systemctl is-active --quiet gdm3; then
+    echo "Setting GDM banner for lock notification"
+    mkdir -p /etc/dconf/db/gdm.d
+    cat > /etc/dconf/db/gdm.d/01-fleet-lock-banner << 'EOF'
+[org/gnome/login-screen]
+banner-message-enable=true
+banner-message-text='System is locked by administrator'
+EOF
+    dconf update 2>/dev/null || true
+fi
+
 # Disable systemd-user-sessions, a service that deletes /etc/nologin
 # Although we re-create /etc/nologin in another systemd service,
 # we are doing this to prevent a race condition (security hole) where /etc/nologin is deleted

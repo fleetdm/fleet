@@ -24,6 +24,13 @@ done
 [ -f /etc/nologin ] && rm /etc/nologin
 [ -f /run/nologin ] && rm /run/nologin
 
+# Remove GDM banner if we set one
+if [ -f /etc/dconf/db/gdm.d/01-fleet-lock-banner ]; then
+    echo "Removing GDM lock banner"
+    rm /etc/dconf/db/gdm.d/01-fleet-lock-banner
+    dconf update 2>/dev/null || true
+fi
+
 # Remove our custom lock message service
 if [ -f /etc/systemd/system/fleet-lock-message.service ]; then
     systemctl stop fleet-lock-message.service 2>/dev/null || true
