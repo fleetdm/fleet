@@ -389,6 +389,15 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 	return nil
 }
 
+func (svc *Service) ApplyCertificateAuthoritiesSpec(ctx context.Context, spec fleet.CertificateAuthoritiesSpec) error {
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// TODO: Implement the logic to apply the certificate authorities spec
+	return nil
+}
+
 func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p fleet.CertificateAuthorityUpdatePayload) error {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
 		return err

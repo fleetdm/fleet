@@ -784,9 +784,14 @@ func TestGitOpsErrors(t *testing.T) {
 			wantErr: "org_settings.integrations",
 		},
 		{
-			name:    "invalid ndes_scep_proxy value",
+			name:    "invalid integrations.ndes_scep_proxy key",
 			rawJSON: `{ "integrations": { "ndes_scep_proxy": [] } }`,
-			wantErr: "org_settings.integrations.ndes_scep_proxy",
+			wantErr: "org_settings.integrations.ndes_scep_proxy is not supported",
+		},
+		{
+			name:    "invalid certificate_authorities.ndes_scep_proxy value",
+			rawJSON: `{ "integrations": null, "certificate_authorities": { "ndes_scep_proxy": [] } }`,
+			wantErr: "org_settings.certificate_authorities.ndes_scep_proxy config is not a map",
 		},
 	}
 

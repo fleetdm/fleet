@@ -173,3 +173,33 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	svc.authz.SkipAuthorization(ctx)
 	return nil, fleet.ErrMissingLicense
 }
+
+type applyCertificateAuthoritiesSpecRequest struct {
+	Spec fleet.CertificateAuthoritiesSpec `json:"spec"`
+}
+
+type applyCertificateAuthoritiesSpecResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r applyCertificateAuthoritiesSpecResponse) Error() error { return r.Err }
+
+// func (r applyCertificateAuthoritiesSpecResponse) Status() int  { return http.StatusNoContent }
+
+func applyCertificateAuthoritiesSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*applyCertificateAuthoritiesSpecRequest)
+
+	// Call the service method to apply the certificate authorities spec
+	err := svc.ApplyCertificateAuthoritiesSpec(ctx, req.Spec)
+	if err != nil {
+		return &applyCertificateAuthoritiesSpecResponse{Err: err}, nil
+	}
+
+	return &applyCertificateAuthoritiesSpecResponse{}, nil
+}
+
+func (svc *Service) ApplyCertificateAuthoritiesSpec(ctx context.Context, spec fleet.CertificateAuthoritiesSpec) error {
+	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return fleet.ErrMissingLicense
+}

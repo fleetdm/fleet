@@ -360,10 +360,10 @@ type Integrations struct {
 	Jira           []*JiraIntegration           `json:"jira"`
 	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
 	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
-	DigiCert       optjson.Slice[DigiCertCA]    `json:"digicert"`
-	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
-	NDESSCEPProxy   optjson.Any[NDESSCEPProxyCA]     `json:"ndes_scep_proxy"`
-	CustomSCEPProxy optjson.Slice[CustomSCEPProxyCA] `json:"custom_scep_proxy"`
+	// DigiCert       optjson.Slice[DigiCertCA]    `json:"digicert"`
+	// // NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
+	// NDESSCEPProxy   optjson.Any[NDESSCEPProxyCA]     `json:"ndes_scep_proxy"`
+	// CustomSCEPProxy optjson.Slice[CustomSCEPProxyCA] `json:"custom_scep_proxy"`
 	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
 }
