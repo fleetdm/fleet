@@ -56,22 +56,10 @@ if [ -f /etc/fleet.text-mode-lock ]; then
     rm /etc/fleet.text-mode-lock
     
     # System needs reboot to properly restore GUI
-    echo "Rebooting to restore graphical interface"
-    reboot
-else
-    # For Ubuntu systems with GDM that weren't switched to text mode (older Fleet versions):
-    # When we lock a machine using /etc/nologin, GDM gets stuck with a black screen.
-    # This didn't used to be the case on Ubuntu 22.04. This bug doesn't affect other 
-    # login managers such as lightdm, and doesn't occur on Fedora.
-    #
-    # For backward compatibility with systems locked before the text-mode fix,
-    # we still need to reboot Ubuntu+GDM systems to restore the login screen.
-    if [ -f /etc/os-release ] && grep -qi ubuntu /etc/os-release; then
-        if systemctl is-active --quiet gdm3 || systemctl is-active --quiet gdm; then
-            echo "Ubuntu with GDM detected - rebooting to restore login screen"
-            reboot
-        fi
-    fi
 fi
 
 echo "All non-root users have been unlocked."
+
+# Although rebooting is not strictly necessary for all cases, we've seen some UI issues that
+# can be resolved by rebooting. For example, the password prompt is not fully visible in LightDM+Ubuntu24.04
+reboot
