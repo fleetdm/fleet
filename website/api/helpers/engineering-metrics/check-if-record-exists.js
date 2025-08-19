@@ -70,18 +70,18 @@ module.exports = {
       // Handle specific BigQuery errors
       if (err.name === 'PartialFailureError') {
         // Log the specific rows that failed
-        sails.log.error(`Partial failure when checking if record exists in ${tableId}:`, err.errors);
+        sails.log.warn(`When checking if a record exists for ${repo}#${issueNumber}, there was a partial failure when checking in ${tableId}:`, err.errors);
       } else if (err.code === 404) {
-        sails.log.error('BigQuery table or dataset not found. Please ensure the table exists:', {
+        sails.log.warn(`When checking if a record exists for ${repo}#${issueNumber}, a BigQuery table or dataset not found. Please ensure the table exists:`, {
           dataset: 'github_metrics',
           table: tableId,
           fullError: err.message
         });
         return false;
       } else if (err.code === 403) {
-        sails.log.error('Permission denied when accessing BigQuery. Check service account permissions.');
+        sails.log.warn(`When checking if a record exists for ${repo}#${issueNumber}, permission was denied when accessing BigQuery. Check service account permissions.`);
       } else {
-        sails.log.error(`Error checking if record exists in ${tableId}:`, err);
+        sails.log.warn(`When checking if a record exists for ${repo}#${issueNumber} in ${tableId}, an error occured:`, err);
       }
       return false;
     }
