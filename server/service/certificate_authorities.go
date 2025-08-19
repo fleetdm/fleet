@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -122,10 +121,6 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 type updateCertificateAuthorityRequest struct {
 	ID uint `url:"id"`
 	fleet.CertificateAuthorityPayload
-	// Digicert        *fleet.DigiCertCA        `json:"digicert,omitempty"`
-	// NDESSCEPProxy   *fleet.NDESSCEPProxyCA   `json:"ndes_scep_proxy,omitempty"`
-	// CustomSCEPProxy *fleet.CustomSCEPProxyCA `json:"custom_scep_proxy,omitempty"`
-	// Hydrant         *fleet.HydrantCA         `json:"hydrant,omitempty"`
 }
 
 type updateCertificateAuthorityResponse struct {
@@ -136,11 +131,6 @@ func (r updateCertificateAuthorityResponse) Error() error { return r.Err }
 
 func updateCertificateAuthorityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateCertificateAuthorityRequest)
-
-	// fmt.Printf(`request id: %d, stuct: %+v, full request: %+v`, req.ID, req.Digicert, req)
-	fmt.Printf(`request id: %d, full request: %+v`, req.ID, req)
-
-	// delete
 
 	err := svc.UpdateCertificateAuthority(ctx, req.ID, req.CertificateAuthorityPayload)
 	if err != nil {

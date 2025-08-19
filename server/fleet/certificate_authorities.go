@@ -75,6 +75,40 @@ type CertificateAuthorityPayload struct {
 	Hydrant         *HydrantCA         `json:"hydrant,omitempty"`
 }
 
+// func (cap *CertificateAuthorityPayload) ValidatePayload(svc *Service, errPrefix string) error {
+// 	casToCreate := 0
+// 	if cap.DigiCert != nil {
+// 		casToCreate++
+// 	}
+// 	if cap.Hydrant != nil {
+// 		casToCreate++
+// 	}
+// 	if cap.NDESSCEPProxy != nil {
+// 		casToCreate++
+// 	}
+// 	if cap.CustomSCEPProxy != nil {
+// 		casToCreate++
+// 	}
+// 	if casToCreate == 0 {
+// 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sA certificate authority must be specified", errPrefix)}
+// 	}
+// 	if casToCreate > 1 {
+// 		// handle showing this error only for create and update at the moment. If more cases are needed then we
+// 		// should probably pass in the verb instead of checking the errPrefix
+// 		var verb string
+// 		if strings.Contains(errPrefix, "create") {
+// 			verb = "created"
+// 		}
+// 		verb = "updated"
+// 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sOnly one certificate authority can be %s at a time", errPrefix, verb)}
+// 	}
+//
+// if len(*svc.config.Server.PrivateKey) == 0 {
+// 	return &fleet.BadRequestError{Message: fmt.Sprintf("%sPrivate key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key", errPrefix)}
+// }
+// 	return nil
+// }
+
 // If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
 type DigiCertCA struct {
 	Name                          string   `json:"name"`
@@ -101,6 +135,12 @@ func (d *DigiCertCA) NeedToVerify(other *DigiCertCA) bool {
 		d.URL != other.URL ||
 		!(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) ||
 		d.ProfileID != other.ProfileID
+}
+
+func (d *DigiCertCA) Preprocess() {
+	d.Name = Preprocess(d.Name)
+	d.URL = Preprocess(d.URL)
+	d.ProfileID = Preprocess(d.ProfileID)
 }
 
 type HydrantCA struct {

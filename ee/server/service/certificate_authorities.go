@@ -45,29 +45,10 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		return nil, err
 	}
 
-	casToCreate := 0
-	if p.DigiCert != nil {
-		casToCreate++
-	}
-	if p.Hydrant != nil {
-		casToCreate++
-	}
-	if p.NDESSCEPProxy != nil {
-		casToCreate++
-	}
-	if p.CustomSCEPProxy != nil {
-		casToCreate++
-	}
 	errPrefix := "Couldn't add certificate authority. "
-	if casToCreate == 0 {
-		return nil, &fleet.BadRequestError{Message: errPrefix + "A certificate authority must be specified"}
-	}
-	if casToCreate > 1 {
-		return nil, &fleet.BadRequestError{Message: errPrefix + "Only one certificate authority can be created at a time"}
-	}
 
-	if len(svc.config.Server.PrivateKey) == 0 {
-		return nil, &fleet.BadRequestError{Message: errPrefix + "Private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
+	if err := svc.validatePayload(&p, errPrefix); err != nil {
+		return nil, err
 	}
 
 	caToCreate := &fleet.CertificateAuthority{}
@@ -161,6 +142,40 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	}
 
 	return createdCA, nil
+}
+
+func (svc *Service) validatePayload(p *fleet.CertificateAuthorityPayload, errPrefix string) error {
+	casToCreate := 0
+	if p.DigiCert != nil {
+		casToCreate++
+	}
+	if p.Hydrant != nil {
+		casToCreate++
+	}
+	if p.NDESSCEPProxy != nil {
+		casToCreate++
+	}
+	if p.CustomSCEPProxy != nil {
+		casToCreate++
+	}
+	if casToCreate == 0 {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sA certificate authority must be specified", errPrefix)}
+	}
+	if casToCreate > 1 {
+		// handle showing this error only for create and update at the moment. If more cases are needed then we
+		// should probably pass in the verb instead of checking the errPrefix
+		var verb string
+		if strings.Contains(errPrefix, "create") {
+			verb = "created"
+		}
+		verb = "edited"
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sOnly one certificate authority can be %s at a time", errPrefix, verb)}
+	}
+
+	if len(svc.config.Server.PrivateKey) == 0 {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sPrivate key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key", errPrefix)}
+	}
+	return nil
 }
 
 func (svc *Service) validateDigicert(ctx context.Context, digicertCA *fleet.DigiCertCA, errPrefix string) error {
@@ -376,6 +391,35 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p fleet.CertificateAuthorityPayload) error {
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	errPrefix := "Couldn't edit certificate authority. "
+
+	if err := svc.validatePayload(&p, errPrefix); err != nil {
+		return err
+	}
+
+	caToUpdate := fleet.CertificateAuthority{}
+
+	if p.DigiCert != nil {
+		p.DigiCert.Preprocess()
+		fmt.Printf("stuct: %+v", p.DigiCert)
+		caToUpdate.Type = string(fleet.CATypeDigiCert)
+		caToUpdate.Name = p.DigiCert.Name
+		caToUpdate.URL = p.DigiCert.URL
+		caToUpdate.APIToken = &p.DigiCert.APIToken
+		caToUpdate.ProfileID = ptr.String(p.DigiCert.ProfileID)
+		caToUpdate.CertificateCommonName = &p.DigiCert.CertificateCommonName
+		caToUpdate.CertificateUserPrincipalNames = p.DigiCert.CertificateUserPrincipalNames
+		caToUpdate.CertificateSeatID = &p.DigiCert.CertificateSeatID
 	}
 
 	return nil
