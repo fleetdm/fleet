@@ -45,5 +45,5 @@ In a nutshell, the [PSU MacAdmins Conference 2023](https://macadmins.psu.edu/) i
 <meta name="authorFullName" value="JD Strong">
 <meta name="publishedOn" value="2023-07-13">
 <meta name="articleTitle" value="Mac admins summer camp ⛺ at PSU MacAdmins Conference 2023">
-<meta name="articleImageUrl" value="../website/assets/images/articles/psu-macadmins-conference-2023@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/psu-macadmins-conference-2023-1600x900@2x.png">
 <meta name="description" value="A look ahead to PSU MacAdmin Conference July 18-21, 2023">

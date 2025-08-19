@@ -61,5 +61,5 @@ Fleet is transforming how we manage and secure devices. Offering an open-core, c
 <meta name="authorFullName" value="JD Strong">
 <meta name="publishedOn" value="2023-07-06">
 <meta name="articleTitle" value="Embracing the future: Declarative Device Management">
-<meta name="articleImageUrl" value="../website/assets/images/articles/embracing-the-future-declarative-device-management@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/embracing-the-future-declarative-device-management-800x450@2x.png">
 <meta name="description" value="Explore the transformative impact of Declarative Device Management (DDM), Fleet, and osquery for MacAdmins.">
