@@ -993,10 +993,66 @@ module.exports = {
 
         if (shouldCreateQaRow) {
           // Get the latest in_progress status from BigQuery
-          const inProgressData = await sails.helpers.engineeringMetrics.getLatestInProgressStatus.with({
-            repo: issueDetails.repo,
-            issueNumber: issueDetails.issueNumber,
-            gcpServiceAccountKey: gcpServiceAccountKey
+          let inProgressData = await sails.helpers.flow.build(async ()=>{
+            const {BigQuery} = require('@google-cloud/bigquery');
+            const bigquery = new BigQuery({
+              projectId: gcpServiceAccountKey.project_id,
+              credentials: gcpServiceAccountKey
+            });
+            // Configure dataset and table names
+            const datasetId = 'github_metrics';
+            const tableId = 'issue_status_change';
+
+            // Query to get the latest in_progress status
+            const query = `
+              SELECT date, repo, issue_number
+              FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
+              WHERE repo = @repo
+                AND issue_number = @issueNumber
+                AND status = 'in_progress'
+              ORDER BY date DESC
+              LIMIT 1
+            `;
+
+            const options = {
+              query: query,
+              params: {
+                repo: issueDetails.repo,
+                issueNumber: issueDetails.issueNumber
+              }
+            };
+
+            // Run the query
+            const [rows] = await bigquery.query(options);
+
+            if (rows.length === 0) {
+              return null;
+            }
+
+            // Convert BigQueryTimestamp to string if needed
+            const result = rows[0];
+            if (result.date && result.date.value) {
+              result.date = result.date.value;
+            }
+
+            return result;
+          }).tolerate((err)=>{
+            // Handle specific BigQuery errors
+            if (err.name === 'PartialFailureError') {
+              // Log the specific rows that failed
+              sails.log.warn('Partial failure when getting latest in_progress status from BigQuery:', err.errors);
+            } else if (err.code === 404) {
+              sails.log.warn('BigQuery table or dataset not found. Please ensure the table exists:', {
+                dataset: 'github_metrics',
+                table: 'issue_status_change',
+                fullError: err.message
+              });
+            } else if (err.code === 403) {
+              sails.log.warn('Permission denied when accessing BigQuery. Check service account permissions.');
+            } else {
+              sails.log.warn('Error getting latest in_progress status from BigQuery:', err);
+            }
+            return null;
           });
 
           if (inProgressData) {
@@ -1084,10 +1140,66 @@ module.exports = {
 
         if (shouldSaveRelease) {
           // Get the latest in_progress status from BigQuery
-          const inProgressData = await sails.helpers.engineeringMetrics.getLatestInProgressStatus.with({
-            repo: issueDetails.repo,
-            issueNumber: issueDetails.issueNumber,
-            gcpServiceAccountKey: gcpServiceAccountKey
+          let inProgressData = await sails.helpers.flow.build(async ()=>{
+            const {BigQuery} = require('@google-cloud/bigquery');
+            const bigquery = new BigQuery({
+              projectId: gcpServiceAccountKey.project_id,
+              credentials: gcpServiceAccountKey
+            });
+            // Configure dataset and table names
+            const datasetId = 'github_metrics';
+            const tableId = 'issue_status_change';
+
+            // Query to get the latest in_progress status
+            const query = `
+              SELECT date, repo, issue_number
+              FROM \`${gcpServiceAccountKey.project_id}.${datasetId}.${tableId}\`
+              WHERE repo = @repo
+                AND issue_number = @issueNumber
+                AND status = 'in_progress'
+              ORDER BY date DESC
+              LIMIT 1
+            `;
+
+            const options = {
+              query: query,
+              params: {
+                repo: issueDetails.repo,
+                issueNumber: issueDetails.issueNumber
+              }
+            };
+
+            // Run the query
+            const [rows] = await bigquery.query(options);
+
+            if (rows.length === 0) {
+              return null;
+            }
+
+            // Convert BigQueryTimestamp to string if needed
+            const result = rows[0];
+            if (result.date && result.date.value) {
+              result.date = result.date.value;
+            }
+
+            return result;
+          }).tolerate((err)=>{
+            // Handle specific BigQuery errors
+            if (err.name === 'PartialFailureError') {
+              // Log the specific rows that failed
+              sails.log.warn('Partial failure when getting latest in_progress status from BigQuery:', err.errors);
+            } else if (err.code === 404) {
+              sails.log.warn('BigQuery table or dataset not found. Please ensure the table exists:', {
+                dataset: 'github_metrics',
+                table: 'issue_status_change',
+                fullError: err.message
+              });
+            } else if (err.code === 403) {
+              sails.log.warn('Permission denied when accessing BigQuery. Check service account permissions.');
+            } else {
+              sails.log.warn('Error getting latest in_progress status from BigQuery:', err);
+            }
+            return null;
           });
 
           if (inProgressData) {
