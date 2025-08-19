@@ -703,3 +703,8 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 
 	return nil
 }
+
+func (svc *Service) ApplyCertificateAuthoritiesSpec(ctx context.Context, spec fleet.CertificateAuthoritiesSpec) error {
+	// TODO: Implement the logic to apply the certificate authorities spec
+	return nil
+}

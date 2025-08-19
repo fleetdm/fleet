@@ -1304,6 +1304,8 @@ type Service interface {
 	// UpdateCertificateAuthority updates the certificate authority of the given id
 	UpdateCertificateAuthority(ctx context.Context, id uint, p CertificateAuthorityUpdatePayload) error
 	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (*string, error)
+	// ApplyCertificateAuthoritiesSpec applies the given certificate authorities spec
+	ApplyCertificateAuthoritiesSpec(ctx context.Context, spec CertificateAuthoritiesSpec) error
 }
 
 type KeyValueStore interface {

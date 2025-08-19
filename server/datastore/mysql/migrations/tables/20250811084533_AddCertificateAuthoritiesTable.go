@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
@@ -13,6 +14,19 @@ import (
 
 func init() {
 	MigrationClient.AddMigration(Up_20250811084533, Down_20250811084533)
+}
+
+// legacyIntegrationsWithCertAuthorties represents the legacy integrations configuration when it included certificate authorities.
+type legacyIntegrationsWithCertAuthorties struct {
+	Jira           []*fleet.JiraIntegration           `json:"jira"`
+	Zendesk        []*fleet.ZendeskIntegration        `json:"zendesk"`
+	GoogleCalendar []*fleet.GoogleCalendarIntegration `json:"google_calendar"`
+	DigiCert       optjson.Slice[fleet.DigiCertCA]    `json:"digicert"`
+	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
+	NDESSCEPProxy   optjson.Any[fleet.NDESSCEPProxyCA]     `json:"ndes_scep_proxy"`
+	CustomSCEPProxy optjson.Slice[fleet.CustomSCEPProxyCA] `json:"custom_scep_proxy"`
+	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
+	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
 }
 
 // dbCertificateAuthority embeds fleet.CertificateAuthority and adds encrypted representation of sensitive
@@ -82,13 +96,13 @@ func Up_20250811084533(tx *sql.Tx) error {
 	}
 
 	// Populate the table with existing data from app_config_json
-	appConfigSelect := `SELECT json_value FROM app_config_json LIMIT 1`
-	var appConfigJSON fleet.AppConfig
+	appConfigSelect := `SELECT json_value->"$integrations" FROM app_config_json LIMIT 1`
+	var integrations legacyIntegrationsWithCertAuthorties
 	jsonBytes := []byte{}
 	if err := txx.Get(&jsonBytes, appConfigSelect); err != nil {
 		return fmt.Errorf("failed to get app_config_json: %w", err)
 	}
-	if err := json.Unmarshal(jsonBytes, &appConfigJSON); err != nil {
+	if err := json.Unmarshal(jsonBytes, &integrations); err != nil {
 		return fmt.Errorf("failed to unmarshal app_config_json: %w", err)
 	}
 
@@ -114,8 +128,8 @@ FROM
 
 	casToInsert := []dbCertificateAuthority{}
 
-	if appConfigJSON.Integrations.CustomSCEPProxy.Valid && len(appConfigJSON.Integrations.CustomSCEPProxy.Value) > 0 {
-		for _, customSCEPProxyCA := range appConfigJSON.Integrations.CustomSCEPProxy.Value {
+	if integrations.CustomSCEPProxy.Valid && len(integrations.CustomSCEPProxy.Value) > 0 {
+		for _, customSCEPProxyCA := range integrations.CustomSCEPProxy.Value {
 			customSCEPChallenge := getCAConfigAsset(customSCEPProxyCA.Name, fleet.CAConfigCustomSCEPProxy)
 			if customSCEPChallenge == nil || len(customSCEPChallenge.Value) == 0 {
 				return errors.New("Custom SCEP Proxy challenge not found in ca_config_assets")
@@ -130,8 +144,8 @@ FROM
 			})
 		}
 	}
-	if appConfigJSON.Integrations.DigiCert.Valid && len(appConfigJSON.Integrations.DigiCert.Value) > 0 {
-		for _, digicertCA := range appConfigJSON.Integrations.DigiCert.Value {
+	if integrations.DigiCert.Valid && len(integrations.DigiCert.Value) > 0 {
+		for _, digicertCA := range integrations.DigiCert.Value {
 			digicertAPIToken := getCAConfigAsset(digicertCA.Name, fleet.CAConfigDigiCert)
 			if digicertAPIToken == nil || len(digicertAPIToken.Value) == 0 {
 				return errors.New("DigiCert API token not found in ca_config_assets")
@@ -151,7 +165,7 @@ FROM
 		}
 	}
 
-	if appConfigJSON.Integrations.NDESSCEPProxy.Valid {
+	if integrations.NDESSCEPProxy.Valid {
 		ndesCAPassword := []byte{}
 		err = txx.Get(&ndesCAPassword, `SELECT value FROM mdm_config_assets WHERE name = ?`, fleet.MDMAssetNDESPassword)
 		if err != nil {
@@ -162,7 +176,7 @@ FROM
 		}
 
 		// Insert NDES SCEP Proxy data
-		ndesCA := appConfigJSON.Integrations.NDESSCEPProxy.Value
+		ndesCA := integrations.NDESSCEPProxy.Value
 		name := "NDES"
 		dbNDESCA := dbCertificateAuthority{
 			CertificateAuthority: fleet.CertificateAuthority{
