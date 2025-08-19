@@ -1108,7 +1108,7 @@ module.exports = {
 
             statusChange = qaReadyData;
           } else {
-            sails.log.warn(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate QA ready time`);
+            sails.log.info(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate QA ready time`);
           }
         }
       }//ﬁ
@@ -1246,7 +1246,7 @@ module.exports = {
               tableId: 'issue_release_ready'
             });
 
-            sails.log.info('Saved release ready metrics:', {
+            sails.log.verbose('Saved release ready metrics:', {
               repo: issueDetails.repo,
               issueNumber: issueDetails.issueNumber,
               timeToReleaseReadySeconds,
@@ -1255,7 +1255,7 @@ module.exports = {
 
             statusChange = releaseReadyData;
           } else {
-            sails.log.warn(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate release ready time`);
+            sails.log.info(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate release ready time`);
           }
         }
       }//ﬁ
