@@ -584,6 +584,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_declarations":           "host_uuid",
 	"host_mdm_apple_awaiting_configuration": "host_uuid",
 	"setup_experience_status_results":       "host_uuid",
+	"host_mdm_google_profiles":              "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -4054,8 +4055,8 @@ func maybeAssociateScimUserWithHostMDMIdP(
 
 	var hostIDs []uint
 	selectFmt := `
-SELECT h.id 
-FROM hosts h 
+SELECT h.id
+FROM hosts h
 JOIN host_mdm_idp_accounts hmia ON h.uuid = hmia.host_uuid
 JOIN mdm_idp_accounts mia ON hmia.account_uuid = mia.uuid
 WHERE %s`
