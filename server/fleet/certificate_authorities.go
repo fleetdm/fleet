@@ -155,11 +155,11 @@ func (c *CertificateAuthority) AuthzType() string {
 }
 
 type RequestCertificatePayload struct {
-	ID          uint    `json:"id" url:"id"` // ID Of the CA the cert is to be requested from.
-	CSR         string  `json:"csr"`
-	IDPOauthURL *string `json:"idp_oauth_url"`
-	IDPToken    *string `json:"idp_token"`
-	IDPClientID *string `json:"idp_client_id"`
+	ID          uint    `url:"id"`             // ID Of the CA the cert is to be requested from.
+	CSR         string  `json:"csr"`           // PEM-encoded CSR
+	IDPOauthURL *string `json:"idp_oauth_url"` // OAuth introspection URL for validating IDP Authentication
+	IDPToken    *string `json:"idp_token"`     // Token for IDP Authentication
+	IDPClientID *string `json:"idp_client_id"` // Client ID for IDP Authentication
 }
 
 func (c *RequestCertificatePayload) AuthzType() string {
