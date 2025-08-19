@@ -195,7 +195,7 @@ func applyCertificateAuthoritiesSpecEndpoint(ctx context.Context, request interf
 	req := request.(*applyCertificateAuthoritiesSpecRequest)
 
 	// Call the service method to apply the certificate authorities spec
-	err := svc.ApplyCertificateAuthoritiesSpec(ctx, req.Spec, req.DryRun, true)
+	err := svc.ApplyCertificateAuthoritiesSpec(ctx, req.Spec)
 	if err != nil {
 		return &applyCertificateAuthoritiesSpecResponse{Err: err}, nil
 	}
