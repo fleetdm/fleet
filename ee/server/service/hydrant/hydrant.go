@@ -22,6 +22,7 @@ const defaultTimeout = 20 * time.Second
 type Service struct {
 	logger  kitlog.Logger
 	timeout time.Duration
+	client  *http.Client
 }
 
 // Compile-time check for HydrantService interface
@@ -30,6 +31,7 @@ var _ fleet.HydrantService = (*Service)(nil)
 func NewService(opts ...Opt) fleet.HydrantService {
 	s := &Service{}
 	s.populateOpts(opts)
+	s.client = fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 	return s
 }
 
@@ -63,13 +65,12 @@ func (s *Service) populateOpts(opts []Opt) {
 }
 
 func (s *Service) ValidateHydrantURL(ctx context.Context, hydrantCA fleet.HydrantCA) error {
-	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 	reqURL := hydrantCA.URL + "/cacerts"
 	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating Hydrant CA request")
 	}
-	resp, err := client.Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "sending Hydrant CA request")
 	}
@@ -95,8 +96,6 @@ func (s *Service) ValidateHydrantURL(ctx context.Context, hydrantCA fleet.Hydran
 }
 
 func (s *Service) GetCertificate(ctx context.Context, hydrantCA fleet.HydrantCA, csr string) (*fleet.HydrantCertificate, error) {
-	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
-
 	reqURL, err := url.Parse(hydrantCA.URL + "/simpleenroll")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "parsing Hydrant CA URL")
@@ -111,7 +110,7 @@ func (s *Service) GetCertificate(ctx context.Context, hydrantCA fleet.HydrantCA,
 	hydrantRequest.Header.Set("Content-Type", "application/pkcs10")
 	hydrantRequest.Header.Set("Accept", "application/pkcs7-mime")
 	hydrantRequest.Header.Set("Authorization", "Basic "+encodedCredential)
-	resp, err := client.Do(hydrantRequest)
+	resp, err := s.client.Do(hydrantRequest)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sending Hydrant CA request")
 	}
@@ -121,7 +120,12 @@ func (s *Service) GetCertificate(ctx context.Context, hydrantCA fleet.HydrantCA,
 		return nil, ctxerr.Wrap(ctx, err, "reading Hydrant CA response body")
 	}
 	if resp.StatusCode != http.StatusOK {
-		s.logger.Log("msg", "unexpected Hydrant CA status code", "status_code", resp.StatusCode, "response_body", string(bytes))
+		bytesToLog := bytes
+		// Limit logged data in case we get a huge response(a certificate perhaps?)
+		if len(bytes) > 1000 {
+			bytesToLog = bytes[:1000]
+		}
+		s.logger.Log("msg", "unexpected Hydrant CA status code", "status_code", resp.StatusCode, "response_body", string(bytesToLog))
 		return nil, ctxerr.Errorf(ctx, "unexpected Hydrant CA status code: %d", resp.StatusCode)
 	}
 

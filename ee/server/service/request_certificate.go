@@ -134,11 +134,11 @@ func (svc *Service) parseCSR(ctx context.Context, csr string) (*x509.Certificate
 		return nil, "", "", ctxerr.Wrap(ctx, err, "failed to parse CSR")
 	}
 	if len(req.EmailAddresses) < 1 {
-		return nil, "", "", ctxerr.Wrap(ctx, err, "CSR does not contain an email address")
+		return nil, "", "", ctxerr.New(ctx, "CSR does not contain an email address")
 	}
 
 	if len(req.EmailAddresses) > 1 {
-		return nil, "", "", ctxerr.Wrapf(ctx, err, "CSR contains %d email addresses, only 1 is supported", len(req.EmailAddresses))
+		return nil, "", "", ctxerr.Errorf(ctx, "CSR contains %d email addresses, only 1 is supported", len(req.EmailAddresses))
 	}
 	csrEmail := req.EmailAddresses[0]
 
