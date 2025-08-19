@@ -15,7 +15,7 @@ module.exports = {
     action: { type: 'string', example: 'opened', defaultsTo: 'ping', moreInfoUrl: 'https://developer.github.com/v3/activity/events/types' },
     sender: { required: true, type: {}, example: {login: 'johnabrams7'} },
     // Org-level webhooks may not include a `repository` object.
-    repository: { required: false, type: {}, example: {name: 'fleet', owner: {login: 'fleetdm'}} },
+    repository: { type: {}, example: {name: 'fleet', owner: {login: 'fleetdm'}} },
     changes: { type: {}, description: 'Only present when webhook request is related to an edit on GitHub.' },
     issue: { type: {} },
     comment: { type: {} },
@@ -963,7 +963,7 @@ module.exports = {
           });
           statusChange = statusChangeData;
         }
-      }
+      }//ﬁ
 
       // Handle "awaiting qa" status changes
       if (isToAwaitingQa) {
@@ -1055,7 +1055,7 @@ module.exports = {
             sails.log.warn(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate QA ready time`);
           }
         }
-      }
+      }//ﬁ
 
       // Handle "release" status changes
       if (isToRelease) {
@@ -1146,7 +1146,7 @@ module.exports = {
             sails.log.warn(`No in_progress status found for ${issueDetails.repo}#${issueDetails.issueNumber}, cannot calculate release ready time`);
           }
         }
-      }
+      }//ﬁ
 
       if (statusChange) {
         sails.log.info('Processed issue status change:', statusChange);
