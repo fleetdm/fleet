@@ -13,7 +13,7 @@ The steps to configure Fleet as "Compliance partner" for macOS devices can be fo
 
 After this is done, the "Fleet partner" will be shown with a "Pending activation" status.
 
-![Conditional access pending activation](../website/assets/images/compliance-partner-pending-activation.png)
+![Conditional access pending activation](../website/assets/images/articles/compliance-partner-pending-activation-885x413@2x.png)
 
 ### "All Company" Intune group requirement
 
@@ -27,7 +27,7 @@ To connect Fleet to your Entra account you need your "Microsoft Entra tenant ID"
 
 Once you have your tenant ID, go to Fleet: `Settings` > `Integrations` > `Conditional access` and enter the tenant ID.
 
-![Conditional access setup](../website/assets/images/conditional-access-setup.png)
+![Conditional access setup](../website/assets/images/articles/conditional-access-setup-554x250@2x.png)
 
 After clicking `Save` you will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application.
 After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`).
@@ -46,7 +46,7 @@ The Company Portal macOS application can be downloaded from https://go.microsoft
 
 To configure automatic installation on your macOS devices you go to `Software` > `Select the team` > `Add software` > `Custom package`. Upload the `CompanyPortal-Installer.pkg` and check the `Automatic install` option.
 
-!['Company Portal.app' automatic install](../website/assets/images/company-portal-automatic.png)
+!['Company Portal.app' automatic install](../website/assets/images/articles/company-portal-automatic-734x284@2x.png)
 
 You should also configure "Company Portal" as a software package to deploy during "Setup Experience" for DEP/ABM devices.
 Go to `Controls` > `Setup experience` > `Install software` > `Add software`, select `Company Portal` for macOS and hit `Save`.
@@ -160,7 +160,7 @@ Once Fleet policies are configured you also need to configure Entra ID "Conditio
 [Building a Conditional Access policy](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-conditional-access-policies) outlines the steps to create such policies on Entra ID.
 
 For instance, you can create a policy to "block access to Office 365 on macOS devices reported as non-compliant by Fleet":
-![Entra ID Conditional Access policy example](../website/assets/images/entra-conditional-access-policy.png)
+![Entra ID Conditional Access policy example](../website/assets/images/articles/entra-conditional-access-policy-554x506@2x.png)
 
 Make sure to assign Entra users/groups to the created "Conditional Access" policies.
 
@@ -177,11 +177,11 @@ Once disabled, hosts will not be reporting compliance status to Entra anymore.
 
 After the Platform SSO profile is deployed to end-user devices, users will see a notification and will perform the authentication flow with Entra ID.
 
-![Entra ID Platform SSO notification](../website/assets/images/entra-platform-sso-notification.png)
+![Entra ID Platform SSO notification](../website/assets/images/articles/entra-platform-sso-notification-194x59@2x.png)
 
 After following the authentication steps, the user might hit the following message if it attempts to log in to a Microsoft services/apps right away after authenticating via Platform SSO (Fleet can take up to one hour to gather the information and send it to Intune):
 
-![Entra ID Platform SSO refetch needed](../website/assets/images/entra-platform-sso-refetch-needed.png)
+![Entra ID Platform SSO refetch needed](../website/assets/images/articles/entra-platform-sso-refetch-needed-431x351@2x.png)
 
 On that scenario, after hitting "Continue" the user will be redirected to https://fleetdm.com/microsoft-compliance-partner/enroll which will advise to click on the Fleet tray icon "My device" > "🔄 Refetch". The refetch will synchronize data to Intune and the user will be able to log in to Microsoft services/apps without entering credentials.
 
@@ -190,10 +190,10 @@ On that scenario, after hitting "Continue" the user will be redirected to https:
 When a Fleet policy configured for conditional access starts failing on a host, then the user will be logged out and blocked from logging in to Entra ID.
 
 E.g. here's "Microsoft Teams" message on a blocked host:
-![Microsoft Teams message user needs to login again](../website/assets/images/entra-conditional-access-microsoft-teams-log-message.png)
+![Microsoft Teams message user needs to login again](../website/assets/images/articles/entra-conditional-access-microsoft-teams-log-message-1311x111@2x.png)
 
 And here's the error message when trying to re-login:
-![User tries to log in again](../website/assets/images/entra-conditional-access-relogin.png)
+![User tries to log in again](../website/assets/images/articlesentra-conditional-access-relogin-828x577@2x.png)
 
 Clicking on "Check Compliance" redirects the user to https://fleetdm.com/microsoft-compliance-partner/remediate.
 The user will be able to log in again once the failing policies are remediated.
