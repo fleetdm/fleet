@@ -490,6 +490,10 @@ module.exports = {
                   // to work on fleetdm.com e.g. ('../website/assets/images/articles/foo-300x900@2x.png' -> '/images/articles/foo-200x300@2x.png')
                   let isWebsiteAsset = referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g)[0];
                   if(isWebsiteAsset) {
+                    if(!isWebsiteAsset.match(/\d+x\d+@2x.+/)){
+                      sails.log(`"${path.join(topLvlRepoPath, pageSourcePath)}": ${isWebsiteAsset}`)
+                      // throw new Error(`Failed compiling markdown content. An article page references an image that does not follow the website's naming conventions. Please update the image filename and reference to the image at ${srcString} at "${path.join(topLvlRepoPath, pageSourcePath)}" and try running this script again.`)
+                    }
                     return '="'+isWebsiteAsset+'"';
                   } else {
                     // If the relative link doesn't go to the `website/assets/` folder, we'll throw an error.
