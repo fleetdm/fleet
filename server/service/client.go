@@ -249,7 +249,9 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	fmt.Fprintf(os.Stderr, "%s %s %s (%s)\n", res.Request.Method, res.Request.URL, res.Status, took)
 
 	resBody := &bytes.Buffer{}
-	io.Copy(resBody, res.Body)
+	if _, err := io.Copy(resBody, res.Body); err != nil {
+		return nil, fmt.Errorf("response buffer copy: %w", err)
+	}
 	res.Body = io.NopCloser(resBody)
 
 	// Only print text output, don't flood the terminal with binary content
