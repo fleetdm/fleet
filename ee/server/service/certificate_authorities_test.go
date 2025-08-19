@@ -132,7 +132,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		if r.Method == http.MethodGet && r.URL.Path == "/cacerts" {
 			w.Header().Set("Content-Type", "application/pkcs7-mime")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Imagine if there was actually CA cert data here..."))
+			_, err := w.Write([]byte("Imagine if there was actually CA cert data here..."))
+			require.NoError(t, err)
 			return
 		}
 
