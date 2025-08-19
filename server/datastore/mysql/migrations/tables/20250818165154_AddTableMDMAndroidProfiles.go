@@ -52,7 +52,10 @@ CREATE TABLE mdm_google_configuration_profiles (
 	}
 
 	// TODO: do we get to define the policyId? Could it simply be the host's
-	// uuid? TBD if we have to store this info, and where.
+	// uuid? TBD if we have to store this info, and where. I see that we already
+	// have android_policy_id in the android_devices table, my guess is that this
+	// is where we'll store that info.
+	// See https://github.com/fleetdm/fleet/blob/49369c43b090f2bdf3c4de200046214e99252e1e/server/datastore/mysql/migrations/tables/20250219142401_UpdateAndroidTables.go#L31-L32
 
 	// TODO: not adding the `retries` column as we don't deliver the profiles to
 	// the hosts like apple/windows profiles, it's more similar to apple
@@ -68,6 +71,8 @@ CREATE TABLE host_mdm_google_profiles (
   detail text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
 	profile_uuid varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 	profile_name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+	-- TODO: link and FK with google requests  
+	-- request_uuid varchar(36) 
 
 	created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -108,8 +113,24 @@ ALTER TABLE mdm_configuration_profile_labels
 	// requests/responses made to the android management API, a bit like we track
 	// declaration requests and mdm commands. We'd then add the API request uuid
 	// reference to the host mdm google profiles table. This table would store
-	// the fully resulved/merged profile (android policy) that was sent to be
-	// applied for the host.
+	// the fully resolved/merged profile (android policy) that was sent to be
+	// applied for the host. We should also store the responses/status updates.
+	createGoogleRequestsTable := `
+CREATE TABLE google_android_requests (
+  request_uuid varchar(36) CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci NOT NULL,
+	-- the policy id may be necessary to associate the status response in the pub-sub
+	-- with the actual request?
+	android_policy_id INT UNSIGNED NOT NULL,
+  payload JSON NOT NULL,
+  created_at timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+
+  PRIMARY KEY (request_uuid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`
+	if _, err := tx.Exec(createGoogleRequestsTable); err != nil {
+		return fmt.Errorf("create google_android_requests table: %w", err)
+	}
 
 	// TODO: I think we may need a table to keep each setting set by each profile
 	// file, so that we can show it as failed or succeeded based on the status
