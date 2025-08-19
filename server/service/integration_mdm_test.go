@@ -38,6 +38,7 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/bindata"
@@ -3101,7 +3102,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 
 	// Load secret(s)
 	secretValue := "*abc123*"
-	req := secretVariablesRequest{
+	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_VALUE",
@@ -3109,7 +3110,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 			},
 		},
 	}
-	secretResp := secretVariablesResponse{}
+	secretResp := createSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// call with enrolled host UUID
@@ -7809,7 +7810,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
 	orbitHost, d := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	secretValue := "abcd1234"
-	req := secretVariablesRequest{
+	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_DATA",
@@ -7817,7 +7818,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
 			},
 		},
 	}
-	secretResp := secretVariablesResponse{}
+	secretResp := createSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	cmdOneUUID := uuid.New().String()
@@ -8355,6 +8356,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 			seenEscrowKeyActivityID = activity.ID
 		}
 	}
+	require.NotZero(t, seenEscrowKeyActivityID)
 	require.Equal(t, escrowKeyActivity.HostID, host.ID)
 	require.Equal(t, escrowKeyActivity.HostDisplayName, host.DisplayName())
 
@@ -10222,6 +10224,12 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	}
 	applyResp = applyTeamSpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, &applyResp)
+
+	t.Cleanup(func() {
+		acResp.MDM.MacOSSetup.EnableEndUserAuthentication = false
+		err := s.ds.SaveAppConfig(context.Background(), &acResp.AppConfig)
+		require.NoError(t, err)
+	})
 }
 
 func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
@@ -13753,24 +13761,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 </dict>
 </plist>`)
 
-	// request with no enroll secret
-	httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment", reqBody, http.StatusForbidden)
-	errMsg := extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
-	require.NoError(t, httpResp.Body.Close())
-
-	// request with no body
-	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", nil, http.StatusBadRequest)
-	errMsg = extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "invalid request body")
-	require.NoError(t, httpResp.Body.Close())
-
-	// request with unsigned body
-	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", reqBody, http.StatusBadRequest)
-	errMsg = extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "invalid request body")
-	require.NoError(t, httpResp.Body.Close())
-
+	// Setup signed req body, but also verify we can sign it.
 	cert, key, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	signedData, err := pkcs7.NewSignedData(reqBody)
@@ -13779,21 +13770,45 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	signedReqBody, err := signedData.Finish()
 	require.NoError(t, err)
 
-	// request with invalid apple signature
-	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
-	errMsg = extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
-	require.NoError(t, httpResp.Body.Close())
+	t.Run("errors", func(t *testing.T) {
+		t.Run("if no enroll secret is provided", func(t *testing.T) {
+			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment", reqBody, http.StatusForbidden)
+			errMsg := extractServerErrorText(httpResp.Body)
+			require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
+			require.NoError(t, httpResp.Body.Close())
+		})
 
-	// request with invalid device signature
-	os.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
-	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
-	errMsg = extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
-	require.NoError(t, httpResp.Body.Close())
+		t.Run("if no body is provided", func(t *testing.T) {
+			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", nil, http.StatusBadRequest)
+			errMsg := extractServerErrorText(httpResp.Body)
+			require.Contains(t, errMsg, "invalid request body")
+			require.NoError(t, httpResp.Body.Close())
+		})
 
-	// request without serial number
-	signedData, err = pkcs7.NewSignedData([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+		t.Run("if body is unsigned", func(t *testing.T) {
+			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", reqBody, http.StatusBadRequest)
+			errMsg := extractServerErrorText(httpResp.Body)
+			require.Contains(t, errMsg, "invalid request body")
+			require.NoError(t, httpResp.Body.Close())
+		})
+
+		t.Run("if invalid apple signature", func(t *testing.T) {
+			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
+			errMsg := extractServerErrorText(httpResp.Body)
+			require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
+			require.NoError(t, httpResp.Body.Close())
+		})
+
+		t.Run("if invalid device signature", func(t *testing.T) {
+			t.Setenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
+			errMsg := extractServerErrorText(httpResp.Body)
+			require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
+			require.NoError(t, httpResp.Body.Close())
+		})
+
+		t.Run("if serial is missing", func(t *testing.T) {
+			signedData, err = pkcs7.NewSignedData([]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -13801,81 +13816,169 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	<string></string>
 </dict>
 </plist>`))
-	require.NoError(t, err)
-	require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
-	signedReqBody, err = signedData.Finish()
-	require.NoError(t, err)
-	httpResp = s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusBadRequest)
-	errMsg = extractServerErrorText(httpResp.Body)
-	require.Contains(t, errMsg, "SERIAL is required")
-	require.NoError(t, httpResp.Body.Close())
-
-	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
-		foundInstallFleetdCommand := false
-		cmd, err := mdmDevice.Idle()
-		require.NoError(t, err)
-		for cmd != nil {
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
-				foundInstallFleetdCommand = true
-				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
-			}
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
+			require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+			signedReqBody, err = signedData.Finish()
+			require.NoError(t, err)
+			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusBadRequest)
+			errMsg := extractServerErrorText(httpResp.Body)
+			require.Contains(t, errMsg, "SERIAL is required")
+			require.NoError(t, httpResp.Body.Close())
+		})
+
+		t.Run("if idp uuid does not match an account", func(t *testing.T) {
+			hwModel := "MacBookPro16,1"
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				globalSecret,
+				hwModel,
+				mdmtest.WithOTAIdpUUID(uuid.New().String()),
+			)
+			err := mdmDevice.Enroll()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "404 Not Found")
+		})
+
+		t.Run("if idp uuid is required but not set", func(t *testing.T) {
+			var specResp applyTeamSpecsResponse
+			teamSecret := "team_secret"
+			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
+			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+			hwModel := "MacBookPro16,1"
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				"team_secret",
+				hwModel,
+			)
+			err := mdmDevice.Enroll()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "403 Forbidden")
+		})
+	})
+
+	t.Run("succeeds", func(t *testing.T) {
+		checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
+			foundInstallFleetdCommand := false
+			cmd, err := mdmDevice.Idle()
+			require.NoError(t, err)
+			for cmd != nil {
+				var fullCmd micromdm.CommandPayload
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
+					foundInstallFleetdCommand = true
+					require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+					require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
+				}
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+			}
+			require.Equal(t, wantCommand, foundInstallFleetdCommand)
 		}
-		require.Equal(t, wantCommand, foundInstallFleetdCommand)
-	}
 
-	hwModel := "MacBookPro16,1"
-	mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
-		s.server.URL,
-		globalSecret,
-		hwModel,
-	)
-	enrollTime := time.Now().UTC().Truncate(time.Second)
-	require.NoError(t, mdmDevice.Enroll())
-	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, true)
+		verifySuccessfulOTAEnrollment := func(mdmDevice *mdmtest.TestAppleMDMClient, hwModel, platform string, enrollTime time.Time) getHostResponse {
+			var hostByIdentifierResp getHostResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+			require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
+			require.Equal(t, platform, hostByIdentifierResp.Host.Platform)
+			require.NotNil(t, hostByIdentifierResp.Host.LastMDMEnrolledAt)
+			assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMEnrolledAt, enrollTime)
+			require.NotNil(t, hostByIdentifierResp.Host.LastMDMCheckedInAt)
+			assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMCheckedInAt, enrollTime)
 
-	var hostByIdentifierResp getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
-	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
-	require.Equal(t, "darwin", hostByIdentifierResp.Host.Platform)
-	require.Nil(t, hostByIdentifierResp.Host.TeamID)
-	require.NotNil(t, hostByIdentifierResp.Host.LastMDMEnrolledAt)
-	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMEnrolledAt, enrollTime)
-	require.NotNil(t, hostByIdentifierResp.Host.LastMDMCheckedInAt)
-	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMCheckedInAt, enrollTime)
+			return hostByIdentifierResp
+		}
 
-	// create a team with a different enroll secret
-	var specResp applyTeamSpecsResponse
-	teamSecret := "team_secret"
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}}}}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+		verifySuccessfulIdpAssociation := func(hostUUID, idpUUID string) {
+			hostToIdpMap, err := s.ds.GetMDMIdPAccountsByHostUUIDs(context.Background(), []string{hostUUID})
+			require.NoError(t, err)
+			idpAccount := hostToIdpMap[hostUUID]
+			require.NotNil(t, idpAccount)
+			require.Equal(t, idpUUID, idpAccount.UUID)
+		}
 
-	hwModel = "iPad13,16"
-	mdmDevice = mdmtest.NewTestMDMClientAppleOTA(
-		s.server.URL,
-		teamSecret,
-		hwModel,
-	)
-	enrollTime = time.Now().UTC().Truncate(time.Second)
-	require.NoError(t, mdmDevice.Enroll())
-	s.runWorker()
-	checkInstallFleetdCommandSent(mdmDevice, false)
+		t.Run("ota enrolling a macbook", func(t *testing.T) {
+			hwModel := "MacBookPro16,1"
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				globalSecret,
+				hwModel,
+			)
+			enrollTime := time.Now().UTC().Truncate(time.Second)
+			require.NoError(t, mdmDevice.Enroll())
+			s.runWorker()
+			checkInstallFleetdCommandSent(mdmDevice, true)
 
-	hostByIdentifierResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
-	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
-	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
-	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
-	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
-	require.NotNil(t, hostByIdentifierResp.Host.LastMDMEnrolledAt)
-	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMEnrolledAt, enrollTime)
-	require.NotNil(t, hostByIdentifierResp.Host.LastMDMCheckedInAt)
-	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMCheckedInAt, enrollTime)
+			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
+			require.Nil(t, hostByIdentifierResp.Host.TeamID)
+		})
+
+		t.Run("ota enrolling an ipad", func(t *testing.T) {
+			var specResp applyTeamSpecsResponse
+			teamSecret := "team_secret"
+			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}}}}
+			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+			hwModel := "iPad13,16"
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				teamSecret,
+				hwModel,
+			)
+			enrollTime := time.Now().UTC().Truncate(time.Second)
+			require.NoError(t, mdmDevice.Enroll())
+			s.runWorker()
+			checkInstallFleetdCommandSent(mdmDevice, false)
+
+			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "ipados", enrollTime)
+			require.NotNil(t, hostByIdentifierResp.Host.TeamID)
+			require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
+		})
+
+		t.Run("ota enrollment if idp_uuid is not set does not associate host with idp account", func(t *testing.T) {
+			hwModel := "MacBookPro16,1"
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				globalSecret,
+				hwModel,
+			)
+			enrollTime := time.Now().UTC().Truncate(time.Second)
+			require.NoError(t, mdmDevice.Enroll())
+			s.runWorker()
+			checkInstallFleetdCommandSent(mdmDevice, true)
+
+			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
+			account, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), resp.Host.UUID)
+			require.NoError(t, err)
+			require.Nil(t, account) // We do not fail but return nil for both if not found, and we do not expect an entry here.
+		})
+
+		t.Run("ota enrollment if idp_uuid is set associates host with idp account", func(t *testing.T) {
+			idpEmail := "test@example.com"
+			err := s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
+				Username: "test",
+				Email:    idpEmail,
+			})
+			require.NoError(t, err)
+			idpAccount, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), idpEmail)
+			require.NoError(t, err)
+
+			hwModel := "MacBookPro16,1"
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				globalSecret,
+				hwModel,
+				mdmtest.WithOTAIdpUUID(idpAccount.UUID),
+			)
+			enrollTime := time.Now().UTC().Truncate(time.Second)
+			require.NoError(t, mdmDevice.Enroll())
+			s.runWorker()
+			checkInstallFleetdCommandSent(mdmDevice, true)
+
+			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
+			verifySuccessfulIdpAssociation(resp.Host.UUID, idpAccount.UUID)
+		})
+	})
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
@@ -17435,4 +17538,75 @@ func (s *integrationMDMTestSuite) TestServiceDiscovery() {
 	s.DoJSON("GET", "/mdm/apple/service_discovery", nil, http.StatusOK, &res)
 	require.Contains(t, res.Servers[0].BaseURL, apple_mdm.AccountDrivenEnrollPath)
 	require.Equal(t, "mdm-byod", res.Servers[0].Version)
+}
+
+func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
+	t := s.T()
+
+	if !hasBuildTag("full") {
+		t.Skip("This test requires running with -tags full")
+	}
+
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	s.setUpMDMSSO(t)
+
+	// create a couple teams, one with IdP enabled and one without
+	teamNoIdP, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team without idp"})
+	require.NoError(t, err)
+	teamIdP, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team with idp"})
+	require.NoError(t, err)
+	teamIdP.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	_, err = s.ds.SaveTeam(ctx, teamIdP)
+	require.NoError(t, err)
+
+	err = s.ds.ApplyEnrollSecrets(ctx, &teamNoIdP.ID, []*fleet.EnrollSecret{{Secret: "noidp"}})
+	require.NoError(t, err)
+	err = s.ds.ApplyEnrollSecrets(ctx, &teamIdP.ID, []*fleet.EnrollSecret{{Secret: "idp"}})
+	require.NoError(t, err)
+
+	// try to BYOD-enroll in team without IdP enabled, should render the download
+	// profile page immediately (200)
+	res := s.DoRawNoAuth("GET", "/enroll", nil, http.StatusOK, "enroll_secret", "noidp")
+	page, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(page), "Enroll your Android device in Fleet")
+
+	// try to BYOD-enroll in team with IdP enabled, should redirect to SSO login
+	res = s.DoRawNoAuth("GET", "/enroll", nil, http.StatusSeeOther, "enroll_secret", "idp")
+	location := res.Header.Get("Location")
+	require.NotEmpty(t, location)
+	require.True(t, strings.HasPrefix(location, "http://localhost:9080/simplesaml/"))
+
+	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+	location = res.Header.Get("Location")
+	require.NotEmpty(t, location)
+	require.True(t, strings.HasPrefix(location, "/mdm/sso/callback"))
+
+	// requesting the /enroll page again and simulating the BYOD IdP cookie being set
+	// still redirects to the SSO login if the cookie value does not match the
+	// enrollment reference query string.
+	res = s.DoRawWithHeaders("GET", "/enroll", nil, http.StatusSeeOther,
+		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "not_matching!")
+	location = res.Header.Get("Location")
+	require.NotEmpty(t, location)
+	require.True(t, strings.HasPrefix(location, "http://localhost:9080/simplesaml/"))
+
+	// requesting the /enroll page again and simulating the BYOD IdP cookie being
+	// set renders the download profile page when there is a matching enrollment
+	// reference.
+	res = s.DoRawWithHeaders("GET", "/enroll", nil, http.StatusOK,
+		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "abc")
+	page, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(page), "Enroll your Android device in Fleet")
+
+	// try to BYOD-enroll with invalid enroll secret, should redirect to SSO
+	// login as at least one team has it enabled
+	res = s.DoRawNoAuth("GET", "/enroll", nil, http.StatusSeeOther, "enroll_secret", "no-such-secret")
+	location = res.Header.Get("Location")
+	require.NotEmpty(t, location)
+	require.True(t, strings.HasPrefix(location, "http://localhost:9080/simplesaml/"))
 }

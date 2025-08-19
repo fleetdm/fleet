@@ -1,7 +1,8 @@
 import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import { ISoftware } from "interfaces/software";
-import getMatchedSoftwareIcon, {
+import {
+  getMatchedSoftwareIcon,
   SOFTWARE_NAME_TO_ICON_MAP,
   SOFTWARE_SOURCE_TO_ICON_MAP,
 } from ".";

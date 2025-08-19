@@ -65,6 +65,12 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return appCfg, nil
 	}
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return nil, &notFoundError{}
+	}
+	ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+		return nil, nil
+	}
 
 	svc, _ := newTestService(t, ds, nil, nil)
 

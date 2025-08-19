@@ -7,6 +7,12 @@ import {
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
+import {
+  INumberCellProps,
+  IStringCellProps,
+} from "interfaces/datatable_config";
+import { CellProps } from "react-table";
+
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
@@ -17,32 +23,11 @@ interface ISoftwareTitleVersionsTableConfigProps {
   teamId?: number;
   isIPadOSOrIOSApp: boolean;
 }
-interface ICellProps {
-  cell: {
-    value: number | string | ISoftwareVulnerability[];
-  };
-  row: {
-    original: ISoftwareTitleVersion;
-  };
-}
 
-interface IVersionCellProps extends ICellProps {
-  cell: {
-    value: string;
-  };
-}
-
-interface INumberCellProps extends ICellProps {
-  cell: {
-    value: number;
-  };
-}
-
-interface IVulnCellProps extends ICellProps {
-  cell: {
-    value: ISoftwareVulnerability[];
-  };
-}
+type IVersionCellProps = IStringCellProps<ISoftwareTitleVersion>;
+type IVulnCellProps = CellProps<ISoftwareTitleVersion, string[] | null>;
+type IHostCountCellProps = INumberCellProps<ISoftwareTitleVersion>;
+type IViewAllHostsLinkProps = CellProps<ISoftwareTitleVersion>;
 
 const generateSoftwareTitleVersionsTableConfig = ({
   teamId,
@@ -98,7 +83,7 @@ const generateSoftwareTitleVersionsTableConfig = ({
       Header: "Hosts",
       disableSortBy: true,
       accessor: "hosts_count",
-      Cell: (cellProps: INumberCellProps): JSX.Element => (
+      Cell: (cellProps: IHostCountCellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />
       ),
     },
@@ -107,7 +92,7 @@ const generateSoftwareTitleVersionsTableConfig = ({
       Header: "",
       accessor: "linkToFilteredHosts",
       disableSortBy: true,
-      Cell: (cellProps: ICellProps) => {
+      Cell: (cellProps: IViewAllHostsLinkProps) => {
         return (
           <>
             {cellProps.row.original && (

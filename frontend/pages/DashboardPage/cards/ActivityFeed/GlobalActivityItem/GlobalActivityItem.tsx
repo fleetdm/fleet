@@ -32,6 +32,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.LiveQuery,
   ActivityType.InstalledAppStoreApp,
   ActivityType.RanScriptBatch,
+  ActivityType.CanceledScriptBatch,
 ]);
 
 const getProfileMessageSuffix = (
@@ -690,8 +691,38 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        ran {formatScriptNameForActivityItem(script_name)} on {host_count}{" "}
-        hosts.
+        ran {formatScriptNameForActivityItem(script_name)} on {host_count} host
+        {host_count !== 1 ? "s" : ""}.
+      </>
+    );
+  },
+  scheduledScriptBatch: (activity: IActivity) => {
+    const { script_name, host_count } = activity.details || {};
+    return (
+      <>
+        {" "}
+        scheduled {formatScriptNameForActivityItem(script_name)} to run on{" "}
+        {host_count} host{host_count !== 1 ? "s" : ""}.
+      </>
+    );
+  },
+  canceledScriptBatch: (activity: IActivity) => {
+    const { script_name, host_count, canceled_count } = activity.details || {};
+    const numHostsMsg =
+      host_count === canceled_count ? (
+        <>
+          {host_count} host{host_count !== 1 ? "s" : ""}
+        </>
+      ) : (
+        <>
+          {canceled_count} of {host_count} host{host_count !== 1 ? "s" : ""}
+        </>
+      );
+    return (
+      <>
+        {" "}
+        canceled {formatScriptNameForActivityItem(script_name)} on {numHostsMsg}
+        .
       </>
     );
   },
@@ -1364,6 +1395,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+
+  createdCustomVariable: (activity: IActivity) => {
+    const { custom_variable_name } = activity.details || {};
+    return (
+      <>
+        created custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
+
+  deletedCustomVariable: (activity: IActivity) => {
+    const { custom_variable_name } = activity.details || {};
+    return (
+      <>
+        deleted custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1537,6 +1586,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RanScriptBatch: {
       return TAGGED_TEMPLATES.ranScriptBatch(activity);
     }
+    case ActivityType.ScheduledScriptBatch: {
+      return TAGGED_TEMPLATES.scheduledScriptBatch(activity);
+    }
+    case ActivityType.CanceledScriptBatch: {
+      return TAGGED_TEMPLATES.canceledScriptBatch(activity);
+    }
     case ActivityType.AddedScript: {
       return TAGGED_TEMPLATES.addedScript(activity);
     }
@@ -1676,6 +1731,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
 
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
+    }
+
+    case ActivityType.CreatedCustomVariable: {
+      return TAGGED_TEMPLATES.createdCustomVariable(activity);
+    }
+
+    case ActivityType.DeletedCustomVariable: {
+      return TAGGED_TEMPLATES.deletedCustomVariable(activity);
     }
 
     default: {

@@ -741,6 +741,7 @@ the way that the Fleet server works.
 				ds,
 				svc,
 				config.License.Key,
+				config.Server.PrivateKey,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -914,6 +915,13 @@ the way that the Fleet server works.
 				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, license, logger)
 			}); err != nil {
 				initFatal(err, "failed to register stats schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(
+				func() (fleet.CronSchedule, error) {
+					return newBatchActivitiesSchedule(ctx, instanceID, ds, logger)
+				}); err != nil {
+				initFatal(err, "failed to register batch activities schedule")
 			}
 
 			vulnerabilityScheduleDisabled := false

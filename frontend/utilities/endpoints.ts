@@ -274,8 +274,11 @@ export default {
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
   SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/run/batch`,
+  SCRIPT_CANCEL_BATCH: (executionId: string) =>
+    `/${API_VERSION}/fleet/scripts/batch/${executionId}/cancel`,
   SCRIPT_RUN_BATCH_SUMMARY: (id: string) =>
     `/${API_VERSION}/fleet/scripts/batch/summary/${id}`,
+  SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 
   // idp endpoints
@@ -295,4 +298,6 @@ export default {
   CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
     return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
   },
+  // custom variables (secrets) endpoints
+  SECRETS: `/${API_VERSION}/fleet/custom_variables`,
 };

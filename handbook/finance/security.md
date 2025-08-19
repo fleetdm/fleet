@@ -1961,6 +1961,69 @@ questions and more on [https://fleetdm.com/trust](https://fleetdm.com/trust)
 This section contains explanations of the latest external security audits performed on Fleet software.
 
 
+### July 2025 penetration testing of Fleet 4.70.1
+
+In July 2025, [BHIS](https://www.blackhillsinfosec.com/) performed an application penetration assessment of the application from Fleet. 
+
+An application penetration test captures a point-in-time assessment of vulnerabilities, misconfigurations, and gaps in applications that could allow an attacker to compromise the security, availability, processing integrity, confidentiality, and privacy (SAPCP) of sensitive data and application resources. An application penetration test simulates the capabilities of a real adversary, but accelerates testing by using information provided by the target company.
+
+BHIS identified one medium severity issue and two new low severity issues. 
+
+You can find the full report here: [2025-07-31-fleet-penetration-test.pdf](https://drive.google.com/file/d/1HmnD4ky8DGFuu90z_O-sOal21fFMwHm0/view?usp=drive_link).
+
+### Findings
+
+#### 1 - Server supports weak transport layer security (SSL/TLS)
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Encryption          | Medium risk       |
+
+The web application servers accepted connections encrypted using weak ciphers.
+
+This was resolved on 2025-07-30 in the `fleetdm/fleet-terraform` with [updates TLS version used in load balancers](https://github.com/fleetdm/fleet-terraform/pull/78).
+
+#### 2 - Lack of user lockout for password authentication
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access controls     | Low risk          |
+
+The web application did not enforce user lockouts as a result of brute-force password attacks. The tester sent 20 fake passwords to the application in 5-second delays to avoid the rate limiting in place by the application.
+
+This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/finance/security#5-no-account-lockout).
+
+#### 3 - Long session timeout
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access controls     | Low risk          |
+
+The default value was found to be five days, but session timeout is configurable for self-managed users in the application's configuration.
+
+This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/finance/security#6-session-timeout-insufficient-session-expiration).
+
+#### 4 - Failure to validate new account emails
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access controls     | Low risk          |
+
+The Admin user creation feature offered a form to create an account. After submitting the form, the new user was able to log into the application without first verifying their email.
+
+All user accounts that use email and password for authentication require an administrator to manually creare the account and share the password. This process enforces validation of the new user via out of band access to password management systems.
+
+#### 5 - Sensitive information in local storage
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access controls     | Low risk          |
+
+The application's authentication token was stored in the browser's DOM storage object.
+
+This was previously documented and addressed as [a finding in our 2022 penetration test](https://fleetdm.com/handbook/finance/security#4-insecure-storage-of-authentication-tokens).
+
+
 ### June 2024 penetration testing of Fleet 4.50.1
 
 In June 2024, [Latacora](https://www.latacora.com/) performed an application penetration assessment of the application from Fleet. 
@@ -1971,29 +2034,80 @@ Latacora identified a few medium and low severity risks, and Fleet is prioritizi
 
 You can find the full report here: [2024-06-14-fleet-penetration-test.pdf](https://github.com/fleetdm/fleet/raw/main/docs/files/2024-06-14-fleet-penetration-test.pdf).
 
+
+### Findings
+
+#### 1 - Hosts can access any software
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access controls     | Medium risk       |
+
+Software uploaded to a team's software library is accessible to any host via URL download. 
+
+This was resolved in version release [4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) with [validation of agent access to installer package before returning it](https://github.com/fleetdm/fleet/pull/21337).
+
+#### 2 - Deployment link pointing to vacant domain
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| DNS                 | Medium risk       |
+
+The GitHub Deployment page contains a link pointing to a vacant Vercel domain. Anyone could register this domain and host malicious softwares that users could think of being legitimate.
+
+This was resolved during the penetration test period as identified in the penetration test report.
+
+#### 3 - Observers can access ABM keys
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access Controls     | Medium risk       |
+
+According to the User Permissions table, an Observer should not be able to “View Apple business manager (BM) information”. The permissions are not enforced as an Observer can download the pair of public and private keys.
+
+This endpoint always returns a new key pair used during ABM/Fleet configuration. It never returns an existing key pair, and cannot be used to gain access to an ABM instance.
+
+#### 4 - Observers can Access Any Software 
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access Controls     | Medium risk       |
+
+An Observer can download any software by requesting /api/latest/fleet/software/{title_id}/package?alt=media&team_id={team_id}.
+
+This was resolved in version release [4.54.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.54.0) with [not allowing Observer and Observer+ roles to download software installers](https://github.com/fleetdm/fleet/pull/19938).
+
+#### 5 - MDM status leaked to unauthenticated users
+
+| Type                | Latacora Severity |
+| ------------------- | ----------------- |
+| Access Controls     | Low risk          |
+
+Fleet can be deployed to hosts with a simple node key, but optionally, can be used with MDM certificates. The MDM feature is turned off by default. When a request is made against any of the related MDM features, the server will check first if the MDM feature is in fact enabled, then it will check whether the current user is authenticated and has the right permissions. An unauthenticated attacker could learn whether a Fleet instance is using MDM or not.
+
+Communication via the MDM protocol requires an unauthenticated endpoint for hosts to retrieve a certificate, which is then used to interact with certificate-authenticated endpoints. We believe the security measures currently in place for unauthenticated endpoints is sufficient, and adding additional validation layers would negatively impact UX without measurably enhancing security.
+
+
 ### June 2023 penetration testing of Fleet 4.32 
 
 In June 2023, [Latacora](https://www.latacora.com/) performed an application penetration assessment of the application from Fleet. 
 
 An application penetration test captures a point-in-time assessment of vulnerabilities, misconfigurations, and gaps in applications that could allow an attacker to compromise the security, availability, processing integrity, confidentiality, and privacy (SAPCP) of sensitive data and application resources. An application penetration test simulates the capabilities of a real adversary, but accelerates testing by using information provided by the target company.
 
-Latacora identified a few issues, the most critical ones we have addressed in 4.33. These are described below.
-
 You can find the full report here: [2023-06-09-fleet-penetration-test.pdf](https://github.com/fleetdm/fleet/raw/main/docs/files/2023-06-09-fleet-penetration-test.pdf).
 
-### Findings
 
+### Findings
 
 #### 1 - Stored cross-site scripting (XSS) in tooltip
 
 | Type                | Latacora Severity |
-| ------------------- | -------------- |
-| Cross-site scripting| High risk      |
+| ------------------- | ----------------- |
+| Cross-site scripting| High risk         |
 
 All tooltips using the "tipContent" tag are set using "dangerouslySetInnerHTML". This allows manipulation of the DOM without sanitization. If a user can control the content sent to this function, it can lead to a cross-site scripting vulnerability. 
 
 This was resolved in version release [4.33.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.33.0) with [implementation of DOMPurify library](https://github.com/fleetdm/fleet/pull/12229) to remove dangerous dataset.
-
 
 #### 2 - Broken authorization leads to observers able to add hosts
 
@@ -2004,7 +2118,6 @@ This was resolved in version release [4.33.0](https://github.com/fleetdm/fleet/r
 Observers are not supposed to be able to add hosts to Fleet. Via specific endpoints, it becomes possible to retrieve the certificate chains and the secrets for all teams, and these are the information required to add a host. 
 
 This was resolvedin version release [4.33.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.33.0) with [updating the observer permissions](https://github.com/fleetdm/fleet/pull/12216).
-
 
 ### April 2022 penetration testing of Fleet 4.12 
 
@@ -2019,7 +2132,6 @@ You can find the full report here: [2022-04-29-fleet-penetration-test.pdf](https
 
 ### Findings
 
-
 #### 1 - Broken access control & 2 - Insecure direct object reference
 
 | Type                | Lares Severity |
@@ -2031,7 +2143,6 @@ This section contains a few different authorization issues, allowing team member
 This is resolved in 4.13, and an [advisory](https://github.com/fleetdm/fleet/security/advisories/GHSA-pr2g-j78h-84cr) has been published before this report was made public.
 We are also planning to add [more testing](https://github.com/fleetdm/fleet/issues/5457) to catch potential future mistakes related to authorization.
 
-
 #### 3 - CSV injection in export functionality
 
 | Type      | Lares Severity |
@@ -2042,7 +2153,6 @@ It is possible to create or rename an existing team with a malicious name, which
 
 Our current recommendation is to review CSV contents before opening in Excel or other programs that may execute commands.
 
-
 #### 4 - Insecure storage of authentication tokens
 
 | Type                   | Lares Severity |
@@ -2050,7 +2160,6 @@ Our current recommendation is to review CSV contents before opening in Excel or 
 | Authentication storage | Medium risk    |
 
 This issue is not as straightforward as it may seem. While it is true that Fleet stores authentication tokens in local storage as opposed to cookies, we do not believe the security impact from that is significant. Local storage is immune to CSRF attacks, and cookie protection is not particularly strong. For these reasons, we are not planning to change this at this time, as the changes would bring minimal security improvement, if any, and change always carries the risk of creating new vulnerabilities.
-
 
 #### 5 - No account lockout
 
@@ -2062,7 +2171,6 @@ Account lockouts on Fleet are handled as a “leaky bucket” with 10 available 
 
 We have additionally added very prominent activity feed notifications of failed logins that make brute forcing attempts apparent to Fleet admins.
 
-
 #### 6 - Session timeout - insufficient session expiration
 
 | Type               | Lares Severity |
@@ -2070,7 +2178,6 @@ We have additionally added very prominent activity feed notifications of failed 
 | Session expiration | Medium risk    |
 
 Fleet sessions are currently [configurable](https://fleetdm.com/docs/deploying/configuration#session-duration). However, the actual behavior, is different than the expected one. We [will switch](https://github.com/fleetdm/fleet/issues/5476) the behavior so the session timeout is based on the length of the session, not on how long it has been idle. The default will remain five days, which will result in users having to log in at least once a week, while the current behavior would allow someone to remain logged in forever. If you have any reason to want a shorter session duration, simply configure it to a lower value.
-
 
 #### 7 - Weak passwords allowed
 
@@ -2080,7 +2187,6 @@ Fleet sessions are currently [configurable](https://fleetdm.com/docs/deploying/c
 
 The default password policy in Fleet requires passwords that are seven characters long. We have [increased this to 12](https://github.com/fleetdm/fleet/issues/5477) while leaving all other requirements the same. As per NIST [SP 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.html), we believe password length is the most important requirement. If you have additional requirements for passwords, we highly recommend implementing them in your identity provider and setting up [SSO](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
-
 #### 8 - User enumeration
 
 | Type        | Lares Severity |
@@ -2088,7 +2194,6 @@ The default password policy in Fleet requires passwords that are seven character
 | Enumeration | Low risk       |
 
 User enumeration by a logged-in user is not a critical issue. Still, when done by a user with minimal privileges (such as a team observer), it is a leak of information, and might be a problem depending on how you use teams. For this reason, only team administrators are able to enumerate users as of Fleet 4.31.0.
-
 
 #### 9 - Information disclosure via default content
 
@@ -2103,7 +2208,6 @@ The first one is the /metrics endpoint, which contains a lot of information that
 The second one is /version. While it provides some minimal information, such as the version of Fleet and go that is used, it is information similar to a TCP banner on a typical network service. For this reason, we are leaving this endpoint available. 
 
 If this endpoint is a concern in your Fleet environment, consider that the information it contains could be gleaned from the HTML and JavaScript delivered on the main page. If you still would like to block it, we recommend using an application load balancer.
-
 
 #### The GitHub issues that relate to this test are:
 
@@ -2133,7 +2237,6 @@ You can find the full report here: [2021-04-26-orbit-auto-updater-assessment.pdf
 
 ### Findings
 
-
 #### 1 - Unhandled deferred file close operations
 
 | Type               | ToB Severity |
@@ -2145,7 +2248,6 @@ This issue was addressed in PR [1679](https://github.com/fleetdm/fleet/issues/16
 The fix is an improvement to cleanliness, and though the odds of exploitation were very low, there is no downside to improving it. 
 
 This finding did not impact the auto-update mechanism but did impact Orbit installations.
-
 
 #### 2 - Files and directories may pre-exist with too broad permissions
 
@@ -2159,7 +2261,6 @@ Packaging files with permissions that are too broad can be hazardous. We fixed t
 
 This finding did not impact the auto-update mechanism but did impact Orbit installations.
 
-
 #### 3 - Possible nil pointer dereference 
 
 | Type            | ToB Severity  |
@@ -2170,7 +2271,6 @@ We did not do anything specific for this informational recommendation. However, 
 
 This finding did not impact the auto-update mechanism but did impact Orbit installations.
 
-
 #### 4 - Forcing empty passphrase for keys encryption
 
 | Type         | ToB Severity |
@@ -2180,7 +2280,6 @@ This finding did not impact the auto-update mechanism but did impact Orbit insta
 This issue was addressed in PR [1538](https://github.com/fleetdm/fleet/pull/1538) and merged on August 9, 2021.
 
 We now ensure that keys do not have empty passphrases to prevent accidents.
-
 
 #### 5 - Signature verification in fleetctl commands
 
@@ -2194,7 +2293,6 @@ We consider the security of the TUF repository itself out of the threat model of
 
 We plan to document our update process, including the signature steps, and improve them to reduce risk as much as possible. 
 
-
 #### 6 - Redundant online keys in documentation
 
 | Type            | ToB Severity |
@@ -2205,7 +2303,6 @@ Using the right key in the right place and only in the right place is critical t
 
 This issue was addressed in PR [1678](https://github.com/fleetdm/fleet/pull/1678) and merged on August 15, 2021. 
 
-
 #### 7 - Lack of alerting mechanism 
 
 | Type          | ToB Severity |
@@ -2214,7 +2311,6 @@ This issue was addressed in PR [1678](https://github.com/fleetdm/fleet/pull/1678
 
 We will make future improvements, always getting better at detecting potential attacks, including the infrastructure and processes used for the auto-updater.
 
-
 #### 8 - Key rotation methodology is not documented
 
 | Type         | ToB Severity |
@@ -2222,7 +2318,6 @@ We will make future improvements, always getting better at detecting potential a
 | Cryptography | Medium       |
 
 This issue was addressed in PR [2831](https://github.com/fleetdm/fleet/pull/2831) and merged on November 15, 2021
-
 
 #### 9 - Threshold and redundant keys 
 
@@ -2233,7 +2328,6 @@ This issue was addressed in PR [2831](https://github.com/fleetdm/fleet/pull/2831
 
 We plan to document our update process, including the signature steps, and improve them to reduce risk as much as possible. We will consider multiple role keys and thresholds, so specific actions require a quorum, so the leak of a single key is less critical.
 
-
 #### 10 - Database compaction function could be called more times than expected
 
 | Type               | ToB Severity  |
@@ -2241,7 +2335,6 @@ We plan to document our update process, including the signature steps, and impro
 | Undefined Behavior | Informational |
 
 This database was not part of the update system, and we [deleted](http://hrwiki.org/wiki/DELETED) it.
-
 
 #### 11 - All Windows users have read access to Fleet server secret
 
@@ -2252,7 +2345,6 @@ This database was not part of the update system, and we [deleted](http://hrwiki.
 While this did not impact the security of the update process, it did affect the security of the Fleet enrollment secrets if used on a system where non-administrator accounts were in use. 
 
 This issue was addressed in PR [21](https://github.com/fleetdm/orbit/pull/21) of the old Orbit repository and merged on April 26, 2021. As mentioned in finding #2, we also deployed tools to detect weak permissions on files.
-
 
 #### 12 - Insufficient documentation of SDDL permissions
 

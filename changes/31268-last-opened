@@ -1,0 +1,1 @@
+* Added indication of whether software on a host was never opened, vs. being a software type where last opened time collection is not supported
