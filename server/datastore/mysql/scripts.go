@@ -5,6 +5,7 @@ import (
 	"crypto/md5" //nolint:gosec
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -1795,39 +1796,51 @@ func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents
 	return scriptContentsID, nil
 }
 
-func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+func teamIDEq(teamID1, teamID2 *uint) bool {
+	sameTeamNoTeam := teamID1 == nil && teamID2 == nil
+	sameTeamNumber := teamID1 != nil && teamID2 != nil && *teamID1 == *teamID2
+	return sameTeamNoTeam || sameTeamNumber
+}
+
+func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, batchExecID string) error {
 	script, err := ds.Script(ctx, scriptID)
 	if err != nil {
-		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
+		return fleet.NewInvalidArgumentError("script_id", err.Error())
 	}
+
+	invalidHostIDPlatform := "batch-invalid-hostid"
 
 	// We need full host info to check if hosts are able to run scripts, see svc.RunHostScript
 	fullHosts := make([]*fleet.Host, 0, len(hostIDs))
+
+	// The execution results to be stored in the database
+	executions := make([]fleet.BatchExecutionHost, 0, len(fullHosts))
 
 	// Check that all hosts exist before attempting to process them
 	for _, hostID := range hostIDs {
 		host, err := ds.Host(ctx, hostID)
 		if err != nil {
-			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
-		}
-
-		// All hosts must be on the same team as the script
-		sameTeamNoTeam := host.TeamID == nil && script.TeamID == nil
-		sameTeamNumber := host.TeamID != nil && script.TeamID != nil && *host.TeamID == *script.TeamID
-		sameTeam := sameTeamNoTeam || sameTeamNumber
-		if !sameTeam {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
+			fullHosts = append(fullHosts, &fleet.Host{
+				ID:       hostID,
+				Platform: invalidHostIDPlatform,
+			})
+			continue
 		}
 
 		fullHosts = append(fullHosts, host)
 	}
 
-	executions := make([]fleet.BatchExecutionHost, 0, len(fullHosts))
-
-	batchExecID := ""
-
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, host := range fullHosts {
+			// Host doesn't exist anymore
+			if host.Platform == invalidHostIDPlatform {
+				executions = append(executions, fleet.BatchExecutionHost{
+					HostID: host.ID,
+					Error:  &fleet.BatchExecuteInvalidHost,
+				})
+				continue
+			}
+
 			// Non-orbit-enrolled host (iOS, android)
 			noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
 			// Scripts disabled on host
@@ -1865,14 +1878,15 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 			})
 		}
 
-		batchExecID = uuid.New().String()
 		_, err := tx.ExecContext(
 			ctx,
-			"INSERT INTO batch_activities (execution_id, script_id, status, activity_type) VALUES (?, ?, ?, ?)",
+			`INSERT INTO batch_activities (execution_id, script_id, status, activity_type, num_targeted, started_at) VALUES (?, ?, ?, ?, ?, NOW())
+				ON DUPLICATE KEY UPDATE status = VALUES(status), started_at = VALUES(started_at)`,
 			batchExecID,
 			script.ID,
-			fleet.BatchExecutionStarted,
+			fleet.ScheduledBatchExecutionStarted,
 			fleet.BatchExecutionActivityScript,
+			len(hostIDs),
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to insert new batch execution")
@@ -1889,17 +1903,17 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		}
 
 		insertStmt := `
-INSERT INTO batch_activity_host_results (
-	batch_execution_id,
-	host_id,
-	host_execution_id,
-	error
-) VALUES (
-	:batch_id,
-	:host_id,
-	:host_execution_id,
-	:error
-)`
+			INSERT INTO batch_activity_host_results (
+				batch_execution_id,
+				host_id,
+				host_execution_id,
+				error
+			) VALUES (
+				:batch_id,
+				:host_id,
+				:host_execution_id,
+				:error
+			) ON DUPLICATE KEY UPDATE host_execution_id = VALUES(host_execution_id), error = VALUES(error)`
 
 		if _, err := sqlx.NamedExecContext(ctx, tx, insertStmt, args); err != nil {
 			return ctxerr.Wrap(ctx, err, "associating script executions with batch job")
@@ -1907,7 +1921,33 @@ INSERT INTO batch_activity_host_results (
 
 		return nil
 	}); err != nil {
-		return "", fmt.Errorf("creating bulk execution order: %w", err)
+		return fmt.Errorf("creating bulk execution order: %w", err)
+	}
+
+	return nil
+}
+
+func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+	batchExecID := uuid.New().String()
+
+	script, err := ds.Script(ctx, scriptID)
+	if err != nil {
+		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
+	}
+
+	for _, hostID := range hostIDs {
+		host, err := ds.HostLite(ctx, hostID)
+		if err != nil {
+			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
+		}
+
+		if !teamIDEq(host.TeamID, script.TeamID) {
+			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
+		}
+	}
+
+	if err := ds.batchExecuteScript(ctx, userID, scriptID, hostIDs, batchExecID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "immediate batch execution")
 	}
 
 	return batchExecID, nil
@@ -1919,9 +1959,17 @@ func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scri
 	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, job_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?, ?)`
 	const batchHostsStmt = `INSERT INTO batch_activity_host_results (batch_execution_id, host_id) VALUES (:exec_id, :host_id)`
 
+	argBytes, err := json.Marshal(fleet.BatchActivityScriptJobArgs{
+		ExecutionID: batchExecID,
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "encooding job args")
+	}
+
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		job, err := ds.NewJob(ctx, &fleet.Job{
-			Name:      fleet.BatchActivityJobName,
+			Name:      fleet.BatchActivityScriptsJobName,
+			Args:      (*json.RawMessage)(&argBytes),
 			State:     fleet.JobStateQueued,
 			NotBefore: notBefore.UTC(),
 		})
@@ -1936,7 +1984,7 @@ func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scri
 			job.ID,
 			scriptID,
 			userID,
-			fleet.BatchExecutionScheduled,
+			fleet.ScheduledBatchExecutionScheduled,
 			fleet.BatchExecutionActivityScript,
 			len(hostIDs),
 		)
@@ -2007,7 +2055,7 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "getting batch activity")
 	}
 
-	if activity.Status == fleet.BatchExecutionFinished {
+	if activity.Status == fleet.ScheduledBatchExecutionFinished {
 		return nil
 	}
 
@@ -2026,7 +2074,7 @@ WHERE
 			}
 		}
 
-		if activity.Status == fleet.BatchExecutionStarted {
+		if activity.Status == fleet.ScheduledBatchExecutionStarted {
 			// If the batch activity has started, we need to cancel anything in progress or queued
 			toCancel := []struct {
 				HostExecutionID string `db:"host_execution_id"`
@@ -2068,25 +2116,29 @@ WHERE
 func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 	const stmt = `
 		SELECT
-			id,
-			script_id,
-			execution_id,
-			user_id,
-			job_id,
-			status,
-			activity_type,
-			num_targeted,
-			num_pending,
-			num_ran,
-			num_errored,
-			num_incompatible,
-			num_canceled,
-			created_at,
-			updated_at,
-			finished_at,
-			canceled
+			ba.id,
+			ba.script_id,
+			s.name as script_name,
+			ba.execution_id,
+			ba.user_id,
+			ba.job_id,
+			ba.status,
+			ba.activity_type,
+			ba.num_targeted,
+			ba.num_pending,
+			ba.num_ran,
+			ba.num_errored,
+			ba.num_incompatible,
+			ba.num_canceled,
+			ba.created_at,
+			ba.updated_at,
+			ba.started_at,
+			ba.finished_at,
+			ba.canceled
 		FROM
-			batch_activities
+			batch_activities ba
+		LEFT JOIN
+			scripts s ON s.id = ba.script_id
 		WHERE
 			execution_id = ?`
 
@@ -2106,7 +2158,7 @@ func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionI
 			host_id,
 			host_execution_id,
 			error
-			FROM
+		FROM
 			batch_activity_host_results
 		WHERE
 			batch_execution_id = ?`
@@ -2117,6 +2169,46 @@ func (ds *Datastore) GetBatchActivityHostResults(ctx context.Context, executionI
 	}
 
 	return results, nil
+}
+
+func (ds *Datastore) RunScheduledBatchActivity(ctx context.Context, executionID string) error {
+	batchActivity, err := ds.GetBatchActivity(ctx, executionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting batch activity")
+	}
+
+	if batchActivity.Status != fleet.ScheduledBatchExecutionScheduled {
+		return ctxerr.New(ctx, "batch job has already been started")
+	}
+
+	if batchActivity.Canceled {
+		return ctxerr.New(ctx, "batch job was canceled")
+	}
+
+	if batchActivity.ScriptID == nil {
+		return ctxerr.New(ctx, "no script ID present in batch activity")
+	}
+
+	script, err := ds.Script(ctx, *batchActivity.ScriptID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "could not get script")
+	}
+
+	results, err := ds.GetBatchActivityHostResults(ctx, executionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting batch activity host results")
+	}
+
+	hostIDs := []uint{}
+	for _, result := range results {
+		hostIDs = append(hostIDs, result.HostID)
+	}
+
+	if err := ds.batchExecuteScript(ctx, batchActivity.UserID, script.ID, hostIDs, batchActivity.BatchExecutionID); err != nil {
+		return ctxerr.Wrap(ctx, err, "scheduled batch script execution")
+	}
+
+	return nil
 }
 
 // Deprecated; will be removed in favor of ListBatchScriptExecutions when the batch script details page is ready.

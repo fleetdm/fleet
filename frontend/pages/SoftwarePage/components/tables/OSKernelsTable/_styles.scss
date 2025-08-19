@@ -1,0 +1,8 @@
+.software-vulnerabilities-table {
+  // keeps table data within the table container at smaller screen sizes
+  .data-table {
+    &__wrapper {
+      overflow-x: auto;
+    }
+  }
+}

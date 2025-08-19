@@ -1854,7 +1854,7 @@ This activity contains the following fields:
 }
 ```
 
-## batch_script_scheduled
+## scheduled_script_batch
 
 Generated when a batch script is scheduled.
 
@@ -1872,6 +1872,27 @@ This activity contains the following fields:
   "script_name": "set-timezones.sh",
   "host_count": 12,
   "not_before": "2025-08-06T17:49:21.810204Z"
+}
+```
+
+## canceled_script_batch
+
+Generated when a batch script is canceled.
+
+This activity contains the following fields:
+- "batch_execution_id": Execution ID of the batch script run.
+- "script_name": Name of the script.
+- "host_count": Number of hosts in the batch.
+- "canceled_count": Number of hosts the job was canceled for.
+
+#### Example
+
+```json
+{
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "script_name": "set-timezones.sh",
+  "host_count": 12,
+  "canceled_count": 5
 }
 ```
 
@@ -1933,8 +1954,42 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": "123",
+	"host_id": 123,
 	"host_display_name": "PWNED-VM-123"
+}
+```
+
+## created_custom_variable
+
+Generated when custom variable is added.
+
+This activity contains the following fields:
+- "custom_variable_id": the id of the new custom variable.
+- "custom_variable_name": the name of the new custom variable.
+
+#### Example
+
+```json
+{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
+## deleted_custom_variable
+
+Generated when custom variable is deleted.
+
+This activity contains the following fields:
+- "custom_variable_id": the id of the custom variable.
+- "custom_variable_name": the name of the custom variable.
+
+#### Example
+
+```json
+{
+	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
 }
 ```
 

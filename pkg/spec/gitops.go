@@ -162,9 +162,9 @@ type SoftwarePackage struct {
 }
 
 type Software struct {
-	Packages            []SoftwarePackage               `json:"packages"`
-	AppStoreApps        []fleet.TeamSpecAppStoreApp     `json:"app_store_apps"`
-	FleetMaintainedApps []fleet.FleetMaintainedAppsSpec `json:"fleet_maintained_apps"`
+	Packages            []SoftwarePackage           `json:"packages"`
+	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	FleetMaintainedApps []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
 }
 
 type GitOps struct {
@@ -186,7 +186,7 @@ type GitOps struct {
 type GitOpsSoftware struct {
 	Packages            []*fleet.SoftwarePackageSpec
 	AppStoreApps        []*fleet.TeamSpecAppStoreApp
-	FleetMaintainedApps []*fleet.FleetMaintainedAppsSpec
+	FleetMaintainedApps []*fleet.MaintainedAppSpec
 }
 
 type Logf func(format string, a ...interface{})
@@ -1095,6 +1095,28 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
+		item = item.ResolveSoftwarePackagePaths(baseDir)
+
+		// handle secrets
+		if item.InstallScript.Path != "" {
+			if err := gatherFileSecrets(result, item.InstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+		if item.PostInstallScript.Path != "" {
+			if err := gatherFileSecrets(result, item.PostInstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+		if item.UninstallScript.Path != "" {
+			if err := gatherFileSecrets(result, item.UninstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+
 		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &item)
 	}
 	for _, item := range software.Packages {
@@ -1117,9 +1139,9 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
-			softwarePackageSpec = resolveSoftwarePackagePaths(filepath.Dir(softwarePackageSpec.ReferencedYamlPath), softwarePackageSpec)
+			softwarePackageSpec = softwarePackageSpec.ResolveSoftwarePackagePaths(filepath.Dir(softwarePackageSpec.ReferencedYamlPath))
 		} else {
-			softwarePackageSpec = resolveSoftwarePackagePaths(baseDir, item.SoftwarePackageSpec)
+			softwarePackageSpec = item.SoftwarePackageSpec.ResolveSoftwarePackagePaths(baseDir)
 		}
 		if softwarePackageSpec.InstallScript.Path != "" {
 			if err := gatherFileSecrets(result, softwarePackageSpec.InstallScript.Path); err != nil {
@@ -1192,23 +1214,6 @@ func gatherFileSecrets(result *GitOps, filePath string) error {
 	}
 
 	return nil
-}
-
-func resolveSoftwarePackagePaths(baseDir string, softwareSpec fleet.SoftwarePackageSpec) fleet.SoftwarePackageSpec {
-	if softwareSpec.PreInstallQuery.Path != "" {
-		softwareSpec.PreInstallQuery.Path = resolveApplyRelativePath(baseDir, softwareSpec.PreInstallQuery.Path)
-	}
-	if softwareSpec.InstallScript.Path != "" {
-		softwareSpec.InstallScript.Path = resolveApplyRelativePath(baseDir, softwareSpec.InstallScript.Path)
-	}
-	if softwareSpec.PostInstallScript.Path != "" {
-		softwareSpec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, softwareSpec.PostInstallScript.Path)
-	}
-	if softwareSpec.UninstallScript.Path != "" {
-		softwareSpec.UninstallScript.Path = resolveApplyRelativePath(baseDir, softwareSpec.UninstallScript.Path)
-	}
-
-	return softwareSpec
 }
 
 func getDuplicateNames[T any](slice []T, getComparableString func(T) string) []string {

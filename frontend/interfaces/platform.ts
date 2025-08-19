@@ -54,7 +54,11 @@ export const isScheduledQueryablePlatform = (
   );
 
 // TODO - add "iOS" and "iPadOS" once we support them
-export const VULN_SUPPORTED_PLATFORMS: Platform[] = ["darwin", "windows"];
+export const VULN_SUPPORTED_PLATFORMS: Platform[] = [
+  "darwin",
+  "windows",
+  "linux", // Added 4.73
+];
 
 export type SelectedPlatform = QueryablePlatform | "all";
 

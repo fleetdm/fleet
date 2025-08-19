@@ -10,8 +10,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"regexp"
 	"slices"
 	"sort"
@@ -19,6 +17,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -341,7 +342,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{})
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_windows_last_opened_at")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -2602,7 +2603,8 @@ func TestTPMPinSetVerifyIngest(t *testing.T) {
 			name: "nil host",
 			host: nil,
 			rows: []map[string]string{
-				{"host": "something", "criteria": "1"}},
+				{"host": "something", "criteria": "1"},
+			},
 		},
 		{
 			name: "empty uuid",
@@ -2761,5 +2763,302 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 			require.Equal(t, tt.wantError, err != nil)
 			require.Equal(t, cmdInserted, tt.wantCmd)
 		})
+	}
+}
+
+func TestDebLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["deb_last_opened_at"].SoftwareProcessResults
+	debPackageResults := []map[string]string{
+		{"package": "accountsservice", "last_opened_at": "1753287489"},
+		{"package": "acl", "last_opened_at": "1752178409"},
+		{"package": "adduser", "last_opened_at": "1753287887"},
+		{"package": "alsa-base", "last_opened_at": "1752178572"},
+		{"package": "alsa-utils", "last_opened_at": "1753806108"},
+		{"package": "anacron", "last_opened_at": "1754439481"},
+		{"package": "apg", "last_opened_at": "1752178498"},
+		{"package": "apparmor", "last_opened_at": "1753978475"},
+		{"package": "apport", "last_opened_at": "1754439481"},
+		{"package": "apport-core-dump-handler", "last_opened_at": "1752791628"},
+		{"package": "apport-gtk", "last_opened_at": "1752791824"},
+		{"package": "appstream", "last_opened_at": "1754361022"},
+		{"package": "apt", "last_opened_at": "1754439481"},
+		{"package": "apt-file", "last_opened_at": "1753293736"},
+		{"package": "apt-utils", "last_opened_at": "1753978482"},
+		{"package": "aptdaemon", "last_opened_at": "1752791767"},
+		{"package": "aspell", "last_opened_at": "1752178619"},
+		{"package": "at-spi2-core", "last_opened_at": "1753806242"},
+		{"package": "avahi-daemon", "last_opened_at": "1753806108"},
+		{"package": "baobab", "last_opened_at": "1753806594"},
+	}
+	softwareResults := []map[string]string{
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "accountsservice", "source": "deb_packages", "vendor": "", "version": "23.13.9-2ubuntu6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "acl", "source": "deb_packages", "vendor": "", "version": "2.3.2-1build1.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "adduser", "source": "deb_packages", "vendor": "", "version": "3.137ubuntu1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "adwaita-icon-theme", "source": "deb_packages", "vendor": "", "version": "46.0-1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-base", "source": "deb_packages", "vendor": "", "version": "1.0.25+dfsg-0ubuntu7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-topology-conf", "source": "deb_packages", "vendor": "", "version": "1.2.5.1-2"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-ucm-conf", "source": "deb_packages", "vendor": "", "version": "1.2.10-1ubuntu5.7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "alsa-utils", "source": "deb_packages", "vendor": "", "version": "1.2.9-1ubuntu5"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "anacron", "source": "deb_packages", "vendor": "", "version": "2.3-39ubuntu2"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apg", "source": "deb_packages", "vendor": "", "version": "2.2.3.dfsg.1-5build3"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apparmor", "source": "deb_packages", "vendor": "", "version": "4.0.1really4.0.1-0ubuntu0.24.04.4"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport-core-dump-handler", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport-gtk", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apport-symptoms", "source": "deb_packages", "vendor": "", "version": "0.25"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "appstream", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt", "source": "deb_packages", "vendor": "", "version": "2.8.3"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt-config-icons", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt-config-icons-hidpi", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "apt-file", "source": "deb_packages", "vendor": "", "version": "3.3"},
+		// Add some non-deb_packages software to test filtering
+		{"browser": "firefox", "extension_id": "test-extension", "installed_path": "", "name": "Firefox Extension", "source": "firefox_addons", "vendor": "", "version": "1.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "chrome-extension", "source": "chrome_extensions", "vendor": "", "version": "1.0"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, debPackageResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "deb_packages" {
+			// Last opened at should only be set for deb_packages
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "accountsservice" {
+			assert.Equal(t, "1753287489", software["last_opened_at"])
+		}
+
+		if software["name"] == "acl" {
+			assert.Equal(t, "1752178409", software["last_opened_at"])
+		}
+
+		if software["name"] == "adduser" {
+			assert.Equal(t, "1753287887", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-base" {
+			assert.Equal(t, "1752178572", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-utils" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "anacron" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apg" {
+			assert.Equal(t, "1752178498", software["last_opened_at"])
+		}
+
+		if software["name"] == "apparmor" {
+			assert.Equal(t, "1753978475", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-core-dump-handler" {
+			assert.Equal(t, "1752791628", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-gtk" {
+			assert.Equal(t, "1752791824", software["last_opened_at"])
+		}
+
+		if software["name"] == "appstream" {
+			assert.Equal(t, "1754361022", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-file" {
+			assert.Equal(t, "1753293736", software["last_opened_at"])
+		}
+
+		// Test packages that don't have last_opened_at data
+		if software["name"] == "adwaita-icon-theme" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-topology-conf" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-ucm-conf" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-symptoms" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-config-icons" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-config-icons-hidpi" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+	}
+}
+
+func TestRpmLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["rpm_last_opened_at"].SoftwareProcessResults
+	rpmPackageResults := []map[string]string{
+		{"package": "bash", "last_opened_at": "1753287489"},
+		{"package": "coreutils", "last_opened_at": "1752178409"},
+		{"package": "curl", "last_opened_at": "1753287887"},
+		{"package": "firewalld", "last_opened_at": "1752178572"},
+		{"package": "git", "last_opened_at": "1753806108"},
+		{"package": "httpd", "last_opened_at": "1754439481"},
+		{"package": "java-11-openjdk", "last_opened_at": "1752178498"},
+		{"package": "kernel", "last_opened_at": "1753978475"},
+		{"package": "libcurl", "last_opened_at": "1754439481"},
+		{"package": "mysql-server", "last_opened_at": "1752791628"},
+		{"package": "nginx", "last_opened_at": "1752791824"},
+		{"package": "nodejs", "last_opened_at": "1754361022"},
+		{"package": "openssh-server", "last_opened_at": "1754439481"},
+		{"package": "postgresql", "last_opened_at": "1753293736"},
+		{"package": "python3", "last_opened_at": "1753978482"},
+		{"package": "redis", "last_opened_at": "1752791767"},
+		{"package": "systemd", "last_opened_at": "1752178619"},
+		{"package": "vim", "last_opened_at": "1753806242"},
+		{"package": "wget", "last_opened_at": "1753806108"},
+		{"package": "yum", "last_opened_at": "1753806594"},
+	}
+	softwareResults := []map[string]string{
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "bash", "source": "rpm_packages", "vendor": "", "version": "4.2.46-35.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "coreutils", "source": "rpm_packages", "vendor": "", "version": "8.22-24.el7_9.2"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "curl", "source": "rpm_packages", "vendor": "", "version": "7.29.0-59.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "firewalld", "source": "rpm_packages", "vendor": "", "version": "0.6.3-13.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "git", "source": "rpm_packages", "vendor": "", "version": "1.8.3.1-25.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "httpd", "source": "rpm_packages", "vendor": "", "version": "2.4.6-97.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "java-11-openjdk", "source": "rpm_packages", "vendor": "", "version": "11.0.21.0.9-1.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "kernel", "source": "rpm_packages", "vendor": "", "version": "3.10.0-1160.105.1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "libcurl", "source": "rpm_packages", "vendor": "", "version": "7.29.0-59.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "mysql-server", "source": "rpm_packages", "vendor": "", "version": "5.7.44-1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "nginx", "source": "rpm_packages", "vendor": "", "version": "1.20.1-9.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "nodejs", "source": "rpm_packages", "vendor": "", "version": "16.20.2-1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "openssh-server", "source": "rpm_packages", "vendor": "", "version": "7.4p1-23.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "postgresql", "source": "rpm_packages", "vendor": "", "version": "13.14-1.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "python3", "source": "rpm_packages", "vendor": "", "version": "3.6.8-18.el7_9.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "redis", "source": "rpm_packages", "vendor": "", "version": "5.0.3-1.el7"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "systemd", "source": "rpm_packages", "vendor": "", "version": "219-78.el7_9.8"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "vim", "source": "rpm_packages", "vendor": "", "version": "7.4.629-8.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "wget", "source": "rpm_packages", "vendor": "", "version": "1.14-18.el7_6.1"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "yum", "source": "rpm_packages", "vendor": "", "version": "3.4.3-168.el7_9"},
+		// Add some packages that don't have last_opened_at data
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "glibc", "source": "rpm_packages", "vendor": "", "version": "2.17-325.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "openssl", "source": "rpm_packages", "vendor": "", "version": "1.0.2k-26.el7_9"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "zlib", "source": "rpm_packages", "vendor": "", "version": "1.2.7-18.el7"},
+		// Add some non-rpm_packages software to test filtering
+		{"browser": "firefox", "extension_id": "test-extension", "installed_path": "", "name": "Firefox Extension", "source": "firefox_addons", "vendor": "", "version": "1.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "chrome-extension", "source": "chrome_extensions", "vendor": "", "version": "1.0"},
+		{"browser": "", "extension_id": "", "installed_path": "", "name": "deb-package", "source": "deb_packages", "vendor": "", "version": "1.0"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, rpmPackageResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "rpm_packages" {
+			// Last opened at should only be set for rpm_packages
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "bash" {
+			assert.Equal(t, "1753287489", software["last_opened_at"])
+		}
+
+		if software["name"] == "coreutils" {
+			assert.Equal(t, "1752178409", software["last_opened_at"])
+		}
+
+		if software["name"] == "curl" {
+			assert.Equal(t, "1753287887", software["last_opened_at"])
+		}
+
+		if software["name"] == "firewalld" {
+			assert.Equal(t, "1752178572", software["last_opened_at"])
+		}
+
+		if software["name"] == "git" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "httpd" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "java-11-openjdk" {
+			assert.Equal(t, "1752178498", software["last_opened_at"])
+		}
+
+		if software["name"] == "kernel" {
+			assert.Equal(t, "1753978475", software["last_opened_at"])
+		}
+
+		if software["name"] == "libcurl" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "mysql-server" {
+			assert.Equal(t, "1752791628", software["last_opened_at"])
+		}
+
+		if software["name"] == "nginx" {
+			assert.Equal(t, "1752791824", software["last_opened_at"])
+		}
+
+		if software["name"] == "nodejs" {
+			assert.Equal(t, "1754361022", software["last_opened_at"])
+		}
+
+		if software["name"] == "openssh-server" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "postgresql" {
+			assert.Equal(t, "1753293736", software["last_opened_at"])
+		}
+
+		if software["name"] == "python3" {
+			assert.Equal(t, "1753978482", software["last_opened_at"])
+		}
+
+		if software["name"] == "redis" {
+			assert.Equal(t, "1752791767", software["last_opened_at"])
+		}
+
+		if software["name"] == "systemd" {
+			assert.Equal(t, "1752178619", software["last_opened_at"])
+		}
+
+		if software["name"] == "vim" {
+			assert.Equal(t, "1753806242", software["last_opened_at"])
+		}
+
+		if software["name"] == "wget" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "yum" {
+			assert.Equal(t, "1753806594", software["last_opened_at"])
+		}
+
+		// Test packages that don't have last_opened_at data
+		if software["name"] == "glibc" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "openssl" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "zlib" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
 	}
 }

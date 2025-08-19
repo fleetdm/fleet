@@ -415,9 +415,8 @@ type SoftwareInstallerPayload struct {
 	SHA256          string   `json:"sha256"`
 	Categories      []string `json:"categories"`
 	// This is to support FMAs
-	Slug             *string        `json:"slug"`
-	AutomaticInstall *bool          `json:"automatic_install"`
-	MaintainedApp    *MaintainedApp `json:"-"`
+	Slug          *string        `json:"slug"`
+	MaintainedApp *MaintainedApp `json:"-"`
 }
 
 type HostLockWipeStatus struct {
@@ -570,6 +569,7 @@ func (s HostLockWipeStatus) IsWiped() bool {
 var (
 	BatchExecuteIncompatiblePlatform = "incompatible-platform"
 	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
+	BatchExecuteInvalidHost          = "invalid-host"
 )
 
 type BatchExecutionStatusFilter struct {
@@ -594,27 +594,27 @@ type BatchExecutionHost struct {
 }
 
 type BatchActivity struct {
-	ID               uint                       `json:"id" db:"id"`
-	BatchExecutionID string                     `json:"batch_execution_id" db:"execution_id"`
-	UserID           *uint                      `json:"user_id" db:"user_id"`
-	JobID            *uint                      `json:"-" db:"job_id"`
-	ActivityType     BatchExecutionActivityType `json:"-" db:"activity_type"`
-	ScriptID         *uint                      `json:"script_id" db:"script_id"`
-	ScriptName       string                     `json:"script_name" db:"script_name"`
-	TeamID           *uint                      `json:"team_id" db:"team_id"`
-	CreatedAt        time.Time                  `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time                  `json:"updated_at" db:"updated_at"`
-	NotBefore        *time.Time                 `json:"not_before,omitempty" db:"not_before"`
-	StartedAt        *time.Time                 `json:"started_at,omitempty" db:"started_at"`
-	FinishedAt       *time.Time                 `json:"finished_at,omitempty" db:"finished_at"`
-	Canceled         bool                       `json:"canceled" db:"canceled"`
-	Status           BatchExecutionStatus       `json:"status" db:"status"`
-	NumTargeted      *uint                      `json:"targeted_host_count" db:"num_targeted"`
-	NumPending       *uint                      `json:"pending_host_count" db:"num_pending"`
-	NumRan           *uint                      `json:"ran_host_count" db:"num_ran"`
-	NumErrored       *uint                      `json:"errored_host_count" db:"num_errored"`
-	NumCanceled      *uint                      `json:"canceled_host_count" db:"num_canceled"`
-	NumIncompatible  *uint                      `json:"incompatible_host_count" db:"num_incompatible"`
+	ID               uint                          `json:"id" db:"id"`
+	BatchExecutionID string                        `json:"batch_execution_id" db:"execution_id"`
+	UserID           *uint                         `json:"user_id" db:"user_id"`
+	JobID            *uint                         `json:"-" db:"job_id"`
+	ActivityType     BatchExecutionActivityType    `json:"-" db:"activity_type"`
+	ScriptID         *uint                         `json:"script_id" db:"script_id"`
+	ScriptName       string                        `json:"script_name" db:"script_name"`
+	TeamID           *uint                         `json:"team_id" db:"team_id"`
+	CreatedAt        time.Time                     `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time                     `json:"updated_at" db:"updated_at"`
+	NotBefore        *time.Time                    `json:"not_before,omitempty" db:"not_before"`
+	StartedAt        *time.Time                    `json:"started_at,omitempty" db:"started_at"`
+	FinishedAt       *time.Time                    `json:"finished_at,omitempty" db:"finished_at"`
+	Canceled         bool                          `json:"canceled" db:"canceled"`
+	Status           ScheduledBatchExecutionStatus `json:"status" db:"status"`
+	NumTargeted      *uint                         `json:"targeted_host_count" db:"num_targeted"`
+	NumPending       *uint                         `json:"pending_host_count" db:"num_pending"`
+	NumRan           *uint                         `json:"ran_host_count" db:"num_ran"`
+	NumErrored       *uint                         `json:"errored_host_count" db:"num_errored"`
+	NumCanceled      *uint                         `json:"canceled_host_count" db:"num_canceled"`
+	NumIncompatible  *uint                         `json:"incompatible_host_count" db:"num_incompatible"`
 }
 
 type BatchActivityHostResult struct {
@@ -625,19 +625,23 @@ type BatchActivityHostResult struct {
 	Error            *string `db:"error"`
 }
 
-type BatchExecutionStatus string
+type BatchActivityScriptJobArgs struct {
+	ExecutionID string `json:"execution_id"`
+}
+
+type ScheduledBatchExecutionStatus string
 
 var (
-	BatchExecutionStarted   BatchExecutionStatus = "started"
-	BatchExecutionScheduled BatchExecutionStatus = "scheduled"
-	BatchExecutionFinished  BatchExecutionStatus = "finished"
+	ScheduledBatchExecutionStarted   ScheduledBatchExecutionStatus = "started"
+	ScheduledBatchExecutionScheduled ScheduledBatchExecutionStatus = "scheduled"
+	ScheduledBatchExecutionFinished  ScheduledBatchExecutionStatus = "finished"
 )
 
 type BatchExecutionActivityType string
 
 var BatchExecutionActivityScript BatchExecutionActivityType = "script"
 
-const BatchActivityJobName = "batch_activity"
+const BatchActivityScriptsJobName = "batch_scripts"
 
 // ValidateScriptPlatform returns whether a script can run on a host based on its host.Platform
 func ValidateScriptPlatform(scriptName, platform string) bool {

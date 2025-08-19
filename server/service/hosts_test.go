@@ -1295,7 +1295,7 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 		return nil, newNotFoundError()
 	}
 
-	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
 		return fleet.Vulnerabilities{}, nil
 	}
 
@@ -1339,7 +1339,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 	}
 
-	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
 		return fleet.Vulnerabilities{}, nil
 	}
 
@@ -2458,4 +2458,95 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			require.Equal(t, tt.expectedNotifications.RotateDiskEncryptionKey, notifs.RotateDiskEncryptionKey)
 		})
 	}
+}
+
+func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+
+	baseHost := &fleet.Host{ID: 42}
+
+	// common DS mocks
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
+
+	t.Run("ExcludeSoftware=true returns empty slice", func(t *testing.T) {
+		ds.LoadHostSoftwareFuncInvoked = false
+		ds.LoadHostSoftwareFunc = func(ctx context.Context, h *fleet.Host, includeCVEScores bool) error {
+			t.Fatalf("LoadHostSoftwareFunc should not be called when ExcludeSoftware is true")
+			return nil
+		}
+
+		opts := fleet.HostDetailOptions{ExcludeSoftware: true}
+		hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), baseHost, opts)
+		require.NoError(t, err)
+
+		require.NotNil(t, hostDetail.Software, "Software slice should not be nil")
+		assert.Len(t, hostDetail.Software, 0, "Software slice should be empty when excluded")
+	})
+
+	t.Run("ExcludeSoftware=false returns filled slice", func(t *testing.T) {
+		expectedSoftware := []fleet.HostSoftwareEntry{
+			{
+				Software: fleet.Software{
+					ID:      1,
+					Name:    "test-app",
+					Version: "1.0.0",
+					Source:  "apps",
+				},
+				InstalledPaths: []string{"/Applications/test-app.app"},
+			},
+			{
+				Software: fleet.Software{
+					ID:      2,
+					Name:    "another-app",
+					Version: "2.3.4",
+					Source:  "apps",
+				},
+				InstalledPaths: []string{"/Applications/another-app.app"},
+			},
+		}
+
+		ds.LoadHostSoftwareFuncInvoked = false
+		ds.LoadHostSoftwareFunc = func(ctx context.Context, h *fleet.Host, includeCVEScores bool) error {
+			h.HostSoftware.Software = expectedSoftware
+			return nil
+		}
+
+		opts := fleet.HostDetailOptions{ExcludeSoftware: false}
+		hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), baseHost, opts)
+		require.NoError(t, err)
+
+		require.NotNil(t, hostDetail.Software)
+		assert.Equal(t, expectedSoftware, hostDetail.Software)
+		assert.True(t, ds.LoadHostSoftwareFuncInvoked, "LoadHostSoftwareFunc should have been called")
+	})
 }

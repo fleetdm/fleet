@@ -1190,7 +1190,7 @@ type ListOptions struct {
 	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
-	// Used to request the metadata of a query
+	// Used to request the pagination metadata in the response.
 	IncludeMetadata bool
 
 	// The following fields are for tests, to ensure a deterministic sort order

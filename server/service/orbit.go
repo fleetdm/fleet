@@ -1103,6 +1103,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 			"msg", "record fleet disk encryption key escrowed activity",
 			"err", err,
 		)
+		ctxerr.Handle(ctx, err)
 	}
 
 	return nil
@@ -1186,6 +1187,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 			"msg", "record fleet disk encryption key escrowed activity",
 			"err", err,
 		)
+		ctxerr.Handle(ctx, err)
 	}
 
 	return nil

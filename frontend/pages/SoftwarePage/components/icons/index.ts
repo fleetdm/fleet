@@ -46,12 +46,6 @@ import BeyondCompare from "./BeyondCompare";
 import ITerm from "./ITerm";
 import VncViewer from "./VncViewer";
 
-// Maps all known Linux platforms to the LinuxOS icon
-const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
-  (a, platform) => ({ ...a, [platform]: LinuxOS }),
-  {}
-);
-
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
@@ -70,11 +64,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
   "google chrome": ChromeApp,
-  darwin: MacOS,
-  windows: WindowsOS,
-  chrome: ChromeOS,
-  ios: iOS,
-  ipados: iPadOS,
   whatsapp: WhatsApp,
   notion: Notion,
   figma: Figma,
@@ -94,7 +83,21 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beyond compare": BeyondCompare,
   iterm2: ITerm,
   "vnc viewer": VncViewer,
+} as const;
+
+// Maps all known Linux platforms to the LinuxOS icon
+const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
+  (a, platform) => ({ ...a, [platform]: LinuxOS }),
+  {}
+);
+
+export const PLATFORM_NAME_TO_ICON_MAP = {
   ...LINUX_OS_NAME_TO_ICON_MAP,
+  darwin: MacOS,
+  windows: WindowsOS,
+  chrome: ChromeOS,
+  ios: iOS,
+  ipados: iPadOS,
 } as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
@@ -167,7 +170,7 @@ const matchStrictNameSourceToIcon = ({
  * it will be returned, otherwise it will fall back to loose matching on name and source prefixes.
  * If no match is found, the default package icon will be returned.
  */
-const getMatchedSoftwareIcon = ({
+export const getMatchedSoftwareIcon = ({
   name = "",
   source = "",
 }: Pick<ISoftware, "name" | "source">) => {
@@ -204,4 +207,13 @@ const getMatchedSoftwareIcon = ({
   return Icon;
 };
 
-export default getMatchedSoftwareIcon;
+export const getMatchedOsIcon = ({ name = "" }) => {
+  // Match only against platform names (never software/app maps)
+  const matchedPlatform = matchLoosePrefixToKey(
+    PLATFORM_NAME_TO_ICON_MAP,
+    name
+  );
+  return matchedPlatform
+    ? PLATFORM_NAME_TO_ICON_MAP[matchedPlatform]
+    : SOFTWARE_SOURCE_TO_ICON_MAP.package; // TODO: Update default icon to something other than package icon >.<
+};
