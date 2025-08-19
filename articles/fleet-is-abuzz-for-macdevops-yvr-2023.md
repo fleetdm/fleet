@@ -36,5 +36,5 @@ If you are interested in attending the [MacDevOps:YVR Conference](https://mdoyvr
 <meta name="authorFullName" value="JD Strong">
 <meta name="publishedOn" value="2023-06-07">
 <meta name="articleTitle" value="Fleet is abuzz 🐝 for MacDevOps:YVR">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-is-abuzz-for-macdevops-yvr-2023@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-is-abuzz-for-macdevops-yvr-2023-960x540@2x.png">
 <meta name="description" value="Fleet is a proud sponsor of MacDevOps:YVR which is back in person in Vancouver, B.C. June 21-22, 2023">
