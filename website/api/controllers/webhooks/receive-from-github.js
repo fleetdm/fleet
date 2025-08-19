@@ -1059,9 +1059,93 @@ module.exports = {
             // Calculate time to QA ready
             const qaReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
             const inProgressTime = new Date(inProgressData.date);
-            const timeToQaReadySeconds = await sails.helpers.engineeringMetrics.calculateTimeExcludingWeekends.with({
-              startTime: inProgressTime,
-              endTime: qaReadyTime
+
+            let timeToQaReadySeconds = await sails.helpers.flow.build(async ()=>{
+              if (!sails.config.custom.githubProjectsV2.excludeWeekends) {
+                // If weekend exclusion is disabled, return simple time difference
+                return Math.floor((qaReadyTime - inProgressTime) / 1000);
+              }
+
+              // Use the provided weekend exclusion logic
+              const startDay = inProgressTime.getUTCDay();
+              const endDay = qaReadyTime.getUTCDay();
+
+              // Case: Both start time and end time are on the same weekend
+              if (
+                (startDay === 0 || startDay === 6) &&
+                (endDay === 0 || endDay === 6) &&
+                Math.floor(qaReadyTime / (24 * 60 * 60 * 1000)) -
+                Math.floor(inProgressTime / (24 * 60 * 60 * 1000)) <=
+                2
+              ) {
+                // Return 0 seconds
+                return 0;
+              }
+
+              // Make copies to avoid modifying original dates
+              const adjustedStartTime = new Date(inProgressTime);
+              const adjustedEndTime = new Date(qaReadyTime);
+
+              // Set to start of Monday if start time is on weekend
+              if (startDay === 0) {
+                // Sunday
+                adjustedStartTime.setUTCDate(adjustedStartTime.getUTCDate() + 1);
+                adjustedStartTime.setUTCHours(0, 0, 0, 0);
+              } else if (startDay === 6) {
+                // Saturday
+                adjustedStartTime.setUTCDate(adjustedStartTime.getUTCDate() + 2);
+                adjustedStartTime.setUTCHours(0, 0, 0, 0);
+              }
+
+              // Set to start of Saturday if end time is on Sunday
+              if (endDay === 0) {
+                // Sunday
+                adjustedEndTime.setUTCDate(adjustedEndTime.getUTCDate() - 1);
+                adjustedEndTime.setUTCHours(0, 0, 0, 0);
+              } else if (endDay === 6) {
+                // Saturday
+                adjustedEndTime.setUTCHours(0, 0, 0, 0);
+              }
+
+              // Count weekend days between adjusted dates
+              // Make local copies for weekend counting
+              let weekendStartDate = new Date(adjustedStartTime);
+              let weekendEndDate = new Date(adjustedEndTime);
+
+              // Ensure weekendStartDate is before weekendEndDate
+              if (weekendStartDate > weekendEndDate) {
+                [weekendStartDate, weekendEndDate] = [weekendEndDate, weekendStartDate];
+              }
+
+              // Make sure start dates and end dates are not on weekends. We just want to count the weekend days between them.
+              if (weekendStartDate.getUTCDay() === 0) {
+                weekendStartDate.setUTCDate(weekendStartDate.getUTCDate() + 1);
+              } else if (weekendStartDate.getUTCDay() === 6) {
+                weekendStartDate.setUTCDate(weekendStartDate.getUTCDate() + 2);
+              }
+              if (weekendEndDate.getUTCDay() === 0) {
+                weekendEndDate.setUTCDate(weekendEndDate.getUTCDate() - 2);
+              } else if (weekendEndDate.getUTCDay() === 6) {
+                weekendEndDate.setUTCDate(weekendEndDate.getUTCDate() - 1);
+              }
+
+              let weekendDays = 0;
+              const current = new Date(weekendStartDate);
+
+              while (current <= weekendEndDate) {
+                const day = current.getUTCDay();
+                if (day === 0 || day === 6) {
+                  // Sunday (0) or Saturday (6)
+                  weekendDays++;
+                }
+                current.setUTCDate(current.getUTCDate() + 1);
+              }
+
+              // Calculate raw time difference in milliseconds
+              const diffMs = adjustedEndTime - adjustedStartTime - weekendDays * 24 * 60 * 60 * 1000;
+
+              // Ensure we don't return negative values
+              return Math.max(0, Math.floor(diffMs / 1000));
             });
 
             // Determine project name
@@ -1206,9 +1290,93 @@ module.exports = {
             // Calculate time to release ready (from in_progress to release)
             const releaseReadyTime = new Date(projectsV2Item.updated_at);  // Use webhook timestamp
             const inProgressTime = new Date(inProgressData.date);
-            const timeToReleaseReadySeconds = await sails.helpers.engineeringMetrics.calculateTimeExcludingWeekends.with({
-              startTime: inProgressTime,
-              endTime: releaseReadyTime
+
+            let timeToReleaseReadySeconds = await sails.helpers.flow.build(async ()=>{
+              if (!sails.config.custom.githubProjectsV2.excludeWeekends) {
+                // If weekend exclusion is disabled, return simple time difference
+                return Math.floor((releaseReadyTime - inProgressTime) / 1000);
+              }
+
+              // Use the provided weekend exclusion logic
+              const startDay = inProgressTime.getUTCDay();
+              const endDay = releaseReadyTime.getUTCDay();
+
+              // Case: Both start time and end time are on the same weekend
+              if (
+                (startDay === 0 || startDay === 6) &&
+                (endDay === 0 || endDay === 6) &&
+                Math.floor(releaseReadyTime / (24 * 60 * 60 * 1000)) -
+                Math.floor(inProgressTime / (24 * 60 * 60 * 1000)) <=
+                2
+              ) {
+                // Return 0 seconds
+                return 0;
+              }
+
+              // Make copies to avoid modifying original dates
+              const adjustedStartTime = new Date(inProgressTime);
+              const adjustedEndTime = new Date(releaseReadyTime);
+
+              // Set to start of Monday if start time is on weekend
+              if (startDay === 0) {
+                // Sunday
+                adjustedStartTime.setUTCDate(adjustedStartTime.getUTCDate() + 1);
+                adjustedStartTime.setUTCHours(0, 0, 0, 0);
+              } else if (startDay === 6) {
+                // Saturday
+                adjustedStartTime.setUTCDate(adjustedStartTime.getUTCDate() + 2);
+                adjustedStartTime.setUTCHours(0, 0, 0, 0);
+              }
+
+              // Set to start of Saturday if end time is on Sunday
+              if (endDay === 0) {
+                // Sunday
+                adjustedEndTime.setUTCDate(adjustedEndTime.getUTCDate() - 1);
+                adjustedEndTime.setUTCHours(0, 0, 0, 0);
+              } else if (endDay === 6) {
+                // Saturday
+                adjustedEndTime.setUTCHours(0, 0, 0, 0);
+              }
+
+              // Count weekend days between adjusted dates
+              // Make local copies for weekend counting
+              let weekendStartDate = new Date(adjustedStartTime);
+              let weekendEndDate = new Date(adjustedEndTime);
+
+              // Ensure weekendStartDate is before weekendEndDate
+              if (weekendStartDate > weekendEndDate) {
+                [weekendStartDate, weekendEndDate] = [weekendEndDate, weekendStartDate];
+              }
+
+              // Make sure start dates and end dates are not on weekends. We just want to count the weekend days between them.
+              if (weekendStartDate.getUTCDay() === 0) {
+                weekendStartDate.setUTCDate(weekendStartDate.getUTCDate() + 1);
+              } else if (weekendStartDate.getUTCDay() === 6) {
+                weekendStartDate.setUTCDate(weekendStartDate.getUTCDate() + 2);
+              }
+              if (weekendEndDate.getUTCDay() === 0) {
+                weekendEndDate.setUTCDate(weekendEndDate.getUTCDate() - 2);
+              } else if (weekendEndDate.getUTCDay() === 6) {
+                weekendEndDate.setUTCDate(weekendEndDate.getUTCDate() - 1);
+              }
+
+              let weekendDays = 0;
+              const current = new Date(weekendStartDate);
+
+              while (current <= weekendEndDate) {
+                const day = current.getUTCDay();
+                if (day === 0 || day === 6) {
+                  // Sunday (0) or Saturday (6)
+                  weekendDays++;
+                }
+                current.setUTCDate(current.getUTCDate() + 1);
+              }
+
+              // Calculate raw time difference in milliseconds
+              const diffMs = adjustedEndTime - adjustedStartTime - weekendDays * 24 * 60 * 60 * 1000;
+
+              // Ensure we don't return negative values
+              return Math.max(0, Math.floor(diffMs / 1000));
             });
 
             // Determine project name
