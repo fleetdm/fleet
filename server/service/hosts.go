@@ -1170,6 +1170,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		}
 	}
 
+	if host.HostSoftware.Software == nil {
+		host.HostSoftware.Software = []fleet.HostSoftwareEntry{}
+	}
+
 	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get labels for host")
@@ -1211,13 +1215,23 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get policies for host")
 		}
-
 		if hp == nil {
 			hp = []*fleet.HostPolicy{}
 		}
-
 		policies = &hp
 	}
+
+	// Calculate the number of failing policies for the host based on the returned policies to
+	// avoid discrepancies due to read replica delay.
+	var failingPolicies uint64
+	if policies != nil {
+		for _, p := range *policies {
+			if p != nil && p.Response == "fail" {
+				failingPolicies++
+			}
+		}
+	}
+	host.HostIssues.FailingPoliciesCount = failingPolicies
 
 	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
 	// disk encryption status, and macOS setup details for non-linux hosts.
