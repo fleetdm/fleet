@@ -515,3 +515,43 @@ func (ds *Datastore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) (
 	}
 	return teamIDs, nil
 }
+
+// DefaultTeamConfig returns the configuration for "No Team" hosts.
+func (ds *Datastore) DefaultTeamConfig(ctx context.Context) (*fleet.TeamConfig, error) {
+	return defaultTeamConfigDB(ctx, ds.reader(ctx))
+}
+
+func defaultTeamConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.TeamConfig, error) {
+	config := &fleet.TeamConfig{}
+	var bytes []byte
+	err := sqlx.GetContext(ctx, q, &bytes,
+		`SELECT json_value FROM default_team_config_json LIMIT 1`)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Return empty config if no record exists (shouldn't happen after migration)
+			return &fleet.TeamConfig{}, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "selecting default team config")
+	}
+
+	err = json.Unmarshal(bytes, config)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling default team config")
+	}
+	return config, nil
+}
+
+// SaveDefaultTeamConfig saves the configuration for "No Team" hosts.
+func (ds *Datastore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
+	configBytes, err := json.Marshal(config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling config")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO default_team_config_json(id, json_value) VALUES(1, ?) 
+		 ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
+		configBytes,
+	)
+	return ctxerr.Wrap(ctx, err, "save default team config")
+}

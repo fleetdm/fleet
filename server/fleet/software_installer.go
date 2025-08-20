@@ -628,6 +628,60 @@ type SoftwareSpec struct {
 	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
 }
 
+// Copy returns a deep copy of SoftwareSpec
+func (s *SoftwareSpec) Copy() *SoftwareSpec {
+	if s == nil {
+		return nil
+	}
+
+	result := &SoftwareSpec{}
+
+	// Deep copy Packages
+	if s.Packages.Set && len(s.Packages.Value) > 0 {
+		result.Packages = optjson.Slice[SoftwarePackageSpec]{
+			Set:   true,
+			Value: make([]SoftwarePackageSpec, len(s.Packages.Value)),
+		}
+		copy(result.Packages.Value, s.Packages.Value)
+	}
+
+	// Deep copy FleetMaintainedApps
+	if s.FleetMaintainedApps.Set && len(s.FleetMaintainedApps.Value) > 0 {
+		result.FleetMaintainedApps = optjson.Slice[MaintainedAppSpec]{
+			Set:   true,
+			Value: make([]MaintainedAppSpec, len(s.FleetMaintainedApps.Value)),
+		}
+		copy(result.FleetMaintainedApps.Value, s.FleetMaintainedApps.Value)
+	}
+
+	// Deep copy AppStoreApps
+	if s.AppStoreApps.Set && len(s.AppStoreApps.Value) > 0 {
+		result.AppStoreApps = optjson.Slice[TeamSpecAppStoreApp]{
+			Set:   true,
+			Value: make([]TeamSpecAppStoreApp, len(s.AppStoreApps.Value)),
+		}
+		for i, app := range s.AppStoreApps.Value {
+			appCopy := app
+			// Deep copy slices within TeamSpecAppStoreApp
+			if app.LabelsIncludeAny != nil {
+				appCopy.LabelsIncludeAny = make([]string, len(app.LabelsIncludeAny))
+				copy(appCopy.LabelsIncludeAny, app.LabelsIncludeAny)
+			}
+			if app.LabelsExcludeAny != nil {
+				appCopy.LabelsExcludeAny = make([]string, len(app.LabelsExcludeAny))
+				copy(appCopy.LabelsExcludeAny, app.LabelsExcludeAny)
+			}
+			if app.Categories != nil {
+				appCopy.Categories = make([]string, len(app.Categories))
+				copy(appCopy.Categories, app.Categories)
+			}
+			result.AppStoreApps.Value[i] = appCopy
+		}
+	}
+
+	return result
+}
+
 // HostSoftwareInstall represents installation of software on a host from a
 // Fleet software installer.
 type HostSoftwareInstall struct {

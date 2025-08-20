@@ -308,6 +308,102 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	return json.Marshal(t)
 }
 
+// Clone implements the Cloner interface for cache support
+func (t *TeamConfig) Clone() (Cloner, error) {
+	return t.Copy(), nil
+}
+
+// Copy returns a deep copy of the TeamConfig
+func (t *TeamConfig) Copy() *TeamConfig {
+	if t == nil {
+		return nil
+	}
+
+	// Create a shallow copy
+	clone := *t
+
+	// Deep copy AgentOptions
+	if t.AgentOptions != nil {
+		rawMsg := make(json.RawMessage, len(*t.AgentOptions))
+		copy(rawMsg, *t.AgentOptions)
+		clone.AgentOptions = &rawMsg
+	}
+
+	// Deep copy webhook settings
+	if t.WebhookSettings.HostStatusWebhook != nil {
+		hsw := *t.WebhookSettings.HostStatusWebhook
+		clone.WebhookSettings.HostStatusWebhook = &hsw
+	}
+
+	// Deep copy failing policies webhook PolicyIDs slice
+	if len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) > 0 {
+		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
+		copy(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	}
+
+	// Deep copy integrations
+	clone.Integrations = t.Integrations.Copy()
+
+	// Deep copy MDM settings
+	if t.MDM.MacOSSettings.CustomSettings != nil {
+		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(t.MDM.MacOSSettings.CustomSettings))
+		for i, profile := range t.MDM.MacOSSettings.CustomSettings {
+			profileCopy := profile
+			if profile.Labels != nil {
+				profileCopy.Labels = make([]string, len(profile.Labels))
+				copy(profileCopy.Labels, profile.Labels)
+			}
+			if profile.LabelsExcludeAny != nil {
+				profileCopy.LabelsExcludeAny = make([]string, len(profile.LabelsExcludeAny))
+				copy(profileCopy.LabelsExcludeAny, profile.LabelsExcludeAny)
+			}
+			if profile.LabelsIncludeAll != nil {
+				profileCopy.LabelsIncludeAll = make([]string, len(profile.LabelsIncludeAll))
+				copy(profileCopy.LabelsIncludeAll, profile.LabelsIncludeAll)
+			}
+			clone.MDM.MacOSSettings.CustomSettings[i] = profileCopy
+		}
+	}
+
+	if t.MDM.WindowsSettings.CustomSettings.Valid && t.MDM.WindowsSettings.CustomSettings.Value != nil {
+		clone.MDM.WindowsSettings.CustomSettings.Set = t.MDM.WindowsSettings.CustomSettings.Set
+		clone.MDM.WindowsSettings.CustomSettings.Valid = t.MDM.WindowsSettings.CustomSettings.Valid
+		clone.MDM.WindowsSettings.CustomSettings.Value = make([]MDMProfileSpec, len(t.MDM.WindowsSettings.CustomSettings.Value))
+		for i, profile := range t.MDM.WindowsSettings.CustomSettings.Value {
+			profileCopy := profile
+			if profile.Labels != nil {
+				profileCopy.Labels = make([]string, len(profile.Labels))
+				copy(profileCopy.Labels, profile.Labels)
+			}
+			if profile.LabelsExcludeAny != nil {
+				profileCopy.LabelsExcludeAny = make([]string, len(profile.LabelsExcludeAny))
+				copy(profileCopy.LabelsExcludeAny, profile.LabelsExcludeAny)
+			}
+			if profile.LabelsIncludeAll != nil {
+				profileCopy.LabelsIncludeAll = make([]string, len(profile.LabelsIncludeAll))
+				copy(profileCopy.LabelsIncludeAll, profile.LabelsIncludeAll)
+			}
+			clone.MDM.WindowsSettings.CustomSettings.Value[i] = profileCopy
+		}
+	}
+
+	// Deep copy Scripts slice
+	if t.Scripts.Set && len(t.Scripts.Value) > 0 {
+		clone.Scripts = optjson.Slice[string]{
+			Set:   true,
+			Value: make([]string, len(t.Scripts.Value)),
+		}
+		copy(clone.Scripts.Value, t.Scripts.Value)
+	}
+
+	// Deep copy Software
+	if t.Software != nil {
+		clone.Software = t.Software.Copy()
+	}
+
+	return &clone
+}
+
 type TeamSummary struct {
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
