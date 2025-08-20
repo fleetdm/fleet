@@ -117,3 +117,31 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 	svc.authz.SkipAuthorization(ctx)
 	return fleet.ErrMissingLicense
 }
+
+type requestCertificateRequest struct {
+	fleet.RequestCertificatePayload
+}
+
+type requestCertificateResponse struct {
+	Certificate string `json:"certificate"`
+	Err         error  `json:"error,omitempty"`
+}
+
+func (r requestCertificateResponse) Error() error { return r.Err }
+
+func requestCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*requestCertificateRequest)
+
+	certificate, err := svc.RequestCertificate(ctx, req.RequestCertificatePayload)
+	if err != nil {
+		return requestCertificateResponse{Err: err}, nil
+	}
+
+	return requestCertificateResponse{Certificate: *certificate}, nil
+}
+
+func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCertificatePayload) (*string, error) {
+	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return nil, fleet.ErrMissingLicense
+}

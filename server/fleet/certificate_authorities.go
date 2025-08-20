@@ -154,6 +154,18 @@ func (c *CertificateAuthority) AuthzType() string {
 	return "certificate_authority"
 }
 
+type RequestCertificatePayload struct {
+	ID          uint    `url:"id"`             // ID Of the CA the cert is to be requested from.
+	CSR         string  `json:"csr"`           // PEM-encoded CSR
+	IDPOauthURL *string `json:"idp_oauth_url"` // OAuth introspection URL for validating IDP Authentication
+	IDPToken    *string `json:"idp_token"`     // Token for IDP Authentication
+	IDPClientID *string `json:"idp_client_id"` // Client ID for IDP Authentication
+}
+
+func (c *RequestCertificatePayload) AuthzType() string {
+	return "certificate_request"
+}
+
 type GroupedCertificateAuthorities struct {
 	Hydrant         []HydrantCA
 	DigiCert        []DigiCertCA

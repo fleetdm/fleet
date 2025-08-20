@@ -805,6 +805,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/certificate_authorities", listCertificateAuthoritiesEndpoint, listCertificateAuthoritiesRequest{})
 	ue.GET("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", getCertificateAuthorityEndpoint, getCertificateAuthorityRequest{})
 	ue.DELETE("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", deleteCertificateAuthorityEndpoint, deleteCertificateAuthorityRequest{})
+	ue.POST("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}/request_certificate", requestCertificateEndpoint, requestCertificateRequest{})
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 

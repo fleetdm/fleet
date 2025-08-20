@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -127,6 +128,19 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 	}))
 	defer mockDigiCertServer.Close()
 
+	mockHydrantServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/cacerts" {
+			w.Header().Set("Content-Type", "application/pkcs7-mime")
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("Imagine if there was actually CA cert data here..."))
+			require.NoError(t, err)
+			return
+		}
+
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}))
+	defer mockHydrantServer.Close()
+
 	verifyNilFieldsForType := func(t *testing.T, ca *fleet.CertificateAuthority) {
 		if ca.Type != string(fleet.CATypeDigiCert) {
 			assert.Nil(t, ca.APIToken)
@@ -172,6 +186,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
+			hydrantService:  hydrant.NewService(),
 			scepConfigService: &scep_mock.SCEPConfigService{
 				ValidateSCEPURLFunc:          func(_ context.Context, _ string) error { return nil },
 				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
@@ -295,7 +310,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createHydrantRequest := fleet.CertificateAuthorityPayload{
 			Hydrant: &fleet.HydrantCA{
 				Name:         "HydrantWIFI",
-				URL:          "https://hydrant.example.com",
+				URL:          mockHydrantServer.URL,
 				ClientID:     "hydrant_client_id",
 				ClientSecret: "hydrant_client_secret",
 			},
@@ -559,7 +574,6 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Nil(t, createdCA)
 	})
 
-	// Hydrant errors TODO HCA update these with the real errors once Hydrant is implemented
 	t.Run("Create Hydrant CA - Bad name", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
 
@@ -585,6 +599,24 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			Hydrant: &fleet.HydrantCA{
 				Name:         "HydrantWIFI",
 				URL:          "bozo",
+				ClientID:     "hydrant_client_id",
+				ClientSecret: "hydrant_client_secret",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createHydrantRequest)
+		require.ErrorContains(t, err, "Invalid Hydrant URL.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Hydrant CA - Bad URL but looks like a hydrant URL", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createHydrantRequest := fleet.CertificateAuthorityPayload{
+			Hydrant: &fleet.HydrantCA{
+				Name:         "HydrantWIFI",
+				URL:          "https://hydrant.example.com/invalid",
 				ClientID:     "hydrant_client_id",
 				ClientSecret: "hydrant_client_secret",
 			},

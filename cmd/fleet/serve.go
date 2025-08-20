@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -750,6 +751,7 @@ the way that the Fleet server works.
 			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
+				hydrantService := hydrant.NewService(hydrant.WithLogger(logger))
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
 					if config.S3.BucketsAndPrefixesMatch() {
@@ -822,6 +824,7 @@ the way that the Fleet server works.
 					redis_key_value.New(redisPool),
 					scepConfigMgr,
 					digiCertService,
+					hydrantService,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
