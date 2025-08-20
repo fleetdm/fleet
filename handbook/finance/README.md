@@ -1,4 +1,3 @@
-<img width="66" height="16" alt="image" src="https://github.com/user-attachments/assets/b35b9258-dcef-4504-85fa-20a48c300945" />
 # Finance
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
