@@ -69,6 +69,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit global ("All teams") policy automations                  |          |            |            | ✅    | ✅      |
 | Edit team policy automations: calendar events, install software, and run script\* |          |            | ✅         | ✅    | ✅      |
 | Edit team policy automations: other workflows (tickets and webhooks)\*                 |          |            |            | ✅    | ✅      |
+| Edit "No team" policy automations                  |          |            |            | ✅    | ✅      |
 | Create, edit, view, and delete users                                                                                                       |          |            |            | ✅    |         |
 | Add and remove team users\*                                                                                                                |          |            |            | ✅    | ✅      |
 | Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
