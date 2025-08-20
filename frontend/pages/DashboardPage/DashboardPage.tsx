@@ -643,9 +643,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     },
     actionUrl: softwareActionUrl,
     titleDetail: softwareTitleDetail,
-    children: isSoftwareFetching ? (
-      <Spinner />
-    ) : (
+    children: (
       <Software
         errorSoftware={errorSoftware}
         isSoftwareFetching={isSoftwareFetching}
