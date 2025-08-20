@@ -387,6 +387,8 @@ func mutateSoftware(software *fleet.Software, logger log.Logger) {
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
 // any translations, and then lookup in the cpe database based on the title, product and vendor.
 func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, translations CPETranslations, reCache *regexpCache) (string, error) {
+	fmt.Println("--------------------- CPEFromSoftware --------------")
+	fmt.Printf("software %+v\n", software)
 	if containsNonASCII(software.Name) {
 		level.Debug(logger).Log("msg", "skipping software with non-ascii characters", "software", software.Name, "version", software.Version, "source", software.Source)
 		return "", nil
@@ -496,6 +498,7 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 
 		if match != nil {
 			if !match.Deprecated {
+				fmt.Println(match.FmtStr(software))
 				return match.FmtStr(software), nil
 			}
 
@@ -697,7 +700,10 @@ func translateSoftwareToCPEWithIterator(
 	logger kitlog.Logger,
 	iterator fleet.SoftwareIterator,
 ) error {
+	fmt.Println("--------------------- translateSoftwareToCPEWithIterator --------------")
+	// This should be the only function that calls UpsertSoftwareCPEs
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
+	fmt.Printf("db path: %s\n", dbPath)
 
 	db, err := sqliteDB(dbPath)
 	if err != nil {
@@ -745,6 +751,8 @@ func translateSoftwareToCPEWithIterator(
 				continue
 			}
 		}
+		fmt.Println(software.ToUniqueStr())
+		fmt.Println(cpe)
 		if cpe == software.GenerateCPE {
 			// If the generated CPE hasn't changed from what's already stored in the DB
 			// then we don't need to do anything.

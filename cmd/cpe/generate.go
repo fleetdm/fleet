@@ -122,6 +122,7 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 }
 
 func convertToCPEItem(in nvdapi.CPE) (out cpedict.CPEItem) {
+	fmt.Println("---------------- convertToCPEItem ------------------")
 	out = cpedict.CPEItem{}
 
 	// CPE name
@@ -130,6 +131,10 @@ func convertToCPEItem(in nvdapi.CPE) (out cpedict.CPEItem) {
 	out.CPE23 = cpedict.CPE23Item{
 		Name: cpedict.NamePattern(*wfName),
 	}
+
+	fmt.Printf("in:    %s\n", in.CPEName)
+	fmt.Printf("wfn:   %s\n", wfName.String())
+	fmt.Printf("out:   %v\n", out)
 
 	// Deprecations
 	out.Deprecated = in.Deprecated
