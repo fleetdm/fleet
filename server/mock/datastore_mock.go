@@ -763,8 +763,6 @@ type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
 
-type NewJobTxFunc func(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error)
-
 type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error)
 
 type GetFilteredQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error)
@@ -889,7 +887,9 @@ type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoE
 
 type GetNanoMDMUserEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
 
-type GetNanoMDMUserEnrollmentUsernameFunc func(ctx context.Context, deviceID string) (string, error)
+type GetNanoMDMUserEnrollmentUsernameAndUUIDFunc func(ctx context.Context, deviceID string) (string, string, error)
+
+type UpdateNanoMDMUserEnrollmentUsernameFunc func(ctx context.Context, deviceID string, userUUID string, username string) error
 
 type GetNanoMDMEnrollmentTimesFunc func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
 
@@ -2578,9 +2578,6 @@ type DataStore struct {
 	NewJobFunc        NewJobFunc
 	NewJobFuncInvoked bool
 
-	NewJobTxFunc        NewJobTxFunc
-	NewJobTxFuncInvoked bool
-
 	GetQueuedJobsFunc        GetQueuedJobsFunc
 	GetQueuedJobsFuncInvoked bool
 
@@ -2767,8 +2764,11 @@ type DataStore struct {
 	GetNanoMDMUserEnrollmentFunc        GetNanoMDMUserEnrollmentFunc
 	GetNanoMDMUserEnrollmentFuncInvoked bool
 
-	GetNanoMDMUserEnrollmentUsernameFunc        GetNanoMDMUserEnrollmentUsernameFunc
-	GetNanoMDMUserEnrollmentUsernameFuncInvoked bool
+	GetNanoMDMUserEnrollmentUsernameAndUUIDFunc        GetNanoMDMUserEnrollmentUsernameAndUUIDFunc
+	GetNanoMDMUserEnrollmentUsernameAndUUIDFuncInvoked bool
+
+	UpdateNanoMDMUserEnrollmentUsernameFunc        UpdateNanoMDMUserEnrollmentUsernameFunc
+	UpdateNanoMDMUserEnrollmentUsernameFuncInvoked bool
 
 	GetNanoMDMEnrollmentTimesFunc        GetNanoMDMEnrollmentTimesFunc
 	GetNanoMDMEnrollmentTimesFuncInvoked bool
@@ -6227,13 +6227,6 @@ func (s *DataStore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, err
 	return s.NewJobFunc(ctx, job)
 }
 
-func (s *DataStore) NewJobTx(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error) {
-	s.mu.Lock()
-	s.NewJobTxFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewJobTxFunc(ctx, tx, job)
-}
-
 func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
 	s.mu.Lock()
 	s.GetQueuedJobsFuncInvoked = true
@@ -6668,11 +6661,18 @@ func (s *DataStore) GetNanoMDMUserEnrollment(ctx context.Context, id string) (*f
 	return s.GetNanoMDMUserEnrollmentFunc(ctx, id)
 }
 
-func (s *DataStore) GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error) {
+func (s *DataStore) GetNanoMDMUserEnrollmentUsernameAndUUID(ctx context.Context, deviceID string) (string, string, error) {
 	s.mu.Lock()
-	s.GetNanoMDMUserEnrollmentUsernameFuncInvoked = true
+	s.GetNanoMDMUserEnrollmentUsernameAndUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetNanoMDMUserEnrollmentUsernameFunc(ctx, deviceID)
+	return s.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc(ctx, deviceID)
+}
+
+func (s *DataStore) UpdateNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string, userUUID string, username string) error {
+	s.mu.Lock()
+	s.UpdateNanoMDMUserEnrollmentUsernameFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateNanoMDMUserEnrollmentUsernameFunc(ctx, deviceID, userUUID, username)
 }
 
 func (s *DataStore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {

@@ -2158,8 +2158,8 @@ func TestMDMQueries(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: mdmEnabled}}, nil
 	}
-	ds.GetNanoMDMUserEnrollmentUsernameFunc = func(ctx context.Context, deviceID string) (string, error) {
-		return "", nil
+	ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, deviceID string) (string, string, error) {
+		return "", "", nil
 	}
 
 	host := fleet.Host{

@@ -274,29 +274,32 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
-	HostUUID           string             `db:"host_uuid" json:"-"`
-	CommandUUID        string             `db:"command_uuid" json:"-"`
-	ProfileUUID        string             `db:"profile_uuid" json:"profile_uuid"`
-	Name               string             `db:"name" json:"name"`
-	Identifier         string             `db:"identifier" json:"-"`
-	Status             *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType      MDMOperationType   `db:"operation_type" json:"operation_type"`
-	Detail             string             `db:"detail" json:"detail"`
-	VariablesUpdatedAt *time.Time         `db:"variables_updated_at" json:"-"`
-	Scope              PayloadScope       `db:"scope" json:"scope"`
+	HostUUID            string             `db:"host_uuid" json:"-"`
+	CommandUUID         string             `db:"command_uuid" json:"-"`
+	ProfileUUID         string             `db:"profile_uuid" json:"profile_uuid"`
+	Name                string             `db:"name" json:"name"`
+	Identifier          string             `db:"identifier" json:"-"`
+	Status              *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType       MDMOperationType   `db:"operation_type" json:"operation_type"`
+	Detail              string             `db:"detail" json:"detail"`
+	VariablesUpdatedAt  *time.Time         `db:"variables_updated_at" json:"-"`
+	Scope               PayloadScope       `db:"scope" json:"scope"`
+	ManagedLocalAccount string             `db:"managed_local_account" json:"managed_local_account"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
 func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 	return HostMDMProfile{
-		HostUUID:      p.HostUUID,
-		ProfileUUID:   p.ProfileUUID,
-		Name:          p.Name,
-		Identifier:    p.Identifier,
-		Status:        p.Status,
-		OperationType: p.OperationType,
-		Detail:        p.Detail,
-		Platform:      platform,
+		HostUUID:            p.HostUUID,
+		ProfileUUID:         p.ProfileUUID,
+		Name:                p.Name,
+		Identifier:          p.Identifier,
+		Status:              p.Status,
+		OperationType:       p.OperationType,
+		Detail:              p.Detail,
+		Platform:            platform,
+		Scope:               string(p.Scope),
+		ManagedLocalAccount: p.ManagedLocalAccount,
 	}
 }
 
@@ -528,6 +531,17 @@ type NanoEnrollment struct {
 	Type             string `json:"-" db:"type"`
 	Enabled          bool   `json:"-" db:"enabled"`
 	TokenUpdateTally int    `json:"-" db:"token_update_tally"`
+}
+
+// NanoUser represents a row in the nano_users table of Managed Users, managed by
+// nanomdm. It is meant to be used internally by the server, not to be returned
+// as part of endpoints, and as a precaution its json-encoding is explicitly
+// ignored.
+type NanoUser struct {
+	ID            string `json:"-" db:"id"`
+	DeviceID      string `json:"-" db:"device_id"`
+	UserShortName string `json:"-" db:"user_short_name"`
+	UserLongName  string `json:"-" db:"user_long_name"`
 }
 
 // MDMAppleCommand represents an MDM Apple command that has been enqueued for

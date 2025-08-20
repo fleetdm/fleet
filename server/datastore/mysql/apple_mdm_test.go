@@ -8490,9 +8490,10 @@ func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, userEnrollment)
 
-	username, err := ds.GetNanoMDMUserEnrollmentUsername(ctx, "no-such-host")
+	username, uuid, err := ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, "no-such-host")
 	require.NoError(t, err)
 	require.Empty(t, username)
+	require.Empty(t, uuid)
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host1-name",
@@ -8512,9 +8513,10 @@ func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	userEnrollment, err = ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Nil(t, userEnrollment)
-	username, err = ds.GetNanoMDMUserEnrollmentUsername(ctx, host.UUID)
+	username, uuid, err = ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Empty(t, username)
+	require.Empty(t, uuid)
 
 	// add user and device enrollment for this device. Timestamps should not be updated so nothing
 	// returned yet
@@ -8527,9 +8529,10 @@ func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	require.True(t, userEnrollment.Enabled)
 	require.Equal(t, "User", userEnrollment.Type)
 
-	username, err = ds.GetNanoMDMUserEnrollmentUsername(ctx, host.UUID)
+	username, uuid, err = ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Equal(t, "alice", username)
+	require.Equal(t, host.UUID, uuid) // TODO EJM
 }
 
 func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
