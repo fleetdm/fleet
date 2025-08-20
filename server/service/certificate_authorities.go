@@ -120,7 +120,7 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 
 type updateCertificateAuthorityRequest struct {
 	ID uint `url:"id"`
-	fleet.CertificateAuthorityPayload
+	fleet.CertificateAuthorityUpdatePayload
 }
 
 type updateCertificateAuthorityResponse struct {
@@ -132,7 +132,7 @@ func (r updateCertificateAuthorityResponse) Error() error { return r.Err }
 func updateCertificateAuthorityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateCertificateAuthorityRequest)
 
-	err := svc.UpdateCertificateAuthority(ctx, req.ID, req.CertificateAuthorityPayload)
+	err := svc.UpdateCertificateAuthority(ctx, req.ID, req.CertificateAuthorityUpdatePayload)
 	if err != nil {
 		return &updateCertificateAuthorityResponse{Err: err}, nil
 	}
@@ -140,8 +140,7 @@ func updateCertificateAuthorityEndpoint(ctx context.Context, request interface{}
 	return &updateCertificateAuthorityResponse{}, nil
 }
 
-// func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, updateData map[string]interface{}) error {
-func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, payload fleet.CertificateAuthorityPayload) error {
+func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, payload fleet.CertificateAuthorityUpdatePayload) error {
 	svc.authz.SkipAuthorization(ctx)
 	return fleet.ErrMissingLicense
 }

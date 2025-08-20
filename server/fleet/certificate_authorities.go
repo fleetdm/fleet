@@ -3,7 +3,9 @@ package fleet
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -192,6 +194,165 @@ func (s *CustomSCEPProxyCA) Equals(other *CustomSCEPProxyCA) bool {
 
 func (c *CertificateAuthority) AuthzType() string {
 	return "certificate_authority"
+}
+
+type CertificateAuthorityUpdatePayload struct {
+	*DigiCertCAUpdatePayload        `json:"digicert,omitempty"`
+	*NDESSCEPProxyCAUpdatePayload   `json:"ndes_scep_proxy,omitempty"`
+	*CustomSCEPProxyCAUpdatePayload `json:"custom_scep_proxy,omitempty"`
+	*HydrantCAUpdatePayload         `json:"hydrant,omitempty"`
+}
+
+// ValidatePayload checks that only one CA type is specified in the update payload and that the private key is provided.
+func (p *CertificateAuthorityUpdatePayload) ValidatePayload(privateKey string, errPrefix string) error {
+	caInPayload := 0
+	if p.DigiCertCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.HydrantCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.NDESSCEPProxyCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.CustomSCEPProxyCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if caInPayload == 0 {
+		return &BadRequestError{Message: fmt.Sprintf("%sA certificate authority must be specified", errPrefix)}
+	}
+	if caInPayload > 1 {
+		// handle showing this error only for create and update at the moment. If more cases are needed then we
+		// should probably pass in the verb instead of checking the errPrefix
+		var verb string
+		if strings.Contains(errPrefix, "create") {
+			verb = "created"
+		}
+		verb = "edited"
+		return &BadRequestError{Message: fmt.Sprintf("%sOnly one certificate authority can be %s at a time", errPrefix, verb)}
+	}
+
+	if len(privateKey) == 0 {
+		return &BadRequestError{Message: fmt.Sprintf("%sPrivate key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key", errPrefix)}
+	}
+	return nil
+}
+
+type DigiCertCAUpdatePayload struct {
+	Name                          *string   `json:"name"`
+	URL                           *string   `json:"url"`
+	APIToken                      *string   `json:"api_token"`
+	ProfileID                     *string   `json:"profile_id"`
+	CertificateCommonName         *string   `json:"certificate_common_name"`
+	CertificateUserPrincipalNames *[]string `json:"certificate_user_principal_names"`
+	CertificateSeatID             *string   `json:"certificate_seat_id"`
+}
+
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the URL is provided then the API token must also be provided.
+func (dcp *DigiCertCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
+	if dcp.Name != nil && dcp.APIToken == nil {
+		return &BadRequestError{Message: fmt.Sprintf("%sAPI token must be provided when Name is set.", errPrefix)}
+	}
+	if dcp.URL != nil && dcp.APIToken == nil {
+		return &BadRequestError{Message: fmt.Sprintf("%sAPI token must be provided when URL is set.", errPrefix)}
+	}
+	if dcp.ProfileID != nil && dcp.APIToken == nil {
+		return &BadRequestError{Message: fmt.Sprintf("%sAPI token must be provided when Profile ID is set.", errPrefix)}
+	}
+	return nil
+}
+
+func (dcp *DigiCertCAUpdatePayload) Preprocess() {
+	if dcp.Name != nil {
+		*dcp.Name = Preprocess(*dcp.Name)
+	}
+	if dcp.URL != nil {
+		*dcp.URL = Preprocess(*dcp.URL)
+	}
+	if dcp.ProfileID != nil {
+		*dcp.ProfileID = Preprocess(*dcp.ProfileID)
+	}
+}
+
+type NDESSCEPProxyCAUpdatePayload struct {
+	URL      *string `json:"url"`
+	AdminURL *string `json:"admin_url"`
+	Username *string `json:"username"`
+	Password *string `json:"password"`
+}
+
+func (ndesp *NDESSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
+	if ndesp.AdminURL != nil && ndesp.Password == nil {
+		return &BadRequestError{Message: fmt.Sprintf("%sPassword must be provided when Admin URL is set.", errPrefix)}
+	}
+	if ndesp.Username != nil && ndesp.Password == nil {
+		return &BadRequestError{Message: fmt.Sprintf("%sPassword must be provided when Username is set.", errPrefix)}
+	}
+	return nil
+}
+
+func (ndesp *NDESSCEPProxyCAUpdatePayload) Preprocess() {
+	if ndesp.URL != nil {
+		*ndesp.URL = Preprocess(*ndesp.URL)
+	}
+	if ndesp.AdminURL != nil {
+		*ndesp.AdminURL = Preprocess(*ndesp.AdminURL)
+	}
+	if ndesp.Username != nil {
+		*ndesp.Username = Preprocess(*ndesp.Username)
+	}
+}
+
+type CustomSCEPProxyCAUpdatePayload struct {
+	Name      *string `json:"name"`
+	URL       *string `json:"url"`
+	Challenge *string `json:"challenge"`
+}
+
+func (cscepp *CustomSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
+	if cscepp.Name != nil && cscepp.Challenge == nil {
+		return &BadRequestError{Message: fmt.Sprintf("%sChallenge must be provided when Name is set.", errPrefix)}
+	}
+	if cscepp.URL != nil || cscepp.Challenge == nil {
+		return &BadRequestError{Message: fmt.Sprintf("%sChallenge must be provided when URL is set.", errPrefix)}
+	}
+	return nil
+}
+
+func (cscepp *CustomSCEPProxyCAUpdatePayload) Preprocess() {
+	if cscepp.Name != nil {
+		*cscepp.Name = Preprocess(*cscepp.Name)
+	}
+	if cscepp.URL != nil {
+		*cscepp.URL = Preprocess(*cscepp.URL)
+	}
+}
+
+type HydrantCAUpdatePayload struct {
+	Name         *string `json:"name"`
+	URL          *string `json:"url"`
+	ClientID     *string `json:"client_id"`
+	ClientSecret *string `json:"client_secret"`
+}
+
+func (hp *HydrantCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
+	if hp.Name != nil && (hp.ClientID == nil || hp.ClientSecret == nil) {
+		return &BadRequestError{Message: fmt.Sprintf("%sClient ID and Client Secret must be provided when Name is set.", errPrefix)}
+	}
+	if hp.URL != nil && (hp.ClientID == nil || hp.ClientSecret == nil) {
+		return &BadRequestError{Message: fmt.Sprintf("%sClient ID and Client Secret must be provided when URL is set.", errPrefix)}
+	}
+	return nil
+}
+
+func (hp *HydrantCAUpdatePayload) Preprocess() {
+	if hp.Name != nil {
+		*hp.Name = Preprocess(*hp.Name)
+	}
+	if hp.URL != nil {
+		*hp.URL = Preprocess(*hp.URL)
+	}
 }
 
 type RequestCertificatePayload struct {
