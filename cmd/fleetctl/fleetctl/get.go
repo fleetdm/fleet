@@ -1482,12 +1482,6 @@ func getMDMCommandResultsCommand() *cli.Command {
 				Usage:    "Filter MDM commands by ID.",
 				Required: true,
 			},
-			&cli.BoolFlag{
-				Name:     "line",
-				Usage:    "Output results in line format, instead of table format.",
-				Aliases:  []string{"l"},
-				Required: false,
-			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -1517,7 +1511,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 			}
 
 			// print the results as a table
-			data := [][]string{}
+			data := []string{}
 			for _, r := range res {
 				formattedResult, err := formatXML(r.Result)
 				// if we get an error, just log it and use the
@@ -1541,27 +1535,27 @@ func getMDMCommandResultsCommand() *cli.Command {
 				if len(reqType) == 0 {
 					reqType = "InstallProfile"
 				}
-				data = append(data, []string{
-					r.CommandUUID,
-					r.UpdatedAt.Format(time.RFC3339),
-					reqType,
-					r.Status,
-					r.Hostname,
-					string(formattedPayload),
-					string(formattedResult),
-				})
-			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "PAYLOAD", "RESULTS"}
-			if c.Bool("line") {
-				for _, d := range data {
-					for i, c := range columns {
-						fmt.Printf("%s:\n%s\n\n", c, d[i])
-					}
-				}
 
-				return nil
+				idField := strings.Join([]string{"ID:", r.CommandUUID}, "\n")
+				timeField := strings.Join([]string{"TIME:", r.UpdatedAt.Format(time.RFC3339)}, "\n")
+				typeField := strings.Join([]string{"TYPE:", reqType}, "\n")
+				statusField := strings.Join([]string{"STATUS:", r.Status}, "\n")
+				payloadField := strings.Join([]string{"PAYLOAD:", string(formattedPayload)}, "\n")
+				resultsField := strings.Join([]string{"RESULTS:", string(formattedResult)}, "\n")
+				hostnameField := strings.Join([]string{"HOSTNAME:", r.Hostname}, "\n")
+
+				data = append(data, strings.Join([]string{
+					idField,
+					timeField,
+					typeField,
+					statusField,
+					hostnameField,
+					payloadField,
+					resultsField,
+				}, "\n\n"))
 			}
-			printTableWithXML(c, columns, data)
+
+			fmt.Println(strings.Join(data, "\n---\n\n"))
 
 			return nil
 		},
