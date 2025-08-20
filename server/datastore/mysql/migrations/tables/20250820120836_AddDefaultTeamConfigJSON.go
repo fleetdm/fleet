@@ -91,9 +91,9 @@ func Up_20250820120836(tx *sql.Tx) error {
 		return errors.Wrap(err, "marshaling default config")
 	}
 
-	// Insert the default configuration
+	// Insert the default configuration with fixed timestamps
 	_, err = tx.Exec(
-		`INSERT INTO default_team_config_json(id, json_value) VALUES(1, ?)`,
+		`INSERT INTO default_team_config_json(id, json_value, created_at, updated_at) VALUES(1, ?, '2020-01-01 01:01:01', '2020-01-01 01:01:01')`,
 		configBytes,
 	)
 	if err != nil {
