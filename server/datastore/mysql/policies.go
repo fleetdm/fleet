@@ -357,7 +357,11 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
 	if softwareInstallerID != nil {
 		var softwareInstallerTeamID uint
-		err := sqlx.GetContext(ctx, db, &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ?", softwareInstallerID)
+		// Use FOR UPDATE to acquire an exclusive lock on the software_installer row early in the transaction.
+		// This prevents deadlocks by ensuring consistent lock ordering - all transactions that need
+		// to validate and update policies with the same software installer will wait in line
+		// rather than creating circular dependencies.
+		err := sqlx.GetContext(ctx, db, &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ? FOR UPDATE", softwareInstallerID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -375,7 +379,8 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 	if vppAppsTeamsID != nil {
 		var vppAppTeamID uint
-		err := sqlx.GetContext(ctx, db, &vppAppTeamID, "SELECT global_or_team_id FROM vpp_apps_teams WHERE id = ?", vppAppsTeamsID)
+		// Similarly, lock VPP apps to prevent deadlocks
+		err := sqlx.GetContext(ctx, db, &vppAppTeamID, "SELECT global_or_team_id FROM vpp_apps_teams WHERE id = ? FOR UPDATE", vppAppsTeamsID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -393,7 +398,8 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 	if scriptID != nil {
 		var scriptTeamID uint
-		err := sqlx.GetContext(ctx, db, &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ?", scriptID)
+		// Lock scripts as well to maintain consistent ordering
+		err := sqlx.GetContext(ctx, db, &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ? FOR UPDATE", scriptID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
