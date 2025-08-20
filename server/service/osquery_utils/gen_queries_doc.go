@@ -33,6 +33,7 @@ func main() {
 		osquery_utils.Integrations{
 			ConditionalAccessMicrosoft: true,
 		},
+		nil,
 	)
 	var b strings.Builder
 

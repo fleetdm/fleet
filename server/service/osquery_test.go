@@ -265,6 +265,7 @@ var allDetailQueries = osquery_utils.GetDetailQueries(
 		EnableSoftwareInventory: true,
 	},
 	osquery_utils.Integrations{},
+	nil,
 )
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
@@ -1274,6 +1275,10 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 				EnableSoftwareInventory: false,
 			},
 		}, nil
+	}
+
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return nil, nil
 	}
 
 	ds.TeamFeaturesFunc = func(ctx context.Context, id uint) (*fleet.Features, error) {
