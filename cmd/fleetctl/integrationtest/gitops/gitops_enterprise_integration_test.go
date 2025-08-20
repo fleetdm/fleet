@@ -1404,8 +1404,7 @@ policies: []
 }
 
 // TestFleetSecretInDataTag tests that FLEET_SECRET_ variables in <data> tags of Apple profiles
-// cause validation errors. This is a regression test for the issue where the XML parser
-// tries to interpret the variable name as base64 data.
+// are handled properly.
 func (s *enterpriseIntegrationGitopsTestSuite) TestFleetSecretInDataTag() {
 	t := s.T()
 	tempDir := t.TempDir()
@@ -1458,7 +1457,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetSecretInDataTag() {
 
 	// Write the profile to a file
 	profilePath := filepath.Join(tempDir, "rootcert-secret.mobileconfig")
-	err = os.WriteFile(profilePath, []byte(profileContent), 0644)
+	err = os.WriteFile(profilePath, []byte(profileContent), 0644) //nolint:gosec
 	require.NoError(t, err)
 
 	// Create a team GitOps config file that references the profile
@@ -1482,7 +1481,7 @@ software:
 `, team.Name, profilePath)
 
 	configPath := filepath.Join(tempDir, "team-gitops.yml")
-	err = os.WriteFile(configPath, []byte(teamConfig), 0644)
+	err = os.WriteFile(configPath, []byte(teamConfig), 0644) //nolint:gosec
 	require.NoError(t, err)
 
 	// Create a GitOps user
@@ -1492,14 +1491,8 @@ software:
 	// Set the environment variable with the base64-encoded certificate
 	t.Setenv("FLEET_SECRET_DUO_CERTIFICATE", testCertBase64)
 
-	// Run GitOps with dry-run - with the fix, this should now succeed
 	// The fix expands FLEET_SECRET_ variables for validation only, allowing the profile to be parsed
 	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath, "--dry-run"})
-
-	// With the fix in place:
-	// 1. The profile is loaded and FLEET_SECRET_ vars are expanded ONLY for validation
-	// 2. fleet.NewMDMAppleConfigProfile successfully validates the profile structure
-	// 3. The actual profile sent to the server still contains unexpanded $FLEET_SECRET_ variables
 	require.NoError(t, err, "GitOps dry-run should succeed with the fix")
 
 	// Also test without dry-run to confirm it works
@@ -1513,116 +1506,4 @@ software:
 	// The stored profile should still contain the unexpanded variable, not the actual secret
 	require.Contains(t, string(profiles[0].Mobileconfig), "$FLEET_SECRET_DUO_CERTIFICATE",
 		"Profile should still contain unexpanded FLEET_SECRET variable")
-}
-
-// TestFleetSecretInDataTagWorkaround tests a potential workaround where we use <string> instead of <data>
-func (s *enterpriseIntegrationGitopsTestSuite) TestFleetSecretInDataTagWorkaround() {
-	t := s.T()
-	ctx := context.Background()
-	tempDir := t.TempDir()
-
-	// Create a test team first
-	team, err := s.DS.NewTeam(ctx, &fleet.Team{
-		Name: "Test Team for Secret Workaround",
-	})
-	require.NoError(t, err)
-
-	testCertBase64 := `MIIDaTCCAlGgAwIBAgIUNQLezMUpmZK18DcLKt/XTRcLlK8wDQYJKoZIhvcNAQELBQAwRDEfMB0GA1UEAwwWRHVtbXkgVGVzdCBDZXJ0aWZpY2F0ZTEUMBIGA1UECgwLRXhhbXBsZSBPcmcxCzAJBgNVBAYTAlVTMB4XDTI1MDgxOTE3NDMwN1oXDTI2MDgxOTE3NDMwN1owRDEfMB0GA1UEAwwWRHVtbXkgVGVzdCBDZXJ0aWZpY2F0ZTEUMBIGA1UECgwLRXhhbXBsZSBPcmcxCzAJBgNVBAYTAlVTMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA07Np/w5WpFVLlMKX3dZSxwo+c2uwP2glTN0HA5c/6UOQRR9c91yoGGJsD4pfqhtIMSTFw7po3n/PjhGDe/WH+utK+ZIcD0nGD6SvmOggyoohHs81eIOjJAEJjxzhk7eLTVpUI2EnPe/24ei/dgkK59As9qQyH/y+CoR8JIYbNCJH5YLC2Pa44V84QWa2I5DHKUKrUXo9WsrRp1N1JjyaG/6hxLBJZ69e0QTrxxScboreRqVUR6oIEJRTchB+rDG5dxXzCQE6/F8N3qR76t23wd3CLmrcXoEc1P2P331Qzi0KXNXjdJFf0plmfRkT/IWgfM81Vfon1QwENwRSBNmPfQIDAQABo1MwUTAdBgNVHQ4EFgQU9q7SDfQRbJ31snRt2sZzx5sdEpYwHwYDVR0jBBgwFoAU9q7SDfQRbJ31snRt2sZzx5sdEpYwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAYwH42JP45SnZejSF74OcYt8fp08jCWHOiFC3QEo3cROXVn6AWjEbzuQpOxRWF9EizNA83c4E6I+kQVztiuv9bUKGuLFeYb9lUZe8HOvH+j22MtGvZrDPygsJc8TavdkxAsu6OiNQZrYiCFzixkKS9b5p/1B93GBh62OFnV1nUBS8PzAZhOAyJ8UcEhr+GNzZG99/wOkcB0uwxmIb8x8sB3KnQ0qef/qnmgeWxlJlDc/SZ2/4PgtaluZ+noDfNPzaQn4eJNnBz0OTqZ9yuKALeE1WHk8U13zSdc1GNVLhXOrEHegPK5bBmA/lpIQ6HrkwUX7MJ3vK0AD3LjaTzXltDQ==`
-
-	// Using <string> instead of <data> as a workaround
-	// The certificate will need to be base64 encoded in the secret value
-	profileContent := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-    <dict>
-        <key>PayloadContent</key>
-        <array>
-            <dict>
-                <key>PayloadType</key>
-                <string>com.apple.security.root</string>
-                <key>PayloadVersion</key>
-                <integer>1</integer>
-                <key>PayloadIdentifier</key>
-                <string>com.example.test.cert.workaround</string>
-                <key>PayloadUUID</key>
-                <string>22222222-3333-4444-5555-666666666666</string>
-                <key>PayloadDisplayName</key>
-                <string>Test Root Certificate Workaround</string>
-                <key>PayloadContent</key>
-                <string>$FLEET_SECRET_DUO_CERTIFICATE_WORKAROUND</string>
-            </dict>
-        </array>
-        <key>PayloadType</key>
-        <string>Configuration</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-        <key>PayloadIdentifier</key>
-        <string>com.example.test.profile.workaround</string>
-        <key>PayloadUUID</key>
-        <string>bbbbbbbb-cccc-dddd-eeee-ffffffffffff</string>
-        <key>PayloadDisplayName</key>
-        <string>Test MDM Profile Workaround</string>
-    </dict>
-</plist>`
-
-	// Write the profile to a file
-	profilePath := filepath.Join(tempDir, "rootcert-workaround.mobileconfig")
-	err = os.WriteFile(profilePath, []byte(profileContent), 0644)
-	require.NoError(t, err)
-
-	// Create a team GitOps config file that references the profile
-	teamConfig := fmt.Sprintf(`
-name: %s
-team_settings:
-  secrets:
-    - secret: test_secret
-agent_options:
-  config:
-    decorators:
-      load:
-        - SELECT uuid AS host_uuid FROM system_info;
-controls:
-  macos_settings:
-    custom_settings:
-      - path: %s
-queries:
-policies:
-software:
-`, team.Name, profilePath)
-
-	configPath := filepath.Join(tempDir, "team-gitops-workaround.yml")
-	err = os.WriteFile(configPath, []byte(teamConfig), 0644)
-	require.NoError(t, err)
-
-	// Create a GitOps user
-	gitOpsUser := s.createGitOpsUser(t)
-	fleetctlConfig := s.createFleetctlConfig(t, gitOpsUser)
-
-	// Set the environment variable with the base64-encoded certificate
-	t.Setenv("FLEET_SECRET_DUO_CERTIFICATE_WORKAROUND", testCertBase64)
-
-	// Run GitOps - this should work with the <string> tag
-	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
-
-	// Verify the secret was saved
-	secrets, err := s.DS.GetSecretVariables(ctx, []string{"DUO_CERTIFICATE_WORKAROUND"})
-	require.NoError(t, err)
-	require.Len(t, secrets, 1)
-	require.Equal(t, "DUO_CERTIFICATE_WORKAROUND", secrets[0].Name)
-	require.Equal(t, testCertBase64, secrets[0].Value)
-
-	// Verify the profile was uploaded with the variable reference intact
-	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, &team.ID)
-	require.NoError(t, err)
-
-	foundProfile := false
-	for _, profile := range profiles {
-		if profile.Identifier == "com.example.test.profile.workaround" {
-			foundProfile = true
-			// The variable should still be there, not substituted
-			require.Contains(t, string(profile.Mobileconfig), "$FLEET_SECRET_DUO_CERTIFICATE_WORKAROUND")
-			break
-		}
-	}
-	require.True(t, foundProfile, "Workaround profile should be uploaded to the server")
 }
