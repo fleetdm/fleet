@@ -584,6 +584,17 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ---
 
+## Certificates
+
+- [Add certificate authority (CA)](#add-certificate-authority-ca)
+- [Edit certificate authority (CA)](#edit-certificate-authority-ca)
+- [List certificate authorities (CAs)](#list-certificate-authorities-cas)
+- [Get certificate authority (CA)](#get-certificate-authority-ca)
+- [Delete certificate authority (CA)](#delete-certificate-authority-ca)
+- [Request certificate](#request-certificate)
+
+---
+
 ## File carving
 
 - [List carves](#list-carves)
