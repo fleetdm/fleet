@@ -1270,10 +1270,6 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 		}, nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return nil, nil
-	}
-
 	ds.TeamFeaturesFunc = func(ctx context.Context, id uint) (*fleet.Features, error) {
 		switch id {
 		case uint(1):
