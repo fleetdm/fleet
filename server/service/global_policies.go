@@ -395,14 +395,29 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		}
 	}
 	for id := range tIDs {
-		if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
-			return err
+		var teamConfig fleet.TeamConfig
+		if id == 0 {
+			// Handle "No Team" (team ID 0) - use AppConfig authorization
+			if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+				return err
+			}
+			defaultConfig, err := svc.ds.DefaultTeamConfig(ctx)
+			if err != nil {
+				return err
+			}
+			teamConfig = *defaultConfig
+		} else {
+			// Handle regular teams
+			if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
+				return err
+			}
+			t, err := svc.ds.Team(ctx, id)
+			if err != nil {
+				return err
+			}
+			teamConfig = t.Config
 		}
-		t, err := svc.ds.Team(ctx, id)
-		if err != nil {
-			return err
-		}
-		for pID := range teamAutomationPolicies(t.Config.WebhookSettings.FailingPoliciesWebhook, t.Config.Integrations.Jira, t.Config.Integrations.Zendesk) {
+		for pID := range teamAutomationPolicies(teamConfig.WebhookSettings.FailingPoliciesWebhook, teamConfig.Integrations.Jira, teamConfig.Integrations.Zendesk) {
 			allAutoPolicies[pID] = struct{}{}
 		}
 	}
