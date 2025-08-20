@@ -25,9 +25,9 @@ done
 [ -f /run/nologin ] && rm /run/nologin
 
 # Remove GDM banner if we set one
-if [ -f /etc/dconf/db/gdm.d/01-fleet-lock-banner ]; then
+if [ -f /etc/dconf/db/gdm.d/99-fleet-lock-banner ]; then
     echo "Removing GDM lock banner"
-    rm /etc/dconf/db/gdm.d/01-fleet-lock-banner
+    rm /etc/dconf/db/gdm.d/99-fleet-lock-banner
     dconf update 2>/dev/null || true
 fi
 

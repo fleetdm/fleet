@@ -70,7 +70,8 @@ echo "Locked by administrator" > /run/nologin
 if systemctl is-active --quiet gdm || systemctl is-active --quiet gdm3; then
     echo "Setting GDM banner for lock notification"
     mkdir -p /etc/dconf/db/gdm.d
-    cat > /etc/dconf/db/gdm.d/01-fleet-lock-banner << 'EOF'
+    # Use 99- prefix to ensure high priority (overrides lower numbers)
+    cat > /etc/dconf/db/gdm.d/99-fleet-lock-banner << 'EOF'
 [org/gnome/login-screen]
 banner-message-enable=true
 banner-message-text='System is locked by administrator'
