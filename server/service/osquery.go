@@ -1097,6 +1097,14 @@ func (svc *Service) SubmitDistributedQueryResults(
 			} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
 				policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 			}
+		} else {
+			// For hosts without a team, check default team configuration
+			defaultConfig, err := svc.ds.DefaultTeamConfig(ctx)
+			if err != nil {
+				logging.WithErr(ctx, err)
+			} else if teamPolicyAutomationsEnabled(defaultConfig.WebhookSettings, defaultConfig.Integrations) {
+				policyIDs = append(policyIDs, defaultConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
+			}
 		}
 
 		filteredResults := filterPolicyResults(policyResults, policyIDs)
