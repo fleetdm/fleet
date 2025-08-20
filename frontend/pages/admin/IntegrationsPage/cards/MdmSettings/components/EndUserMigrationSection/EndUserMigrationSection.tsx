@@ -57,6 +57,7 @@ const validateWebhookUrl = (val: string) => {
 const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   const { config, isPremiumTier, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
   const [formData, setFormData] = useState<IEndUserMigrationFormData>({
     isEnabled: config?.mdm.macos_migration.enable || false,
     mode: config?.mdm.macos_migration.mode || "voluntary",
@@ -130,8 +131,10 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     }
   };
 
+  const isGitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+
   const formClasses = classnames(`${baseClass}__end-user-migration-form`, {
-    disabled: !formData.isEnabled || config?.gitops.gitops_mode_enabled,
+    disabled: !formData.isEnabled || isGitOpsModeEnabled,
   });
 
   if (!isPremiumTier) {
@@ -166,18 +169,18 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           alt="end user migration preview"
           className={`${baseClass}__migration-preview`}
         />
+        <Slider
+          value={formData.isEnabled}
+          onChange={toggleMigrationEnabled}
+          activeText="Enabled"
+          inactiveText="Disabled"
+          disabled={isGitOpsModeEnabled}
+        />
         <div className={`form ${formClasses}`}>
-          <Slider
-            value={formData.isEnabled}
-            onChange={toggleMigrationEnabled}
-            activeText="Enabled"
-            inactiveText="Disabled"
-            className={`${baseClass}__enabled-slider`}
-          />
           <div className={`form-field ${baseClass}__mode-field`}>
             <div className="form-field__label">Mode</div>
             <Radio
-              disabled={!formData.isEnabled}
+              disabled={!formData.isEnabled || isGitOpsModeEnabled}
               checked={formData.mode === "voluntary"}
               value="voluntary"
               id="voluntary"
@@ -187,7 +190,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
               name="mode-type"
             />
             <Radio
-              disabled={!formData.isEnabled}
+              disabled={!formData.isEnabled || isGitOpsModeEnabled}
               checked={formData.mode === "forced"}
               value="forced"
               id="forced"
@@ -208,7 +211,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
             page.
           </p>
           <InputField
-            readOnly={!formData.isEnabled}
+            readOnly={!formData.isEnabled || isGitOpsModeEnabled}
             name="webhook_url"
             label="Webhook URL"
             value={formData.webhookUrl}

@@ -31,6 +31,18 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 	return responseBody.SoftwareTitles, nil
 }
 
+// Get the software titles available for the setup experience.
+func (c *Client) GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	verb, path := "GET", "/api/latest/fleet/setup_experience/software"
+	var responseBody getSetupExperienceSoftwareResponse
+	query := fmt.Sprintf("team_id=%d", teamID)
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.SoftwareTitles, nil
+}
+
 // GetSoftwareTitleByID retrieves a software title by ID.
 //
 //nolint:gocritic // ignore captLocal
@@ -74,7 +86,7 @@ func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInst
 		}
 		switch {
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusProcessing:
-			time.Sleep(5 * time.Second)
+			time.Sleep(1 * time.Second)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusFailed:
 			return nil, errors.New(resp.Message)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusCompleted:

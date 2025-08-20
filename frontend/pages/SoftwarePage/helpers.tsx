@@ -10,8 +10,17 @@
 import React from "react";
 
 import { getErrorReason } from "interfaces/errors";
-import { ISoftwarePackage, IAppStoreApp } from "interfaces/software";
+import {
+  IHostSoftware,
+  ISoftwarePackage,
+  IAppStoreApp,
+  ISoftwareTitle,
+} from "interfaces/software";
 import { IDropdownOption } from "interfaces/dropdownOption";
+
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import CustomLink from "components/CustomLink";
 
 /**
  * helper function to generate error message for secret variables based
@@ -164,6 +173,24 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
 export const SELF_SERVICE_TOOLTIP = (
   <>
     End users can install from <br />
-    <b>Fleet Desktop</b> &gt; <b>Self-service</b>.
+    <b>Fleet Desktop</b> &gt; <b>Self-service</b>. <br />
+    <CustomLink
+      newTab
+      text="Learn more"
+      variant="tooltip-link"
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
+    />
   </>
 );
+
+export const getAutomaticInstallPoliciesCount = (
+  softwareTitle: ISoftwareTitle | IHostSoftware
+): number => {
+  const { software_package, app_store_app } = softwareTitle;
+  if (software_package) {
+    return software_package.automatic_install_policies?.length || 0;
+  } else if (app_store_app) {
+    return app_store_app.automatic_install_policies?.length || 0;
+  }
+  return 0;
+};

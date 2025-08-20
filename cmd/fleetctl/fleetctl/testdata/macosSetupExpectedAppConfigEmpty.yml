@@ -31,6 +31,7 @@ spec:
     enabled_and_configured: true
     windows_enabled_and_configured: false
     enable_disk_encryption: false
+    windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     macos_migration:
       enable: false
@@ -106,6 +107,7 @@ spec:
     issuer_uri: ""
     metadata: ""
     metadata_url: ""
+    sso_server_url: ""
   vulnerability_settings:
     databases_path: ""
   webhook_settings:

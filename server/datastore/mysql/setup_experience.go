@@ -157,11 +157,12 @@ LEFT JOIN
 	ON st.id = va.title_id
 LEFT JOIN
 	vpp_apps_teams vat
-	ON va.adam_id = vat.adam_id
+	ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 WHERE
 	vat.global_or_team_id = ?
 AND
 	st.id IN (%s)
+AND va.platform = 'darwin'
 `, titleIDQuestionMarks)
 
 	stmtUnsetInstallers := `

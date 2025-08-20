@@ -1,0 +1,71 @@
+/**
+ * <multifield>
+ *
+ * App-wide styles for our multifields.
+ */
+
+[parasails-component='multifield'] {
+  .multifield-item {
+    position: relative;
+    padding-right: 30px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    &:first-child {
+      margin-top: 0px;
+    }
+    .multifield-item-label {
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      line-height: 38px;
+      vertical-align: middle;
+      color: @text-muted;
+    }
+    .multifield-item-remove-button {
+      .btn-reset();
+      .transition(all 250ms);
+      position: absolute;
+      right: 0px;
+      top: 7px;
+      line-height: 24px;
+      padding-top: 0;
+      padding-bottom: 0;
+      padding-left: 10px;
+      padding-right: 10px;
+      background-image: url('/images/trash-16x16@2x.png');
+      background-repeat: no-repeat;
+      background-position: right center;
+      background-size: 16px 16px;
+      width: 20px;
+      height: 20px;
+      font-size: 14px;
+      color: #515774;
+      opacity: 1;
+      &:hover {
+        opacity: 1;
+        color: @text-normal;
+      }
+    }
+    input {
+      width: 100%;
+      height: 40px;
+      padding: 0px 12px;
+      border: 1px solid #E2E4EA;
+      border-radius: 4px;
+    }
+    select {
+      width: 100%;
+      height: 40px;
+      border: 1px solid #E2E4EA;
+      border-radius: 4px;
+    }
+  }
+  .is-invalid:focus-visible {
+    outline: red auto 1px;
+  }
+ .add-button-wrapper {
+    justify-content: flex-end;
+    color: #6A67FE;
+    cursor: pointer;
+  }
+}

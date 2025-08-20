@@ -6,7 +6,7 @@ import { AxiosError } from "axios";
 import PATHS from "router/paths";
 import labelsAPI, {
   IGetHostsInLabelResponse,
-  IGetLabelResonse,
+  IGetLabelResponse,
 } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { ILabel } from "interfaces/label";
@@ -42,12 +42,18 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     data: label,
     isLoading: isLoadingLabel,
     isError: isErrorLabel,
-  } = useQuery<IGetLabelResonse, AxiosError, ILabel>(
+  } = useQuery<IGetLabelResponse, AxiosError, ILabel>(
     ["label", labelId],
     () => labelsAPI.getLabel(labelId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (data) => data.label,
+      onSuccess: (data) => {
+        // can't edit host_vitals labels yet
+        if (data.label_membership_type === "host_vitals") {
+          router.replace(PATHS.MANAGE_HOSTS_LABEL(data.id));
+        }
+      },
     }
   );
 

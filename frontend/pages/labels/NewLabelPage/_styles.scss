@@ -1,15 +1,62 @@
 .new-label-page {
-  h1 {
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-smedium;
     margin-bottom: $pad-large;
   }
-
   &__page-description {
     margin: 0;
     color: $ui-fleet-black-75;
     font-size: $xx-small;
+    font-style: italic;
+  }
+  &__label-name,
+  &__label-description {
+    width: 100%;
+    resize: vertical;
   }
 
-  &__new-label-tab-nav {
-    margin-bottom: $pad-xxlarge;
+  &__label-platform {
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $core-fleet-black;
+    padding-bottom: $pad-large;
+
+    p {
+      padding-bottom: $pad-small;
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+
+    .title {
+      font-weight: $bold;
+    }
+
+    .help-text {
+      color: $core-fleet-blue;
+      padding-top: $pad-small;
+    }
+  }
+  &__host_vitals-fields {
+    width: auto;
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+    .form-field--dropdown {
+      margin-right: -14px;
+      .form-field__help-text {
+        white-space: nowrap;
+      }
+      .Select {
+        width: 300px;
+      }
+    }
+    p {
+      white-space: nowrap;
+    }
+    dropdown__select--error.Select {
+      border: initial;
+    }
   }
 }

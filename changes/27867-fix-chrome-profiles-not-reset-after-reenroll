@@ -1,1 +1,0 @@
-* Fixed a bug where a host that was wiped and re-enrolled without deleting the corresponding host row in Fleet had its old Google Chrome profiles (and other osquery-based data) showing for about an hour.

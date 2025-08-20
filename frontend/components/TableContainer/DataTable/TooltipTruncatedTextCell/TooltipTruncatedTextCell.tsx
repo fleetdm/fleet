@@ -52,6 +52,10 @@ const TooltipTruncatedTextCell = ({
   // End
 
   const tooltipId = uniqueId();
+  value =
+    value === null || value === undefined || value === ""
+      ? DEFAULT_EMPTY_CELL_VALUE
+      : value;
   const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
 
   return (

@@ -1,10 +1,3 @@
-# These AWS SDK CVEs do not impact Fleet as we do not use S3 client-side crypto features
-
-CVE-2020-8911
-CVE-2020-8912
-GHSA-7f33-f4f5-xwgw
-GHSA-f5pg-7wfw-84q9
-
 # Vulnerable code in trim is not used in Fleet
 
 CVE-2020-7753

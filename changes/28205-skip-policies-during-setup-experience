@@ -1,1 +1,0 @@
-Stopped policy automations from running on macOS hosts until after setup experience finishes so that Fleet doesn't attempt to install software twice

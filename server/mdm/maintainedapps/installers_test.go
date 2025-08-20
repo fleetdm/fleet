@@ -4,10 +4,12 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,4 +48,16 @@ func TestInstallerFilenameExtraction(t *testing.T) {
 	_, filename, err = DownloadInstaller(context.Background(), srv.URL+"/not_compliant", client)
 	require.NoError(t, err)
 	require.Equal(t, "not_compliant.pkg", filename)
+}
+
+func TestSHA256FromInstallerFile(t *testing.T) {
+	tmpFileReader := func(ident string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(ident), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	sha256, err := SHA256FromInstallerFile(tmpFileReader("installer1"))
+	require.NoError(t, err)
+	require.Equal(t, "026ac8ee705035f2422eeba7fdea15df563e4f4687ce3abc9a306d2de261f8de", sha256)
 }

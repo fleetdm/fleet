@@ -54,7 +54,9 @@ Here's a sample to use the `hello_world` and `hello_mars` test extensions:
 [...]
 MACOS_TEST_EXTENSIONS="./tools/test_extensions/hello_world/macos/hello_world_macos.ext,./tools/test_extensions/hello_world/macos/hello_mars_macos.ext" \
 WINDOWS_TEST_EXTENSIONS="./tools/test_extensions/hello_world/windows/hello_world_windows.ext.exe,./tools/test_extensions/hello_world/windows/hello_mars_windows.ext.exe" \
+WINDOWS_ARM64_TEST_EXTENSIONS="./tools/test_extensions/hello_world/windows-arm64/hello_world_windows_arm64.ext.exe,./tools/test_extensions/hello_world/windows-arm64/hello_mars_windows_arm64.ext.exe" \
 LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_linux.ext,./tools/test_extensions/hello_world/linux/hello_mars_linux.ext" \
+LINUX_ARM64_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux-arm64/hello_world_linux_arm64.ext,./tools/test_extensions/hello_world/linux-arm64/hello_mars_linux_arm64.ext" \
 [...]
 ./tools/tuf/test/main.sh
 ```
@@ -169,3 +171,26 @@ make: *** [desktop-linux] Error 1
 ```
 
 Solution: In Docker Desktop go to Settings >> General >> Virtual Machine Options and choose the "Docker VMM (BETA)" option. Restart Docker Desktop.
+
+#### Running without ssl
+
+If you decide that you want to run your local fleet server with the `--server_tls=false` flag you will need to modify a few ENV variables when running the `./tools/tuf/test/main.sh` file.
+
+```
++ INSECURE=1 \
+- USE_FLEET_SERVER_CERTIFICATE=1 \
+
++ PKG_FLEET_URL=http://localhost:8080 \
+- PKG_FLEET_URL=https://localhost:8080 \
+
++ DEB_FLEET_URL=http://host.docker.internal:8080 \
+- DEB_FLEET_URL=https://host.docker.internal:8080 \
+
++ RPM_FLEET_URL=http://host.docker.internal:8080 \
+- RPM_FLEET_URL=https://host.docker.internal:8080 \
+
++ MSI_FLEET_URL=http://host.docker.internal:8080 \
+- MSI_FLEET_URL=https://host.docker.internal:8080 \
+```
+
+These flags change the way `tools/tuf/test/gen_pkgs.sh` builds the binaries to properly support a local server not running ssl.

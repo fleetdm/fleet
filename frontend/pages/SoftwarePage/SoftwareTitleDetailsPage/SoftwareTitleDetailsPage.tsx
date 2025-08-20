@@ -209,7 +209,7 @@ const SoftwareTitleDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      {isPremiumTier && (
+      {isPremiumTier && !config?.partnerships?.enable_primo && (
         <TeamsHeader
           isOnGlobalTeam={isOnGlobalTeam}
           currentTeamId={currentTeamId}

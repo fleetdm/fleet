@@ -92,14 +92,16 @@ type ServerConfig struct {
 	Cert                        string
 	Key                         string
 	TLS                         bool
-	TLSProfile                  string `yaml:"tls_compatibility"`
-	URLPrefix                   string `yaml:"url_prefix"`
-	Keepalive                   bool   `yaml:"keepalive"`
-	SandboxEnabled              bool   `yaml:"sandbox_enabled"`
-	WebsocketsAllowUnsafeOrigin bool   `yaml:"websockets_allow_unsafe_origin"`
-	FrequentCleanupsEnabled     bool   `yaml:"frequent_cleanups_enabled"`
-	ForceH2C                    bool   `yaml:"force_h2c"`
-	PrivateKey                  string `yaml:"private_key"`
+	TLSProfile                  string        `yaml:"tls_compatibility"`
+	URLPrefix                   string        `yaml:"url_prefix"`
+	Keepalive                   bool          `yaml:"keepalive"`
+	SandboxEnabled              bool          `yaml:"sandbox_enabled"`
+	WebsocketsAllowUnsafeOrigin bool          `yaml:"websockets_allow_unsafe_origin"`
+	FrequentCleanupsEnabled     bool          `yaml:"frequent_cleanups_enabled"`
+	ForceH2C                    bool          `yaml:"force_h2c"`
+	PrivateKey                  string        `yaml:"private_key"`
+	VPPVerifyTimeout            time.Duration `yaml:"vpp_verify_timeout"`
+	VPPVerifyRequestDelay       time.Duration `yaml:"vpp_verify_request_delay"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -135,11 +137,12 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 	return server
 }
 
-// AuthConfig defines configs related to user authorization
+// AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
-	BcryptCost               int           `yaml:"bcrypt_cost"`
-	SaltKeySize              int           `yaml:"salt_key_size"`
-	SsoSessionValidityPeriod time.Duration `yaml:"sso_session_validity_period"`
+	BcryptCost                  int           `yaml:"bcrypt_cost"`
+	SaltKeySize                 int           `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
+	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -538,6 +541,7 @@ type VulnerabilitiesConfig struct {
 	CPEDatabaseURL              string        `json:"cpe_database_url" yaml:"cpe_database_url"`
 	CPETranslationsURL          string        `json:"cpe_translations_url" yaml:"cpe_translations_url"`
 	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
+	CISAKnownExploitsURL        string        `json:"cisa_known_exploits_url" yaml:"cisa_known_exploits_url"`
 	CurrentInstanceChecks       string        `json:"current_instance_checks" yaml:"current_instance_checks"`
 	DisableSchedule             bool          `json:"disable_schedule" yaml:"disable_schedule"`
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
@@ -576,6 +580,8 @@ type HTTPBasicAuthConfig struct {
 }
 
 // PackagingConfig holds configuration to build and retrieve Fleet packages
+//
+// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 type PackagingConfig struct {
 	// GlobalEnrollSecret is the enroll secret that will be used to enroll
 	// hosts in the global scope
@@ -615,11 +621,13 @@ type FleetConfig struct {
 	Sentry                     SentryConfig
 	GeoIP                      GeoIPConfig
 	Prometheus                 PrometheusConfig
-	Packaging                  PackagingConfig
 	MDM                        MDMConfig
 	Calendar                   CalendarConfig
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
+
+	// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
+	Packaging PackagingConfig
 }
 
 type PartnershipsConfig struct {
@@ -1093,6 +1101,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
 	man.addConfigBool("server.force_h2c", false, "Force the fleet server to use HTTP2 cleartext aka h2c (ignored if using TLS)")
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
+	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amout of time to wait for VPP app install verification")
+	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1104,6 +1114,8 @@ func (man Manager) addConfigs() {
 		"Size of salt for passwords")
 	man.addConfigDuration("auth.sso_session_validity_period", 5*time.Minute,
 		"Timeout from SSO start to SSO callback")
+	man.addConfigBool("auth.require_http_message_signature", false,
+		"Require HTTP message signatures for fleetd requests (Premium feature)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1355,6 +1367,8 @@ func (man Manager) addConfigs() {
 		"URL from which to get the latest CPE translations. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
 	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
+	man.addConfigString("vulnerabilities.cisa_known_exploits_url", "",
+		"URL from which to get the latest CISA (Known exploited vulnerabilities) database. If empty, it will be downloaded from https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
 	man.addConfigBool("vulnerabilities.disable_schedule", false,
@@ -1390,6 +1404,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("prometheus.basic_auth.disable", false, "Disable HTTP Basic Auth for Prometheus")
 
 	// Packaging config
+	//
+	// DEPRECATED: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 	man.addConfigString("packaging.global_enroll_secret", "", "Enroll secret to be used for the global domain (instead of randomly generating one)")
 	man.addConfigString("packaging.s3.bucket", "", "Bucket where to retrieve installers")
 	man.addConfigString("packaging.s3.prefix", "", "Prefix under which installers are stored")
@@ -1517,11 +1533,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			FrequentCleanupsEnabled:     man.getConfigBool("server.frequent_cleanups_enabled"),
 			ForceH2C:                    man.getConfigBool("server.force_h2c"),
 			PrivateKey:                  man.getConfigString("server.private_key"),
+			VPPVerifyTimeout:            man.getConfigDuration("server.vpp_verify_timeout"),
+			VPPVerifyRequestDelay:       man.getConfigDuration("server.vpp_verify_request_delay"),
 		},
 		Auth: AuthConfig{
-			BcryptCost:               man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize:              man.getConfigInt("auth.salt_key_size"),
-			SsoSessionValidityPeriod: man.getConfigDuration("auth.sso_session_validity_period"),
+			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
+			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -1655,6 +1674,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPEDatabaseURL:              man.getConfigString("vulnerabilities.cpe_database_url"),
 			CPETranslationsURL:          man.getConfigString("vulnerabilities.cpe_translations_url"),
 			CVEFeedPrefixURL:            man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
+			CISAKnownExploitsURL:        man.getConfigString("vulnerabilities.cisa_known_exploits_url"),
 			CurrentInstanceChecks:       man.getConfigString("vulnerabilities.current_instance_checks"),
 			DisableSchedule:             man.getConfigBool("vulnerabilities.disable_schedule"),
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
@@ -1676,21 +1696,6 @@ func (man Manager) LoadConfig() FleetConfig {
 				Username: man.getConfigString("prometheus.basic_auth.username"),
 				Password: man.getConfigString("prometheus.basic_auth.password"),
 				Disable:  man.getConfigBool("prometheus.basic_auth.disable"),
-			},
-		},
-		Packaging: PackagingConfig{
-			GlobalEnrollSecret: man.getConfigString("packaging.global_enroll_secret"),
-			S3: S3Config{
-				Bucket:           man.getConfigString("packaging.s3.bucket"),
-				Prefix:           man.getConfigString("packaging.s3.prefix"),
-				Region:           man.getConfigString("packaging.s3.region"),
-				EndpointURL:      man.getConfigString("packaging.s3.endpoint_url"),
-				AccessKeyID:      man.getConfigString("packaging.s3.access_key_id"),
-				SecretAccessKey:  man.getConfigString("packaging.s3.secret_access_key"),
-				StsAssumeRoleArn: man.getConfigString("packaging.s3.sts_assume_role_arn"),
-				StsExternalID:    man.getConfigString("packaging.s3.sts_external_id"),
-				DisableSSL:       man.getConfigBool("packaging.s3.disable_ssl"),
-				ForceS3PathStyle: man.getConfigBool("packaging.s3.force_s3_path_style"),
 			},
 		},
 		MDM: MDMConfig{
@@ -2053,9 +2058,10 @@ func TestConfig() FleetConfig {
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			BcryptCost:               6, // Low cost keeps tests fast
-			SaltKeySize:              24,
-			SsoSessionValidityPeriod: 5 * time.Minute,
+			BcryptCost:                  6, // Low cost keeps tests fast
+			SaltKeySize:                 24,
+			SsoSessionValidityPeriod:    5 * time.Minute,
+			RequireHTTPMessageSignature: false,
 		},
 		Session: SessionConfig{
 			KeySize:  64,

@@ -15,8 +15,8 @@ import FileSaver from "file-saver";
 
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryResponse,
-  ScriptBatchExecutionStatus,
+  IScriptBatchSummaryResponseV1,
+  ScriptBatchHostCountV1,
 } from "services/entities/scripts";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import usersAPI from "services/entities/users";
@@ -167,9 +167,15 @@ const ManageHostsPage = ({
     setFilteredQueriesPath,
     setFilteredSoftwarePath,
   } = useContext(AppContext);
+  const isPrimoMode = config?.partnerships?.enable_primo;
   const { renderFlash } = useContext(NotificationContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
+
+  const shouldStripScriptBatchExecParamOnTeamChange = (
+    newTeamId?: number,
+    curTeamId?: number
+  ) => newTeamId !== curTeamId;
 
   const {
     currentTeamId,
@@ -193,11 +199,8 @@ const ManageHostsPage = ({
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
         newTeamId === API_ALL_TEAMS_ID,
       // remove batch script summary results filters on team change
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: (newTeamId?: number) =>
-        newTeamId !== currentTeamId,
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: (
-        newTeamId?: number
-      ) => newTeamId !== currentTeamId,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripScriptBatchExecParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripScriptBatchExecParamOnTeamChange,
     },
   });
 
@@ -303,7 +306,7 @@ const ManageHostsPage = ({
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID];
-  const scriptBatchExecutionStatus: ScriptBatchExecutionStatus =
+  const scriptBatchExecutionStatus: ScriptBatchHostCountV1 =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
     (scriptBatchExecutionId ? "ran" : undefined);
 
@@ -469,9 +472,9 @@ const ManageHostsPage = ({
     isLoading: isLoadingScriptBatchSummary,
     isError: isErrorScriptBatchSummary,
   } = useQuery<
-    IScriptBatchSummaryResponse,
+    IScriptBatchSummaryResponseV1,
     Error,
-    IScriptBatchSummaryResponse,
+    IScriptBatchSummaryResponseV1,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -919,7 +922,7 @@ const ManageHostsPage = ({
   };
 
   const handleChangeScriptBatchStatusFilter = (
-    newStatus: ScriptBatchExecutionStatus
+    newStatus: ScriptBatchHostCountV1
   ) => {
     router.replace(
       getNextLocationPath({
@@ -1429,8 +1432,6 @@ const ManageHostsPage = ({
   const renderDeleteSecretModal = () => (
     <DeleteSecretModal
       onDeleteSecret={onDeleteSecret}
-      selectedTeam={teamIdForApi || 0}
-      teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
       isUpdatingSecret={isUpdating}
     />
@@ -1438,7 +1439,8 @@ const ManageHostsPage = ({
 
   const renderEnrollSecretModal = () => (
     <EnrollSecretModal
-      selectedTeam={teamIdForApi || 0}
+      selectedTeamId={teamIdForApi || 0}
+      primoMode={isPrimoMode || false}
       teams={teams || []}
       onReturnToApp={() => setShowEnrollSecretModal(false)}
       toggleSecretEditorModal={toggleSecretEditorModal}
@@ -1501,7 +1503,7 @@ const ManageHostsPage = ({
   );
 
   const renderHeaderContent = () => {
-    if (isPremiumTier && !config?.partnerships?.enable_primo && userTeams) {
+    if (isPremiumTier && !isPrimoMode && userTeams) {
       if (userTeams.length > 1 || isOnGlobalTeam) {
         return (
           <TeamsDropdown
@@ -1688,13 +1690,13 @@ const ManageHostsPage = ({
           graphicName: "empty-hosts",
           header: "Hosts will show up here once they’re added to Fleet",
           info:
-            "Expecting to see hosts? Try again in a few seconds as the system catches up.",
+            "Expecting to see hosts? Try again soon as the system catches up.",
         };
         if (includesFilterQueryParam) {
           delete emptyHosts.graphicName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
-            "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
+            "Expecting to see new hosts? Try again soon as the system catches up.";
         } else if (canEnrollHosts) {
           emptyHosts.header = "Add your hosts to Fleet";
           emptyHosts.info =
@@ -1762,7 +1764,10 @@ const ManageHostsPage = ({
         buttonText: "Transfer",
         variant: "text-icon",
         iconSvg: "transfer",
-        hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
+        hideButton:
+          !isPremiumTier ||
+          (!isGlobalAdmin && !isGlobalMaintainer) ||
+          isPrimoMode,
       },
     ];
 
@@ -1777,12 +1782,12 @@ const ManageHostsPage = ({
       const emptyHosts: IEmptyTableProps = {
         header: "No hosts match the current criteria",
         info:
-          "Expecting to see new hosts? Try again in a few seconds as the system catches up.",
+          "Expecting to see new hosts? Try again soon as the system catches up.",
       };
       if (isLastPage) {
         emptyHosts.header = "No more hosts to display";
         emptyHosts.info =
-          "Expecting to see more hosts? Try again in a few seconds as the system catches up.";
+          "Expecting to see more hosts? Try again soon as the system catches up.";
       }
 
       return emptyHosts;
@@ -2004,18 +2009,19 @@ const ManageHostsPage = ({
         totalFilteredHostsCount !== undefined && (
           <RunScriptBatchModal
             runByFilters={isAllMatchingHostsSelected}
-            // run script batch supports only these filters, plust team id
+            // run script batch supports only these filters, plus team id
             filters={{
               query: searchQuery || undefined,
               label_id: isNaN(Number(labelID)) ? undefined : Number(labelID),
               status: status || undefined,
             }}
-            // when running by filter, modal needs this count to report number of targeted hosts
+            // when running by filter, modal needs this count to report the number of targeted hosts
             totalFilteredHostsCount={totalFilteredHostsCount}
-            // when running by selected hosts, modal can use length of this array to report number of targeted
+            // when running by selected hosts, modal can use the length of this array to report the number of targeted
             // hosts
             selectedHostIds={selectedHostIds}
             teamId={currentTeamId}
+            isFreeTier={isFreeTier}
             onCancel={toggleRunScriptBatchModal}
           />
         )}

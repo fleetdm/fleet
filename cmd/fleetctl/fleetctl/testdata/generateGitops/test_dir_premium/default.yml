@@ -24,6 +24,12 @@ labels:
   - host2
   label_membership_type: manual
   name: Label B
+- criteria:
+    value: some-group
+    vital: end_user_idp_group
+  description: Label C description
+  label_membership_type: host_vitals
+  name: Label C
 org_settings:
   features:
     additional_queries:
@@ -93,6 +99,7 @@ org_settings:
       issuer_uri: https://some-mdm-issuer-uri.com
       metadata: # TODO: Add your MDM end user auth metadata here
       metadata_url: # TODO: Add your MDM end user auth metadata URL here
+    end_user_license_agreement: ./lib/eula/test.pdf
     volume_purchasing_program:
     - location: Fleet Device Management Inc.
       teams:
@@ -128,6 +135,7 @@ org_settings:
     idp_name: some-idp-name
     metadata: # TODO: Add your SSO metadata here
     metadata_url: # TODO: Add your SSO metadata URL here
+    sso_server_url: https://sso.fleetdm.com
   webhook_settings:
     activities_webhook:
       destination_url: https://some-activities-webhook-url.com

@@ -67,6 +67,7 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
         onFileUpload={onUploadFile}
         accept=".pdf"
         isLoading={showLoading}
+        gitopsCompatible
       />
     </div>
   );

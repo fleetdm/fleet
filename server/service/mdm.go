@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -21,6 +20,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -41,6 +41,8 @@ import (
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/variables"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 )
@@ -208,9 +210,9 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 	}
 
 	// PEM-encode the cert and keys
-	scepCACertPEM := apple_mdm.EncodeCertPEM(scepCACert)
-	scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepCAKey)
-	apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
+	scepCACertPEM := certificate.EncodeCertPEM(scepCACert)
+	scepCAKeyPEM := certificate.EncodePrivateKeyPEM(scepCAKey)
+	apnsKeyPEM := certificate.EncodePrivateKeyPEM(apnsKey)
 
 	return &fleet.AppleCSR{
 		APNsKey:  apnsKeyPEM,
@@ -240,7 +242,8 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMEULARequest struct {
-	EULA *multipart.FileHeader
+	EULA   *multipart.FileHeader
+	DryRun bool `query:"dry_run,optional"` // if true, apply validation but do not save changes
 }
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
@@ -261,8 +264,13 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
+	dryRun := false
+	if v := r.URL.Query().Get("dry_run"); v != "" {
+		dryRun, _ = strconv.ParseBool(v)
+	}
 	return &createMDMEULARequest{
-		EULA: r.MultipartForm.File["eula"][0],
+		EULA:   r.MultipartForm.File["eula"][0],
+		DryRun: dryRun,
 	}, nil
 }
 
@@ -280,14 +288,14 @@ func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 	defer ff.Close()
 
-	if err := svc.MDMCreateEULA(ctx, req.EULA.Filename, ff); err != nil {
+	if err := svc.MDMCreateEULA(ctx, req.EULA.Filename, ff, req.DryRun); err != nil {
 		return createMDMEULAResponse{Err: err}, nil
 	}
 
 	return createMDMEULAResponse{}, nil
 }
 
-func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error {
+func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -360,8 +368,13 @@ func (r getMDMEULAMetadataResponse) Error() error { return r.Err }
 
 func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	eula, err := svc.MDMGetEULAMetadata(ctx)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return getMDMEULAMetadataResponse{Err: err}, nil
+	}
+
+	if eula == nil {
+		// We return the error here not as part of the response object, to signal an error to the server, but avoid logging it as an error.
+		return nil, newNotFoundError()
 	}
 
 	return getMDMEULAMetadataResponse{MDMEULA: eula}, nil
@@ -380,7 +393,8 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, err
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMEULARequest struct {
-	Token string `url:"token"`
+	Token  string `url:"token"`
+	DryRun bool   `query:"dry_run,optional"` // if true, apply validation but do not delete
 }
 
 type deleteMDMEULAResponse struct {
@@ -391,13 +405,13 @@ func (r deleteMDMEULAResponse) Error() error { return r.Err }
 
 func deleteMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteMDMEULARequest)
-	if err := svc.MDMDeleteEULA(ctx, req.Token); err != nil {
+	if err := svc.MDMDeleteEULA(ctx, req.Token, req.DryRun); err != nil {
 		return deleteMDMEULAResponse{Err: err}, nil
 	}
 	return deleteMDMEULAResponse{}, nil
 }
 
-func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
+func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -1463,12 +1477,24 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
-	err = validateWindowsProfileFleetVariables(string(cp.SyncML))
+	// Get license for validation
+	lic, err := svc.License(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+		return nil, ctxerr.Wrap(ctx, err, "checking license")
 	}
 
-	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
+	foundVars, err := validateWindowsProfileFleetVariables(string(cp.SyncML), lic)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// Collect Fleet variables used in the profile
+	var usesFleetVars []fleet.FleetVarName
+	for varName := range foundVars {
+		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
+	}
+
+	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp, usesFleetVars)
 	if err != nil {
 		var existsErr endpoint_utils.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
@@ -1502,11 +1528,30 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
-func validateWindowsProfileFleetVariables(contents string) error {
-	if len(findFleetVariables(contents)) > 0 {
-		return &fleet.BadRequestError{Message: "Fleet variables ($FLEET_VAR_*) are not currently supported in Windows profiles"}
+// fleetVarsSupportedInWindowsProfiles lists the Fleet variables that are
+// supported in Windows configuration profiles.
+var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
+	fleet.FleetVarHostUUID,
+}
+
+func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo) (map[string]struct{}, error) {
+	foundVars := variables.Find(contents)
+	if len(foundVars) == 0 {
+		return nil, nil
 	}
-	return nil
+
+	// Check for premium license if the profile contains Fleet variables
+	if lic == nil || !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	// Check if all found variables are supported
+	for varName := range foundVars {
+		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) {
+			return nil, fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
+		}
+	}
+	return foundVars, nil
 }
 
 func (svc *Service) batchValidateProfileLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
@@ -1715,15 +1760,26 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
-	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
+	// Get license for validation
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking license")
+	}
+
+	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
 	}
+
 	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
 	for identifier, variables := range profilesVariablesByIdentifierMap {
+		varNames := make([]fleet.FleetVarName, 0, len(variables))
+		for varName := range variables {
+			varNames = append(varNames, fleet.FleetVarName(varName))
+		}
 		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{
 			Identifier:     identifier,
-			FleetVariables: slices.Collect(maps.Keys(variables)),
+			FleetVariables: varNames,
 		})
 	}
 
@@ -1806,23 +1862,27 @@ func (svc *Service) BatchSetMDMProfiles(
 	return nil
 }
 
-func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
+func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
 ) (map[string]map[string]struct{}, error) {
 	var err error
 
 	profileVarsByProfIdentifier := make(map[string]map[string]struct{})
 	for _, p := range appleProfiles {
-		profileVars, err := validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig))
+		profileVars, err := validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig), lic)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}
 		profileVarsByProfIdentifier[p.Identifier] = profileVars
 	}
 	for _, p := range windowsProfiles {
-		err = validateWindowsProfileFleetVariables(string(p.SyncML))
+		windowsVars, err := validateWindowsProfileFleetVariables(string(p.SyncML), lic)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
+		}
+		// Collect Fleet variables for Windows profiles (use unique Name as identifier for Windows)
+		if len(windowsVars) > 0 {
+			profileVarsByProfIdentifier[p.Name] = windowsVars
 		}
 	}
 	for _, p := range appleDecls {
@@ -2267,6 +2327,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 type updateDiskEncryptionRequest struct {
 	TeamID               *uint `json:"team_id"`
 	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  bool  `json:"windows_require_bitlocker_pin"`
 }
 
 type updateMDMDiskEncryptionResponse struct {
@@ -2279,13 +2340,13 @@ func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoCont
 
 func updateDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateDiskEncryptionRequest)
-	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption); err != nil {
+	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption, &req.RequireBitLockerPIN); err != nil {
 		return updateMDMDiskEncryptionResponse{Err: err}, nil
 	}
 	return updateMDMDiskEncryptionResponse{}, nil
 }
 
-func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool) error {
+func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error {
 	// TODO(mna): this should all move to the ee package when we remove the
 	// `PATCH /api/v1/fleet/mdm/apple/settings` endpoint, but for now it's better
 	// leave here so both endpoints can reuse the same logic.
@@ -2308,7 +2369,7 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, e
 		if err != nil {
 			return err
 		}
-		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, enableDiskEncryption)
+		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, enableDiskEncryption, requireBitLockerPIN)
 	}
 	return svc.updateAppConfigMDMDiskEncryption(ctx, enableDiskEncryption)
 }
@@ -2517,9 +2578,9 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		// Store our config assets encrypted
 		var assets []fleet.MDMConfigAsset
 		for k, v := range map[fleet.MDMAssetName][]byte{
-			fleet.MDMAssetCACert:  apple_mdm.EncodeCertPEM(scepCert),
-			fleet.MDMAssetCAKey:   apple_mdm.EncodePrivateKeyPEM(scepKey),
-			fleet.MDMAssetAPNSKey: apple_mdm.EncodePrivateKeyPEM(apnsRSAKey),
+			fleet.MDMAssetCACert:  certificate.EncodeCertPEM(scepCert),
+			fleet.MDMAssetCAKey:   certificate.EncodePrivateKeyPEM(scepKey),
+			fleet.MDMAssetAPNSKey: certificate.EncodePrivateKeyPEM(apnsRSAKey),
 		} {
 			assets = append(assets, fleet.MDMConfigAsset{
 				Name:  k,
@@ -2736,11 +2797,11 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, err, "listing teams")
 	}
 	for _, team := range teams {
-		isEncryptionEnforced, err := svc.ds.GetConfigEnableDiskEncryption(ctx, &team.ID)
+		diskEncryptionConfig, err := svc.ds.GetConfigEnableDiskEncryption(ctx, &team.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving encryption enforcement status for team")
 		}
-		if isEncryptionEnforced {
+		if diskEncryptionConfig.Enabled {
 			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "enable FileVault escrow for team")
 			}
@@ -2798,7 +2859,17 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 
 	appCfg.MDM.EnabledAndConfigured = false
 
-	return svc.ds.SaveAppConfig(ctx, appCfg)
+	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+		return ctxerr.Wrap(ctx, err, "saving app config")
+	}
+
+	// If an install doesn't have a verification_at or verification_failed_at, then
+	// mark it as failed
+	if err := svc.ds.MarkAllPendingVPPInstallsAsFailed(ctx, worker.AppleSoftwareJobName); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking all pending vpp installs as failed")
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -2,7 +2,7 @@
   "name": "Docker Desktop",
   "slug": "docker/darwin",
   "unique_identifier": "com.docker.docker",
-  "token": "docker",
+  "token": "docker-desktop",
   "installer_format": "dmg",
   "default_categories": ["Developer tools"]
 }

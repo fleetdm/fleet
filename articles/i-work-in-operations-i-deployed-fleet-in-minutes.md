@@ -25,6 +25,6 @@ Fleet supports on-prem use cases and always will. That includes people who are n
 <meta name="articleTitle" value="I work in operations. I deployed Fleet in minutes.">
 <meta name="authorFullName" value="Nate Holliday">
 <meta name="authorGitHubUsername" value="hollidayn">
-<meta name="category" value="announcements">
+<meta name="category" value="articles">
 <meta name="publishedOn" value="2025-06-05">
 <meta name="description" value="Self-hosting Fleet is easier than you think—even for non-technical roles. One of our ops team members shares how they got it running in minutes.">

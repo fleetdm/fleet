@@ -767,6 +767,11 @@
         height: 100%;
       }
     }
+    [purpose='embedded-document'] {
+      margin-bottom: 40px;
+      width: 100%;
+      height: 800px;
+    }
     table {
       table-layout: auto;
       border: 1px solid @border-lt-gray;
@@ -829,6 +834,9 @@
     [purpose='article-title'] {
       padding-top: 60px;
     }
+    [purpose='docs-links'] {
+      display: none;
+    }
     [purpose='article-content'] {
       padding-bottom: 0px;
     }
@@ -879,7 +887,6 @@
         margin-bottom: 32px;
       }
     }
-
   }
 
   @media (max-width: 375px) {

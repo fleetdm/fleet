@@ -298,7 +298,7 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 //
 // Currently, SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return savePolicy(ctx, tx, ds.logger, p, shouldRemoveAllPolicyMemberships, removePolicyStats)
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -2116,11 +2116,14 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	return hosts, nil
 }
 
-// GetPoliciesBySoftwareTitleID returns the policies that are associated with a set of software titles.
+// getPoliciesBySoftwareTitleIDs returns the policies that are associated with a set of software titles.
+//
+// Takes a uint teamID (and not a *uint) because it should only be used when querying team and "No team"
+// policies ("All teams" cannot be associated to packages/VPP-apps).
 func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	ctx context.Context,
 	softwareTitleIDs []uint,
-	teamID *uint,
+	teamID uint,
 ) ([]fleet.AutomaticInstallPolicy, error) {
 	if len(softwareTitleIDs) == 0 {
 		return nil, nil
@@ -2138,15 +2141,10 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	WHERE (va.title_id IN (?) OR si.title_id IN (?)) AND p.team_id = ?
 `
 
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
-
 	batchSize := 32000 // see https://github.com/fleetdm/fleet/issues/26753 on the math behind this number
 	var policies []fleet.AutomaticInstallPolicy
 	err := common_mysql.BatchProcessSimple(softwareTitleIDs, batchSize, func(softwareTitleIDsToProcess []uint) error {
-		query, args, err := sqlx.In(baseQuery, softwareTitleIDsToProcess, softwareTitleIDsToProcess, tmID)
+		query, args, err := sqlx.In(baseQuery, softwareTitleIDsToProcess, softwareTitleIDsToProcess, teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build select get policies by software id query")
 		}

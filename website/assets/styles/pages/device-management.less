@@ -52,6 +52,34 @@
     max-width: 1072px;
   }
 
+  [purpose='feature-video'] {
+    margin-left: 80px;
+    max-width: 468px;
+    video {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 16px;
+    }
+  }
+  [purpose='video-button'] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    cursor: pointer;
+    color: #192147;
+    img {
+      height: 32px;
+      margin-right: 8px;
+    }
+    span {
+      margin-left: 4px;
+      display: inline-block;
+      color: #8B8FA2;
+      font-size: 12px;
+      margin-top: 2px;
+      font-weight: 400;
+    }
+  }
 
   [purpose='page-section'] {
     padding-top: 64px;
@@ -171,11 +199,11 @@
   [purpose='comparison-table-header'] {
     font-size: 16px;
     color: @core-fleet-black;
-    div {
-      padding: 12px 24px;
+    [purpose='comparison-column'] {
+      padding: 12px 16px;
     }
     [purpose='comparison-selector'] {
-      width: 152px;
+      width: 168px;
       height: 48px;
       border-radius: 8px;
       padding: 0px 12px;
@@ -184,9 +212,10 @@
       border: 1px solid @core-vibrant-blue-15;
       cursor: pointer;
       font-weight: 700;
+      white-space: nowrap;
     }
     [purpose='comparison-selector-dropwdown'] {
-      width: 152px;
+      width: 168px;
       cursor: pointer;
       font-size: 14px;
       padding: 0px;
@@ -222,6 +251,9 @@
     justify-content: flex-start;
     align-self: center;
     min-width: 200px;
+    &:has(p) {
+      justify-content: center;
+    }
     p {
       white-space: nowrap;
       font-size: 12px;
@@ -293,7 +325,18 @@
     font-weight: 700;
     color: #192147;
   }
-
+  [purpose='tooltip'] {
+    color: #515774;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 18px;
+    text-decoration-line: underline;
+    text-decoration-style: solid;
+    text-decoration-skip-ink: auto;
+    text-decoration-thickness: auto;
+    text-underline-offset: auto;
+    text-underline-position: from-font;
+  }
   [purpose='mobile-comparison-table'] {
     p {
       color: @core-fleet-black;

@@ -14,7 +14,11 @@ See the "Go linter" section below about upgrading the Go linter version.
 
 ## Upgrading go for all Fleet
 
-Run `make update-go version=1.24.4` and update the SHA256 of the updated Dockerfiles manually.
+1. Run `make update-go version={target_version}` (for example, `make update-go version=1.24.5`)
+2. Manually update the index digest sha256 of the updated Dockerfiles with the updated value of the
+   relevant OS/Arch of the official Docker image from
+   https://hub.docker.com/_/golang/tags?name=<image_for_the_dockerfile> (e.g.,
+   `https://hub.docker.com/_/golang/tags?name=1.24.5-bullseye` when upgrading to 1.24.5)
 
 ### Go Linter
 
@@ -27,7 +31,7 @@ Update the instructions in the [Testing and local development doc](https://githu
 1. Build `fleet` and `fleetctl` using `make build`. 
 2. Verify that `fleet serve` runs, the site is accessible, and basic API/db functionality works (try creating a new team, query and policy)
 3. Verify that `fleetctl` works by using `fleetctl get config`
-4. Run `make go-lint` locally to find and fix any new issues.
+4. Run `make lint-go` locally to find and fix any new issues.
 5. Create a draft pull request from your branch and verify that tests pass.
 
 ## Updating this guide

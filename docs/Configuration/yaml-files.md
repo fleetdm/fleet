@@ -4,9 +4,9 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings.
 
-Users that have global admin permissions may apply GitOps configurations globally and to all teams, while users whose permissions are scoped to specific teams may apply settings to only to teams they has permissions to modify.
+Users with global admin permissions may apply GitOps configurations globally and to all teams, while users whose permissions are scoped to specific teams may apply settings to only the teams they have permission to modify.
 
-Any settings not defined in your YAML files (including missing or mispelled keys) will be reset to the default values, which may include deleting assets such as software packages.
+Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values, which may include deleting assets such as software packages.
 
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
@@ -19,6 +19,16 @@ controls: # Can be defined in teams/no-team.yml too.
 software: # Can be defined in teams/no-team.yml too
 org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
+```
+Paths in YAML files are always relative to the file you’re editing.
+
+For example:
+```yaml
+# If the file is in the same directory:
+package_path: package_name.yml
+
+# If the file is in a different directory:
+package_path: ../software/package_name.yml
 ```
 
 You may also wish to create specialized API-Only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
@@ -341,7 +351,7 @@ controls:
     enable_release_device_manually: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
-    software:
+  software:
       - app_store_id: "1091189122"
       - package_path: ../lib/software/adobe-acrobat.software.yml
   macos_migration: # Available in Fleet Premium
@@ -388,10 +398,13 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (c
 - `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username. When this changes, Fleet will automatically resend the profile.
 - `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile.
 - `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile.
+- `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`: host's IdP department. When this changes, Fleet will automatically resend the profile.
 - `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy).)
 - `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`
 - `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
 - `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`
+
+The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
 
 ### macos_setup
 
@@ -426,9 +439,7 @@ The `software` section allows you to configure packages, Apple App Store apps, a
 - `app_store_apps` is a list of Apple App Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
-Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. Support for Fleet-maintained apps is coming soon.
-
-Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/29584) is coming soon.
 
 #### Example
 
@@ -472,17 +483,24 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 ### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
-- `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist and a URL was provided, Fleet will download the package, then verify that the hash matches, bailing out if it does not match. If a package with that hash does not yet exist and no URL was provided, the GitOps run will fail.
+- `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist, Fleet will download the package, then verify that the hash matches, bailing out if it does not match.
+
+> Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
+
+> You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI or the API,. If a package with that hash isn't already in Fleet and visible to the user performing the GitOps run, the GitOps run will error.
+
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 - `categories` is an array of categories. See [supported categories](#labels-and-categories).
-
+  
 > Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
 #### Example
+
+##### With URL
 
 `lib/software-name.package.yml`:
 
@@ -499,6 +517,15 @@ categories:
 self_service: true
 ```
 
+##### With hash
+
+You can view the hash for existing software in the software detail page in the Fleet UI. It is also returned after uploading a new software item via the API.
+
+```yaml
+# Mozilla Firefox (Firefox 136.0.1.pkg) version 136.0.1
+- hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
+```
+
 ### app_store_apps
 
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
@@ -508,11 +535,13 @@ self_service: true
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 - `categories` is an array of categories. See [supported categories](#labels-and-categories).
 
+Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+
 ### fleet_maintained_apps
 
-- `fleet_maintained_apps` is a list of Fleet-maintained apps. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app. From there, select **Show details**. You can also see the list [here in GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
+- `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a team. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
-Currently, Fleet-maintained apps do not auto-update. To update to the latest version of a Fleet-maintained app, head to the Fleet UI, find the software on the **Software** page, and delete the app (**Actions > Delete**). Then, on the next GitOps run, the latest version will be added.
+Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
 
 Fleet-maintained apps have default categories. You can see the default categories in the [Fleet-maintained app metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If you do not specify `categories` when adding a self-service Fleet-maintained app, the default categories will be used.
 
@@ -643,6 +672,7 @@ The `sso_settings` section lets you define [single sign-on (SSO)](https://fleetd
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
 - `enable_jit_provisioning` specifies whether or not to enable [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning) (default: `false`).
 - `enable_sso_idp_login` specifies whether or not to allow single sign-on login initiated by identity provider (default: `false`).
+- `sso_server_url` is used if the URL your Fleet users (admins, maintainers, observers) use to login to Fleet via SSO is different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance.
 
 Can only be configured for all teams (`org_settings`).
 
@@ -658,6 +688,7 @@ org_settings:
     metadata: $SSO_METADATA
     enable_jit_provisioning: true # Available in Fleet Premium
     enable_sso_idp_login: true
+    sso_server_url: https://admin.example.com # Optional, SSO will only work from this URL
 ```
 
 ### integrations
@@ -687,7 +718,7 @@ org_settings:
         email: user1@example.com
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
-    digicert:
+    digicert: # Available in Fleet Premium
       - name: DIGICERT_WIFI
         url: https://one.digicert.com
         api_token: $DIGICERT_API_TOKEN
@@ -696,12 +727,12 @@ org_settings:
         certificate_user_principal_names:
           - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
         certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-    ndes_scep_proxy:
+    ndes_scep_proxy: # Available in Fleet Premium
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
       username: Administrator@example.com
       password: myPassword
-    custom_scep_proxy:
+    custom_scep_proxy: # Available in Fleet Premium
       - name: SCEP_VPN
         url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
@@ -715,8 +746,6 @@ At the team level, there is the additional option to enable conditional access, 
 integrations:
   conditional_access_enabled: true
 ```
-
-For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
 
 #### google_calendar
 
@@ -750,12 +779,15 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert.
 
 #### ndes_scep_proxy
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 - `url` is the URL of the NDES SCEP endpoint (default: `""`).
 - `admin_url` is the URL of the NDES admin endpoint (default: `""`).
 - `username` is the username of the NDES admin endpoint (default: `""`).
 - `password` is the password of the NDES admin endpoint (default: `""`).
 
-#### scep_proxy
+#### custom_scep_proxy
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -848,12 +880,12 @@ Can only be configured for all teams (`org_settings`).
 
 #### apple_business_manager
 
-After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#automatic-enrollment), the `apple_business_manager` section lets you determine which team Apple devices are assigned to in Fleet when they appear in Apple Business Manager.
+After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager), the `apple_business_manager` section lets you determine which team Apple hosts are assigned to in Fleet when they appear in Apple Business Manager.
 
 - `organization_name` is the organization name associated with the Apple Business Manager account.
-- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
-- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
-- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager.
+- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
 
 #### Example
 
@@ -915,6 +947,22 @@ org_settings:
       idp_name: Okta
       metadata: $END_USER_SSO_METADATA
       metadata_url: ""
+```
+
+Can only be configured for all teams (`org_settings`).
+
+##### end_user_license_agreement
+
+You can require an end user to agree to an end user license agreement (EULA) before they can use their new Mac. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication` must be set to `true`.
+
+- `end_user_license_agreement` is the path to the PDF document.
+
+##### Example
+
+```yaml
+org_settings:
+  mdm:
+    end_user_license_agreement: ./lib/eula.pdf
 ```
 
 Can only be configured for all teams (`org_settings`).

@@ -1,5 +1,4 @@
 ---
-# The latest version of CIS Benchmarks for Windows 11 Enterprise is version v3.0.0 - 02-22-2024
 apiVersion: v1
 kind: policy
 spec:

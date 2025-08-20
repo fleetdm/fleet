@@ -1,0 +1,1 @@
+* Do not log an error if EULA is missing for the `/setup_experience/eula/metadata` endpoint

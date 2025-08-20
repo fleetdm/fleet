@@ -76,21 +76,21 @@ Wait for publish process to complete.
 Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR.
 
 
-**6. Merge milestone pull requests**
+**7. Merge milestone pull requests**
 
 Merge any pull requests associated with this release milestone, which include reference documentation, feature guides, and a release announcement article. 
 
 Wait for the release article to appear on the [Fleet articles page](https://fleetdm.com/articles).
 
 
-**7. Post to LinkedIn company page**
+**8. Post to LinkedIn company page**
 
 When the release article is published, create a LinkedIn post on Fleet's company page. Copy the previous version announcement post, update the headline features and associated emojis, and update the URL to point to the new release article. Publish the LinkedIn post, then copy a link to the post. 
 
-Open the Fleet releaser script and seearch for a variable called `linkedin_post_url`. Change the associated value to the new LinkedIn post URL. 
+Open the Fleet releaser script and search for a variable called `linkedin_post_url`. Change the associated value to the new LinkedIn post URL. 
 
 
-**8. Announce release**
+**9. Announce release**
 
 ```sh
 ./tools/release/publish_release.sh -mnu -v {current_version}
@@ -101,7 +101,7 @@ Change `{current_version}` to the current version that was just released. For ex
 Open the Fleet channels in the osquery Slack and MacAdmins Slack and update the topic to point to the new release. 
 
 
-**9. Conclude the milestone**
+**10. Conclude the milestone**
 
 Complete the [conclude the milestone ritual](https://fleetdm.com/handbook/engineering#conclude-current-milestone).
 

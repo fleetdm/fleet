@@ -3,7 +3,7 @@ import { getExtensionFromFileName } from "./file/fileUtils";
 // @ts-ignore
 import uninstallPkg from "../../pkg/file/scripts/uninstall_pkg.sh";
 // @ts-ignore
-import uninstallMsi from "../../pkg/file/scripts/uninstall_msi.ps1";
+import uninstallMsi from "../../pkg/file/scripts/uninstall_msi_with_upgrade_code.ps1";
 // @ts-ignore
 import uninstallDeb from "../../pkg/file/scripts/uninstall_deb.sh";
 // @ts-ignore

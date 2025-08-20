@@ -21,6 +21,7 @@ org_settings:
       metadata: |-
         $DOGFOOD_END_USER_SSO_METADATA
       metadata_url: ""
+    end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
     apple_business_manager:
     - organization_name: Fleet Device Management Inc.
       macos_team: "💻 Workstations" 
@@ -85,6 +86,7 @@ queries:
   - path: ./lib/all/queries/collect-operating-system-information.yml
   - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/queries/detect-apns-certificate.yml
+  - path: ./lib/macos/queries/collect-macos-compatibility-data.yml
 controls: 
   enable_disk_encryption: true
   macos_migration:
@@ -102,3 +104,8 @@ labels:
   - path: ./lib/all/labels/santa-test-devices.yml
   - path: ./lib/all/labels/x86-based-windows-hosts.yml
   - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
+  - path: ./lib/all/labels/keynote-installed.yml
+  - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
+  - path: ./lib/all/labels/team-g-mdm.yml
+  - path: ./lib/all/labels/conditional-access-test-group.yml
+  - path: ./lib/all/labels/nudge-test-devices.yml

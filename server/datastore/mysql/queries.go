@@ -918,9 +918,14 @@ func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, sta
 
 	var args []interface{}
 	for _, s := range stats {
+		// Handle zero time value
+		var lastExecuted interface{} = s.LastExecuted
+		if s.LastExecuted.IsZero() {
+			lastExecuted = nil
+		}
 		args = append(
 			args, queryID, s.HostID, statsLiveQueryType, s.Executions, s.AverageMemory, s.SystemTime, s.UserTime, s.WallTime, s.OutputSize,
-			0, 0, s.LastExecuted,
+			0, 0, lastExecuted,
 		)
 	}
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)

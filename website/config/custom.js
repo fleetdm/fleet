@@ -135,7 +135,7 @@ module.exports.custom = {
     'it-and-security': 'allenhouchins',
 
     // 🫧 Articles and release notes
-    'articles': 'mikermcneil',
+    'articles': 'mike-j-thomas',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -182,7 +182,7 @@ module.exports.custom = {
     '.gitignore': 'sampfluger88',// « what files should not be checked in?
 
     // 🌐 Handbook
-    //'handbook': 'mikermcneil', Covered in CODEOWNERS (#16972 2024-02-19)
+    //'handbook': 'samfp', Covered in CODEOWNERS (#16972 2024-02-19)
 
 
     // 🌐 GitHub issue templates
@@ -190,7 +190,6 @@ module.exports.custom = {
 
     // 💝 Fleet-maintained apps
     'ee/maintained-apps/inputs': 'mostlikelee',
-    'ee/maintained-apps/outputs': 'eugkuo',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -275,29 +274,30 @@ module.exports.custom = {
     // Handbook
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
-    'handbook/company/open-positions.yml': ['sampfluger88','mikermcneil'],
-    'handbook/company/communications.md': ['sampfluger88','mikermcneil'],
-    'handbook/company/leadership.md': ['sampfluger88','mikermcneil'],
-    'handbook/digital-experience': ['sampfluger88','mikermcneil'],
-    'handbook/finance': ['sampfluger88','mikermcneil'],
-    'handbook/sales': ['sampfluger88','mikermcneil'],
-    'handbook/marketing': ['sampfluger88','mikermcneil'],
-    'handbook/customer-success': ['sampfluger88','mikermcneil'],
+    'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/communications.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/it-and-enablement': ['sampfluger88', 'mikermcneil'],
+    'handbook/finance': ['sampfluger88', 'mikermcneil'],
+    'handbook/sales': ['sampfluger88', 'mikermcneil'],
+    'handbook/marketing': ['sampfluger88', 'mikermcneil'],
+    'handbook/customer-success': ['sampfluger88', ' mikermcneil'],
 
     // 🫧 Pricing and features and dev process
     'handbook/company/pricing-features-table.yml': ['noahtalerman', 'mikermcneil'],
     'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'zayhanlon'],
 
     // Dev process
-    'handbook/company/product-groups.md': ['lukeheath','noahtalerman','sampfluger88','mikermcneil'],
+    'handbook/company/product-groups.md': ['lukeheath', 'noahtalerman', 'sampfluger88', 'mikermcneil'],
     'handbook/engineering': ['sampfluger88', 'lukeheath'],
     'handbook/product-design': ['sampfluger88', 'noahtalerman'],
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman'],
-    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'sampfluger88'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['lukeheath', 'xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['lukeheath', 'xpkoala', 'noahtalerman'],
+    '.github/ISSUE_TEMPLATE/release-qa.md': ['lukeheath', 'xpkoala', 'noahtalerman'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential
@@ -331,7 +331,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.17.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.18.1',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -397,17 +397,35 @@ module.exports.custom = {
     'qq.com',
   ],
 
+  /***************************************************************************
+   *                                                                          *
+   * GitHub Projects configuration for engineering metrics                    *
+   *                                                                          *
+   ***************************************************************************/
+  githubProjectsV2: {
+    projects: {
+      orchestration: 71,
+      mdm: 58,
+      software: 70
+    },
+    excludeWeekends: true
+  },
+
   // Zapier:
   // zapierWebhookSecret: '…',
 
   // Contact form:
   // slackWebhookUrlForContactForm: '…',
+  // slackWebhookUrlForNewlyCreatedOppts: '…',
 
   // GitHub bot:
   // githubAccessToken: '…',
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
+
+  // Metrics:
+  // engMetricsGcpServiceAccountKey: '…',
   // datadogApiKey: '…',
 
   // For receive-from-customer-fleet-instance webhook.

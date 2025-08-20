@@ -349,15 +349,6 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	)
 	require.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	require.NoError(t, err)
-
-	// try to change the enroll secret with the config set
-	ds.ApplyEnrollSecretsFuncInvoked = false
-	cfg.Packaging.GlobalEnrollSecret = "xyz"
-	svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil)
-	ctx = test.UserContext(ctx, test.UserAdmin)
-	err = svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "DEF"}}}, fleet.ApplySpecOptions{})
-	require.Error(t, err)
-	require.False(t, ds.ApplyEnrollSecretsFuncInvoked)
 }
 
 func TestCertificateChain(t *testing.T) {
@@ -417,7 +408,6 @@ func TestNeedFieldsPresent(t *testing.T) {
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			},
@@ -434,7 +424,6 @@ func TestShortIDPName(t *testing.T) {
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				// A customer once found the Fleet server erroring when they used "SSO" for their IdP name.
 				IDPName: "SSO",
@@ -451,9 +440,8 @@ func TestMissingMetadata(t *testing.T) {
 		SSOSettings: &fleet.SSOSettings{
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:  "fleet",
-				IssuerURI: "http://issuer.idp.com",
-				IDPName:   "onelogin",
+				EntityID: "fleet",
+				IDPName:  "onelogin",
 			},
 		},
 	}
@@ -496,7 +484,6 @@ func TestJITProvisioning(t *testing.T) {
 			EnableJITProvisioning: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				IDPName:     "onelogin",
 				MetadataURL: "http://isser.metadata.com",
 			},
@@ -963,6 +950,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:          "newDefaultTeamNoLicense",
@@ -1004,6 +992,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:        "foundEdit",
@@ -1030,6 +1019,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:          "ssoFree",
@@ -1062,6 +1052,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:        "ssoAllFields",
@@ -1069,7 +1060,6 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
@@ -1077,7 +1067,6 @@ func TestMDMAppleConfig(t *testing.T) {
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "fleet",
-					IssuerURI:   "http://issuer.idp.com",
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
@@ -1097,6 +1086,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		}, {
 			name:        "ssoShortEntityID",
@@ -1104,19 +1094,41 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "f",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
-			expectedError: "validation failed: entity_id must be 5 or more characters",
+			expectedMDM: fleet.MDM{
+				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "f",
+					MetadataURL: "http://isser.metadata.com",
+					IDPName:     "onelogin",
+				}},
+				MacOSSetup: fleet.MacOSSetup{
+					BootstrapPackage:            optjson.String{Set: true},
+					MacOSSetupAssistant:         optjson.String{Set: true},
+					EnableReleaseDeviceManually: optjson.SetBool(false),
+					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
+				},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				WindowsSettings: fleet.WindowsSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+			},
 		}, {
 			name:        "ssoMissingMetadata",
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:  "fleet",
-				IssuerURI: "http://issuer.idp.com",
-				IDPName:   "onelogin",
+				EntityID: "fleet",
+				IDPName:  "onelogin",
 			}}},
 			expectedError: "either metadata or metadata_url must be defined",
 		}, {
@@ -1125,7 +1137,6 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				Metadata:    "not-empty",
 				MetadataURL: "not-empty",
 				IDPName:     "onelogin",
@@ -1136,9 +1147,8 @@ func TestMDMAppleConfig(t *testing.T) {
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:  "fleet",
-				IssuerURI: "http://issuer.idp.com",
-				Metadata:  "not-empty",
+				EntityID: "fleet",
+				Metadata: "not-empty",
 			}}},
 			expectedError: "idp_name required",
 		}, {
@@ -1166,6 +1176,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
 		},
 	}
@@ -2038,7 +2049,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + " ${FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + "}"
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " ${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
@@ -2052,7 +2063,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in common name", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + "}${FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + "}"
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
@@ -2066,7 +2077,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in seat id", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + " $FLEET_VAR_" + fleet.FleetVarHostHardwareSerial
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " $FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial)
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)

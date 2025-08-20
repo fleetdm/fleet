@@ -9,6 +9,7 @@ import {
   IAppStoreApp,
   IFleetMaintainedApp,
   IFleetMaintainedAppDetails,
+  ISoftwareInstallResult,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
@@ -111,6 +112,7 @@ const DEFAULT_OS_VERSION_MOCK = {
   platform: "darwin",
   hosts_count: 42,
   generated_cpes: [],
+  kernels: [],
   vulnerabilities: [],
 };
 
@@ -303,4 +305,30 @@ export const createMockFleetMaintainedAppDetails = (
   overrides?: Partial<IFleetMaintainedAppDetails>
 ) => {
   return { ...DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK, ...overrides };
+};
+
+const DEFAULT_SOFTWARE_INSTALL_RESULT: ISoftwareInstallResult = {
+  host_display_name: "Test Host",
+  install_uuid: "uuid-123",
+  software_title: "CoolApp",
+  software_title_id: 1,
+  software_package: "com.cool.app",
+  host_id: 42,
+  status: "installed",
+  detail: "",
+  output: "",
+  pre_install_query_output: "",
+  post_install_script_output: "",
+  created_at: "2025-08-10T12:00:00Z",
+  updated_at: "2025-08-10T12:05:00Z",
+  self_service: false,
+};
+
+export const createMockSoftwareInstallResult = (
+  overrides?: Partial<ISoftwareInstallResult>
+) => {
+  return {
+    ...DEFAULT_SOFTWARE_INSTALL_RESULT,
+    ...overrides,
+  };
 };

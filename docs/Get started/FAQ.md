@@ -6,7 +6,7 @@ Fleet offers managed cloud hosting for [Fleet Premium](https://fleetdm.com/prici
 
 > While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, today we are only currently able to provide fully-managed hosting for deployments larger than 700 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
 
-Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy/introduction).  Premium features are [available](https://fleetdm.com/pricing) either way.
+Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy/introduction) ([our operations guy did it](https://fleetdm.com/articles/i-work-in-operations-i-deployed-fleet-in-minutes)).  Premium features are [available](https://fleetdm.com/pricing) either way.
 
 ## What is the easiest way to deploy Fleet?
 
@@ -226,7 +226,7 @@ For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `t
 
 #### What are my options for storing the osquery logs?
 
-Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
+Folks typically use Fleet to ship logs to data lakes and SIEMs like Splunk, the ELK stack, and Graylog.
 
 Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
 `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
@@ -637,7 +637,7 @@ Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 8.0.36, 8.4.5, and 9.3.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.36, 8.4.6, and 9.4.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 ### What are the MySQL user requirements?
 
@@ -700,7 +700,7 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
 
 ### What is the minimum version of MySQL required by Fleet?
 
-Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36 and 8.4.2](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L47)
+Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36, 8.4.6, and 9.4.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L51)
 
 ### How do I migrate from Fleet Free to Fleet Premium?
 

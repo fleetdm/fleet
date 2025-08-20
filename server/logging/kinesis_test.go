@@ -9,16 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/fleetdm/fleet/v4/server/logging/mock"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 )
 
-func makeKinesisWriterWithMock(client kinesisiface.KinesisAPI, stream string) *kinesisLogWriter {
+func makeKinesisWriterWithMock(client KinesisAPI, stream string) *kinesisLogWriter {
 	return &kinesisLogWriter{
 		client: client,
 		stream: stream,
@@ -39,12 +38,12 @@ func getLogsFromPutRecordsInput(input *kinesis.PutRecordsInput) []json.RawMessag
 func TestKinesisRetryableFailure(t *testing.T) {
 	ctx := context.Background()
 	callCount := 0
-	putFunc := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+	putFunc := func(ctx context.Context, input *kinesis.PutRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error) {
 		callCount += 1
 		assert.Equal(t, logs, getLogsFromPutRecordsInput(input))
 		assert.Equal(t, "foobar", *input.StreamName)
 		if callCount < 3 {
-			return nil, awserr.New(kinesis.ErrCodeProvisionedThroughputExceededException, "", nil)
+			return nil, &types.ProvisionedThroughputExceededException{}
 		}
 		// Returning a non-retryable error earlier helps keep this test faster
 		return nil, errors.New("generic error")
@@ -59,11 +58,11 @@ func TestKinesisRetryableFailure(t *testing.T) {
 func TestKinesisNormalPut(t *testing.T) {
 	ctx := context.Background()
 	callCount := 0
-	putFunc := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+	putFunc := func(ctx context.Context, input *kinesis.PutRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error) {
 		callCount += 1
 		assert.Equal(t, logs, getLogsFromPutRecordsInput(input))
 		assert.Equal(t, "foobar", *input.StreamName)
-		return &kinesis.PutRecordsOutput{FailedRecordCount: aws.Int64(0)}, nil
+		return &kinesis.PutRecordsOutput{FailedRecordCount: aws.Int32(0)}, nil
 	}
 	k := &mock.KinesisMock{PutRecordsFunc: putFunc}
 	writer := makeKinesisWriterWithMock(k, "foobar")
@@ -77,48 +76,48 @@ func TestKinesisSomeFailures(t *testing.T) {
 	k := &mock.KinesisMock{}
 	callCount := 0
 
-	call3 := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+	call3 := func(ctx context.Context, input *kinesis.PutRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error) {
 		// final invocation
 		callCount += 1
 		assert.Equal(t, logs[1:2], getLogsFromPutRecordsInput(input))
 		return &kinesis.PutRecordsOutput{
-			FailedRecordCount: aws.Int64(0),
+			FailedRecordCount: aws.Int32(0),
 		}, nil
 	}
 
-	call2 := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+	call2 := func(ctx context.Context, input *kinesis.PutRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error) {
 		// Set to invoke call3 next time
 		k.PutRecordsFunc = call3
 		callCount += 1
 		assert.Equal(t, logs[1:], getLogsFromPutRecordsInput(input))
 		return &kinesis.PutRecordsOutput{
-			FailedRecordCount: aws.Int64(1),
-			Records: []*kinesis.PutRecordsResultEntry{
-				&kinesis.PutRecordsResultEntry{
+			FailedRecordCount: aws.Int32(1),
+			Records: []types.PutRecordsResultEntry{
+				{
 					ErrorCode: aws.String("error"),
 				},
-				&kinesis.PutRecordsResultEntry{
+				{
 					SequenceNumber: aws.String("foo"),
 				},
 			},
 		}, nil
 	}
 
-	call1 := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+	call1 := func(ctx context.Context, input *kinesis.PutRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error) {
 		// Use call2 function for next call
 		k.PutRecordsFunc = call2
 		callCount += 1
 		assert.Equal(t, logs, getLogsFromPutRecordsInput(input))
 		return &kinesis.PutRecordsOutput{
-			FailedRecordCount: aws.Int64(1),
-			Records: []*kinesis.PutRecordsResultEntry{
-				&kinesis.PutRecordsResultEntry{
+			FailedRecordCount: aws.Int32(1),
+			Records: []types.PutRecordsResultEntry{
+				{
 					SequenceNumber: aws.String("foo"),
 				},
-				&kinesis.PutRecordsResultEntry{
+				{
 					ErrorCode: aws.String("error"),
 				},
-				&kinesis.PutRecordsResultEntry{
+				{
 					ErrorCode: aws.String("error"),
 				},
 			},
@@ -136,13 +135,13 @@ func TestKinesisFailAllRecords(t *testing.T) {
 	k := &mock.KinesisMock{}
 	callCount := 0
 
-	k.PutRecordsFunc = func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+	k.PutRecordsFunc = func(ctx context.Context, input *kinesis.PutRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error) {
 		callCount += 1
 		assert.Equal(t, logs, getLogsFromPutRecordsInput(input))
 		if callCount < 3 {
 			return &kinesis.PutRecordsOutput{
-				FailedRecordCount: aws.Int64(1),
-				Records: []*kinesis.PutRecordsResultEntry{
+				FailedRecordCount: aws.Int32(1),
+				Records: []types.PutRecordsResultEntry{
 					{ErrorCode: aws.String("error")},
 					{ErrorCode: aws.String("error")},
 					{ErrorCode: aws.String("error")},
@@ -166,11 +165,11 @@ func TestKinesisRecordTooBig(t *testing.T) {
 	copy(newLogs, logs)
 	newLogs[0] = make(json.RawMessage, kinesisMaxSizeOfRecord+1)
 	callCount := 0
-	putFunc := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+	putFunc := func(ctx context.Context, input *kinesis.PutRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error) {
 		callCount += 1
 		assert.Equal(t, newLogs[1:], getLogsFromPutRecordsInput(input))
 		assert.Equal(t, "foobar", *input.StreamName)
-		return &kinesis.PutRecordsOutput{FailedRecordCount: aws.Int64(0)}, nil
+		return &kinesis.PutRecordsOutput{FailedRecordCount: aws.Int32(0)}, nil
 	}
 	k := &mock.KinesisMock{PutRecordsFunc: putFunc}
 	writer := makeKinesisWriterWithMock(k, "foobar")
@@ -188,11 +187,11 @@ func TestKinesisSplitBatchBySize(t *testing.T) {
 		logs[i] = make(json.RawMessage, kinesisMaxSizeOfRecord-1-256)
 	}
 	callCount := 0
-	putFunc := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+	putFunc := func(ctx context.Context, input *kinesis.PutRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error) {
 		callCount += 1
 		assert.Len(t, getLogsFromPutRecordsInput(input), 5)
 		assert.Equal(t, "foobar", *input.StreamName)
-		return &kinesis.PutRecordsOutput{FailedRecordCount: aws.Int64(0)}, nil
+		return &kinesis.PutRecordsOutput{FailedRecordCount: aws.Int32(0)}, nil
 	}
 	k := &mock.KinesisMock{PutRecordsFunc: putFunc}
 	writer := makeKinesisWriterWithMock(k, "foobar")
@@ -208,11 +207,11 @@ func TestKinesisSplitBatchByCount(t *testing.T) {
 		logs[i] = json.RawMessage(`{}`)
 	}
 	callCount := 0
-	putFunc := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
+	putFunc := func(ctx context.Context, input *kinesis.PutRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.PutRecordsOutput, error) {
 		callCount += 1
 		assert.Len(t, getLogsFromPutRecordsInput(input), kinesisMaxRecordsInBatch)
 		assert.Equal(t, "foobar", *input.StreamName)
-		return &kinesis.PutRecordsOutput{FailedRecordCount: aws.Int64(0)}, nil
+		return &kinesis.PutRecordsOutput{FailedRecordCount: aws.Int32(0)}, nil
 	}
 	k := &mock.KinesisMock{PutRecordsFunc: putFunc}
 	writer := makeKinesisWriterWithMock(k, "foobar")
@@ -222,45 +221,45 @@ func TestKinesisSplitBatchByCount(t *testing.T) {
 }
 
 func TestKinesisValidateStreamActive(t *testing.T) {
-	describeFunc := func(input *kinesis.DescribeStreamInput) (*kinesis.DescribeStreamOutput, error) {
+	describeFunc := func(ctx context.Context, input *kinesis.DescribeStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.DescribeStreamOutput, error) {
 		assert.Equal(t, "test", *input.StreamName)
 		return &kinesis.DescribeStreamOutput{
-			StreamDescription: &kinesis.StreamDescription{
-				StreamStatus: aws.String(kinesis.StreamStatusActive),
+			StreamDescription: &types.StreamDescription{
+				StreamStatus: types.StreamStatusActive,
 			},
 		}, nil
 	}
 	k := &mock.KinesisMock{DescribeStreamFunc: describeFunc}
 	writer := makeKinesisWriterWithMock(k, "test")
-	err := writer.validateStream()
+	err := writer.validateStream(context.Background())
 	assert.NoError(t, err)
 	assert.True(t, k.DescribeStreamFuncInvoked)
 }
 
 func TestKinesisValidateStreamNotActive(t *testing.T) {
-	describeFunc := func(input *kinesis.DescribeStreamInput) (*kinesis.DescribeStreamOutput, error) {
+	describeFunc := func(ctx context.Context, input *kinesis.DescribeStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.DescribeStreamOutput, error) {
 		assert.Equal(t, "test", *input.StreamName)
 		return &kinesis.DescribeStreamOutput{
-			StreamDescription: &kinesis.StreamDescription{
-				StreamStatus: aws.String(kinesis.StreamStatusCreating),
+			StreamDescription: &types.StreamDescription{
+				StreamStatus: types.StreamStatusCreating,
 			},
 		}, nil
 	}
 	k := &mock.KinesisMock{DescribeStreamFunc: describeFunc}
 	writer := makeKinesisWriterWithMock(k, "test")
-	err := writer.validateStream()
+	err := writer.validateStream(context.Background())
 	assert.Error(t, err)
 	assert.True(t, k.DescribeStreamFuncInvoked)
 }
 
 func TestKinesisValidateStreamError(t *testing.T) {
-	describeFunc := func(input *kinesis.DescribeStreamInput) (*kinesis.DescribeStreamOutput, error) {
+	describeFunc := func(ctx context.Context, input *kinesis.DescribeStreamInput, optFns ...func(*kinesis.Options)) (*kinesis.DescribeStreamOutput, error) {
 		assert.Equal(t, "test", *input.StreamName)
 		return nil, errors.New("kaboom!")
 	}
 	k := &mock.KinesisMock{DescribeStreamFunc: describeFunc}
 	writer := makeKinesisWriterWithMock(k, "test")
-	err := writer.validateStream()
+	err := writer.validateStream(context.Background())
 	assert.Error(t, err)
 	assert.True(t, k.DescribeStreamFuncInvoked)
 }

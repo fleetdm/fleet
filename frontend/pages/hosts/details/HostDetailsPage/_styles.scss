@@ -12,9 +12,15 @@
   }
 
   @media screen and (min-width: $break-md) {
+    // This details tab must be selected to use these grid stylings. They are
+    // irrelevant for the other tabs.
     &__details-panel.react-tabs__tab-panel--selected {
-      // Must be selected to show grid
-      grid-template-columns: repeat(2, 1fr);
+      // We want the grid to be 2 columns on medium and larger screens and for
+      // those two columns to always be equal width and take up half the
+      // available space. We use 50% here instead of 1fr as there were some
+      // issue with the tooltips in some of the cards forcing the card to be
+      // wider then half the available space.
+      grid-template-columns: repeat(2, 50%);
     }
 
     // these are used for positiong the cards in the grid. place these classes

@@ -122,3 +122,17 @@ type ErrVPPTokenTeamConstraint struct {
 func (e ErrVPPTokenTeamConstraint) Error() string {
 	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have one VPP token.", e.Name)
 }
+
+// HostVPPSoftwareInstall represents a VPP software install attempt on a host.
+type HostVPPSoftwareInstall struct {
+	InstallCommandUUID   string     `db:"command_uuid"`
+	InstallCommandAckAt  *time.Time `db:"ack_at"`
+	HostID               uint       `db:"host_id"`
+	InstallCommandStatus string     `db:"install_command_status"`
+	BundleIdentifier     string     `db:"bundle_identifier"`
+}
+
+const (
+	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
+	DefaultVPPVerifyRequestDelay   = 5 * time.Second
+)

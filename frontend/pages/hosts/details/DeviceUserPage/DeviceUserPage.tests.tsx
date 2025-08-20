@@ -4,7 +4,7 @@ import { screen } from "@testing-library/react";
 import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
 import createMockHost from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import {
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
@@ -12,17 +12,7 @@ import {
 } from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
 
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  goBack: jest.fn(),
-  goForward: jest.fn(),
-  go: jest.fn(),
-  setRouteLeaveHook: jest.fn(),
-  isActive: jest.fn(),
-  createHref: jest.fn(),
-  createPath: jest.fn(),
-};
+const mockRouter = createMockRouter();
 
 const mockLocation = {
   pathname: "",

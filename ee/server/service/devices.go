@@ -170,6 +170,10 @@ func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *
 		return nil
 	}
 
+	if err := svc.ds.AssertHasNoEncryptionKeyStored(ctx, host.ID); err != nil {
+		return err
+	}
+
 	if err := svc.validateReadyForLinuxEscrow(ctx, host); err != nil {
 		_ = svc.ds.ReportEscrowError(ctx, host.ID, err.Error())
 		return err
@@ -216,5 +220,5 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 		return &fleet.BadRequestError{Message: "Your version of fleetd does not support creating disk encryption keys on Linux. Please upgrade fleetd, then click Refetch, then try again."}
 	}
 
-	return svc.ds.AssertHasNoEncryptionKeyStored(ctx, host.ID)
+	return nil
 }

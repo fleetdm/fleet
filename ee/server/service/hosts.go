@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -45,7 +46,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return "", err
 	}
-	host, err := svc.ds.HostLite(ctx, hostID)
+	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host lite")
 	}
@@ -60,6 +61,11 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "ios", "ipados":
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+			return "", &fleet.BadRequestError{
+				Message: fleet.CantLockPersonalHostsMessage,
+			}
+		}
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock iOS or iPadOS hosts. Use wipe instead."))
 	case "darwin":
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -75,11 +81,9 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 			return "", ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
 		}
 		if !connected {
-			if fleet.IsNotFound(err) {
-				return "", ctxerr.Wrap(
-					ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
-				)
-			}
+			return "", ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
+			)
 		}
 
 	case "windows", "linux":
@@ -231,7 +235,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}
-	host, err := svc.ds.HostLite(ctx, hostID)
+	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lite")
 	}
@@ -249,6 +253,11 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	var requireMDM bool
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+			return &fleet.BadRequestError{
+				Message: fleet.CantWipePersonalHostsMessage,
+			}
+		}
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
 				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
@@ -459,6 +468,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		wipeType := fleet.MDMWindowsWipeTypeDoWipeProtected
 		if metadata != nil && metadata.Windows != nil {
 			wipeType = metadata.Windows.WipeType
+			level.Debug(svc.logger).Log("msg", "Windows host wipe request", "wipe_type", wipeType.String())
 		}
 		wipeCmdUUID := uuid.NewString()
 		wipeCmd := &fleet.MDMWindowsCommand{

@@ -7,22 +7,24 @@ import { ICertificateIntegration } from "interfaces/integration";
 
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import CertificateAuthorityList from "./components/CertificateAuthorityList";
-import {
-  generateListData,
-  getCertificateAuthority,
-  ICertAuthorityListData,
-} from "./helpers";
 import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
 import DeleteCertificateAuthorityModal from "./components/DeleteCertificateAuthorityModal";
 import AddCertAuthorityModal from "./components/AddCertAuthorityModal";
 import EditCertAuthorityModal from "./components/EditCertAuthorityModal";
 
+import {
+  generateListData,
+  getCertificateAuthority,
+  ICertAuthorityListData,
+} from "./helpers";
+
 const baseClass = "certificate-authorities";
 
 const CertificateAuthorities = () => {
-  const { config } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
 
   const [showAddCertAuthorityModal, setShowAddCertAuthorityModal] = useState(
     false
@@ -81,23 +83,11 @@ const CertificateAuthorities = () => {
   };
 
   const renderContent = () => {
-    if (certificateAuthorities.length === 0) {
-      return <AddCertAuthorityCard onAddCertAuthority={onAddCertAuthority} />;
+    if (!isPremiumTier) {
+      return <PremiumFeatureMessage />;
     }
 
-    return (
-      <CertificateAuthorityList
-        certAuthorities={certificateAuthorities}
-        onAddCertAuthority={onAddCertAuthority}
-        onClickEdit={onEditCertAuthority}
-        onClickDelete={onDeleteCertAuthority}
-      />
-    );
-  };
-
-  return (
-    <div className={baseClass}>
-      <SectionHeader title="Certificates" />
+    const pageDescription = (
       <p className={`${baseClass}__page-description`}>
         To help your end users connect to Wi-Fi or VPNs, you can add your
         certificate authority. Then, head over to{" "}
@@ -111,6 +101,33 @@ const CertificateAuthorities = () => {
           newTab
         />
       </p>
+    );
+
+    if (certificateAuthorities.length === 0) {
+      return (
+        <>
+          {pageDescription}
+          <AddCertAuthorityCard onAddCertAuthority={onAddCertAuthority} />
+        </>
+      );
+    }
+
+    return (
+      <>
+        {pageDescription}
+        <CertificateAuthorityList
+          certAuthorities={certificateAuthorities}
+          onAddCertAuthority={onAddCertAuthority}
+          onClickEdit={onEditCertAuthority}
+          onClickDelete={onDeleteCertAuthority}
+        />
+      </>
+    );
+  };
+
+  return (
+    <div className={baseClass}>
+      <SectionHeader title="Certificates" />
       {renderContent()}
       {showAddCertAuthorityModal && (
         <AddCertAuthorityModal

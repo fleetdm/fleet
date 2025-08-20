@@ -74,6 +74,54 @@ const FleetAvatar = ({ className }: IFleetAvatarProps) => {
   );
 };
 
+interface IAPIOnlyAvatar {
+  className?: string;
+}
+
+const APIOnlyAvatar = ({ className }: IAPIOnlyAvatar) => {
+  return (
+    <svg
+      data-testid="apionly-avatar"
+      className={className}
+      width="32"
+      height="32"
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle
+        cx="16"
+        cy="16"
+        r="15"
+        fill="white"
+        stroke="#6A67FE"
+        strokeWidth="2"
+      />
+      <path
+        d="M11.5 12.75L8 16L11.5 19.25"
+        stroke="#6A67FE"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18 11L14.5 21"
+        stroke="#6A67FE"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M21 19.25L24.5 16L21 12.75"
+        stroke="#6A67FE"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
 interface IAvatarUserInterface {
   gravatar_url?: string;
   gravatar_url_dark?: string;
@@ -88,6 +136,8 @@ interface IAvatarProps {
    * Set this to `true` to use the fleet avatar instead of the users gravatar.
    */
   useFleetAvatar?: boolean;
+  // Set this to true to show the API Only avatar
+  useApiOnlyAvatar?: boolean;
 }
 
 const baseClass = "avatar";
@@ -97,6 +147,7 @@ const Avatar = ({
   size,
   user,
   hasWhiteBackground,
+  useApiOnlyAvatar = false,
   useFleetAvatar = false,
 }: IAvatarProps) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -115,23 +166,25 @@ const Avatar = ({
   });
   const { gravatar_url } = user;
 
-  return (
-    <div className="avatar-wrapper">
-      {useFleetAvatar ? (
-        <FleetAvatar className={avatarClasses} />
-      ) : (
-        <img
-          alt="User avatar"
-          className={`${avatarClasses} ${
-            isLoading || isError ? "default" : ""
-          }`}
-          src={gravatar_url || DEFAULT_GRAVATAR_LINK}
-          onError={onError}
-          onLoad={onLoad}
-        />
-      )}
-    </div>
-  );
+  let avatar;
+
+  if (useFleetAvatar) {
+    avatar = <FleetAvatar className={avatarClasses} />;
+  } else if (useApiOnlyAvatar) {
+    avatar = <APIOnlyAvatar className={avatarClasses} />;
+  } else {
+    avatar = (
+      <img
+        alt="User avatar"
+        className={`${avatarClasses} ${isLoading || isError ? "default" : ""}`}
+        src={gravatar_url || DEFAULT_GRAVATAR_LINK}
+        onError={onError}
+        onLoad={onLoad}
+      />
+    );
+  }
+
+  return <div className="avatar-wrapper">{avatar}</div>;
 };
 
 export default Avatar;

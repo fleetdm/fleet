@@ -161,7 +161,7 @@ export default {
   MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
     `/${API_VERSION}/fleet/mdm/bootstrap/${teamId}/metadata`,
-  MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/bootstrap`,
+  MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/bootstrap`,
   MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/bootstrap/summary`,
   MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
   MDM_EULA: (token: string) => `/${API_VERSION}/fleet/mdm/setup/eula/${token}`,
@@ -274,8 +274,11 @@ export default {
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
   SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/run/batch`,
+  SCRIPT_CANCEL_BATCH: (executionId: string) =>
+    `/${API_VERSION}/fleet/scripts/batch/${executionId}/cancel`,
   SCRIPT_RUN_BATCH_SUMMARY: (id: string) =>
     `/${API_VERSION}/fleet/scripts/batch/summary/${id}`,
+  SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 
   // idp endpoints
@@ -287,4 +290,7 @@ export default {
   CONFIG_PROFILE_STATUS: (uuid: string) =>
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
+
+  // custom variables (secrets) endpoints
+  SECRETS: `/${API_VERSION}/fleet/custom_variables`,
 };

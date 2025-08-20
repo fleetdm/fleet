@@ -67,9 +67,11 @@ A streamlined flow for pulling the latest version of a Fleet-maintained app is [
 
 ## Manage apps with GitOps
 
-To manage Fleet-maintained apps using Fleet's best practice GitOps, check out the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/using-fleet/gitops#software). There is a `fleet_maintained_apps` key you can use to specify via slug a list of apps. This makes it even more simple to add additional apps available for your fleet.
+To manage Fleet-maintained apps using Fleet's best practice GitOps, check out `fleet_maintained_apps`, found under the
+`software` key, in the
+[GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
 
-> Note: with GitOps enabled, any Fleet-maintained apps added using the web UI will not persist.
+> Note: with GitOps enabled, any Fleet-maintained apps added using the web UI will not persist if not also added in YAML.
 
 ## How does Fleet maintain these apps?
 
@@ -77,7 +79,7 @@ Fleet:
 
 - verifies, installs, uninstalls & tests all Fleet-maintained apps alongside the install and uninstall scripts we generate
 - transforms data from multiple sources, including [Homebrew Casks](https://github.com/Homebrew/homebrew-cask) and [WinGet manifests](https://github.com/microsoft/winget-pkgs/tree/master/manifests), into [standardized manifests](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/), checking data sources [multiple times per day](https://github.com/fleetdm/fleet/blob/main/.github/workflows/ingest-maintained-apps.yml)
-- fetches the [full maintained apps list](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json) from GitHub daily (or when you run `fleetctl trigger --name=maintained_apps`)
+- fetches the [full maintained apps list](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json) from GitHub hourly (or when you run `fleetctl trigger --name=maintained_apps`; interval was daily prior to Fleet 4.71.0)
 - fetches an individual app's manifest when the **Add** button is pressed from the maintained apps list in the UI, and when an individual app is [retrieved](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-maintained-app) or [added](https://fleetdm.com/docs/rest-api/rest-api#add-fleet-maintained-app) via the REST API
 - DOES NOT directly pull data from WinGet or Homebrew to end-user devices
 

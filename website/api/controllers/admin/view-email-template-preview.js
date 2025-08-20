@@ -135,6 +135,13 @@ module.exports = {
           emailAddress: 'sage@example.com',
         };
         break;
+      case 'email-fleet-premium-trial':
+        // layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
       case 'email-deal-registration':
         layout = 'layout-email';
         fakeData = {

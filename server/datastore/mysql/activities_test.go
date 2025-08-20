@@ -87,6 +87,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 		Name:        "fullname",
 		Email:       "email@asd.com",
 		GravatarURL: "http://asd.com",
+		APIOnly:     true,
 		GlobalRole:  ptr.String(fleet.RoleObserver),
 	}
 	_, err := ds.NewUser(context.Background(), u)
@@ -126,6 +127,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "newname", *activities[0].ActorFullName)
 	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
 	assert.Equal(t, "email@asd.com", *activities[0].ActorEmail)
+	assert.Equal(t, true, *activities[0].ActorAPIOnly)
 
 	err = ds.DeleteUser(context.Background(), u.ID)
 	require.NoError(t, err)
@@ -587,6 +589,10 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// h4Bar, err := ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, false, nil)
 	_, err = ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
+
+	// Set LastEnrolledAt before deleting the host (simulating a DEP enrolled host)
+	h4.LastEnrolledAt = time.Now()
+
 	// Delete the host
 	err = ds.DeleteHost(ctx, h4.ID)
 	require.NoError(t, err)

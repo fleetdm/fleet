@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import TableContainer from "components/TableContainer";
 
 import generateTableHeaders, {
@@ -20,10 +20,10 @@ const OSSettingsTable = ({
   tableData,
   onProfileResent,
 }: IOSSettingsTableProps) => {
-  const tableConfig = generateTableHeaders(
-    hostId,
-    canResendProfiles,
-    onProfileResent
+  // useMemo prevents tooltip flashing during host data refetch
+  const tableConfig = useMemo(
+    () => generateTableHeaders(hostId, canResendProfiles, onProfileResent),
+    [hostId, canResendProfiles, onProfileResent]
   );
 
   return (

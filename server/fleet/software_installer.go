@@ -107,6 +107,8 @@ type SoftwareInstaller struct {
 	Platform string `json:"platform" db:"platform"`
 	// PackageIDList is a comma-separated list of packages extracted from the installer
 	PackageIDList string `json:"-" db:"package_ids"`
+	// UpgradeCode is the (optional) upgrade code included in an MSI
+	UpgradeCode string `json:"-" db:"upgrade_code"`
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
@@ -378,6 +380,7 @@ type UploadSoftwareInstallerPayload struct {
 	URL                  string
 	FleetMaintainedAppID *uint
 	PackageIDs           []string
+	UpgradeCode          string
 	UninstallScript      string
 	Extension            string
 	InstallDuringSetup   *bool    // keep saved value if nil, otherwise set as indicated
@@ -432,6 +435,7 @@ type UpdateSoftwareInstallerPayload struct {
 	Filename          string
 	Version           string
 	PackageIDs        []string
+	UpgradeCode       string
 	LabelsIncludeAny  []string // names of "include any" labels
 	LabelsExcludeAny  []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
@@ -552,8 +556,7 @@ type SoftwarePackageSpec struct {
 	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
 
 	// FMA
-	Slug             *string `json:"slug"`
-	AutomaticInstall *bool   `json:"automatic_install"`
+	Slug *string `json:"slug"`
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
@@ -568,19 +571,61 @@ type SoftwarePackageSpec struct {
 	Categories         []string `json:"categories"`
 }
 
-type FleetMaintainedAppsSpec struct {
-	Slug             string   `json:"slug"`
-	AutomaticInstall *bool    `json:"automatic_install"`
-	SelfService      bool     `json:"self_service"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
-	Categories       []string `json:"categories"`
+func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {
+	spec.PreInstallQuery.Path = resolveApplyRelativePath(baseDir, spec.PreInstallQuery.Path)
+	spec.InstallScript.Path = resolveApplyRelativePath(baseDir, spec.InstallScript.Path)
+	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
+	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
+
+	return spec
+}
+
+func resolveApplyRelativePath(baseDir string, path string) string {
+	if path != "" && baseDir != "" && !filepath.IsAbs(path) {
+		return filepath.Join(baseDir, path)
+	}
+
+	return path
+}
+
+type MaintainedAppSpec struct {
+	Slug              string                `json:"slug"`
+	SelfService       bool                  `json:"self_service"`
+	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny  []string              `json:"labels_include_any"`
+	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
+	Categories        []string              `json:"categories"`
+}
+
+func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
+	return SoftwarePackageSpec{
+		Slug:              &spec.Slug,
+		PreInstallQuery:   spec.PreInstallQuery,
+		InstallScript:     spec.InstallScript,
+		PostInstallScript: spec.PostInstallScript,
+		UninstallScript:   spec.UninstallScript,
+		SelfService:       spec.SelfService,
+		LabelsIncludeAny:  spec.LabelsIncludeAny,
+		LabelsExcludeAny:  spec.LabelsExcludeAny,
+	}
+}
+
+func (spec MaintainedAppSpec) ResolveSoftwarePackagePaths(baseDir string) MaintainedAppSpec {
+	spec.PreInstallQuery.Path = resolveApplyRelativePath(baseDir, spec.PreInstallQuery.Path)
+	spec.InstallScript.Path = resolveApplyRelativePath(baseDir, spec.InstallScript.Path)
+	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
+	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
+
+	return spec
 }
 
 type SoftwareSpec struct {
-	Packages            optjson.Slice[SoftwarePackageSpec]     `json:"packages,omitempty"`
-	FleetMaintainedApps optjson.Slice[FleetMaintainedAppsSpec] `json:"fleet_maintained_apps,omitempty"`
-	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
+	Packages            optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
+	FleetMaintainedApps optjson.Slice[MaintainedAppSpec]   `json:"fleet_maintained_apps,omitempty"`
+	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a

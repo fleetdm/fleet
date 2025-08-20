@@ -72,7 +72,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 
 	// enroll a windows device
 	windowsH, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "windows-test",
+		Hostname:       "test-host", // ambiguous hostname shared with macOS host
 		OsqueryHostID:  ptr.String("osquery-windows"),
 		NodeKey:        ptr.String("node-key-windows"),
 		UUID:           uuid.NewString(),
@@ -109,7 +109,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 
 	// enroll a macOS device
 	macH, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "macos-test",
+		Hostname:       "test-host", // ambiguous hostname shared with windows host
 		OsqueryHostID:  ptr.String("osquery-macos"),
 		NodeKey:        ptr.String("node-key-macos"),
 		UUID:           uuid.NewString(),
@@ -274,32 +274,65 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
 
-	// filter by host Identifier
-	identifiers := map[string][]string{
-		windowsH.Hostname:       {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
-		windowsH.UUID:           {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
-		windowsH.HardwareSerial: {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
-		macH.Hostname:           {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
-		macH.UUID:               {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
-		macH.HardwareSerial:     {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
-	}
-
-	for identifier, expected := range identifiers {
-		t.Run(identifier, func(t *testing.T) {
-			cmds, err = ds.ListMDMCommands(
+	for _, tc := range []struct {
+		name       string
+		identifier string
+		expected   []string
+	}{
+		{
+			name:       "windows host by hostname ambiguous with macOS host",
+			identifier: windowsH.Hostname,
+			expected: []string{
+				winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID,
+				appleCmdUUID, appleCmdUUID2, appleCmdUUID3,
+			},
+		},
+		{
+			name:       "windows host by UUID",
+			identifier: windowsH.UUID,
+			expected:   []string{winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		},
+		{
+			name:       "windows host by hardware serial",
+			identifier: windowsH.HardwareSerial,
+			expected:   []string{winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		},
+		{
+			name:       "macOS host by hostname ambiguous with windows host",
+			identifier: macH.Hostname,
+			expected: []string{
+				appleCmdUUID, appleCmdUUID2, appleCmdUUID3,
+				winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID,
+			},
+		},
+		{
+			name:       "macOS host by UUID",
+			identifier: macH.UUID,
+			expected:   []string{appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+		},
+		{
+			name:       "macOS host by hardware serial",
+			identifier: macH.HardwareSerial,
+			expected:   []string{appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cmds, err := ds.ListMDMCommands(
 				ctx,
 				fleet.TeamFilter{User: test.UserAdmin},
 				&fleet.MDMCommandListOptions{
 					Filters: fleet.MDMCommandFilters{
-						HostIdentifier: identifier,
+						HostIdentifier: tc.identifier,
 					},
 				},
 			)
 			require.NoError(t, err)
-			require.Len(t, cmds, 3)
+			require.Len(t, cmds, len(tc.expected))
+			var got []string
 			for _, cmd := range cmds {
-				require.Contains(t, expected, cmd.CommandUUID)
+				got = append(got, cmd.CommandUUID)
 			}
+			require.ElementsMatch(t, tc.expected, got)
 		})
 	}
 
@@ -334,8 +367,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
-	require.Equal(t, appleCmdUUID2, cmds[0].CommandUUID)
-	require.Equal(t, appleCmdUUID4, cmds[1].CommandUUID)
+	require.Equal(t, appleCmdUUID4, cmds[0].CommandUUID)
+	require.Equal(t, appleCmdUUID2, cmds[1].CommandUUID)
 
 	// filter by request_type and host_identifier
 	cmds, err = ds.ListMDMCommands(
@@ -639,11 +672,13 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMWindowsConfigProfile(
 			ctx,
 			fleet.MDMWindowsConfigProfile{Name: name, TeamID: &team.ID, SyncML: winProf},
+			nil,
 		)
 		require.NoError(t, err)
 		_, err = ds.NewMDMWindowsConfigProfile(
 			ctx,
 			fleet.MDMWindowsConfigProfile{Name: name, TeamID: nil, SyncML: winProf},
+			nil,
 		)
 		require.NoError(t, err)
 	}
@@ -665,6 +700,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	profB, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
 		fleet.MDMWindowsConfigProfile{Name: "B", TeamID: &team.ID, SyncML: winProf},
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -727,7 +763,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				{LabelName: labels[5].Name, LabelID: labels[5].ID},
 			}
 		}
-		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp)
+		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp, nil)
 		require.NoError(t, err)
 
 		wcp = fleet.MDMWindowsConfigProfile{
@@ -741,7 +777,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				{LabelName: labels[7].Name, LabelID: labels[7].ID},
 			}
 		}
-		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp)
+		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp, nil)
 		require.NoError(t, err)
 	}
 
@@ -1222,7 +1258,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 
 	// list profiles to install, should result in the global profiles for all
 	// enrolled hosts
-	toInstallDarwin, err := ds.ListMDMAppleProfilesToInstall(ctx)
+	toInstallDarwin, err := ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	require.Len(t, toInstallDarwin, len(macGlobalProfiles)*len(darwinHosts))
 	toInstallWindows, err := ds.ListMDMWindowsProfilesToInstall(ctx)
@@ -1400,11 +1436,11 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// move darwinHosts[0] and windowsHosts[0] to that team
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{darwinHosts[0].ID, windowsHosts[0].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{darwinHosts[0].ID, windowsHosts[0].ID}))
 	require.NoError(t, err)
 
 	// 6 are still reported as "to install" because op=install and status=nil
-	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	require.Len(t, toInstallDarwin, 6)
 	toInstallWindows, err = ds.ListMDMWindowsProfilesToInstall(ctx)
@@ -1573,11 +1609,11 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// move enrolledHosts[1] to that team
-	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{darwinHosts[1].ID, windowsHosts[1].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{darwinHosts[1].ID, windowsHosts[1].ID}))
 	require.NoError(t, err)
 
 	// 3 are still reported as "to install" because op=install and status=nil
-	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	require.Len(t, toInstallDarwin, 3)
 	toInstallWindows, err = ds.ListMDMWindowsProfilesToInstall(ctx)
@@ -1745,7 +1781,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, tm1Profiles, 4)
 
 	// 5 are now reported as "to install" (3 global + 2 team1)
-	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx, "")
 	require.NoError(t, err)
 	require.Len(t, toInstallDarwin, 5)
 	toInstallWindows, err = ds.ListMDMWindowsProfilesToInstall(ctx)
@@ -1925,15 +1961,15 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			HostUUID: darwinHosts[0].UUID, ProfileUUID: darwinGlobalProfiles[0].ProfileUUID, ProfileIdentifier: darwinGlobalProfiles[0].Identifier,
-			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
+			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
 		},
 		{
 			HostUUID: darwinHosts[0].UUID, ProfileUUID: darwinGlobalProfiles[1].ProfileUUID, ProfileIdentifier: darwinGlobalProfiles[1].Identifier,
-			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
+			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
 		},
 		{
 			HostUUID: darwinHosts[0].UUID, ProfileUUID: darwinGlobalProfiles[2].ProfileUUID, ProfileIdentifier: darwinGlobalProfiles[2].Identifier,
-			Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
+			Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
 		},
 	})
 	require.NoError(t, err)
@@ -5354,7 +5390,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 1"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5391,7 +5427,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 2"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5470,7 +5506,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 3"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5566,7 +5602,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 4"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team
@@ -5649,7 +5685,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 5"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5704,9 +5740,11 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				ProfileName:        profiles[0].Name,
 				HostUUID:           host.UUID,
 				CommandUUID:        uuid.NewString(),
+				Checksum:           profiles[0].Checksum,
 				VariablesUpdatedAt: &overrideEarliestInstallDate,
 				Status:             &fleet.MDMDeliveryVerified,
 				OperationType:      fleet.MDMOperationTypeInstall,
+				Scope:              fleet.PayloadScopeSystem,
 			},
 			{
 				ProfileUUID:       profiles[1].ProfileUUID,
@@ -5714,8 +5752,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				ProfileName:       profiles[1].Name,
 				HostUUID:          host.UUID,
 				CommandUUID:       uuid.NewString(),
+				Checksum:          profiles[1].Checksum,
 				Status:            &fleet.MDMDeliveryVerified,
 				OperationType:     fleet.MDMOperationTypeInstall,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 		})
 		require.NoError(t, err)
@@ -5737,7 +5777,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 6"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// Include any labels
@@ -5851,7 +5891,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 1"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5888,7 +5928,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 2"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -5967,7 +6007,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 3"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -6063,7 +6103,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 4"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// create profiles for team
@@ -6146,7 +6186,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 5"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 		require.NoError(t, err)
 
 		// Include any labels
@@ -6430,6 +6470,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			TeamID: nil,
 			SyncML: []byte("<Replace></Replace>"),
 		},
+		nil,
 	)
 	require.NoError(t, err)
 	otherWinProfile, err := ds.NewMDMWindowsConfigProfile(
@@ -6439,6 +6480,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			TeamID: nil,
 			SyncML: []byte("<Replace></Replace>"),
 		},
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -6754,9 +6796,10 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 func testMDMEULA(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	eula := &fleet.MDMEULA{
-		Token: uuid.New().String(),
-		Name:  "eula.pdf",
-		Bytes: []byte("contents"),
+		Token:  uuid.New().String(),
+		Name:   "eula.pdf",
+		Bytes:  []byte("contents"),
+		Sha256: []byte("test-sha256"),
 	}
 
 	err := ds.MDMInsertEULA(ctx, eula)
@@ -6808,7 +6851,8 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 			Subject: pkix.Name{
 				CommonName: "Fleet Identity",
 			},
-			NotAfter: notAfter,
+			NotBefore: time.Now().Add(-24 * time.Hour),
+			NotAfter:  notAfter,
 			// use a random value, just to make sure they're
 			// different from each other, we don't care about the
 			// DER contents here
@@ -6840,7 +6884,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	}
 
 	var i int
-	setHost := func(notAfter time.Time) *fleet.Host {
+	setHost := func(notAfter time.Time, doUserDeviceEnrollment bool) *fleet.Host {
 		i++
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("test-host%d-name", i),
@@ -6853,19 +6897,26 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 
 		// create a cert + association
 		addCert(notAfter, h)
-		nanoEnroll(t, ds, h, false)
+		if doUserDeviceEnrollment {
+			nanoEnrollUserDevice(t, ds, h)
+		} else {
+			nanoEnroll(t, ds, h, true)
+		}
 		return h
 	}
 
 	// certs expired at lest 1 year ago
-	h1 := setHost(time.Now().AddDate(-1, -3, 0))
-	h2 := setHost(time.Now().AddDate(-1, -2, 0))
+	h1 := setHost(time.Now().AddDate(-1, -3, 0), false)
+	h2 := setHost(time.Now().AddDate(-1, -2, 0), false)
 	// cert that expires in 1 month
-	h3 := setHost(time.Now().AddDate(0, 1, 0))
+	h3 := setHost(time.Now().AddDate(0, 1, 0), false)
+	// User Enrollment (Device) cert that expires in 1 month and 1 day just
+	// so we can add some assertions on the returned enrollment type
+	h4 := setHost(time.Now().AddDate(0, 1, 1), true)
 	// cert that expires in 1 year
-	h4 := setHost(time.Now().AddDate(1, 0, 0))
+	h5 := setHost(time.Now().AddDate(1, 0, 0), false)
 	// expired cert for a host migrated using touchless migration
-	hMigrated := setHost(time.Now().AddDate(-1, -1, 0))
+	hMigrated := setHost(time.Now().AddDate(-1, -1, 0), false)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
                   UPDATE nano_enrollments
@@ -6893,56 +6944,72 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	// list certs that expire in the next 50 days
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 50, 100)
 	require.NoError(t, err)
-	require.Len(t, assocs, 4)
+	require.Len(t, assocs, 5)
 	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	assert.Equal(t, "Device", assocs[0].EnrollmentType)
 	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	assert.Equal(t, "Device", assocs[1].EnrollmentType)
 	require.Equal(t, hMigrated.UUID, assocs[2].HostUUID)
+	assert.Equal(t, "Device", assocs[2].EnrollmentType)
 	require.Equal(t, h3.UUID, assocs[3].HostUUID)
+	assert.Equal(t, "Device", assocs[3].EnrollmentType)
+	require.Equal(t, h4.UUID, assocs[4].HostUUID)
+	assert.Equal(t, "User Enrollment (Device)", assocs[4].EnrollmentType)
 
 	// list certs that expire in the next 1000 days
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
 	require.NoError(t, err)
-	require.Len(t, assocs, 5)
+	require.Len(t, assocs, 6)
 	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	assert.Equal(t, "Device", assocs[0].EnrollmentType)
 	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	assert.Equal(t, "Device", assocs[1].EnrollmentType)
 	require.Equal(t, hMigrated.UUID, assocs[2].HostUUID)
+	assert.Equal(t, "Device", assocs[2].EnrollmentType)
 	require.Equal(t, h3.UUID, assocs[3].HostUUID)
+	assert.Equal(t, "Device", assocs[3].EnrollmentType)
 	require.Equal(t, h4.UUID, assocs[4].HostUUID)
+	assert.Equal(t, "User Enrollment (Device)", assocs[4].EnrollmentType)
+	require.Equal(t, h5.UUID, assocs[5].HostUUID)
+	assert.Equal(t, "Device", assocs[5].EnrollmentType)
 
 	// add a new host with a very old expiriy so it shows first, verify
 	// that it's present before deleting it.
-	h5 := setHost(time.Now().AddDate(-2, -1, 0))
+	h6 := setHost(time.Now().AddDate(-2, -1, 0), false)
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
 	require.NoError(t, err)
-	require.Len(t, assocs, 6)
-	require.Equal(t, h5.UUID, assocs[0].HostUUID)
+	require.Len(t, assocs, 7)
+	require.Equal(t, h6.UUID, assocs[0].HostUUID)
 	require.Equal(t, h1.UUID, assocs[1].HostUUID)
 	require.Equal(t, h2.UUID, assocs[2].HostUUID)
 	require.Equal(t, hMigrated.UUID, assocs[3].HostUUID)
 	require.Equal(t, h3.UUID, assocs[4].HostUUID)
 	require.Equal(t, h4.UUID, assocs[5].HostUUID)
+	require.Equal(t, h5.UUID, assocs[6].HostUUID)
 
 	// delete the host and verify that things work as expected
 	// see https://github.com/fleetdm/fleet/issues/19149
-	require.NoError(t, ds.DeleteHost(ctx, h5.ID))
+	require.NoError(t, ds.DeleteHost(ctx, h6.ID))
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
 	require.NoError(t, err)
-	require.Len(t, assocs, 5)
+	require.Len(t, assocs, 6)
 	require.Equal(t, h1.UUID, assocs[0].HostUUID)
 	require.Equal(t, h2.UUID, assocs[1].HostUUID)
 	require.Equal(t, hMigrated.UUID, assocs[2].HostUUID)
 	require.Equal(t, h3.UUID, assocs[3].HostUUID)
 	require.Equal(t, h4.UUID, assocs[4].HostUUID)
+	require.Equal(t, h5.UUID, assocs[5].HostUUID)
 
 	// add a second expired cert to one of the hosts
 	addCert(time.Now().AddDate(-1, 0, 0), h1)
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
-	require.Len(t, assocs, 5)
+	require.Len(t, assocs, 6)
 	require.Equal(t, h2.UUID, assocs[0].HostUUID)
 	require.Equal(t, hMigrated.UUID, assocs[1].HostUUID)
 	require.Equal(t, h1.UUID, assocs[2].HostUUID)
 	require.Equal(t, h3.UUID, assocs[3].HostUUID)
 	require.Equal(t, h4.UUID, assocs[4].HostUUID)
+	require.Equal(t, h5.UUID, assocs[5].HostUUID)
 
 	checkSCEPRenew := func(assoc fleet.SCEPIdentityAssociation, want *string) {
 		var got *string
@@ -6974,6 +7041,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	checkSCEPRenew(assocs[2], nil)
 	checkSCEPRenew(assocs[3], nil)
 	checkSCEPRenew(assocs[4], nil)
+	checkSCEPRenew(assocs[5], nil)
 	require.NoError(t, err)
 
 	err = ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{assocs[0]}, "foo")
@@ -6983,6 +7051,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	checkSCEPRenew(assocs[2], nil)
 	checkSCEPRenew(assocs[3], nil)
 	checkSCEPRenew(assocs[4], nil)
+	checkSCEPRenew(assocs[5], nil)
 
 	err = ds.SetCommandForPendingSCEPRenewal(ctx, assocs, "bar")
 	require.NoError(t, err)
@@ -6990,6 +7059,8 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	checkSCEPRenew(assocs[1], ptr.String("bar"))
 	checkSCEPRenew(assocs[2], ptr.String("bar"))
 	checkSCEPRenew(assocs[3], ptr.String("bar"))
+	checkSCEPRenew(assocs[4], ptr.String("bar"))
+	checkSCEPRenew(assocs[5], ptr.String("bar"))
 
 	err = ds.SetCommandForPendingSCEPRenewal(
 		ctx,
@@ -7157,12 +7228,46 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 			default:
 				require.FailNow(t, "unknown profile type")
 			}
-			stmt := fmt.Sprintf(
-				`INSERT INTO %s (host_uuid, %s_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
-				table,
-				profType,
-			)
-			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+
+			var stmt string
+			var err error
+			switch {
+			case table == "host_mdm_apple_profiles":
+				// Apple profiles require profile_identifier, checksum, and command_uuid
+				commandUUID := "cmd-" + profUUID
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status, profile_identifier, checksum, command_uuid) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				testChecksum := test.MakeTestBytes() // 16 bytes for checksum
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, "com.test."+profUUID, testChecksum, commandUUID, status)
+			case table == "host_mdm_apple_declarations":
+				// Apple declarations require declaration_identifier and token
+				testToken := test.MakeTestBytes() // 16 bytes for token
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status, declaration_identifier, token) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, "com.test."+profUUID, testToken, status)
+			case strings.HasPrefix(profUUID, "w"):
+				// Windows profiles require command_uuid
+				commandUUID := "cmd-" + profUUID
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status, command_uuid) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, commandUUID, status)
+			default:
+				stmt = fmt.Sprintf(
+					`INSERT INTO %s (host_uuid, %s_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+					table,
+					profType,
+				)
+				_, err = q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			}
 			if err != nil {
 				require.NoError(t, err)
 				return err
@@ -7265,6 +7370,7 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 				false,
 				fleet.WellKnownMDMFleet,
 				"",
+				false,
 			),
 		)
 	}
@@ -7465,7 +7571,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, connectedMac, false)
-	err = ds.SetOrUpdateMDMData(ctx, connectedMac.ID, false, true, "http://foo.com", false, "foo", "")
+	err = ds.SetOrUpdateMDMData(ctx, connectedMac.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
 	disconnectedWithoutCheckoutMac, err := ds.NewHost(ctx, &fleet.Host{
@@ -7477,7 +7583,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, disconnectedWithoutCheckoutMac, false)
-	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutMac.ID, false, false, "", false, "", "")
+	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutMac.ID, false, false, "", false, "", "", false)
 	require.NoError(t, err)
 
 	notConnectedWin, err := ds.NewHost(ctx, &fleet.Host{
@@ -7513,7 +7619,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, connectedWin.ID, false, true, "http://foo.com", false, "foo", "")
+	err = ds.SetOrUpdateMDMData(ctx, connectedWin.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
 	disconnectedWithoutCheckoutWin, err := ds.NewHost(ctx, &fleet.Host{
@@ -7539,7 +7645,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollmentDisconnectedWithoutCheckout)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutWin.ID, false, false, "", false, "", "")
+	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutWin.ID, false, false, "", false, "", "", false)
 	require.NoError(t, err)
 
 	connectedMap, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
@@ -7605,10 +7711,27 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.False(t, connected)
 
 	nanoEnroll(t, ds, macH, false)
-	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, true, "http://foo.com", false, "foo", "")
+	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, macH)
+	require.NoError(t, err)
+	require.True(t, connected)
+
+	byodIpadH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "ipados-test",
+		OsqueryHostID: ptr.String("osquery-ipados"),
+		NodeKey:       ptr.String("node-key-ipados"),
+		UUID:          uuid.NewString(),
+		Platform:      "ipados",
+	})
+	require.NoError(t, err)
+
+	nanoEnrollUserDevice(t, ds, byodIpadH)
+	err = ds.SetOrUpdateMDMData(ctx, byodIpadH.ID, false, true, "http://foo.com", false, "foo", "", false)
+	require.NoError(t, err)
+
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, byodIpadH)
 	require.NoError(t, err)
 	require.True(t, connected)
 
@@ -7639,7 +7762,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, true, "http://foo.com", false, "foo", "")
+	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, true, "http://foo.com", false, "foo", "", false)
 	require.NoError(t, err)
 
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
@@ -7647,9 +7770,9 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.True(t, connected)
 
 	// now simulate an un-enrollment without checkout, in this case, osquery reports the host as not-enrolled
-	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, false, "", false, "", "")
+	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, false, "", false, "", "", false)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, false, "", false, "", "")
+	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, false, "", false, "", "", false)
 	require.NoError(t, err)
 
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, macH)
@@ -7657,6 +7780,16 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.False(t, connected)
 
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
+	require.NoError(t, err)
+	require.False(t, connected)
+
+	// Simulate the ipad checking out(user removing work account)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, byodIpadH.UUID)
+		return err
+	})
+
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, byodIpadH)
 	require.NoError(t, err)
 	require.False(t, connected)
 }
@@ -7729,6 +7862,16 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, appleHost, false)
+
+	// Set LabelUpdatedAt to a time before labels were created to simulate hosts that haven't reported label membership
+	// Use a time in the past (2020) to ensure it's before any label created in this test
+	oldTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	winHost.LabelUpdatedAt = oldTime
+	appleHost.LabelUpdatedAt = oldTime
+	err = ds.UpdateHost(ctx, winHost)
+	require.NoError(t, err)
+	err = ds.UpdateHost(ctx, appleHost)
+	require.NoError(t, err)
 
 	// at this point the hosts have not reported any label results, so a sync
 	// does NOT install the exclude any profiles as we don't know yet if the
@@ -7990,7 +8133,7 @@ func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
 	// create a team and make host4 part of that team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host4.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host4.ID}))
 	require.NoError(t, err)
 
 	// create some profiles , a and b for no team, c for team
@@ -8222,12 +8365,12 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, host8)
 
 	for _, h := range []*fleet.Host{host1, host2, host3, host4, host5, host6, host7, host8} {
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "")
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
 		require.NoError(t, err)
 	}
 
 	// host 4, 5 and 8 are on team
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host4.ID, host5.ID, host8.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host4.ID, host5.ID, host8.ID}))
 	require.NoError(t, err)
 	_, _, _ = host1, host2, host3
 
@@ -8390,7 +8533,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, host4)
 
 	for _, h := range []*fleet.Host{host1, host2, host3, host4} {
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "")
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
 		require.NoError(t, err)
 	}
 

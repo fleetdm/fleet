@@ -37,6 +37,9 @@ module.exports = {
       'Matt Carr',
       'Nico Waisman',
       'Dan Grzelak',
+      'Philip Chotipradit',
+      'Roger Cantrell',
+      'Chayce O\'Neal',
       'u/Heteronymous',
     ];
     let testimonialsForMdm = _.filter(testimonials, (testimonial)=>{

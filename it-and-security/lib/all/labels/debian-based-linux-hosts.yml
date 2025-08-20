@@ -2,4 +2,3 @@
   description: Linux hosts running on Debian-based operating systems
   query: SELECT 1 FROM os_version WHERE platform_like = 'debian';
   label_membership_type: dynamic
-  platform: linux

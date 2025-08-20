@@ -35,7 +35,7 @@ export interface CustomOptionType {
   label: React.ReactNode;
   value: string;
   tooltipContent?: TooltipContent;
-  helpText?: string;
+  helpText?: React.ReactNode;
   isDisabled?: boolean;
   iconName?: IconNames;
 }

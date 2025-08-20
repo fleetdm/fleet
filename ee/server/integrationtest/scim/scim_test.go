@@ -975,11 +975,48 @@ func testCreateUser(t *testing.T, s *Suite) {
 	// Verify externalId is present and correct
 	assert.Equal(t, "external-system-123456", createResp6["externalId"])
 
+	// Test creating a user with department
+	userWithDepartment := map[string]interface{}{
+		"schemas": []string{
+			"urn:ietf:params:scim:schemas:core:2.0:User",
+			"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
+		},
+		"userName": "user-with-department@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "Foo",
+			"familyName": "Bar",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "foobar@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+		"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": map[string]interface{}{
+			"department": "Engineering",
+		},
+	}
+
+	var createResp7 map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithDepartment, http.StatusCreated, &createResp7)
+	assert.Equal(t, "user-with-department@example.com", createResp7["userName"])
+	userID7 := createResp7["id"].(string)
+
+	// Verify department is present and correct
+	m_, ok := createResp7["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]
+	require.True(t, ok)
+	m, ok := m_.(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "Engineering", m["department"])
+
 	// Make sure these users can be deleted.
 	s.Do(t, "DELETE", scimPath("/Users/"+userID3), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID4), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID5), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID6), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Users/"+userID7), nil, http.StatusNoContent)
 }
 
 func testUpdateUser(t *testing.T, s *Suite) {
@@ -1081,6 +1118,26 @@ func testUpdateUser(t *testing.T, s *Suite) {
 
 	// Verify the update was successful.
 	assert.Equal(t, "FiRsT-uSeR@eXaMpLe.CoM", updateResp2["userName"])
+
+	// Test 5: Try to update first user's department (should succeed)
+	schemas_, ok := updatePayload["schemas"]
+	require.True(t, ok)
+	schemas, ok := schemas_.([]string)
+	require.True(t, ok)
+	updatePayload["schemas"] = append(schemas, "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User")
+	updatePayload["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"] = map[string]interface{}{
+		"department": "Engineering",
+	}
+
+	var updateResp3 map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusOK, &updateResp3)
+
+	// Verify the update was successful.
+	m_, ok := updateResp3["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]
+	require.True(t, ok)
+	m, ok := m_.(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "Engineering", m["department"])
 
 	// Delete the users we created.
 	s.Do(t, "DELETE", scimPath("/Users/"+firstUserID), nil, http.StatusNoContent)
@@ -2995,6 +3052,67 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 		assert.Equal(t, "Updates", name["familyName"], "familyName should be updated")
 	})
 
+	t.Run("Patch department", func(t *testing.T) {
+		patchDepartmentPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					"value": map[string]interface{}{
+						"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department": "QA",
+					},
+				},
+			},
+		}
+
+		var patchDepartmentResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchDepartmentPayload, http.StatusOK, &patchDepartmentResp)
+		// Verify department is present and correct
+		m_, ok := patchDepartmentResp["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]
+		require.True(t, ok)
+		m, ok := m_.(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, "QA", m["department"])
+
+		// Now remove department using path.
+		patchDepartmentPayload2 := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "remove",
+					"path": "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department",
+				},
+			},
+		}
+
+		var patchDepartmentResp2 map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchDepartmentPayload2, http.StatusOK, &patchDepartmentResp2)
+		// Verify department is not present (if there are no extension attributes, then the whole map is not there).
+		_, ok = patchDepartmentResp2["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]
+		require.False(t, ok)
+
+		// Now re-add department using path.
+		patchDepartmentPayload3 := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department",
+					"value": "Engineering",
+				},
+			},
+		}
+
+		var patchDepartmentResp3 map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchDepartmentPayload3, http.StatusOK, &patchDepartmentResp3)
+		// Verify department is present and correct
+		m_, ok = patchDepartmentResp3["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]
+		require.True(t, ok)
+		m, ok = m_.(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, "Engineering", m["department"])
+	})
+
 	// ///////////////////////////////////////////////
 	// Tests for patching with explicit operation path
 
@@ -4006,6 +4124,110 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 	var createResp map[string]interface{}
 	s.DoJSON(t, "POST", scimPath("/Groups"), createGroupPayload, http.StatusCreated, &createResp)
 	groupID := createResp["id"].(string)
+
+	t.Run("Deduplicate members in replace payload", func(t *testing.T) {
+		// Setup: Ensure the group has only the first user
+		setupPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "replace",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": userIDs[0],
+						},
+					},
+				},
+			},
+		}
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
+
+		// Verify setup was successful
+		members, ok := setupResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 1, len(members), "Group should have 1 member after setup")
+
+		// Test: Replace payload includes duplicate records of the second user
+		patchAddMemberPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "replace",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": userIDs[1],
+						},
+						{
+							"value": userIDs[0],
+						},
+						{
+							"value": userIDs[1], // Duplicate
+						},
+					},
+				},
+			},
+		}
+
+		var patchResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchAddMemberPayload, http.StatusOK, &patchResp)
+
+		// Verify the member was added
+		members, ok = patchResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 3, len(members), "Group should now have 3 members") // FIXME: Response generated with createGroupResource echoes members from request prior to deduplication. Is this expected?
+
+		// Check that both users are in the members list
+		memberValues := make([]string, 0, len(members))
+		for _, m := range members {
+			member, ok := m.(map[string]interface{})
+			assert.True(t, ok, "Member should be an object")
+			memberValues = append(memberValues, member["value"].(string))
+		}
+		assert.ElementsMatch(t, memberValues, []string{userIDs[1], userIDs[0], userIDs[1]}) // FIXME: See above
+
+		// Test: Replace payload omits path includes duplicate records of the third user
+		patchAddMemberPayload = map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					"value": map[string]interface{}{
+						"members": []map[string]interface{}{
+							{
+								"value": userIDs[2],
+							},
+							{
+								"value": userIDs[0],
+							},
+							{
+								"value": userIDs[2], // Duplicate
+							},
+						},
+					},
+				},
+			},
+		}
+
+		patchResp = map[string]interface{}{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchAddMemberPayload, http.StatusOK, &patchResp)
+
+		// Verify the member was added
+		members, ok = patchResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 3, len(members), "Group should now have 3 members") // FIXME: Response generated with createGroupResource echoes members from request prior to deduplication. Is this expected?
+
+		// Check that both users are in the members list
+		memberValues = make([]string, 0, len(members))
+		for _, m := range members {
+			member, ok := m.(map[string]interface{})
+			assert.True(t, ok, "Member should be an object")
+			memberValues = append(memberValues, member["value"].(string))
+		}
+		assert.ElementsMatch(t, memberValues, []string{userIDs[2], userIDs[0], userIDs[2]}) // FIXME: See above
+	})
 
 	t.Run("Add a member using path filtering", func(t *testing.T) {
 		// Setup: Ensure the group has only the first user

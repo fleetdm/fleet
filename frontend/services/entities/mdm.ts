@@ -66,6 +66,7 @@ export interface IAppleSetupEnrollmentProfileResponse {
 
 export interface IMDMSSOParams {
   deviceinfo: string;
+  initiator: string;
 }
 
 export interface IMDMAppleEnrollmentProfileParams {

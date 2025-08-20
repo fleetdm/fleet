@@ -37,12 +37,35 @@ const generateUnsupportedVariableErrMsg = (errMsg: string) => {
     : DEFAULT_ERROR_MESSAGE;
 };
 
-const generateLearnMoreErrMsg = (errMsg: string, learnMoreUrl: string) => {
+const generateSCEPLearnMoreErrMsg = (errMsg: string, learnMoreUrl: string) => {
   return (
     <>
       Couldn&apos;t add. {errMsg}{" "}
       <CustomLink
         url={learnMoreUrl}
+        text="Learn more"
+        variant="flash-message-link"
+        newTab
+      />
+    </>
+  );
+};
+
+const generateUserChannelLearnMoreErrMsg = (errMsg: string) => {
+  // The errors from the API for these errors contain couldn't add/couldn't edit
+  // depending on context so no need to include it here but we do want to remove
+  // the learn more link from the actual error since we will add a nicely formatted
+  // link to the error message.
+  if (errMsg.includes(" Learn more: https://")) {
+    errMsg = errMsg.substring(0, errMsg.indexOf(" Learn more: https://"));
+  }
+  return (
+    <>
+      {errMsg}{" "}
+      <CustomLink
+        url={
+          "https://fleetdm.com/learn-more-about/configuration-profiles-user-channel"
+        }
         text="Learn more"
         variant="flash-message-link"
         newTab
@@ -115,7 +138,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
       "can't be used if variables for SCEP URL and Challenge are not specified"
     )
   ) {
-    return generateLearnMoreErrMsg(
+    return generateSCEPLearnMoreErrMsg(
       apiReason,
       "https://fleetdm.com/learn-more-about/certificate-authorities"
     );
@@ -126,7 +149,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
       "SCEP profile for custom SCEP certificate authority requires"
     )
   ) {
-    return generateLearnMoreErrMsg(
+    return generateSCEPLearnMoreErrMsg(
       apiReason,
       "https://fleetdm.com/learn-more-about/custom-scep-configuration-profile"
     );
@@ -137,10 +160,14 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
       "SCEP profile for NDES certificate authority requires: $FLEET_VAR_NDES_SCEP_CHALLENGE"
     )
   ) {
-    return generateLearnMoreErrMsg(
+    return generateSCEPLearnMoreErrMsg(
       apiReason,
       "https://fleetdm.com/learn-more-about/ndes-scep-configuration-profile"
     );
+  }
+
+  if (apiReason.includes('"PayloadScope"')) {
+    return generateUserChannelLearnMoreErrMsg(apiReason);
   }
 
   return `${apiReason}` || DEFAULT_ERROR_MESSAGE;

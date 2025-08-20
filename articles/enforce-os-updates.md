@@ -58,7 +58,7 @@ End users are encouraged to update Windows via the native Windows dialog.
 
 If an end user was on vacation when the deadline passed, the end user is given a grace period (configured) before the host automatically restarts.
 
-Fleet enforces OS updates for quality and feature updates. Microsoft provides documentation on [types of Windows updates](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
+Fleet enforces OS updates for [quality and feature updates](https://github.com/fleetdm/fleet/blob/ca865af01312728997ea6526c548246ab98955fb/ee/server/service/mdm_profiles.go#L106). Microsoft provides documentation on [types of Windows updates](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
 
 ### macOS (below version 14.0)
 

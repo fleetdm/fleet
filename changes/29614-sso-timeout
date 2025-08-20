@@ -1,1 +1,0 @@
-* Added `FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD` environment variable for overriding how long end users have to complete SSO.

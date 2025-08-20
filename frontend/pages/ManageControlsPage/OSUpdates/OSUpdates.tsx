@@ -3,6 +3,8 @@ import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
@@ -46,7 +48,13 @@ interface IOSUpdates {
 }
 
 const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
-  const { isPremiumTier, config, setConfig } = useContext(AppContext);
+  const {
+    isPremiumTier,
+    isGlobalAdmin,
+    isTeamAdmin,
+    config,
+    setConfig,
+  } = useContext(AppContext);
 
   const [
     selectedPlatformTab,
@@ -54,7 +62,6 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   ] = useState<OSUpdatesTargetPlatform | null>(null);
 
   const {
-    isError: isErrorConfig,
     isFetching: isFetchingConfig,
     isLoading: isLoadingConfig,
     refetch: refetchAppConfig,
@@ -66,7 +73,6 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
 
   const {
     data: teamConfig,
-    isError: isErrorTeamConfig,
     isFetching: isFetchingTeamConfig,
     isLoading: isLoadingTeam,
     refetch: refetchTeamConfig,
@@ -89,12 +95,24 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     );
   }
 
-  if (isLoadingConfig || isLoadingTeam) return <Spinner />;
+  if (isLoadingConfig || isLoadingTeam || isFetchingTeamConfig) {
+    return <Spinner />;
+  }
+
+  // Only global or team admins have access to the OS updates settings.
+  // This check needs to come after the team config is loaded so that we have the correct
+  // values for isGlobalAdmin and isTeamAdmin. These values are updated after
+  // the team config is loaded.
+  if (!isGlobalAdmin && !isTeamAdmin) {
+    router.replace(
+      getPathWithQueryParams(PATHS.CONTROLS_OS_SETTINGS, {
+        team_id: teamIdForApi,
+      })
+    );
+  }
 
   // FIXME: Handle error states for app config and team config (need specifications for this).
-
   // mdm is not enabled for mac or windows.
-
   if (
     !config?.mdm.enabled_and_configured &&
     !config?.mdm.windows_enabled_and_configured

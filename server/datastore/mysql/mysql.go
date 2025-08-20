@@ -17,6 +17,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	hostidscepdepot "github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/depot"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -183,10 +184,16 @@ func (ds *Datastore) deleteCachedStmt(query string) {
 	}
 }
 
-// NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
+// NewSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
 	return newSCEPDepot(ds.primary.DB, ds)
+}
+
+// NewHostIdentitySCEPDepot returns a scep_depot.Depot for host identity certs that uses the Datastore
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewHostIdentitySCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+	return hostidscepdepot.NewHostIdentitySCEPDepot(ds.primary, ds, logger, cfg)
 }
 
 type entity struct {

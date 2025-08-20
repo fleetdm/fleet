@@ -1,20 +1,23 @@
 import { IconNames } from "components/icons";
-import { SoftwareInstallStatus } from "interfaces/software";
+import {
+  SoftwareInstallStatus,
+  SoftwareUninstallStatus,
+} from "interfaces/software";
 
 export const INSTALL_DETAILS_STATUS_ICONS: Record<
-  SoftwareInstallStatus,
+  SoftwareInstallStatus | SoftwareUninstallStatus, // former is superset of latter, latter included in union for type system
   IconNames
 > = {
   pending_install: "pending-outline",
-  installed: "success-outline",
-  uninstalled: "success-outline",
-  failed_install: "error-outline",
+  installed: "success",
+  uninstalled: "success",
+  failed_install: "error",
   pending_uninstall: "pending-outline",
-  failed_uninstall: "error-outline",
+  failed_uninstall: "error",
 } as const;
 
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<
-  SoftwareInstallStatus,
+  SoftwareInstallStatus | SoftwareUninstallStatus, // former is superset of latter, latter included in union for type system
   string
 > = {
   pending_install: "is installing or will install",
@@ -37,9 +40,3 @@ export const getInstallDetailsStatusPredicate = (
     ] || INSTALL_DETAILS_STATUS_PREDICATES.pending_install
   );
 };
-
-export const SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS = {
-  pre_install_query_output: "Pre-install condition",
-  output: "Software install output",
-  post_install_script_output: "Post-install script output",
-} as const;

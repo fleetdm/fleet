@@ -38,6 +38,7 @@ func TestTeams(t *testing.T) {
 		{"TestTeamsNameUnicode", testTeamsNameUnicode},
 		{"TestTeamsNameEmoji", testTeamsNameEmoji},
 		{"TestTeamsNameSort", testTeamsNameSort},
+		{"TeamIDsWithSetupExperienceIdPEnabled", testTeamIDsWithSetupExperienceIdPEnabled},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -94,13 +95,14 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				Name:   "abc",
 				TeamID: &team.ID,
 				SyncML: []byte(`<Replace></Replace>`),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			dec, err := ds.NewMDMAppleDeclaration(context.Background(), &fleet.MDMAppleDeclaration{
 				Identifier: "decl-1",
 				Name:       "decl-1",
 				TeamID:     &team.ID,
+				RawJSON:    json.RawMessage(`{"Type": "com.apple.configuration.test", "Identifier": "decl-1"}`),
 			})
 			require.NoError(t, err)
 
@@ -210,8 +212,8 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "1", "1", "1", "1", time.Now())
 	host2 := test.NewHost(t, ds, "2", "2", "2", "2", time.Now())
 	host3 := test.NewHost(t, ds, "3", "3", "3", "3", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{host2.ID, host3.ID}))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host2.ID, host3.ID})))
 
 	team1.Users = []fleet.TeamUser{
 		{User: user1, Role: "maintainer"},
@@ -736,4 +738,71 @@ func testTeamsNameSort(t *testing.T, ds *Datastore) {
 	for i, item := range teams {
 		assert.Equal(t, item.Name, results[i].Name)
 	}
+}
+
+func testTeamIDsWithSetupExperienceIdPEnabled(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// no team exists (well, except "no team" but not enabled there)
+	teamIDs, err := ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.Empty(t, teamIDs)
+
+	// create a couple teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "A"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "B"})
+	require.NoError(t, err)
+
+	// still no team with IdP enabled
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.Empty(t, teamIDs)
+	_, _ = team1, team2
+
+	// enable it for "No team"
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{0}, teamIDs)
+
+	// enable it for team1
+	team1.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	_, err = ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{0, team1.ID}, teamIDs)
+
+	// enable it for team2
+	team2.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	_, err = ds.SaveTeam(ctx, team2)
+	require.NoError(t, err)
+
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{0, team1.ID, team2.ID}, teamIDs)
+
+	// disable it for team1
+	team1.Config.MDM.MacOSSetup.EnableEndUserAuthentication = false
+	_, err = ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{0, team2.ID}, teamIDs)
+
+	// delete team2
+	err = ds.DeleteTeam(ctx, team2.ID)
+	require.NoError(t, err)
+
+	teamIDs, err = ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{0}, teamIDs)
 }

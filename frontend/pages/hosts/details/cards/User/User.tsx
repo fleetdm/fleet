@@ -55,6 +55,10 @@ const User = ({
   const showGroups = showUsername && userNameDisplayValues.length > 0;
   const showChromeProfiles = chromeProfilesDisplayValues.length > 0;
   const showOtherEmails = otherEmailsDisplayValues.length > 0;
+  const userDepartment = [];
+  if (endUser?.idp_department) {
+    userDepartment.push(endUser.idp_department);
+  }
 
   return (
     <Card
@@ -116,6 +120,16 @@ const User = ({
               )
             }
             value={<UserValue values={generateGroupsValues(endUsers)} />}
+          />
+        )}
+        {showUsername && (
+          <DataSet
+            title={
+              <TooltipWrapper tipContent='This is the "department" collected from your IdP.'>
+                Department (IdP)
+              </TooltipWrapper>
+            }
+            value={<UserValue values={userDepartment} />}
           />
         )}
         {showChromeProfiles && (

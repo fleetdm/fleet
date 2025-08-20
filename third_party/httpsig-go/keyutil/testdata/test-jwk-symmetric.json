@@ -1,0 +1,5 @@
+{
+    "kty": "oct",
+    "kid": "test-symmetric-key",
+    "k": "QYPe3dGeFrKhEEK4CSr9_nES-ExXI9Nw"
+}

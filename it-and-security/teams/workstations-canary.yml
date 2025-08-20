@@ -17,6 +17,7 @@ team_settings:
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET
   integrations:
+    conditional_access_enabled: true
     google_calendar:
       enable_calendar_events: true
       webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
@@ -74,6 +75,9 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
+      - path: ../lib/macos/configuration-profiles/company-portal-sso-extension.mobileconfig
+        labels_include_any:
+          - "Conditional access test group"
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig
@@ -88,6 +92,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+      - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
       - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
@@ -104,13 +109,16 @@ controls:
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
         labels_include_any:
           - "Santa test devices"
+      - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
+        labels_include_any:
+          - "Nudge test devices"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2025-06-08"
-    minimum_version: "15.5"
+    deadline: "2025-08-31"
+    minimum_version: "15.6"
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
@@ -131,6 +139,7 @@ controls:
     - path: ../lib/macos/scripts/santa-block-script.sh
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     - path: ../lib/macos/scripts/install-wine.sh
+    - path: ../lib/macos/scripts/create-conditional-access-allow-file.sh
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
@@ -139,6 +148,8 @@ controls:
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
     - path: ../lib/macos/scripts/install-santa-extension.sh
+    - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
+    - path: ../lib/macos/scripts/install-nudge.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -150,6 +161,10 @@ policies:
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-santa-extension.yml
+  - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
+  - path: ../lib/macos/policies/company-portal-installed.yml
+  - path: ../lib/macos/policies/entra-conditional-access-check.yml
+  - path: ../lib/macos/policies/install-nudge.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
@@ -167,7 +182,10 @@ software:
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
     - path: ../lib/macos/software/santa.yml # Santa for macOS
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
-    - path: ../lib/macos/software/fleet_keynote_theme.yml # Fleet Keynote theme for macOS
+    - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
+    - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
+    - path: ../lib/macos/software/nudge.yml # Nudge for macOS 
+    - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu

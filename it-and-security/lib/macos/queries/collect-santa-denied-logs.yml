@@ -3,7 +3,7 @@
   description: Collects all Santa denied logs from macOS hosts.
   discard_data: false
   interval: 300
-  logging: snapshot
+  logging: differential
   observer_can_run: true
   platform: "darwin"
   query: SELECT * FROM santa_denied;

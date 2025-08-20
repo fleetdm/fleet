@@ -303,7 +303,9 @@ func TestGetHosts(t *testing.T) {
 					CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
 					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
 				},
-				HostSoftware:    fleet.HostSoftware{},
+				HostSoftware: fleet.HostSoftware{
+					Software: []fleet.HostSoftwareEntry{},
+				},
 				DetailUpdatedAt: time.Time{},
 				LabelUpdatedAt:  time.Time{},
 				LastEnrolledAt:  time.Time{},
@@ -317,7 +319,9 @@ func TestGetHosts(t *testing.T) {
 					CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
 					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
 				},
-				HostSoftware:    fleet.HostSoftware{},
+				HostSoftware: fleet.HostSoftware{
+					Software: []fleet.HostSoftwareEntry{},
+				},
 				DetailUpdatedAt: time.Time{},
 				LabelUpdatedAt:  time.Time{},
 				LastEnrolledAt:  time.Time{},
@@ -337,7 +341,9 @@ func TestGetHosts(t *testing.T) {
 				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
 				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
 			},
-			HostSoftware:    fleet.HostSoftware{},
+			HostSoftware: fleet.HostSoftware{
+				Software: []fleet.HostSoftwareEntry{},
+			},
 			DetailUpdatedAt: time.Time{},
 			LabelUpdatedAt:  time.Time{},
 			LastEnrolledAt:  time.Time{},
@@ -400,6 +406,10 @@ func TestGetHosts(t *testing.T) {
 
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
+	}
+
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
 	}
 
 	expectedText := `+------+------------+----------+-----------------+---------+
@@ -508,7 +518,9 @@ func TestGetHostsMDM(t *testing.T) {
 					CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
 					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
 				},
-				HostSoftware:    fleet.HostSoftware{},
+				HostSoftware: fleet.HostSoftware{
+					Software: []fleet.HostSoftwareEntry{},
+				},
 				DetailUpdatedAt: time.Time{},
 				LabelUpdatedAt:  time.Time{},
 				LastEnrolledAt:  time.Time{},
@@ -522,7 +534,9 @@ func TestGetHostsMDM(t *testing.T) {
 					CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
 					UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
 				},
-				HostSoftware:    fleet.HostSoftware{},
+				HostSoftware: fleet.HostSoftware{
+					Software: []fleet.HostSoftwareEntry{},
+				},
 				DetailUpdatedAt: time.Time{},
 				LabelUpdatedAt:  time.Time{},
 				LastEnrolledAt:  time.Time{},

@@ -12,6 +12,16 @@
   },
   {
     "software": {
+      "name": ["vault"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["vault"],
+      "vendor": ["hashicorp"]
+    }
+  },
+  {
+    "software": {
       "name": ["pass"],
       "source": ["homebrew_packages"]
     },

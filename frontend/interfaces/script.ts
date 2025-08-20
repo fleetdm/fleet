@@ -11,6 +11,12 @@ export interface IScript {
 export const isScriptSupportedPlatform = (hostPlatform: string) =>
   ["darwin", "windows", ...HOST_LINUX_PLATFORMS].includes(hostPlatform); // excludes chrome, ios, ipados, android see also https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L775
 
+export const addTeamIdCriteria = (
+  pred: any,
+  teamId: number,
+  isFreeTier?: boolean
+) => (isFreeTier ? { ...pred } : { ...pred, team_id: teamId });
+
 export type IScriptExecutionStatus = "ran" | "pending" | "error";
 
 export interface ILastExecution {
@@ -26,3 +32,12 @@ export interface IHostScript {
   name: string;
   last_execution: ILastExecution | null;
 }
+
+const SCRIPT_BATCH_STATUSES = ["started", "scheduled", "finished"] as const;
+export type ScriptBatchStatus = typeof SCRIPT_BATCH_STATUSES[number];
+
+export const isValidScriptBatchStatus = (
+  status: string | null | undefined
+): status is ScriptBatchStatus => {
+  return SCRIPT_BATCH_STATUSES.includes((status ?? "") as ScriptBatchStatus);
+};

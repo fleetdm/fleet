@@ -1,3 +1,47 @@
+## Orbit 1.46.0 (Aug 15, 2025)
+
+* Added support for fleetd TUF extensions on Linux arm64 and Windows arm64 devices.
+
+* Fixed Fleet Desktop offline indicator to be less sensitive to transient network failures and faster recovery when connectivity is restored.
+
+* Fixed bug on Fleet Desktop, 'About Fleet' menu item was not showing after the host is back online.
+
+* Switched to `runuser` and `runcon` to launch fleet desktop with the correct SELinux context and user.
+
+* Added support to generate a TPM 2.0 private key and issue a SCEP certificate for signing of HTTP requests (via new environment variable `ORBIT_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE`).
+
+* Added new Orbit config flag, set if Disk Encryption is enforced enabled and the require BitLocker PIN flag is set.
+
+* Added new fleetd table 'bitlocker_key_protectors' that returns what key protectors are setup on the system.
+
+* Fixed an issue where Fleet Desktop would stop showing "Migrate to Fleet" for several minutes every hour after a device token refresh.
+
+* Fixed tarball extraction failures due to unknown TAR headers.
+
+* Fixed tarball extraction failures on archives that don't include a parent directory header before files in that directory.
+
+* Updated go to 1.24.5.
+
+* Fixed bug with `mdm_bridge` Orbit table that caused panics due to invalid COM initialization.
+
+## Orbit 1.45.1 (Jul 14th, 2025)
+
+* Added feature for showing an informational message on Fleet Desktop if the host cannot connect to Fleet.
+
+* Added new flag `--fleet-certificate` to `sudo orbit shell` command (which sets osquery's `--tls_server_certs` flag).
+
+* Fixed issue with macOS MDM migration where fleetd did not fallback to parsing the `ConfigurationURL` when `ConfigurationWebURL` was not set in the MDM enrollment profile.
+
+* Added the `macos_user_profiles` osquery extension table on darwin.
+
+* Fixed an issue where Orbit would attempt to launch Fleet Desktop on Linux systems without a logged-in GUI user.
+
+## Orbit 1.44.0 (Jun 26, 2025)
+
+* Added `app_sso_platform` table to get Platform SSO extensions state information.
+
+* Updated go to 1.24.4
+
 ## Orbit 1.43.0 (Jun 10, 2025)
 
 * Fixed an issue where the setup experience window would never finish and close if a software installer was deleted while it was running.

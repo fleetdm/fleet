@@ -86,10 +86,11 @@ func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 
 	// MSI installer product information properties: https://learn.microsoft.com/en-us/windows/win32/msi/property-reference#product-information-properties
 	return &InstallerMetadata{
-		Name:       strings.TrimSpace(productName),
-		Version:    strings.TrimSpace(props["ProductVersion"]),
-		PackageIDs: []string{strings.TrimSpace(props["ProductCode"])},
-		SHASum:     h.Sum(nil),
+		Name:        strings.TrimSpace(productName),
+		Version:     strings.TrimSpace(props["ProductVersion"]),
+		PackageIDs:  []string{strings.TrimSpace(props["ProductCode"])},
+		UpgradeCode: strings.TrimSpace(props["UpgradeCode"]),
+		SHASum:      h.Sum(nil),
 	}, nil
 }
 

@@ -277,6 +277,24 @@
   waysToUse:
     - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2025-03-31)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
+- industryName: Work profiles for personal (BYOD) Android
+  description: Separate work data and apps from personal ones with work profiles on personal Android devices.
+  documentationUrl: https://fleetdm.com/guides/android-mdm-setup
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+- industryName: Account-based user enrollment for iOS/iPadOS
+  description: Manage work data on personally-owned (BYOD) iPhones and iPads using a user’s managed Apple Account, without accessing personal apps or data.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/27390
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
 #  
 #  ╦ ╦╔═╗╔═╗╦═╗  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗  ╔═╗╦ ╦╔╗╔╔═╗
 #  ║ ║╚═╗║╣ ╠╦╝  ╠═╣║  ║  ║ ║║ ║║║║ ║   ╚═╗╚╦╝║║║║  
@@ -430,7 +448,7 @@
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣   ║ ║╚═╗  ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
 - industryName: Enforce OS settings
-  description: MDM support for macOS, iOS/iPadOS, Windows, and Android (coming soon) devices. Management support for Linux.
+  description: Using configuration profiles, enforce OS settings like security restrictions, screen lock, Wi-Fi, and more on macOS, iOS, iPadOS, Windows, and Android (coming soon) devices. Using scripts, enforce OS settings on Linux devices.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
   usualDepartment: IT
   tier: Free

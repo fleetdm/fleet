@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
@@ -618,6 +619,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		if gitopsRepoURL == "" {
 			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
+		}
+		parsedURL, err := url.Parse(gitopsRepoURL)
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("UI Gitops Mode: ", "Repository URL is invalid")
+		}
+		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+			return nil, fleet.NewInvalidArgumentError("UI Gitops Mode: ", "Git repository URL must include protocol (e.g. https://)")
 		}
 	}
 
@@ -1400,10 +1408,10 @@ func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
 		invalid.Append("integrations.digicert.certificate_common_name", "CA Common Name (CN) cannot be empty")
 		return false
 	}
-	fleetVars := findFleetVariables(cn)
+	fleetVars := variables.Find(cn)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_common_name", "FLEET_VAR_"+fleetVar+" is not allowed in CA Common Name (CN)")
@@ -1418,10 +1426,10 @@ func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
 		invalid.Append("integrations.digicert.certificate_seat_id", "CA Seat ID cannot be empty")
 		return false
 	}
-	fleetVars := findFleetVariables(seatID)
+	fleetVars := variables.Find(seatID)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_seat_id", "FLEET_VAR_"+fleetVar+" is not allowed in DigiCert Seat ID")
@@ -1445,10 +1453,10 @@ func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.Inva
 			"DigiCert CA certificate user principal name cannot be empty if specified")
 		return false
 	}
-	fleetVars := findFleetVariables(userPrincipalNames[0])
+	fleetVars := variables.Find(userPrincipalNames[0])
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
+		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_user_principal_names",
@@ -1933,8 +1941,6 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 		if existing.EntityID == "" {
 			invalid.Append("entity_id", "required")
 		}
-	} else if len(incoming.EntityID) < 5 {
-		invalid.Append("entity_id", "must be 5 or more characters")
 	}
 	if incoming.IDPName == "" {
 		if existing.IDPName == "" {
@@ -2008,10 +2014,6 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 		if s.Secret == "" {
 			return ctxerr.New(ctx, "enroll secret must not be empty")
 		}
-	}
-
-	if svc.config.Packaging.GlobalEnrollSecret != "" {
-		return ctxerr.New(ctx, "enroll secret cannot be changed when fleet_packaging.global_enroll_secret is set")
 	}
 
 	if applyOpts.DryRun {

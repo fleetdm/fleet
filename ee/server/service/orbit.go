@@ -53,6 +53,14 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			continue
 		}
 
+		// NOTE: user-scoped profiles are ignored because they are not sent by Fleet
+		// until after the device is released - there is no user-channel available
+		// on the host until after the release, and after the user actually created
+		// the user account.
+		if prof.Scope == fleet.PayloadScopeUser {
+			continue
+		}
+
 		status := fleet.MDMDeliveryPending
 		if prof.Status != nil {
 			status = *prof.Status
@@ -62,6 +70,24 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			Name:        prof.Name,
 			Status:      status,
 		})
+	}
+
+	profilesMissingInstallation, err := svc.ds.ListMDMAppleProfilesToInstall(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing apple config profiles to install")
+	}
+	profilesMissingInstallation = fleet.FilterOutUserScopedProfiles(profilesMissingInstallation)
+	if host.Platform != "darwin" {
+		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
+	}
+	if len(profilesMissingInstallation) > 0 {
+		for _, prof := range profilesMissingInstallation {
+			cfgProfResults = append(cfgProfResults, &fleet.SetupExperienceConfigurationProfileResult{
+				ProfileUUID: prof.ProfileUUID,
+				Name:        prof.ProfileName,
+				Status:      fleet.MDMDeliveryPending, // Default to pending as it's not installed yet.
+			})
+		}
 	}
 
 	// AccountConfiguration covers the (optional) command to setup SSO.
@@ -138,7 +164,6 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		if err := svc.mdmAppleCommander.DeviceConfigured(ctx, host.UUID, uuid.NewString()); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
 		}
-
 	}
 
 	_, err = svc.SetupExperienceNextStep(ctx, host.UUID)
@@ -170,13 +195,14 @@ func (svc *Service) failCancelledSetupExperienceInstalls(ctx context.Context, ho
 				softwarePackage = installerMeta.Name
 			}
 			activity := fleet.ActivityTypeInstalledSoftware{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-				SoftwareTitle:   r.Name,
-				SoftwarePackage: softwarePackage,
-				InstallUUID:     *r.HostSoftwareInstallsExecutionID,
-				Status:          "failed",
-				SelfService:     false,
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       r.Name,
+				SoftwarePackage:     softwarePackage,
+				InstallUUID:         *r.HostSoftwareInstallsExecutionID,
+				Status:              "failed",
+				SelfService:         false,
+				FromSetupExperience: true,
 			}
 			err = svc.NewActivity(ctx, nil, activity)
 			if err != nil {
