@@ -1,0 +1,54 @@
+import React, { ReactNode, useCallback, useContext, useState } from "react";
+
+import deviceUserAPI from "services/entities/device_user";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Button from "components/buttons/Button";
+
+const baseClass = "software-instructions-modal";
+
+const getSoftwareInstructions = (
+  softwareName: string,
+  softwareSource: string
+): ReactNode => {
+  if (softwareSource === "apps")
+    return (
+      <p>
+        Find <b>{softwareName}</b> in <b>Finder Applications</b> and
+        double-click it, or search <b>{softwareName}</b> in <b>Spotlight</b>.
+      </p>
+    );
+  else if (softwareSource === "programs") {
+    return (
+      <p>
+        Find <b>{softwareName}</b> in <b>Start Menu</b> and click it, or search
+        for it using the taskbar search box.
+      </p>
+    );
+  }
+  return <></>;
+};
+interface ISoftwareInstructionsModalProps {
+  softwareName: string;
+  softwareSource: string;
+  onExit: () => void;
+}
+
+const SoftwareInstructionsModal = ({
+  softwareName,
+  softwareSource,
+  onExit,
+}: ISoftwareInstructionsModalProps) => {
+  return (
+    <Modal className={baseClass} title="How to open" onExit={onExit}>
+      <>
+        {getSoftwareInstructions(softwareName, softwareSource)}
+        <ModalFooter primaryButtons={<Button onClick={onExit}>Done</Button>} />
+      </>
+    </Modal>
+  );
+};
+
+export default SoftwareInstructionsModal;

@@ -677,3 +677,120 @@ describe("HostInstallerActionCell component", () => {
     expect(refreshIcons).toHaveLength(2);
   });
 });
+
+describe("HostInstallerActionCell dropdown on My Device page", () => {
+  const baseClass = "test";
+  const defaultSoftware = createMockHostSoftware();
+
+  it("renders dropdown with Uninstall option when on My Device Page", () => {
+    render(
+      <HostInstallerActionCell
+        software={{ ...defaultSoftware, ui_status: "installed" }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    expect(
+      screen.getByTestId(`${baseClass}__install-button--test`)
+    ).toBeInTheDocument(); // Install button is always rendered
+    expect(screen.getByPlaceholderText("More")).toBeInTheDocument();
+    expect(screen.getByText("Uninstall")).toBeInTheDocument();
+  });
+
+  it("renders dropdown with 'How to open' option for apps/programs", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "apps",
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        onClickOpenInstructionsAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    expect(screen.getByText("More")).toBeInTheDocument();
+    expect(screen.getByText("How to open")).toBeInTheDocument();
+  });
+
+  it("does not render dropdown when no extra actions available", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          ui_status: "installed", // no uninstall for iOS devices
+          source: "ios_apps", // no instructions for iOS devices
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    expect(screen.queryByText("More")).not.toBeInTheDocument();
+  });
+
+  it("calls the proper callback when selecting uninstall option from dropdown", async () => {
+    const onClickUninstallAction = jest.fn();
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={onClickUninstallAction}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const dropdownBtn = screen.getByText("More");
+    await user.click(dropdownBtn);
+    await user.click(screen.getByText("Uninstall"));
+
+    expect(onClickUninstallAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls the proper callback when selecting 'How to open' option from dropdown", async () => {
+    const onClickOpenInstructionsAction = jest.fn();
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "programs",
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        onClickOpenInstructionsAction={onClickOpenInstructionsAction}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const dropdownBtn = screen.getByText("More");
+    await user.click(dropdownBtn);
+    await user.click(screen.getByText("How to open"));
+
+    expect(onClickOpenInstructionsAction).toHaveBeenCalledTimes(1);
+  });
+});
