@@ -29,7 +29,7 @@ flowchart TD
 
     B --> D[QA reproduces bug?]
     D -->|Yes| E[Move to Inbox Add :product, remove :reproduce]
-    D -->|No| F[Comment asking for more info]
+    D -->|No| F[Comment asking for more info. If it's a customer reported bug, add :help-customers]
 
     F --> G[Wait 1 week for response]
     G -->|No response| H[Close with comment Can reopen if more info provided]
