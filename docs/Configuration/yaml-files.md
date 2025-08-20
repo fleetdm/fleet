@@ -29,6 +29,7 @@ Labels can be specified in your `default.yml` file using inline configuration or
 
 - `name` specifies the label's name.
 - `description` specifies the label's description.
+- `platform` specifies platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string.
 - `label_membership_type` specifies label type which determines. Choices for platform are `dynamic` , `manual`, and `host_vitals`.
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`. 
 - `hosts` is the list of host identifiers (`id`, `hardware_serial`, `uuid`, or `hostname`) the label will apply to. Only supported if `label_membership_type` is `manual`. 
