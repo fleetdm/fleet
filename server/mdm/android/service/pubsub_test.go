@@ -230,8 +230,12 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.NotNil(t, createdHost)
 		require.NotNil(t, createdHost.Host)
 
-		require.Equal(t, 128.0, createdHost.Host.GigsTotalDiskSpace, "should extract TotalInternalStorage (128GB)")
-		require.Equal(t, 35.0, createdHost.Host.GigsDiskSpaceAvailable, "should calculate total available storage (10+25=35GB)")
+		// TODO: Verify complete storage calculation:
+		// Total: 64GB (internal) + 64GB (external) = 128GB
+		// Available: 10GB (internal free) + 25GB (external free) = 35GB
+		// Percentage: 35/128 * 100 = 27.34%
+		require.Equal(t, 128.0, createdHost.Host.GigsTotalDiskSpace, "should calculate total storage (64GB internal + 64GB external)")
+		require.Equal(t, 35.0, createdHost.Host.GigsDiskSpaceAvailable, "should calculate total available storage (10GB + 25GB)")
 		require.InDelta(t, 27.34, createdHost.Host.PercentDiskSpaceAvailable, 0.1, "should calculate percentage (35/128*100=27.34%)")
 	})
 }
@@ -249,20 +253,24 @@ func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) 
 		AndroidVersion:     "1",
 	}
 	deviceInfo.MemoryInfo = &androidmanagement.MemoryInfo{
-		TotalRam:             int64(8 * 1024 * 1024 * 1024),   // 8GB RAM in bytes
-		TotalInternalStorage: int64(128 * 1024 * 1024 * 1024), // 128GB storage in bytes
+		TotalRam:             int64(8 * 1024 * 1024 * 1024),  // 8GB RAM in bytes
+		TotalInternalStorage: int64(64 * 1024 * 1024 * 1024), // 64GB system partition
 	}
 
-	// for realistic available storage data
 	deviceInfo.MemoryEvents = []*androidmanagement.MemoryEvent{
 		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(64 * 1024 * 1024 * 1024), // 64GB external/built-in storage total capacity
+			CreateTime: "2024-01-15T09:00:00Z",
+		},
+		{
 			EventType:  "INTERNAL_STORAGE_MEASURED",
-			ByteCount:  int64(10 * 1024 * 1024 * 1024), // 10GB free internal storage
+			ByteCount:  int64(10 * 1024 * 1024 * 1024), // 10GB free in system partition
 			CreateTime: "2024-01-15T10:00:00Z",
 		},
 		{
 			EventType:  "EXTERNAL_STORAGE_MEASURED",
-			ByteCount:  int64(25 * 1024 * 1024 * 1024), // 25GB free external/built-in storage
+			ByteCount:  int64(25 * 1024 * 1024 * 1024), // 25GB free in external/built-in storage
 			CreateTime: "2024-01-15T10:00:00Z",
 		},
 	}
