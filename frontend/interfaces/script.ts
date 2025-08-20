@@ -41,3 +41,12 @@ export const isValidScriptBatchStatus = (
 ): status is ScriptBatchStatus => {
   return SCRIPT_BATCH_STATUSES.includes((status ?? "") as ScriptBatchStatus);
 };
+
+const SCRIPT_BATCH_HOST_STATUSES = [
+  "ran",
+  "pending",
+  "errored",
+  "incompatible",
+  "canceled",
+];
+export type ScriptBatchHostStatus = typeof SCRIPT_BATCH_HOST_STATUSES[number];

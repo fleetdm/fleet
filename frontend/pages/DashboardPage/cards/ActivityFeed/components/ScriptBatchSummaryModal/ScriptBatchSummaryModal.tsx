@@ -16,7 +16,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryResponseV1,
+  IScriptBatchSummaryV1,
 } from "services/entities/scripts";
 import { AxiosError } from "axios";
 import Spinner from "components/Spinner";
@@ -47,9 +47,9 @@ const ScriptBatchSummaryModal = ({
   const [isCanceling, setIsCanceling] = useState(false);
 
   const { data: statusData, isLoading, isError } = useQuery<
-    IScriptBatchSummaryResponseV1,
+    IScriptBatchSummaryV1,
     AxiosError,
-    IScriptBatchSummaryResponseV1,
+    IScriptBatchSummaryV1,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -59,7 +59,7 @@ const ScriptBatchSummaryModal = ({
       },
     ],
     ({ queryKey: [{ batch_execution_id }] }) =>
-      scriptsAPI.getRunScriptBatchSummary({ batch_execution_id }),
+      scriptsAPI.getRunScriptBatchSummaryV1({ batch_execution_id }),
     {
       enabled: details.batch_execution_id !== undefined,
       ...DEFAULT_USE_QUERY_OPTIONS,

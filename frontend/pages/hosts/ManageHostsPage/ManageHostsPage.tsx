@@ -15,7 +15,7 @@ import FileSaver from "file-saver";
 
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryResponseV1,
+  IScriptBatchSummaryV1,
   ScriptBatchHostCountV1,
 } from "services/entities/scripts";
 import enrollSecretsAPI from "services/entities/enroll_secret";
@@ -472,9 +472,9 @@ const ManageHostsPage = ({
     isLoading: isLoadingScriptBatchSummary,
     isError: isErrorScriptBatchSummary,
   } = useQuery<
-    IScriptBatchSummaryResponseV1,
+    IScriptBatchSummaryV1,
     Error,
-    IScriptBatchSummaryResponseV1,
+    IScriptBatchSummaryV1,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -484,7 +484,7 @@ const ManageHostsPage = ({
       },
     ],
     ({ queryKey: [{ batch_execution_id }] }) =>
-      scriptsAPI.getRunScriptBatchSummary({ batch_execution_id }),
+      scriptsAPI.getRunScriptBatchSummaryV1({ batch_execution_id }),
     {
       enabled: !!scriptBatchExecutionId && isRouteOk,
       ...DEFAULT_USE_QUERY_OPTIONS,

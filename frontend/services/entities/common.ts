@@ -1,5 +1,9 @@
 // TODO - apply broadly
-export interface PaginationMeta {
+interface PaginationMeta {
   has_next_results: boolean;
   has_previous_results: boolean;
+}
+
+export interface ListEntitiesMeta extends PaginationMeta {
+  count: number;
 }

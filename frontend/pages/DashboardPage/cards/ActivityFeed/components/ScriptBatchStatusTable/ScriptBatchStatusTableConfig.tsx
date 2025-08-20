@@ -6,7 +6,7 @@ import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import { IScriptBatchSummaryResponseV1 } from "services/entities/scripts";
+import { IScriptBatchSummaryV1 } from "services/entities/scripts";
 import ScriptBatchHostCountCell from "../ScriptBatchHostCountCell/ScriptBatchHostCountCell";
 
 type IStatus = "ran" | "pending" | "errored";
@@ -88,11 +88,11 @@ export const generateTableConfig = (
 };
 
 export const generateTableData = (
-  statusData: IScriptBatchSummaryResponseV1
+  statusData: IScriptBatchSummaryV1
 ): IRowData[] => {
   const tableData = STATUS_ORDER.map((status) => ({
     status,
-    hosts: statusData[status as keyof IScriptBatchSummaryResponseV1] as number,
+    hosts: statusData[status as keyof IScriptBatchSummaryV1] as number,
   }));
 
   return tableData;
