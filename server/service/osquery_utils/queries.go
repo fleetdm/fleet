@@ -2569,6 +2569,39 @@ var tpmPINQueries = map[string]DetailQuery{
 			// If no results are returned, then the policy setting is in a 'Not Configured' state.
 			// If the policy is 'Enabled', we need to make sure the proper setting is not in a 'Disallowed' state.
 			if len(rows) == 0 || rows[0]["data"] == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
+
+				// We only want to apply the policy if the host has the proper settings enabled ...
+				var enableDiskEncryption bool
+				var requireBitLockerPIN bool
+
+				// If the host is part of a team, we need to look at the team's settings
+				// instead of the global settings.
+				if host.TeamID != nil {
+					if team, err := ds.Team(ctx, *host.TeamID); err == nil {
+						enableDiskEncryption = team.Config.MDM.EnableDiskEncryption
+						requireBitLockerPIN = team.Config.MDM.RequireBitLockerPIN
+					} else {
+						return ctxerr.Errorf(
+							ctx,
+							"tpm_pin_config_verify query: error getting team: %w", err,
+						)
+					}
+				} else {
+					if appConfig, err := ds.AppConfig(ctx); err == nil {
+						enableDiskEncryption = appConfig.MDM.EnableDiskEncryption.Value
+						requireBitLockerPIN = appConfig.MDM.RequireBitLockerPIN.Value
+					} else {
+						return ctxerr.Errorf(
+							ctx,
+							"tpm_pin_config_verify query: error getting app config: %w", err,
+						)
+					}
+				}
+
+				if !(enableDiskEncryption && requireBitLockerPIN) {
+					return nil
+				}
+
 				level.Info(logger).Log(
 					"query", "tpm_pin_config_verify",
 					"msg", "Updating TPM PIN protector configuration via MDM",
@@ -2639,14 +2672,7 @@ type Integrations struct {
 	ConditionalAccessMicrosoft bool
 }
 
-func GetDetailQueries(
-	ctx context.Context,
-	fleetConfig config.FleetConfig,
-	appConfig *fleet.AppConfig,
-	features *fleet.Features,
-	integrations Integrations,
-	team *fleet.Team,
-) map[string]DetailQuery {
+func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, appConfig *fleet.AppConfig, features *fleet.Features, integrations Integrations) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
 		generatedMap[key] = query
@@ -2691,20 +2717,8 @@ func GetDetailQueries(
 		}
 
 		if appConfig.MDM.WindowsEnabledAndConfigured {
-			enableDiskEncryption := appConfig.MDM.EnableDiskEncryption.Value
-			requireBitLockerPIN := appConfig.MDM.RequireBitLockerPIN.Value
-
-			// If the host is part of a team, we need to look at the team's settings
-			// instead of the global settings.
-			if team != nil {
-				enableDiskEncryption = team.Config.MDM.EnableDiskEncryption
-				requireBitLockerPIN = team.Config.MDM.RequireBitLockerPIN
-			}
-
-			if enableDiskEncryption && requireBitLockerPIN {
-				for key, query := range tpmPINQueries {
-					generatedMap[key] = query
-				}
+			for key, query := range tpmPINQueries {
+				generatedMap[key] = query
 			}
 		}
 	}

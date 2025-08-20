@@ -176,16 +176,9 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	}
 
 	// Save enrollment details if provided
-	detailQueries := osquery_utils.GetDetailQueries(
-		ctx,
-		svc.config,
-		appConfig,
-		features,
-		osquery_utils.Integrations{
-			ConditionalAccessMicrosoft: false, // here we are just using a few ingestion functions, so no need to set.
-		},
-		nil, // OK ... the queries below are not conditional on team's settings.
-	)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: false, // here we are just using a few ingestion functions, so no need to set.
+	})
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
@@ -732,24 +725,9 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	var team *fleet.Team
-	if host.TeamID != nil {
-		team, err = svc.ds.Team(ctx, *host.TeamID)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "fetching team from DB")
-		}
-	}
-
-	detailQueries := osquery_utils.GetDetailQueries(
-		ctx,
-		svc.config,
-		appConfig,
-		features,
-		osquery_utils.Integrations{
-			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-		},
-		team,
-	)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+	})
 	for name, query := range detailQueries {
 		if criticalQueriesOnly && !criticalDetailQueries[name] {
 			continue
@@ -1611,24 +1589,9 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	var team *fleet.Team
-	if host.TeamID != nil {
-		team, err = svc.ds.Team(ctx, *host.TeamID)
-		if err != nil {
-			return false, newOsqueryError("ingest detail query: " + err.Error())
-		}
-	}
-
-	detailQueries := osquery_utils.GetDetailQueries(
-		ctx,
-		svc.config,
-		appConfig,
-		features,
-		osquery_utils.Integrations{
-			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-		},
-		team,
-	)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+	})
 	query, ok := detailQueries[name]
 	if !ok {
 		return false, newOsqueryError("unknown detail query " + name)
@@ -1770,24 +1733,9 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 		return newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	var team *fleet.Team
-	if host.TeamID != nil {
-		team, err = svc.ds.Team(ctx, *host.TeamID)
-		if err != nil {
-			return newOsqueryError("ingest detail query: " + err.Error())
-		}
-	}
-
-	detailQueries := osquery_utils.GetDetailQueries(
-		ctx,
-		svc.config,
-		appConfig,
-		features,
-		osquery_utils.Integrations{
-			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-		},
-		team,
-	)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+	})
 
 	query, ok := detailQueries[name]
 	if !ok {
