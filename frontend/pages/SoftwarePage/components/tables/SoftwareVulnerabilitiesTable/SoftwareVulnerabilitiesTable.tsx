@@ -39,8 +39,8 @@ const NoVulnsDetected = ({ itemName }: INoVulnsDetectedProps): JSX.Element => {
         <>
           Expecting to see vulnerabilities?{" "}
           <CustomLink
-            url={GITHUB_NEW_ISSUE_LINK}
-            text="File an issue on GitHub"
+            url={"https://fleetdm.com/guides/vulnerability-processing#coverage"}
+            text="What Fleet covers"
             newTab
           />
         </>
