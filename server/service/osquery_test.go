@@ -3220,6 +3220,9 @@ func TestPolicyQueries(t *testing.T) {
 	) {
 		return nil, nil, nil
 	}
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return &fleet.TeamConfig{}, nil
+	}
 
 	ctx = hostctx.NewContext(ctx, host)
 
