@@ -4,6 +4,7 @@ import Button from "components/buttons/Button";
 import { ISecret } from "interfaces/secrets";
 import { NotificationContext } from "context/notification";
 
+import formatErrorResponse from "utilities/format_error_response";
 import secretsAPI from "services/entities/secrets";
 
 interface DeleteSecretModalProps {
@@ -32,9 +33,12 @@ const DeleteSecretModal = ({
       await secretsAPI.deleteSecret(secret.id);
       onDelete();
     } catch (error) {
+      const errorObject = formatErrorResponse(error);
       renderFlash(
         "error",
-        "An error occurred while deleting the secret. Please try again."
+        errorObject.base.includes("used by")
+          ? errorObject.base
+          : "An error occurred while deleting the secret. Please try again."
       );
     } finally {
       setIsDeleting(false);
