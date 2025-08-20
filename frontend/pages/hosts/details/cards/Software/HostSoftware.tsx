@@ -13,6 +13,7 @@ import deviceAPI, {
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
 import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
@@ -35,6 +36,7 @@ import {
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
+import { getSoftwareSubheader } from "./helpers";
 
 const baseClass = "software-card";
 
@@ -56,9 +58,11 @@ interface IHostSoftwareProps {
   queryParams: HostSoftwareQueryParams;
   pathname: string;
   hostTeamId: number;
-  onShowSoftwareDetails: (software: IHostSoftware) => void;
+  onShowInventoryVersions: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   isMyDevicePage?: boolean;
+  /** Used to show custom Software card header */
+  hostMdmEnrollmentStatus?: MdmEnrollmentStatus | null;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -118,9 +122,10 @@ const HostSoftware = ({
   queryParams,
   pathname,
   hostTeamId = 0,
-  onShowSoftwareDetails,
+  onShowInventoryVersions,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
+  hostMdmEnrollmentStatus = null,
 }: IHostSoftwareProps) => {
   const { isPremiumTier } = useContext(AppContext);
 
@@ -252,9 +257,9 @@ const HostSoftware = ({
       : generateHostSoftwareTableConfig({
           router,
           teamId: hostTeamId,
-          onClickMoreDetails: onShowSoftwareDetails,
+          onShowInventoryVersions,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowSoftwareDetails]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading
@@ -304,7 +309,7 @@ const HostSoftware = ({
             pathPrefix={pathname}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}
-            onShowSoftwareDetails={onShowSoftwareDetails}
+            onShowInventoryVersions={onShowInventoryVersions}
           />
         )}
         {showSoftwareFiltersModal && (
@@ -334,7 +339,11 @@ const HostSoftware = ({
       >
         <CardHeader
           header="Software"
-          subheader="Software installed on your device"
+          subheader={getSoftwareSubheader({
+            platform,
+            isMyDevicePage: true,
+            hostMdmEnrollmentStatus,
+          })}
         />
         {renderHostSoftware()}
       </Card>
@@ -344,11 +353,19 @@ const HostSoftware = ({
   return (
     <div className={baseClass}>
       {!isAndroid(platform) && (
-        <CardHeader subheader="Software installed on this host" />
+        <CardHeader
+          subheader={getSoftwareSubheader({
+            platform,
+            isMyDevicePage: false,
+            hostMdmEnrollmentStatus,
+          })}
+        />
       )}
       {renderHostSoftware()}
     </div>
   );
 };
 
+// TODO - name this consistently, it is confusing. This same component is called `SoftwareInventoryCard` one place,
+// `SoftwareCard` another, and `HostSoftware` here.
 export default React.memo(HostSoftware);

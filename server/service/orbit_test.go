@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -179,6 +180,23 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			ID:            1,
 		}
 		ctx = test.HostContext(ctx, host)
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.NewActivityFunc = func(
+			ctx context.Context,
+			user *fleet.User,
+			activity fleet.ActivityDetails,
+			details []byte,
+			createdAt time.Time,
+		) error {
+			require.Equal(t, activity.ActivityName(), fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+			require.NotEmpty(t, details)
+			return nil
+		}
+
 		expectedErrorMessage := "There was an error."
 		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
 			require.Equal(t, expectedErrorMessage, err)
@@ -201,7 +219,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		passphrase, salt := "foo", ""
 		var keySlot *uint
 		ds.SaveLUKSDataFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Passphrase string,
-			encryptedBase64Salt string, keySlotToPersist uint) error {
+			encryptedBase64Salt string, keySlotToPersist uint) (bool, error) {
 			require.Equal(t, host.ID, incomingHost.ID)
 			key := config.TestConfig().Server.PrivateKey
 
@@ -215,7 +233,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 
 			require.Equal(t, *keySlot, keySlotToPersist)
 
-			return nil
+			return true, nil
 		}
 
 		// with no salt

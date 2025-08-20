@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	mathrand "math/rand/v2"
 	"net/http"
 	"os"
@@ -267,7 +268,9 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 	err = signer.Sign(req)
 	require.NoError(t, err)
 
+	// Clone the request before sending it to preserve the body
 	clonedRequest := req.Clone(ctx)
+	clonedRequest.Body = io.NopCloser(bytes.NewReader(reqBody))
 
 	// Send the signed request
 	client := fleethttp.NewClient()

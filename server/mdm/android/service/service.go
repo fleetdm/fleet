@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/mdm"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -21,6 +24,9 @@ import (
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
 )
+
+// Used for overriding the private key validation in testing
+var testSetEmptyPrivateKey bool
 
 // We use numbers for policy names for easier mapping/indexing with Fleet DB.
 const (
@@ -35,6 +41,7 @@ type Service struct {
 	ds               fleet.AndroidDatastore
 	androidAPIClient androidmgmt.Client
 	fleetSvc         fleet.Service
+	serverPrivateKey string
 
 	// SignupSSEInterval can be overwritten in tests.
 	SignupSSEInterval time.Duration
@@ -48,6 +55,7 @@ func NewService(
 	ds fleet.AndroidDatastore,
 	fleetSvc fleet.Service,
 	licenseKey string,
+	serverPrivateKey string,
 ) (android.Service, error) {
 	var client androidmgmt.Client
 	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
@@ -55,7 +63,7 @@ func NewService(
 	} else {
 		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
 	}
-	return NewServiceWithClient(logger, ds, client, fleetSvc)
+	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey)
 }
 
 func NewServiceWithClient(
@@ -63,6 +71,7 @@ func NewServiceWithClient(
 	ds fleet.AndroidDatastore,
 	client androidmgmt.Client,
 	fleetSvc fleet.Service,
+	serverPrivateKey string,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -75,6 +84,7 @@ func NewServiceWithClient(
 		ds:                ds,
 		androidAPIClient:  client,
 		fleetSvc:          fleetSvc,
+		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
 	}, nil
 }
@@ -93,6 +103,11 @@ func enterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Se
 
 func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
 	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	// Check if server private key is configured (required for Android MDM)
+	if err := svc.checkServerPrivateKey(ctx); err != nil {
 		return nil, err
 	}
 
@@ -146,6 +161,22 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 	}
 
 	return signupDetails, nil
+}
+
+func (svc *Service) checkServerPrivateKey(ctx context.Context) error {
+	if testSetEmptyPrivateKey {
+		return &fleet.BadRequestError{
+			Message: "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key",
+		}
+	}
+
+	if svc.serverPrivateKey == "" {
+		return &fleet.BadRequestError{
+			Message: "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key",
+		}
+	}
+
+	return nil
 }
 
 func (svc *Service) checkIfAndroidAlreadyConfigured(ctx context.Context) (*fleet.AppConfig, error) {
@@ -405,23 +436,57 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 
 type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
+	IdpUUID      string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
 }
 
-type enrollmentTokenResponse struct {
-	*android.EnrollmentToken
-	android.DefaultResponse
+func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	enrollSecret := r.URL.Query().Get("enroll_secret")
+	if enrollSecret == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "enroll_secret is required",
+		}
+	}
+
+	byodIdpCookie, err := r.Cookie(mdm.BYODIdpCookieName)
+
+	if err == http.ErrNoCookie {
+		// We do not fail here if no cookie is found, we validate later down the line if it's required
+		return &enrollmentTokenRequest{
+			EnrollSecret: enrollSecret,
+			IdpUUID:      "",
+		}, nil
+	}
+
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "something went wrong parsing the boyd idp cookie",
+			InternalErr: err,
+		}
+	}
+
+	if err = byodIdpCookie.Valid(); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "boyd idp cookie is not valid",
+			InternalErr: err,
+		}
+	}
+
+	return &enrollmentTokenRequest{
+		EnrollSecret: enrollSecret,
+		IdpUUID:      byodIdpCookie.Value,
+	}, nil
 }
 
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
-	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret)
+	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
-	return enrollmentTokenResponse{EnrollmentToken: token}
+	return android.EnrollmentTokenResponse{EnrollmentToken: token}
 }
 
-func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*android.EnrollmentToken, error) {
+func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*android.EnrollmentToken, error) {
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
@@ -439,6 +504,29 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	requiresIdPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking requirement of ota enrollment authentication")
+	}
+
+	if requiresIdPUUID && idpUUID == "" {
+		return nil, fleet.NewAuthFailedError("required idp uuid to be set, but none found")
+	}
+
+	if idpUUID != "" {
+		_, err := svc.ds.GetMDMIdPAccountByUUID(ctx, idpUUID)
+		if err != nil {
+			iae := &fleet.InvalidArgumentError{}
+			iae.Append("IDP UUID", "Failed validating IDP account existence")
+			return nil, ctxerr.Wrap(ctx, iae)
+		}
+	}
+
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
@@ -450,10 +538,18 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
+	enrollmentTokenRequest, err := json.Marshal(enrollmentTokenRequest{
+		EnrollSecret: enrollSecret,
+		IdpUUID:      idpUUID,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshalling enrollment token request")
+	}
+
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
-		AdditionalData:     enrollSecret,
+		AdditionalData:     string(enrollmentTokenRequest),
 		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
 		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultAndroidPolicyID),
 		OneTimeOnly:        true,

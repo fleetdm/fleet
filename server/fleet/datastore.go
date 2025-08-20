@@ -968,14 +968,16 @@ type Datastore interface {
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 
-	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error)
+	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
+	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
-	// a host
-	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *Host, encryptedBase64Key, clientError string, decryptable *bool) error
+	// a host, returns whether the current key was archived or not due to the current one being updated/replaced.
+	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *Host, encryptedBase64Key, clientError string, decryptable *bool) (bool, error)
 	// SaveLUKSData sets base64'd encrypted LUKS passphrase, key slot, and salt data for a host that has successfully
-	// escrowed LUKS data
-	SaveLUKSData(ctx context.Context, host *Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+	// escrowed LUKS data, returns whether the current key was archived or not due to the current one being
+	// updated/replaced.
+	SaveLUKSData(ctx context.Context, host *Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) (bool, error)
 	// DeleteLUKSData deletes the LUKS encryption key associated with the provided host ID and key slot.
 	DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error
 
@@ -1066,12 +1068,19 @@ type Datastore interface {
 	// processed. If now is the zero time, the current time will be used.
 	GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*Job, error)
 
+	// GetFilteredQueuedJobs gets queued jobs from the jobs table (queue) ready to be
+	// processed, filtered by job names.
+	GetFilteredQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*Job, error)
+
 	// UpdateJobs updates an existing job. Call this after processing a job.
 	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
 
 	// CleanupWorkerJobs deletes jobs in a final state that are older than the
 	// provided durations. It returns the number of jobs deleted and an error.
 	CleanupWorkerJobs(ctx context.Context, failedSince, completedSince time.Duration) (int64, error)
+
+	// GetJob returns a job from the database
+	GetJob(ctx context.Context, jobID uint) (*Job, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
@@ -1086,7 +1095,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store
 	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]OSVulnerability, error)
-	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool) (Vulnerabilities, error)
+	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (Vulnerabilities, error)
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
 	// InsertOSVulnerability will either insert a new vulnerability in the datastore (in which
@@ -1096,6 +1105,10 @@ type Datastore interface {
 	// DeleteOutOfDateOSVulnerabilities deletes 'operating_system_vulnerabilities' entries from the provided source where
 	// the updated_at timestamp is older than the supplied timestamp
 	DeleteOutOfDateOSVulnerabilities(ctx context.Context, source VulnerabilitySource, olderThan time.Time) error
+
+	ListKernelsByOS(ctx context.Context, osID uint, teamID *uint) ([]*Kernel, error)
+
+	InsertKernelSoftwareMapping(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
@@ -1117,7 +1130,7 @@ type Datastore interface {
 	// Apple MDM
 
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
-	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []string) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []FleetVarName) (*MDMAppleConfigProfile, error)
 
 	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
 	// profiles in bulk with the current payload.
@@ -1230,7 +1243,7 @@ type Datastore interface {
 
 	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
 	// MDM-enrolled devices via OTA that are not already enrolled in Fleet.
-	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, deviceInfo MDMAppleMachineInfo) error
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo) error
 
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
@@ -1721,7 +1734,7 @@ type Datastore interface {
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
 	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
-	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
 	// The profile gets replaced if it already exists for the same team and name
@@ -1808,8 +1821,35 @@ type Datastore interface {
 	// execution ID.
 	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
+	// BatchExecuteScript queued a script to run on a set of hosts after notBefore and returns the
+	// batch execution ID.
+	BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+	// GetBatchActivity returns a batch activity with executionID
+	GetBatchActivity(ctx context.Context, executionID string) (*BatchActivity, error)
+
+	// GetBatchActivityHostResults returns all host results associated with batch executionID
+	GetBatchActivityHostResults(ctx context.Context, executionID string) ([]*BatchActivityHostResult, error)
+
+	// RunScheduledBatchActivity takes a scheduled batch script avtivity and executes it, queueing
+	// the script on the hosts. Note that it does not know about the `not_before` column on the jobs
+	// table and assumes it is being executed at the right time.
+	RunScheduledBatchActivity(ctx context.Context, executionID string) error
+
 	// BatchExecuteSummary returns the summary of a batch script execution
-	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)
+	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchActivity, error)
+
+	// CancelBatchScript cancels the execution of a batch script execution
+	CancelBatchScript(ctx context.Context, executionID string) error
+
+	// ListBatchScriptExecutions returns a filtered list of batch script executions, with summaries.
+	ListBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchActivity, error)
+
+	// CountBatchScriptExecutions returns the number of batch script executions matching the filter.
+	CountBatchScriptExecutions(ctx context.Context, filter BatchExecutionStatusFilter) (int64, error)
+
+	// MarkActivitiesAsCompleted updates the status of the specified activities to "completed".
+	MarkActivitiesAsCompleted(ctx context.Context) error
 
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)
@@ -2019,6 +2059,11 @@ type Datastore interface {
 	// metadata by the installer's hash.
 	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*ExistingSoftwareInstaller, error)
 
+	// TeamIDsWithSetupExperienceIdPEnabled returns the list of team IDs that
+	// have the setup experience IdP (End user authentication) enabled. It uses
+	// id 0 to represent "No team", should IdP be enabled for that team.
+	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 	//
@@ -2118,7 +2163,17 @@ type Datastore interface {
 	// UpsertSecretVariables inserts or updates secret variables in the database.
 	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) error
 
-	// GetSecretVariables retrieves secret variables from the database.
+	// CreateSecretVariable inserts a secret variable (value encrypted) and returns its ID.
+	// Returns an AlreadyExistsError error if there's already a secret variable with the same name.
+	CreateSecretVariable(ctx context.Context, name string, value string) (id uint, err error)
+	// ListSecretVariables returns a list of secret variable identifiers filtered with the provided sorting and pagination options.
+	// Returns a count of total secret variable identifiers on all (filtered) pages, and pagination metadata if opt.IncludeMetadata is true.
+	ListSecretVariables(ctx context.Context, opt ListOptions) (secretVariables []SecretVariableIdentifier, meta *PaginationMetadata, count int, err error)
+	// DeleteSecretVariable deletes a secret variable by ID and returns the name of the deleted variable.
+	// Returns a NotFoundError error if there's no secret variable with such ID.
+	DeleteSecretVariable(ctx context.Context, id uint) (name string, err error)
+
+	// GetSecretVariables retrieves secret variables from the database that match the given names.
 	GetSecretVariables(ctx context.Context, names []string) ([]SecretVariable, error)
 
 	// ValidateEmbeddedSecrets parses fleet secrets from a list of
@@ -2248,6 +2303,10 @@ type AndroidDatastore interface {
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
+	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
+	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
+	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
+	Team(ctx context.Context, tid uint) (*Team, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

@@ -31,7 +31,11 @@ import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
-import { IHostSoftware } from "interfaces/software";
+import {
+  IHostSoftware,
+  resolveUninstallStatus,
+  SoftwareInstallStatus,
+} from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
 import {
@@ -49,7 +53,12 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
-import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
+import {
+  isAndroid,
+  isAppleDevice,
+  isIPadOrIPhone,
+  isLinuxLike,
+} from "interfaces/platform";
 import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 import Spinner from "components/Spinner";
@@ -63,15 +72,15 @@ import EmptyTable from "components/EmptyTable";
 
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
-  AppInstallDetailsModal,
-  IAppInstallDetails,
-} from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
+  VppInstallDetailsModal,
+  IVppInstallDetails,
+} from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
-} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
 import SoftwareUninstallDetailsModal, {
-  ISoftwareUninstallDetails,
+  ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
@@ -109,7 +118,6 @@ import {
   getHostDeviceStatusUIState,
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
-import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
@@ -121,6 +129,7 @@ import {
   generateUsernameValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader";
+import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 
 const baseClass = "host-details";
 
@@ -213,11 +222,11 @@ const HostDetailsPage = ({
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
-  ] = useState<ISoftwareUninstallDetails | null>(null);
+  ] = useState<ISWUninstallDetailsParentState | null>(null);
   const [
-    appInstallDetails,
-    setAppInstallDetails,
-  ] = useState<IAppInstallDetails | null>(null);
+    activityVPPInstallDetails,
+    setActivityVPPInstallDetails,
+  ] = useState<IVppInstallDetails | null>(null);
 
   const [isUpdatingHost, setIsUpdatingHost] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
@@ -231,8 +240,8 @@ const HostDetailsPage = ({
     setHostMdmDeviceState,
   ] = useState<HostMdmDeviceStatusUIState>("unlocked");
   const [
-    selectedSoftwareDetails,
-    setSelectedSoftwareDetails,
+    selectedHostSWForInventoryVersions,
+    setSelectedHostSWForInventoryVersions,
   ] = useState<IHostSoftware | null>(null);
   const [
     selectedCancelActivity,
@@ -674,17 +683,22 @@ const HostDetailsPage = ({
         case "uninstalled_software":
           setPackageUninstallDetails({
             ...details,
-            host_display_name:
-              host?.display_name || details?.host_display_name || "",
+            softwareName: details?.software_title || "",
+            uninstallStatus: resolveUninstallStatus(details?.status),
+            scriptExecutionId: details?.script_execution_id || "",
+            hostDisplayName: host?.display_name || details?.host_display_name,
           });
           break;
         case "installed_app_store_app":
-          setAppInstallDetails({
-            ...details,
+          setActivityVPPInstallDetails({
+            appName: details?.software_title || "",
+            fleetInstallStatus: (details?.status ||
+              "pending_install") as SoftwareInstallStatus,
+            commandUuid: details?.command_uuid || "",
             // FIXME: It seems like the backend is not using the correct display name when it returns
             // upcoming install activities. As a workaround, we'll prefer the display name from
             // the host object if it's available.
-            host_display_name:
+            hostDisplayName:
               host?.display_name || details?.host_display_name || "",
           });
           break;
@@ -704,23 +718,13 @@ const HostDetailsPage = ({
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
-  const onShowSoftwareDetails = useCallback(
-    (software?: IHostSoftware) => {
-      if (software) {
-        setSelectedSoftwareDetails(software);
+  const onSetSelectedHostSWForInventoryVersions = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWForInventoryVersions(hostSW);
       }
     },
-    [setSelectedSoftwareDetails]
-  );
-
-  const onShowUninstallDetails = useCallback(
-    (details?: ISoftwareUninstallDetails) => {
-      setPackageUninstallDetails({
-        ...details,
-        host_display_name: host?.display_name || "",
-      });
-    },
-    [setPackageUninstallDetails]
+    [setSelectedHostSWForInventoryVersions]
   );
 
   const onCancelRunScriptDetailsModal = useCallback(() => {
@@ -734,8 +738,8 @@ const HostDetailsPage = ({
     setPackageInstallDetails(null);
   }, []);
 
-  const onCancelAppInstallDetailsModal = useCallback(() => {
-    setAppInstallDetails(null);
+  const onCancelVppInstallDetailsModal = useCallback(() => {
+    setActivityVPPInstallDetails(null);
   }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -959,7 +963,7 @@ const HostDetailsPage = ({
   const isSoftwareLibrarySupported = isPremiumTier && !isAndroidHost;
 
   const showUsersCard =
-    isDarwinHost ||
+    isAppleDevice(host.platform) ||
     generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
     generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
@@ -995,8 +999,11 @@ const HostDetailsPage = ({
                   include_available_for_install: false,
                 }}
                 pathname={location.pathname}
-                onShowSoftwareDetails={setSelectedSoftwareDetails}
+                onShowInventoryVersions={
+                  onSetSelectedHostSWForInventoryVersions
+                }
                 hostTeamId={host.team_id || 0}
+                hostMdmEnrollmentStatus={host.mdm.enrollment_status}
               />
               {isDarwinHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -1038,8 +1045,9 @@ const HostDetailsPage = ({
                     available_for_install: true,
                   }}
                   pathname={location.pathname}
-                  onShowSoftwareDetails={onShowSoftwareDetails}
-                  onShowUninstallDetails={onShowUninstallDetails}
+                  onShowInventoryVersions={
+                    onSetSelectedHostSWForInventoryVersions
+                  }
                   hostTeamId={host.team_id || 0}
                   hostName={host.display_name}
                   hostMDMEnrolled={host.mdm.connected_to_fleet}
@@ -1063,7 +1071,7 @@ const HostDetailsPage = ({
                 include_available_for_install: false,
               }}
               pathname={location.pathname}
-              onShowSoftwareDetails={setSelectedSoftwareDetails}
+              onShowInventoryVersions={onSetSelectedHostSWForInventoryVersions}
               hostTeamId={host.team_id || 0}
             />
             {isDarwinHost && macadmins?.munki?.version && (
@@ -1374,14 +1382,15 @@ const HostDetailsPage = ({
           )}
           {packageUninstallDetails && (
             <SoftwareUninstallDetailsModal
-              details={packageUninstallDetails}
+              {...packageUninstallDetails}
+              hostDisplayName={packageUninstallDetails.hostDisplayName || ""}
               onCancel={() => setPackageUninstallDetails(null)}
             />
           )}
-          {!!appInstallDetails && (
-            <AppInstallDetailsModal
-              details={appInstallDetails}
-              onCancel={onCancelAppInstallDetailsModal}
+          {!!activityVPPInstallDetails && (
+            <VppInstallDetailsModal
+              details={activityVPPInstallDetails}
+              onCancel={onCancelVppInstallDetailsModal}
             />
           )}
           {showLockHostModal && (
@@ -1413,11 +1422,10 @@ const HostDetailsPage = ({
               onClose={() => setShowWipeModal(false)}
             />
           )}
-          {selectedSoftwareDetails && (
-            <SoftwareDetailsModal
-              hostDisplayName={host.display_name}
-              software={selectedSoftwareDetails}
-              onExit={() => setSelectedSoftwareDetails(null)}
+          {selectedHostSWForInventoryVersions && (
+            <InventoryVersionsModal
+              hostSoftware={selectedHostSWForInventoryVersions}
+              onExit={() => setSelectedHostSWForInventoryVersions(null)}
             />
           )}
           {selectedCancelActivity && (

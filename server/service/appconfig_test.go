@@ -1097,7 +1097,31 @@ func TestMDMAppleConfig(t *testing.T) {
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
-			expectedError: "validation failed: entity_id must be 5 or more characters",
+			expectedMDM: fleet.MDM{
+				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "f",
+					MetadataURL: "http://isser.metadata.com",
+					IDPName:     "onelogin",
+				}},
+				MacOSSetup: fleet.MacOSSetup{
+					BootstrapPackage:            optjson.String{Set: true},
+					MacOSSetupAssistant:         optjson.String{Set: true},
+					EnableReleaseDeviceManually: optjson.SetBool(false),
+					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
+				},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				WindowsSettings: fleet.WindowsSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				},
+				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+			},
 		}, {
 			name:        "ssoMissingMetadata",
 			licenseTier: "premium",
@@ -2025,7 +2049,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + " ${FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + "}"
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " ${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
@@ -2039,7 +2063,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in common name", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + "}${FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + "}"
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
@@ -2053,7 +2077,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in seat id", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + " $FLEET_VAR_" + fleet.FleetVarHostHardwareSerial
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " $FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial)
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)

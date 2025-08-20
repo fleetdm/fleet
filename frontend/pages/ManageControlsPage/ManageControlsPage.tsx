@@ -34,9 +34,19 @@ const controlsSubNav: IControlsSubNavItem[] = [
     name: "Scripts",
     pathname: PATHS.CONTROLS_SCRIPTS,
   },
+  {
+    name: "Variables",
+    pathname: PATHS.CONTROLS_VARIABLES,
+  },
 ];
 
-const subNavQueryParams = ["page", "order_key", "order_direction"] as const;
+// params to strip when navigating between tabs
+const subNavQueryParams = [
+  "page",
+  "order_key",
+  "order_direction",
+  "status",
+] as const;
 
 interface IManageControlsPageProps {
   children: JSX.Element;

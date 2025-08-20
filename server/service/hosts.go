@@ -1170,6 +1170,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		}
 	}
 
+	if host.HostSoftware.Software == nil {
+		host.HostSoftware.Software = []fleet.HostSoftwareEntry{}
+	}
+
 	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get labels for host")
@@ -1211,13 +1215,23 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get policies for host")
 		}
-
 		if hp == nil {
 			hp = []*fleet.HostPolicy{}
 		}
-
 		policies = &hp
 	}
+
+	// Calculate the number of failing policies for the host based on the returned policies to
+	// avoid discrepancies due to read replica delay.
+	var failingPolicies uint64
+	if policies != nil {
+		for _, p := range *policies {
+			if p != nil && p.Response == "fail" {
+				failingPolicies++
+			}
+		}
+	}
+	host.HostIssues.FailingPoliciesCount = failingPolicies
 
 	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
 	// disk encryption status, and macOS setup details for non-linux hosts.
@@ -1311,11 +1325,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	if host.IsLUKSSupported() {
 		// since Linux hosts don't require MDM to be enabled & configured, explicitly check that disk encryption is
 		// enabled for the host's team
-		eDE, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+		diskEncryptionConfig, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption enabled setting")
 		}
-		if eDE {
+		if diskEncryptionConfig.Enabled {
 			status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")
@@ -2155,7 +2169,7 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	for i := range osVersions.OSVersions {
-		if err := svc.populateOSVersionDetails(ctx, &osVersions.OSVersions[i], includeCVSS); err != nil {
+		if err := svc.populateOSVersionDetails(ctx, &osVersions.OSVersions[i], includeCVSS, teamID, false); err != nil {
 			return nil, count, nil, err
 		}
 	}
@@ -2269,7 +2283,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	}
 
 	if osVersion != nil {
-		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
+		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS, teamID, true); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -2278,7 +2292,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 }
 
 // PopulateOSVersionDetails populates the GeneratedCPEs and Vulnerabilities for an OSVersion.
-func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool) error {
+func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool, teamID *uint, includeKernels bool) error {
 	// Populate GeneratedCPEs
 	if osVersion.Platform == "darwin" {
 		osVersion.GeneratedCPEs = []string{
@@ -2288,16 +2302,30 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 	}
 
 	// Populate Vulnerabilities
-	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS)
+	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS, teamID)
 	if err != nil {
 		return err
 	}
 
 	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
+	osVersion.Kernels = make([]*fleet.Kernel, 0)               // avoid null in JSON
 	for _, vuln := range vulns {
 		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
 		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
+
 	}
+
+	if fleet.IsLinux(osVersion.Platform) && includeKernels {
+		kernels, err := svc.ds.ListKernelsByOS(ctx, osVersion.OSVersionID, teamID)
+		if err != nil {
+			return err
+		}
+
+		if len(kernels) > 0 {
+			osVersion.Kernels = kernels
+		}
+	}
+
 	return nil
 }
 

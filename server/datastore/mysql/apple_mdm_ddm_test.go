@@ -2,7 +2,7 @@ package mysql
 
 import (
 	"context"
-	"slices"
+	"fmt"
 	"testing"
 	"time"
 
@@ -41,8 +41,8 @@ func setupMDMDeviceAndEnrollment(t *testing.T, ds *Datastore, ctx context.Contex
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			hostUUID, hostUUID, "Device", "topic", "push_magic", "token_hex", 1)
+			`INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, enabled, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			hostUUID, hostUUID, "Device", "topic", "push_magic", "token_hex", 1, time.Now())
 		return err
 	})
 }
@@ -57,7 +57,7 @@ func insertHostDeclaration(t *testing.T, ds *Datastore, ctx context.Context, hos
 		_, err := q.ExecContext(ctx, `
 			INSERT INTO host_mdm_apple_declarations
 			(host_uuid, declaration_uuid, status, operation_type, token, declaration_identifier)
-			VALUES (?, ?, ?, ?, ?, ?)`,
+			VALUES (?, ?, ?, ?, UNHEX(MD5(?)), ?)`,
 			hostUUID, declarationUUID, statusPtr, operationType, token, identifier)
 		return err
 	})
@@ -74,19 +74,6 @@ func checkDeclarationStatus(t *testing.T, ds *Datastore, ctx context.Context, ho
 			hostUUID, declarationUUID, operation).Scan(&status)
 	})
 	assert.Equal(t, expectedStatus, status)
-}
-
-// Helper function to check if a declaration is deleted
-func checkDeclarationDeleted(t *testing.T, ds *Datastore, ctx context.Context, hostUUID, declarationUUID, operation string) {
-	var count int
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		db := q.(*sqlx.DB)
-		return db.QueryRowContext(ctx, `
-			SELECT COUNT(*) FROM host_mdm_apple_declarations
-			WHERE host_uuid = ? AND declaration_uuid = ? AND operation_type = ?`,
-			hostUUID, declarationUUID, operation).Scan(&count)
-	})
-	assert.Zero(t, count)
 }
 
 func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
@@ -131,26 +118,20 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 			}
 		}
 
-		// Insert 3 install declarations with NULL status
-		for i := 0; i < 3; i++ {
-			insertHostDeclaration(
-				t, ds, ctx,
-				host.UUID,
-				declarations[i].DeclarationUUID,
-				"ABC", // token update will trigger resend
-				"verified",
-				"install",
-				declarations[i].Identifier,
-			)
-		}
+		// Don't insert the install declarations in host_mdm_apple_declarations
+		// so they get picked up as new declarations to install
 
-		// Insert 3 remove declarations with NULL status
+		// Insert 3 remove declarations with verified status
+		// These simulate declarations that were previously installed but no longer
+		// exist in mdm_apple_declarations (hence should be removed)
 		for i := 0; i < 3; i++ {
+			// Use a proper hex token for each remove declaration
+			token := fmt.Sprintf("%032x", i+1000) // 32 hex chars = 16 bytes when unhexed
 			insertHostDeclaration(
 				t, ds, ctx,
 				host.UUID,
 				removeDeclarations[i].DeclarationUUID,
-				removeDeclarations[i].DeclarationUUID, // token
+				token,
 				"verified",
 				"install", // should get converted to "remove"
 				removeDeclarations[i].Identifier,
@@ -225,13 +206,13 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 
 		// Get tokens for all declarations
 		getToken := func(declarationUUID string) string {
-			var token string
+			var token []byte
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				err := sqlx.GetContext(ctx, q, &token,
-					"SELECT token as token FROM mdm_apple_declarations WHERE declaration_uuid = ?", declarationUUID)
+					"SELECT token FROM mdm_apple_declarations WHERE declaration_uuid = ?", declarationUUID)
 				return err
 			})
-			return token
+			return fmt.Sprintf("%x", token)
 		}
 
 		installTokens := make([]string, 3)
@@ -246,8 +227,8 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 				// First 2 remove operations use the same tokens as the first 2 install operations
 				removeTokens[i] = installTokens[i]
 			} else {
-				// Last remove operation uses its declaration UUID as token
-				removeTokens[i] = removeDeclarations[i].DeclarationUUID
+				// Last remove operation uses a different token
+				removeTokens[i] = fmt.Sprintf("%032x", i+1000)
 			}
 		}
 
@@ -282,20 +263,15 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 		for _, host := range hosts {
 			// Check remove declarations first
 			for _, decl := range removeDeclarations {
-				if slices.Contains(removeTokens, decl.DeclarationUUID) {
-					checkDeclarationStatus(t, ds, ctx, host.UUID, decl.DeclarationUUID, "pending", "remove")
-				} else {
-					checkDeclarationDeleted(t, ds, ctx, host.UUID, decl.DeclarationUUID, "remove")
-				}
+				// All remove declarations should be marked as pending since they were inserted
+				// with verified status and should be converted to remove operations
+				checkDeclarationStatus(t, ds, ctx, host.UUID, decl.DeclarationUUID, "pending", "remove")
 			}
 
 			// Check install declarations
 			for _, decl := range installDeclarations {
-				if slices.Contains(removeTokens, decl.Token) {
-					checkDeclarationStatus(t, ds, ctx, host.UUID, decl.DeclarationUUID, "verified", "install")
-				} else {
-					checkDeclarationStatus(t, ds, ctx, host.UUID, decl.DeclarationUUID, "pending", "install")
-				}
+				// All install declarations should be marked as pending
+				checkDeclarationStatus(t, ds, ctx, host.UUID, decl.DeclarationUUID, "pending", "install")
 			}
 		}
 	})

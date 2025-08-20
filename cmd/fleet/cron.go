@@ -455,10 +455,11 @@ func checkNVDVulnerabilities(
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
 		opts := nvd.SyncOptions{
-			VulnPath:           config.DatabasesPath,
-			CPEDBURL:           config.CPEDatabaseURL,
-			CPETranslationsURL: config.CPETranslationsURL,
-			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
+			VulnPath:             config.DatabasesPath,
+			CPEDBURL:             config.CPEDatabaseURL,
+			CPETranslationsURL:   config.CPETranslationsURL,
+			CVEFeedPrefixURL:     config.CVEFeedPrefixURL,
+			CISAKnownExploitsURL: config.CISAKnownExploitsURL,
 		}
 		err := nvd.Sync(opts, logger)
 		if err != nil {
@@ -1504,6 +1505,41 @@ func cronHostVitalsLabelMembership(
 	return nil
 }
 
+func newBatchActivityCompletionCheckerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name     = string(fleet.CronBatchActivityCompletionChecker)
+		interval = 5 * time.Minute
+	)
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob(
+			"cron_batch_activity_completion_checker",
+			func(ctx context.Context) error {
+				return cronBatchActivityCompletionChecker(ctx, ds)
+			},
+		),
+	)
+	return s, nil
+}
+
+func cronBatchActivityCompletionChecker(
+	ctx context.Context,
+	ds fleet.Datastore,
+) error {
+	if err := ds.MarkActivitiesAsCompleted(ctx); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark batch activities as completed")
+	}
+	// TODO -- add an entry in the global feed for each completed activity?
+	return nil
+}
+
 func stringSliceToUintSlice(s []string, logger kitlog.Logger) []uint {
 	result := make([]uint, 0, len(s))
 	for _, v := range s {
@@ -1688,6 +1724,43 @@ func newUpcomingActivitiesSchedule(
 			const maxUnblockHosts = 500
 			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
 			return err
+		}),
+	)
+
+	return s, nil
+}
+
+func newBatchActivitiesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronScheduledBatchActivities)
+		defaultInterval = 2 * time.Minute
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+
+	w := worker.NewWorker(ds, logger)
+
+	scriptsJob := &worker.BatchScripts{
+		Datastore: ds,
+		Log:       logger,
+	}
+
+	w.Register(scriptsJob)
+
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("batch_activities_worker", func(ctx context.Context) error {
+			if err := w.ProcessJobs(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "processing batch activity worker jobs")
+			}
+
+			return nil
 		}),
 	)
 

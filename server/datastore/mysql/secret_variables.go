@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/text/unicode/norm"
 )
 
 func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
@@ -84,6 +86,25 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 	return nil
 }
 
+func (ds *Datastore) CreateSecretVariable(ctx context.Context, name string, value string) (id uint, err error) {
+	valueEncrypted, err := encrypt([]byte(value), ds.serverPrivateKey)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "encrypt secret value for insert with server private key")
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO secret_variables (name, value) VALUES (?, ?)`,
+		name, valueEncrypted,
+	)
+	if err != nil {
+		if IsDuplicate(err) {
+			return 0, ctxerr.Wrap(ctx, alreadyExists("name", name), "found duplicate")
+		}
+		return 0, ctxerr.Wrap(ctx, err, "insert secret variable")
+	}
+	id_, _ := res.LastInsertId()
+	return uint(id_), nil //nolint:gosec // dismiss G115
+}
+
 func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]fleet.SecretVariable, error) {
 	if len(names) == 0 {
 		return nil, nil
@@ -113,6 +134,64 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 	}
 
 	return secretVariables, nil
+}
+
+func (ds *Datastore) ListSecretVariables(ctx context.Context, opt fleet.ListOptions) (
+	secretVariables []fleet.SecretVariableIdentifier, meta *fleet.PaginationMetadata, count int, err error,
+) {
+	stmt := `SELECT id, name, updated_at FROM secret_variables WHERE true`
+
+	// normalize the name for full Unicode support (Unicode equivalence).
+	normMatch := norm.NFC.String(opt.MatchQuery)
+	whereClauses, args := searchLike("", nil, normMatch, "name")
+	stmt += whereClauses
+
+	// perform a second query to grab the count
+	// build the count statement before adding pagination constraints
+	countStmt := fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS s", stmt)
+
+	stmt, args = appendListOptionsWithCursorToSQL(stmt, args, &opt)
+
+	dbReader := ds.reader(ctx)
+	if err := sqlx.SelectContext(ctx, dbReader, &secretVariables, stmt, args...); err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "listing secret variables")
+	}
+	if err := sqlx.GetContext(ctx, dbReader, &count, countStmt, args...); err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "get secret variables count")
+	}
+
+	if opt.IncludeMetadata {
+		meta = &fleet.PaginationMetadata{
+			HasPreviousResults: opt.Page > 0,
+			TotalResults:       uint(count), //nolint:gosec // dismiss G115
+		}
+		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this discrepancy.
+		if len(secretVariables) > int(opt.PerPage) { //nolint:gosec // dismiss G115
+			meta.HasNextResults = true
+			secretVariables = secretVariables[:len(secretVariables)-1]
+		}
+	}
+
+	return secretVariables, meta, count, nil
+}
+
+func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (name string, err error) {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, tx, &name, `SELECT name FROM secret_variables WHERE id = ?`, id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, notFound("SecretVariable").WithID(id))
+			}
+			return ctxerr.Wrap(ctx, err, "getting name of secret variable to delete")
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM secret_variables WHERE id = ?`, id); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete secret variable")
+		}
+		return nil
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "delete secret variable")
+	}
+	return name, nil
 }
 
 func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {

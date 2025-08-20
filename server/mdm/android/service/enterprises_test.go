@@ -23,7 +23,7 @@ func TestEnterprisesAuth(t *testing.T) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc)
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -104,7 +104,6 @@ func TestEnterprisesAuth(t *testing.T) {
 			defer cancel()
 			_, err = svc.EnterpriseSignupSSE(ctx)
 			checkAuthErr(t, tt.shouldFailRead, err)
-
 		})
 	}
 
@@ -114,6 +113,29 @@ func TestEnterprisesAuth(t *testing.T) {
 		err = svc.EnterpriseSignupCallback(context.Background(), "bad_token", "token")
 		checkAuthErr(t, true, err)
 	})
+}
+
+func TestEnterpriseSignupMissingPrivateKey(t *testing.T) {
+	androidAPIClient := android_mock.Client{}
+	androidAPIClient.InitCommonMocks()
+	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	fleetDS := InitCommonDSMocks()
+	fleetSvc := mockService{}
+
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+	require.NoError(t, err)
+
+	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
+
+	testSetEmptyPrivateKey = true
+	t.Cleanup(func() { testSetEmptyPrivateKey = false })
+
+	_, err = svc.EnterpriseSignup(ctx)
+	require.Error(t, err)
+
+	require.Contains(t, err.Error(), "missing required private key")
+	require.Contains(t, err.Error(), "https://fleetdm.com/learn-more-about/fleet-server-private-key")
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
@@ -127,7 +149,7 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	}
 }
 
-func InitCommonDSMocks() fleet.AndroidDatastore {
+func InitCommonDSMocks() *AndroidMockDS {
 	ds := AndroidMockDS{}
 	ds.Datastore.InitCommonMocks()
 
@@ -141,7 +163,8 @@ func InitCommonDSMocks() fleet.AndroidDatastore {
 		return &fleet.User{ID: id}, nil
 	}
 	ds.Store.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		queryerContext sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		result := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(assetNames))
 		for _, name := range assetNames {
 			result[name] = fleet.MDMConfigAsset{Value: []byte("value")}

@@ -33,8 +33,8 @@ const SoftwareSummaryCard = ({
   isLoading = false,
   router,
 }: ISoftwareSummaryCard) => {
-  // Hide versions card for tgz_packages only
-  if (title.source === "tgz_packages") return null;
+  // Hide versions table for tgz_packages only
+  const showVersionsTable = title.source !== "tgz_packages";
 
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
@@ -52,15 +52,17 @@ const SoftwareSummaryCard = ({
         source={title.source}
         iconUrl={title.app_store_app ? title.app_store_app.icon_url : undefined}
       />
-      <TitleVersionsTable
-        router={router}
-        data={title.versions ?? []}
-        isLoading={isLoading}
-        teamIdForApi={teamId}
-        isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}
-        isAvailableForInstall={isAvailableForInstall}
-        countsUpdatedAt={title.counts_updated_at}
-      />
+      {showVersionsTable && (
+        <TitleVersionsTable
+          router={router}
+          data={title.versions ?? []}
+          isLoading={isLoading}
+          teamIdForApi={teamId}
+          isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}
+          isAvailableForInstall={isAvailableForInstall}
+          countsUpdatedAt={title.counts_updated_at}
+        />
+      )}
     </Card>
   );
 };

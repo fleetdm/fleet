@@ -32,6 +32,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -65,6 +66,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -99,6 +101,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
         isHostOnline
       />
     );
@@ -130,6 +133,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -162,6 +166,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
         isHostOnline
       />
     );
@@ -198,6 +203,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -225,6 +231,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -253,6 +260,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -280,6 +288,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
     expect(screen.getByRole("button", { name: /Failed/i })).toBeInTheDocument();
@@ -307,6 +316,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
     expect(
@@ -331,6 +341,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
     expect(
@@ -355,6 +366,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
         isHostOnline
       />
     );
@@ -383,6 +395,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -408,6 +421,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -433,6 +447,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -462,6 +477,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -487,6 +503,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 
@@ -515,6 +532,7 @@ describe("InstallStatusCell - component", () => {
         onShowUpdateDetails={noop}
         onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
       />
     );
 

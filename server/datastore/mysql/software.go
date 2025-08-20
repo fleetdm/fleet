@@ -424,7 +424,7 @@ func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 	updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.bundle_identifier = ?`
 
 	hostSoftwareStmt := `
-		INSERT IGNORE INTO host_software 
+		INSERT IGNORE INTO host_software
 			(host_id, software_id, last_opened_at)
 		VALUES
 			(?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1), ?)`
@@ -820,9 +820,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					titleID = &title.ID
 				} else if _, ok := newTitlesNeeded[checksum]; !ok {
 					st := fleet.SoftwareTitle{
-						Name:    sw.Name,
-						Source:  sw.Source,
-						Browser: sw.Browser,
+						Name:     sw.Name,
+						Source:   sw.Source,
+						Browser:  sw.Browser,
+						IsKernel: sw.IsKernel,
 					}
 
 					if sw.BundleIdentifier != "" {
@@ -843,14 +844,14 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			// Insert into software_titles
 			totalTitlesToProcess := len(newTitlesNeeded)
 			if totalTitlesToProcess > 0 {
-				const numberOfArgsPerSoftwareTitles = 4 // number of ? in each VALUES clause
-				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", totalTitlesToProcess), ",")
+				const numberOfArgsPerSoftwareTitles = 5 // number of ? in each VALUES clause
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", totalTitlesToProcess), ",")
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
-				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel) VALUES %s", titlesValues)
 				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
 				titleChecksums := make([]string, 0, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
-					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier)
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel)
 					titleChecksums = append(titleChecksums, checksum)
 				}
 				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
@@ -2061,8 +2062,8 @@ DELETE st FROM software_titles st
 				id DESC
 			LIMIT 1
 		)
-		WHERE 
-			st.bundle_identifier IS NOT NULL AND 
+		WHERE
+			st.bundle_identifier IS NOT NULL AND
 			st.bundle_identifier != '' AND
 			s.name_source = 'bundle_4.67'
 		`
@@ -2424,7 +2425,7 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			software.source AS software_source,
 			software.version AS version,
 			software.bundle_identifier AS bundle_identifier
-		FROM 
+		FROM
 			host_software
 		INNER JOIN
 			software ON host_software.software_id = software.id
@@ -3237,7 +3238,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, s := range hostInstalledSoftware {
+	for _, pointerToSoftware := range hostInstalledSoftware {
+		s := *pointerToSoftware
+		if pointerToSoftware.LastOpenedAt != nil {
+			timeCopy := *pointerToSoftware.LastOpenedAt
+			s.LastOpenedAt = &timeCopy
+		}
+
 		if unInstalled, ok := uninstallQuarantineSet[s.ID]; ok {
 			// We have an uninstall record according to host_software_installs,
 			// however, osquery says the software is installed.
@@ -3246,15 +3253,19 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
-			bySoftwareTitleID[s.ID] = s
-		} else {
-			bySoftwareTitleID[s.ID].LastOpenedAt = s.LastOpenedAt
+			sCopy := s
+			bySoftwareTitleID[s.ID] = &sCopy
+		} else if (bySoftwareTitleID[s.ID].LastOpenedAt == nil) ||
+			(s.LastOpenedAt != nil && bySoftwareTitleID[s.ID].LastOpenedAt != nil &&
+				s.LastOpenedAt.After(*bySoftwareTitleID[s.ID].LastOpenedAt)) {
+			existing := bySoftwareTitleID[s.ID]
+			existing.LastOpenedAt = s.LastOpenedAt
 		}
 
 		hostInstalledSoftwareTitleSet[s.ID] = struct{}{}
 		if s.SoftwareID != nil {
-			bySoftwareID[*s.SoftwareID] = s
-			hostInstalledSoftwareSet[*s.SoftwareID] = s
+			bySoftwareID[*s.SoftwareID] = pointerToSoftware
+			hostInstalledSoftwareSet[*s.SoftwareID] = pointerToSoftware
 		}
 	}
 
@@ -3645,7 +3656,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 			for _, s := range installedVPPAppIDs {
 				if s.VPPAppAdamID != nil {
-					tmpByVPPAdamID[*s.VPPAppAdamID] = s
+					if tmpByVPPAdamID[*s.VPPAppAdamID] == nil {
+						// inventoried by osquery, but not installed by fleet
+						tmpByVPPAdamID[*s.VPPAppAdamID] = s
+					} else {
+						// inventoried by osquery, but installed by fleet
+						// We want to preserve the install information from host_vpp_software_installs
+						// so don't overwrite the existing record
+						tmpByVPPAdamID[*s.VPPAppAdamID].VPPAppVersion = s.VPPAppVersion
+						tmpByVPPAdamID[*s.VPPAppAdamID].VPPAppPlatform = s.VPPAppPlatform
+						tmpByVPPAdamID[*s.VPPAppAdamID].VPPAppIconURL = s.VPPAppIconURL
+					}
 				}
 				if VPPAppByFleet, ok := hostVPPInstalledTitles[s.ID]; ok {
 					// Vpp app installed by fleet, so we need to copy over the status,
@@ -3792,8 +3813,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 
 	var vppAdamIDs []string
-	for key := range byVPPAdamID {
+	var vppTitleIds []uint
+	for key, v := range byVPPAdamID {
 		vppAdamIDs = append(vppAdamIDs, key)
+		vppTitleIds = append(vppTitleIds, v.ID)
 	}
 
 	var titleCount uint
@@ -3898,7 +3921,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			FROM
 				software_titles
 			LEFT JOIN
-				software_installers ON software_titles.id = software_installers.title_id 
+				software_installers ON software_titles.id = software_installers.title_id
 				AND software_installers.global_or_team_id = :global_or_team_id
 			LEFT JOIN
 				software ON software_titles.id = software.title_id ` + installedSoftwareJoinsCondition + `
@@ -4126,6 +4149,21 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			vulnerabilitiesBySoftwareID[cve.SoftwareID] = append(vulnerabilitiesBySoftwareID[cve.SoftwareID], cve.CVE)
 		}
 
+		// Grab the automatic install policies, if any exist.
+		teamID := uint(0) // "No team" host
+		if host.TeamID != nil {
+			teamID = *host.TeamID // Team host
+		}
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, append(vppTitleIds, softwareTitleIds...), teamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
+		}
+
+		policiesBySoftwareTitleId := make(map[uint][]fleet.AutomaticInstallPolicy, len(policies))
+		for _, p := range policies {
+			policiesBySoftwareTitleId[p.TitleID] = append(policiesBySoftwareTitleId[p.TitleID], p)
+		}
+
 		indexOfSoftwareTitle := make(map[uint]uint)
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
@@ -4265,6 +4303,22 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if softwareTitleRecord.VPPAppAdamID != nil {
 				if _, ok := filteredByVPPAdamID[*softwareTitleRecord.VPPAppAdamID]; ok {
 					promoteSoftwareTitleVPPApp(softwareTitleRecord)
+				}
+			}
+
+			if policies, ok := policiesBySoftwareTitleId[softwareTitleRecord.ID]; ok {
+				switch {
+				case softwareTitleRecord.AppStoreApp != nil:
+					softwareTitleRecord.AppStoreApp.AutomaticInstallPolicies = policies
+				case softwareTitleRecord.SoftwarePackage != nil:
+					softwareTitleRecord.SoftwarePackage.AutomaticInstallPolicies = policies
+				default:
+					level.Warn(ds.logger).Log(
+						"team_id", teamID,
+						"host_id", host.ID,
+						"software_title_id", softwareTitleRecord.ID,
+						"msg", "software title record should have an associated VPP application or software package",
+					)
 				}
 			}
 

@@ -147,6 +147,7 @@ spec:
     issuer_uri: ""
     metadata: ""
     metadata_url: ""
+    sso_server_url: ""
   update_interval:
     osquery_detail: 1h0m0s
     osquery_policy: 1h0m0s

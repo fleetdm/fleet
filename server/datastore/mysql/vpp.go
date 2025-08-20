@@ -84,11 +84,13 @@ WHERE
 	}
 	app.Categories = categories
 
-	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+	if teamID != nil {
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+		}
+		app.AutomaticInstallPolicies = policies
 	}
-	app.AutomaticInstallPolicies = policies
 
 	return &app, nil
 }
@@ -1646,21 +1648,18 @@ TEAMLOOP:
 
 func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, nullTeam fleet.NullTeamType) error {
 	nullTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = ?`
-	anyTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = 'allteams' OR null_team_type = 'noteam' OR team_id IS NOT NULL`
+	anyTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE (null_team_type = 'allteams' OR null_team_type = 'noteam' OR team_id IS NOT NULL) AND vpp_token_id != ?`
 
 	if nullTeam == fleet.NullTeamAllTeams {
 		var ids []uint
-		if err := sqlx.SelectContext(ctx, tx, &ids, anyTeamStmt); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &ids, anyTeamStmt, *currentID); err != nil {
 			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
 		}
 
+		// Only blocks assignment if another token is already assigned to one or more teams.
+		// Allows the current token to switch from teams to "all teams" freely
 		if len(ids) > 0 {
-			if len(ids) > 1 {
-				return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
-			}
-			if currentID == nil || ids[0] != *currentID {
-				return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
-			}
+			return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
 		}
 	}
 

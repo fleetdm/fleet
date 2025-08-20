@@ -6,16 +6,17 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Team
 
 | Role                             | Contributor(s)           |
-|:---------------------------------|:-----------------------------------------------------------------------------------------------------------|
+|:---------------------------------|:-------------------------------------------------------------------------------------------------|
 | Head of Product Design           | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
+| Head of Design, UI, Brand, and Web | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Product Designer                 | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in `#help-design`.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Ahelp-design&title=Product%20design%20request%C2%BB______________________&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/67) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/93) for this department, including pending tasks and the status of new requests.
 
 
 ## Responsibilities
@@ -119,15 +120,17 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
-- A user story is taking more effort than was originally estimated, and Product Designer wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
+- A user story is taking more effort than was originally estimated, and Product Designer (PD) wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
 - A user story on the drafting board won't reach "Ready for spec" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
 
+
 What happens during expedited drafting?
-1. If the story has a requester, notify the [customer support DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). The customer support DRI should confirm that the updated scope still meets the requester's need.
-2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) (release DRI), and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
-3. If the user story is already in the sprint, the EM, QA, release DRI, and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
-4. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
-5. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
+
+1. If we cut planned functionality, the PD notifies the [customer support DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). Up to the PD to let the customer support DRI know if we're still planning on building the functionality in a later release and if so, when. The customer support DRI should confirm that the updated scope and/or timeline still meets the requester's needs.
+2. The PD notifies the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) (release DRI), Head of Product Design, and the the product group's Engineering Manager (EM) and Quality Assurance (QA) Engineer in the `#g-mdm`, `#g-orchestration`, or `#g-software` Slack channel.
+  - If the user story wasn't "Ready for spec" by the last estimation session, decision to allow the user story to make it into the next engineering sprint is up to the release DRI.
+  - If the user story is in the current engineering sprint and there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
+3. Drafts are updated, changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the user story is estimated or brought back into the current sprint.
 
 
 ### Write a user story
@@ -193,6 +196,13 @@ If the original request is a customer request, the PD also assigns the relevant 
 > Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
 
 
+### Update a company brand front
+
+Fleet has several brand fronts that need to be updated from time to time. Check each [brand front](https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0) for consistency and update as needed with the following: 
+- The current pitch, found in the blurbs section of the [🎐 Why Fleet?](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.uovxedjegxdc) doc. 
+- The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
+
+
 ## Rituals
 <rituals :rituals="rituals['handbook/product-design/product-design.rituals.yml']"></rituals>
 
@@ -200,104 +210,7 @@ If the original request is a customer request, the PD also assigns the relevant 
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
-##### Maintenance
-Please see [handbook/product-design#rituals](https://fleetdm.com/handbook/product-design#rituals)
 
-##### New CIS benchmarks
-Please see [handbook/product#submit-a-new-cis-benchmark-set-for-certification](https://fleetdm.com/handbook/product#submit-a-new-cis-benchmark-set-for-certification)
-
-##### Create a new file
-##### Wireframing
-Please see [handbook/product#create-a-new-figma-file](https://fleetdm.com/handbook/product#create-a-new-figma-file) for **above**
-
-##### Competition
-Please see [handbook/company/communications#competition](https://fleetdm.com/handbook/company/communications#competition)
-
-##### Breaking changes
-Please see [handbook/company/product-groups#breaking-changes](https://fleetdm.com/handbook/company/product-groups#breaking-changes)
-
-##### Making changes to the product
-Please see [handbook/product#responsibilities](https://fleetdm.com/handbook/product#responsibilities)
-
-Please see [handbook/product#release-relevant-figma-files](https://fleetdm.com/handbook/product#release-relevant-figma-files) for **below**
-##### Working with Figma
-##### Keep projects/files clean and up-to-date
-##### Questions and missing information
-Please see [handbook/product#release-relevant-figma-files](https://fleetdm.com/handbook/product#release-relevant-figma-files) for **above**
-
-
-##### Scheduling design reviews
-Please see [handbook/product#schedule-a-design-review](https://fleetdm.com/handbook/product#schedule-a-design-review)
-
-##### Settled 
-Please see [handbook/product#ensure-product-user-story-is-complete](https://fleetdm.com/handbook/product#ensure-product-user-story-is-complete)
-
-##### Expedited drafting
-Please see [handbook/product#revise-a-draft-currently-in-development](https://fleetdm.com/handbook/product#revise-a-draft-currently-in-development)
-
-##### Outside contributions
-Please see [handbook/product#outside-contributions](https://fleetdm.com/handbook/product#outside-contributions)
-
-##### Prioritizing bugs
-Please see [handbook/product#correctly-prioritize-a-bug](https://fleetdm.com/handbook/product#correctly-prioritize-a-bug)
-
-##### Writing user stories
-Please see [handbook/product#write-a-user-story](https://fleetdm.com/handbook/product#write-a-user-story)
-
-##### Drafting user stories
-Please see [handbook/product#draft-a-user-story](https://fleetdm.com/handbook/product#draft-a-user-story)
-
-##### Estimating user stories
-Please see [handbook/product#estimate-a-user-story](https://fleetdm.com/handbook/product#estimate-a-user-story)
-
-##### Sprints
-Please see [handbook/company/product-groups#sprints](https://fleetdm.com/handbook/company/product-groups#sprints)
-
-##### Sprint numbering
-Please see [handbook/company/product-groups#sprint-numbering](https://fleetdm.com/handbook/company/product-groups#sprint-numbering)
-
-##### Product design conventions
-Please see [handbook/company/product-groups#product-design-conventions](https://fleetdm.com/handbook/company/product-groups#product-design-conventions)
-
-##### Wireframes 
-Please see [handbook/company/product-groups#wireframes](https://fleetdm.com/handbook/company/product-groups#wireframes)
-
-Please see [handbook/product#rank-features-before-release](https://fleetdm.com/handbook/product#rank-features-before-release) for **below**
-##### Release 
-##### Ranking features
-Please see [handbook/product#rank-features-before-release](https://fleetdm.com/handbook/product#rank-features-before-release) for **above**
-
-##### Blog post
-Please see [handbook/product#create-release-issue](https://fleetdm.com/handbook/product#create-release-issue)
-
-##### Feature flags
-Please see [handbook/product#consider-a-feature-eligible-to-be-flagged](https://fleetdm.com/handbook/product#consider-a-feature-eligible-to-be-flagged)
-
-##### Feature fest
-Please see [handbook/product-groups#feature-fest](https://fleetdm.com/handbook/product-groups#feature-fest)
-
-##### Making a request
-Please see [handbook/product-groups#making-a-request](https://fleetdm.com/handbook/product-groups#making-a-request)
-
-Please see [handbook/product-groups#how-feature-requests-are-evaluated](https://fleetdm.com/handbook/product-groups#how-feature-requests-are-evaluated)
-##### How feature requests are evaluated
-##### Prioritizing improvements
-Please see [handbook/product-groups#how-feature-requests-are-evaluated](https://fleetdm.com/handbook/product-groups#how-feature-requests-are-evaluated)
-
-##### Customer feature requests 
-Please see [handbook/product-groups#customer-feature-requests](https://fleetdm.com/handbook/product-groups#customer-feature-requests)
-
-##### After the feature is accepted
-Please see [handbook/product-groups#after-the-feature-is-accepted](https://fleetdm.com/handbook/product-groups#after-the-feature-is-accepted)
-
-##### Restart Algolia manually
-Please see [handbook/digital-experience#restart-algolia-manually](https://fleetdm.com/handbook/digital-experience#restart-algolia-manually)
-
-##### Schedule a design review
-Please see [handbook/product#prepare-for-design-review](https://fleetdm.com/handbook/product#prepare-for-design-review)
-
-##### Create a new Figma file
-Please see [handbook/product#drafting](https://fleetdm.com/handbook/product#drafting)
 
 <meta name="maintainedBy" value="noahtalerman">
 <meta name="title" value="🦢 Product design">

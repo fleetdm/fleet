@@ -2970,11 +2970,11 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 	hosts := s.createHosts(t, "linux")
 	host := hosts[0]
 
-	stalePolicyCount, staleIssuesCount, freshPolicyCount, freshIssueCount := uint64(50), uint64(500), uint64(0), uint64(0)
+	staleIssuesCount, freshIssueCount := uint64(500), uint64(0)
 	// create host_issues for it with stale data
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count) VALUES (?, ?, ?)`, host.ID, stalePolicyCount, staleIssuesCount)
+			`INSERT INTO host_issues (host_id, total_issues_count) VALUES (?, ?)`, host.ID, staleIssuesCount)
 		return err
 	})
 
@@ -2982,18 +2982,16 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 	hostResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 
-	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, stalePolicyCount)
 	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, staleIssuesCount)
 
 	// set updated_at to longer than minute ago
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`UPDATE host_issues SET updated_at = ? WHERE host_id = ?`, time.Time{}, host.ID)
+			`UPDATE host_issues SET updated_at = ? WHERE host_id = ?`, time.Now().Add(-2*time.Minute), host.ID)
 		return err
 	})
 	// hit endpoint: should have been updated this time
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
-	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, freshPolicyCount)
 	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, freshIssueCount)
 }
 
@@ -8952,7 +8950,7 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
 	require.Equal(t, host.ID, getHostResp.Host.ID)
-	require.Empty(t, getHostResp.Host.Software)
+	require.NotNil(t, getHostResp.Host.Software)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
 	getHostResp = getHostResponse{}
@@ -10114,7 +10112,7 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 
 	// simulate ABM assignment
 	encTok := uuid.NewString()
-	abmToken, err := s.ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok)})
+	abmToken, err := s.ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 	err = s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleetMDM}, abmToken.ID)
@@ -13327,7 +13325,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Nil(t, getHostSoftwareResp.Software[2].InstalledVersions[0].SignatureInformation)
 }
 
-func (s *integrationTestSuite) TestSecretVariables() {
+func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -13343,12 +13341,12 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	s.setTokenForTest(t, "gitops1@example.com", test.GoodPassword)
 
 	// Empty request
-	req := secretVariablesRequest{}
-	var resp secretVariablesResponse
+	req := createSecretVariablesRequest{}
+	var resp createSecretVariablesResponse
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 
 	// Secret variable name too long
-	req = secretVariablesRequest{
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  strings.Repeat("a", 256),
@@ -13360,7 +13358,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	assertBodyContains(t, httpResp, "secret variable name is too long")
 
 	// Secret variable name empty
-	req = secretVariablesRequest{
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "  ",
@@ -13371,8 +13369,8 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	httpResp = s.Do("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusUnprocessableEntity)
 	assertBodyContains(t, httpResp, "secret variable name cannot be empty")
 
-	validName := strings.Repeat("g", 255)
-	req = secretVariablesRequest{
+	validName := strings.Repeat("G", 255)
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_" + validName,
@@ -13395,6 +13393,170 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
+}
+
+func (s *integrationTestSuite) TestSecretVariables() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a single secret variable.
+	var csvr createSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME1",
+		Value: "value1",
+	}, http.StatusOK, &csvr)
+	firstVariableID := csvr.ID
+	require.NotZero(t, firstVariableID)
+
+	// List (no-filtering).
+	var lsvr listSecretVariablesResponse
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", listSecretVariablesRequest{}, http.StatusOK, &lsvr)
+	require.Equal(t, lsvr.Count, 1)
+	require.Len(t, lsvr.CustomVariables, 1)
+	require.NotZero(t, lsvr.CustomVariables[0].ID)
+	require.Equal(t, "NAME1", lsvr.CustomVariables[0].Name)
+	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+
+	// Make sure we can access the value internally.
+	secretVariables, err := s.ds.GetSecretVariables(ctx, []string{"NAME1"})
+	require.NoError(t, err)
+	require.Len(t, secretVariables, 1)
+	require.Equal(t, "NAME1", secretVariables[0].Name)
+	require.Equal(t, "value1", secretVariables[0].Value)
+	require.NotZero(t, secretVariables[0].UpdatedAt)
+
+	// Creating the same variable should fail with conflict.
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME1",
+		Value: "value1",
+	}, http.StatusConflict, &csvr)
+
+	// Creating a variable with invalid name should fail with 422.
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "lowercase",
+		Value: "foobar",
+	}, http.StatusUnprocessableEntity, &csvr)
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "",
+		Value: "foobar",
+	}, http.StatusUnprocessableEntity, &csvr)
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  strings.Repeat("HA ", 255/3+1),
+		Value: "foobar",
+	}, http.StatusUnprocessableEntity, &csvr)
+	// No server private key configured, should fail with 400.
+	testSetEmptyPrivateKey = true
+	defer func() {
+		testSetEmptyPrivateKey = false
+	}()
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME2",
+		Value: "foobar",
+	}, http.StatusBadRequest, &csvr)
+
+	testSetEmptyPrivateKey = false
+
+	// Creating a variable with empty value should fail with 422.
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "ANOTHER_NAME",
+		Value: "",
+	}, http.StatusUnprocessableEntity, &csvr)
+
+	// Creating a second variable.
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "ANOTHER_NAME",
+		Value: "value2",
+	}, http.StatusOK, &csvr)
+	secondVariableID := csvr.ID
+	require.NotZero(t, secondVariableID)
+
+	// List (no-filtering) with pagination (first page).
+	lsvr = listSecretVariablesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "1", "page", "0")
+	require.Equal(t, 2, lsvr.Count)
+	require.NotNil(t, lsvr.Meta)
+	require.False(t, lsvr.Meta.HasPreviousResults)
+	require.True(t, lsvr.Meta.HasNextResults)
+	require.Len(t, lsvr.CustomVariables, 1)
+	require.Equal(t, secondVariableID, lsvr.CustomVariables[0].ID)
+	require.Equal(t, "ANOTHER_NAME", lsvr.CustomVariables[0].Name)
+	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	// List (no-filtering) with pagination (second page).
+	lsvr = listSecretVariablesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "1", "page", "1")
+	require.Equal(t, 2, lsvr.Count)
+	require.NotNil(t, lsvr.Meta)
+	require.True(t, lsvr.Meta.HasPreviousResults)
+	require.False(t, lsvr.Meta.HasNextResults)
+	require.Len(t, lsvr.CustomVariables, 1)
+	require.Equal(t, firstVariableID, lsvr.CustomVariables[0].ID)
+	require.Equal(t, "NAME1", lsvr.CustomVariables[0].Name)
+	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	// List (no-filtering) with pagination (one page, two secrets).
+	// Must be ordered alphabetically.
+	lsvr = listSecretVariablesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "20", "page", "0")
+	require.Equal(t, 2, lsvr.Count)
+	require.NotNil(t, lsvr.Meta)
+	require.False(t, lsvr.Meta.HasPreviousResults)
+	require.False(t, lsvr.Meta.HasNextResults)
+	require.Len(t, lsvr.CustomVariables, 2)
+	require.Equal(t, secondVariableID, lsvr.CustomVariables[0].ID)
+	require.Equal(t, "ANOTHER_NAME", lsvr.CustomVariables[0].Name)
+	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	require.Equal(t, firstVariableID, lsvr.CustomVariables[1].ID)
+	require.Equal(t, "NAME1", lsvr.CustomVariables[1].Name)
+	require.NotZero(t, lsvr.CustomVariables[1].UpdatedAt)
+
+	// Test deletion of non-existent ID
+	var dsvr deleteSecretVariableResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/custom_variables/999", nil, http.StatusNotFound, &dsvr)
+
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusOK, &dsvr)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", secondVariableID), nil, http.StatusOK, &dsvr)
+
+	// List after deletions should be empty.
+	lsvr = listSecretVariablesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr)
+	require.Equal(t, 0, lsvr.Count)
+	require.Empty(t, lsvr.CustomVariables)
+}
+
+func (s *integrationTestSuite) TestSecretVariablesPermissions() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a single secret variable.
+	var csvr createSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME1",
+		Value: "foobar",
+	}, http.StatusOK, &csvr)
+
+	// Create a global observer user which should be allowed to read but not create secret variables.
+	u := &fleet.User{
+		Name:       "Observer",
+		Email:      "observer@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(ctx, u)
+	require.NoError(t, err)
+	s.setTokenForTest(t, "observer@example.com", test.GoodPassword)
+
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME1",
+		Value: "foobar",
+	}, http.StatusForbidden, &csvr)
+
+	// List (no-filtering) should work for non-admins.
+	var lsvr listSecretVariablesResponse
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", listSecretVariablesRequest{}, http.StatusOK, &lsvr)
+	require.Equal(t, lsvr.Count, 1)
+	require.Len(t, lsvr.CustomVariables, 1)
+	require.NotZero(t, lsvr.CustomVariables[0].ID)
+	require.Equal(t, "NAME1", lsvr.CustomVariables[0].Name)
+	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
 }
 
 func (s *integrationTestSuite) TestListAndroidHostsInLabel() {
@@ -13468,10 +13630,10 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 				HardwareSerial: uuid.NewString(),
 			},
 			Device: &android.Device{
-				DeviceID:             uuid.NewString(),
+				DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
 				EnterpriseSpecificID: ptr.String(uuid.NewString()),
 				AndroidPolicyID:      ptr.Uint(1),
-				LastPolicySyncTime:   ptr.Time(time.Time{}),
+				LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)), // 1 hour ago
 			},
 		}
 		host.SetNodeKey(*host.Device.EnterpriseSpecificID)
@@ -13519,6 +13681,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			SHA1Sum:        sha1Sum[:],
 			SubjectCountry: "s" + name,
 			IssuerCountry:  "i" + name,
+			NotValidBefore: now.Add(-24 * time.Hour), // 1 day ago
 			NotValidAfter:  notValidAfterTimes[i],
 			Source:         fleet.SystemHostCertificate,
 		})
