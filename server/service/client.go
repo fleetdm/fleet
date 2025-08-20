@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -28,6 +29,8 @@ import (
 )
 
 const batchSize = 100
+
+var payloadDisplayNameRegex = regexp.MustCompile(`<key>PayloadDisplayName</key>\s*<string>([^<]*)</string>`)
 
 // Client is used to consume Fleet APIs from Go code
 type Client struct {
@@ -357,15 +360,46 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 			if platform == "macos" {
 				switch ext {
 				case ".mobileconfig", ".xml": // allowing .xml for backwards compatibility
-					mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
-					if err != nil {
-						errForMsg := errors.Unwrap(err)
-						if errForMsg == nil {
-							errForMsg = err
+					// For validation, we need to expand FLEET_SECRET_ variables in <data> tags so the XML parser
+					// can properly validate the profile structure. However, we must be careful not to expose
+					// secrets in the profile name.
+					containsSecrets := len(fleet.ContainsPrefixVars(string(fileContents), fleet.ServerSecretPrefix)) > 0
+
+					if containsSecrets {
+						// If profile contains secrets, check for secrets in PayloadDisplayName first
+						if err := validateNoSecretsInProfileName(string(fileContents), prefixErrMsg); err != nil {
+							return nil, err
 						}
-						return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+
+						// Expand secrets for validation
+						validationContents, expandErr := spec.ExpandEnvBytesIncludingSecrets(fileContents)
+						if expandErr != nil {
+							return nil, fmt.Errorf("%s: expanding secrets for validation: %w", prefixErrMsg, expandErr)
+						}
+
+						// Validate the profile structure with expanded secrets
+						mcExpanded, validationErr := fleet.NewMDMAppleConfigProfile(validationContents, nil)
+						if validationErr != nil {
+							errForMsg := errors.Unwrap(validationErr)
+							if errForMsg == nil {
+								errForMsg = validationErr
+							}
+							return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+						}
+
+						name = strings.TrimSpace(mcExpanded.Name)
+					} else {
+						// No secrets, parse normally
+						mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
+						if err != nil {
+							errForMsg := errors.Unwrap(err)
+							if errForMsg == nil {
+								errForMsg = err
+							}
+							return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+						}
+						name = strings.TrimSpace(mc.Name)
 					}
-					name = strings.TrimSpace(mc.Name)
 				case ".json":
 					if mdm.GetRawProfilePlatform(fileContents) != "darwin" {
 						return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Declaration profiles should include valid JSON.")
@@ -2540,6 +2574,22 @@ func (c *Client) GetGitOpsSecrets(
 					secretValues = append(secretValues, secret.Secret)
 				}
 				return secretValues
+			}
+		}
+	}
+	return nil
+}
+
+// validateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
+// by parsing the raw XML content.
+func validateNoSecretsInProfileName(xmlContent, prefixErrMsg string) error {
+	matches := payloadDisplayNameRegex.FindAllStringSubmatch(xmlContent, -1)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			displayName := match[1]
+			if len(fleet.ContainsPrefixVars(displayName, fleet.ServerSecretPrefix)) > 0 {
+				return fmt.Errorf("%s: PayloadDisplayName cannot contain FLEET_SECRET variables", prefixErrMsg)
 			}
 		}
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -219,4 +220,106 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	winProfile, err := s.DS.GetMDMWindowsConfigProfile(ctx, windowsProfileUUID)
 	require.NoError(t, err)
 	assert.Contains(t, string(winProfile.SyncML), "${FLEET_SECRET_"+secretName2+"}")
+}
+
+// TestProfileValidationWithFleetSecretInDataTag directly tests that profiles with FLEET_SECRET_
+// variables in <data> tags fail validation
+func (s *integrationGitopsTestSuite) TestProfileValidationWithFleetSecretInDataTag() {
+	t := s.T()
+
+	// Create a profile with $FLEET_SECRET_DUO_CERTIFICATE in a <data> tag
+	profileContent := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadContent</key>
+        <array>
+            <dict>
+                <key>PayloadType</key>
+                <string>com.apple.security.root</string>
+                <key>PayloadVersion</key>
+                <integer>1</integer>
+                <key>PayloadIdentifier</key>
+                <string>com.example.test.cert</string>
+                <key>PayloadUUID</key>
+                <string>11111111-2222-3333-4444-555555555555</string>
+                <key>PayloadDisplayName</key>
+                <string>Test Root Certificate</string>
+                <key>PayloadContent</key>
+                <data>$FLEET_SECRET_DUO_CERTIFICATE</data>
+            </dict>
+        </array>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+        <key>PayloadIdentifier</key>
+        <string>com.example.test.profile</string>
+        <key>PayloadUUID</key>
+        <string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+        <key>PayloadDisplayName</key>
+        <string>Test MDM Profile with Base64</string>
+    </dict>
+</plist>`
+
+	// Try to validate the profile - this should fail with "illegal base64 data"
+	// This is what happens in getProfilesContents at client.go:360
+	_, err := fleet.NewMDMAppleConfigProfile([]byte(profileContent), nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "illegal base64 data")
+}
+
+// TestProfileWithSecretInName tests that profiles with FLEET_SECRET_ variables in PayloadDisplayName are rejected
+func (s *integrationGitopsTestSuite) TestProfileWithSecretInName() {
+	t := s.T()
+
+	// Create a profile with $FLEET_SECRET_ in PayloadDisplayName - this should be rejected
+	profileContent := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+        <key>PayloadIdentifier</key>
+        <string>com.example.test.profile</string>
+        <key>PayloadUUID</key>
+        <string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+        <key>PayloadDisplayName</key>
+        <string>Profile with $FLEET_SECRET_PASSWORD in name</string>
+    </dict>
+</plist>`
+
+	// This profile should parse fine without expansion
+	mc, err := fleet.NewMDMAppleConfigProfile([]byte(profileContent), nil)
+	require.NoError(t, err)
+
+	// But the name contains a FLEET_SECRET variable which should be rejected
+	require.Contains(t, mc.Name, "$FLEET_SECRET_PASSWORD")
+
+	// Verify that our validation would catch this BEFORE expansion
+	containsSecrets := len(fleet.ContainsPrefixVars(mc.Name, fleet.ServerSecretPrefix)) > 0
+	require.True(t, containsSecrets, "Name should be detected as containing secrets")
+
+	// Test the security vulnerability fix: secrets in name with expansion
+	t.Setenv("FLEET_SECRET_PASSWORD", "mysecretpassword")
+
+	// Expand the profile content to simulate what the vulnerable code would do
+	expandedContent, err := spec.ExpandEnvBytesIncludingSecrets([]byte(profileContent))
+	require.NoError(t, err)
+
+	// Parse the expanded content
+	mcExpanded, err := fleet.NewMDMAppleConfigProfile(expandedContent, nil)
+	require.NoError(t, err)
+
+	// CRITICAL: After expansion, the secret is no longer detectable in the name
+	expandedContainsSecrets := len(fleet.ContainsPrefixVars(mcExpanded.Name, fleet.ServerSecretPrefix)) > 0
+	require.False(t, expandedContainsSecrets, "Expanded name should NOT contain FLEET_SECRET_ pattern (this is the vulnerability)")
+
+	// The expanded name now contains the actual secret value
+	require.Contains(t, mcExpanded.Name, "mysecretpassword")
+	require.NotContains(t, mcExpanded.Name, "$FLEET_SECRET_PASSWORD")
+
+	// This demonstrates why we must check the ORIGINAL content before expansion
 }

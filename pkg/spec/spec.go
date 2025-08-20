@@ -157,7 +157,7 @@ func generateRandomString(sizeBytes int) string {
 }
 
 func ExpandEnv(s string) (string, error) {
-	out, err := expandEnv(s, true)
+	out, err := expandEnv(s, true, false)
 	return out, err
 }
 
@@ -165,9 +165,9 @@ func ExpandEnv(s string) (string, error) {
 // $ can be escaped with a backslash, e.g. \$VAR
 // \$ can be escaped with another backslash, etc., e.g. \\\$VAR
 // $FLEET_VAR_XXX will not be expanded. These variables are expanded on the server.
-// If secretsMap is not nil, $FLEET_SECRET_XXX will be evaluated and put in the map
-// If secretsMap is nil, $FLEET_SECRET_XXX will cause an error.
-func expandEnv(s string, failOnSecret bool) (string, error) {
+// If failOnSecret is true, $FLEET_SECRET_XXX will cause an error.
+// If expandSecrets is true, $FLEET_SECRET_XXX will be expanded (used for client-side validation only).
+func expandEnv(s string, failOnSecret bool, expandSecrets bool) (string, error) {
 	// Generate a random escaping prefix that doesn't exist in s.
 	var preventEscapingPrefix string
 	for {
@@ -190,6 +190,15 @@ func expandEnv(s string, failOnSecret bool) (string, error) {
 			// Don't expand fleet vars -- they will be expanded on the server
 			return "", false
 		case strings.HasPrefix(env, fleet.ServerSecretPrefix):
+			if expandSecrets {
+				// Expand secrets for client-side validation
+				v, ok := os.LookupEnv(env)
+				if ok {
+					return v, true
+				}
+				// If secret not found, leave as-is for server to handle
+				return "", false
+			}
 			if failOnSecret {
 				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q",
 					fleet.ServerSecretPrefix, env))
@@ -227,7 +236,18 @@ func ExpandEnvBytes(b []byte) ([]byte, error) {
 }
 
 func ExpandEnvBytesIgnoreSecrets(b []byte) ([]byte, error) {
-	s, err := expandEnv(string(b), false)
+	s, err := expandEnv(string(b), false, false)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(s), nil
+}
+
+// ExpandEnvBytesIncludingSecrets expands environment variables including FLEET_SECRET_ variables.
+// This should only be used for client-side validation where the actual secrets are needed temporarily.
+// The expanded secrets are never sent to the server.
+func ExpandEnvBytesIncludingSecrets(b []byte) ([]byte, error) {
+	s, err := expandEnv(string(b), false, true)
 	if err != nil {
 		return nil, err
 	}
