@@ -384,6 +384,10 @@ For macOS configuration profiles, you can use any of Apple's [built-in variables
 
 Fleet also supports adding [GitHub](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) or [GitLab](https://docs.gitlab.com/ci/variables/) environment variables in your configuration profiles. Use `$ENV_VARIABLE` format. 
 
+Fleet also supports [Fleet secret variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) in configuration profiles. These allow you to securely store sensitive values like API tokens or certificates. See the [secrets guide](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) for detailed usage.
+
+> **Important for Apple profiles:** Fleet secret variables (`$FLEET_SECRET_*`) cannot be used in the `PayloadDisplayName` field. This field becomes the visible name of the profile and could expose sensitive information. Use secrets in other fields like `PayloadDescription`, `Password`, or `PayloadContent` instead.
+
 In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (currently available only for Apple profiles). Fleet will populate these variables when profiles are sent to hosts. Supported variables are:
 
 - `$FLEET_VAR_NDES_SCEP_CHALLENGE`
