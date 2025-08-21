@@ -17,7 +17,6 @@ const DiskSpaceIndicator = ({
   baseClass,
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
-  gigsTotalDiskSpace,
   id,
   platform,
   tooltipPosition = "top",
@@ -85,9 +84,6 @@ const DiskSpaceIndicator = ({
         </ReactTooltip>
       )}
       {gigsDiskSpaceAvailable} GB{baseClass === "info-flex" && " available"}
-      {gigsTotalDiskSpace && gigsTotalDiskSpace !== "---" && (
-        <> of {gigsTotalDiskSpace} GB</>
-      )}
     </span>
   );
 };
