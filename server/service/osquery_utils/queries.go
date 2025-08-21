@@ -1968,6 +1968,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 			GroupName: groupname,
 			Shell:     shell,
 		}
+		users = append(users, u)
 		if host.Platform == "darwin" && appleManagedUserUUID != "" && appleManagedUserUUID == uuid {
 			if username != appleManagedUsername {
 				err = ds.UpdateNanoMDMUserEnrollmentUsername(ctx, host.UUID, appleManagedUserUUID, username)
