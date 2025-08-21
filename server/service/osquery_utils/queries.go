@@ -1933,12 +1933,14 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	var users []fleet.HostUser
 	var appleManagedUsername, appleManagedUserUUID string
 	if host.Platform == "darwin" {
+		// On macOS hosts with user enrollments, if the username of the managed user changes we need
+		// to sync it up with the nano_users table. otherwise we will never see the change until
+		// another TokenUpdate is sent which may be a long time(months, potentially).
 		var err error
 		appleManagedUsername, appleManagedUserUUID, err = ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host.UUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting nano user enrollment username and uuid")
 		}
-		fmt.Printf("appleManagedUsername: %s, appleManagedUserUUID: %s\n", appleManagedUsername, appleManagedUserUUID)
 	}
 	for _, row := range rows {
 		if row["uid"] == "" {
@@ -1966,16 +1968,12 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 			GroupName: groupname,
 			Shell:     shell,
 		}
-		users = append(users, u)
 		if host.Platform == "darwin" && appleManagedUserUUID != "" && appleManagedUserUUID == uuid {
 			if username != appleManagedUsername {
-				// TODO update nano_users username
-				fmt.Printf("updating nano user enrollment username to %s for host %s\n", username, host.UUID)
 				err = ds.UpdateNanoMDMUserEnrollmentUsername(ctx, host.UUID, appleManagedUserUUID, username)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "UpdateNanoMDMUserEnrollmentUsername")
 				}
-				fmt.Printf("updated nano user enrollment username to %s for host %s\n", username, host.UUID)
 			}
 		}
 	}
