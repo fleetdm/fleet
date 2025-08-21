@@ -234,11 +234,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
 		if result.IsNoTeam() {
-			if teamSettingsOk {
-				multiError = multierror.Append(multiError, fmt.Errorf("cannot set 'team_settings' on 'No team' file: %q", filePath))
-			}
 			if filepath.Base(filePath) != "no-team.yml" {
 				multiError = multierror.Append(multiError, fmt.Errorf("file %q for 'No team' must be named 'no-team.yml'", filePath))
+			}
+			// For No Team, we allow team_settings but only process webhook_settings from it
+			if teamSettingsOk {
+				multiError = parseNoTeamSettings(teamSettingsRaw, result, filePath, multiError)
 			}
 		} else {
 			if !teamSettingsOk {
@@ -409,6 +410,47 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 			multiError = parseSecrets(result, multiError)
 		}
 	}
+	return multiError
+}
+
+// parseNoTeamSettings parses team_settings for "No Team" files, but only processes webhook_settings
+func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, multiError *multierror.Error) *multierror.Error {
+	// Parse the raw JSON into a map to extract only webhook_settings
+	var teamSettingsMap map[string]interface{}
+	if err := json.Unmarshal(raw, &teamSettingsMap); err != nil {
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
+	}
+
+	// For No Team, only webhook_settings is allowed in team_settings
+	// Check for any other keys and error if found
+	for key := range teamSettingsMap {
+		if key != "webhook_settings" {
+			multiError = multierror.Append(multiError,
+				fmt.Errorf("unsupported team_settings option '%s' for 'No team' - only 'webhook_settings' is allowed", key))
+		}
+	}
+
+	// Initialize TeamSettings if nil
+	if result.TeamSettings == nil {
+		result.TeamSettings = make(map[string]interface{})
+	}
+
+	// For No Team, we only care about webhook_settings
+	if webhookRaw, ok := teamSettingsMap["webhook_settings"]; ok {
+		// Validate that only failing_policies_webhook is present in webhook_settings
+		webhookMap, ok := webhookRaw.(map[string]interface{})
+		if ok {
+			for key := range webhookMap {
+				if key != "failing_policies_webhook" {
+					multiError = multierror.Append(multiError,
+						fmt.Errorf("unsupported webhook_settings option '%s' for 'No team' - only 'failing_policies_webhook' is allowed", key))
+				}
+			}
+		}
+		// Store the webhook settings for later processing
+		result.TeamSettings["webhook_settings"] = webhookRaw
+	}
+
 	return multiError
 }
 

@@ -2078,6 +2078,10 @@ func (c *Client) DoGitOps(
 			if err != nil {
 				return nil, nil, err
 			}
+			// Apply webhook settings for "No Team"
+			if err := c.doGitOpsNoTeamWebhookSettings(config, logFn, dryRun); err != nil {
+				return nil, nil, fmt.Errorf("applying no team webhook settings: %w", err)
+			}
 			teamSoftwareInstallers = noTeamSoftwareInstallers
 			teamVPPApps = noTeamVPPApps
 			teamScripts = teamsScripts["No team"]
@@ -2203,6 +2207,69 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		logFn("[+] applied 'No Team' software packages\n")
 	}
 	return softwareInstallers, vppApps, nil
+}
+
+// extractFailingPoliciesWebhook extracts and processes failing policies webhook settings from a map
+func extractFailingPoliciesWebhook(webhookSettings interface{}) fleet.FailingPoliciesWebhookSettings {
+	// Marshal the interface{} to JSON, which handles type conversions
+	jsonBytes, err := json.Marshal(webhookSettings)
+	if err != nil {
+		return fleet.FailingPoliciesWebhookSettings{Enable: false}
+	}
+
+	// Unmarshal into a wrapper struct to extract failing_policies_webhook
+	var ws struct {
+		FailingPoliciesWebhook fleet.FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	}
+	if err := json.Unmarshal(jsonBytes, &ws); err != nil {
+		return fleet.FailingPoliciesWebhookSettings{Enable: false}
+	}
+
+	return ws.FailingPoliciesWebhook
+}
+
+func (c *Client) doGitOpsNoTeamWebhookSettings(
+	config *spec.GitOps,
+	logFn func(format string, args ...interface{}),
+	dryRun bool,
+) error {
+	if !config.IsNoTeam() {
+		return nil
+	}
+
+	// Always apply webhook settings for "No Team"
+	// nil TeamSettings or nil webhook_settings will clear existing settings
+	teamPayload := fleet.TeamPayload{
+		WebhookSettings: &fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable: false,
+			},
+		},
+	}
+
+	// Extract webhook settings if they exist
+	if config.TeamSettings != nil {
+		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
+			fpw := extractFailingPoliciesWebhook(webhookSettings)
+			teamPayload.WebhookSettings.FailingPoliciesWebhook = fpw
+		}
+	}
+
+	logFn("[+] applying webhook settings for 'No team'\n")
+
+	if !dryRun {
+		// Apply the webhook settings to team ID 0 using the PATCH endpoint
+		var teamResp interface{}
+		err := c.authenticatedRequest(teamPayload, "PATCH", "/api/latest/fleet/teams/0", &teamResp)
+		if err != nil {
+			return fmt.Errorf("applying no team webhook settings: %w", err)
+		}
+		logFn("[+] applied webhook settings for 'No team'\n")
+	} else {
+		logFn("[+] would've applied webhook settings for 'No team'\n")
+	}
+
+	return nil
 }
 
 func pluralize(count int, ifSingle string, ifPlural string) string {

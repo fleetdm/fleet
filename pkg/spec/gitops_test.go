@@ -589,19 +589,56 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "'team_settings' is required when 'name' is provided")
 
-					// team_settings set on a "no-team.yml".
-					config = getConfig([]string{"name"})
+					// team_settings is now allowed on "no-team.yml" for webhook settings
+					config = getConfig([]string{"name", "team_settings"}) // Exclude team_settings with secrets
 					config += "name: No team\n"
 					noTeamPath1, noTeamBasePath1 := createNamedFileOnTempDir(t, "no-team.yml", config)
-					_, err = GitOpsFromFile(noTeamPath1, noTeamBasePath1, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("cannot set 'team_settings' on 'No team' file: %q", noTeamPath1))
+					gitops, err := GitOpsFromFile(noTeamPath1, noTeamBasePath1, nil, nopLogf)
+					assert.NoError(t, err)
+					assert.NotNil(t, gitops)
+
+					// No team with valid webhook_settings should work
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\nteam_settings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
+					noTeamPath2, noTeamBasePath2 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					gitops, err = GitOpsFromFile(noTeamPath2, noTeamBasePath2, nil, nopLogf)
+					assert.NoError(t, err)
+					assert.NotNil(t, gitops)
+
+					// No team with invalid team_settings option should fail
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\nteam_settings:\n  features:\n    enable_host_users: false\n"
+					noTeamPath3, noTeamBasePath3 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath3, noTeamBasePath3, nil, nopLogf)
+					assert.ErrorContains(t, err, "unsupported team_settings option 'features' for 'No team' - only 'webhook_settings' is allowed")
+
+					// No team with multiple team_settings options (one valid, one invalid) should fail
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\nteam_settings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n  secrets:\n    - secret: test\n"
+					noTeamPath4, noTeamBasePath4 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath4, noTeamBasePath4, nil, nopLogf)
+					assert.ErrorContains(t, err, "unsupported team_settings option 'secrets' for 'No team' - only 'webhook_settings' is allowed")
+
+					// No team with host_status_webhook in webhook_settings should fail
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\nteam_settings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
+					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5a, noTeamBasePath5a, nil, nopLogf)
+					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' for 'No team' - only 'failing_policies_webhook' is allowed")
+
+					// No team with vulnerabilities_webhook in webhook_settings should fail
+					config = getConfig([]string{"name", "team_settings"})
+					config += "name: No team\nteam_settings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
+					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5b, noTeamBasePath5b, nil, nopLogf)
+					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' for 'No team' - only 'failing_policies_webhook' is allowed")
 
 					// 'No team' file with invalid name.
 					config = getConfig([]string{"name", "team_settings"})
 					config += "name: No team\n"
-					noTeamPath2, noTeamBasePath2 := createNamedFileOnTempDir(t, "foobar.yml", config)
-					_, err = GitOpsFromFile(noTeamPath2, noTeamBasePath2, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", noTeamPath2))
+					noTeamPath6, noTeamBasePath6 := createNamedFileOnTempDir(t, "foobar.yml", config)
+					_, err = GitOpsFromFile(noTeamPath6, noTeamBasePath6, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", noTeamPath6))
 
 					// Missing secrets
 					config = getConfig([]string{"team_settings"})
