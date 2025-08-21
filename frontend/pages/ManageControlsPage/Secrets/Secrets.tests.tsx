@@ -75,7 +75,7 @@ describe("Custom variables", () => {
       },
       {
         name: "SECRET_DOS",
-        id: 1,
+        id: 2,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -351,13 +351,14 @@ describe("Custom variables", () => {
           })
         ).toBeInTheDocument();
       });
+      await new Promise((resolve) => setTimeout(resolve, 250));
       await user.click(screen.getByRole("button", { name: "Delete" }));
       await waitFor(() => {
         expect(
           screen.queryByText(/Delete custom variable\?/)
         ).not.toBeInTheDocument();
         expect(screen.queryByText("SECRET_UNO")).not.toBeInTheDocument();
-        expect(screen.queryByText("SECRET_DOS")).not.toBeInTheDocument();
+        expect(screen.queryByText("SECRET_DOS")).toBeInTheDocument();
       });
     });
   });
