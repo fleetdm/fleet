@@ -1313,7 +1313,7 @@ func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchEx
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "batch activity has no script ID")
 	}
 
-	// Get the script referred to be the batch activity.
+	// Get the script referred to by the batch activity.
 	script, err := svc.ds.Script(ctx, *batchActivity.ScriptID)
 	if err != nil {
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "getting script")
@@ -1335,8 +1335,10 @@ func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchEx
 	// Always include pagination info.
 	opt.IncludeMetadata = true
 	// Default sort order is name ascending.
-	opt.OrderKey = "display_name"
-	opt.OrderDirection = fleet.OrderAscending
+	if opt.OrderKey == "" {
+		opt.OrderKey = "display_name"
+		opt.OrderDirection = fleet.OrderAscending
+	}
 
 	hosts, meta, count, err = svc.ds.ListBatchScriptHosts(ctx, batchExecutionID, status, opt)
 	if err != nil {

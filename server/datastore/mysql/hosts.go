@@ -1104,15 +1104,17 @@ WHERE
 		BatchScriptExecutionStatusFilter: batchScriptExecutionStatus,
 	})
 
+	// Count the total number of hosts matching the filters.
+	// Do this before we add more "where" params for the main query.
 	countStmt = fmt.Sprintf(countStmt, batchScriptExecutionJoin, batchScriptExecutionFilter)
 	dbReader := ds.reader(ctx)
 	if err := sqlx.GetContext(ctx, dbReader, &count, countStmt, whereParams...); err != nil {
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch scripts count")
 	}
 
+	// Add in the paging params and run the main query to get the list of hosts.
 	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt)
 	sqlStmt = fmt.Sprintf(sqlStmt, batchScriptExecutionStatus, batchScriptExecutionStatus, batchScriptExecutionID, batchScriptExecutionJoin, batchScriptExecutionFilter)
-
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sqlStmt, whereParams...); err != nil {
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch script hosts")
 	}
@@ -1123,6 +1125,7 @@ WHERE
 			TotalResults:       uint(count), //nolint:gosec // dismiss G115
 		}
 		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this discrepancy.
+		// This is intentional so that we can check whether we have another page.
 		if len(hosts) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 			meta.HasNextResults = true
 			hosts = hosts[:len(hosts)-1]
