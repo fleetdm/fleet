@@ -8557,7 +8557,7 @@ func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	username, uuid, err = ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Equal(t, nanoenroll_username, username)
-	require.Equal(t, nanoenroll_useruuid_prefix+host.UUID, uuid) // TODO EJM
+	require.Equal(t, nanoenroll_useruuid_prefix+host.UUID, uuid)
 }
 
 func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
