@@ -77,4 +77,8 @@ const (
 	FleetURLFileName = "fleet_url.txt"
 
 	FleetHTTPSignatureCertificateFileName = "host_identity.crt"
+	// FleetHTTPSignatureTPMKeyFileName is the filename for the TPM key used for HTTP signature authentication
+	FleetHTTPSignatureTPMKeyFileName = "host_identity_tpm.pem"
+	// FleetHTTPSignatureTPMKeyBackupFileName is the filename for the backup of the TPM key during renewal
+	FleetHTTPSignatureTPMKeyBackupFileName = "host_identity_tpm.old.pem"
 )

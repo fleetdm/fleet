@@ -1,0 +1,1 @@
+* Revised stale vulnerabilities deletion (for false positive cleanup) to clear vulnerabilities touched before the current vulnerabilities run, instead of using a hard-coded threshold based on how often the vulns cron runs.

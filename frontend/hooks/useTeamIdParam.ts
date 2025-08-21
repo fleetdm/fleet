@@ -235,6 +235,9 @@ const getTeamIdForApi = ({
   includeAllTeams?: boolean;
   includeNoTeam?: boolean;
 }) => {
+  // note that CONTEXT refers to React Context, not the colloquial use of the word context, so the
+  // return value of this function should be used everywhere except in Context, not just in calls to
+  // the API service
   if (includeNoTeam && currentTeam?.id === APP_CONTEXT_NO_TEAM_ID) {
     return API_NO_TEAM_ID;
   }
@@ -244,6 +247,7 @@ const getTeamIdForApi = ({
   if (currentTeam && currentTeam.id > APP_CONTEXT_NO_TEAM_ID) {
     return currentTeam.id;
   }
+  // should never reach this case
   return undefined;
 };
 

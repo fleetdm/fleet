@@ -1,3 +1,7 @@
+//go:build !windows
+
+// Windows is disabled because the TPM simulator requires CGO, which causes lint failures on Windows.
+
 package hostidentity
 
 import (

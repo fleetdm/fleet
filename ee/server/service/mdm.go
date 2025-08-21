@@ -710,7 +710,13 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 	}
 
 	serverURL := appConfig.MDMUrl()
-	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback"
+	// Parse the URL and use JoinPath to avoid double slashes
+	parsedURL, err := url.Parse(serverURL)
+	if err != nil {
+		return "", 0, "", ctxerr.Wrap(ctx, err, "invalid MDM URL")
+	}
+	parsedURL = parsedURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
+	acsURL := parsedURL.String()
 
 	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(ctx,
 		mdmSSOSettings.EntityID,
@@ -1104,13 +1110,13 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	}
 
 	// Linux doesn't have configuration profiles, so if we aren't enforcing disk encryption we have nothing to report
-	diskEncEnabled, err := svc.ds.GetConfigEnableDiskEncryption(ctx, teamID)
+	diskEncryptionConfig, err := svc.ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "check if disk encryption is enabled")
 	}
 
 	var linux fleet.MDMLinuxDiskEncryptionSummary
-	if diskEncEnabled {
+	if diskEncryptionConfig.Enabled {
 		linux, err = svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")

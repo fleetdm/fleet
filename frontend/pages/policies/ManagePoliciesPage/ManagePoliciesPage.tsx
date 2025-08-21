@@ -139,6 +139,7 @@ const ManagePolicyPage = ({
     currentTeamName,
     currentTeamSummary,
     isAllTeamsSelected,
+    isAnyTeamSelected,
     isTeamAdmin,
     isTeamMaintainer,
     isRouteOk,
@@ -1235,7 +1236,9 @@ const ManagePolicyPage = ({
           placeholder="Manage automations"
           options={
             hasPoliciesToAutomate
-              ? getAutomationsDropdownOptions(isAllTeamsSelected || isPrimoMode) // include "Other workflows" when all teams is selected and when in Primo mode
+              ? getAutomationsDropdownOptions(
+                  isAllTeamsSelected || isAnyTeamSelected || isPrimoMode
+                ) // include "Other workflows" when all teams is selected, when a team other than No team is selected, and when in Primo mode (No team will be selected)
               : []
           }
           variant="button"

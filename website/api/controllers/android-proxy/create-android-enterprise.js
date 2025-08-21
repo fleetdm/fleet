@@ -153,7 +153,8 @@ module.exports = {
       pubsubTopicName: fullPubSubTopicName,
       pubsubSubscriptionName: newSubscriptionName,
       fleetServerSecret: newFleetServerSecret,
-    });
+    })
+    .intercept('E_UNIQUE', 'enterpriseAlreadyExists');
 
 
 

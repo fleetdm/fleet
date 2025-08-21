@@ -16,7 +16,7 @@ export interface IPaginatedListScript extends IScript {
 }
 
 interface IRunScriptBatchPaginatedList {
-  onRunScript: (script: IPaginatedListScript) => Promise<void>;
+  onRunScript: (script: IPaginatedListScript) => void;
   isUpdating: boolean;
   teamId: number;
   isFreeTier?: boolean;
