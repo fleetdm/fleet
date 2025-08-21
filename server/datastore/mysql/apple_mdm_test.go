@@ -102,6 +102,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetNanoMDMEnrollmentTimes", testGetNanoMDMEnrollmentTimes},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
+		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
 	}
 
 	for _, c := range cases {
@@ -9059,4 +9060,56 @@ func testSetMDMAppleProfilesWithVariables(t *testing.T, ds *Datastore) {
 	checkProfileVariables(profA.Identifier, 0, nil)
 	checkProfileVariables(profB.Identifier, 0, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 	checkProfileVariables(profD.Identifier, 0, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix})
+}
+
+func testUpdateNanoMDMUserEnrollmentUsername(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host0, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-uuid",
+		Hostname:        "hostname0",
+	})
+	require.NoError(t, err)
+
+	// Another user-enrolled host to verify isolation
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host1-osquery-id"),
+		NodeKey:         ptr.String("host1-node-key"),
+		UUID:            "host1-test-uuid",
+		Hostname:        "hostname1",
+	})
+	require.NoError(t, err)
+
+	nanoEnroll(t, ds, host0, true)
+	nanoEnroll(t, ds, host1, true)
+
+	user0, userUUID0, err := ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host0.UUID)
+	require.NoError(t, err)
+	require.Equal(t, nanoenroll_username, user0)
+
+	user1, userUUID1, err := ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Equal(t, nanoenroll_username, user1)
+
+	err = ds.UpdateNanoMDMUserEnrollmentUsername(ctx, host0.UUID, userUUID0, "newfleetie")
+	require.NoError(t, err)
+
+	user0, fetchedUserUUID0, err := ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host0.UUID)
+	require.NoError(t, err)
+	require.Equal(t, "newfleetie", user0)
+	require.Equal(t, userUUID0, fetchedUserUUID0)
+
+	user1, fetchedUserUUID1, err := ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Equal(t, nanoenroll_username, user1)
+	require.Equal(t, userUUID1, fetchedUserUUID1)
 }

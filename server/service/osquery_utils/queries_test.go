@@ -2392,12 +2392,13 @@ func TestUserIngestMacosUpdateManagedUser(t *testing.T) {
 	}
 
 	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
-		require.Len(t, users, 1)
+		require.Len(t, users, 2)
 		return nil
 	}
 
 	input := []map[string]string{
 		{"uid": "1000", "shell": "/bin/sh", "username": "new fleetie", "uuid": userUUIDForUpdate},
+		{"uid": "500", "shell": "/bin/sh", "username": "someone else", "uuid": "some-other-uuid"},
 	}
 
 	err := usersQuery.DirectIngestFunc(ctx, nil, &host, ds, input)
