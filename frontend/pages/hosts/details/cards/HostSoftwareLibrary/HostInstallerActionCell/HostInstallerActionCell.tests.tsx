@@ -6,7 +6,9 @@ import {
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
+import { IHostAppStoreApp } from "interfaces/software";
 
+import { createMockAppStoreApp } from "__mocks__/softwareMock";
 import { noop } from "lodash";
 import {
   getActionButtonState,
@@ -25,6 +27,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: false,
+      installedVersionsDetected: true,
     });
 
     expect(result).toEqual({
@@ -32,6 +35,7 @@ describe("getButtonActionState helper function", () => {
       installTooltip: "To install, turn on host scripts.",
       uninstallDisabled: true,
       uninstallTooltip: "To uninstall, turn on host scripts.",
+      moreDisabled: false,
     });
   });
 
@@ -43,6 +47,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: true,
+      installedVersionsDetected: false,
     });
 
     expect(result.installDisabled).toBe(true);
@@ -57,6 +62,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: true,
+      installedVersionsDetected: true,
     });
 
     expect(result.installDisabled).toBe(true);
@@ -71,6 +77,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: null,
       hostMDMEnrolled: true,
+      installedVersionsDetected: true,
     });
 
     expect(result.uninstallDisabled).toBe(true);
@@ -85,6 +92,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: null,
       hostMDMEnrolled: false,
+      installedVersionsDetected: false,
     });
 
     expect(result.installDisabled).toBe(true);
@@ -102,6 +110,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: true,
+      installedVersionsDetected: true,
     });
 
     expect(result.installDisabled).toBe(false);
@@ -682,8 +691,8 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
   const baseClass = "test";
   const defaultSoftware = createMockHostSoftware();
 
-  it("renders dropdown with Uninstall option when on My Device Page", () => {
-    render(
+  it("renders dropdown with Uninstall option when on My Device Page", async () => {
+    const { user } = renderWithSetup(
       <HostInstallerActionCell
         software={{ ...defaultSoftware, ui_status: "installed" }}
         onClickInstallAction={noop}
@@ -698,12 +707,13 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
     expect(
       screen.getByTestId(`${baseClass}__install-button--test`)
     ).toBeInTheDocument(); // Install button is always rendered
-    expect(screen.getByPlaceholderText("More")).toBeInTheDocument();
+    const moreDropdown = screen.getByText("More");
+    await user.click(moreDropdown);
     expect(screen.getByText("Uninstall")).toBeInTheDocument();
   });
 
-  it("renders dropdown with 'How to open' option for apps/programs", () => {
-    render(
+  it("renders dropdown with 'How to open' option for apps/programs", async () => {
+    const { user } = renderWithSetup(
       <HostInstallerActionCell
         software={{
           ...defaultSoftware,
@@ -720,7 +730,8 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
       />
     );
 
-    expect(screen.getByText("More")).toBeInTheDocument();
+    const moreDropdown = screen.getByText("More");
+    await user.click(moreDropdown);
     expect(screen.getByText("How to open")).toBeInTheDocument();
   });
 
@@ -728,7 +739,12 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
     render(
       <HostInstallerActionCell
         software={{
-          ...defaultSoftware,
+          ...createMockHostSoftware({
+            software_package: null,
+            app_store_app: createMockAppStoreApp({
+              version: "",
+            }) as IHostAppStoreApp,
+          }),
           ui_status: "installed", // no uninstall for iOS devices
           source: "ios_apps", // no instructions for iOS devices
         }}
@@ -761,8 +777,8 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
       />
     );
 
-    const dropdownBtn = screen.getByText("More");
-    await user.click(dropdownBtn);
+    const moreDropdown = screen.getByText("More");
+    await user.click(moreDropdown);
     await user.click(screen.getByText("Uninstall"));
 
     expect(onClickUninstallAction).toHaveBeenCalledTimes(1);
@@ -787,10 +803,54 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
       />
     );
 
-    const dropdownBtn = screen.getByText("More");
-    await user.click(dropdownBtn);
+    const moreDropdown = screen.getByText("More");
+    await user.click(moreDropdown);
     await user.click(screen.getByText("How to open"));
 
     expect(onClickOpenInstructionsAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables More dropdown when moreDisabled is true (pending state)", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "apps",
+          ui_status: "pending_install",
+          status: "pending_install",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const moreDropdown = screen.getByRole("combobox");
+    expect(moreDropdown).toBeDisabled();
+  });
+
+  it('does not render "How to open" option for non-"app"/"program" sources like "pkg_packages"', async () => {
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "pkg_packages",
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const moreDropdown = screen.getByText("More");
+    await user.click(moreDropdown);
+    expect(screen.queryByText("How to open")).not.toBeInTheDocument();
   });
 });

@@ -167,14 +167,22 @@ const ActionsDropdown = ({
       lineHeight: "normal",
       paddingLeft: 0,
       marginTop: "1px",
+      ...(state.isDisabled && {
+        filter: "grayscale(0.5)",
+        opacity: 0.5,
+      }),
     }),
-    dropdownIndicator: (provided) => ({
+    dropdownIndicator: (provided, state) => ({
       ...provided,
       display: "flex",
       padding: "2px",
       svg: {
         transition: "transform 0.25s ease",
       },
+      ...(state.isDisabled && {
+        filter: "grayscale(0.5)",
+        opacity: 0.5,
+      }),
     }),
     menu: (provided) => ({
       ...provided,

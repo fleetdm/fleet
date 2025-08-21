@@ -52,7 +52,7 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import UpdatesCard from "./UpdatesCard/UpdatesCard";
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
-import SoftwareInstructionsModal from "./SoftwareInstructionsModal";
+import SoftwareInstructionsModal from "./OpenSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { getLastInstall } from "../../HostSoftwareLibrary/helpers";

@@ -29,6 +29,7 @@ interface IActionButtonState {
   installTooltip?: React.ReactNode;
   uninstallDisabled: boolean;
   uninstallTooltip?: React.ReactNode;
+  moreDisabled?: boolean;
 }
 
 export interface IGetActionButtonStateProps {
@@ -39,6 +40,7 @@ export interface IGetActionButtonStateProps {
   appStoreApp: IHostAppStoreApp | null;
   hostMDMEnrolled?: boolean;
   isMyDevicePage?: boolean;
+  installedVersionsDetected: boolean | null;
 }
 
 interface IHostInstallerActionButtonProps {
@@ -69,20 +71,29 @@ export const getActionButtonState = ({
   appStoreApp,
   hostMDMEnrolled,
   isMyDevicePage,
+  installedVersionsDetected,
 }: IGetActionButtonStateProps): IActionButtonState => {
   const isPending = ["pending_install", "pending_uninstall"].includes(
     status || ""
   );
 
   if (isPending) {
-    return { installDisabled: true, uninstallDisabled: true };
+    return {
+      installDisabled: true,
+      uninstallDisabled: true,
+      moreDisabled: true,
+    };
   }
 
   /** My Device page doesn’t enforce tooltips/extra restrictions
    * as these are enforced by the UI to hide when host scripts are
    * not enabled, not enrolled into MDM, etc */
   if (isMyDevicePage) {
-    return { installDisabled: false, uninstallDisabled: false };
+    return {
+      installDisabled: false,
+      uninstallDisabled: false,
+      moreDisabled: false,
+    };
   }
 
   /** Host details > Software > Library page has additional tooltips and
@@ -96,6 +107,7 @@ export const getActionButtonState = ({
       uninstallDisabled: true,
       installTooltip: "To install, turn on host scripts.",
       uninstallTooltip: "To uninstall, turn on host scripts.",
+      moreDisabled: !installedVersionsDetected, // Can still reach how to open if scripts are disabled but app is installed
     };
   }
 
@@ -193,20 +205,6 @@ export const HostInstallerActionCell = ({
     ui_status,
     installed_versions,
   } = software;
-  const {
-    installDisabled,
-    installTooltip,
-    uninstallDisabled,
-    uninstallTooltip,
-  } = getActionButtonState({
-    hostScriptsEnabled: hostScriptsEnabled || false,
-    softwareId: id,
-    status,
-    appStoreApp: app_store_app,
-    hostMDMEnrolled,
-    softwarePackage: software_package,
-    isMyDevicePage,
-  });
 
   // buttonDisplayConfig is used to track the display text and icons of the install and uninstall button
   const [
@@ -252,6 +250,23 @@ export const HostInstallerActionCell = ({
   const canViewOpenInstructions =
     ["apps", "programs"].includes(software.source) &&
     !!installedVersionsDetected;
+
+  const {
+    installDisabled,
+    installTooltip,
+    uninstallDisabled,
+    uninstallTooltip,
+    moreDisabled,
+  } = getActionButtonState({
+    hostScriptsEnabled: hostScriptsEnabled || false,
+    softwareId: id,
+    status,
+    appStoreApp: app_store_app,
+    hostMDMEnrolled,
+    softwarePackage: software_package,
+    isMyDevicePage,
+    installedVersionsDetected,
+  });
 
   const onSelectOption = (option: string) => {
     switch (option) {
@@ -316,6 +331,7 @@ export const HostInstallerActionCell = ({
             uninstallTooltip
           )}
           variant="button"
+          disabled={moreDisabled}
         />
       </div>
     );

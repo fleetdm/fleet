@@ -1,7 +1,4 @@
-import React, { ReactNode, useCallback, useContext, useState } from "react";
-
-import deviceUserAPI from "services/entities/device_user";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import React, { ReactNode } from "react";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -9,7 +6,7 @@ import Button from "components/buttons/Button";
 
 const baseClass = "software-instructions-modal";
 
-const getSoftwareInstructions = (
+const getOpenSoftwareInstructions = (
   softwareName: string,
   softwareSource: string
 ): ReactNode => {
@@ -36,7 +33,7 @@ interface ISoftwareInstructionsModalProps {
   onExit: () => void;
 }
 
-const SoftwareInstructionsModal = ({
+const OpenSoftwareModal = ({
   softwareName,
   softwareSource,
   onExit,
@@ -44,11 +41,11 @@ const SoftwareInstructionsModal = ({
   return (
     <Modal className={baseClass} title="How to open" onExit={onExit}>
       <>
-        {getSoftwareInstructions(softwareName, softwareSource)}
+        {getOpenSoftwareInstructions(softwareName, softwareSource)}
         <ModalFooter primaryButtons={<Button onClick={onExit}>Done</Button>} />
       </>
     </Modal>
   );
 };
 
-export default SoftwareInstructionsModal;
+export default OpenSoftwareModal;
