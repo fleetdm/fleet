@@ -7,7 +7,6 @@ interface IDiskSpaceIndicatorProps {
   baseClass: string;
   gigsDiskSpaceAvailable: number | "---";
   percentDiskSpaceAvailable: number;
-  gigsTotalDiskSpace?: number | "---";
   id: string;
   platform: string;
   tooltipPosition?: "top" | "bottom";

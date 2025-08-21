@@ -230,7 +230,6 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.NotNil(t, createdHost)
 		require.NotNil(t, createdHost.Host)
 
-		// TODO: Verify complete storage calculation:
 		// Total: 64GB (internal) + 64GB (external) = 128GB
 		// Available: 10GB (internal free) + 25GB (external free) = 35GB
 		// Percentage: 35/128 * 100 = 27.34%
