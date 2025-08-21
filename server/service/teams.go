@@ -88,13 +88,10 @@ func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		defaultTeam := &fleet.DefaultTeam{
 			ID:   team.ID,
 			Name: team.Name,
-			Config: fleet.DefaultTeamConfig{
-				WebhookSettings: fleet.DefaultTeamWebhookSettings{
-					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
-				},
+			WebhookSettings: fleet.DefaultTeamWebhookSettings{
+				FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
 			},
 		}
-
 		return getDefaultTeamResponse{Team: defaultTeam}, nil
 	}
 
@@ -173,10 +170,8 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		defaultTeam := &fleet.DefaultTeam{
 			ID:   team.ID,
 			Name: team.Name,
-			Config: fleet.DefaultTeamConfig{
-				WebhookSettings: fleet.DefaultTeamWebhookSettings{
-					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
-				},
+			WebhookSettings: fleet.DefaultTeamWebhookSettings{
+				FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
 			},
 		}
 		return getDefaultTeamResponse{Team: defaultTeam}, nil

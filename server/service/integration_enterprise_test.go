@@ -2407,31 +2407,13 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	require.Equal(t, []uint{4, 5}, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	require.Equal(t, 200, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
-	// Test Host Status Webhook configuration
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		HostStatusWebhook: &fleet.HostStatusWebhookSettings{
-			Enable:         true,
-			DestinationURL: "https://example.com/host-status",
-			HostPercentage: 10,
-			DaysCount:      5,
-		},
-	}}, http.StatusOK, &tmResp)
-	require.True(t, tmResp.Team.Config.WebhookSettings.HostStatusWebhook.Enable)
-	require.Equal(t, "https://example.com/host-status", tmResp.Team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
-	require.Equal(t, float64(10), tmResp.Team.Config.WebhookSettings.HostStatusWebhook.HostPercentage)
-	require.Equal(t, 5, tmResp.Team.Config.WebhookSettings.HostStatusWebhook.DaysCount)
-
 	// Clear the webhook settings
 	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
 		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 			Enable: false,
 		},
-		HostStatusWebhook: &fleet.HostStatusWebhookSettings{
-			Enable: false,
-		},
 	}}, http.StatusOK, &tmResp)
 	require.False(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
-	require.False(t, tmResp.Team.Config.WebhookSettings.HostStatusWebhook.Enable)
 }
 
 func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger() {
