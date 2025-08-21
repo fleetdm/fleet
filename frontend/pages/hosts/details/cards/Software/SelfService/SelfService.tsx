@@ -861,8 +861,6 @@ const SoftwareSelfService = ({
         <UninstallSoftwareModal
           softwareId={selectedSoftware.current.softwareId}
           softwareName={selectedSoftware.current.softwareName}
-          softwareInstallerType={selectedSoftware.current.softwareInstallerType}
-          version={selectedSoftware.current.version}
           token={deviceToken}
           onExit={onExitUninstallSoftwareModal}
           onSuccess={onSuccessUninstallSoftwareModal}
