@@ -203,6 +203,7 @@ func scanVulnerabilities(
 	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
 
+	fmt.Println("------------------------- PRINTING VULNS ------------------------")
 	for _, val := range vulns {
 		fmt.Println(val.String())
 	}

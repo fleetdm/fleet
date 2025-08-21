@@ -220,14 +220,17 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 		},
 		// CVE-2025-21171 only affects RC versions of PowerShell, see https://github.com/PowerShell/Announcements/issues/72
-		CPEMatchingRule{
-			CVEs: map[string]struct{}{
-				"CVE-2025-21171": {},
-			},
-			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
-				return cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell" && cpeMeta.Update == ""
-			},
-		},
+		// CPEMatchingRule{
+		// 	CVEs: map[string]struct{}{
+		// 		"CVE-2025-21171": {},
+		// 	},
+		// 	IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+		// 		if cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell" && cpeMeta.Update == "" {
+		// 			fmt.Println("-------------------- CPE MATCHING RULES: IGNORE IF -----------------")
+		// 		}
+		// 		return cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell" && cpeMeta.Update == ""
+		// 	},
+		// },
 		// Old macos CPEs without version constraints that should be ignored
 		CPEMatchingRule{
 			CVEs: map[string]struct{}{

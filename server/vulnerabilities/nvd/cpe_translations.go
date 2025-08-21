@@ -152,6 +152,11 @@ type CPETranslationSoftware struct {
 
 // Matches returns true if the software satifies all the match criteria.
 func (c CPETranslationSoftware) Matches(reCache *regexpCache, s *fleet.Software) (bool, error) {
+	// tempIsPowershell := strings.Contains(strings.ToLower(s.Name), "powershell")
+	tempIsPowershell := false
+	if tempIsPowershell {
+		fmt.Println("---------- Matches 11111111111 ------------")
+	}
 	matches := func(a, b string) (bool, error) {
 		// check if its a regular expression enclosed in '/'
 		if len(a) > 2 && a[0] == '/' && a[len(a)-1] == '/' {
@@ -165,6 +170,9 @@ func (c CPETranslationSoftware) Matches(reCache *regexpCache, s *fleet.Software)
 		return a == b, nil
 	}
 
+	if tempIsPowershell {
+		fmt.Println("---------- Matches 2222222222222 ------------")
+	}
 	if len(c.Name) > 0 {
 		found := false
 		for _, name := range c.Name {
@@ -180,6 +188,9 @@ func (c CPETranslationSoftware) Matches(reCache *regexpCache, s *fleet.Software)
 		if !found {
 			return false, nil
 		}
+	}
+	if tempIsPowershell {
+		fmt.Println("---------- Matches 333333333333 ------------")
 	}
 	if len(c.BundleIdentifier) > 0 {
 		found := false
@@ -197,6 +208,9 @@ func (c CPETranslationSoftware) Matches(reCache *regexpCache, s *fleet.Software)
 			return false, nil
 		}
 	}
+	if tempIsPowershell {
+		fmt.Println("---------- Matches 444444444444 ------------")
+	}
 	if len(c.Source) > 0 {
 		found := false
 		for _, source := range c.Source {
@@ -212,6 +226,9 @@ func (c CPETranslationSoftware) Matches(reCache *regexpCache, s *fleet.Software)
 		if !found {
 			return false, nil
 		}
+	}
+	if tempIsPowershell {
+		fmt.Println("---------- Matches 5555555555 ------------")
 	}
 	return true, nil
 }
