@@ -1550,7 +1550,7 @@ func main() {
 func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, trw *token.ReadWriter, setupExperienceStatusPath string) error {
 	exp, err := readSetupExperienceStatusFile(setupExperienceStatusPath)
 	if err != nil {
-		return fmt.Errorf("failed to read setup experience completed file: %w", err)
+		return fmt.Errorf("read setup experience completed file: %w", err)
 	}
 
 	// Setup experience has been completed
