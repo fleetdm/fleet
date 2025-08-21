@@ -78,7 +78,7 @@ In the `decorators` key, you can specify queries to include additional informati
 
 ### yara
 
-You can use Fleet to configure the `yara` and `yara_events` osquery tables, used to administer [YARA rules]((https://fleetdm.com/guides/remote-yara-rules) for continuous monitoring.
+You can use Fleet to configure the `yara` and `yara_events` osquery tables, used to administer [YARA rules](https://fleetdm.com/guides/remote-yara-rules) for continuous monitoring.
 
 ## extensions
 
