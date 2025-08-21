@@ -86,8 +86,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -141,8 +139,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -158,8 +154,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -194,8 +188,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -922,8 +914,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.security.firewall',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -939,8 +929,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.security.firewall',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -1021,8 +1009,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -1076,8 +1062,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -1093,8 +1077,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -3770,7 +3752,7 @@ parasails.registerPage('configuration-builder', {
           value = this.configurationBuilderFormData[payload.uniqueSlug+'-value'];
           // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
           if(payload.formInput.type === 'boolean'){
-            if(payload.formOutput.trueValue){
+            if(payload.formOutput.trueValue !== undefined) {
               if(value) {
                 value = payload.formOutput.trueValue;
               } else {
@@ -3826,7 +3808,7 @@ parasails.registerPage('configuration-builder', {
           if(payloadOption.formInput.type === 'boolean') {
             // If a payload option has a nested trueValue and falseValue, then this boolean will not necessarily represent true/false values.
             // If that is the case, then modify the value to be the value they represent in the form.
-            if(payloadOption.formOutput.trueValue) {
+            if(payloadOption.formOutput.trueValue !== undefined) {
               if(value) {
                 value = payloadOption.formOutput.trueValue;
               } else {
