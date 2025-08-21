@@ -460,18 +460,20 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 }
 
 func (ds *cachedMysql) DefaultTeamConfig(ctx context.Context) (*fleet.TeamConfig, error) {
-	if x, found := ds.c.Get(ctx, defaultTeamConfigKey); found {
-		return x.(*fleet.TeamConfig), nil
-	}
+    if x, found := ds.c.Get(ctx, defaultTeamConfigKey); found {
+        if cfg, ok := x.(*fleet.TeamConfig); ok {
+            return cfg, nil
+        }
+    }
 
-	cfg, err := ds.Datastore.DefaultTeamConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
+    cfg, err := ds.Datastore.DefaultTeamConfig(ctx)
+    if err != nil {
+        return nil, err
+    }
 
-	ds.c.Set(ctx, defaultTeamConfigKey, cfg, ds.defaultTeamConfigExp)
+    ds.c.Set(ctx, defaultTeamConfigKey, cfg, ds.defaultTeamConfigExp)
 
-	return cfg, nil
+    return cfg, nil
 }
 
 func (ds *cachedMysql) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
