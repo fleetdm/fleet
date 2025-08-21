@@ -127,7 +127,7 @@ const getInstallerName = (hostSW: IHostSoftwareWithUiStatus) => {
   if (hostSW.source === "apps" && hostSW.installed_versions) {
     const filePath = hostSW.installed_versions[0].installed_paths[0];
     // Match the last segment ending in .app and extract the name before .app
-    const match = filePath.match(/\/([^\/]+)\.app$/);
+    const match = filePath.match(/\/([^/]+)\.app$/);
     return match ? match[1] : hostSW.name;
   }
   return hostSW.name;

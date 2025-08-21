@@ -130,7 +130,8 @@ const getMoreActionsDropdownOptions = (
   canViewOpenInstructions: boolean,
   canUninstallSoftware: boolean,
   isUninstallDisabled: boolean,
-  uninstallTooltip: ReactNode
+  uninstallTooltip: ReactNode,
+  uninstallText: string
 ) => {
   const options: IDropdownOption[] = [];
 
@@ -144,7 +145,7 @@ const getMoreActionsDropdownOptions = (
 
   if (canUninstallSoftware) {
     options.unshift({
-      label: "Uninstall",
+      label: uninstallText,
       value: "uninstall",
       disabled: isUninstallDisabled,
       tooltipContent: uninstallTooltip,
@@ -318,6 +319,8 @@ export const HostInstallerActionCell = ({
       return null;
     }
 
+    const uninstallText = buttonDisplayConfig.uninstall.text;
+
     return (
       <div className={`${baseClass}__more-actions-wrapper`}>
         <ActionsDropdown
@@ -328,7 +331,8 @@ export const HostInstallerActionCell = ({
             canViewOpenInstructions,
             canUninstallSoftware,
             uninstallDisabled,
-            uninstallTooltip
+            uninstallTooltip,
+            uninstallText
           )}
           variant="button"
           disabled={moreDisabled}
