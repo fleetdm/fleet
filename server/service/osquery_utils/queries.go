@@ -2691,7 +2691,6 @@ func GetDetailQueries(
 		}
 	}
 
-	fmt.Printf("enabledHostUsers: %t\n", features.EnableHostUsers)
 	if features != nil && features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
 		generatedMap["users_chrome"] = usersQueryChrome
