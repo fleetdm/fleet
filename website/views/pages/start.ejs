@@ -1,5 +1,6 @@
 <div id="start" v-cloak>
   <div class="d-flex container d-flex flex-row" purpose="page-container">
+
     <div :purpose="[[currentStep !== 'is-it-any-good' ? 'form-container' : 'form-with-video-container']]">
       <%//  ┌─┐┌┬┐┌─┐┬─┐┌┬┐
         //  └─┐ │ ├─┤├┬┘ │
@@ -34,29 +35,29 @@
           <div purpose="form-progress-bar"><div purpose="current-progress" style="width: 10%"></div></div>
           <img purpose="success-icon" alt="🚀" src="/images/icon-form-success-16x16@2x.png">
         </div>
-        <h2>What will you use Fleet for?</h2>
+        <h2>What will you use Fleet for, mainly?</h2>
         <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['what-are-you-using-fleet-for']" :form-rules="primaryBuyingSituationFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
           <div class="form-group" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" >
-            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm' ? 'selected' : '']">
-              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="mdm" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'it-major-mdm' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="it-major-mdm" @input="clickClearOneFormError('primaryBuyingSituation')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              Device management (MDM)
+              Device management
             </label>
-            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security' ? 'selected' : '']">
-              <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-security" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'security-misc' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="security-misc" @input="clickClearOneFormError('primaryBuyingSituation')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Security engineering
             </label>
-            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-it' ? 'selected' : '']">
-              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-it" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'it-misc' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="it-misc" @input="clickClearOneFormError('primaryBuyingSituation')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               IT engineering
             </label>
-  <!--           <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'vm' ? 'selected' : '']">
-              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="vm" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'security-vm' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="security-vm" @input="clickClearOneFormError('primaryBuyingSituation')">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              Vulnerability management
-            </label> -->
+              Vulnerability reporting
+            </label>
             <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
           </div>
           <cloud-error v-if="cloudError"></cloud-error>
@@ -376,15 +377,15 @@
                 <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
                 About half and half
               </label>
+              <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'linux' ? 'selected' : '']">
+                <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="linux" @input="clickClearOneFormError('mdmUseCase')">
+                <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+                I'm here for Linux
+              </label>
               <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet' ? 'selected' : '']">
                 <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="no-use-case-yet" @input="clickClearOneFormError('mdmUseCase')">
                 <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
                 I'm just curious
-              </label>
-              <label purpose="form-option" class="form-control" :class="[formData['what-do-you-manage-mdm'].mdmUseCase === 'linux' ? 'selected' : '']">
-                <input type="radio" v-model.trim="formData['what-do-you-manage-mdm'].mdmUseCase" value="linux" @input="clickClearOneFormError('mdmUseCase')">
-                <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-                Actually, I'm here for Linux
               </label>
               <div class="invalid-feedback" v-if="formErrors.mdmUseCase">Please select an option</div>
             </div>

@@ -567,6 +567,7 @@
       "darwin"
     ],
     "description": "Returns device and login information parsed from the \"app-sso platform -s\" command (\"Platform SSO\" extensions).",
+    "examples": "Check Platform SSO configuration by getting the device ID and and user principal name (UPN).\n\n```\nSELECT device_id, user_principal_name FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'; \n```",
     "columns": [
       {
         "name": "extension_identifier",

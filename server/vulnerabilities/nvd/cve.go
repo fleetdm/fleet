@@ -222,7 +222,7 @@ func TranslateCPEToCVE(
 	vulnPath string,
 	logger kitlog.Logger,
 	collectVulns bool,
-	periodicity time.Duration,
+	startTime time.Time,
 ) ([]fleet.SoftwareVulnerability, error) {
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
@@ -328,10 +328,10 @@ func TranslateCPEToCVE(
 	// process completes in less than `periodicity` units of time.
 	//
 	// This is used to get rid of false positives once they are fixed and no longer detected as vulnerabilities.
-	if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*periodicity); err != nil {
+	if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
 		level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
 	}
-	if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, 2*periodicity); err != nil {
+	if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
 		level.Error(logger).Log("msg", "error deleting out of date OS vulnerabilities", "err", err)
 	}
 

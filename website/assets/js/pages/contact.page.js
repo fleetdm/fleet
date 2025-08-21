@@ -53,7 +53,7 @@ parasails.registerPage('contact', {
       // Otherwise, default to the formToShow value from the page's controller.
       this.formToDisplay = this.formToShow;
     }
-    if(this.primaryBuyingSituation && !['vm', 'security-misc', 'security-vm', 'it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(this.primaryBuyingSituation)){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
+    if(this.primaryBuyingSituation && !['vm', 'eo-it', 'eo-security', 'mdm'].includes(this.primaryBuyingSituation)){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
       // Note: this will be overriden if the user is logged in and has a primaryBuyingSituation set in the database.
       this.$set(this.formData, 'primaryBuyingSituation', this.primaryBuyingSituation);
     }
@@ -64,7 +64,7 @@ parasails.registerPage('contact', {
       this.formDataToPrefillForLoggedInUsers.lastName = this.me.lastName;
       this.formDataToPrefillForLoggedInUsers.organization = this.me.organization;
       // Only prefil this information if the user has this value set to a value that is not VM.
-      if(this.me.primaryBuyingSituation && this.me.primaryBuyingSituation !== 'vm') {
+      if(this.me.primaryBuyingSituation &&  !['vm', 'eo-it', 'eo-security', 'mdm'].includes(this.me.primaryBuyingSituation)) {
         this.formDataToPrefillForLoggedInUsers.primaryBuyingSituation = this.me.primaryBuyingSituation;
       }
       this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);

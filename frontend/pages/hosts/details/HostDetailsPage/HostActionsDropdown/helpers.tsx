@@ -10,7 +10,7 @@ import {
   isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { isPersonalEnrollmentInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
 
 import {
   HostMdmDeviceStatusUIState,
@@ -182,7 +182,8 @@ const canWipeHost = ({
   // there is a special case for iOS and iPadOS devices that are personally enrolled
   // in MDM. These hosts cannot be wiped.
   const isPersonallyEnrolledIosOrIpadDevice =
-    isIPadOrIPhone(hostPlatform) && hostMdmEnrollmentStatus === "On (personal)";
+    isIPadOrIPhone(hostPlatform) &&
+    isPersonalEnrollmentInMdm(hostMdmEnrollmentStatus);
 
   return (
     isPremiumTier &&

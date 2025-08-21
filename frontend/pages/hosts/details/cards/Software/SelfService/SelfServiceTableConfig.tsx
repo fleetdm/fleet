@@ -1,28 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { CellProps, Column } from "react-table";
 
 import {
   IDeviceSoftware,
+  IHostSoftware,
   IHostSoftwareWithUiStatus,
+  IVPPHostSoftware,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { ISoftwareUninstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
-import InstallerStatusCell, {
-  InstallOrCommandUuid,
-} from "../InstallStatusCell/InstallStatusCell";
-import {
-  getInstallerActionButtonConfig,
-  IButtonDisplayConfig,
-  installStatusSortType,
-} from "../helpers";
-import HostInstallerActionCell, {
-  HostInstallerActionButton,
-} from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
+import InstallerStatusCell from "../InstallStatusCell/InstallStatusCell";
+import { installStatusSortType } from "../helpers";
+import HostInstallerActionCell from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 
 type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
 type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
@@ -45,11 +39,12 @@ export const generateSoftwareTableData = (
 };
 
 interface ISelfServiceTableHeaders {
-  deviceToken: string;
-  onInstallOrUninstall: () => void;
   onShowUpdateDetails: (software: IDeviceSoftware) => void;
-  onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (details?: ISoftwareUninstallDetails) => void;
+  onShowInstallDetails: (hostSoftware: IHostSoftware) => void;
+  onShowVPPInstallDetails: (hostSoftware: IVPPHostSoftware) => void;
+  onShowUninstallDetails: (
+    uninstallDetails: ISWUninstallDetailsParentState
+  ) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (software: IHostSoftwareWithUiStatus) => void;
 }
@@ -57,10 +52,9 @@ interface ISelfServiceTableHeaders {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateSoftwareTableHeaders = ({
-  deviceToken,
-  onInstallOrUninstall,
   onShowUpdateDetails,
   onShowInstallDetails,
+  onShowVPPInstallDetails,
   onShowUninstallDetails,
   onClickInstallAction,
   onClickUninstallAction,
@@ -103,6 +97,7 @@ export const generateSoftwareTableHeaders = ({
           software={cellProps.row.original}
           onShowUpdateDetails={onShowUpdateDetails}
           onShowInstallDetails={onShowInstallDetails}
+          onShowVPPInstallDetails={onShowVPPInstallDetails}
           onShowUninstallDetails={onShowUninstallDetails}
           isSelfService
         />
