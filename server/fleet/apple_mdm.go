@@ -5,6 +5,7 @@ import (
 	"crypto/md5" // nolint: gosec
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -270,7 +271,7 @@ func ValidateNoSecretsInProfileName(xmlContent []byte) error {
 		if len(match) > 1 {
 			displayName := string(match[1])
 			if len(ContainsPrefixVars(displayName, ServerSecretPrefix)) > 0 {
-				return fmt.Errorf("PayloadDisplayName cannot contain FLEET_SECRET variables")
+				return errors.New("PayloadDisplayName cannot contain FLEET_SECRET variables")
 			}
 		}
 	}
