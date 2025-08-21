@@ -201,6 +201,7 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 func testCreateSecretVariable(t *testing.T, ds *Datastore) {
 	t.Run("successful creation", func(t *testing.T) {
 		ctx := t.Context()
+
 		name := "test_secret_" + t.Name()
 		value := "secret_value"
 
@@ -395,186 +396,194 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 	id2, err := ds.CreateSecretVariable(ctx, "OTHER", "123")
 	require.NoError(t, err)
 
-	// Create Apple configuration profile in "No team" that uses the variable.
-	appleProfile, err := ds.NewMDMAppleConfigProfile(ctx,
-		fleet.MDMAppleConfigProfile{
-			Name:         "Name0",
-			Identifier:   "Identifier0",
-			Mobileconfig: []byte("$FLEET_SECRET_FOOBAR"),
-		},
-		nil,
-	)
-	require.NoError(t, err)
+	t.Run("apple configuration profiles", func(t *testing.T) {
+		// Create Apple configuration profile in "No team" that uses the variable.
+		appleProfile, err := ds.NewMDMAppleConfigProfile(ctx,
+			fleet.MDMAppleConfigProfile{
+				Name:         "Name0",
+				Identifier:   "Identifier0",
+				Mobileconfig: []byte("$FLEET_SECRET_FOOBAR"),
+			},
+			nil,
+		)
+		require.NoError(t, err)
 
-	// Attempt to delete the variable, should fail.
-	_, err = ds.DeleteSecretVariable(ctx, id)
-	require.Error(t, err)
-	var s *fleet.SecretUsedError
-	require.ErrorAs(t, err, &s)
-	require.Equal(t, "FOOBAR", s.SecretName)
-	require.Equal(t, "apple_profile", s.Entity.Type)
-	require.Equal(t, "Name0", s.Entity.Name)
-	require.Equal(t, "No team", s.Entity.TeamName)
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		var s *fleet.SecretUsedError
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "apple_profile", s.Entity.Type)
+		require.Equal(t, "Name0", s.Entity.Name)
+		require.Equal(t, "No team", s.Entity.TeamName)
 
-	// Deleting an unused variable is allowed.
-	_, err = ds.DeleteSecretVariable(ctx, id2)
-	require.NoError(t, err)
+		// Deleting an unused variable is allowed.
+		_, err = ds.DeleteSecretVariable(ctx, id2)
+		require.NoError(t, err)
 
-	// Delete the profile.
-	err = ds.DeleteMDMAppleConfigProfile(ctx, appleProfile.ProfileUUID)
-	require.NoError(t, err)
+		// Delete the profile.
+		err = ds.DeleteMDMAppleConfigProfile(ctx, appleProfile.ProfileUUID)
+		require.NoError(t, err)
 
-	// Create Apple configuration profile in team "Foobar" that uses the variable.
-	appleProfile, err = ds.NewMDMAppleConfigProfile(ctx,
-		fleet.MDMAppleConfigProfile{
-			Name:         "Name0",
-			Identifier:   "Identifier0",
-			Mobileconfig: []byte("$FLEET_SECRET_FOOBAR"),
-			TeamID:       &foobarTeam.ID,
-		},
-		nil,
-	)
-	require.NoError(t, err)
+		// Create Apple configuration profile in team "Foobar" that uses the variable.
+		appleProfile, err = ds.NewMDMAppleConfigProfile(ctx,
+			fleet.MDMAppleConfigProfile{
+				Name:         "Name0",
+				Identifier:   "Identifier0",
+				Mobileconfig: []byte("$FLEET_SECRET_FOOBAR"),
+				TeamID:       &foobarTeam.ID,
+			},
+			nil,
+		)
+		require.NoError(t, err)
 
-	// Attempt to delete the variable, should fail.
-	_, err = ds.DeleteSecretVariable(ctx, id)
-	require.Error(t, err)
-	s = &fleet.SecretUsedError{}
-	require.ErrorAs(t, err, &s)
-	require.Equal(t, "FOOBAR", s.SecretName)
-	require.Equal(t, "apple_profile", s.Entity.Type)
-	require.Equal(t, "Name0", s.Entity.Name)
-	require.Equal(t, "Foobar", s.Entity.TeamName)
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s = &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "apple_profile", s.Entity.Type)
+		require.Equal(t, "Name0", s.Entity.Name)
+		require.Equal(t, "Foobar", s.Entity.TeamName)
 
-	// Delete the profile.
-	err = ds.DeleteMDMAppleConfigProfile(ctx, appleProfile.ProfileUUID)
-	require.NoError(t, err)
-
-	// Create Apple declaration "No team" that uses the variable.
-	appleDeclaration, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		Identifier: "decl-1",
-		Name:       "decl-1",
-		RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_FOOBAR}"}`),
+		// Delete the profile.
+		err = ds.DeleteMDMAppleConfigProfile(ctx, appleProfile.ProfileUUID)
+		require.NoError(t, err)
 	})
-	require.NoError(t, err)
 
-	// Attempt to delete the variable, should fail.
-	_, err = ds.DeleteSecretVariable(ctx, id)
-	require.Error(t, err)
-	s = &fleet.SecretUsedError{}
-	require.ErrorAs(t, err, &s)
-	require.Equal(t, "FOOBAR", s.SecretName)
-	require.Equal(t, "apple_declaration", s.Entity.Type)
-	require.Equal(t, "decl-1", s.Entity.Name)
-	require.Equal(t, "No team", s.Entity.TeamName)
+	t.Run("apple declarations", func(t *testing.T) {
+		// Create Apple declaration "No team" that uses the variable.
+		appleDeclaration, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Identifier: "decl-1",
+			Name:       "decl-1",
+			RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_FOOBAR}"}`),
+		})
+		require.NoError(t, err)
 
-	err = ds.DeleteMDMAppleDeclaration(ctx, appleDeclaration.DeclarationUUID)
-	require.NoError(t, err)
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s := &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "apple_declaration", s.Entity.Type)
+		require.Equal(t, "decl-1", s.Entity.Name)
+		require.Equal(t, "No team", s.Entity.TeamName)
 
-	// Create Apple declaration "Foobar" that uses the variable.
-	appleDeclaration, err = ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		Identifier: "decl-1",
-		Name:       "decl-1",
-		RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_FOOBAR}"}`),
-		TeamID:     &foobarTeam.ID,
+		err = ds.DeleteMDMAppleDeclaration(ctx, appleDeclaration.DeclarationUUID)
+		require.NoError(t, err)
+
+		// Create Apple declaration "Foobar" that uses the variable.
+		appleDeclaration, err = ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Identifier: "decl-1",
+			Name:       "decl-1",
+			RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_FOOBAR}"}`),
+			TeamID:     &foobarTeam.ID,
+		})
+		require.NoError(t, err)
+
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s = &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "apple_declaration", s.Entity.Type)
+		require.Equal(t, "decl-1", s.Entity.Name)
+		require.Equal(t, "Foobar", s.Entity.TeamName)
+
+		err = ds.DeleteMDMAppleDeclaration(ctx, appleDeclaration.DeclarationUUID)
+		require.NoError(t, err)
 	})
-	require.NoError(t, err)
 
-	// Attempt to delete the variable, should fail.
-	_, err = ds.DeleteSecretVariable(ctx, id)
-	require.Error(t, err)
-	s = &fleet.SecretUsedError{}
-	require.ErrorAs(t, err, &s)
-	require.Equal(t, "FOOBAR", s.SecretName)
-	require.Equal(t, "apple_declaration", s.Entity.Type)
-	require.Equal(t, "decl-1", s.Entity.Name)
-	require.Equal(t, "Foobar", s.Entity.TeamName)
+	t.Run("windows profiles", func(t *testing.T) {
+		// Create Windows profile "No team" that uses the variable.
+		windowsProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+			Name:   "zoo",
+			TeamID: nil,
+			SyncML: []byte("<Replace>$FLEET_SECRET_FOOBAR</Replace>"),
+		}, nil)
+		require.NoError(t, err)
 
-	err = ds.DeleteMDMAppleDeclaration(ctx, appleDeclaration.DeclarationUUID)
-	require.NoError(t, err)
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s := &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "windows_profile", s.Entity.Type)
+		require.Equal(t, "zoo", s.Entity.Name)
+		require.Equal(t, "No team", s.Entity.TeamName)
 
-	// Create Windows profile "No team" that uses the variable.
-	windowsProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
-		Name:   "zoo",
-		TeamID: nil,
-		SyncML: []byte("<Replace>$FLEET_SECRET_FOOBAR</Replace>"),
-	}, nil)
-	require.NoError(t, err)
+		err = ds.DeleteMDMWindowsConfigProfile(ctx, windowsProfile.ProfileUUID)
+		require.NoError(t, err)
 
-	// Attempt to delete the variable, should fail.
-	_, err = ds.DeleteSecretVariable(ctx, id)
-	require.Error(t, err)
-	s = &fleet.SecretUsedError{}
-	require.ErrorAs(t, err, &s)
-	require.Equal(t, "FOOBAR", s.SecretName)
-	require.Equal(t, "windows_profile", s.Entity.Type)
-	require.Equal(t, "zoo", s.Entity.Name)
-	require.Equal(t, "No team", s.Entity.TeamName)
+		// Create Windows profile in "Foobar" team that uses the variable.
+		windowsProfile, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+			Name:   "zoo",
+			TeamID: &foobarTeam.ID,
+			SyncML: []byte("<Replace>$FLEET_SECRET_FOOBAR</Replace>"),
+		}, nil)
+		require.NoError(t, err)
 
-	err = ds.DeleteMDMWindowsConfigProfile(ctx, windowsProfile.ProfileUUID)
-	require.NoError(t, err)
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s = &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "windows_profile", s.Entity.Type)
+		require.Equal(t, "zoo", s.Entity.Name)
+		require.Equal(t, "Foobar", s.Entity.TeamName)
 
-	// Create Windows profile in "Foobar" team that uses the variable.
-	windowsProfile, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
-		Name:   "zoo",
-		TeamID: &foobarTeam.ID,
-		SyncML: []byte("<Replace>$FLEET_SECRET_FOOBAR</Replace>"),
-	}, nil)
-	require.NoError(t, err)
-
-	// Attempt to delete the variable, should fail.
-	_, err = ds.DeleteSecretVariable(ctx, id)
-	require.Error(t, err)
-	s = &fleet.SecretUsedError{}
-	require.ErrorAs(t, err, &s)
-	require.Equal(t, "FOOBAR", s.SecretName)
-	require.Equal(t, "windows_profile", s.Entity.Type)
-	require.Equal(t, "zoo", s.Entity.Name)
-	require.Equal(t, "Foobar", s.Entity.TeamName)
-
-	err = ds.DeleteMDMWindowsConfigProfile(ctx, windowsProfile.ProfileUUID)
-	require.NoError(t, err)
-
-	// Create a script in "No team" that uses a variable
-	script, err := ds.NewScript(ctx, &fleet.Script{
-		Name:           "foobar.sh",
-		ScriptContents: "echo $FLEET_SECRET_FOOBAR",
+		err = ds.DeleteMDMWindowsConfigProfile(ctx, windowsProfile.ProfileUUID)
+		require.NoError(t, err)
 	})
-	require.NoError(t, err)
 
-	// Attempt to delete the variable, should fail.
-	_, err = ds.DeleteSecretVariable(ctx, id)
-	require.Error(t, err)
-	s = &fleet.SecretUsedError{}
-	require.ErrorAs(t, err, &s)
-	require.Equal(t, "FOOBAR", s.SecretName)
-	require.Equal(t, "script", s.Entity.Type)
-	require.Equal(t, "foobar.sh", s.Entity.Name)
-	require.Equal(t, "No team", s.Entity.TeamName)
+	t.Run("scripts", func(t *testing.T) {
+		// Create a script in "No team" that uses a variable
+		script, err := ds.NewScript(ctx, &fleet.Script{
+			Name:           "foobar.sh",
+			ScriptContents: "echo $FLEET_SECRET_FOOBAR",
+		})
+		require.NoError(t, err)
 
-	err = ds.DeleteScript(ctx, script.ID)
-	require.NoError(t, err)
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s := &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "script", s.Entity.Type)
+		require.Equal(t, "foobar.sh", s.Entity.Name)
+		require.Equal(t, "No team", s.Entity.TeamName)
 
-	// Create a script in team "Foobar" that uses a variable
-	script, err = ds.NewScript(ctx, &fleet.Script{
-		Name:           "foobar.sh",
-		ScriptContents: "echo $FLEET_SECRET_FOOBAR",
-		TeamID:         &foobarTeam.ID,
+		err = ds.DeleteScript(ctx, script.ID)
+		require.NoError(t, err)
+
+		// Create a script in team "Foobar" that uses a variable
+		script, err = ds.NewScript(ctx, &fleet.Script{
+			Name:           "foobar.sh",
+			ScriptContents: "echo $FLEET_SECRET_FOOBAR",
+			TeamID:         &foobarTeam.ID,
+		})
+		require.NoError(t, err)
+
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s = &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "script", s.Entity.Type)
+		require.Equal(t, "foobar.sh", s.Entity.Name)
+		require.Equal(t, "Foobar", s.Entity.TeamName)
+
+		err = ds.DeleteScript(ctx, script.ID)
+		require.NoError(t, err)
 	})
-	require.NoError(t, err)
-
-	// Attempt to delete the variable, should fail.
-	_, err = ds.DeleteSecretVariable(ctx, id)
-	require.Error(t, err)
-	s = &fleet.SecretUsedError{}
-	require.ErrorAs(t, err, &s)
-	require.Equal(t, "FOOBAR", s.SecretName)
-	require.Equal(t, "script", s.Entity.Type)
-	require.Equal(t, "foobar.sh", s.Entity.Name)
-	require.Equal(t, "Foobar", s.Entity.TeamName)
-
-	err = ds.DeleteScript(ctx, script.ID)
-	require.NoError(t, err)
 
 	// Finally attempt to delete the secret again now that no entity is using it.
 	_, err = ds.DeleteSecretVariable(ctx, id)
