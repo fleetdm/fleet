@@ -1070,6 +1070,10 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	return hosts, nil
 }
 
+func (ds *Datastore) ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) ([]*fleet.BatchScriptHost, error) {
+	return nil, nil
+}
+
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
 func (ds *Datastore) applyHostFilters(
 	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, selectParams []interface{},
@@ -1208,27 +1212,7 @@ func (ds *Datastore) applyHostFilters(
 	batchScriptExecutionJoin := ""
 	batchScriptExecutionIDFilter := "TRUE"
 	if opt.BatchScriptExecutionIDFilter != nil {
-		batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id`
-		batchScriptExecutionIDFilter = `bsehr.batch_execution_id = ?`
-		whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
-		if opt.BatchScriptExecutionStatusFilter.IsValid() {
-			batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
-			switch opt.BatchScriptExecutionStatusFilter {
-			case fleet.BatchScriptExecutionRan:
-				batchScriptExecutionIDFilter += ` AND hsr.exit_code = 0`
-			case fleet.BatchScriptExecutionPending:
-				// Pending can mean "waiting for execution" or "waiting for results".
-				batchScriptExecutionJoin += ` LEFT JOIN upcoming_activities ua ON ua.execution_id = bsehr.host_execution_id`
-				batchScriptExecutionIDFilter += ` AND ((ua.execution_id IS NOT NULL) OR (hsr.host_id is NOT NULL AND hsr.exit_code IS NULL AND hsr.canceled = 0 AND bsehr.error IS NULL))`
-			case fleet.BatchScriptExecutionErrored:
-				// TODO - remove exit code condition when we split up "errored" and "failed"
-				batchScriptExecutionIDFilter += ` AND hsr.exit_code > 0`
-			case fleet.BatchScriptExecutionIncompatible:
-				batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL`
-			case fleet.BatchScriptExecutionCanceled:
-				batchScriptExecutionIDFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 1`
-			}
-		}
+		batchScriptExecutionJoin, batchScriptExecutionIDFilter, whereParams = ds.getBatchExecutionFilters(whereParams, opt)
 	}
 
 	sqlStmt += fmt.Sprintf(
@@ -1316,6 +1300,30 @@ func (ds *Datastore) applyHostFilters(
 	params = append(params, joinParams...)
 	params = append(params, whereParams...)
 	return sqlStmt, params, nil
+}
+
+func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.HostListOptions) (batchScriptExecutionJoin string, batchScriptExecutionIDFilter string, updatedWhereParams []interface{}) {
+	batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id`
+	batchScriptExecutionIDFilter = `bsehr.batch_execution_id = ?`
+	whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
+	if opt.BatchScriptExecutionStatusFilter.IsValid() {
+		batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
+		switch opt.BatchScriptExecutionStatusFilter {
+		case fleet.BatchScriptExecutionRan:
+			batchScriptExecutionIDFilter += ` AND hsr.exit_code = 0`
+		case fleet.BatchScriptExecutionPending:
+			// Pending can mean "waiting for execution" or "waiting for results".
+			batchScriptExecutionJoin += ` LEFT JOIN upcoming_activities ua ON ua.execution_id = bsehr.host_execution_id`
+			batchScriptExecutionIDFilter += ` AND ((ua.execution_id IS NOT NULL) OR (hsr.host_id is NOT NULL AND hsr.exit_code IS NULL AND hsr.canceled = 0 AND bsehr.error IS NULL))`
+		case fleet.BatchScriptExecutionErrored:
+			batchScriptExecutionIDFilter += ` AND hsr.exit_code > 0`
+		case fleet.BatchScriptExecutionIncompatible:
+			batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL`
+		case fleet.BatchScriptExecutionCanceled:
+			batchScriptExecutionIDFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 1`
+		}
+	}
+	return batchScriptExecutionJoin, batchScriptExecutionIDFilter, whereParams
 }
 
 func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {

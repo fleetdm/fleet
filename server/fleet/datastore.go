@@ -249,6 +249,7 @@ type Datastore interface {
 	Host(ctx context.Context, id uint) (*Host, error)
 	GetHostHealth(ctx context.Context, id uint) (*HostHealth, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+	ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus BatchScriptExecutionStatus, opt ListOptions) ([]*BatchScriptHost, error)
 
 	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
 	// the provided uuids and filtered according to the provided team filters. It
