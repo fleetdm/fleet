@@ -289,6 +289,10 @@ type HostMDMAppleProfile struct {
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
 func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
+	scope := "device"
+	if p.Scope == PayloadScopeUser {
+		scope = "user"
+	}
 	return HostMDMProfile{
 		HostUUID:            p.HostUUID,
 		ProfileUUID:         p.ProfileUUID,
@@ -298,7 +302,7 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 		OperationType:       p.OperationType,
 		Detail:              p.Detail,
 		Platform:            platform,
-		Scope:               string(p.Scope),
+		Scope:               scope,
 		ManagedLocalAccount: p.ManagedLocalAccount,
 	}
 }

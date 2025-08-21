@@ -747,7 +747,7 @@ SELECT
 	COALESCE(detail, '') AS detail,
 	scope,
 	CASE
-		WHEN scope = 'user' THEN (SELECT COALESCE(nu.user_short_name, '') FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC LIMIT 1)
+		WHEN scope = 'user' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC LIMIT 1), '')
 		ELSE ''
 	END AS managed_local_account
 FROM
