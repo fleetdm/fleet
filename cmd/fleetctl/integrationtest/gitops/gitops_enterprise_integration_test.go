@@ -923,20 +923,10 @@ software:
 
 // Helper function to get No Team webhook settings from the database
 func getNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore) fleet.FailingPoliciesWebhookSettings {
-	var result fleet.FailingPoliciesWebhookSettings
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		var configJSON string
-		err := sqlx.GetContext(ctx, q, &configJSON, "SELECT json_value FROM default_team_config_json WHERE id = 1")
-		require.NoError(t, err)
-
-		var teamConfig fleet.TeamConfig
-		err = json.Unmarshal([]byte(configJSON), &teamConfig)
-		require.NoError(t, err)
-
-		result = teamConfig.WebhookSettings.FailingPoliciesWebhook
-		return nil
-	})
-	return result
+	cfg, err := ds.DefaultTeamConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	return cfg.WebhookSettings.FailingPoliciesWebhook
 }
 
 // Helper function to verify No Team webhook settings match expected values
