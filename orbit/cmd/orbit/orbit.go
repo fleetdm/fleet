@@ -1525,7 +1525,9 @@ func main() {
 
 		if runSetupExperience {
 			setupExpPath := path.Join(c.String("root-dir"), constant.SetupExperienceCompleteFilename)
-			processSetupExperience(orbitClient, setupExpPath)
+			if err := processSetupExperience(orbitClient, deviceClient, trw, setupExpPath); err != nil {
+				log.Error().Err(err).Msg("initiating setup experience")
+			}
 		}
 
 		if err := g.Run(); err != nil {
@@ -1545,8 +1547,8 @@ func main() {
 	}
 }
 
-func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath string) error {
-	exp, err := checkSetupExperienceStatusFile(setupExperienceStatusPath)
+func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, trw *token.ReadWriter, setupExperienceStatusPath string) error {
+	exp, err := readSetupExperienceStatusFile(setupExperienceStatusPath)
 	if err != nil {
 		return fmt.Errorf("failed to read setup experience completed file: %w", err)
 	}
@@ -1558,7 +1560,7 @@ func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath s
 
 	resp, err := oc.InitiateSetupExperience()
 	if err != nil {
-		return fmt.Errorf("initializing setup experience: %w", err)
+		return fmt.Errorf("initializing server-side setup experience: %w", err)
 	}
 
 	// Setup experience enabled for us and is now kicked off, open a browser
@@ -1572,13 +1574,21 @@ func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath s
 			return errors.New("no user logged in")
 		}
 
+		token, err := trw.Read()
+		if err != nil {
+			return fmt.Errorf("getting device token: %w", err)
+		}
+		// My Device page
+		browserURL := dc.BrowserDeviceURL(token)
+
 		var opts []execuser.Option
 		opts = append(opts, execuser.WithUser(*loggedInUser))
+		opts = append(opts, execuser.WithArg(browserURL, ""))
 		execuser.Run("firefox", opts...)
 	}
 
 	// Even if it wasn't enabled, mark it as complete so we don't start it again later
-	if err := setSetupExperienceFile(setupExperienceStatusPath, &SetupExperienceInfo{
+	if err := writeSetupExperienceStatusFile(setupExperienceStatusPath, &SetupExperienceInfo{
 		TimeInitiated: time.Now(),
 	}); err != nil {
 		return fmt.Errorf("writing setup experience file: %w", err)
@@ -1592,7 +1602,7 @@ type SetupExperienceInfo struct {
 }
 
 // Returns the time setup experience was completed, or nil if it hasn't
-func checkSetupExperienceStatusFile(experienceCompletedPath string) (*SetupExperienceInfo, error) {
+func readSetupExperienceStatusFile(experienceCompletedPath string) (*SetupExperienceInfo, error) {
 	f, err := os.Open(experienceCompletedPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -1608,7 +1618,7 @@ func checkSetupExperienceStatusFile(experienceCompletedPath string) (*SetupExper
 	return exp, nil
 }
 
-func setSetupExperienceFile(experienceCompletedPath string, exp *SetupExperienceInfo) error {
+func writeSetupExperienceStatusFile(experienceCompletedPath string, exp *SetupExperienceInfo) error {
 	f, err := os.Create(experienceCompletedPath)
 	if err != nil {
 		return fmt.Errorf("create setup experience completed file: %w", err)
