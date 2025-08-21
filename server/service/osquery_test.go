@@ -1843,6 +1843,9 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, 500.1, gigsTotal)
 		return nil
 	}
+	ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+		return "", "", nil
+	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
