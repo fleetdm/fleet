@@ -628,58 +628,92 @@ type SoftwareSpec struct {
 	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
 }
 
-// Copy returns a deep copy of SoftwareSpec
+// Copy returns a deep copy of SoftwareSpec.
 func (s *SoftwareSpec) Copy() *SoftwareSpec {
-	if s == nil {
-		return nil
-	}
+    if s == nil {
+        return nil
+    }
 
-	result := &SoftwareSpec{}
+    out := &SoftwareSpec{}
 
-	// Deep copy Packages
-	if s.Packages.Set && len(s.Packages.Value) > 0 {
-		result.Packages = optjson.Slice[SoftwarePackageSpec]{
-			Set:   true,
-			Value: make([]SoftwarePackageSpec, len(s.Packages.Value)),
-		}
-		copy(result.Packages.Value, s.Packages.Value)
-	}
+    // Packages
+    out.Packages.Set = s.Packages.Set
+    if s.Packages.Set {
+        if len(s.Packages.Value) > 0 {
+            out.Packages.Value = make([]SoftwarePackageSpec, len(s.Packages.Value))
+            for i := range s.Packages.Value {
+                p := s.Packages.Value[i]
+                pCopy := p
+                if p.LabelsIncludeAny != nil {
+                    pCopy.LabelsIncludeAny = append([]string(nil), p.LabelsIncludeAny...)
+                }
+                if p.LabelsExcludeAny != nil {
+                    pCopy.LabelsExcludeAny = append([]string(nil), p.LabelsExcludeAny...)
+                }
+                if p.Categories != nil {
+                    pCopy.Categories = append([]string(nil), p.Categories...)
+                }
+                if p.Slug != nil {
+                    slugVal := *p.Slug
+                    pCopy.Slug = &slugVal
+                }
+                out.Packages.Value[i] = pCopy
+            }
+        } else {
+            // Preserve Set=true even when the slice is empty
+            out.Packages.Value = nil
+        }
+    }
 
-	// Deep copy FleetMaintainedApps
-	if s.FleetMaintainedApps.Set && len(s.FleetMaintainedApps.Value) > 0 {
-		result.FleetMaintainedApps = optjson.Slice[MaintainedAppSpec]{
-			Set:   true,
-			Value: make([]MaintainedAppSpec, len(s.FleetMaintainedApps.Value)),
-		}
-		copy(result.FleetMaintainedApps.Value, s.FleetMaintainedApps.Value)
-	}
+    // FleetMaintainedApps
+    out.FleetMaintainedApps.Set = s.FleetMaintainedApps.Set
+    if s.FleetMaintainedApps.Set {
+        if len(s.FleetMaintainedApps.Value) > 0 {
+            out.FleetMaintainedApps.Value = make([]MaintainedAppSpec, len(s.FleetMaintainedApps.Value))
+            for i := range s.FleetMaintainedApps.Value {
+                m := s.FleetMaintainedApps.Value[i]
+                mCopy := m
+                if m.LabelsIncludeAny != nil {
+                    mCopy.LabelsIncludeAny = append([]string(nil), m.LabelsIncludeAny...)
+                }
+                if m.LabelsExcludeAny != nil {
+                    mCopy.LabelsExcludeAny = append([]string(nil), m.LabelsExcludeAny...)
+                }
+                if m.Categories != nil {
+                    mCopy.Categories = append([]string(nil), m.Categories...)
+                }
+                out.FleetMaintainedApps.Value[i] = mCopy
+            }
+        } else {
+            out.FleetMaintainedApps.Value = nil
+        }
+    }
 
-	// Deep copy AppStoreApps
-	if s.AppStoreApps.Set && len(s.AppStoreApps.Value) > 0 {
-		result.AppStoreApps = optjson.Slice[TeamSpecAppStoreApp]{
-			Set:   true,
-			Value: make([]TeamSpecAppStoreApp, len(s.AppStoreApps.Value)),
-		}
-		for i, app := range s.AppStoreApps.Value {
-			appCopy := app
-			// Deep copy slices within TeamSpecAppStoreApp
-			if app.LabelsIncludeAny != nil {
-				appCopy.LabelsIncludeAny = make([]string, len(app.LabelsIncludeAny))
-				copy(appCopy.LabelsIncludeAny, app.LabelsIncludeAny)
-			}
-			if app.LabelsExcludeAny != nil {
-				appCopy.LabelsExcludeAny = make([]string, len(app.LabelsExcludeAny))
-				copy(appCopy.LabelsExcludeAny, app.LabelsExcludeAny)
-			}
-			if app.Categories != nil {
-				appCopy.Categories = make([]string, len(app.Categories))
-				copy(appCopy.Categories, app.Categories)
-			}
-			result.AppStoreApps.Value[i] = appCopy
-		}
-	}
+    // AppStoreApps
+    out.AppStoreApps.Set = s.AppStoreApps.Set
+    if s.AppStoreApps.Set {
+        if len(s.AppStoreApps.Value) > 0 {
+            out.AppStoreApps.Value = make([]TeamSpecAppStoreApp, len(s.AppStoreApps.Value))
+            for i := range s.AppStoreApps.Value {
+                app := s.AppStoreApps.Value[i]
+                appCopy := app
+                if app.LabelsIncludeAny != nil {
+                    appCopy.LabelsIncludeAny = append([]string(nil), app.LabelsIncludeAny...)
+                }
+                if app.LabelsExcludeAny != nil {
+                    appCopy.LabelsExcludeAny = append([]string(nil), app.LabelsExcludeAny...)
+                }
+                if app.Categories != nil {
+                    appCopy.Categories = append([]string(nil), app.Categories...)
+                }
+                out.AppStoreApps.Value[i] = appCopy
+            }
+        } else {
+            out.AppStoreApps.Value = nil
+        }
+    }
 
-	return result
+    return out
 }
 
 // HostSoftwareInstall represents installation of software on a host from a
