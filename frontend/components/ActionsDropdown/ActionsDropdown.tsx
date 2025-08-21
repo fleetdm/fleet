@@ -254,7 +254,7 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
-        {...{ variant }}
+        {...{ variant }} // Allows CustomDropdownIndicator to be blue for variant: "button"
       />
     </div>
   );
