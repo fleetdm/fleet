@@ -14,7 +14,6 @@ import createMockQuery from "__mocks__/queryMock";
 import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
 
-import queryAPI from "services/entities/queries";
 import EditQueryForm from "./EditQueryForm";
 
 jest.mock("services/entities/queries");

@@ -7,6 +7,5 @@
   "post_uninstall_scripts": [
     "/Applications/Cloudflare\\ WARP.app/Contents/Resources/uninstall.sh"
   ],
-  "default_categories": ["Productivity"],
-  "frozen": true
+  "default_categories": ["Productivity"]
 }
