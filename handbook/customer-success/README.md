@@ -34,6 +34,7 @@ The customer success department is directly responsible for ensuring that custom
 3. Within 4 business hours, the assigned CSE sends an email from their gmail account to the applicant using the suggested response template under "Applying for open position" [in this internal file](https://docs.google.com/spreadsheets/d/1-wsYunAfr-BQZMBYizY4TMavi3X071D5KZ3mCYX4Uqs/edit?gid=695748028#gid=695748028). Remember that contact form messages cannot be replied to in Unthread. 
 5. CC the Interim Head of People on all job application emails.
 6. Remember to include the title of the position being applied for, as is requested in the response template.
+7. Add a closure note or include copy of your response as an internal note in the unthread ticket, and close the ticket.
 
 
 ### Assign a customer codename
