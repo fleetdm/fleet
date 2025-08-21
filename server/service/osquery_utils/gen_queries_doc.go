@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -23,12 +24,17 @@ func main() {
 		App: config.AppConfig{
 			EnableScheduledQueryStats: true,
 		},
-	}, &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, &fleet.Features{
+	}, &fleet.AppConfig{MDM: fleet.MDM{
+		EnabledAndConfigured:        true,
+		WindowsEnabledAndConfigured: true,
+		EnableDiskEncryption:        optjson.SetBool(true),
+		RequireBitLockerPIN:         optjson.SetBool(true),
+	}}, &fleet.Features{
 		EnableSoftwareInventory: true,
 		EnableHostUsers:         true,
 	}, osquery_utils.Integrations{
 		ConditionalAccessMicrosoft: true,
-	})
+	}, nil)
 	var b strings.Builder
 
 	b.WriteString(`<!-- DO NOT EDIT. This document is automatically generated. -->
