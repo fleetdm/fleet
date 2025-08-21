@@ -39,12 +39,15 @@ Labels can be specified in your `default.yml` file using inline configuration or
 
 - `name` specifies the label's name.
 - `description` specifies the label's description.
+- `platform` specifies platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
 - `label_membership_type` specifies label type which determines. Choices for platform are `dynamic` , `manual`, and `host_vitals`.
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`. 
-- `hosts` is the list of host identifiers (`id`, `hardware_serial`, `uuid`, or `hostname`) the label will apply to. Only supported if `label_membership_type` is `manual`. 
+- `hosts` is the list of host identifiers (`id`, `hardware_serial`, or `uuid`) the label will apply to. Only supported if `label_membership_type` is `manual`. 
 - `critera` - is the critera, specified by `vital` and `value`. `vital` can be `end_user_idp_group` or `end_user_idp_department`. Hosts with `vital` data matching this value will be added to the label.
 
 Only one of `query`, `hosts`, or `critera` can be specified. If none are specified, a manual label with no hosts will be created.
+
+The `hostname` host identifier is deprecated. Please use a host's `id`, `hardware_serial`, or `uuid` instead.
 
 > `labels` is an optional key: if included, existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
 >
