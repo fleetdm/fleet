@@ -363,7 +363,7 @@ func (a ActivityTypeAppliedSpecPack) Documentation() (activity string, details s
 type ActivityTypeCreatedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
-	TeamID   int64   `json:"team_id,omitempty"`
+	TeamID   *int64  `json:"team_id,omitempty"`
 	TeamName *string `json:"team_name,omitempty"`
 }
 
@@ -388,7 +388,7 @@ func (a ActivityTypeCreatedPolicy) Documentation() (activity string, details str
 type ActivityTypeEditedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
-	TeamID   *uint   `json:"team_id,omitempty"`
+	TeamID   *int64  `json:"team_id,omitempty"`
 	TeamName *string `json:"team_name,omitempty"`
 }
 
@@ -413,7 +413,7 @@ func (a ActivityTypeEditedPolicy) Documentation() (activity string, details stri
 type ActivityTypeDeletedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
-	TeamID   int64   `json:"team_id,omitempty"`
+	TeamID   *int64  `json:"team_id,omitempty"`
 	TeamName *string `json:"team_name,omitempty"`
 }
 

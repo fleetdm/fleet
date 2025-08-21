@@ -1374,6 +1374,7 @@ const TAGGED_TEMPLATES = {
     } else if (activity.details?.team_id === 0) {
       teamText = (
         <>
+          {" "}
           for <b>No Team</b>
         </>
       );
