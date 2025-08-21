@@ -1070,7 +1070,16 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	return hosts, nil
 }
 
-func (ds *Datastore) ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) ([]*fleet.BatchScriptHost, error) {
+func (ds *Datastore) ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) (hosts []fleet.BatchScriptHost, meta *fleet.PaginationMetadata, count uint, error error) {
+	countStmt := `
+SELECT COUNT(*)
+FROM
+    hosts h
+	%s
+WHERE
+    %s
+`
+
 	sqlStmt := `
 SELECT
     h.id,
@@ -1092,16 +1101,32 @@ WHERE
 		BatchScriptExecutionStatusFilter: batchScriptExecutionStatus,
 	})
 
-	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt)
-
-	sqlStmt = fmt.Sprintf(sqlStmt, batchScriptExecutionStatus, batchScriptExecutionJoin, batchScriptExecutionFilter)
-
-	hosts := []*fleet.BatchScriptHost{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sqlStmt, whereParams...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list batch script hosts")
+	countStmt = fmt.Sprintf(countStmt, batchScriptExecutionJoin, batchScriptExecutionFilter)
+	dbReader := ds.reader(ctx)
+	if err := sqlx.GetContext(ctx, dbReader, &count, countStmt, whereParams...); err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch scripts count")
 	}
 
-	return hosts, nil
+	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt)
+	sqlStmt = fmt.Sprintf(sqlStmt, batchScriptExecutionStatus, batchScriptExecutionJoin, batchScriptExecutionFilter)
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sqlStmt, whereParams...); err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch script hosts")
+	}
+
+	if opt.IncludeMetadata {
+		meta = &fleet.PaginationMetadata{
+			HasPreviousResults: opt.Page > 0,
+			TotalResults:       uint(count), //nolint:gosec // dismiss G115
+		}
+		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this discrepancy.
+		if len(hosts) > int(opt.PerPage) { //nolint:gosec // dismiss G115
+			meta.HasNextResults = true
+			hosts = hosts[:len(hosts)-1]
+		}
+	}
+
+	return hosts, meta, count, nil
 }
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?

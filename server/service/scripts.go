@@ -1120,11 +1120,11 @@ func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{
 
 func batchScriptExecutionHostResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptExecutionHostResultsRequest)
-	results, err := svc.BatchScriptExecutionHostResults(ctx, req.BatchExecutionID)
+	hosts, meta, count, err := svc.BatchScriptExecutionHostResults(ctx, req.BatchExecutionID, req.BatchExecutionStatus, req.ListOptions)
 	if err != nil {
 		return batchScriptExecutionHostResultsResponse{Err: err}, nil
 	}
-	return batchScriptExecutionHostResultsResponse{Results: results}, nil
+	return batchScriptExecutionHostResultsResponse{Hosts: hosts, PaginationMetadata: *meta, Count: count}, nil
 }
 
 func batchScriptExecutionStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -1301,6 +1301,25 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 	}
 
 	return &summary, nil
+}
+
+func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchExecutionID string, status fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) (hosts []fleet.BatchScriptHost, meta *fleet.PaginationMetadata, count uint, error error) {
+	if err := svc.authz.Authorize(ctx, &fleet.SecretVariable{}, fleet.ActionRead); err != nil {
+		return nil, nil, 0, err
+	}
+
+	// Always include pagination info.
+	opt.IncludeMetadata = true
+	// Default sort order is name ascending.
+	opt.OrderKey = "display_name"
+	opt.OrderDirection = fleet.OrderAscending
+
+	hosts, meta, count, err := svc.ds.ListBatchScriptHosts(ctx, batchExecutionID, status, opt)
+	if err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch script hosts")
+	}
+
+	return hosts, meta, count, nil
 }
 
 func (svc *Service) BatchScriptExecutionList(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, int64, error) {
