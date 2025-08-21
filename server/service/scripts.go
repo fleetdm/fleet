@@ -1304,7 +1304,26 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 }
 
 func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchExecutionID string, status fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) (hosts []fleet.BatchScriptHost, meta *fleet.PaginationMetadata, count uint, error error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SecretVariable{}, fleet.ActionRead); err != nil {
+	// Get the batch activity.
+	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
+	if err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "getting batch activity")
+	}
+	if batchActivity.ScriptID == nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "batch activity has no script ID")
+	}
+
+	// Get the script referred to be the batch activity.
+	script, err := svc.ds.Script(ctx, *batchActivity.ScriptID)
+	if err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "getting script")
+	}
+	if script == nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "script not found")
+	}
+
+	// Authorize based on the script's team ID.
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: script.TeamID}, fleet.ActionRead); err != nil {
 		return nil, nil, 0, err
 	}
 
@@ -1314,7 +1333,7 @@ func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchEx
 	opt.OrderKey = "display_name"
 	opt.OrderDirection = fleet.OrderAscending
 
-	hosts, meta, count, err := svc.ds.ListBatchScriptHosts(ctx, batchExecutionID, status, opt)
+	hosts, meta, count, err = svc.ds.ListBatchScriptHosts(ctx, batchExecutionID, status, opt)
 	if err != nil {
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch script hosts")
 	}
