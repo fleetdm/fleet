@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -256,6 +257,24 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 		Mobileconfig: mc,
 		Scope:        PayloadScope(cp.PayloadScope),
 	}, nil
+}
+
+// payloadDisplayNameRegex is used to extract PayloadDisplayName values from raw XML content
+var payloadDisplayNameRegex = regexp.MustCompile(`<key>PayloadDisplayName</key>\s*<string>([^<]*)</string>`)
+
+// ValidateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
+// in the raw XML content of a profile.
+func ValidateNoSecretsInProfileName(xmlContent []byte) error {
+	matches := payloadDisplayNameRegex.FindAllSubmatch(xmlContent, -1)
+	for _, match := range matches {
+		if len(match) > 1 {
+			displayName := string(match[1])
+			if len(ContainsPrefixVars(displayName, ServerSecretPrefix)) > 0 {
+				return fmt.Errorf("PayloadDisplayName cannot contain FLEET_SECRET variables")
+			}
+		}
+	}
+	return nil
 }
 
 func (cp MDMAppleConfigProfile) ValidateUserProvided() error {

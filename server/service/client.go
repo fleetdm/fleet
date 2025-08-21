@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -29,8 +28,6 @@ import (
 )
 
 const batchSize = 100
-
-var payloadDisplayNameRegex = regexp.MustCompile(`<key>PayloadDisplayName</key>\s*<string>([^<]*)</string>`)
 
 // Client is used to consume Fleet APIs from Go code
 type Client struct {
@@ -367,8 +364,8 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 
 					if containsSecrets {
 						// If profile contains secrets, check for secrets in PayloadDisplayName first
-						if err := validateNoSecretsInProfileName(string(fileContents), prefixErrMsg); err != nil {
-							return nil, err
+						if err := fleet.ValidateNoSecretsInProfileName(fileContents); err != nil {
+							return nil, fmt.Errorf("%s: %w", prefixErrMsg, err)
 						}
 
 						// Expand secrets for validation
@@ -2574,22 +2571,6 @@ func (c *Client) GetGitOpsSecrets(
 					secretValues = append(secretValues, secret.Secret)
 				}
 				return secretValues
-			}
-		}
-	}
-	return nil
-}
-
-// validateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
-// by parsing the raw XML content.
-func validateNoSecretsInProfileName(xmlContent, prefixErrMsg string) error {
-	matches := payloadDisplayNameRegex.FindAllStringSubmatch(xmlContent, -1)
-
-	for _, match := range matches {
-		if len(match) > 1 {
-			displayName := match[1]
-			if len(fleet.ContainsPrefixVars(displayName, fleet.ServerSecretPrefix)) > 0 {
-				return fmt.Errorf("%s: PayloadDisplayName cannot contain FLEET_SECRET variables", prefixErrMsg)
 			}
 		}
 	}
