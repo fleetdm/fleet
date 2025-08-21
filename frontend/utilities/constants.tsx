@@ -419,6 +419,7 @@ export const HOST_SUMMARY_DATA = [
   "detail_updated_at",
   "percent_disk_space_available",
   "gigs_disk_space_available",
+  "gigs_total_disk_space",
   "team_name",
   "disk_encryption_enabled",
   "display_name", // Not rendered on my device page

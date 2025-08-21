@@ -7,6 +7,7 @@ interface IDiskSpaceIndicatorProps {
   baseClass: string;
   gigsDiskSpaceAvailable: number | "---";
   percentDiskSpaceAvailable: number;
+  gigsTotalDiskSpace?: number | "---";
   id: string;
   platform: string;
   tooltipPosition?: "top" | "bottom";
@@ -16,6 +17,7 @@ const DiskSpaceIndicator = ({
   baseClass,
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
+  gigsTotalDiskSpace,
   id,
   platform,
   tooltipPosition = "top",
@@ -83,6 +85,9 @@ const DiskSpaceIndicator = ({
         </ReactTooltip>
       )}
       {gigsDiskSpaceAvailable} GB{baseClass === "info-flex" && " available"}
+      {gigsTotalDiskSpace && gigsTotalDiskSpace !== "---" && (
+        <> of {gigsTotalDiskSpace} GB</>
+      )}
     </span>
   );
 };

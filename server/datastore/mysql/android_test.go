@@ -330,13 +330,10 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 35.0, result.Host.GigsDiskSpaceAvailable, "Available disk space should be saved")
 	assert.Equal(t, 27.34, result.Host.PercentDiskSpaceAvailable, "Disk space percentage should be saved")
 
-	// AndroidHostLite includes storage data
+	// AndroidHostLite provides lightweight Android data (no storage data)
 	resultLite, err := ds.AndroidHostLite(testCtx(), enterpriseSpecificID)
 	require.NoError(t, err)
 	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
-	assert.Equal(t, 128.0, resultLite.Host.GigsTotalDiskSpace, "AndroidHostLite should include total disk space")
-	assert.Equal(t, 35.0, resultLite.Host.GigsDiskSpaceAvailable, "AndroidHostLite should include available disk space")
-	assert.Equal(t, 27.34, resultLite.Host.PercentDiskSpaceAvailable, "AndroidHostLite should include disk space percentage")
 
 	// UpdateAndroidHost preserves storage data
 	updatedHost := result
@@ -348,13 +345,17 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	err = ds.UpdateAndroidHost(testCtx(), updatedHost, false)
 	require.NoError(t, err)
 
-	// updated storage data
+	// verify updated host data via host query (includes storage from host_disks)
 	finalResult, err := ds.AndroidHostLite(testCtx(), enterpriseSpecificID)
 	require.NoError(t, err)
-	assert.Equal(t, "updated-hostname", finalResult.Host.Hostname, "Hostname should be updated")
-	assert.Equal(t, 256.0, finalResult.Host.GigsTotalDiskSpace, "Updated total disk space should be saved")
-	assert.Equal(t, 64.0, finalResult.Host.GigsDiskSpaceAvailable, "Updated available disk space should be saved")
-	assert.Equal(t, 25.0, finalResult.Host.PercentDiskSpaceAvailable, "Updated disk space percentage should be saved")
+
+	// get host data to check storage updates
+	updatedFullHost, err := ds.Host(testCtx(), finalResult.Host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "updated-hostname", updatedFullHost.Hostname, "Hostname should be updated")
+	assert.Equal(t, 256.0, updatedFullHost.GigsTotalDiskSpace, "Updated total disk space should be saved in host_disks")
+	assert.Equal(t, 64.0, updatedFullHost.GigsDiskSpaceAvailable, "Updated available disk space should be saved in host_disks")
+	assert.Equal(t, 25.0, updatedFullHost.PercentDiskSpaceAvailable, "Updated disk space percentage should be saved in host_disks")
 
 	// storage data survives db round-trip
 	retrievedHost, err := ds.Host(testCtx(), finalResult.Host.ID)

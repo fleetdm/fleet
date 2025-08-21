@@ -98,6 +98,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   team_name: null,
   gigs_disk_space_available: 100.0,
   percent_disk_space_available: 50,
+  gigs_total_disk_space: 200.0,
   issues: {
     total_issues_count: 0,
     critical_vulnerabilities_count: 0,
