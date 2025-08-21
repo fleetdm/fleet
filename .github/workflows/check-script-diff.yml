@@ -3,7 +3,8 @@ name: Check Script Diff(using /ee/maintained-apps/script-diff.sh)
 on:
     pull_request:
         paths:
-            - 'ee/maintained-apps/(inputs|outputs)/**.json'
+          - ee/maintained-apps/inputs/**.json
+          - ee/maintained-apps/outputs/**.json
         branches:
             - main
 
