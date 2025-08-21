@@ -3471,13 +3471,12 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Contains(t, expectedHostIds, hosts[1].ID)
 
 	// Get the list of pending hosts. Check pagination by first getting a page of 1.
-	batchHosts, err := ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionPending, fleet.ListOptions{PerPage: 1, Page: 1, OrderKey: "hostname", OrderDirection: fleet.OrderDescending})
+	batchHosts, err := ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionPending, fleet.ListOptions{PerPage: 1, Page: 0, OrderKey: "hostname", OrderDirection: fleet.OrderDescending})
 	require.NoError(t, err)
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, host3.ID, batchHosts[0].ID)
 	require.Equal(t, host3.Hostname, batchHosts[0].DisplayName)
-	require.Equal(t, "pending", batchHosts[0].Status)
-	require.True(t, time.Time.IsZero(batchHosts[0].ScriptExecutedAt))
+	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[0].Status)
 
 	// Get all of the pending hosts.
 	batchHosts, err = ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionPending, fleet.ListOptions{})
@@ -3485,16 +3484,13 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 3)
 	require.Equal(t, host1.ID, batchHosts[0].ID)
 	require.Equal(t, host1.Hostname, batchHosts[0].DisplayName)
-	require.Equal(t, "pending", batchHosts[0].Status)
-	require.True(t, time.Time.IsZero(batchHosts[0].ScriptExecutedAt))
+	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[0].Status)
 	require.Equal(t, host2.ID, batchHosts[1].ID)
 	require.Equal(t, host2.Hostname, batchHosts[1].DisplayName)
-	require.Equal(t, "pending", batchHosts[1].Status)
-	require.True(t, time.Time.IsZero(batchHosts[1].ScriptExecutedAt))
+	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[1].Status)
 	require.Equal(t, host3.ID, batchHosts[2].ID)
 	require.Equal(t, host3.Hostname, batchHosts[2].DisplayName)
-	require.Equal(t, "pending", batchHosts[2].Status)
-	require.True(t, time.Time.IsZero(batchHosts[2].ScriptExecutedAt))
+	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[2].Status)
 
 	// Do another batch script execution with the same hosts, and verify that "pending" returns correctly.
 	// The SQL for retrieving "pending" hosts has to check both the host_script_results table (for hosts
@@ -3580,8 +3576,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, host2.ID, batchHosts[0].ID)
 	require.Equal(t, host2.Hostname, batchHosts[0].DisplayName)
-	require.Equal(t, "errored", batchHosts[0].Status)
-	require.False(t, time.Time.IsZero(batchHosts[0].ScriptExecutedAt))
+	require.Equal(t, fleet.BatchScriptExecutionErrored, batchHosts[0].Status)
 
 	// List ran hosts for this batch. There should be one.
 	batchHosts, err = ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionRan, fleet.ListOptions{})
@@ -3589,8 +3584,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, host1.ID, batchHosts[0].ID)
 	require.Equal(t, host1.Hostname, batchHosts[0].DisplayName)
-	require.Equal(t, "ran", batchHosts[0].Status)
-	require.False(t, time.Time.IsZero(batchHosts[0].ScriptExecutedAt))
+	require.Equal(t, fleet.BatchScriptExecutionRan, batchHosts[0].Status)
 	require.Equal(t, "foo", batchHosts[0].ScriptOutput)
 
 	// List cancelled hosts for this batch. There should be one.
@@ -3599,8 +3593,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, host3.ID, batchHosts[0].ID)
 	require.Equal(t, host3.Hostname, batchHosts[0].DisplayName)
-	require.Equal(t, "canceled", batchHosts[0].Status)
-	require.True(t, time.Time.IsZero(batchHosts[0].ScriptExecutedAt))
+	require.Equal(t, fleet.BatchScriptExecutionCanceled, batchHosts[0].Status)
 
 	// List incompatible hosts for this batch. There should be two.
 	batchHosts, err = ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionIncompatible, fleet.ListOptions{})
@@ -3608,12 +3601,10 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 2)
 	require.Equal(t, hostNoScripts.ID, batchHosts[0].ID)
 	require.Equal(t, hostNoScripts.Hostname, batchHosts[0].DisplayName)
-	require.Equal(t, "incompatible", batchHosts[0].Status)
-	require.True(t, time.Time.IsZero(batchHosts[0].ScriptExecutedAt))
+	require.Equal(t, fleet.BatchScriptExecutionIncompatible, batchHosts[0].Status)
 	require.Equal(t, hostWindows.ID, batchHosts[1].ID)
 	require.Equal(t, hostWindows.Hostname, batchHosts[1].DisplayName)
-	require.Equal(t, "incompatible", batchHosts[1].Status)
-	require.True(t, time.Time.IsZero(batchHosts[1].ScriptExecutedAt))
+	require.Equal(t, fleet.BatchScriptExecutionIncompatible, batchHosts[1].Status)
 }
 
 func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore) {

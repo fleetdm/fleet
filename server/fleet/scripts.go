@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"bufio"
+	"database/sql"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -284,7 +285,7 @@ func (hsr HostScriptResult) AuthzType() string {
 
 type BatchScriptHost struct {
 	// ID is the host on which the script was executed.
-	ID uint `json:"host_id" db:"id"`
+	ID uint `json:"id" db:"id"`
 	// Display name is the host's display name.
 	DisplayName string `json:"display_name" db:"display_name"`
 	// ExecutionID is a unique identifier for a single execution of the script.
@@ -293,9 +294,9 @@ type BatchScriptHost struct {
 	// if no result was received yet.
 	ScriptOutput string `json:"script_output_preview" db:"output"`
 	// Executed at is the time the script was executed on the host (if at all).
-	ScriptExecutedAt time.Time `json:"script_executed_at" db:"created_at"`
+	ScriptExecutedAt sql.NullTime `json:"script_executed_at" db:"created_at"`
 	// Status is the status of the host's batch script run.
-	Status BatchScriptExecutionStatus `json:"script_status" db:"-"`
+	Status BatchScriptExecutionStatus `json:"script_status" db:"status"`
 }
 
 // UserMessage returns the user-friendly message to associate with the current
