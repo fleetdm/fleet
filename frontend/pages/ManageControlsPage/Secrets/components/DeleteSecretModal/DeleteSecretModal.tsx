@@ -34,12 +34,14 @@ const DeleteSecretModal = ({
       onDelete();
     } catch (error) {
       const errorObject = formatErrorResponse(error);
-      renderFlash(
-        "error",
-        errorObject.base.includes("used by")
+      const isInUseError =
+        errorObject.http_status === 409 &&
+        /used by/.test(errorObject?.base ?? "");
+      const message =
+        isInUseError && typeof errorObject?.base === "string"
           ? errorObject.base
-          : "An error occurred while deleting the secret. Please try again."
-      );
+          : "An error occurred while deleting the custom variable. Please try again.";
+      renderFlash("error", message);
     } finally {
       setIsDeleting(false);
     }
