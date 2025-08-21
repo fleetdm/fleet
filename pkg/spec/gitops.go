@@ -437,24 +437,30 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 
 	// For No Team, we only care about webhook_settings
 	if webhookRaw, ok := teamSettingsMap["webhook_settings"]; ok {
-		webhookMap, ok := webhookRaw.(map[string]any)
-		if !ok {
-			return multierror.Append(multiError, errors.New("'team_settings.webhook_settings' must be an object"))
-		}
-		for key := range webhookMap {
-			if key != "failing_policies_webhook" {
-				multiError = multierror.Append(multiError,
-					fmt.Errorf("unsupported webhook_settings option '%s' for 'No team'; only 'failing_policies_webhook' is allowed", key))
+		// Handle null webhook_settings (which means clear webhook settings)
+		if webhookRaw == nil {
+			// Store as nil to indicate webhook settings should be cleared
+			result.TeamSettings["webhook_settings"] = nil
+		} else {
+			webhookMap, ok := webhookRaw.(map[string]interface{})
+			if !ok {
+				return multierror.Append(multiError, errors.New("'team_settings.webhook_settings' must be an object or null"))
 			}
-		}
-		// If present, ensure failing_policies_webhook is an object
-		if fpw, ok := webhookMap["failing_policies_webhook"]; ok {
-			if _, ok := fpw.(map[string]any); !ok {
-				multiError = multierror.Append(multiError, errors.New("'team_settings.webhook_settings.failing_policies_webhook' must be an object"))
+			for key := range webhookMap {
+				if key != "failing_policies_webhook" {
+					multiError = multierror.Append(multiError,
+						fmt.Errorf("unsupported webhook_settings option '%s' for 'No team'; only 'failing_policies_webhook' is allowed", key))
+				}
 			}
+			// If present, ensure failing_policies_webhook is an object or null
+			if fpw, ok := webhookMap["failing_policies_webhook"]; ok && fpw != nil {
+				if _, ok := fpw.(map[string]interface{}); !ok {
+					multiError = multierror.Append(multiError, errors.New("'team_settings.webhook_settings.failing_policies_webhook' must be an object or null"))
+				}
+			}
+			// Store the webhook settings for later processing
+			result.TeamSettings["webhook_settings"] = webhookMap
 		}
-		// Store the webhook settings for later processing
-		result.TeamSettings["webhook_settings"] = webhookMap
 	}
 
 	return multiError

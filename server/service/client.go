@@ -2079,7 +2079,7 @@ func (c *Client) DoGitOps(
 				return nil, nil, err
 			}
 			// Apply webhook settings for "No Team"
-			if err := c.doGitOpsNoTeamWebhookSettings(config, logFn, dryRun); err != nil {
+			if err := c.doGitOpsNoTeamWebhookSettings(config, appConfig, logFn, dryRun); err != nil {
 				return nil, nil, fmt.Errorf("applying no team webhook settings: %w", err)
 			}
 			teamSoftwareInstallers = noTeamSoftwareInstallers
@@ -2230,15 +2230,17 @@ func extractFailingPoliciesWebhook(webhookSettings interface{}) fleet.FailingPol
 
 func (c *Client) doGitOpsNoTeamWebhookSettings(
 	config *spec.GitOps,
+	appCfg *fleet.EnrichedAppConfig,
 	logFn func(format string, args ...interface{}),
 	dryRun bool,
 ) error {
-	if !config.IsNoTeam() {
+	// Check if premium license is available for No Team webhook settings
+	if !config.IsNoTeam() || appCfg == nil || appCfg.License == nil || !appCfg.License.IsPremium() {
 		return nil
 	}
 
-	// Always apply webhook settings for "No Team"
-	// nil TeamSettings or nil webhook_settings will clear existing settings
+	// Apply webhook settings for "No Team"
+	// If webhook_settings are not specified, they will be applied as nil to clear existing settings
 	teamPayload := fleet.TeamPayload{
 		WebhookSettings: &fleet.TeamWebhookSettings{
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
