@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"context"
 	"encoding/json"
 	"sort"
 	"testing"
@@ -35,7 +34,8 @@ func TestSecretVariables(t *testing.T) {
 }
 
 func testUpsertSecretVariables(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
+
 	err := ds.UpsertSecretVariables(ctx, nil)
 	assert.NoError(t, err)
 	results, err := ds.GetSecretVariables(ctx, nil)
@@ -109,7 +109,8 @@ Another $FLEET_SECRET_ALSO_VALID.
 This document contains a secret not stored in the database.
 Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 `
-	ctx := context.Background()
+	ctx := t.Context()
+
 	secretMap := map[string]string{
 		"VALID":      "testValue1",
 		"ALSO_VALID": "testValue2",
@@ -161,7 +162,8 @@ This document contains a secret not stored in the database.
 Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 `
 
-	ctx := context.Background()
+	ctx := t.Context()
+
 	secretMap := map[string]string{
 		"VALID":      "testValue1",
 		"ALSO_VALID": "testValue2",
@@ -197,9 +199,8 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 }
 
 func testCreateSecretVariable(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
 	t.Run("successful creation", func(t *testing.T) {
+		ctx := t.Context()
 		name := "test_secret_" + t.Name()
 		value := "secret_value"
 
@@ -215,7 +216,8 @@ func testCreateSecretVariable(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("duplicate name error", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
+
 		name := "test_secret_duplicate_" + t.Name()
 		value := "secret_value"
 
@@ -232,7 +234,7 @@ func testCreateSecretVariable(t *testing.T, ds *Datastore) {
 }
 
 func testListSecretVariables(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	createTestSecret := func(name, value string) uint {
 		id, err := ds.CreateSecretVariable(ctx, name, value)
@@ -352,7 +354,7 @@ func testListSecretVariables(t *testing.T, ds *Datastore) {
 }
 
 func testDeleteSecretVariable(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	deletedName, err := ds.DeleteSecretVariable(ctx, 999)
 	require.Error(t, err)
@@ -381,7 +383,7 @@ func testDeleteSecretVariable(t *testing.T, ds *Datastore) {
 }
 
 func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	foobarTeam, err := ds.NewTeam(ctx, &fleet.Team{
 		Name: "Foobar",
