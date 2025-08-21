@@ -303,12 +303,22 @@ func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificate
 	return &ca, nil
 }
 
-func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certificateAuthorityID uint, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
+func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certificateAuthorityID uint, ca *fleet.CertificateAuthority) error {
+	oldCA, err := ds.GetCertificateAuthorityByID(ctx, certificateAuthorityID, false)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting certificate authority with id %d", certificateAuthorityID)
+	}
+
+	sameName := *oldCA.Name == *ca.Name
+	if sameName {
+		return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+	}
+
 	var updateArgs []any
 
 	setStmt, err := ds.generateUpdateQueryWithArgs(ctx, ca, &updateArgs)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating update query for certificate authority")
+		return ctxerr.Wrap(ctx, err, "generating update query for certificate authority")
 	}
 	updateArgs = append(updateArgs, certificateAuthorityID)
 
@@ -318,28 +328,22 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 	WHERE id = ?
 	`, setStmt)
 
-	fmt.Println("Update query:", stmt)
-	fmt.Println("query bits:", setStmt)
-	fmt.Printf("query args: %v\n", updateArgs)
-
-	// rows := ds.writer(ctx).QueryRowContext(ctx, stmt, updateArgs...)
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, updateArgs...)
-
-	fmt.Println("Query executed")
-
-	var updatedCA fleet.CertificateAuthority
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, updateArgs...)
 	if err != nil {
-		fmt.Printf("Error executing query: %v\n", err)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
+		if strings.Contains(err.Error(), "idx_ca_type_name") {
+			return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
 		}
-		return nil, ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
+		return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
 	}
 
-	fmt.Println("Update successful")
-	fmt.Printf("updatedCA: %+v\n", updatedCA)
+	// RowsAffected will still return 0 if the name was the same and the update did not occure
+	// so we need to check if the name was the same before returning the not found error.
+	rows, _ := res.RowsAffected()
+	if rows == 0 && !sameName {
+		return common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
+	}
 
-	return &updatedCA, nil
+	return nil
 }
 
 // generateUpdateQuery generates the SQL update query for a Certificate Authority based on the provided fields

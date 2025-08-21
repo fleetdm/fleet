@@ -417,7 +417,6 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		if err := svc.validateDigicertUpdate(p.DigiCertCAUpdatePayload, errPrefix); err != nil {
 			return err
 		}
-		fmt.Printf("payload: %+v\n", p.DigiCertCAUpdatePayload)
 		caToUpdate.Type = string(fleet.CATypeDigiCert)
 		caToUpdate.Name = p.DigiCertCAUpdatePayload.Name
 		caToUpdate.URL = p.DigiCertCAUpdatePayload.URL
@@ -426,7 +425,6 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.CertificateCommonName = p.DigiCertCAUpdatePayload.CertificateCommonName
 		caToUpdate.CertificateUserPrincipalNames = p.DigiCertCAUpdatePayload.CertificateUserPrincipalNames
 		caToUpdate.CertificateSeatID = p.DigiCertCAUpdatePayload.CertificateSeatID
-
 	}
 	if p.HydrantCAUpdatePayload != nil {
 		if err := p.HydrantCAUpdatePayload.ValidateRelatedFields(errPrefix); err != nil {
@@ -470,8 +468,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.Challenge = p.CustomSCEPProxyCAUpdatePayload.Challenge
 	}
 
-	_, err := svc.ds.UpdateCertificateAuthorityByID(ctx, id, &caToUpdate)
-	if err != nil {
+	if err := svc.ds.UpdateCertificateAuthorityByID(ctx, id, &caToUpdate); err != nil {
 		return err
 	}
 

@@ -2300,7 +2300,7 @@ type Datastore interface {
 	// DeleteCertificateAuthority deletes the certificate authority of the provided ID, returns not found if it does not exist
 	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*CertificateAuthoritySummary, error)
 	// UpdateCertificateAuthorityByID updates the certificate authority of the provided ID, returns not found if it does not exist
-	UpdateCertificateAuthorityByID(ctx context.Context, id uint, certificateAuthority *CertificateAuthority) (*CertificateAuthority, error)
+	UpdateCertificateAuthorityByID(ctx context.Context, id uint, certificateAuthority *CertificateAuthority) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
