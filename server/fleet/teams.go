@@ -181,6 +181,23 @@ type TeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
+// DefaultTeam represents the limited team information returned for team ID 0
+type DefaultTeam struct {
+	ID     uint              `json:"id"`
+	Name   string            `json:"name"`
+	Config DefaultTeamConfig `json:"config"`
+}
+
+// DefaultTeamConfig contains only webhook settings for team ID 0
+type DefaultTeamConfig struct {
+	WebhookSettings DefaultTeamWebhookSettings `json:"webhook_settings"`
+}
+
+// DefaultTeamWebhookSettings contains only failing policies webhook for team ID 0
+type DefaultTeamWebhookSettings struct {
+	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+}
+
 type TeamSpecSoftwareAsset struct {
 	Path string `json:"path"`
 }

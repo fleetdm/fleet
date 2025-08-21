@@ -510,11 +510,31 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
+	// Track default team config for team 0
+	var defaultTeamConfig = &fleet.TeamConfig{}
+
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == 0 {
+			// Return a mock team 0 with the default config
+			return &fleet.Team{
+				ID:     0,
+				Name:   fleet.ReservedNameNoTeam,
+				Config: *defaultTeamConfig,
+			}, nil
+		}
 		if tid == team.ID {
 			return savedTeam, nil
 		}
 		return nil, nil
+	}
+
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return defaultTeamConfig, nil
+	}
+
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
 	}
 	var enrolledTeamSecrets []*fleet.EnrollSecret
 	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
@@ -1434,11 +1454,31 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		job.ID = 1
 		return job, nil
 	}
+	// Track default team config for team 0
+	var defaultTeamConfig = &fleet.TeamConfig{}
+
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == 0 {
+			// Return a mock team 0 with the default config
+			return &fleet.Team{
+				ID:     0,
+				Name:   fleet.ReservedNameNoTeam,
+				Config: *defaultTeamConfig,
+			}, nil
+		}
 		if tid == team.ID {
 			return savedTeam, nil
 		}
 		return nil, nil
+	}
+
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return defaultTeamConfig, nil
+	}
+
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == teamName && savedTeam != nil {
@@ -1776,11 +1816,31 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		job.ID = 1
 		return job, nil
 	}
+	// Track default team config for team 0
+	var defaultTeamConfig = &fleet.TeamConfig{}
+
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == 0 {
+			// Return a mock team 0 with the default config
+			return &fleet.Team{
+				ID:     0,
+				Name:   fleet.ReservedNameNoTeam,
+				Config: *defaultTeamConfig,
+			}, nil
+		}
 		if tid == team.ID {
 			return savedTeam, nil
 		}
 		return nil, nil
+	}
+
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return defaultTeamConfig, nil
+	}
+
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == teamName && savedTeam != nil {

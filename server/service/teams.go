@@ -67,26 +67,9 @@ type getTeamResponse struct {
 
 func (r getTeamResponse) Error() error { return r.Err }
 
-// DefaultTeam represents the limited team information returned for team ID 0
-type DefaultTeam struct {
-	ID     uint              `json:"id"`
-	Name   string            `json:"name"`
-	Config DefaultTeamConfig `json:"config"`
-}
-
-// DefaultTeamConfig contains only webhook settings for team ID 0
-type DefaultTeamConfig struct {
-	WebhookSettings DefaultTeamWebhookSettings `json:"webhook_settings"`
-}
-
-// DefaultTeamWebhookSettings contains only failing policies webhook for team ID 0
-type DefaultTeamWebhookSettings struct {
-	FailingPoliciesWebhook fleet.FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
-}
-
 type getDefaultTeamResponse struct {
-	Team *DefaultTeam `json:"team"`
-	Err  error        `json:"error,omitempty"`
+	Team *fleet.DefaultTeam `json:"team"`
+	Err  error              `json:"error,omitempty"`
 }
 
 func (r getDefaultTeamResponse) Error() error { return r.Err }
@@ -102,11 +85,11 @@ func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		}
 
 		// Convert to DefaultTeam with limited fields
-		defaultTeam := &DefaultTeam{
+		defaultTeam := &fleet.DefaultTeam{
 			ID:   team.ID,
 			Name: team.Name,
-			Config: DefaultTeamConfig{
-				WebhookSettings: DefaultTeamWebhookSettings{
+			Config: fleet.DefaultTeamConfig{
+				WebhookSettings: fleet.DefaultTeamWebhookSettings{
 					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
 				},
 			},
@@ -177,8 +160,28 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	req := request.(*modifyTeamRequest)
 	team, err := svc.ModifyTeam(ctx, req.ID, req.TeamPayload)
 	if err != nil {
+		// For team ID 0, return appropriate error response
+		if req.ID == 0 {
+			return getDefaultTeamResponse{Err: err}, nil
+		}
 		return teamResponse{Err: err}, nil
 	}
+
+	// Special handling for team ID 0 - return limited fields
+	if req.ID == 0 {
+		// Convert to DefaultTeam with limited fields
+		defaultTeam := &fleet.DefaultTeam{
+			ID:   team.ID,
+			Name: team.Name,
+			Config: fleet.DefaultTeamConfig{
+				WebhookSettings: fleet.DefaultTeamWebhookSettings{
+					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
+				},
+			},
+		}
+		return getDefaultTeamResponse{Team: defaultTeam}, nil
+	}
+
 	return teamResponse{Team: team}, err
 }
 
