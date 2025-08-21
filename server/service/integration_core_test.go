@@ -10794,7 +10794,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		App: config.AppConfig{
 			EnableScheduledQueryStats: true,
 		},
-	}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	task := async.NewTask(s.ds, nil, clock.C, config.OsqueryConfig{})
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
@@ -10949,7 +10949,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 			"installed_path": "C:\\Program Files\\Wireshark",
 		},
 	}
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		log.NewNopLogger(),
@@ -11085,7 +11085,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	}
 	var w1 bytes.Buffer
 	logger1 := log.NewJSONLogger(&w1)
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger1,
@@ -11120,7 +11120,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 			"last_opened_at": "foobar",
 		},
 	}
-	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	var w2 bytes.Buffer
 	logger2 := log.NewJSONLogger(&w2)
 	err = detailQueries["software_windows"].DirectIngestFunc(
@@ -11160,7 +11160,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	}
 	var w3 bytes.Buffer
 	logger3 := log.NewJSONLogger(&w3)
-	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger3,
