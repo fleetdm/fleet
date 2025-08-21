@@ -951,6 +951,8 @@ type batchSetScriptsResponse struct {
 	Err     error                  `json:"error,omitempty"`
 }
 
+func (r batchSetScriptsResponse) Error() error { return r.Err }
+
 type batchScriptExecutionStatusRequest struct {
 	BatchExecutionID string `url:"batch_execution_id"`
 }
@@ -993,7 +995,20 @@ type batchScriptExecutionListResponse struct {
 
 func (r batchScriptExecutionListResponse) Error() error { return r.Err }
 
-func (r batchSetScriptsResponse) Error() error { return r.Err }
+type batchScriptExecutionHostResultsRequest struct {
+	BatchExecutionID     string                           `url:"batch_execution_id"`
+	BatchExecutionStatus fleet.BatchScriptExecutionStatus `query:"status"`
+	ListOptions          fleet.ListOptions                `url:"list_options"`
+}
+
+type batchScriptExecutionHostResultsResponse struct {
+	Hosts []fleet.BatchScriptHost `json:"hosts"`
+	Count uint                    `json:"count"`
+	Err   error                   `json:"error,omitempty"`
+	fleet.PaginationMetadata
+}
+
+func (r batchScriptExecutionHostResultsResponse) Error() error { return r.Err }
 
 func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetScriptsRequest)
@@ -1101,6 +1116,15 @@ func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{
 		NumErrored:  summary.NumErrored,
 		NumCanceled: summary.NumCanceled,
 	}, nil
+}
+
+func batchScriptExecutionHostResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptExecutionHostResultsRequest)
+	results, err := svc.BatchScriptExecutionHostResults(ctx, req.BatchExecutionID)
+	if err != nil {
+		return batchScriptExecutionHostResultsResponse{Err: err}, nil
+	}
+	return batchScriptExecutionHostResultsResponse{Results: results}, nil
 }
 
 func batchScriptExecutionStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
