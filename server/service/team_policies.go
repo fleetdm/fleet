@@ -111,7 +111,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 				ID:       policy.ID,
 				Name:     policy.Name,
 				TeamID:   &noTeamID,
-				TeamName: nil, // Don't set team_name for No Team - frontend handles this via team_id
+				TeamName: nil,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy creation")
@@ -461,7 +461,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 					ID:       id,
 					Name:     policiesByID[id].Name,
 					TeamID:   &noTeamID,
-					TeamName: nil, // Don't set team_name for No Team - frontend handles this via team_id
+					TeamName: nil,
 				},
 			); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy deletion")
@@ -659,9 +659,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
 
-	// Add a special case for handling global policies (teamID == nil)
 	if teamID == nil {
-		// For global policies, use -1 to match frontend expectations
 		globalTeamID := int64(-1)
 		if err := svc.NewActivity(
 			ctx,
@@ -688,7 +686,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 				ID:       policy.ID,
 				Name:     policy.Name,
 				TeamID:   &noTeamID,
-				TeamName: nil, // Don't set team_name for No Team - frontend handles this via team_id
+				TeamName: nil,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy modification")
