@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
 	"gopkg.in/yaml.v2"
@@ -44,7 +45,7 @@ type ClientOption func(*Client) error
 func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
 	// TODO #265 refactor all optional parameters to functional options
 	// API breaking change, needs a major version release
-	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, nil, fleet.CapabilityMap{})
+	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, nil, fleet.CapabilityMap{}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -140,9 +141,16 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 	var bodyBytes []byte
 	var err error
 	if params != nil {
-		bodyBytes, err = json.Marshal(params)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "marshaling json")
+		switch p := params.(type) {
+		case *bytes.Buffer:
+			bodyBytes = p.Bytes()
+		case []byte:
+			bodyBytes = p
+		default:
+			bodyBytes, err = json.Marshal(params)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "marshaling json")
+			}
 		}
 	}
 	return c.doContextWithBodyAndHeaders(ctx, verb, path, rawQuery, bodyBytes, headers)
@@ -215,8 +223,15 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 		fmt.Fprintf(os.Stderr, "GetBody error: %v\n", err)
 	} else {
 		defer reqBody.Close()
-		if _, err := io.Copy(os.Stderr, reqBody); err != nil {
-			fmt.Fprintf(os.Stderr, "Copy body error: %v\n", err)
+		buf := &bytes.Buffer{}
+		_, _ = io.Copy(buf, reqBody)
+		if utf8.Valid(buf.Bytes()) {
+			fmt.Fprintf(os.Stderr, "[body length: %d bytes]\n", buf.Len())
+			if _, err := io.Copy(os.Stderr, buf); err != nil {
+				fmt.Fprintf(os.Stderr, "Copy body error: %v\n", err)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "[binary output suppressed: %d bytes]\n", buf.Len())
 		}
 	}
 	fmt.Fprintf(os.Stderr, "\n")
@@ -1096,7 +1111,6 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 
 		if si.Slug != nil {
 			softwarePayloads[i].Slug = si.Slug
-			softwarePayloads[i].AutomaticInstall = si.AutomaticInstall
 		}
 	}
 
@@ -1458,14 +1472,7 @@ func extractTmSpecsFleetMaintainedApps(tmSpecs []json.RawMessage) map[string][]f
 				packages = []fleet.SoftwarePackageSpec{}
 			} else {
 				for _, app := range software.FleetMaintainedApps.Value {
-					packages = append(packages, fleet.SoftwarePackageSpec{
-						Slug:             &app.Slug,
-						AutomaticInstall: app.AutomaticInstall,
-						SelfService:      app.SelfService,
-						LabelsIncludeAny: app.LabelsIncludeAny,
-						LabelsExcludeAny: app.LabelsExcludeAny,
-						Categories:       app.Categories,
-					})
+					packages = append(packages, app.ToSoftwarePackageSpec())
 				}
 			}
 			m[spec.Name] = packages
@@ -2008,6 +2015,11 @@ func (c *Client) DoGitOps(
 		} else {
 			mdmAppConfig["enable_disk_encryption"] = false
 		}
+		if config.Controls.RequireBitLockerPIN != nil {
+			mdmAppConfig["windows_require_bitlocker_pin"] = config.Controls.RequireBitLockerPIN
+		} else {
+			mdmAppConfig["windows_require_bitlocker_pin"] = false
+		}
 
 		if config.TeamName != nil {
 			team["gitops_filename"] = filename
@@ -2130,13 +2142,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	}
 	for _, software := range config.Software.FleetMaintainedApps {
 		if software != nil {
-			packages = append(packages, fleet.SoftwarePackageSpec{
-				Slug:             &software.Slug,
-				AutomaticInstall: software.AutomaticInstall,
-				SelfService:      software.SelfService,
-				LabelsIncludeAny: software.LabelsIncludeAny,
-				LabelsExcludeAny: software.LabelsExcludeAny,
-			})
+			packages = append(packages, software.ToSoftwarePackageSpec())
 		}
 	}
 

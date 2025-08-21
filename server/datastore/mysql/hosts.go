@@ -26,6 +26,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const hostHasIdentityCertSQL = `EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0)`
+
 // Since many hosts may have issues, we need to batch the inserts of host issues.
 // This is a variable, so it can be adjusted during unit testing.
 var (
@@ -33,9 +35,6 @@ var (
 	hostIssuesUpdateFailingPoliciesBatchSize = 10000
 	hostsDeleteBatchSize                     = 5000
 )
-
-// A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
-var addHostsToTeamBatchSize = 10000
 
 var (
 	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
@@ -62,6 +61,21 @@ func defaultHostColumnTableAlias(s string) string {
 //
 // Currently only used for testing.
 func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
+	// Set default values for zero timestamps to avoid MySQL strict mode errors
+	now := time.Now()
+	if host.DetailUpdatedAt.IsZero() {
+		host.DetailUpdatedAt = now
+	}
+	if host.LabelUpdatedAt.IsZero() {
+		host.LabelUpdatedAt = now
+	}
+	if host.PolicyUpdatedAt.IsZero() {
+		host.PolicyUpdatedAt = now
+	}
+	if host.SeenTime.IsZero() {
+		host.SeenTime = now
+	}
+
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		sqlStatement := `
 		INSERT INTO hosts (
@@ -545,9 +559,10 @@ var hostRefs = []string{
 	"host_certificates",
 	"android_devices",
 	"host_scim_user",
-	"batch_script_execution_host_results",
+	"batch_activity_host_results",
 	"host_mdm_commands",
 	"microsoft_compliance_partner_host_statuses",
+	"host_identity_scep_certificates",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -911,6 +926,7 @@ const hostMDMJoin = `
 	  hm.enrolled,
 	  hm.installed_from_dep,
 	  hm.enrollment_status,
+	  hm.is_personal_enrollment,
 	  hm.server_url,
 	  hm.mdm_id,
 	  hm.host_id,
@@ -1186,13 +1202,13 @@ func (ds *Datastore) applyHostFilters(
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
 	}
 
-	// Join on the batch_script_execution_host_results and host_script_results tables if the
+	// Join on the batch_activity_host_results and host_script_results tables if the
 	// BatchScriptExecutionIDFilter is set. This allows us to filter hosts based on the status of
 	// batch script executions.
 	batchScriptExecutionJoin := ""
 	batchScriptExecutionIDFilter := "TRUE"
 	if opt.BatchScriptExecutionIDFilter != nil {
-		batchScriptExecutionJoin = `LEFT JOIN batch_script_execution_host_results bsehr ON h.id = bsehr.host_id`
+		batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id`
 		batchScriptExecutionIDFilter = `bsehr.batch_execution_id = ?`
 		whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
 		if opt.BatchScriptExecutionStatusFilter.IsValid() {
@@ -1206,8 +1222,10 @@ func (ds *Datastore) applyHostFilters(
 				batchScriptExecutionIDFilter += ` AND ((ua.execution_id IS NOT NULL) OR (hsr.host_id is NOT NULL AND hsr.exit_code IS NULL AND hsr.canceled = 0 AND bsehr.error IS NULL))`
 			case fleet.BatchScriptExecutionErrored:
 				// TODO - remove exit code condition when we split up "errored" and "failed"
-				batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL OR hsr.exit_code > 0`
-			case fleet.BatchScriptExecutionCancelled:
+				batchScriptExecutionIDFilter += ` AND hsr.exit_code > 0`
+			case fleet.BatchScriptExecutionIncompatible:
+				batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL`
+			case fleet.BatchScriptExecutionCanceled:
 				batchScriptExecutionIDFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 1`
 			}
 		}
@@ -1268,7 +1286,7 @@ func (ds *Datastore) applyHostFilters(
 		return "", nil, ctxerr.Wrap(ctx, err, "building query to filter macOS settings status")
 	}
 	sqlStmt, whereParams = filterHostsByMacOSDiskEncryptionStatus(sqlStmt, opt, whereParams)
-	if enableDiskEncryption, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
+	if diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil, ctxerr.Wrap(
 				ctx, &fleet.BadRequestError{
@@ -1279,12 +1297,12 @@ func (ds *Datastore) applyHostFilters(
 		}
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		sqlStmt, whereParams, err = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, whereParams, enableDiskEncryption)
+		sqlStmt, whereParams, err = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, whereParams, diskEncryptionConfig)
 		if err != nil {
 			return "", nil, err
 		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		sqlStmt, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(sqlStmt, opt, whereParams, enableDiskEncryption)
+		sqlStmt, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(sqlStmt, opt, whereParams, diskEncryptionConfig)
 	}
 
 	sqlStmt, whereParams = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, whereParams)
@@ -1333,7 +1351,9 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		case fleet.MDMEnrollStatusAutomatic:
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1`
 		case fleet.MDMEnrollStatusManual:
-			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0`
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 0`
+		case fleet.MDMEnrollStatusPersonal:
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 1`
 		case fleet.MDMEnrollStatusEnrolled:
 			sql += ` AND hmdm.enrolled = 1`
 		case fleet.MDMEnrollStatusPending:
@@ -1441,7 +1461,7 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	return sql + fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL AND hmdm.enrolled = 1`, subquery), append(params, subqueryParams...)
 }
 
-func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}, error) {
+func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []interface{}, error) {
 	if !opt.OSSettingsFilter.IsValid() {
 		return sql, params, nil
 	}
@@ -1457,7 +1477,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// Linux has only disk encryption to report as OS setting, so only include the
 	// supported linux platforms if disk encryption is enabled.
 	includeLinuxCond := "FALSE"
-	if isDiskEncryptionEnabled {
+	if diskEncryptionConfig.Enabled {
 		includeLinuxCond = `(h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%')`
 	}
 
@@ -1531,9 +1551,12 @@ AND (
 	)
 
 	bitlockerStatus := `''`
-	if isDiskEncryptionEnabled {
+	if diskEncryptionConfig.Enabled {
+		// Count "BitLocker action required" as pending for profile status.
 		bitlockerStatus = fmt.Sprintf(`
             CASE WHEN (%s) THEN
+                'bitlocker_pending'
+            WHEN (%s) THEN
                 'bitlocker_verified'
             WHEN (%s) THEN
                 'bitlocker_verifying'
@@ -1544,10 +1567,11 @@ AND (
             ELSE
                 ''
             END`,
-			ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
-			ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
-			ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
-			ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+			ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
+			ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
+			ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
+			ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
+			ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
 		)
 	}
 
@@ -1566,8 +1590,10 @@ AND (
         CASE (%s)
         WHEN 'bitlocker_failed' THEN
             'failed'
-        WHEN 'bitlocker_pending' THEN
+			WHEN 'bitlocker_pending' THEN
             'pending'
+		WHEN 'bitlocker_action_required' THEN
+			'pending'
         ELSE
             'verifying'
         END)
@@ -1575,8 +1601,10 @@ AND (
         CASE (%s)
         WHEN 'bitlocker_failed' THEN
             'failed'
-        WHEN 'bitlocker_pending' THEN
+		WHEN 'bitlocker_pending' THEN
             'pending'
+		WHEN 'bitlocker_action_required' THEN
+			'pending'
         WHEN 'bitlocker_verifying' THEN
             'verifying'
         ELSE
@@ -1594,7 +1622,7 @@ AND (
 	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereLinux), params, nil
 }
 
-func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, enableDiskEncryption bool) (string, []interface{}) {
+func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []interface{}) {
 	if !opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		return sql, params
 	}
@@ -1619,30 +1647,32 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 
 	switch opt.OSSettingsDiskEncryptionFilter {
 	case fleet.DiskEncryptionVerified:
-		if enableDiskEncryption {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerified)
+		if diskEncryptionConfig.Enabled {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultVerified()
 
 	case fleet.DiskEncryptionVerifying:
-		if enableDiskEncryption {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying)
+		if diskEncryptionConfig.Enabled {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying()
 
 	case fleet.DiskEncryptionActionRequired:
-		// Windows hosts cannot be action required status in the current implementation.
-		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired()
+		if diskEncryptionConfig.Enabled {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired)
+		}
+		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying()
 
 	case fleet.DiskEncryptionEnforcing:
-		if enableDiskEncryption {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing)
+		if diskEncryptionConfig.Enabled {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultEnforcing()
 
 	case fleet.DiskEncryptionFailed:
-		if enableDiskEncryption {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionFailed)
+		if diskEncryptionConfig.Enabled {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired)
 		}
 		subqueryMacOS, subqueryParams = subqueryFileVaultFailed()
 
@@ -1656,7 +1686,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 	}
 
 	// Linux hosts have disk encryption statuses only if it is enabled.
-	if enableDiskEncryption {
+	if diskEncryptionConfig.Enabled {
 		whereLinux = fmt.Sprintf(`(%s) = ?`, sqlCaseLinuxDiskEncryptionStatus())
 		subqueryParams = append(subqueryParams, opt.OSSettingsDiskEncryptionFilter)
 	}
@@ -2025,15 +2055,15 @@ func matchHostDuringEnrollment(
 }
 
 func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
-	orbitConfig := &fleet.DatastoreEnrollOrbitConfig{}
+	enrollConfig := &fleet.DatastoreEnrollOrbitConfig{}
 	for _, opt := range opts {
-		opt(orbitConfig)
+		opt(enrollConfig)
 	}
 
-	isMDMEnabled := orbitConfig.IsMDMEnabled
-	hostInfo := orbitConfig.HostInfo
-	orbitNodeKey := orbitConfig.OrbitNodeKey
-	teamID := orbitConfig.TeamID
+	isMDMEnabled := enrollConfig.IsMDMEnabled
+	hostInfo := enrollConfig.HostInfo
+	orbitNodeKey := enrollConfig.OrbitNodeKey
+	teamID := enrollConfig.TeamID
 
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
@@ -2077,6 +2107,13 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					"host_id", enrolledHostInfo.ID,
 				)
 			}
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil &&
+				*enrollConfig.IdentityCert.HostID != enrolledHostInfo.ID {
+				return ctxerr.New(ctx, "orbit host identity cert host id does not match enrolled host id. "+
+					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", hostInfo.OsqueryIdentifier))
+			}
+
 			refetchRequested := fleet.PlatformSupportsOsquery(enrolledHostInfo.Platform)
 
 			sqlUpdate := `
@@ -2122,6 +2159,12 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 
 		case errors.Is(err, sql.ErrNoRows):
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil {
+				return ctxerr.New(ctx, fmt.Sprintf("orbit host identity cert with identifier %s already belongs to another host with host id: %d",
+					hostInfo.OsqueryIdentifier, *enrollConfig.IdentityCert.HostID))
+			}
+
 			zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
@@ -2179,6 +2222,15 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		default:
 			return ctxerr.Wrap(ctx, err, "orbit enroll error selecting host details")
 		}
+
+		// Update the host id for the identity certificate
+		if enrollConfig.IdentityCert != nil {
+			err = updateHostIdentityCertHostIDBySerial(ctx, tx, host.ID, enrollConfig.IdentityCert.SerialNumber)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update host identity cert host id")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -2217,6 +2269,12 @@ func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnro
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
 		case errors.Is(err, sql.ErrNoRows):
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil {
+				return ctxerr.New(ctx, fmt.Sprintf("host identity cert with identifier %s already belongs to another host with host id: %d",
+					osqueryHostID, *enrollConfig.IdentityCert.HostID))
+			}
+
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
 			// the refetch is completed.
@@ -2268,6 +2326,13 @@ func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnro
 				)
 			}
 
+			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
+			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil &&
+				*enrollConfig.IdentityCert.HostID != hostID {
+				return ctxerr.New(ctx, "host identity cert host id does not match enrolled host id. "+
+					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
+			}
+
 			if err := deleteAllPolicyMemberships(ctx, tx, []uint{enrolledHostInfo.ID}); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleanup policy membership on re-enroll")
 			}
@@ -2303,6 +2368,14 @@ func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnro
 			hostID, time.Now().UTC())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
+		}
+
+		// Update the host id for the identity certificate
+		if enrollConfig.IdentityCert != nil {
+			err = updateHostIdentityCertHostIDBySerial(ctx, tx, hostID, enrollConfig.IdentityCert.SerialNumber)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update host identity cert host id")
+			}
 		}
 
 		sqlSelect := `
@@ -2349,7 +2422,8 @@ func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnro
         h.orbit_node_key,
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
         COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
+        COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+        ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
       FROM
         hosts h
       LEFT OUTER JOIN
@@ -2449,7 +2523,8 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
+      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -2520,7 +2595,8 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
-      t.name as team_name
+      t.name as team_name,
+      ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -2607,7 +2683,8 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       hd.encrypted as disk_encryption_enabled,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+      ` + hostHasIdentityCertSQL + ` as has_host_identity_cert
     FROM
       host_device_auth hda
     INNER JOIN
@@ -3010,14 +3087,18 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	return host, nil
 }
 
-func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+	teamID := params.TeamID
+	hostIDs := params.HostIDs
+	batchSize := int(params.BatchSize)
+
 	if len(hostIDs) == 0 {
 		return nil
 	}
 
-	for i := 0; i < len(hostIDs); i += addHostsToTeamBatchSize {
+	for i := 0; i < len(hostIDs); i += batchSize {
 		start := i
-		end := i + addHostsToTeamBatchSize
+		end := i + batchSize
 		if end > len(hostIDs) {
 			end = len(hostIDs)
 		}
@@ -3921,6 +4002,7 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	installedFromDep bool,
 	name string,
 	fleetEnrollmentRef string,
+	isPersonalEnrollment bool,
 ) error {
 	var mdmID *uint
 	if serverURL != "" {
@@ -3933,9 +4015,9 @@ func (ds *Datastore) SetOrUpdateMDMData(
 
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ?, is_server = ?, fleet_enroll_ref = ? WHERE host_id = ?`,
-		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, fleet_enroll_ref, host_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		enrolled, serverURL, installedFromDep, mdmID, isServer, fleetEnrollmentRef, hostID,
+		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ?, is_server = ?, fleet_enroll_ref = ?, is_personal_enrollment = ? WHERE host_id = ?`,
+		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, fleet_enroll_ref, is_personal_enrollment, host_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		enrolled, serverURL, installedFromDep, mdmID, isServer, fleetEnrollmentRef, isPersonalEnrollment, hostID,
 	)
 }
 
@@ -4107,6 +4189,16 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 	)
 }
 
+// SetOrUpdateHostDiskTpmPIN sets the host's flag indicating if the disk has a TPM PIN protector set
+func (ds *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_disks SET tpm_pin_set = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (tpm_pin_set, host_id) VALUES (?, ?)`,
+		pinSet, hostID,
+	)
+}
+
 func (ds *Datastore) SetOrUpdateHostOrbitInfo(
 	ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
 ) error {
@@ -4173,6 +4265,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 			hm.server_url,
 			hm.installed_from_dep,
 			hm.mdm_id,
+			hm.is_personal_enrollment,
 			COALESCE(hm.is_server, false) AS is_server,
 			COALESCE(mdms.name, ?) AS name,
 			hdep.assign_profile_response AS dep_profile_assign_status
@@ -4583,7 +4676,8 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 				COALESCE(SUM(CASE WHEN NOT enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END), 0) as unenrolled_hosts_count,
 				COALESCE(SUM(CASE WHEN NOT enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as pending_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_automated_hosts_count,
-				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_manual_hosts_count
+				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND NOT is_personal_enrollment THEN 1 ELSE 0 END), 0) as enrolled_manual_hosts_count,
+				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND is_personal_enrollment THEN 1 ELSE 0 END), 0) as enrolled_personal_hosts_count
 			 FROM host_mdm hm
        	`
 	args := []interface{}{}

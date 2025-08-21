@@ -7,11 +7,12 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Finance | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
-| Contracts and Compliance Engineer       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
+| Deal Desk       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
+
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-finance](https://fleetdm.slack.com/archives/C047N5L6EGH).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-finance](https://fleetdm.slack.com/archives/C047N5L6EGH).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/80) for this department, including pending tasks and the status of new requests.
 
@@ -19,65 +20,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, and financial operations including bank accounts and cash flow management.
-
-
-### Run payroll
-
-Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy. 
-
- - Salaried fleeties are automated in Gusto and Plane.
- - Hourly fleeties and consultants are a manual process each month in Gusto and Plane.
-
-| Payroll type                 | What to use                  | DRI                          |
-|:-----------------------------|:-----------------------------|:-----------------------------|
-| [Commissions and ramp](https://fleetdm.com/handbook/finance#run-us-commission-payroll)         | "Off-cycle - Commission" payroll          | Finance
-| Sign-on bonus                | "Bonus" payroll              | Finance
-| Performance bonus            | "Bonus" payroll              | Finance    
-| Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Finance
-| [US contractor payroll](https://fleetdm.com/handbook/finance#run-payroll) | "Off-cycle" payroll | Finance
-
-To complete payroll for a salaried US employee, use the following steps:
-1. Log in to your admin [Gusto](https://app.gusto.com/login) account.
-2. Navigate to Pay > Run payroll > Run payroll.
-3. Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues.
-4. Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
-5. Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Gusto and the equity plan. 
-6. Once the above is verified correct, ensure payment is via direct deposit and select "Review summary".
-7. Ensure the payroll date is the last business day of the month, and hit submit.
-
-To complete payroll for a salaried international employee, use the following steps:
-1. Log in to your admin [Plane](https://id.plane.com/login) account. 
-   - While Fleet considers all Fleeties employees, Plane differentiates between employees (that Fleet employs directly) and International contractors (that Fleet employs via a contracted company).
-2. Verify the number of employees in each country by checking the "Stats" tab in the [Fleeties doc](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?gid=1874060596#gid=1874060596). If the numbers seem incorrect, cross-reference with the main Fleeties tab to ensure all employees are accounted for in Plane.
-3. Verify that all teammates have a planned (or already processed) payroll.
-   - To check payroll for those Plane considers "employees", go to Payroll > History.
-      - Verify that any employees getting paid more frequently than monthly have had their payments processed throughout the month (Canada only currently).
-      - Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues.
-      - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
-      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
-      - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
-   - To check payroll for those Plane considers "contractors", go to "Payments" > "Pay contractors".
-      - Navigate to the "scheduled" tab in the top right of screen to look at what is currently scheduled to be paid.
-      - Ensure all teammates have a pending payment (except those that invoice for payment).
-      - Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues
-      - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
-      - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
-      - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
-      - If all payments are scheduled or processing and are correct, no action needed. This payroll will process successfully without intervention.
-    
-To complete payroll for a US contractor, use the following steps:
-1. Log in to your admin [Gusto](https://app.gusto.com/login) account.
-2. Navigate to Time & Attendance > Time tracking > Review & Sync. 
-3. Click "Sync hours to payments" and confirm that the dates reflect the period from the 27th of the previous month to the 26th of the current month.
-4. Cross-check total hours for contractors in Gusto to the total hours in the [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) to ensure they're correct. Since the KPI spreadsheet tracks hours weekly, ensure any discrepancies are validated.
-5. Once all entries have been validated, click Sync and lock timesheets > Continue.
-6. Validate payment amounts are correct, then submit payments.
-
-To complete payroll for an international contractor, use the following steps:
-1. Contractors in Plane will submit invoices for payment at the end of the month.
-2. When the contractor submits the invoice for payment, log in to [Plane](https://id.plane.com/login) and validate that the amount of hours is in line with time worked, by having their manager review.
-3. If their manager verifies that the hours are as expected, process the invoice.
-   - Note: Approving the invoice for payment does not automatically schedule the payment. You will then need to navigate to "Pay contractors" and schedule the payment.
 
 
 ### Reconcile monthly recurring expenses
@@ -197,20 +139,26 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 ### Create an invoice
 
 To create a new invoice for a Fleet customer, follow these steps:
-1. Go to the [invoice folder in Google Drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link).
-2. Create a copy of the invoice template, and title the copy `[invoice number] Fleet invoice - [customer name]`.
-    - The invoice number follows the format of `YYMMDD[daily issued invoice number]`, where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
-3.  Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
-    - Enter the invoice number (and PO number if required) into the top right section of the invoice.
-    - Update the date of the invoice to reflect the current date.
-    - Make sure the payment terms match the signed subscription agreement.
-    - Copy the customer address from the signed subscription agreement and input it in the "Bill to" section of the invoice.
-    - Copy the "Billing contact" email from the signed subscription agreement and add it to the last line of the "Bill to" address.
-    - Make sure the start and end dates of the contract and amount match the subscription agreement.
-    - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
-    - Ensure the "Notes" section has wiring instructions for payment via SVB.
-4.  Download the completed invoice as a PDF.
-5.  Send the PDF to the billing contact from the "Bill to" section of the invoice and cc [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays). Use the following template for the email:
+1. Go to the Invoice page on our billing system.
+2. Select “Create Invoice” on the right, and you will be directed to a new page to create an invoice.
+3. Under the “Add customer” dropdown box, select an existing customer, or add a new customer. The customer is the entity that will be receiving the invoice. 
+   - To add a new customer: Update the company name, contact person, billing email address, and “Bill to” address fields in the next page.
+4. Change the invoice number. 
+   - The invoice number follows the format of `YYMMDD[daily issued invoice number]`, where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
+5. Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
+   - Enter the invoice number (and PO number if required) into the top right section of the invoice.
+   - Update the date of the invoice to reflect the current date.
+   - Make sure the payment terms match the signed subscription agreement.
+   - Validate if the customer address from the signed subscription agreement matches the default Bill to address shown on the invoice. 
+   - Validate if the email from the signed subscription agreement matches with the email in the email field on the invoice.
+   - Make sure the start and end dates of the contract and amount match the subscription agreement.
+   - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
+   - Ensure the wiring instructions for payment via SVB are listed in in the invoice. 
+6. Download the completed invoice as a PDF.
+   - Rename the pdf copy `[invoice number] Fleet invoice - [customer name]`.
+   - Save a copy of the PDF into the invoice folder.
+
+7. Send the PDF to the billing contact from the "Bill to" section of the invoice via the Fleet billing email address. Use the following template for the email:
 
 ```
 Subject: Invoice for Fleet Device Management [invoice number]
@@ -268,6 +216,53 @@ Thanks,
 6. If Finance is still awaiting a PO one week after the opportunity has been closed/won, reply to the thread in the Slack post, mention the CSM, and ask them to follow up with their customer contact.
 7. Review the [Accounts receivable](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001oc9Z2AQ/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Finance board.
 
+
+### Create an offer in AWS Marketplace
+
+1. Use gmail to log in to AWS SSO.
+
+2. Use this URL [https://aws.amazon.com/marketplace/management/offers/](https://aws.amazon.com/marketplace/management/offers/) to login.  
+
+3. Click "create private offer"
+
+4. Product type is "SaaS product"
+
+5. Product is "Fleet Premium".
+
+6. Click "continue to offer details." This should bring you to "Step 1: Provide offer information."
+
+7. For offer name use the naming convention [YYYY] [Customer name] [initial term or renewal]. Example, "2025 Horus renewal."
+
+8. You can leave the offer description blank.
+
+9. Select whether the offer is a renewal or not.
+
+10. If it is a renewal, you'll need to select whether it is an existing customer moving to AWS Marketplace with Fleet for the first time, or whether they are an existing AWS Marketplace customer of Fleet.
+
+11. Enter an appropriate date for the offer to expire (may need to consult with AE or CX person that owns the account). Then click next.
+
+12. This will bring you to Step 2: Configure offer pricing and duration. The pricing model is contract pricing with up front payment.
+
+13. Contract start date: Select start at a future date and enter the start date of the term on the order form.
+
+14. Contract duration: Select enter an end date and enter the date of the first annual term on the order form.
+
+15. Currency: Select USD unless the order form specifies something different.
+
+16. Purchasing options: you can leave multiple dimensions per contract selected.
+
+17. Pricing per contract dimension: Enter the number of hosts for annual cost per host.
+
+18. Enter the total contract value and select annually for billing. If it is a multi-year deal, hit generate installment plan and then make sure the annual billing details match the order form.
+
+19. Click next to proceed to Step 3: Add buyers.
+
+20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configurel egal terms and offer documents.
+
+21. Select "custom legal terms" and upload the applicable terms. Note this could be two documents: an order form, and master subscription terms if separate from the order form.
+
+22. Click "Next" to go to Step 5: Review and create. Verify the information is accurate and submit the offer. Let the AE or CX account owner know that you have done so.
+    
 
 ### Obtain a copy of Fleet's W-9
 
@@ -458,19 +453,38 @@ When reviewing subscription agreements on customer paper or when a customer has 
 
 ### Obtain a signature from the CEO
 
-When an agreement is routed to the CEO for signature, the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) is responsible for obtaining a signature from the CEO using the following steps:
+When an agreement is routed to the CEO for signature, the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) is responsible for obtaining a signature from the CEO using the following steps:
 1. Drag the email to the ["🔏 SAM: Signature wanted"](https://mail.google.com/mail/u/0/#label/SAM%3A+Signature+wanted) label making sure to mark the email as unread.
-2. The [Contracts and Compliance Engineer](https://fleetdm.com/handbook/finance#team) will at-mention the Apprentice in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
+2. [Deal Desk](https://fleetdm.com/handbook/finance#team) will at-mention the Head of Digital Workplace & GTM Systems in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
 
 > If the agreement closes a deal, inform the CEO (via Slack DM) that a subscription agreement is ready for his review/signature. The SLA for CEO review and signature is 48hrs.
 
 3. Comment in the issue once the CEO has signed the agreement and assign the issue to [Nathan Holiday](https://fleetdm.com/handbook/finance#team).
 
 
+### Monitor compliance tests
+
+1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
+2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
+3. Click on a test, then click on "Tasks".  
+4. Click on "Create task." Then, "Create GitHub issue."
+5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-finance" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Interim Head of People](https://fleetdm.com/handbook/people#team),Fleet's CTO, or the Head of Digital Workplace & GTM Systems. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
+
+
 ### Check GitHub terms
 
 Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@latest/github/site-policy/github-terms-of-service) and search “inbound=outbound” to find the clause, if still there as is, paste a screenshot into the table in this [document](https://docs.google.com/document/d/101rcp9v3Zdml4YolGRmqYS5ruAKzQvXLOTHLXCavPuE/edit#heading=h.xu6qsi0wrns). If the clause has changed, contact Mike M. and let him know.
 
+
+### Review Fleet's US company benefits
+
+Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
+1. Log in to your [Gusto admin account](https://gusto.com/).
+2. Navigate to "Benefits" and select "Renewal survey".
+3. Complete the survey questions, aiming for minimal changes.
+4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
+5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
 
 
 ## Rituals
@@ -479,6 +493,11 @@ The following table lists this department's rituals, frequency, and Directly Res
 
 <rituals :rituals="rituals['handbook/finance/finance.rituals.yml']"></rituals>
 
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+### Run payroll
+Please see [handbook/people#run-payroll](https://fleetdm.com/handbook/people#run-payroll)
 
 
 <meta name="maintainedBy" value="rfoo2015">

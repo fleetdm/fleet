@@ -66,8 +66,9 @@ jobs:
       with:
         go-version-file: 'go.mod'
 
-    # Download top-level dependencies and build Storybook in the website's assets/ folder
-    - run: npm install --legacy-peer-deps && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
+    # 2025-08-07: The Storybook steps in website workflows have been temporarily disabled until a compatability issue with the @storybook/test-runner has been resolved. See https://github.com/fleetdm/fleet/issues/31720 for more information.
+    # # Download top-level dependencies and build Storybook in the website's assets/ folder
+    # - run: npm install --legacy-peer-deps && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
 
     # Now start building!
     # > …but first, get a little crazy for a sec and delete the top-level package.json file
@@ -105,18 +106,29 @@ jobs:
     # > The local config flags make this work in GitHub's environment.
     - run: git add website/.www
     - run: git add website/.tools
+    # Remove the website/assets folder
+    - run: git rm -rf --cached website/assets
     - run: git add -f website/views/partials/built-from-markdown  > /dev/null 2>&1 || echo '* * * WARNING - Silently ignoring the fact that there are no HTML partials generated from markdown to include in automated commit...'
-    - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.'
 
     # Configure the Heroku app we'll be deploying to
     - run: heroku git:remote -a production-fleetdm-website
     - run: git remote -v
 
-    # Deploy to Heroku (by pushing)
-    # > Since a shallow clone was grabbed, we have to "unshallow" it before forcepushing.
-    - run: echo "Unshallowing local repository…"
-    - run: git fetch --prune --unshallow
+    # Deploy to Heroku
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
-    - run: git push heroku +${GITHUB_REF##*/}:master  # note that Heroku, at least as of Jun 10 2021, still uses "master" on their end
+    - name: Deploy to Heroku
+      run: |
+        set -euo pipefail
+        git add -A
+        # Create a git tree object that contains only the changes in the /website folder.
+        TREE=$(git write-tree)
+        # Create a parentless commit from the tree object.
+        COMMIT=$(git -c "user.name=Fleetwood" -c "user.email=github@example.com" \
+          commit-tree "$TREE" \
+          -m 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.')
+        # Push the parentless commit to Heroku
+        # Note: The commit pushed to Heroku will not contain the full git history.
+        # This lets up deploy the website from the Fleet monorepo while working around Heroku's pack size limits. 
+        git push heroku "$COMMIT":refs/heads/master --force
     - name: 🌐 https://fleetdm.com
       run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'

@@ -23,14 +23,14 @@ fi
 if [[ -d "$TUF_PATH" ]]; then
     set +x
     echo "Do you want to remove the existing $TUF_PATH directory?"
-    echo "Type 'yes/no' to continue... "
+    echo "Type 'yes/no' to continue... (or Ctrl+C to exit)"
     while read -r word;
     do
         if [[ "$word" == "yes" ]]; then
             rm -rf "$TUF_PATH"
             break
         elif [[ "$word" == "no" ]]; then
-            break
+            exit 0
         fi
     done
     set -x
@@ -38,13 +38,13 @@ fi
 
 SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows windows-arm64}
 
-echo "Generating packages for $SYSTEMS"
+echo "Generating components for $SYSTEMS"
 
 NUDGE_VERSION=stable
 ESCROW_BUDDY_PKG_VERSION=1.0.0
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.16.0
+    OSQUERY_VERSION=5.18.1
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -151,7 +151,7 @@ for system in $SYSTEMS; do
         --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
     rm $orbit_target
 
-    # Add Fleet Desktop application on macos (if enabled).
+    # Add Fleet Desktop application on macOS (if enabled).
     if [[ $system == "macos" && -n "$FLEET_DESKTOP" ]]; then
         if [[ -z "$MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ" ]]; then
             FLEET_DESKTOP_VERBOSE=1 \
@@ -208,7 +208,7 @@ for system in $SYSTEMS; do
     fi
 
 
-    # Add Fleet Desktop application on indows (if enabled).
+    # Add Fleet Desktop application on windows (if enabled).
     if [[ $system == "windows" && -n "$FLEET_DESKTOP" ]]; then
         FLEET_DESKTOP_VERSION=$ORBIT_VERSION \
         make desktop-windows
@@ -290,9 +290,9 @@ for system in $SYSTEMS; do
         done
     fi
 
-    # Add extensions on linux (if set).
-    if [[ $system == "linux-arm64" && -n "$LINUX_TEST_EXTENSIONS" ]]; then
-        for extension in ${LINUX_TEST_EXTENSIONS//,/ }
+    # Add extensions on linux-arm64 (if set).
+    if [[ $system == "linux-arm64" && -n "$LINUX_ARM64_TEST_EXTENSIONS" ]]; then
+        for extension in ${LINUX_ARM64_TEST_EXTENSIONS//,/ }
         do
             extensionName=$(basename $extension)
             extensionName=$(echo "$extensionName" | cut -d'.' -f1)
@@ -316,6 +316,22 @@ for system in $SYSTEMS; do
                 --path $TUF_PATH \
                 --target $extension \
                 --platform windows \
+                --name "extensions/$extensionName" \
+                --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
+        done
+    fi
+
+    # Add extensions on windows-arm64 (if set).
+    if [[ $system == "windows-arm64" && -n "$WINDOWS_ARM64_TEST_EXTENSIONS" ]]; then
+        for extension in ${WINDOWS_ARM64_TEST_EXTENSIONS//,/ }
+        do
+            extensionName=$(basename $extension)
+            extensionName=$(echo "$extensionName" | cut -d'.' -f1)
+            echo "$FILE" | cut -d'.' -f2
+            ./build/fleetctl updates add \
+                --path $TUF_PATH \
+                --target $extension \
+                --platform windows-arm64 \
                 --name "extensions/$extensionName" \
                 --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         done

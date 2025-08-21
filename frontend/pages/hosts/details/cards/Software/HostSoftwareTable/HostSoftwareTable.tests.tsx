@@ -25,7 +25,7 @@ describe("HostSoftwareTable", () => {
     pathPrefix: "/hosts/1/software",
     vulnFilters: {},
     onAddFiltersClick: noop,
-    onShowSoftwareDetails: noop,
+    onShowInventoryVersions: noop,
   };
 
   const renderWithContext = (props = {}) =>
@@ -54,6 +54,9 @@ describe("HostSoftwareTable", () => {
       screen.getByText(/software is not supported for this host/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/let us know/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Software installed on this host/i)
+    ).not.toBeInTheDocument();
   });
 
   it("renders custom filter button when filters are applied", () => {
@@ -61,5 +64,32 @@ describe("HostSoftwareTable", () => {
       vulnFilters: { vulnerable: true },
     });
     expect(screen.getByRole("button", { name: /filter/i })).toBeInTheDocument();
+  });
+
+  it("renders VulnsNotSupported when vulns filter applied and platform is iPad/iPhone", () => {
+    renderWithContext({
+      platform: "ipados",
+      vulnFilters: { vulnerable: true },
+      data: createMockGetHostSoftwareResponse({
+        count: 0,
+        software: [],
+      }),
+    });
+    expect(
+      screen.getByText(/vulnerabilities are not supported/i)
+    ).toBeInTheDocument();
+  });
+
+  // This includes empty state for BYOD iphone/ipads
+  it("renders generic empty state when no filters are applied and platform is iPad/iPhone", () => {
+    renderWithContext({
+      platform: "ipados",
+      data: createMockGetHostSoftwareResponse({
+        count: 0,
+        software: [],
+      }),
+    });
+
+    expect(screen.getByText(/no software detected/i)).toBeInTheDocument();
   });
 });

@@ -109,8 +109,8 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedVersion:  "24124.1412.2911.3341",
 			expectedBundleID: "com.microsoft.teams2",
 			expectedPackageIDs: []string{
-				"com.microsoft.teams2", "com.microsoft.package.Microsoft_AutoUpdate.app",
-				"com.microsoft.MSTeamsAudioDevice",
+				"com.microsoft.MSTeamsAudioDevice", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.teams2",
 			},
 		},
 		{
@@ -143,8 +143,8 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedVersion:  "2.38.173",
 			expectedBundleID: "com.box.desktop",
 			expectedPackageIDs: []string{
-				"com.box.desktop.installer.desktop", "com.box.desktop.installer.local.appsupport",
-				"com.box.desktop.installer.autoupdater", "com.box.desktop.installer.osxfuse",
+				"com.box.desktop.installer.autoupdater", "com.box.desktop.installer.desktop",
+				"com.box.desktop.installer.local.appsupport", "com.box.desktop.installer.osxfuse",
 			},
 		},
 		{
@@ -154,7 +154,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedBundleID: "com.iriun.macwebcam",
 			// Note: "com.iriun.pkg.multicam" is part of the installer package, but it is not actually installed by default.
 			// We can't reliably determine which packages are installed by the installer, so we just list all of them.
-			expectedPackageIDs: []string{"com.iriun.pkg.webcam.tmp", "com.iriun.pkg.multicam"},
+			expectedPackageIDs: []string{"com.iriun.pkg.multicam", "com.iriun.pkg.webcam.tmp"},
 		},
 		{
 			file:             "distribution-microsoftexcel.xml",
@@ -162,7 +162,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Excel",
 			expectedPackageIDs: []string{
-				"com.microsoft.package.Microsoft_Excel.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.package.Microsoft_AutoUpdate.app", "com.microsoft.package.Microsoft_Excel.app",
 				"com.microsoft.pkg.licensing",
 			},
 		},
@@ -172,7 +172,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Word",
 			expectedPackageIDs: []string{
-				"com.microsoft.package.Microsoft_Word.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.package.Microsoft_AutoUpdate.app", "com.microsoft.package.Microsoft_Word.app",
 				"com.microsoft.pkg.licensing",
 			},
 		},
@@ -182,7 +182,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Powerpoint",
 			expectedPackageIDs: []string{
-				"com.microsoft.package.Microsoft_PowerPoint.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.package.Microsoft_AutoUpdate.app", "com.microsoft.package.Microsoft_PowerPoint.app",
 				"com.microsoft.pkg.licensing",
 			},
 		},
@@ -215,11 +215,14 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedPackageIDs: []string{"com.sentinelone.pkg.sentinel-agent", "com.sentinelone.sentinel-agent"},
 		},
 		{
-			file:               "distribution-cold-turkey.xml",
-			expectedName:       "Cold Turkey Blocker",
-			expectedVersion:    "4.5",
-			expectedBundleID:   "com.getcoldturkey.coldturkeyblocker",
-			expectedPackageIDs: []string{"com.getcoldturkey.coldturkeyblocker", "com.getcoldturkey.blocker-firefox-ext", "com.getcoldturkey.blocker-edge-ext", "com.getcoldturkey.blocker-chrome-ext"},
+			file:             "distribution-cold-turkey.xml",
+			expectedName:     "Cold Turkey Blocker",
+			expectedVersion:  "4.5",
+			expectedBundleID: "com.getcoldturkey.coldturkeyblocker",
+			expectedPackageIDs: []string{
+				"com.getcoldturkey.blocker-chrome-ext", "com.getcoldturkey.blocker-edge-ext",
+				"com.getcoldturkey.blocker-firefox-ext", "com.getcoldturkey.coldturkeyblocker",
+			},
 		},
 	}
 
@@ -229,7 +232,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			require.NoError(t, err)
 			metadata, err := parseDistributionFile(rawXML)
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tt.expectedPackageIDs, metadata.PackageIDs)
+			assert.Equal(t, tt.expectedPackageIDs, metadata.PackageIDs)
 			require.Equal(t, tt.expectedName, metadata.Name)
 			require.Equal(t, tt.expectedVersion, metadata.Version)
 			require.Equal(t, tt.expectedBundleID, metadata.BundleIdentifier)
@@ -259,8 +262,8 @@ func TestParsePackageInfoFiles(t *testing.T) {
 			expectedVersion:  "2.8.10",
 			expectedBundleID: "com.iriun.macwebcam",
 			expectedPackageIDs: []string{
-				"com.iriun.macwebcam", "com.iriun.macwebcam.extension4", "com.iriun.macwebcam.extension",
-				"com.iriun.mic",
+				"com.iriun.macwebcam", "com.iriun.macwebcam.extension",
+				"com.iriun.macwebcam.extension4", "com.iriun.mic",
 			},
 		},
 		{
@@ -282,14 +285,14 @@ func TestParsePackageInfoFiles(t *testing.T) {
 			expectedName:       "",
 			expectedVersion:    "",
 			expectedBundleID:   "",
-			expectedPackageIDs: []string{},
+			expectedPackageIDs: []string(nil),
 		},
 		{
 			file:               "packageInfo-versionOnly.xml",
 			expectedName:       "",
 			expectedVersion:    "test-version",
 			expectedBundleID:   "",
-			expectedPackageIDs: []string{},
+			expectedPackageIDs: []string(nil),
 		},
 	}
 
@@ -299,7 +302,7 @@ func TestParsePackageInfoFiles(t *testing.T) {
 			require.NoError(t, err)
 			metadata, err := parsePackageInfoFile(rawXML)
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tt.expectedPackageIDs, metadata.PackageIDs)
+			assert.Equal(t, tt.expectedPackageIDs, metadata.PackageIDs)
 			assert.Equal(t, tt.expectedName, metadata.Name)
 			assert.Equal(t, tt.expectedVersion, metadata.Version)
 			assert.Equal(t, tt.expectedBundleID, metadata.BundleIdentifier)

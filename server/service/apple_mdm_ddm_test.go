@@ -66,8 +66,8 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 
 		// Insert a record into nano_enrollments table (required for foreign key constraints)
 		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-				hostUUID, hostUUID, "Device", "topic", "push_magic", "token_hex", 1)
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, enabled, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				hostUUID, hostUUID, "Device", "topic", "push_magic", "token_hex", 1, time.Now())
 			return err
 		})
 	}

@@ -15,6 +15,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type policyAutomation struct {
+	polID      uint
+	automation FailingPolicyAutomationType
+}
+
 func TestTriggerFailingPolicies(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -29,6 +34,12 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	// pol-unknown-11: policy that does not exist anymore, id 11
 	// pol-teamD-{12-14}: team D policies (only 12 and 13 is enabled), ids 12-13-14
 	// pol-teamE-15: team E policy, integration does not exist at the global level
+
+	// Note re No-team policies in this context: Though can't set a no team policy to trigger an automation
+	// in the UI, it can still theoretically be done via the API. In such a case, current logic
+	// will try to find a team 0 config, which doesn't exist, and error. TODO - either make the
+	// determination that this case should always use the global config (as it now does in Primo
+	// mode), or confirm we expect an error here.
 	//
 	// Global config uses the webhook, team A a Jira integration, team B a
 	// Zendesk integration, team D a webhook.
@@ -44,6 +55,8 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		8:  {ID: 8, Name: "pol-teamB-8", TeamID: ptr.Uint(2)},
 		9:  {ID: 9, Name: "pol-teamB-9", TeamID: ptr.Uint(2)},
 		10: {ID: 10, Name: "pol-teamC-10", TeamID: ptr.Uint(3)},
+		// intentionally omit 11 for testing the edge case where a policy failure is received for a
+		// non-existent policy (see below)
 		12: {ID: 12, Name: "pol-teamD-12", TeamID: ptr.Uint(4)},
 		13: {ID: 13, Name: "pol-teamD-13", TeamID: ptr.Uint(4)},
 		14: {ID: 14, Name: "pol-teamD-14", TeamID: ptr.Uint(4)},
@@ -153,17 +166,13 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		})
 		require.NoError(t, err)
 	}
-	// add a failing policy for the unknown one
+	// add a policy failure for a non-existent policy
 	err := failingPolicySet.AddHost(11, fleet.PolicySetHost{
 		ID:       11,
 		Hostname: "host11.example",
 	})
 	require.NoError(t, err)
 
-	type policyAutomation struct {
-		polID      uint
-		automation FailingPolicyAutomationType
-	}
 	var triggerCalls []policyAutomation
 	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
 		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
@@ -174,7 +183,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		require.NoError(t, err)
 
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 
 	wantCalls := []policyAutomation{
@@ -218,10 +227,37 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
 
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 
 	// order of calls is undefined
 	require.ElementsMatch(t, wantCalls, triggerCalls)
 	require.Zero(t, countHosts)
+
+	// test No team policy failure in Primo mode
+	failingPolicySet = service.NewMemFailingPolicySet()
+	err = failingPolicySet.AddHost(1, fleet.PolicySetHost{
+		ID:       1, // use policy ID as host ID, does not matter in the test
+		Hostname: fmt.Sprintf("host%d.example", 1),
+	})
+	require.NoError(t, err)
+
+	triggerCalls = triggerCalls[:0]
+	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
+
+		hosts, err := failingPolicySet.ListHosts(pol.ID)
+		require.NoError(t, err)
+		err = failingPolicySet.RemoveHosts(pol.ID, hosts)
+		require.NoError(t, err)
+
+		return nil
+	}, true) // enablePrimo
+	require.NoError(t, err)
+
+	wantCalls = []policyAutomation{
+		{1, FailingPolicyWebhook},
+	}
+	// order of calls is undefined
+	require.ElementsMatch(t, wantCalls, triggerCalls)
 }

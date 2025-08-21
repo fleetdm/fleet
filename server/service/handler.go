@@ -60,6 +60,7 @@ func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.Respon
 type extraHandlerOpts struct {
 	loginRateLimit  *throttled.Rate
 	mdmSsoRateLimit *throttled.Rate
+	httpSigVerifier mux.MiddlewareFunc
 }
 
 // ExtraHandlerOption allows adding extra configuration to the HTTP handler.
@@ -76,6 +77,12 @@ func WithLoginRateLimit(r throttled.Rate) ExtraHandlerOption {
 func WithMdmSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
 	return func(o *extraHandlerOpts) {
 		o.mdmSsoRateLimit = &r
+	}
+}
+
+func WithHTTPSigVerifier(m mux.MiddlewareFunc) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.httpSigVerifier = m
 	}
 }
 
@@ -117,6 +124,9 @@ func MakeHandler(
 	}
 
 	r.Use(publicIP)
+	if eopts.httpSigVerifier != nil {
+		r.Use(eopts.httpSigVerifier)
+	}
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions, eopts)
 	for _, featureRoute := range featureRoutes {
@@ -490,7 +500,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.PATCH("/api/_version_/fleet/scripts/{script_id:[0-9]+}", updateScriptEndpoint, updateScriptRequest{})
 	ue.DELETE("/api/_version_/fleet/scripts/{script_id:[0-9]+}", deleteScriptEndpoint, deleteScriptRequest{})
 	ue.POST("/api/_version_/fleet/scripts/batch", batchSetScriptsEndpoint, batchSetScriptsRequest{})
+	ue.POST("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}/cancel", batchScriptCancelEndpoint, batchScriptCancelRequest{})
+	// Deprecated, will remove in favor of batchScriptExecutionStatusEndpoint when batch script details page is ready.
 	ue.GET("/api/_version_/fleet/scripts/batch/summary/{batch_execution_id:[a-zA-Z0-9-]+}", batchScriptExecutionSummaryEndpoint, batchScriptExecutionSummaryRequest{})
+	ue.GET("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}", batchScriptExecutionStatusEndpoint, batchScriptExecutionStatusRequest{})
+	ue.GET("/api/_version_/fleet/scripts/batch", batchScriptExecutionListEndpoint, batchScriptExecutionListRequest{})
 
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/scripts", getHostScriptDetailsEndpoint, getHostScriptDetailsRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/activities/upcoming", listHostUpcomingActivitiesEndpoint, listHostUpcomingActivitiesRequest{})
@@ -504,7 +518,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/autofill/policy", autofillPoliciesEndpoint, autofillPoliciesRequest{})
 
 	// Secret variables
-	ue.PUT("/api/_version_/fleet/spec/secret_variables", secretVariablesEndpoint, secretVariablesRequest{})
+	ue.PUT("/api/_version_/fleet/spec/secret_variables", createSecretVariablesEndpoint, createSecretVariablesRequest{})
+	ue.POST("/api/_version_/fleet/custom_variables", createSecretVariableEndpoint, createSecretVariableRequest{})
+	ue.GET("/api/_version_/fleet/custom_variables", listSecretVariablesEndpoint, listSecretVariablesRequest{})
+	ue.DELETE("/api/_version_/fleet/custom_variables/{id:[0-9]+}", deleteSecretVariableEndpoint, deleteSecretVariableRequest{})
 
 	// Scim details
 	ue.GET("/api/_version_/fleet/scim/details", getScimDetailsEndpoint, nil)
@@ -791,68 +808,68 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// properly
 	desktopQuota := throttled.RateQuota{MaxRate: throttled.PerHour(720), MaxBurst: desktopRateLimitMaxBurst}
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_host", desktopQuota),
+		errorLimiter.Limit("get_device_host", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_fleet_desktop", desktopQuota),
+		errorLimiter.Limit("get_fleet_desktop", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("ping_device_auth", desktopQuota),
+		errorLimiter.Limit("ping_device_auth", desktopQuota, logger),
 	).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("refetch_device_host", desktopQuota),
+		errorLimiter.Limit("refetch_device_host", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_mapping", desktopQuota),
+		errorLimiter.Limit("get_device_mapping", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_macadmins", desktopQuota),
+		errorLimiter.Limit("get_device_macadmins", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_policies", desktopQuota),
+		errorLimiter.Limit("get_device_policies", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_transparency", desktopQuota),
+		errorLimiter.Limit("get_device_transparency", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("send_device_error", desktopQuota),
+		errorLimiter.Limit("send_device_error", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software", desktopQuota),
+		errorLimiter.Limit("get_device_software", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/software", getDeviceSoftwareEndpoint, getDeviceSoftwareRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("install_self_service", desktopQuota),
+		errorLimiter.Limit("install_self_service", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("uninstall_self_service", desktopQuota),
+		errorLimiter.Limit("uninstall_self_service", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/software/uninstall/{software_title_id}", submitDeviceSoftwareUninstall, fleetDeviceSoftwareUninstallRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software_install_results", desktopQuota),
+		errorLimiter.Limit("get_device_software_install_results", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/software/install/{install_uuid}/results", getDeviceSoftwareInstallResultsEndpoint,
 		getDeviceSoftwareInstallResultsRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software_uninstall_results", desktopQuota),
+		errorLimiter.Limit("get_device_software_uninstall_results", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/software/uninstall/{execution_id}/results", getDeviceSoftwareUninstallResultsEndpoint, getDeviceSoftwareUninstallResultsRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_certificates", desktopQuota),
+		errorLimiter.Limit("get_device_certificates", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/certificates", listDeviceCertificatesEndpoint, listDeviceCertificatesRequest{})
 
 	// mdm-related endpoints available via device authentication
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_mdm", desktopQuota),
+		errorLimiter.Limit("get_device_mdm", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_software_mdm_command_results", desktopQuota),
+		errorLimiter.Limit("get_device_software_mdm_command_results", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint,
 		getDeviceMDMCommandResultsRequest{})
 
 	demdm.WithCustomMiddleware(
-		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota),
+		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
 
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("post_device_trigger_linux_escrow", desktopQuota),
+		errorLimiter.Limit("post_device_trigger_linux_escrow", desktopQuota, logger),
 	).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
 
 	// host-authenticated endpoints
@@ -905,7 +922,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// with the request.
 	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
 	ne.WithAltPaths("/api/v1/osquery/enroll").
-		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
+		POST("/api/osquery/enroll", enrollAgentEndpoint, contract.EnrollOsqueryAgentRequest{})
 
 	// These endpoint are token authenticated.
 	// NOTE: remember to update
@@ -968,7 +985,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// This endpoint is unauthenticated and is used by to retrieve the MDM enrollment Terms of Use
 	neWindowsMDM.GET(microsoft_mdm.MDE2TOSPath, mdmMicrosoftTOSEndpoint, MDMWebContainer{})
 
-	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, EnrollOrbitRequest{})
+	ne.POST("/api/fleet/orbit/enroll", enrollOrbitEndpoint, contract.EnrollOrbitRequest{})
 
 	// For some reason osquery does not provide a node key with the block data.
 	// Instead the carve session ID should be verified in the service method.
@@ -1120,6 +1137,7 @@ func RegisterAppleMDMProtocolServices(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	serverURLPrefix string,
 ) error {
 	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
@@ -1127,6 +1145,30 @@ func RegisterAppleMDMProtocolServices(
 	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix); err != nil {
+		return fmt.Errorf("service discovery: %w", err)
+	}
+	return nil
+}
+
+func registerMDMServiceDiscovery(
+	mux *http.ServeMux,
+	logger kitlog.Logger,
+	serverURLPrefix string,
+) error {
+	serviceDiscoveryLogger := kitlog.With(logger, "component", "mdm-apple-service-discovery")
+	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
+	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serviceDiscoveryLogger.Log("msg", "serving MDM service discovery response", "url", fullMDMEnrollmentURL)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, err := fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, fullMDMEnrollmentURL)
+		if err != nil {
+			serviceDiscoveryLogger.Log("err", "error writing service discovery response", "err", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+	})
+	mux.Handle(apple_mdm.ServiceDiscoveryPath, serviceDiscoveryHandler)
 	return nil
 }
 

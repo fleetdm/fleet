@@ -39,6 +39,7 @@ controls:
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
   enable_disk_encryption: true
+  windows_require_bitlocker_pin: true
   macos_setup:
     bootstrap_package: null
     enable_end_user_authentication: false
@@ -153,6 +154,14 @@ software:
         - Productivity
         - Communication
     - slug: box-drive/windows
+      install_script:
+        path: ./lib/install.sh
+      uninstall_script:
+        path: ./lib/uninstall-box.sh
+      post_install_script:
+        path: ./lib/post-install.sh
+      pre_install_query:
+        path: ./lib/preinstall-query.yml
       self_service: true
       categories:
         - Productivity

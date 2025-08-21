@@ -57,7 +57,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
-import DeletePolicyModal from "./components/DeletePolicyModal";
+import DeletePoliciesModal from "./components/DeletePoliciesModal";
 import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
 import InstallSoftwareModal from "./components/InstallSoftwareModal";
@@ -112,13 +112,15 @@ const ManagePolicyPage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
-    isFreeTier,
     isPremiumTier,
     config: globalConfigFromContext,
     setConfig,
     setFilteredPoliciesPath,
     filteredPoliciesPath,
   } = useContext(AppContext);
+  const isPrimoMode =
+    globalConfigFromContext?.partnerships?.enable_primo || false;
+
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
   const {
@@ -137,6 +139,7 @@ const ManagePolicyPage = ({
     currentTeamName,
     currentTeamSummary,
     isAllTeamsSelected,
+    isAnyTeamSelected,
     isTeamAdmin,
     isTeamMaintainer,
     isRouteOk,
@@ -160,7 +163,7 @@ const ManagePolicyPage = ({
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
 
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
-  const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
+  const [showDeletePoliciesModal, setShowDeletePoliciesModal] = useState(false);
   const [showInstallSoftwareModal, setShowInstallSoftwareModal] = useState(
     false
   );
@@ -323,10 +326,10 @@ const ManagePolicyPage = ({
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       select: (data: ILoadTeamPoliciesResponse) => data.policies || [],
       onSuccess: (data) => {
-        const allPoliciesAvailableToAutomate = data.filter(
+        const teamPoliciesAvailableToAutomate = data.filter(
           (policy: IPolicy) => policy.team_id === currentTeamId
         );
-        setPoliciesAvailableToAutomate(allPoliciesAvailableToAutomate || []);
+        setPoliciesAvailableToAutomate(teamPoliciesAvailableToAutomate || []);
       },
     }
   );
@@ -359,7 +362,7 @@ const ManagePolicyPage = ({
     }
   );
 
-  const canAddOrDeletePolicy =
+  const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -374,7 +377,7 @@ const ManagePolicyPage = ({
       return configAPI.loadAll();
     },
     {
-      enabled: isRouteOk && canAddOrDeletePolicy,
+      enabled: isRouteOk && canAddOrDeletePolicies,
       onSuccess: (data) => {
         setConfig(data);
       },
@@ -391,7 +394,7 @@ const ManagePolicyPage = ({
     () => teamsAPI.load(teamIdForApi),
     {
       // no call for no team (teamIdForApi === 0)
-      enabled: isRouteOk && !!teamIdForApi && canAddOrDeletePolicy,
+      enabled: isRouteOk && !!teamIdForApi && canAddOrDeletePolicies,
       select: (data) => data.team,
     }
   );
@@ -473,8 +476,8 @@ const ManagePolicyPage = ({
   const toggleOtherWorkflowsModal = () =>
     setShowOtherWorkflowsModal(!showOtherWorkflowsModal);
 
-  const toggleDeletePolicyModal = () =>
-    setShowDeletePolicyModal(!showDeletePolicyModal);
+  const toggleDeletePoliciesModal = () =>
+    setShowDeletePoliciesModal(!showDeletePoliciesModal);
 
   const toggleInstallSoftwareModal = () => {
     setShowInstallSoftwareModal(!showInstallSoftwareModal);
@@ -519,16 +522,21 @@ const ManagePolicyPage = ({
   }) => {
     setIsUpdatingPolicies(true);
     try {
-      await (!isAllTeamsSelected
-        ? teamsAPI.update(requestBody, teamIdForApi)
-        : configAPI.update(requestBody));
+      if (isAllTeamsSelected || isPrimoMode) {
+        // primo mode updates as global, though sources available policies from No team
+        await configAPI.update(requestBody);
+      } else {
+        await teamsAPI.update(requestBody, teamIdForApi);
+      }
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
       renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
-      !isAllTeamsSelected ? refetchTeamConfig() : refetchGlobalConfig();
+      isAllTeamsSelected || isPrimoMode
+        ? refetchGlobalConfig()
+        : refetchTeamConfig();
     }
   };
 
@@ -850,28 +858,63 @@ const ManagePolicyPage = ({
     );
   };
 
-  const onDeletePolicyClick = (selectedTableIds: number[]): void => {
-    toggleDeletePolicyModal();
+  const onDeletePoliciesClick = (selectedTableIds: number[]): void => {
+    toggleDeletePoliciesModal();
     setSelectedPolicyIds(selectedTableIds);
   };
 
-  const onDeletePolicySubmit = async () => {
+  const onDeletePolicySubmit = useCallback(async () => {
     setIsUpdatingPolicies(true);
     try {
-      const request = !isAllTeamsSelected
-        ? teamPoliciesAPI.destroy(teamIdForApi, selectedPolicyIds)
-        : globalPoliciesAPI.destroy(selectedPolicyIds);
-
-      await request.then(() => {
-        renderFlash(
-          "success",
-          `Successfully deleted ${
-            selectedPolicyIds?.length === 1 ? "policy" : "policies"
-          }.`
+      const responses: Promise<any>[] = [];
+      if (isPrimoMode) {
+        // filter selected policies by All team and no team
+        const selectedSet = new Set(selectedPolicyIds); // more efficient for below reduce
+        const [
+          globalPolicyIdsToDelete,
+          teamPolicyIdsToDelete, // will be No team, since this is Primo mode
+        ] = (teamPolicies ?? []).reduce(
+          (acc, policy) => {
+            if (selectedSet.has(policy.id)) {
+              // need to compare policy team id
+              if (policy.team_id === null) {
+                // note `null` not `undefined` here
+                acc[0].push(policy.id);
+              } else {
+                acc[1].push(policy.id);
+              }
+            }
+            return acc;
+          },
+          [[], []] as [number[], number[]]
         );
-        setResetSelectedRows(true);
-        refetchPolicies(teamIdForApi);
-      });
+        // delete all team policies via global endpoint, No team via team endpoint
+        if (globalPolicyIdsToDelete.length) {
+          responses.push(globalPoliciesAPI.destroy(globalPolicyIdsToDelete));
+        }
+        if (teamPolicyIdsToDelete.length) {
+          responses.push(
+            teamPoliciesAPI.destroy(teamIdForApi, teamPolicyIdsToDelete)
+          );
+        }
+      } else {
+        // normal Fleet operation
+        responses.push(
+          !isAllTeamsSelected
+            ? teamPoliciesAPI.destroy(teamIdForApi, selectedPolicyIds)
+            : globalPoliciesAPI.destroy(selectedPolicyIds)
+        );
+      }
+
+      await Promise.all(responses);
+      renderFlash(
+        "success",
+        `Successfully deleted ${
+          selectedPolicyIds?.length === 1 ? "policy" : "policies"
+        }.`
+      );
+      setResetSelectedRows(true);
+      refetchPolicies(teamIdForApi);
     } catch {
       renderFlash(
         "error",
@@ -880,10 +923,20 @@ const ManagePolicyPage = ({
         }. Please try again.`
       );
     } finally {
-      toggleDeletePolicyModal();
+      toggleDeletePoliciesModal();
       setIsUpdatingPolicies(false);
     }
-  };
+  }, [
+    isAllTeamsSelected,
+    isPrimoMode,
+    refetchPolicies,
+    renderFlash,
+    selectedPolicyIds,
+    setResetSelectedRows,
+    teamIdForApi,
+    teamPolicies,
+    toggleDeletePoliciesModal,
+  ]);
 
   const policiesErrors = !isAllTeamsSelected
     ? teamPoliciesError
@@ -896,8 +949,29 @@ const ManagePolicyPage = ({
   // Show CTA buttons if there are no errors
   const showCtaButtons = !policiesErrors;
 
-  const automationsConfig = !isAllTeamsSelected ? teamConfig : globalConfig;
-  const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
+  /**
+  all teams? -> global
+  no team?
+    primo? -> global
+    not primo? -> undefined
+  other teams -> teamConfig
+   */
+
+  let automationsConfig;
+  if (isAllTeamsSelected) {
+    automationsConfig = globalConfig;
+  } else if (teamIdForApi === API_NO_TEAM_ID) {
+    if (isPrimoMode) {
+      automationsConfig = globalConfig;
+    }
+  } else {
+    automationsConfig = teamConfig;
+  }
+
+  const hasPoliciesToAutomate = policiesAvailableToAutomate.length > 0;
+  const hasPoliciesToDelete =
+    hasPoliciesToAutomate || (isPrimoMode && (teamPolicies?.length ?? 0) > 0); // in Primo mode, allow deleting inherited policies, which will be included in teamPolicies, from this view
+
   const showAutomationsDropdown = canManageAutomations;
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
@@ -974,9 +1048,9 @@ const ManagePolicyPage = ({
         <PoliciesTable
           policiesList={globalPolicies || []}
           isLoading={isFetchingGlobalPolicies || isFetchingGlobalConfig}
-          onDeletePolicyClick={onDeletePolicyClick}
-          canAddOrDeletePolicy={canAddOrDeletePolicy}
-          hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
+          onDeletePoliciesClick={onDeletePoliciesClick}
+          canAddOrDeletePolicies={canAddOrDeletePolicies}
+          hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
           currentAutomatedPolicies={currentAutomatedPolicies}
           isPremiumTier={isPremiumTier}
@@ -1009,9 +1083,9 @@ const ManagePolicyPage = ({
             isFetchingTeamConfig ||
             isFetchingGlobalConfig
           }
-          onDeletePolicyClick={onDeletePolicyClick}
-          canAddOrDeletePolicy={canAddOrDeletePolicy}
-          hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
+          onDeletePoliciesClick={onDeletePoliciesClick}
+          canAddOrDeletePolicies={canAddOrDeletePolicies}
+          hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
           currentAutomatedPolicies={currentAutomatedPolicies}
           renderPoliciesCount={() =>
@@ -1051,7 +1125,7 @@ const ManagePolicyPage = ({
       ? globalConfig?.integrations.conditional_access_enabled
       : teamConfig?.integrations.conditional_access_enabled) ?? false;
 
-  const getAutomationsDropdownOptions = (configPresent: boolean) => {
+  const getAutomationsDropdownOptions = (includeOtherWorkflows: boolean) => {
     let disabledInstallTooltipContent: TooltipContent;
     let disabledCalendarTooltipContent: TooltipContent;
     let disabledRunScriptTooltipContent: TooltipContent;
@@ -1138,7 +1212,7 @@ const ManagePolicyPage = ({
     }
 
     // Maintainers do not have access to other workflows
-    if (configPresent && !isGlobalMaintainer && !isTeamMaintainer) {
+    if (includeOtherWorkflows && !isGlobalMaintainer && !isTeamMaintainer) {
       options.push({
         label: "Other",
         value: "other_workflows",
@@ -1155,14 +1229,16 @@ const ManagePolicyPage = ({
     automationsDropdown = (
       <div className={`${baseClass}__manage-automations-wrapper`}>
         <DropdownWrapper
-          isDisabled={!hasPoliciesToAutomateOrDelete}
+          isDisabled={!hasPoliciesToAutomate}
           className={`${baseClass}__manage-automations-dropdown`}
           name="policy-automations"
           onChange={onSelectAutomationOption}
           placeholder="Manage automations"
           options={
-            hasPoliciesToAutomateOrDelete
-              ? getAutomationsDropdownOptions(!!automationsConfig)
+            hasPoliciesToAutomate
+              ? getAutomationsDropdownOptions(
+                  isAllTeamsSelected || isAnyTeamSelected || isPrimoMode
+                ) // include "Other workflows" when all teams is selected, when a team other than No team is selected, and when in Primo mode (No team will be selected)
               : []
           }
           variant="button"
@@ -1170,7 +1246,7 @@ const ManagePolicyPage = ({
         />
       </div>
     );
-    if (!hasPoliciesToAutomateOrDelete) {
+    if (!hasPoliciesToAutomate) {
       const tipContent =
         isPremiumTier &&
         currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
@@ -1204,7 +1280,7 @@ const ManagePolicyPage = ({
   }
 
   const renderHeader = () => {
-    if (isPremiumTier && !globalConfigFromContext?.partnerships?.enable_primo) {
+    if (isPremiumTier && !isPrimoMode) {
       if ((userTeams && userTeams.length > 1) || isOnGlobalTeam) {
         return (
           <TeamsDropdown
@@ -1249,7 +1325,7 @@ const ManagePolicyPage = ({
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
               {automationsDropdown}
-              {canAddOrDeletePolicy && (
+              {canAddOrDeletePolicies && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button
                     className={`${baseClass}__select-policy-button`}
@@ -1266,10 +1342,10 @@ const ManagePolicyPage = ({
           <p>{teamsDropdownHelpText}</p>
         </div>
         {renderMainTable()}
-        {globalConfig && automationsConfig && showOtherWorkflowsModal && (
+        {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
-            availableIntegrations={globalConfig.integrations}
+            availableIntegrations={automationsConfig.integrations}
             availablePolicies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
@@ -1278,10 +1354,10 @@ const ManagePolicyPage = ({
             gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
-        {showDeletePolicyModal && (
-          <DeletePolicyModal
+        {showDeletePoliciesModal && (
+          <DeletePoliciesModal
             isUpdatingPolicies={isUpdatingPolicies}
-            onCancel={toggleDeletePolicyModal}
+            onCancel={toggleDeletePoliciesModal}
             onSubmit={onDeletePolicySubmit}
           />
         )}

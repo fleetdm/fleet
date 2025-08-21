@@ -82,7 +82,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 			environment: map[string]string{
 				"FLEET_SECRET_FLEET_SECRET_": "fleet_secret",
 				"FLEET_SECRET_NAME":          "secret_name",
-				"FLEET_SECRET_length":        "10",
+				"FLEET_SECRET_LENGTH":        "10",
 				"FLEET_SECRET_BANANA":        "bread",
 			},
 			filePath: "testdata/global_config_no_paths.yml",
@@ -94,7 +94,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"ORG_NAME":                      "Fleet Device Management",
 				"FLEET_SECRET_FLEET_SECRET_":    "fleet_secret",
 				"FLEET_SECRET_NAME":             "secret_name",
-				"FLEET_SECRET_length":           "10",
+				"FLEET_SECRET_LENGTH":           "10",
 				"FLEET_SECRET_BANANA":           "bread",
 			},
 			filePath: "testdata/global_config.yml",
@@ -103,8 +103,11 @@ func TestValidGitOpsYaml(t *testing.T) {
 			environment: map[string]string{
 				"FLEET_SECRET_FLEET_SECRET_": "fleet_secret",
 				"FLEET_SECRET_NAME":          "secret_name",
-				"FLEET_SECRET_length":        "10",
+				"FLEET_SECRET_LENGTH":        "10",
 				"FLEET_SECRET_BANANA":        "bread",
+				"FLEET_SECRET_CLEMENTINE":    "not-an-orange",
+				"FLEET_SECRET_DURIAN":        "fruity", // not used
+				"FLEET_SECRET_EGGPLANT":      "parmesan",
 			},
 			filePath: "testdata/team_config_no_paths.yml",
 			isTeam:   true,
@@ -117,8 +120,11 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"ENABLE_FAILING_POLICIES_WEBHOOK": "true",
 				"FLEET_SECRET_FLEET_SECRET_":      "fleet_secret",
 				"FLEET_SECRET_NAME":               "secret_name",
-				"FLEET_SECRET_length":             "10",
+				"FLEET_SECRET_LENGTH":             "10",
 				"FLEET_SECRET_BANANA":             "bread",
+				"FLEET_SECRET_CLEMENTINE":         "not-an-orange",
+				"FLEET_SECRET_DURIAN":             "fruity", // not used
+				"FLEET_SECRET_EGGPLANT":           "parmesan",
 			},
 			filePath: "testdata/team_config.yml",
 			isTeam:   true,
@@ -131,8 +137,11 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"ENABLE_FAILING_POLICIES_WEBHOOK": "true",
 				"FLEET_SECRET_FLEET_SECRET_":      "fleet_secret",
 				"FLEET_SECRET_NAME":               "secret_name",
-				"FLEET_SECRET_length":             "10",
+				"FLEET_SECRET_LENGTH":             "10",
 				"FLEET_SECRET_BANANA":             "bread",
+				"FLEET_SECRET_CLEMENTINE":         "not-an-orange",
+				"FLEET_SECRET_DURIAN":             "fruity", // not used
+				"FLEET_SECRET_EGGPLANT":           "parmesan",
 			},
 			filePath: "testdata/team_config_only_sha256.yml",
 			isTeam:   true,
@@ -188,6 +197,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.Equal(t, "SampleSecret123", secrets.([]*fleet.EnrollSecret)[0].Secret)
 					assert.Equal(t, "ABC", secrets.([]*fleet.EnrollSecret)[1].Secret)
 					require.Len(t, gitops.Software.Packages, 2)
+					require.Len(t, gitops.FleetSecrets, 6)
 					for _, pkg := range gitops.Software.Packages {
 						if strings.Contains(pkg.URL, "MicrosoftTeams") {
 							assert.Equal(t, "testdata/lib/uninstall.sh", pkg.UninstallScript.Path)
@@ -200,8 +210,16 @@ func TestValidGitOpsYaml(t *testing.T) {
 						switch fma.Slug {
 						case "slack/darwin":
 							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+							require.Empty(t, fma.PreInstallQuery)
+							require.Empty(t, fma.PostInstallScript)
+							require.Empty(t, fma.InstallScript)
+							require.Empty(t, fma.UninstallScript)
 						case "box-drive/windows":
 							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+							require.NotEmpty(t, fma.PreInstallQuery)
+							require.NotEmpty(t, fma.PostInstallScript)
+							require.NotEmpty(t, fma.InstallScript)
+							require.NotEmpty(t, fma.UninstallScript)
 						default:
 							assert.FailNow(t, "unexpected slug found in gitops file", "slug: %s", fma.Slug)
 						}
@@ -240,6 +258,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					activityExpiryWindow, ok := activityExpirySettings["activity_expiry_window"].(float64)
 					require.True(t, ok)
 					require.Equal(t, 30, int(activityExpiryWindow))
+					require.Len(t, gitops.FleetSecrets, 4)
 
 					// Check labels
 					require.Len(t, gitops.Labels, 2)
@@ -274,10 +293,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
-				require.Len(t, gitops.FleetSecrets, 4)
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
 				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
-				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_length"])
+				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_LENGTH"])
 				assert.Equal(t, "bread", gitops.FleetSecrets["FLEET_SECRET_BANANA"])
 
 				// Check agent options
@@ -364,6 +382,21 @@ policies:
 `
 	_, err := gitOpsFromString(t, config)
 	assert.ErrorContains(t, err, "duplicate policy names")
+}
+
+func TestManualLabelEmptyHostList(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{})
+	config += `
+labels:
+  - name: TestLabel
+    description: Label for testing
+    hosts:
+    label_membership_type: manual`
+
+	gitops, err := gitOpsFromString(t, config)
+	require.NoError(t, err)
+	assert.NotNil(t, gitops.Labels[0].Hosts)
 }
 
 func TestDuplicateQueryNames(t *testing.T) {
@@ -515,7 +548,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"name"})
 					config += "name: [2]\n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal name")
+					assert.ErrorContains(t, err, "expected type string but got array")
 
 					// Missing team name
 					config = getConfig([]string{"name"})
@@ -527,7 +560,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"team_settings"})
 					config += "team_settings:\n  path: [2]\n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal team_settings")
+					assert.ErrorContains(t, err, "expected type string but got array")
 
 					// Invalid team_settings in a separate file
 					tmpFile, err := os.CreateTemp(t.TempDir(), "*team_settings.yml")
@@ -537,7 +570,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"team_settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "team_settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal team settings file")
+					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"team_settings"})
@@ -591,7 +624,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"org_settings"})
 					config += "org_settings:\n  path: [2]\n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal org_settings")
+					assert.ErrorContains(t, err, "expected type string but got array")
 
 					// Invalid org_settings in a separate file
 					tmpFile, err := os.CreateTemp(t.TempDir(), "*org_settings.yml")
@@ -601,7 +634,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"org_settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "org_settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "failed to unmarshal org settings file")
+					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"org_settings"})
@@ -626,7 +659,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config := getConfig([]string{"agent_options"})
 				config += "agent_options:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal agent_options")
+				assert.ErrorContains(t, err, "expected type string but got array")
 
 				// Invalid agent_options in a separate file
 				tmpFile, err := os.CreateTemp(t.TempDir(), "*agent_options.yml")
@@ -636,13 +669,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"agent_options"})
 				config += fmt.Sprintf("%s:\n  path: %s\n", "agent_options", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal agent options file")
+				assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
 
 				// Invalid controls
 				config = getConfig([]string{"controls"})
 				config += "controls:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal controls")
+				assert.ErrorContains(t, err, "expected type string but got array")
 
 				// Invalid controls in a separate file
 				tmpFile, err = os.CreateTemp(t.TempDir(), "*controls.yml")
@@ -652,13 +685,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"controls"})
 				config += fmt.Sprintf("%s:\n  path: %s\n", "controls", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal controls file")
+				assert.ErrorContains(t, err, "expected type spec.GitOpsControls but got array")
 
 				// Invalid policies
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal policies")
+				assert.ErrorContains(t, err, "expected type []spec.Policy but got object")
 
 				// Invalid policies in a separate file
 				tmpFile, err = os.CreateTemp(t.TempDir(), "*policies.yml")
@@ -668,7 +701,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"policies"})
 				config += fmt.Sprintf("%s:\n  - path: %s\n", "policies", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal policies file")
+				assert.ErrorContains(t, err, "expected type spec.Policy but got number")
 
 				// Policy name missing
 				config = getConfig([]string{"policies"})
@@ -686,7 +719,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"queries"})
 				config += "queries:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal queries")
+				assert.ErrorContains(t, err, "expected type []spec.Query but got object")
 
 				// Invalid policies in a separate file
 				tmpFile, err = os.CreateTemp(t.TempDir(), "*queries.yml")
@@ -696,7 +729,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"queries"})
 				config += fmt.Sprintf("%s:\n  - path: %s\n", "queries", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "failed to unmarshal queries file")
+				assert.ErrorContains(t, err, "expected type spec.Query but got number")
 
 				// Query name missing
 				config = getConfig([]string{"queries"})
@@ -1102,7 +1135,7 @@ software:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
+	assert.ErrorContains(t, err, "at \"policy.install_software.package_path\", expected type fleet.SoftwarePackageSpec but got string")
 }
 
 func TestGitOpsWithStrayScriptEntryWithNoPath(t *testing.T) {

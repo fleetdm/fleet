@@ -28,6 +28,10 @@ const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
 
   const options = {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
     body: JSON.stringify(body),
   };
   console.debug("Request:", target, options);

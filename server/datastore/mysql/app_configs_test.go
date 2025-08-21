@@ -447,22 +447,25 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	ac, err := ds.AppConfig(ctx)
 	require.NoError(t, err)
 	require.False(t, ac.MDM.EnableDiskEncryption.Value)
+	require.False(t, ac.MDM.RequireBitLockerPIN.Value)
 
-	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, nil)
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, nil)
 	require.NoError(t, err)
-	require.False(t, enabled)
+	require.False(t, diskEncryptionConfig.Enabled)
 
 	// Enable disk encryption for no team
 	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
 	ac, err = ds.AppConfig(ctx)
 	require.NoError(t, err)
 	require.True(t, ac.MDM.EnableDiskEncryption.Value)
+	require.True(t, ac.MDM.RequireBitLockerPIN.Value)
 
-	enabled, err = ds.GetConfigEnableDiskEncryption(ctx, nil)
+	diskEncryptionConfig, err = ds.GetConfigEnableDiskEncryption(ctx, nil)
 	require.NoError(t, err)
-	require.True(t, enabled)
+	require.True(t, diskEncryptionConfig.Enabled)
 
 	// Create team
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -472,17 +475,20 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, tm)
 	require.False(t, tm.Config.MDM.EnableDiskEncryption)
+	require.False(t, tm.Config.MDM.RequireBitLockerPIN)
 
-	enabled, err = ds.GetConfigEnableDiskEncryption(ctx, &team1.ID)
+	diskEncryptionConfig, err = ds.GetConfigEnableDiskEncryption(ctx, &team1.ID)
 	require.NoError(t, err)
-	require.False(t, enabled)
+	require.False(t, diskEncryptionConfig.Enabled)
 
 	// Enable disk encryption for the team
 	tm.Config.MDM.EnableDiskEncryption = true
+	tm.Config.MDM.RequireBitLockerPIN = true
 	tm, err = ds.SaveTeam(ctx, tm)
 	require.NoError(t, err)
 	require.NotNil(t, tm)
 	require.True(t, tm.Config.MDM.EnableDiskEncryption)
+	require.True(t, tm.Config.MDM.RequireBitLockerPIN)
 }
 
 func testIsEnrollSecretAvailable(t *testing.T, ds *Datastore) {

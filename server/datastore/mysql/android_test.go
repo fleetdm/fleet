@@ -100,7 +100,7 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 			DeviceID:             "device_id",
 			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
 			AndroidPolicyID:      ptr.Uint(1),
-			LastPolicySyncTime:   ptr.Time(time.Time{}),
+			LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 		},
 	}
 	host.SetNodeKey(enterpriseSpecificID)
@@ -182,7 +182,7 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, macHost, false)
-	err = ds.MDMAppleUpsertHost(testCtx(), macHost)
+	err = ds.MDMAppleUpsertHost(testCtx(), macHost, false)
 	require.NoError(t, err)
 
 	// create a non-mdm host

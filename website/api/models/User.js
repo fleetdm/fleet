@@ -207,10 +207,15 @@ without necessarily having a billing card.`
       description: 'The primary buying situation the user selected when they signed up.',
       extendedDescription: 'User records created before 2024-03-14 will have this attribute set to ""',
       isIn: [
-        'eo-security',
-        'eo-it',
-        'mdm',
-        'vm',
+        'eo-security',// TODO: remove this value and migrate all users with this set to security-misc
+        'eo-it',// TODO: remove this value and migrate all users with this set to it-misc
+        'mdm',// TODO: remove this value and migrate all users with this set to it-major-mdm or it-gap-giller-mdm
+        'vm',// TODO: remove this value and migrate all users with this set to security-vm
+        'security-misc',
+        'security-vm',
+        'it-major-mdm',
+        'it-gap-filler-mdm',
+        'it-misc'
       ]
     },
 

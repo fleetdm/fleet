@@ -317,6 +317,25 @@ export const isSoftwareUninstallStatus = (
 export const isPendingStatus = (s: string | undefined | null) =>
   ["pending_install", "pending_uninstall"].includes(s || "");
 
+export const resolveUninstallStatus = (
+  activityStatus?: string
+): SoftwareUninstallStatus => {
+  let resolvedStatus = activityStatus;
+  if (resolvedStatus === "pending") {
+    resolvedStatus = "pending_uninstall";
+  }
+  if (resolvedStatus === "failed") {
+    resolvedStatus = "failed_uninstall";
+  }
+  if (!isSoftwareUninstallStatus(resolvedStatus)) {
+    console.warn(
+      `Unexpected uninstall status "${activityStatus}" for activity. Defaulting to "pending_uninstall".`
+    );
+    resolvedStatus = "pending_uninstall";
+  }
+  return resolvedStatus as SoftwareUninstallStatus;
+};
+
 /**
  * ISoftwareInstallResult is the shape of a software install result object
  * returned by the Fleet API.
@@ -407,7 +426,60 @@ export interface IHostSoftware {
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
+/**
+ * Comprehensive list of possible UI software statuses for host > software > library/self-service.
+ *
+ * These are more detailed than the raw API `.status` and are determined by:
+ * - Whether the host is online or offline
+ * - If the fleet-installed version is newer than any in installed_versions
+ * - Special handling for tarballs (tgz_packages)
+ * - Cases where the software inventory has not yet updated to reflect a recent change
+ *   (i.e., last_install date vs host software's updated_at date)
+ */
+export type IHostSoftwareUiStatus =
+  | "installed" // Present in inventory; no newer fleet installer version (tarballs: successful install only)
+  | "uninstalled" // Not present in inventory (tarballs: successful uninstall or never installed)
+  | "installing" // ONLINE; fleet-initiated install in progress
+  | "uninstalling" // ONLINE; fleet-initiated uninstall in progress
+  | "recently_updated" // Update applied (installer newer than inventory), but inventory not yet refreshed
+  | "recently_installed" // Install applied (installer NOT newer than inventory), but inventory not yet refreshed
+  | "recently_uninstalled" // Uninstall applied, but inventory not yet refreshed
+  | "updating" // ONLINE; update (install) in progress with newer fleet installer
+  | "pending_install" // OFFLINE; install scheduled (no newer installer version)
+  | "pending_uninstall" // OFFLINE; uninstall scheduled
+  | "pending_update" // OFFLINE; update scheduled (no newer installer version)
+  | "failed_install" // Install attempt failed
+  | "failed_install_update_available" // Install/update failed; newer installer version available
+  | "failed_uninstall" // Uninstall attempt failed
+  | "failed_uninstall_update_available" // Uninstall/update failed; newer installer version available
+  | "update_available"; // In inventory, but newer fleet installer version is available
+
+/**
+ * Extends IHostSoftware with a computed `ui_status` field.
+ *
+ * The `ui_status` categorizes software installation state for the UI by
+ * combining the `status`, `installed_versions` info, and other factors
+ * like host online state (via getUiStatus helper function), enabling
+ * more detailed and status labels needed for the status and actions columns.
+ */
+export interface IHostSoftwareWithUiStatus extends IHostSoftware {
+  ui_status: IHostSoftwareUiStatus;
+}
+
+/**
+ * Allows unified data model for rendering of host VPP software installs and uninstalls
+ * Optional as pending may not have a commandUuid
+ */
+export type IVPPHostSoftware = IHostSoftware & {
+  commandUuid?: string;
+};
+
+export type IHostSoftwareUninstall = IHostSoftwareWithUiStatus & {
+  scriptExecutionId: string;
+};
+
 export type IDeviceSoftware = IHostSoftware;
+export type IDeviceSoftwareWithUiStatus = IHostSoftwareWithUiStatus;
 
 const INSTALL_STATUS_PREDICATES: Record<
   SoftwareInstallStatus | "pending",

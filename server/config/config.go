@@ -137,11 +137,12 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 	return server
 }
 
-// AuthConfig defines configs related to user authorization
+// AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
-	BcryptCost               int           `yaml:"bcrypt_cost"`
-	SaltKeySize              int           `yaml:"salt_key_size"`
-	SsoSessionValidityPeriod time.Duration `yaml:"sso_session_validity_period"`
+	BcryptCost                  int           `yaml:"bcrypt_cost"`
+	SaltKeySize                 int           `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
+	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -540,6 +541,7 @@ type VulnerabilitiesConfig struct {
 	CPEDatabaseURL              string        `json:"cpe_database_url" yaml:"cpe_database_url"`
 	CPETranslationsURL          string        `json:"cpe_translations_url" yaml:"cpe_translations_url"`
 	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
+	CISAKnownExploitsURL        string        `json:"cisa_known_exploits_url" yaml:"cisa_known_exploits_url"`
 	CurrentInstanceChecks       string        `json:"current_instance_checks" yaml:"current_instance_checks"`
 	DisableSchedule             bool          `json:"disable_schedule" yaml:"disable_schedule"`
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
@@ -1112,6 +1114,8 @@ func (man Manager) addConfigs() {
 		"Size of salt for passwords")
 	man.addConfigDuration("auth.sso_session_validity_period", 5*time.Minute,
 		"Timeout from SSO start to SSO callback")
+	man.addConfigBool("auth.require_http_message_signature", false,
+		"Require HTTP message signatures for fleetd requests (Premium feature)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1363,6 +1367,8 @@ func (man Manager) addConfigs() {
 		"URL from which to get the latest CPE translations. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
 	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
+	man.addConfigString("vulnerabilities.cisa_known_exploits_url", "",
+		"URL from which to get the latest CISA (Known exploited vulnerabilities) database. If empty, it will be downloaded from https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
 	man.addConfigBool("vulnerabilities.disable_schedule", false,
@@ -1531,9 +1537,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			VPPVerifyRequestDelay:       man.getConfigDuration("server.vpp_verify_request_delay"),
 		},
 		Auth: AuthConfig{
-			BcryptCost:               man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize:              man.getConfigInt("auth.salt_key_size"),
-			SsoSessionValidityPeriod: man.getConfigDuration("auth.sso_session_validity_period"),
+			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
+			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -1667,6 +1674,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPEDatabaseURL:              man.getConfigString("vulnerabilities.cpe_database_url"),
 			CPETranslationsURL:          man.getConfigString("vulnerabilities.cpe_translations_url"),
 			CVEFeedPrefixURL:            man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
+			CISAKnownExploitsURL:        man.getConfigString("vulnerabilities.cisa_known_exploits_url"),
 			CurrentInstanceChecks:       man.getConfigString("vulnerabilities.current_instance_checks"),
 			DisableSchedule:             man.getConfigBool("vulnerabilities.disable_schedule"),
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
@@ -2050,9 +2058,10 @@ func TestConfig() FleetConfig {
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			BcryptCost:               6, // Low cost keeps tests fast
-			SaltKeySize:              24,
-			SsoSessionValidityPeriod: 5 * time.Minute,
+			BcryptCost:                  6, // Low cost keeps tests fast
+			SaltKeySize:                 24,
+			SsoSessionValidityPeriod:    5 * time.Minute,
+			RequireHTTPMessageSignature: false,
 		},
 		Session: SessionConfig{
 			KeySize:  64,

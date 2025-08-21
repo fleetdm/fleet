@@ -55,6 +55,7 @@
       "enabled_and_configured": false,
       "windows_enabled_and_configured": false,
       "enable_disk_encryption": false,
+      "windows_require_bitlocker_pin": null,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null
@@ -111,7 +112,8 @@
       "metadata_url": "",
       "idp_name": "",
       "enable_sso": false,
-      "enable_sso_idp_login": false
+      "enable_sso_idp_login": false,
+      "sso_server_url": ""
     },
     "fleet_desktop": {
       "transparency_url": "https://fleetdm.com/transparency"

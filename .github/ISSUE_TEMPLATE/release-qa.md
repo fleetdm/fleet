@@ -93,7 +93,9 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
 3. Turn off MDM on a non ADE-eligible macOS host.
 4. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
+5. Verify Windows host migrates from 3rd party MDM to Fleet when automatic migration is turned on.
 </td><td>pass/fail</td></tr>
+
 <tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
 
 1. Verify Profiles upload/download/delete (macOS & Windows).
@@ -125,8 +127,21 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. Verify OTA enrollment.
 3. Verify Profiles are delivered to host and applied.
 4. Verify VPP apps install & display correctly in Activity feed.
+5. Verify `Turn Off MDM` for BYOD & ADE hosts.
  
 </td><td>pass/fail</td></tr>
+
+
+<tr><td>Lock & Wipe</td><td>Verify hosts can be locked & wiped</td><td>
+
+1. Verify locking a host from the Fleet UI (macOS, Windows, & Linux)
+2. Verify unlocking a host from the Fleet UI (macOS, Windows, & Linux)
+3. Verify wiping a host from the Fleet UI (macOS, Windows, & Linux)
+4. Verify wiping and locking hosts using `fleetctl` (macOS, Windows, & Linux)
+ 
+</td><td>pass/fail</td></tr>
+
+
 <tr><td>Certificates Upload</td><td>APNs cert and ABM token renewal workflow</td><td>
 
 1. Renew APNs Certificate.

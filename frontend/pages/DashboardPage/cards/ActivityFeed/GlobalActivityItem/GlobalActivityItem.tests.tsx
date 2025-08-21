@@ -1027,7 +1027,7 @@ describe("Activity Feed", () => {
       type: ActivityType.MdmEnrolled,
       details: {
         host_display_name: "Test Host",
-        personal_host: true,
+        enrollment_id: "test-enrollment-id",
         mdm_platform: "apple",
       },
     });

@@ -18,6 +18,10 @@ import {
 } from "interfaces/software";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import CustomLink from "components/CustomLink";
+
 /**
  * helper function to generate error message for secret variables based
  * on the error reason.
@@ -169,7 +173,13 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
 export const SELF_SERVICE_TOOLTIP = (
   <>
     End users can install from <br />
-    <b>Fleet Desktop</b> &gt; <b>Self-service</b>.
+    <b>Fleet Desktop</b> &gt; <b>Self-service</b>. <br />
+    <CustomLink
+      newTab
+      text="Learn more"
+      variant="tooltip-link"
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
+    />
   </>
 );
 
