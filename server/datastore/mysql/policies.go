@@ -589,10 +589,10 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		return err
 	}
 
-	// ds.UpdateHostIssuesFailingPolicies should be executed even if len(results) == 0
+	// ds.UpdateHostIssuesFailingPoliciesForSingleHost should be executed even if len(results) == 0
 	// because this means the host is configured to run no policies and we would like
 	// to cleanup the counts (if any).
-	if err := ds.UpdateHostIssuesFailingPolicies(ctx, []uint{host.ID}); err != nil {
+	if err := ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID); err != nil {
 		return err
 	}
 
@@ -1427,16 +1427,13 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 	})
 }
 
-func deleteAllPolicyMemberships(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
-	query, args, err := sqlx.In(`DELETE FROM policy_membership WHERE host_id IN (?)`, hostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building query to delete policies")
-	}
-	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+func deleteAllPolicyMemberships(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
+	query := `DELETE FROM policy_membership WHERE host_id = ?`
+	if _, err := tx.ExecContext(ctx, query, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec delete policies")
 	}
-	// This method is currently only called for 1 host at a time, so it is not a performance concern.
-	if err = updateHostIssuesFailingPolicies(ctx, tx, hostIDs); err != nil {
+	// Use the single host method for better performance and no unnecessary locking
+	if err := updateHostIssuesFailingPoliciesForSingleHost(ctx, tx, hostID); err != nil {
 		return err
 	}
 	return nil

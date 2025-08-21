@@ -2333,7 +2333,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnro
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
 			}
 
-			if err := deleteAllPolicyMemberships(ctx, tx, []uint{enrolledHostInfo.ID}); err != nil {
+			if err := deleteAllPolicyMemberships(ctx, tx, enrolledHostInfo.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleanup policy membership on re-enroll")
 			}
 
@@ -5715,30 +5715,35 @@ func (ds *Datastore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) 
 }
 
 func (ds *Datastore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return updateHostIssuesFailingPolicies(ctx, tx, hostIDs)
+	})
+}
+
+func (ds *Datastore) UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error {
 	var tx sqlx.ExecerContext = ds.writer(ctx)
-	return updateHostIssuesFailingPolicies(ctx, tx, hostIDs)
+	return updateHostIssuesFailingPoliciesForSingleHost(ctx, tx, hostID)
+}
+
+func updateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, tx sqlx.ExecerContext, hostID uint) error {
+	stmt := `
+	INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
+	SELECT host_id.id, COALESCE(SUM(!pm.passes), 0), COALESCE(SUM(!pm.passes), 0)
+		FROM policy_membership pm
+		RIGHT JOIN (SELECT ? as id) as host_id
+		ON pm.host_id = host_id.id
+		GROUP BY host_id.id
+	ON DUPLICATE KEY UPDATE
+		failing_policies_count = VALUES(failing_policies_count),
+		total_issues_count = VALUES(failing_policies_count) + critical_vulnerabilities_count`
+	if _, err := tx.ExecContext(ctx, stmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating failing policies in host issues for one host")
+	}
+	return nil
 }
 
 func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext, hostIDs []uint) error {
 	if len(hostIDs) == 0 {
-		return nil
-	}
-
-	// For 1 host, we use a single statement to update the host_issues entry.
-	if len(hostIDs) == 1 {
-		stmt := `
-		INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
-		SELECT host_id.id, COALESCE(SUM(!pm.passes), 0), COALESCE(SUM(!pm.passes), 0)
-			FROM policy_membership pm
-			RIGHT JOIN (SELECT ? as id) as host_id
-			ON pm.host_id = host_id.id
-			GROUP BY host_id.id
-		ON DUPLICATE KEY UPDATE
-			failing_policies_count = VALUES(failing_policies_count),
-			total_issues_count = VALUES(failing_policies_count) + critical_vulnerabilities_count`
-		if _, err := tx.ExecContext(ctx, stmt, hostIDs[0]); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating failing policies in host issues for one host")
-		}
 		return nil
 	}
 
