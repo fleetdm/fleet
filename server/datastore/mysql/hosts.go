@@ -5729,7 +5729,7 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 		stmt := `
 		INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
 		SELECT host_id.id, COALESCE(SUM(!pm.passes), 0), COALESCE(SUM(!pm.passes), 0)
-			FROM policy_membership pm
+			FROM policy_membership pm FOR UPDATE
 			RIGHT JOIN (SELECT ? as id) as host_id
 			ON pm.host_id = host_id.id
 			GROUP BY host_id.id
@@ -5743,23 +5743,27 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 	}
 
 	// Clear host_issues entries for hosts that are not in policy_membership
+	// Use FOR UPDATE to acquire exclusive locks on policy_membership rows early in the transaction.
+	// This prevents deadlocks by ensuring consistent lock ordering - all transactions that need
+	// to validate and update policy membership will wait in line rather than creating circular dependencies.
 	clearStmt := `
 	UPDATE host_issues
 	SET failing_policies_count = 0, total_issues_count = critical_vulnerabilities_count
 	WHERE host_id NOT IN (
 		SELECT host_id
 		FROM policy_membership
-		WHERE host_id IN (?)
+		WHERE host_id IN (?) FOR UPDATE
 	) AND host_id IN (?)`
 
 	// Insert/update host_issues entries for hosts that are in policy_membership.
 	// Initially, these two statements were combined into one statement using `SELECT ? AS id UNION ALL` approach to include the host IDs that
 	// were not in policy_membership (similar how the above query for 1 host works). However, in load testing we saw an error: Thread stack overrun: 242191 bytes used of a 262144 byte stack
+	// Use FOR UPDATE to maintain consistent lock ordering with the clearStmt above.
 	insertStmt := `
 	INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
 	SELECT pm.host_id, COALESCE(SUM(!pm.passes), 0), COALESCE(SUM(!pm.passes), 0)
 		FROM policy_membership pm
-		WHERE pm.host_id IN (?)
+		WHERE pm.host_id IN (?) FOR UPDATE
 		GROUP BY pm.host_id
 	ON DUPLICATE KEY UPDATE
 		failing_policies_count = VALUES(failing_policies_count),
