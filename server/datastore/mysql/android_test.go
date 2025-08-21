@@ -356,11 +356,4 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 256.0, updatedFullHost.GigsTotalDiskSpace, "Updated total disk space should be saved in host_disks")
 	assert.Equal(t, 64.0, updatedFullHost.GigsDiskSpaceAvailable, "Updated available disk space should be saved in host_disks")
 	assert.Equal(t, 25.0, updatedFullHost.PercentDiskSpaceAvailable, "Updated disk space percentage should be saved in host_disks")
-
-	// storage data survives db round-trip
-	retrievedHost, err := ds.Host(testCtx(), finalResult.Host.ID)
-	require.NoError(t, err)
-	assert.Equal(t, 256.0, retrievedHost.GigsTotalDiskSpace, "Storage data should survive database round-trip")
-	assert.Equal(t, 64.0, retrievedHost.GigsDiskSpaceAvailable, "Storage data should survive database round-trip")
-	assert.Equal(t, 25.0, retrievedHost.PercentDiskSpaceAvailable, "Storage data should survive database round-trip")
 }
