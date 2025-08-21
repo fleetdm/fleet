@@ -36,8 +36,8 @@ func TestGetCertificateAuthorityByID(t *testing.T) {
 			require.False(t, includeSecrets, "includeSecrets should be false - the API should never return the secrets")
 			return &fleet.CertificateAuthority{
 				ID:                            1,
-				Name:                          "Test CA",
-				URL:                           "https://example.com",
+				Name:                          ptr.String("Test CA"),
+				URL:                           ptr.String("https://example.com"),
 				Type:                          string(fleet.CATypeDigiCert),
 				APIToken:                      ptr.String(fleet.MaskedPassword),
 				ProfileID:                     ptr.String("digicert-profile-id"),

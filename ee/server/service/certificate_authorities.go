@@ -65,12 +65,12 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 			return nil, err
 		}
 		caToCreate.Type = string(fleet.CATypeDigiCert)
-		caToCreate.Name = p.DigiCert.Name
-		caToCreate.URL = p.DigiCert.URL
+		caToCreate.Name = &p.DigiCert.Name
+		caToCreate.URL = &p.DigiCert.URL
 		caToCreate.APIToken = &p.DigiCert.APIToken
 		caToCreate.ProfileID = ptr.String(p.DigiCert.ProfileID)
 		caToCreate.CertificateCommonName = &p.DigiCert.CertificateCommonName
-		caToCreate.CertificateUserPrincipalNames = p.DigiCert.CertificateUserPrincipalNames
+		caToCreate.CertificateUserPrincipalNames = &p.DigiCert.CertificateUserPrincipalNames
 		caToCreate.CertificateSeatID = &p.DigiCert.CertificateSeatID
 		caDisplayType = "DigiCert"
 		activity = fleet.ActivityAddedDigiCert{Name: p.DigiCert.Name}
@@ -84,8 +84,8 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		}
 
 		caToCreate.Type = string(fleet.CATypeHydrant)
-		caToCreate.Name = p.Hydrant.Name
-		caToCreate.URL = p.Hydrant.URL
+		caToCreate.Name = &p.Hydrant.Name
+		caToCreate.URL = &p.Hydrant.URL
 		caToCreate.ClientID = &p.Hydrant.ClientID
 		caToCreate.ClientSecret = &p.Hydrant.ClientSecret
 		caDisplayType = "Hydrant"
@@ -100,9 +100,9 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 			return nil, err
 		}
 
-		caToCreate.Name = "NDES"
+		caToCreate.Name = ptr.String("NDES")
 		caToCreate.Type = string(fleet.CATypeNDESSCEPProxy)
-		caToCreate.URL = p.NDESSCEPProxy.URL
+		caToCreate.URL = &p.NDESSCEPProxy.URL
 		caToCreate.AdminURL = ptr.String(p.NDESSCEPProxy.AdminURL)
 		caToCreate.Username = ptr.String(p.NDESSCEPProxy.Username)
 		caToCreate.Password = &p.NDESSCEPProxy.Password
@@ -119,8 +119,8 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		}
 
 		caToCreate.Type = string(fleet.CATypeCustomSCEPProxy)
-		caToCreate.Name = p.CustomSCEPProxy.Name
-		caToCreate.URL = p.CustomSCEPProxy.URL
+		caToCreate.Name = &p.CustomSCEPProxy.Name
+		caToCreate.URL = &p.CustomSCEPProxy.URL
 		caToCreate.Challenge = &p.CustomSCEPProxy.Challenge
 		caDisplayType = "custom SCEP"
 		activity = fleet.ActivityAddedCustomSCEPProxy{Name: p.CustomSCEPProxy.Name}
@@ -407,7 +407,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		return err
 	}
 
-	// caToUpdate := fleet.CertificateAuthority{}
+	caToUpdate := fleet.CertificateAuthority{}
 
 	if p.DigiCertCAUpdatePayload != nil {
 		if err := p.DigiCertCAUpdatePayload.ValidateRelatedFields(errPrefix); err != nil {
@@ -417,14 +417,15 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		if err := svc.validateDigicertUpdate(p.DigiCertCAUpdatePayload, errPrefix); err != nil {
 			return err
 		}
-		// caToUpdate.Type = string(fleet.CATypeDigiCert)
-		// caToUpdate.Name = p.DigiCertCAUpdatePayload.Name
-		// caToUpdate.URL = p.DigiCertCAUpdatePayload.URL
-		// caToUpdate.APIToken = &p.DigiCertCAUpdatePayload.APIToken
-		// caToUpdate.ProfileID = ptr.String(p.DigiCertCAUpdatePayload.ProfileID)
-		// caToUpdate.CertificateCommonName = &p.DigiCertCAUpdatePayload.CertificateCommonName
-		// caToUpdate.CertificateUserPrincipalNames = p.DigiCertCAUpdatePayload.CertificateUserPrincipalNames
-		// caToUpdate.CertificateSeatID = &p.DigiCertCAUpdatePayload.CertificateSeatID
+		fmt.Printf("payload: %+v\n", p.DigiCertCAUpdatePayload)
+		caToUpdate.Type = string(fleet.CATypeDigiCert)
+		caToUpdate.Name = p.DigiCertCAUpdatePayload.Name
+		caToUpdate.URL = p.DigiCertCAUpdatePayload.URL
+		caToUpdate.APIToken = p.DigiCertCAUpdatePayload.APIToken
+		caToUpdate.ProfileID = p.DigiCertCAUpdatePayload.ProfileID
+		caToUpdate.CertificateCommonName = p.DigiCertCAUpdatePayload.CertificateCommonName
+		caToUpdate.CertificateUserPrincipalNames = p.DigiCertCAUpdatePayload.CertificateUserPrincipalNames
+		caToUpdate.CertificateSeatID = p.DigiCertCAUpdatePayload.CertificateSeatID
 
 	}
 	if p.HydrantCAUpdatePayload != nil {
@@ -435,6 +436,11 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		if err := svc.validateHydrantUpdate(p.HydrantCAUpdatePayload, errPrefix); err != nil {
 			return err
 		}
+		caToUpdate.Type = string(fleet.CATypeHydrant)
+		caToUpdate.Name = p.HydrantCAUpdatePayload.Name
+		caToUpdate.URL = p.HydrantCAUpdatePayload.URL
+		caToUpdate.ClientID = p.HydrantCAUpdatePayload.ClientID
+		caToUpdate.ClientSecret = p.HydrantCAUpdatePayload.ClientSecret
 	}
 	if p.NDESSCEPProxyCAUpdatePayload != nil {
 		if err := p.NDESSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix); err != nil {
@@ -444,6 +450,11 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		if err := svc.validateNDESSCEPProxyUpdate(ctx, p.NDESSCEPProxyCAUpdatePayload, errPrefix); err != nil {
 			return err
 		}
+		caToUpdate.Type = string(fleet.CATypeNDESSCEPProxy)
+		caToUpdate.URL = p.NDESSCEPProxyCAUpdatePayload.URL
+		caToUpdate.AdminURL = p.NDESSCEPProxyCAUpdatePayload.AdminURL
+		caToUpdate.Username = p.NDESSCEPProxyCAUpdatePayload.Username
+		caToUpdate.Password = p.NDESSCEPProxyCAUpdatePayload.Password
 	}
 	if p.CustomSCEPProxyCAUpdatePayload != nil {
 		if err := p.CustomSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix); err != nil {
@@ -453,18 +464,16 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		if err := svc.validateCustomSCEPProxyUpdate(ctx, p.CustomSCEPProxyCAUpdatePayload, errPrefix); err != nil {
 			return err
 		}
+		caToUpdate.Type = string(fleet.CATypeCustomSCEPProxy)
+		caToUpdate.Name = p.CustomSCEPProxyCAUpdatePayload.Name
+		caToUpdate.URL = p.CustomSCEPProxyCAUpdatePayload.URL
+		caToUpdate.Challenge = p.CustomSCEPProxyCAUpdatePayload.Challenge
 	}
 
-	// p.DigiCert.Preprocess()
-	// fmt.Printf("stuct: %+v", p.DigiCert)
-	// caToUpdate.Type = string(fleet.CATypeDigiCert)
-	// caToUpdate.Name = p.DigiCert.Name
-	// caToUpdate.URL = p.DigiCert.URL
-	// caToUpdate.APIToken = &p.DigiCert.APIToken
-	// caToUpdate.ProfileID = ptr.String(p.DigiCert.ProfileID)
-	// caToUpdate.CertificateCommonName = &p.DigiCert.CertificateCommonName
-	// caToUpdate.CertificateUserPrincipalNames = p.DigiCert.CertificateUserPrincipalNames
-	// caToUpdate.CertificateSeatID = &p.DigiCert.CertificateSeatID
+	_, err := svc.ds.UpdateCertificateAuthorityByID(ctx, id, &caToUpdate)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

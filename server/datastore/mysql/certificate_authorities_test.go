@@ -146,8 +146,8 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	digicertCA1 := &fleet.CertificateAuthority{
-		Name:                          "Test Digicert CA",
-		URL:                           "https://digicert1.example.com",
+		Name:                          ptr.String("Test Digicert CA"),
+		URL:                           ptr.String("https://digicert1.example.com"),
 		Type:                          string(fleet.CATypeDigiCert),
 		APIToken:                      ptr.String("test-api-token"),
 		ProfileID:                     ptr.String("test-profile-id"),
@@ -157,27 +157,27 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 	}
 
 	digicertCA2 := &fleet.CertificateAuthority{
-		Name:                          "Test Digicert CA 2",
-		URL:                           "https://digicert2.example.com",
+		Name:                          ptr.String("Test Digicert CA 2"),
+		URL:                           ptr.String("https://digicert2.example.com"),
 		Type:                          string(fleet.CATypeDigiCert),
 		APIToken:                      ptr.String("test-api-token2"),
 		ProfileID:                     ptr.String("test-profile-id2"),
 		CertificateCommonName:         ptr.String("test-common-name2 $FLEET_VAR_HOST_HARDWARE_SERIAL"),
-		CertificateUserPrincipalNames: []string{"test-upn2 $FLEET_VAR_HOST_HARDWARE_SERIAL"},
+		CertificateUserPrincipalNames: &[]string{"test-upn2 $FLEET_VAR_HOST_HARDWARE_SERIAL"},
 		CertificateSeatID:             ptr.String("test-seat-id2"),
 	}
 
 	hydrantCA1 := &fleet.CertificateAuthority{
-		Name:         "Hydrant CA",
-		URL:          "https://hydrant1.example.com",
+		Name:         ptr.String("Hydrant CA"),
+		URL:          ptr.String("https://hydrant1.example.com"),
 		Type:         string(fleet.CATypeHydrant),
 		ClientID:     ptr.String("hydrant-client-id"),
 		ClientSecret: ptr.String("hydrant-client-secret"),
 	}
 
 	hydrantCA2 := &fleet.CertificateAuthority{
-		Name:         "Hydrant CA 2",
-		URL:          "https://hydrant2.example.com",
+		Name:         ptr.String("Hydrant CA 2"),
+		URL:          ptr.String("https://hydrant2.example.com"),
 		Type:         string(fleet.CATypeHydrant),
 		ClientID:     ptr.String("hydrant-client-id2"),
 		ClientSecret: ptr.String("hydrant-client-secret2"),
@@ -185,22 +185,22 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 
 	// Custom SCEP CAs
 	customSCEPCA1 := &fleet.CertificateAuthority{
-		Name:      "Custom SCEP CA",
-		URL:       "https://custom-scep.example.com",
+		Name:      ptr.String("Custom SCEP CA"),
+		URL:       ptr.String("https://custom-scep.example.com"),
 		Type:      string(fleet.CATypeCustomSCEPProxy),
 		Challenge: ptr.String("custom-scep-challenge"),
 	}
 	customSCEPCA2 := &fleet.CertificateAuthority{
-		Name:      "Custom SCEP CA 2",
-		URL:       "https://custom-scep2.example.com",
+		Name:      ptr.String("Custom SCEP CA 2"),
+		URL:       ptr.String("https://custom-scep2.example.com"),
 		Type:      string(fleet.CATypeCustomSCEPProxy),
 		Challenge: ptr.String("custom-scep-challenge2"),
 	}
 
 	// NDES CA
 	ndesCA := &fleet.CertificateAuthority{
-		Name:     "NDES",
-		URL:      "https://ndes.example.com",
+		Name:     ptr.String("NDES"),
+		URL:      ptr.String("https://ndes.example.com"),
 		AdminURL: ptr.String("https://ndes-admin.example.com"),
 		Type:     string(fleet.CATypeNDESSCEPProxy),
 		Username: ptr.String("ndes-username"),

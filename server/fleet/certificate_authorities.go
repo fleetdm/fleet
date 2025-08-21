@@ -44,15 +44,15 @@ type CertificateAuthority struct {
 	Type string `json:"type" db:"type"`
 
 	// common
-	Name string `json:"name" db:"name"`
-	URL  string `json:"url" db:"url"`
+	Name *string `json:"name" db:"name"`
+	URL  *string `json:"url" db:"url"`
 
 	// Digicert
-	APIToken                      *string  `json:"api_token,omitempty" db:"-"`
-	ProfileID                     *string  `json:"profile_id,omitempty" db:"profile_id"`
-	CertificateCommonName         *string  `json:"certificate_common_name,omitempty" db:"certificate_common_name"`
-	CertificateUserPrincipalNames []string `json:"certificate_user_principal_names,omitempty" db:"-"`
-	CertificateSeatID             *string  `json:"certificate_seat_id,omitempty" db:"certificate_seat_id"`
+	APIToken                      *string   `json:"api_token,omitempty" db:"-"`
+	ProfileID                     *string   `json:"profile_id,omitempty" db:"profile_id"`
+	CertificateCommonName         *string   `json:"certificate_common_name,omitempty" db:"certificate_common_name"`
+	CertificateUserPrincipalNames *[]string `json:"certificate_user_principal_names,omitempty" db:"-"`
+	CertificateSeatID             *string   `json:"certificate_seat_id,omitempty" db:"certificate_seat_id"`
 
 	// NDES SCEP Proxy
 	AdminURL *string `json:"admin_url,omitempty" db:"admin_url"`
@@ -76,40 +76,6 @@ type CertificateAuthorityPayload struct {
 	CustomSCEPProxy *CustomSCEPProxyCA `json:"custom_scep_proxy,omitempty"`
 	Hydrant         *HydrantCA         `json:"hydrant,omitempty"`
 }
-
-// func (cap *CertificateAuthorityPayload) ValidatePayload(svc *Service, errPrefix string) error {
-// 	casToCreate := 0
-// 	if cap.DigiCert != nil {
-// 		casToCreate++
-// 	}
-// 	if cap.Hydrant != nil {
-// 		casToCreate++
-// 	}
-// 	if cap.NDESSCEPProxy != nil {
-// 		casToCreate++
-// 	}
-// 	if cap.CustomSCEPProxy != nil {
-// 		casToCreate++
-// 	}
-// 	if casToCreate == 0 {
-// 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sA certificate authority must be specified", errPrefix)}
-// 	}
-// 	if casToCreate > 1 {
-// 		// handle showing this error only for create and update at the moment. If more cases are needed then we
-// 		// should probably pass in the verb instead of checking the errPrefix
-// 		var verb string
-// 		if strings.Contains(errPrefix, "create") {
-// 			verb = "created"
-// 		}
-// 		verb = "updated"
-// 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sOnly one certificate authority can be %s at a time", errPrefix, verb)}
-// 	}
-//
-// if len(*svc.config.Server.PrivateKey) == 0 {
-// 	return &fleet.BadRequestError{Message: fmt.Sprintf("%sPrivate key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key", errPrefix)}
-// }
-// 	return nil
-// }
 
 // If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
 type DigiCertCA struct {
@@ -282,6 +248,8 @@ type NDESSCEPProxyCAUpdatePayload struct {
 	Password *string `json:"password"`
 }
 
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the Admin URL is provided then the Password must also be provided.
 func (ndesp *NDESSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
 	if ndesp.AdminURL != nil && ndesp.Password == nil {
 		return &BadRequestError{Message: fmt.Sprintf("%sPassword must be provided when Admin URL is set.", errPrefix)}
@@ -310,6 +278,8 @@ type CustomSCEPProxyCAUpdatePayload struct {
 	Challenge *string `json:"challenge"`
 }
 
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the Name is provided then the Challenge must also be provided.
 func (cscepp *CustomSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
 	if cscepp.Name != nil && cscepp.Challenge == nil {
 		return &BadRequestError{Message: fmt.Sprintf("%sChallenge must be provided when Name is set.", errPrefix)}
@@ -336,6 +306,8 @@ type HydrantCAUpdatePayload struct {
 	ClientSecret *string `json:"client_secret"`
 }
 
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the Name is provided then the Client ID and Client Secret must also be provided
 func (hp *HydrantCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
 	if hp.Name != nil && (hp.ClientID == nil || hp.ClientSecret == nil) {
 		return &BadRequestError{Message: fmt.Sprintf("%sClient ID and Client Secret must be provided when Name is set.", errPrefix)}

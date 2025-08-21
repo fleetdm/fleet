@@ -81,7 +81,7 @@ func createCertificateAuthorityEndpoint(ctx context.Context, request interface{}
 		return createCertificateAuthorityResponse{Err: err}, nil
 	}
 
-	return createCertificateAuthorityResponse{ID: ca.ID, Name: ca.Name, Type: fleet.CAType(ca.Type)}, nil
+	return createCertificateAuthorityResponse{ID: ca.ID, Name: *ca.Name, Type: fleet.CAType(ca.Type)}, nil
 }
 
 func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.CertificateAuthorityPayload) (*fleet.CertificateAuthority, error) {

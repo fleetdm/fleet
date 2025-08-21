@@ -173,15 +173,6 @@ func (ds *Datastore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.C
 	return cas, nil
 }
 
-func (ds *Datastore) GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-	allCertificateAuthorities, err := ds.GetAllCertificateAuthorities(ctx, includeSecrets)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting all certificates for grouping")
-	}
-
-	return fleet.GroupCertificateAuthoritiesByType(allCertificateAuthorities)
-}
-
 // Create CA. MUST include secrets
 func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
 	var upns []byte
@@ -191,7 +182,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	var encryptedClientSecret []byte
 	var err error
 	if ca.CertificateUserPrincipalNames != nil {
-		upns, err = json.Marshal(*ca.CertificateUserPrincipalNames)
+		upns, err = json.Marshal(ca.CertificateUserPrincipalNames)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for new certificate authority")
 		}
@@ -304,14 +295,12 @@ func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificate
 }
 
 func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certificateAuthorityID uint, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
-	var updateArgs []any
+	var args []interface{}
 
-	setStmt, err := ds.generateUpdateQueryWithArgs(ctx, ca, &updateArgs)
+	setStmt, err := ds.generateUpdateQueryWithArgs(ctx, ca, &args)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating update query for certificate authority")
 	}
-	updateArgs = append(updateArgs, certificateAuthorityID)
-
 	stmt := fmt.Sprintf(`
 	UPDATE certificate_authorities
 	%s
@@ -320,31 +309,13 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 
 	fmt.Println("Update query:", stmt)
 	fmt.Println("query bits:", setStmt)
-	fmt.Printf("query args: %v\n", updateArgs)
 
-	// rows := ds.writer(ctx).QueryRowContext(ctx, stmt, updateArgs...)
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, updateArgs...)
-
-	fmt.Println("Query executed")
-
-	var updatedCA fleet.CertificateAuthority
-	if err != nil {
-		fmt.Printf("Error executing query: %v\n", err)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
-		}
-		return nil, ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
-	}
-
-	fmt.Println("Update successful")
-	fmt.Printf("updatedCA: %+v\n", updatedCA)
-
-	return &updatedCA, nil
+	return nil, nil
 }
 
-// generateUpdateQuery generates the SQL update query for a Certificate Authority based on the provided fields
+// generateUpdateQuery generates the SQL update query for a Certificate Authority based on the provided type and fields
 // and will also return the arguments to be used in the query.
-func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.CertificateAuthority, args *[]any) (string, error) {
+func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.CertificateAuthority, args *[]interface{}) (string, error) {
 	updates := []string{}
 	switch ca.Type {
 	case string(fleet.CATypeDigiCert):
@@ -374,7 +345,7 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		}
 		if ca.CertificateUserPrincipalNames != nil {
 			updates = append(updates, "certificate_user_principal_names = ?")
-			upns, err := json.Marshal(*ca.CertificateUserPrincipalNames)
+			upns, err := json.Marshal(ca.CertificateUserPrincipalNames)
 			if err != nil {
 				return "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for updating certificate authority")
 			}
