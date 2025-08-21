@@ -1085,9 +1085,12 @@ SELECT
     h.id,
     h.hostname as display_name,
     '%s' as status,
-    hsr.created_at as created_at,
+	CASE
+		WHEN '%s' != 'pending' THEN COALESCE(hsr.updated_at, '')
+		ELSE ''
+	END as updated_at,
     COALESCE(LEFT(hsr.output, 100), '') as output,
-	COALESCE(hsr.execution_id, '') as execution_id
+	'%s' as execution_id
 FROM
     hosts h
 	%s
@@ -1108,7 +1111,7 @@ WHERE
 	}
 
 	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt)
-	sqlStmt = fmt.Sprintf(sqlStmt, batchScriptExecutionStatus, batchScriptExecutionJoin, batchScriptExecutionFilter)
+	sqlStmt = fmt.Sprintf(sqlStmt, batchScriptExecutionStatus, batchScriptExecutionStatus, batchScriptExecutionID, batchScriptExecutionJoin, batchScriptExecutionFilter)
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sqlStmt, whereParams...); err != nil {
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch script hosts")

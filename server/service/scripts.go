@@ -1327,6 +1327,11 @@ func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchEx
 		return nil, nil, 0, err
 	}
 
+	// Validate the supplied batch execution status.
+	if !status.IsValid() {
+		return nil, nil, 0, fleet.NewInvalidArgumentError("batch_execution_status", "invalid batch execution status")
+	}
+
 	// Always include pagination info.
 	opt.IncludeMetadata = true
 	// Default sort order is name ascending.

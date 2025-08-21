@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"bufio"
-	"database/sql"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -292,9 +291,9 @@ type BatchScriptHost struct {
 	ScriptExecutionID string `json:"script_execution_id" db:"execution_id"`
 	// Output is the combined stdout/stderr output of the script. It is empty
 	// if no result was received yet.
-	ScriptOutput string `json:"script_output_preview" db:"output"`
+	ScriptOutput string `json:"script_output_preview,omitempty" db:"output"`
 	// Executed at is the time the script was executed on the host (if at all).
-	ScriptExecutedAt sql.NullTime `json:"script_executed_at" db:"created_at"`
+	ScriptExecutedAt string `json:"script_executed_at,omitempty" db:"updated_at"`
 	// Status is the status of the host's batch script run.
 	Status BatchScriptExecutionStatus `json:"script_status" db:"status"`
 }
