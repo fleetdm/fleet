@@ -19,9 +19,10 @@ import SelfService, { ISoftwareSelfServiceProps } from "./SelfService";
  */
 const getMoreDropdown = () => {
   const combos = screen.getAllByRole("combobox");
-  const moreDropdown = combos.find((combo) =>
-    combo.parentElement?.textContent.match(/more/i)
-  );
+  const moreDropdown = combos.find((combo) => {
+    const parentText = combo.parentElement && combo.parentElement.textContent;
+    return !!parentText && /more/i.test(parentText);
+  });
   if (!moreDropdown) {
     throw new Error("Could not find the More actions dropdown");
   }
