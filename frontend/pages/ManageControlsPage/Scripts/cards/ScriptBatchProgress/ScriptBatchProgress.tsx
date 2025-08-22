@@ -329,6 +329,7 @@ const ScriptBatchProgress = ({
           scriptBatchExecutionDetails={{ ...batchDetailsForSummary }}
           onCancel={() => {
             setShowBatchDetailsForSummary(null);
+            handleTabChange(2);
           }}
           router={router}
         />
