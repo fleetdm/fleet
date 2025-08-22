@@ -260,6 +260,7 @@ func ExpandEnvBytesIgnoreSecrets(b []byte) ([]byte, error) {
 // ExpandEnvBytesIncludingSecrets expands environment variables including FLEET_SECRET_ variables.
 // This should only be used for client-side validation where the actual secrets are needed temporarily.
 // The expanded secrets are never sent to the server.
+// Missing FLEET_SECRET_ variables do not fail the method; they are just not expanded.
 func ExpandEnvBytesIncludingSecrets(b []byte) ([]byte, error) {
 	s, err := expandEnv(string(b), secretsExpand)
 	if err != nil {
