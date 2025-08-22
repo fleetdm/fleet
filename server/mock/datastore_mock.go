@@ -763,8 +763,6 @@ type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
 
-type NewJobTxFunc func(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error)
-
 type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error)
 
 type GetFilteredQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error)
@@ -2591,9 +2589,6 @@ type DataStore struct {
 
 	NewJobFunc        NewJobFunc
 	NewJobFuncInvoked bool
-
-	NewJobTxFunc        NewJobTxFunc
-	NewJobTxFuncInvoked bool
 
 	GetQueuedJobsFunc        GetQueuedJobsFunc
 	GetQueuedJobsFuncInvoked bool
@@ -6260,13 +6255,6 @@ func (s *DataStore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, err
 	s.NewJobFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewJobFunc(ctx, job)
-}
-
-func (s *DataStore) NewJobTx(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error) {
-	s.mu.Lock()
-	s.NewJobTxFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewJobTxFunc(ctx, tx, job)
 }
 
 func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
