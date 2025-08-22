@@ -93,9 +93,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	<key>PayloadContent</key>
 	<array/>
 	<key>PayloadDisplayName</key>
-	<string>$FLEET_SECRET_INVALID</string>
+	<string>My profile</string>
 	<key>PayloadIdentifier</key>
-	<string>N3</string>
+	<string>$FLEET_SECRET_INVALID</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
@@ -109,6 +109,31 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{invalidSecretsProfile}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
+
+	invalidSecretsProfile = []byte(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>$FLEET_SECRET_INVALID</string>
+	<key>PayloadIdentifier</key>
+	<string>N3</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>601E0B42-0989-4FAD-A61B-18656BA3670E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`)
+
+	res = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{invalidSecretsProfile}}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "PayloadDisplayName cannot contain FLEET_SECRET variables")
 
 	// create a new team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
@@ -204,7 +229,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// Use secret variables in a profile
 	secretIdentifier := "secret-identifier-1"
 	secretType := "secret.type.1"
-	secretName := "secretName"
 	secretProfile := string(mobileconfigForTest("NS1", "IS1"))
 	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
@@ -215,10 +239,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 			{
 				Name:  "FLEET_SECRET_TYPE",
 				Value: secretType,
-			},
-			{
-				Name:  "FLEET_SECRET_NAME",
-				Value: secretName,
 			},
 			{
 				Name:  "FLEET_SECRET_PROFILE",
@@ -233,7 +253,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	teamProfiles = [][]byte{
 		mobileconfigForTest("N4", "I4"),
 		mobileconfigForTestWithContent("N5", "I5", "$FLEET_SECRET_IDENTIFIER", "${FLEET_SECRET_TYPE}",
-			"$FLEET_SECRET_NAME"),
+			"InnerName5"),
 		// The whole profile is one big secret.
 		[]byte("$FLEET_SECRET_PROFILE"),
 	}
@@ -253,7 +273,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// Manually replace the expected secret variables in the profile
 	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "$FLEET_SECRET_IDENTIFIER", secretIdentifier))
 	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "${FLEET_SECRET_TYPE}", secretType))
-	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "$FLEET_SECRET_NAME", secretName))
 	wantTeamProfiles[2] = []byte(secretProfile)
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfiles, installs)
@@ -272,12 +291,16 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Empty(t, removes)
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
-	secretName = "newSecretName"
+	secretType = "new.secret.type.1"
 	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
-				Name:  "FLEET_SECRET_NAME",
-				Value: secretName, // changed
+				Name:  "FLEET_SECRET_IDENTIFIER",
+				Value: secretIdentifier, // did not change
+			},
+			{
+				Name:  "FLEET_SECRET_TYPE",
+				Value: secretType, // changed
 			},
 			{
 				Name:  "FLEET_SECRET_PROFILE",
@@ -297,7 +320,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_IDENTIFIER",
 		secretIdentifier))
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "${FLEET_SECRET_TYPE}", secretType))
-	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_NAME", secretName))
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfilesChanged, installs)
 	wantTeamProfiles[1] = wantTeamProfilesChanged[0]
@@ -343,12 +365,16 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Empty(t, removes)
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
-	secretName = "new2SecretName"
+	secretType = "new2.secret.type.1"
 	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
-				Name:  "FLEET_SECRET_NAME",
-				Value: secretName, // changed
+				Name:  "FLEET_SECRET_IDENTIFIER",
+				Value: secretIdentifier, // did not change
+			},
+			{
+				Name:  "FLEET_SECRET_TYPE",
+				Value: secretType, // changed
 			},
 			{
 				Name:  "FLEET_SECRET_PROFILE",
@@ -368,7 +394,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_IDENTIFIER",
 		secretIdentifier))
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "${FLEET_SECRET_TYPE}", secretType))
-	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_NAME", secretName))
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfilesChanged, installs)
 	wantTeamProfiles[1] = wantTeamProfilesChanged[0]

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"time"
@@ -2466,3 +2467,33 @@ func IsForeignKey(err error) bool {
 }
 
 type OptionalArg func() interface{}
+
+// SecretUsedError is returned when attempting to delete a variable that is in use in scripts or profiles.
+type SecretUsedError struct {
+	SecretName string
+	Entity     EntityUsingSecret
+}
+
+// Error implements the error interface.
+func (c *SecretUsedError) Error() string {
+	if c.Entity.Type == "script" {
+		return fmt.Sprintf(
+			"%s is used by the %q script in the %q team. Please edit or delete the script and try again.",
+			c.SecretName, c.Entity.Name, c.Entity.TeamName,
+		)
+	}
+	return fmt.Sprintf(
+		"%s is used by the %q configuration profile in the %q team. Please delete the configuration profile and try again.",
+		c.SecretName, c.Entity.Name, c.Entity.TeamName,
+	)
+}
+
+// EntityUsingSecret describes the entity using a secret variable.
+type EntityUsingSecret struct {
+	// Type is the entity type, "script", "apple_profile", "apple_declaration", or "windows_profile".
+	Type string
+	// Name is the name of the entity.
+	Name string
+	// TeamName is the name of the team the entity belongs to.
+	TeamName string
+}

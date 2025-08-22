@@ -10794,7 +10794,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		App: config.AppConfig{
 			EnableScheduledQueryStats: true,
 		},
-	}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	task := async.NewTask(s.ds, nil, clock.C, config.OsqueryConfig{})
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
@@ -10949,7 +10949,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 			"installed_path": "C:\\Program Files\\Wireshark",
 		},
 	}
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		log.NewNopLogger(),
@@ -11085,7 +11085,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	}
 	var w1 bytes.Buffer
 	logger1 := log.NewJSONLogger(&w1)
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger1,
@@ -11120,7 +11120,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 			"last_opened_at": "foobar",
 		},
 	}
-	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	var w2 bytes.Buffer
 	logger2 := log.NewJSONLogger(&w2)
 	err = detailQueries["software_windows"].DirectIngestFunc(
@@ -11160,7 +11160,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	}
 	var w3 bytes.Buffer
 	logger3 := log.NewJSONLogger(&w3)
-	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger3,
@@ -13520,6 +13520,104 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr)
 	require.Equal(t, 0, lsvr.Count)
 	require.Empty(t, lsvr.CustomVariables)
+}
+
+func (s *integrationTestSuite) TestSecretVariablesInUse() {
+	t := s.T()
+	ctx := context.Background()
+
+	foobarTeam, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "Foobar",
+	})
+	require.NoError(t, err)
+
+	// Create a single secret variable.
+	var csvr createSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME1",
+		Value: "value1",
+	}, http.StatusOK, &csvr)
+	firstVariableID := csvr.ID
+	require.NotZero(t, firstVariableID)
+
+	// Create Apple configuration profile in "No team" that uses the variable.
+	appleProfile, err := s.ds.NewMDMAppleConfigProfile(ctx,
+		fleet.MDMAppleConfigProfile{
+			Name:         "Name0",
+			Identifier:   "Identifier0",
+			Mobileconfig: []byte("$FLEET_SECRET_NAME1"),
+		},
+		nil,
+	)
+	require.NoError(t, err)
+
+	res := s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
+	errorMsg := extractServerErrorText(res.Body)
+	require.Contains(t,
+		errorMsg,
+		"Couldn't delete. NAME1 is used by the \"Name0\" configuration profile in the \"No team\" team. Please delete the configuration profile and try again.",
+	)
+
+	err = s.ds.DeleteMDMAppleConfigProfile(ctx, appleProfile.ProfileUUID)
+	require.NoError(t, err)
+
+	// Create Apple declaration in "Foobar" team that uses the variable.
+	appleDeclaration, err := s.ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "decl-1",
+		Name:       "decl-1",
+		RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_NAME1}"}`),
+		TeamID:     &foobarTeam.ID,
+	})
+	require.NoError(t, err)
+
+	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
+	errorMsg = extractServerErrorText(res.Body)
+	require.Contains(t,
+		errorMsg,
+		"Couldn't delete. NAME1 is used by the \"decl-1\" configuration profile in the \"Foobar\" team. Please delete the configuration profile and try again.",
+	)
+
+	err = s.ds.DeleteMDMAppleDeclaration(ctx, appleDeclaration.DeclarationUUID)
+	require.NoError(t, err)
+
+	// Create Windows profile in "Foobar" team that uses the variable.
+	windowsProfile, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "zoo",
+		TeamID: &foobarTeam.ID,
+		SyncML: []byte("<Replace>$FLEET_SECRET_NAME1</Replace>"),
+	}, nil)
+	require.NoError(t, err)
+
+	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
+	errorMsg = extractServerErrorText(res.Body)
+	require.Contains(t,
+		errorMsg,
+		"Couldn't delete. NAME1 is used by the \"zoo\" configuration profile in the \"Foobar\" team. Please delete the configuration profile and try again.",
+	)
+
+	err = s.ds.DeleteMDMWindowsConfigProfile(ctx, windowsProfile.ProfileUUID)
+	require.NoError(t, err)
+
+	// Create a script in "No team" that uses a variable
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "foobar.sh",
+		ScriptContents: "echo $FLEET_SECRET_NAME1",
+	})
+	require.NoError(t, err)
+
+	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
+	errorMsg = extractServerErrorText(res.Body)
+	require.Contains(t,
+		errorMsg,
+		"Couldn't delete. NAME1 is used by the \"foobar.sh\" script in the \"No team\" team. Please edit or delete the script and try again.",
+	)
+
+	err = s.ds.DeleteScript(ctx, script.ID)
+	require.NoError(t, err)
+
+	// Finally, delete now should work.
+	var dsvr deleteSecretVariableResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusOK, &dsvr)
 }
 
 func (s *integrationTestSuite) TestSecretVariablesPermissions() {

@@ -224,6 +224,36 @@ func TestLookupEnvSecrets(t *testing.T) {
 	}
 }
 
+// TestExpandEnvBytesIncludingSecrets tests that FLEET_SECRET_ variables are expanded when using ExpandEnvBytesIncludingSecrets
+func TestExpandEnvBytesIncludingSecrets(t *testing.T) {
+	t.Setenv("FLEET_SECRET_API_KEY", "secret123")
+	t.Setenv("NORMAL_VAR", "normalvalue")
+	t.Setenv("FLEET_VAR_HOST", "hostname")
+
+	input := []byte(`API Key: $FLEET_SECRET_API_KEY
+Normal: $NORMAL_VAR  
+Fleet Var: $FLEET_VAR_HOST
+Missing: $FLEET_SECRET_MISSING`)
+
+	result, err := ExpandEnvBytesIncludingSecrets(input)
+	require.NoError(t, err)
+
+	expected := `API Key: secret123
+Normal: normalvalue  
+Fleet Var: $FLEET_VAR_HOST
+Missing: $FLEET_SECRET_MISSING`
+
+	assert.Equal(t, expected, string(result))
+
+	// Verify that FLEET_VAR_ is not expanded (reserved for server)
+	assert.Contains(t, string(result), "$FLEET_VAR_HOST")
+	// Verify that FLEET_SECRET_ is expanded
+	assert.Contains(t, string(result), "secret123")
+	assert.NotContains(t, string(result), "$FLEET_SECRET_API_KEY")
+	// Verify that missing secrets are left as-is
+	assert.Contains(t, string(result), "$FLEET_SECRET_MISSING")
+}
+
 func TestGetExclusionZones(t *testing.T) {
 	testCases := []struct {
 		fixturePath []string
