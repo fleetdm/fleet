@@ -6338,7 +6338,7 @@ List software that can or will be automatically installed during macOS or Linux 
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | path  | query | **Required.** Platform to show compatible software for. Either `"macos"` or `"linux"`. |
+| platform | string  | path | **Required.** Platform to show compatible software for. Either `"macos"` or `"linux"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
