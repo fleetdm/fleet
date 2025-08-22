@@ -1138,15 +1138,6 @@ func printKeyValueTable(c *cli.Context, rows [][]string) {
 	table.Render()
 }
 
-func printTableWithXML(c *cli.Context, columns []string, data [][]string) {
-	table := defaultTable(c.App.Writer)
-	table.SetHeader(columns)
-	table.SetReflowDuringAutoWrap(false)
-	table.SetAutoWrapText(false)
-	table.AppendBulk(data)
-	table.Render()
-}
-
 func getTeamsJSONFlag() cli.Flag {
 	return &cli.BoolFlag{
 		Name:  jsonFlagName,
