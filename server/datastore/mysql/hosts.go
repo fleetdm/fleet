@@ -5748,6 +5748,10 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 		return nil
 	}
 
+	if len(hostIDs) == 1 {
+		return updateHostIssuesFailingPoliciesForSingleHost(ctx, tx, hostIDs[0])
+	}
+
 	// For multiple hosts, lock policy_membership rows first to prevent deadlocks
 	// ORDER BY ensures locks are acquired in consistent order (host_id, then policy_id)
 	lockPolicyStmt := `SELECT 1 FROM policy_membership WHERE host_id IN (?) ORDER BY host_id, policy_id FOR UPDATE`
