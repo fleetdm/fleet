@@ -6,6 +6,8 @@ import {
 } from "interfaces/script";
 import sendRequest from "services";
 
+import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
+
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 import { ListEntitiesMeta } from "./common";
@@ -149,8 +151,8 @@ export interface IScriptBatchSummaryV1 extends IScriptBatchHostCountsV1 {
 export interface IScriptBatchHostCountsV2 {
   targeted_host_count: number;
   ran_host_count: number;
-  pending_host_count: number;
   errored_host_count: number;
+  pending_host_count: number;
   incompatible_host_count: number;
   canceled_host_count: number;
 }
@@ -172,6 +174,7 @@ export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
   /** ISO 8601 date-time string. If present, this script has completed running. */
   finished_at: string | null;
 }
+
 export interface IScriptBatchSummariesParams {
   team_id: number;
   status: ScriptBatchStatus;
@@ -304,10 +307,12 @@ export default {
   getRunScriptBatchSummaryV2({
     batch_execution_id,
   }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryV2> {
-    return sendRequest(
-      "GET",
-      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY_V2(batch_execution_id)}`
-    );
+    // return sendRequest(
+    //   "GET",
+    //   `${endpoints.SCRIPT_RUN_BATCH_SUMMARY_V2(batch_execution_id)}`
+    // );
+    // TODO - remove
+    return Promise.resolve(createMockBatchScriptSummary({ canceled: true }));
   },
   getRunScriptBatchSummaries(
     params: IScriptBatchSummariesParams

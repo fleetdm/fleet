@@ -8,8 +8,6 @@ import scriptsAPI, { IScriptBatchSummaryV2 } from "services/entities/scripts";
 
 import { isValidScriptBatchStatus, ScriptBatchStatus } from "interfaces/script";
 
-import { isDateTimePast } from "utilities/helpers";
-
 import { COLORS } from "styles/var/colors";
 
 import Spinner from "components/Spinner";
@@ -18,7 +16,6 @@ import SectionHeader from "components/SectionHeader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import PaginatedList from "components/PaginatedList";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon/Icon";
 
 import ScriptBatchSummaryModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptBatchSummaryModal";
@@ -26,6 +23,7 @@ import { IScriptBatchDetailsForSummary } from "pages/DashboardPage/cards/Activit
 
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
 import { ScriptsLocation } from "../../Scripts";
+import getWhen from "../../helpers";
 
 const baseClass = "script-batch-progress";
 
@@ -134,73 +132,6 @@ const ScriptBatchProgress = ({
     });
     // return satisfies caller expectations, not used in this case
     return r;
-  };
-
-  const getWhen = (summary: IScriptBatchSummaryV2) => {
-    const {
-      batch_execution_id: id,
-      not_before,
-      started_at,
-      finished_at,
-      canceled,
-    } = summary;
-    switch (summary.status) {
-      case "started":
-        if (!started_at || !isDateTimePast(started_at)) {
-          console.warn(
-            `Batch run with execution id ${id} is marked as 'started' but has no past 'started_at'`
-          );
-          return null;
-        }
-        return (
-          <>
-            Started{" "}
-            <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={started_at}
-              tooltipPosition="right"
-            />
-          </>
-        );
-      case "scheduled":
-        if (!not_before || isDateTimePast(not_before)) {
-          console.warn(
-            `Batch run with execution id ${id} is marked as 'scheduled' but has no future scheduled start time`
-          );
-          return null;
-        }
-        return (
-          <>
-            Scheduled to start{" "}
-            <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={not_before}
-              tooltipPosition="right"
-            />
-          </>
-        );
-      case "finished":
-        if (!finished_at || !isDateTimePast(finished_at)) {
-          console.warn(
-            `Batch run with execution id ${id} is marked as 'finished' but has no past 'finished_at' data`
-          );
-          return null;
-        }
-        return (
-          <>
-            <Icon
-              name={canceled ? "close-filled" : "success"}
-              color="ui-fleet-black-50"
-              size="small"
-            />
-            {canceled ? "Canceled" : "Completed"}
-            <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={finished_at}
-              tooltipPosition="right"
-            />
-          </>
-        );
-      default:
-        return null;
-    }
   };
 
   const renderRow = (summary: IScriptBatchSummaryV2) => {

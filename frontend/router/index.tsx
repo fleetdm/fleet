@@ -83,7 +83,7 @@ import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/Software
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
 import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
-import ScriptBatchDetails from "pages/ManageControlsPage/Scripts/ScriptBatchDetails";
+import ScriptBatchDetailsPage from "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -300,7 +300,7 @@ const routes = (
             </Route>
             <Route
               path="controls/scripts/progress/:batch_execution_id"
-              component={ScriptBatchDetails}
+              component={ScriptBatchDetailsPage}
             />
           </Route>
           <Route path="software">

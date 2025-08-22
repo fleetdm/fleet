@@ -4,6 +4,7 @@ interface PaginationMeta {
   has_previous_results: boolean;
 }
 
-export interface ListEntitiesMeta extends PaginationMeta {
+export interface ListEntitiesMeta {
+  meta: PaginationMeta;
   count: number;
 }

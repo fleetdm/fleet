@@ -1,0 +1,18 @@
+.script-batch-details-page {
+  &__header {
+    h2 {
+      font-weight: $bold;
+    }
+    .section-header__sub-title {
+      display: flex;
+      align-items: center;
+      gap: $pad-large;
+      font-size: $x-small;
+    }
+    .when {
+      display: inline-flex;
+      align-items: center;
+      gap: $pad-xsmall;
+    }
+  }
+}
