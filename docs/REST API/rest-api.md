@@ -3077,6 +3077,8 @@ Returns the information of the specified host.
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
+          "scope": "device",
+          "managed_local_account": "",
           "detail": ""
         }
       ]
@@ -3305,6 +3307,8 @@ If `hostname` is specified when there is more than one host with the same hostna
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
+          "scope": "device",
+          "managed_local_account": "", 
           "detail": ""
         }
       ]
@@ -3502,6 +3506,8 @@ This is the API route used by the **My device** page in Fleet desktop to display
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
+          "scope": "device",
+          "managed_local_account": "",
           "detail": ""
         }
       ]
