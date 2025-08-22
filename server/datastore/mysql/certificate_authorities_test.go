@@ -56,7 +56,7 @@ func compareCA(t *testing.T, expected, actual *fleet.CertificateAuthority, expec
 		require.Nil(t, actual.CertificateCommonName)
 	}
 	if expected.CertificateUserPrincipalNames != nil {
-		require.ElementsMatch(t, expected.CertificateUserPrincipalNames, actual.CertificateUserPrincipalNames)
+		require.ElementsMatch(t, *expected.CertificateUserPrincipalNames, *actual.CertificateUserPrincipalNames)
 	} else {
 		require.Nil(t, actual.CertificateUserPrincipalNames)
 	}
@@ -262,7 +262,7 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 	for i, ca := range casToCreate {
 		// Ensure the CA summary matches
 		require.Equal(t, ca.ID, allCASummaries[i].ID)
-		require.Equal(t, ca.Name, allCASummaries[i].Name)
+		require.Equal(t, *ca.Name, allCASummaries[i].Name)
 		require.Equal(t, ca.Type, allCASummaries[i].Type)
 	}
 }

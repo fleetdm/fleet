@@ -409,6 +409,8 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 	}
 
 	caToUpdate := fleet.CertificateAuthority{}
+	var activity fleet.ActivityDetails
+	var caActivityName string
 
 	if p.DigiCertCAUpdatePayload != nil {
 		if err := p.DigiCertCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
@@ -426,6 +428,13 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.CertificateCommonName = p.DigiCertCAUpdatePayload.CertificateCommonName
 		caToUpdate.CertificateUserPrincipalNames = p.DigiCertCAUpdatePayload.CertificateUserPrincipalNames
 		caToUpdate.CertificateSeatID = p.DigiCertCAUpdatePayload.CertificateSeatID
+
+		if caToUpdate.Name != nil {
+			caActivityName = *caToUpdate.Name
+		} else {
+			caActivityName = *oldCA.Name
+		}
+		activity = fleet.ActivityEditedDigiCert{Name: caActivityName}
 	}
 	if p.HydrantCAUpdatePayload != nil {
 		if err := p.HydrantCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
@@ -440,6 +449,12 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.URL = p.HydrantCAUpdatePayload.URL
 		caToUpdate.ClientID = p.HydrantCAUpdatePayload.ClientID
 		caToUpdate.ClientSecret = p.HydrantCAUpdatePayload.ClientSecret
+		if caToUpdate.Name != nil {
+			caActivityName = *caToUpdate.Name
+		} else {
+			caActivityName = *oldCA.Name
+		}
+		activity = fleet.ActivityEditedHydrant{Name: caActivityName}
 	}
 	if p.NDESSCEPProxyCAUpdatePayload != nil {
 		if err := p.NDESSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
@@ -454,6 +469,12 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.AdminURL = p.NDESSCEPProxyCAUpdatePayload.AdminURL
 		caToUpdate.Username = p.NDESSCEPProxyCAUpdatePayload.Username
 		caToUpdate.Password = p.NDESSCEPProxyCAUpdatePayload.Password
+		if caToUpdate.Name != nil {
+			caActivityName = *caToUpdate.Name
+		} else {
+			caActivityName = *oldCA.Name
+		}
+		activity = fleet.ActivityEditedNDESSCEPProxy{}
 	}
 	if p.CustomSCEPProxyCAUpdatePayload != nil {
 		if err := p.CustomSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
@@ -467,6 +488,13 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.Name = p.CustomSCEPProxyCAUpdatePayload.Name
 		caToUpdate.URL = p.CustomSCEPProxyCAUpdatePayload.URL
 		caToUpdate.Challenge = p.CustomSCEPProxyCAUpdatePayload.Challenge
+		if caToUpdate.Name != nil {
+			caActivityName = *caToUpdate.Name
+		} else {
+			caActivityName = *oldCA.Name
+		}
+		activity = fleet.ActivityEditedCustomSCEPProxy{Name: caActivityName}
+
 	}
 
 	if oldCA.Type != caToUpdate.Type {
@@ -475,6 +503,10 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 
 	if err := svc.ds.UpdateCertificateAuthorityByID(ctx, id, &caToUpdate); err != nil {
 		return err
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+		return fmt.Errorf("recording activity for edited %s certificate authority %s: %w", caToUpdate.Type, caActivityName, err)
 	}
 
 	return nil
