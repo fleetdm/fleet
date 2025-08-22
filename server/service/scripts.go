@@ -1307,18 +1307,22 @@ func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchEx
 	// Get the batch activity.
 	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "getting batch activity")
 	}
 	if batchActivity.ScriptID == nil {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "batch activity has no script ID")
 	}
 
 	// Get the script referred to by the batch activity.
 	script, err := svc.ds.Script(ctx, *batchActivity.ScriptID)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "getting script")
 	}
 	if script == nil {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "script not found")
 	}
 

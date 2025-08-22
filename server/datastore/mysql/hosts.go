@@ -1070,7 +1070,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	return hosts, nil
 }
 
-func (ds *Datastore) ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) (hosts []fleet.BatchScriptHost, meta *fleet.PaginationMetadata, count uint, error error) {
+func (ds *Datastore) ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) (hosts []fleet.BatchScriptHost, meta *fleet.PaginationMetadata, count uint, err error) {
 	countStmt := `
 SELECT COUNT(*)
 FROM
@@ -1085,6 +1085,8 @@ SELECT
     h.id,
     h.hostname as display_name,
     '%s' as status,
+	-- pending hosts will have "updated_at" set in the db, but since 
+	-- we're using it to mean "executed at" we'll return it as empty.
 	CASE
 		WHEN '%s' != 'pending' THEN COALESCE(hsr.updated_at, '')
 		ELSE ''
@@ -1098,6 +1100,11 @@ WHERE
     %s
 	`
 
+	// Validate the batch status.
+	if !batchScriptExecutionStatus.IsValid() {
+		return nil, nil, 0, errors.New("invalid batch execution status")
+	}
+
 	whereParams := []interface{}{}
 	batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams := ds.getBatchExecutionFilters(whereParams, fleet.HostListOptions{
 		BatchScriptExecutionIDFilter:     &batchScriptExecutionID,
@@ -1108,21 +1115,21 @@ WHERE
 	// Do this before we add more "where" params for the main query.
 	countStmt = fmt.Sprintf(countStmt, batchScriptExecutionJoin, batchScriptExecutionFilter)
 	dbReader := ds.reader(ctx)
-	if err := sqlx.GetContext(ctx, dbReader, &count, countStmt, whereParams...); err != nil {
+	if err = sqlx.GetContext(ctx, dbReader, &count, countStmt, whereParams...); err != nil {
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch scripts count")
 	}
 
 	// Add in the paging params and run the main query to get the list of hosts.
 	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt)
 	sqlStmt = fmt.Sprintf(sqlStmt, batchScriptExecutionStatus, batchScriptExecutionStatus, batchScriptExecutionID, batchScriptExecutionJoin, batchScriptExecutionFilter)
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sqlStmt, whereParams...); err != nil {
+	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sqlStmt, whereParams...); err != nil {
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch script hosts")
 	}
 
 	if opt.IncludeMetadata {
 		meta = &fleet.PaginationMetadata{
 			HasPreviousResults: opt.Page > 0,
-			TotalResults:       uint(count), //nolint:gosec // dismiss G115
+			TotalResults:       count,
 		}
 		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this discrepancy.
 		// This is intentional so that we can check whether we have another page.
