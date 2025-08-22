@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
@@ -1360,11 +1361,15 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		labelsMode = fleet.LabelsIncludeAll
 	}
 
+	isAppleDeclarationJSON, isAndroidJSON := false, false
 	if isJSON {
-		// TODO EJM Figure out if it's android or Apple
+		isAppleDeclarationJSON, isAndroidJSON, err = determineJSONConfigType(data)
+		if err != nil {
+			return &newMDMConfigProfileResponse{Err: fleet.NewInvalidArgumentError("profile", err.Error())}, nil
+		}
 	}
 
-	if isMobileConfig || isJSON {
+	if isMobileConfig || isAppleDeclarationJSON {
 		// Then it's an Apple configuration file
 		if isJSON {
 			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode)
@@ -1385,6 +1390,16 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}
 
 		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, labels, labelsMode)
+		if err != nil {
+			return &newMDMConfigProfileResponse{Err: err}, nil
+		}
+		return &newMDMConfigProfileResponse{
+			ProfileUUID: cp.ProfileUUID,
+		}, nil
+	}
+
+	if isAndroidJSON {
+		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, data, labels, profileName, labelsMode)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1444,7 +1459,7 @@ func determineJSONConfigType(data []byte) (bool, bool, error) {
 		return false, false, err
 	}
 	if len(profileKeyMap) == 0 {
-		return false, false, errors.New("empty profile")
+		return false, false, errors.New("JSON profile is empty")
 	}
 	hasTypeKey := false
 	hasPayloadKey := false
@@ -1452,11 +1467,27 @@ func determineJSONConfigType(data []byte) (bool, bool, error) {
 	hasKeysStartingInLower := false
 	hasKeysContainingNonLetters := false
 	for k := range profileKeyMap {
+		if k == "" {
+			return false, false, errors.New("empty string is not a valid JSON configuration key")
+		}
 		if k == "Type" {
 			hasTypeKey = true
 		}
 		if k == "Payload" {
 			hasPayloadKey = true
+		}
+
+		for i, r := range k {
+			if i == 0 {
+				if unicode.IsUpper(r) {
+					hasKeysStartingInUpper = true
+				} else if unicode.IsLower(r) {
+					hasKeysStartingInLower = true
+				}
+			}
+			if !unicode.IsLetter(r) {
+				hasKeysContainingNonLetters = true
+			}
 		}
 	}
 
@@ -1466,15 +1497,17 @@ func determineJSONConfigType(data []byte) (bool, bool, error) {
 			return true, false, nil
 		}
 		if !hasTypeKey {
-			// TODO err
 			return false, false, errors.New("apple declaration missing Type")
 		}
 		// TODO this err
 		return false, false, errors.New("apple declaration missing Payload")
 	}
 	// Android declaration
-	if !hasKeysStartingInUpper && hasKeysStartingInLower && !hasKeysContainingNonLetters {
-		return false, true, nil
+	if !hasKeysStartingInUpper && hasKeysStartingInLower {
+		if !hasKeysContainingNonLetters {
+			return false, true, nil
+		}
+		return false, false, errors.New("android configuration profile contains invalid keys")
 	}
 	// Didn't match either one
 	return false, false, errors.New("could not determine profile type from JSON keys")

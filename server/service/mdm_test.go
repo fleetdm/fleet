@@ -2408,15 +2408,43 @@ func TestDetermineJSONConfigType(t *testing.T) {
 		errContains string
 	}{
 		{
-			name:        "Apple profile",
-			profileJSON: `{"Payload": "Yes", "Type": "Sample"}`,
+			name: "Valid Apple declaration",
+			// Adding a bunch of nonsense keys because this function should return the right thing
+			// even in the presence of various value types and keys it does not know about
+			profileJSON: `{ "Type": "com.apple.configuration.passcode.settings", "Identifier": "com.fleetdm.config.passcode.settings", "Payload": { "RequireAlphanumericPasscode": true, "MinimumLength": 10, "MinimumComplexCharacters": 1, "MaximumFailedAttempts": 11, "MaximumGracePeriodInMinutes": 1, "MaximumInactivityInMinutes": 15 }, "AnotherKey": null, "ANumericKey": 1, "ADecimalKey": 1.23, "AList": ["1", "2"] }`,
 			wantApple:   true,
 		},
 		{
-			name:        "Android profile",
-			profileJSON: `{"payload": "Yes", "type": "Sample"}`,
+			name: "Valid Android configuration profile",
+			// Similarly adding a bunch of nonsense here to make sure various value types don't
+			// somehow trip up the sniffing logic
+			profileJSON: `{"name": "jordan was here", "modifyAccountsDisabled": true, "maximumTimeToLock": "1234567", "something": {"else": true}, "anotherThing": null, "numeric": 12345, "decimal": 1.23, "aList": ["1", "2"]}`,
 			wantApple:   false,
 			wantAndroid: true,
+		},
+		{
+			name:        "Apple declaration minus Type",
+			profileJSON: `{ "Identifier": "com.fleetdm.config.passcode.settings", "Payload": { "RequireAlphanumericPasscode": true, "MinimumLength": 10, "MinimumComplexCharacters": 1, "MaximumFailedAttempts": 11, "MaximumGracePeriodInMinutes": 1, "MaximumInactivityInMinutes": 15 } }`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "apple declaration missing Type",
+		},
+		{
+			name:        "Apple declaration minus Payload",
+			profileJSON: `{ "Type": "com.apple.configuration.passcode.settings", "Identifier": "com.fleetdm.config.passcode.settings" }`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "apple declaration missing Payload",
+		},
+		{
+			name:        "Android profile but with invalid keys containing numbers",
+			profileJSON: `{"name": "jordan was here", "modifyAccountsDisabled": true, "maximumTimeToLock": "1234567", "fl33t": true}`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "android configuration profile contains invalid keys",
 		},
 		{
 			name:        "invalid json",
@@ -2424,7 +2452,7 @@ func TestDetermineJSONConfigType(t *testing.T) {
 			wantApple:   false,
 			wantAndroid: false,
 			wantErr:     true,
-			errContains: "hmm revisit this",
+			errContains: "unexpected end of JSON input",
 		},
 		{
 			name:        "empty json",
@@ -2432,7 +2460,15 @@ func TestDetermineJSONConfigType(t *testing.T) {
 			wantApple:   false,
 			wantAndroid: false,
 			wantErr:     true,
-			errContains: "hmm revisit this",
+			errContains: "JSON profile is empty",
+		},
+		{
+			name:        "nearly empty json",
+			profileJSON: `{"": "something"}`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "empty string is not a valid JSON configuration key",
 		},
 		{
 			name:        "no json",
@@ -2440,7 +2476,7 @@ func TestDetermineJSONConfigType(t *testing.T) {
 			wantApple:   false,
 			wantAndroid: false,
 			wantErr:     true,
-			errContains: "hmm revisit this",
+			errContains: "unexpected end of JSON input",
 		},
 	}
 	for _, tt := range tests {
