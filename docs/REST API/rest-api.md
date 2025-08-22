@@ -6411,7 +6411,7 @@ Set software that will be automatically installed during macOS setup. Software t
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | path  | query | **Required.** Platform to update software for. Either `"macos"` or `"linux"`. |
+| platform | string  | path | **Required.** Platform to update software for. Either `"macos"` or `"linux"`. |
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
