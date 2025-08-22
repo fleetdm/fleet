@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -5773,7 +5774,11 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 		failing_policies_count = VALUES(failing_policies_count),
 		total_issues_count = VALUES(failing_policies_count) + critical_vulnerabilities_count`
 
-	// Large number of hosts could be impacted, so we update their host issues entries in batches to reduce lock time.
+	// Sort host IDs to ensure consistent lock ordering across all transactions.
+	// This prevents deadlocks when multiple transactions process overlapping sets of hosts.
+	slices.Sort(hostIDs)
+
+	// First lock policy_membership rows to ensure consistent lock ordering
 	for i := 0; i < len(hostIDs); i += hostIssuesUpdateFailingPoliciesBatchSize {
 		start := i
 		end := i + hostIssuesUpdateFailingPoliciesBatchSize
@@ -5782,7 +5787,6 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 		}
 		hostIDsBatch := hostIDs[start:end]
 
-		// First lock policy_membership rows to ensure consistent lock ordering
 		stmt, args, err := sqlx.In(lockPolicyStmt, hostIDsBatch)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN statement for locking policy_membership")
@@ -5790,9 +5794,18 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "locking policy_membership rows")
 		}
+	}
+
+	for i := 0; i < len(hostIDs); i += hostIssuesUpdateFailingPoliciesBatchSize {
+		start := i
+		end := i + hostIssuesUpdateFailingPoliciesBatchSize
+		if end > len(hostIDs) {
+			end = len(hostIDs)
+		}
+		hostIDsBatch := hostIDs[start:end]
 
 		// Zero out failing policies count for hosts that are not in policy_membership
-		stmt, args, err = sqlx.In(clearStmt, hostIDsBatch, hostIDsBatch)
+		stmt, args, err := sqlx.In(clearStmt, hostIDsBatch, hostIDsBatch)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN statement for clearing host failing policy issues")
 		}
