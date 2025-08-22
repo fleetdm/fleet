@@ -398,8 +398,6 @@ const SoftwareSelfService = ({
 
   const onClickOpenInstructionsAction = useCallback(
     (hostSW: IHostSoftwareWithUiStatus) => {
-      console.log("hostSW", hostSW);
-
       selectedSoftwareForInstructions.current = {
         softwareName: getInstallerName(hostSW),
         softwareSource: hostSW.source,
@@ -738,7 +736,6 @@ const SoftwareSelfService = ({
     );
   };
 
-  console.log("selectedSoftware", selectedSoftwareForUninstall);
   return (
     <div className={baseClass}>
       <UpdatesCard
