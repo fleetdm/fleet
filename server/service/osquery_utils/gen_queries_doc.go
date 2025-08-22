@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -27,8 +26,6 @@ func main() {
 	}, &fleet.AppConfig{MDM: fleet.MDM{
 		EnabledAndConfigured:        true,
 		WindowsEnabledAndConfigured: true,
-		EnableDiskEncryption:        optjson.SetBool(true),
-		RequireBitLockerPIN:         optjson.SetBool(true),
 	}}, &fleet.Features{
 		EnableSoftwareInventory: true,
 		EnableHostUsers:         true,

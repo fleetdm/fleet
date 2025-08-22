@@ -155,20 +155,6 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT * from kubernetes_info
 ```
 
-## luks_verify
-
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
-
-- Discovery query:
-```sql
-SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'lsblk') AND EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'cryptsetup_luks_salt');
-```
-
-- Query:
-```
-<dynamically generated>
-```
-
 ## mdm
 
 - Platforms: darwin
@@ -1026,66 +1012,6 @@ SELECT
 - Query:
 ```sql
 select * from system_info limit 1
-```
-
-## tpm_pin_config_verify
-
-- Platforms: windows
-
-- Discovery query:
-```sql
-WITH should_run(yes) AS (
-			SELECT
-				(
-					-- BitLocker is an optional feature but enabled
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker') 
-				)
-				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
-				-- 4: TPM And PIN.
-				-- 6: TPM And PIN And Startup key.
-				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
-				-- Volume is encrypted
-				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1
-```
-
-- Query:
-```sql
-SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\UseTPMPIN'
-```
-
-## tpm_pin_set_verify
-
-- Platforms: windows
-
-- Discovery query:
-```sql
-WITH should_run(yes) AS (
-			SELECT
-				(
-					-- BitLocker is an optional feature but enabled
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker') 
-				)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1
-```
-
-- Query:
-```sql
-SELECT EXISTS(
-				SELECT 1 
-				FROM bitlocker_key_protectors 
-				-- 4: TPM And PIN.
-				-- 6: TPM And PIN And Startup key.
-				WHERE drive_letter = 'C:' AND key_protector_type IN (4,6)
-				LIMIT 1
-			) AS criteria
-			WHERE criteria = 1
 ```
 
 ## uptime
