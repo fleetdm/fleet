@@ -127,7 +127,7 @@ func testGetEnterpriseBySignupToken(t *testing.T, ds *Datastore) {
 	assert.True(t, fleet.IsNotFound(err))
 
 	enterprise := createEnterprise(t, ds)
-	
+
 	result, err := ds.GetEnterpriseBySignupToken(testCtx(), enterprise.SignupToken)
 	require.NoError(t, err)
 	assert.Equal(t, enterprise, result)

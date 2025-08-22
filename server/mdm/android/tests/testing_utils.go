@@ -54,8 +54,8 @@ func (ds *AndroidDSWithMock) CreateEnterprise(ctx context.Context, userID uint) 
 	return ds.Datastore.CreateEnterprise(ctx, userID)
 }
 
-func (ds *AndroidDSWithMock) GetEnterpriseByID(ctx context.Context, ID uint) (*android.EnterpriseDetails, error) {
-	return ds.Datastore.GetEnterpriseByID(ctx, ID)
+func (ds *AndroidDSWithMock) GetEnterpriseByID(ctx context.Context, id uint) (*android.EnterpriseDetails, error) {
+	return ds.Datastore.GetEnterpriseByID(ctx, id)
 }
 
 func (ds *AndroidDSWithMock) GetEnterpriseBySignupToken(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
@@ -74,8 +74,8 @@ func (ds *AndroidDSWithMock) DeleteAllEnterprises(ctx context.Context) error {
 	return ds.Datastore.DeleteAllEnterprises(ctx)
 }
 
-func (ds *AndroidDSWithMock) DeleteOtherEnterprises(ctx context.Context, ID uint) error {
-	return ds.Datastore.DeleteOtherEnterprises(ctx, ID)
+func (ds *AndroidDSWithMock) DeleteOtherEnterprises(ctx context.Context, id uint) error {
+	return ds.Datastore.DeleteOtherEnterprises(ctx, id)
 }
 
 type WithServer struct {
