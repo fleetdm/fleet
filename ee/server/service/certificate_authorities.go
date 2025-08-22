@@ -402,7 +402,6 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 
 	oldCA, err := svc.ds.GetCertificateAuthorityByID(ctx, id, false)
 	if err != nil {
-		fmt.Println("error getting old ca", err.Error())
 		if strings.Contains(err.Error(), "not found") {
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCertificate authority with ID %d does not exist.", errPrefix, id)}
 		}
