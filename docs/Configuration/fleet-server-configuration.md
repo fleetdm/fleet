@@ -23,8 +23,6 @@ periodically.
 
 For the address of the MySQL server that Fleet should connect to, include the hostname and port.
 
-If an Amazon Relational Database Service (RDS) endpoint is specified and neither `mysql_password` nor `mysql_password_path` is specified, Identity and Access Management (IAM) authentication is automatically used.
-
 - Default value: `localhost:3306`
 - Environment variable: `FLEET_MYSQL_ADDRESS`
 - Config file format:
@@ -198,32 +196,6 @@ This setting should not usually be used.
     sql_mode: ANSI
   ```
 
-### mysql_sts_assume_role_arn
-
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for MySQL authentication. 
-
-If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `mysql_username` and `mysql_password` or `mysql_password_path`.
-
-- Default value: `""`
-- Environment variable: `FLEET_MYSQL_STS_ASSUME_ROLE_ARN`
-- Config file format:
-  ```yaml
-  mysql:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/rds-auth-role
-  ```
-
-### mysql_sts_external_id
-
-AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `mysql_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
-
-- Default value: `""`
-- Environment variable: `FLEET_MYSQL_STS_EXTERNAL_ID`
-- Config file format:
-  ```yaml
-  mysql:
-    sts_external_id: your_unique_id
-  ```
-
 ## Redis
 
 Note that to test a TLS connection to a Redis instance, run the
@@ -240,8 +212,6 @@ By default, this will set up a Redis pool for that configuration and execute a
 ### redis_address
 
 For the address of the Redis server that Fleet should connect to, include the hostname and port.
-
-If an AWS ElastiCache endpoint is specified and `redis_password` isn't specified, Identity and Access Management (IAM) authentication is automatically used.
 
 - Default value: `localhost:6379`
 - Environment variable: `FLEET_REDIS_ADDRESS`
@@ -297,33 +267,6 @@ Use a TLS connection to the Redis server.
   ```yaml
   redis:
     use_tls: true
-  ```
-
-### redis_sts_assume_role_arn
-
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Redis authentication. 
-
-If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `redis_username` and `redis_password` (optional).
-
-- Default value: `""`
-- Environment variable: `FLEET_REDIS_STS_ASSUME_ROLE_ARN`
-- Config file format:
-  ```yaml
-  redis:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/elasticache-auth-role
-  ```
-
-### redis_sts_external_id
-
-AWS Security Token Service (STS) External ID to use for Redis authentication. Specify this
-with `redis_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
-
-- Default value: `""`
-- Environment variable: `FLEET_REDIS_STS_EXTERNAL_ID`
-- Config file format:
-  ```yaml
-  redis:
-    sts_external_id: your_unique_id
   ```
 
 ### redis_duplicate_results
@@ -1418,9 +1361,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
 - `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Firehose authentication.
-
-If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `firehose_access_key_id` and `firehose_secret_access_key`.
+AWS STS role ARN to use for Firehose authentication.
 
 - Default value: none
 - Environment variable: `FLEET_FIREHOSE_STS_ASSUME_ROLE_ARN`
@@ -1436,8 +1377,8 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
 - `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
-AWS Security Token Service (STS) External ID to use for Firehose authentication. Specify this
-with `firehose_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
+AWS STS External ID to use for Firehose authentication. This is typically used in 
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
 
 - Default value: none
 - Environment variable: `FLEET_FIREHOSE_STS_EXTERNAL_ID`
@@ -1568,9 +1509,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
 - `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Kinesis authentication.
-
-If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `kinesis_access_key_id` and `kinesis_secret_access_key`.
+AWS STS role ARN to use for Kinesis authentication.
 
 - Default value: none
 - Environment variable: `FLEET_KINESIS_STS_ASSUME_ROLE_ARN`
@@ -1586,8 +1525,8 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
 - `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
-AWS Security Token Service (STS) External ID to use for Kinesis authentication. Specify this
-with `kinesis_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
+AWS STS External ID to use for Kinesis authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
 
 - Default value: none
 - Environment variable: `FLEET_KINESIS_STS_EXTERNAL_ID`
@@ -1718,9 +1657,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
 - `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Lambda authentication.
-
-If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `lambda_access_key_id` and `lambda_secret_access_key`.
+AWS STS role ARN to use for Lambda authentication.
 
 - Default value: none
 - Environment variable: `FLEET_LAMBDA_STS_ASSUME_ROLE_ARN`
@@ -1736,8 +1673,8 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
 - `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
-AWS Security Token Service (STS) External ID to use for Lambda authentication. Specify this
-with `lambda_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
+AWS STS External ID to use for Lambda authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
 
 - Default value: none
 - Environment variable: `FLEET_LAMBDA_STS_EXTERNAL_ID`
@@ -2059,9 +1996,7 @@ AWS secret access key to use for SES authentication.
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Simple Email Service (SES) authentication.
-
-If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `ses_access_key_id` and `ses_secret_access_key`.
+AWS STS role ARN to use for SES authentication.
 
 - Default value: none
 - Environment variable: `FLEET_SES_STS_ASSUME_ROLE_ARN`
@@ -2075,8 +2010,9 @@ If set, Fleet uses AWS Identity and Access Management (IAM) authentication inste
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
-AWS Security Token Service (STS) External ID to use for Simple Email Service (SES) authentication. Specify this
-with `ses_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
+AWS STS External ID to use for SES authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
 
 - Default value: none
 - Environment variable: `FLEET_SES_STS_EXTERNAL_ID`
@@ -2169,9 +2105,7 @@ AWS secret access key to use for S3 authentication.
 
 *Available in Fleet Premium.*
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for S3 authentication.
-
-If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`.
+AWS STS role ARN to use for S3 authentication.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN`
@@ -2185,8 +2119,8 @@ If set, Fleet uses AWS Identity and Access Management (IAM) authentication inste
 
 *Available in Fleet Premium.*
 
-AWS Security Token Service (STS) External ID to use for S3 authentication. Specify this
-with `s3_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
+AWS STS External ID to use for S3 authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_EXTERNAL_ID`
