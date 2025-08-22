@@ -141,6 +141,7 @@ func updateCertificateAuthorityEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, payload fleet.CertificateAuthorityUpdatePayload) error {
+	// skipauth: No authorization check needed due to implementation returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 	return fleet.ErrMissingLicense
 }

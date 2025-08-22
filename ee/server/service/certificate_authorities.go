@@ -162,14 +162,7 @@ func (svc *Service) validatePayload(p *fleet.CertificateAuthorityPayload, errPre
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sA certificate authority must be specified", errPrefix)}
 	}
 	if casToCreate > 1 {
-		// handle showing this error only for create and update at the moment. If more cases are needed then we
-		// should probably pass in the verb instead of checking the errPrefix
-		var verb string
-		if strings.Contains(errPrefix, "create") {
-			verb = "created"
-		}
-		verb = "edited"
-		return &fleet.BadRequestError{Message: fmt.Sprintf("%sOnly one certificate authority can be %s at a time", errPrefix, verb)}
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sOnly one certificate authority can be created at a time", errPrefix)}
 	}
 
 	if len(svc.config.Server.PrivateKey) == 0 {
