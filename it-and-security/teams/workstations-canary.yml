@@ -186,6 +186,7 @@ software:
     - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
     - path: ../lib/macos/software/nudge.yml # Nudge for macOS 
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
+    - path: ../lib/macos/software/slack.yml # Slack for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
@@ -197,11 +198,6 @@ software:
     - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
-    - app_store_id: '803453959' # Slack Desktop
-      self_service: true
-      categories:
-        - Communication
-        - Productivity
     - app_store_id: '409183694' # Keynote
       self_service: true
   fleet_maintained_apps:
