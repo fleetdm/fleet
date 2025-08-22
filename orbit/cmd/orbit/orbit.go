@@ -1524,6 +1524,7 @@ func main() {
 			!c.Bool("disable-setup-experience")
 
 		if runSetupExperience {
+			log.Debug().Msg("web setup experience enabled")
 			setupExpPath := path.Join(c.String("root-dir"), constant.SetupExperienceCompleteFilename)
 			if err := processSetupExperience(orbitClient, deviceClient, trw, setupExpPath); err != nil {
 				log.Error().Err(err).Msg("initiating setup experience")
@@ -1555,9 +1556,11 @@ func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, t
 
 	// Setup experience has been completed
 	if exp != nil && exp.TimeInitiated != nil {
+		log.Debug().Msg("setup experience already completed")
 		return nil
 	}
 
+	log.Debug().Msg("initiating setup experience")
 	resp, err := oc.InitiateSetupExperience()
 	if err != nil {
 		return fmt.Errorf("initializing server-side setup experience: %w", err)
@@ -1565,6 +1568,7 @@ func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, t
 
 	// Setup experience enabled for us and is now kicked off, open a browser
 	if resp.EnabledForTeam {
+		log.Debug().Msg("launching firefox for setup experience web view")
 		loggedInUser, err := user.UserLoggedInViaGui()
 		if err != nil {
 			return fmt.Errorf("get logged in user: %w", err)
@@ -1587,6 +1591,8 @@ func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, t
 		if _, err := execuser.Run("firefox", opts...); err != nil {
 			return fmt.Errorf("opening firefox: %w", err)
 		}
+	} else {
+		log.Debug().Msg("setup experience not enabled for host's team")
 	}
 
 	// Even if it wasn't enabled, mark it as complete so we don't start it again later
