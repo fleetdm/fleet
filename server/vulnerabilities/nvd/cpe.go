@@ -505,9 +505,6 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 			for _, sN := range strings.Split(item.Product, "_") {
 				hasAllTerms = hasAllTerms && strings.Contains(sName, sN)
 			}
-			if isPowershellTemp {
-				fmt.Printf("hasAllTerms sName: %t\n", hasAllTerms)
-			}
 
 			sVendor := strings.ToLower(software.Vendor)
 			sBundle := strings.ToLower(software.BundleIdentifier)
@@ -525,9 +522,6 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 				match = &results[i]
 				break
 			}
-		}
-		if isPowershellTemp {
-			fmt.Println("5555555")
 		}
 
 		if match != nil {
@@ -568,6 +562,7 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 						deprecatedItem = deprecation
 						continue
 					}
+
 					return deprecation.FmtStr(software), nil
 				}
 			}
