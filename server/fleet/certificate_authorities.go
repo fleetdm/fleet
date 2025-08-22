@@ -346,12 +346,12 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		switch ca.Type {
 		case string(CATypeDigiCert):
 			grouped.DigiCert = append(grouped.DigiCert, DigiCertCA{
-				Name:                          ca.Name,
+				Name:                          *ca.Name,
 				CertificateCommonName:         *ca.CertificateCommonName,
 				CertificateSeatID:             *ca.CertificateSeatID,
-				CertificateUserPrincipalNames: ca.CertificateUserPrincipalNames,
+				CertificateUserPrincipalNames: *ca.CertificateUserPrincipalNames,
 				APIToken:                      *ca.APIToken,
-				URL:                           ca.URL,
+				URL:                           *ca.URL,
 				ProfileID:                     *ca.ProfileID,
 			})
 		case string(CATypeNDESSCEPProxy):
@@ -360,7 +360,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 			}
 
 			grouped.NDESSCEP = &NDESSCEPProxyCA{
-				URL:      ca.URL,
+				URL:      *ca.URL,
 				AdminURL: *ca.AdminURL,
 				Username: *ca.Username,
 				Password: *ca.Password,
@@ -368,15 +368,15 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 
 		case string(CATypeHydrant):
 			grouped.Hydrant = append(grouped.Hydrant, HydrantCA{
-				Name:         ca.Name,
-				URL:          ca.URL,
+				Name:         *ca.Name,
+				URL:          *ca.URL,
 				ClientID:     *ca.ClientID,
 				ClientSecret: *ca.ClientSecret,
 			})
 		case string(CATypeCustomSCEPProxy):
 			grouped.CustomScepProxy = append(grouped.CustomScepProxy, CustomSCEPProxyCA{
-				Name:      ca.Name,
-				URL:       ca.URL,
+				Name:      *ca.Name,
+				URL:       *ca.URL,
 				Challenge: *ca.Challenge,
 			})
 		}
