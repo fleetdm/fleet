@@ -5749,7 +5749,8 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 	}
 
 	// For multiple hosts, lock policy_membership rows first to prevent deadlocks
-	lockPolicyStmt := `SELECT 1 FROM policy_membership WHERE host_id IN (?) FOR UPDATE`
+	// ORDER BY ensures locks are acquired in consistent order (host_id, then policy_id)
+	lockPolicyStmt := `SELECT 1 FROM policy_membership WHERE host_id IN (?) ORDER BY host_id, policy_id FOR UPDATE`
 
 	// Clear host_issues entries for hosts that are not in policy_membership
 	clearStmt := `
