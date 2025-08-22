@@ -26,7 +26,9 @@ Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.mic
 3. Click the **Actions** dropdown, then click  **Wipe**.
 4. Confirm that you want to wipe the device in the dialog. The host will now be marked with a "Wipe pending" badge. Once the wipe command is acknowledged by the host, the badge will update to "Wiped".
 
-> When wiping and re-installing the operating system (OS) for a host, also delete it from Fleet before you re-enroll it. If you re-enroll without deleting, a new disk encryption key won’t be escrowed.
+> **Important** When wiping and re-installing the operating system (OS) on a host, delete the host from Fleet before you re-enroll it. If you re-enroll without deleting, Fleet won't escrow a new disk encryption key.
+
+> **Windows hosts** Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.).
 
 ## Unlock a host
 
