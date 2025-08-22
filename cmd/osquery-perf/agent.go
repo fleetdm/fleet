@@ -1970,6 +1970,16 @@ func (a *agent) mdmMac() []map[string]string {
 	}
 }
 
+func (a *agent) mdmConfigProfilesMac() []map[string]string {
+	return []map[string]string{
+		{
+			"identifier":   "osquery-perf",
+			"display_name": "OSQuery Perf Agent",
+			"install_date": "2006-01-02 15:04:05 -0700",
+		},
+	}
+}
+
 func (a *agent) entraConditionalAccess() []map[string]string {
 	return []map[string]string{
 		{
@@ -2338,6 +2348,14 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		ss := statusOK
 		if rand.Intn(10) > 0 { // 90% success
 			results = a.mdmMac()
+		} else {
+			ss = statusNotOK
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin_with_user", name == hostDetailQueryPrefix+"mdm_config_profiles_darwin":
+		ss := statusOK
+		if rand.Intn(10) > 0 { // 90% success
+			results = a.mdmConfigProfilesMac()
 		} else {
 			ss = statusNotOK
 		}
