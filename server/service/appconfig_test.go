@@ -901,7 +901,7 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	require.Equal(t, "", ac.FleetDesktop.TransparencyURL)
 }
 
-func TestMDMAppleConfig(t *testing.T) {
+func TestMDMConfig(t *testing.T) {
 	ds := new(mock.Store)
 	depStorage := new(nanodep_mock.Storage)
 
@@ -1178,6 +1178,15 @@ func TestMDMAppleConfig(t *testing.T) {
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
+		},
+		{
+			name:        "try to disable disk encryption with TPM PIN enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(false),
+				RequireBitLockerPIN:  optjson.SetBool(true),
+			},
+			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
 		},
 	}
 

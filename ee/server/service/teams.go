@@ -1669,6 +1669,10 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 	}
 
 	if didUpdateEncryption || didUpdateRequirePIN {
+		if !tm.Config.MDM.EnableDiskEncryption && tm.Config.MDM.RequireBitLockerPIN {
+			return ctxerr.New(ctx, fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
+		}
+
 		if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
 			return err
 		}
