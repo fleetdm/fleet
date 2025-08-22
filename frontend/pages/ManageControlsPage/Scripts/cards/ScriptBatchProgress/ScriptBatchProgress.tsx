@@ -18,8 +18,6 @@ import TabText from "components/TabText";
 import PaginatedList from "components/PaginatedList";
 import Icon from "components/Icon/Icon";
 
-import { IScriptBatchDetailsForSummary } from "pages/DashboardPage/cards/ActivityFeed/components/ScriptBatchSummaryModal/ScriptBatchSummaryModal";
-
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
 import { ScriptsLocation } from "../../Scripts";
 import getWhen from "../../helpers";
