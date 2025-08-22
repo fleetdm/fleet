@@ -251,16 +251,21 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			Name: "Global",
 		},
 	}
-	// Fetch the actual "No Team" configuration
-	noTeamData, err := cmd.Client.GetTeam(0)
-	if err != nil {
-		_, _ = fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting 'No team': %s\n", err)
-		return ErrGeneric
+
+	// Only fetch "No Team" configuration if we have a premium license
+	var noTeam teamToProcess
+	if cmd.AppConfig.License.IsPremium() {
+		noTeamData, err := cmd.Client.GetTeam(0)
+		if err != nil {
+			_, _ = fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting 'No team': %s\n", err)
+			return ErrGeneric
+		}
+		noTeam = teamToProcess{
+			ID:   ptr.Uint(0),
+			Team: noTeamData,
+		}
 	}
-	noTeam := teamToProcess{
-		ID:   ptr.Uint(0),
-		Team: noTeamData,
-	}
+
 	switch {
 	case cmd.CLI.String("team") == "global" || !cmd.AppConfig.License.IsPremium():
 		teamsToProcess = []teamToProcess{globalTeam}
