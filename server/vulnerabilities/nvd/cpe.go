@@ -385,8 +385,6 @@ var (
 					strings.Contains(strings.ToLower(s.Name), "preview")) {
 					newVersion = fmt.Sprintf("%s.%s", parts[0], parts[1])
 				} else if isSpecificVer {
-					newVersion = fmt.Sprintf("%s.%s", parts[0], parts[1])
-				} else if isSpecificVer {
 					newVersion = fmt.Sprintf("%s.%s.%s", parts[0], parts[1], parts[2])
 				} else {
 					return
