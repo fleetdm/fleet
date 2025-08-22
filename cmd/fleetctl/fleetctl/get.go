@@ -1546,6 +1546,11 @@ func getMDMCommandResultsCommand() *cli.Command {
 				}, "\n\n"))
 			}
 
+			if len(data) == 0 {
+				fmt.Fprint(c.App.Writer, "No results received. Please check again in a few minutes.\n")
+				return nil
+			}
+
 			fmt.Fprint(c.App.Writer, strings.Join(data, "\n---\n\n"))
 
 			return nil
