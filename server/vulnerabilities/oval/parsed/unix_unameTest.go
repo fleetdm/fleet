@@ -16,7 +16,7 @@ type UnixUnameTest struct {
 func (t UnixUnameTest) Eval(version string) (bool, error) {
 	for _, s := range t.States {
 		op, val := s.unpack()
-		fmt.Printf("checking val %s against software version: %v\n", val, version)
+		fmt.Printf("checking val %s against software version %v with op %d\n", val, version, op)
 		switch op {
 		case LessThan:
 			if utils.Rpmvercmp(version, val) != -1 {
