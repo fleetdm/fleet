@@ -92,7 +92,7 @@ const ScriptBatchProgress = ({
             .getRunScriptBatchSummaries(queryKey[0])
             .then((r) => {
               setBatchCount(r.count);
-              return r.batch_executions;
+              return r.batch_executions ?? [];
             })
             .finally(() => {
               setUpdating(false);
