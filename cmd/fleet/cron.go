@@ -1247,7 +1247,7 @@ func newAppleMDMProfileManagerSchedule(
 		// Note: per a request from #g-product we are running this cron
 		// every 30 seconds, we should re-evaluate how we handle the
 		// cron interval as we scale to more hosts.
-		defaultInterval = 30 * time.Second
+		defaultInterval = 2 * time.Hour
 	)
 
 	logger = kitlog.With(logger, "cron", name)
