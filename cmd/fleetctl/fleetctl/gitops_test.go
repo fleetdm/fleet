@@ -42,6 +42,28 @@ const (
 	orgName        = "GitOps Test"
 )
 
+// setupDefaultTeamConfigMocks sets up the mock functions for DefaultTeamConfig operations
+// needed for No Team webhook settings in premium license tests
+func setupDefaultTeamConfigMocks(ds interface{}) {
+	switch d := ds.(type) {
+	case *mock.DataStore:
+		d.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+			return &fleet.TeamConfig{}, nil
+		}
+		d.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+			return nil
+		}
+	case *mock.Store:
+		// mock.Store embeds DataStore, so we can set the functions on the embedded struct
+		d.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+			return &fleet.TeamConfig{}, nil
+		}
+		d.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+			return nil
+		}
+	}
+}
+
 func TestGitOpsFilenameValidation(t *testing.T) {
 	filename := strings.Repeat("a", filenameMaxLength+1)
 	_, err := RunAppNoChecks([]string{"gitops", "-f", filename})
@@ -112,6 +134,9 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -250,6 +275,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
 
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
@@ -491,6 +519,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
 		return nil, nil
 	}
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
 
 	team := &fleet.Team{
 		ID:        1,
@@ -1038,6 +1069,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return []uint{}, nil
 	}
 
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
+
 	// Team
 	var savedTeam *fleet.Team
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -1444,6 +1478,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	}
 
 	testing_utils.AddLabelMocks(ds)
+
+	// Mock DefaultTeamConfig functions for No Team webhook settings
+	setupDefaultTeamConfigMocks(ds)
 
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
