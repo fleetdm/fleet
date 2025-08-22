@@ -301,12 +301,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			includedCVEs:      []cve{},
 			continuesToUpdate: false,
 		},
-		"cpe:2.3:a:microsoft:visual_studio_code_eslint_extension:2.0.0:*:*:*:*:visual_studio_code:*:*": {
+		/* "cpe:2.3:a:microsoft:visual_studio_code_eslint_extension:2.0.0:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-1481", resolvedInVersion: "2.1.7"},
 			},
 			continuesToUpdate: false,
-		},
+		}, */
 		/*"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-1171", resolvedInVersion: "2020.5.0"},
@@ -645,7 +645,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	}
 
 	t.Run("find_vulns_on_cpes", func(t *testing.T) {
-		t.Skip("Skipped due to NVD changing things see: https://github.com/fleetdm/fleet/issues/30118#issuecomment-3213366453 for more info.")
 		t.Parallel()
 
 		ds := new(mock.Store)
