@@ -20,6 +20,7 @@ export interface ScriptsLocation {
   query: {
     team_id?: string;
     status?: string;
+    page?: string;
   };
 }
 interface IScriptsProps {
@@ -28,8 +29,14 @@ interface IScriptsProps {
   location: ScriptsLocation;
 }
 
+const DEFAULT_PAGE = 0;
+
 const Scripts = ({ router, location, params }: IScriptsProps) => {
   const { section } = params;
+
+  const pageNumber = location.query.page
+    ? parseInt(location.query.page, 10)
+    : DEFAULT_PAGE;
 
   const { teamIdForApi } = useTeamIdParam({
     location,
@@ -71,6 +78,7 @@ const Scripts = ({ router, location, params }: IScriptsProps) => {
             teamId={teamIdForApi ?? API_NO_TEAM_ID} // Scripts must be scoped to a team
             router={router}
             location={location}
+            currentPage={pageNumber}
           />
         }
       />
