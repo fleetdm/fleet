@@ -316,7 +316,10 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 	var rle ratelimit.Error
 	if errors.As(err, &rle) {
 		res := rle.Result()
-		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
+		if res.RetryAfter > 0 {
+			logger = log.With(logger, "retry_after", res.RetryAfter)
+		}
+		logger.Log("err", "limit exceeded")
 	} else {
 		logger.Log("err", err)
 	}
