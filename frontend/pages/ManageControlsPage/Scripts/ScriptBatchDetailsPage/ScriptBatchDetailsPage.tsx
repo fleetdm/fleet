@@ -1,7 +1,9 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
+
+import { buildQueryStringFromParams } from "utilities/url";
 
 import { NotificationContext } from "context/notification";
 
@@ -21,6 +23,7 @@ import MainContent from "components/MainContent";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
+import DataError from "components/DataError";
 
 import getWhen from "../helpers";
 import CancelScriptBatchModal from "../components/CancelScriptBatchModal";
@@ -49,7 +52,7 @@ const ScriptBatchDetailsPage = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
-  const { data: batchDetails, isLoading, isError, refetch } = useQuery<
+  const { data: batchDetails, isLoading, isError } = useQuery<
     IScriptBatchSummaryV2,
     AxiosError,
     IScriptBatchSummaryV2,
@@ -60,9 +63,14 @@ const ScriptBatchDetailsPage = ({
     { ...DEFAULT_USE_QUERY_OPTIONS, enabled: !!batch_execution_id }
   );
 
-  const pathToProgress =
-    paths.CONTROLS_SCRIPTS_BATCH_PROGRESS +
-    (batchDetails?.status ? `?status=${batchDetails?.status}` : "");
+  const pathToProgress = useMemo(() => {
+    const params = buildQueryStringFromParams({
+      status: batchDetails?.status,
+      team_id: batchDetails?.team_id,
+    });
+
+    return paths.CONTROLS_SCRIPTS_BATCH_PROGRESS + (params ? `?${params}` : "");
+  }, [batchDetails?.status, batchDetails?.team_id]);
 
   const onCancelBatch = useCallback(async () => {
     setIsCanceling(true);
@@ -87,6 +95,9 @@ const ScriptBatchDetailsPage = ({
   const renderContent = () => {
     if (isLoading || !batchDetails) {
       return <Spinner />;
+    }
+    if (isError) {
+      return <DataError description="Could not load script batch details." />;
     }
     const {
       script_name,
