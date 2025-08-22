@@ -461,7 +461,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			return err
 		}
 		p.NDESSCEPProxyCAUpdatePayload.Preprocess()
-		if err := svc.validateNDESSCEPProxyUpdate(ctx, p.NDESSCEPProxyCAUpdatePayload, errPrefix); err != nil {
+		if err := svc.validateNDESSCEPProxyUpdate(ctx, p.NDESSCEPProxyCAUpdatePayload, oldCA, errPrefix); err != nil {
 			return err
 		}
 		caToUpdate.Type = string(fleet.CATypeNDESSCEPProxy)
@@ -597,14 +597,8 @@ func (svc *Service) validateHydrantUpdate(hydrant *fleet.HydrantCAUpdatePayload,
 	return nil
 }
 
-func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *fleet.NDESSCEPProxyCAUpdatePayload, errPrefix string) error {
+func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *fleet.NDESSCEPProxyCAUpdatePayload, oldCA *fleet.CertificateAuthority, errPrefix string) error {
 	// some methods in this fuction require the NDESSCEPProxyCA type so we convert the ndes update payload here
-	NDESProxy := fleet.NDESSCEPProxyCA{
-		URL:      *ndesSCEP.URL,
-		AdminURL: *ndesSCEP.AdminURL,
-		Username: *ndesSCEP.Username,
-		Password: *ndesSCEP.Password,
-	}
 
 	if ndesSCEP.URL != nil {
 		if err := validateURL(*ndesSCEP.URL, "NDES SCEP", errPrefix); err != nil {
@@ -616,6 +610,33 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 		}
 	}
 	if ndesSCEP.AdminURL != nil {
+		if *ndesSCEP.AdminURL == "" {
+			return &fleet.BadRequestError{
+				Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL. Please correct and try again.", errPrefix),
+			}
+		}
+
+		// We want to generate a NDESSCEPProxyCA struct with all required fields to verify the admin URL.
+		// If URL, Username or Password are not being updated we use the existing values from oldCA
+		NDESProxy := fleet.NDESSCEPProxyCA{
+			AdminURL: *ndesSCEP.AdminURL,
+		}
+		if ndesSCEP.URL != nil {
+			NDESProxy.URL = *ndesSCEP.URL
+		} else {
+			NDESProxy.URL = *oldCA.URL
+		}
+		if ndesSCEP.Username != nil {
+			NDESProxy.Username = *ndesSCEP.Username
+		} else {
+			NDESProxy.Username = *oldCA.Username
+		}
+		if ndesSCEP.Password != nil {
+			NDESProxy.Password = *ndesSCEP.Password
+		} else {
+			NDESProxy.Password = *oldCA.Password
+		}
+
 		if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, NDESProxy); err != nil {
 			level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP admin URL", "err", err)
 			switch {
