@@ -373,10 +373,6 @@ var (
 				return strings.Contains(strings.ToLower(s.Name), "powershell")
 			},
 			mutate: func(s *fleet.Software, logger log.Logger) {
-				// if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
-				// 	s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
-				// }
-				// MAKE SURE it only mutates 7.5
 				parts := strings.Split(s.Version, ".")
 				if len(parts) < 3 {
 					return
@@ -385,9 +381,10 @@ var (
 				isSpecificVer := parts[0] == "7" && parts[1] == "5"
 				var newVersion string
 
-				if isSpecificVer && strings.Contains(parts[2], "-") {
+				if isSpecificVer && (strings.Contains(parts[2], "-") ||
+					strings.Contains(strings.ToLower(s.Name), "preview")) {
 					newVersion = fmt.Sprintf("%s.%s", parts[0], parts[1])
-				} else if isSpecificVer && strings.Contains(strings.ToLower(s.Name), "preview") {
+				} else if isSpecificVer {
 					newVersion = fmt.Sprintf("%s.%s", parts[0], parts[1])
 				} else if isSpecificVer {
 					newVersion = fmt.Sprintf("%s.%s.%s", parts[0], parts[1], parts[2])
@@ -395,7 +392,6 @@ var (
 					return
 				}
 
-				fmt.Printf("New Version: %s\n", newVersion)
 				s.Name = "powershell"
 				s.Version = newVersion
 			},
@@ -421,13 +417,6 @@ func mutateSoftware(software *fleet.Software, logger log.Logger) {
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
 // any translations, and then lookup in the cpe database based on the title, product and vendor.
 func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, translations CPETranslations, reCache *regexpCache) (string, error) {
-	isPowershellTemp := strings.Contains(strings.ToLower(software.Name), "powershell")
-	if isPowershellTemp {
-		fmt.Printf("\n\n\n\n\n\n\n\n")
-		fmt.Printf("--------------- CPEFromSoftware --------------\n")
-		fmt.Printf("unmutated software: %v\n", software)
-		fmt.Printf("unmutated version: %s\n", software.Version)
-	}
 	if containsNonASCII(software.Name) {
 		level.Debug(logger).Log("msg", "skipping software with non-ascii characters", "software", software.Name, "version", software.Version, "source", software.Source)
 		return "", nil
@@ -438,13 +427,6 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 	translation, match, err := translations.Translate(reCache, software)
 	if err != nil {
 		return "", fmt.Errorf("translate software: %w", err)
-	}
-
-	if isPowershellTemp {
-		fmt.Printf("software: %v\n", software)
-		fmt.Printf("version: %s\n", software.Version)
-		fmt.Printf("translation: %+v\n", translation)
-		fmt.Printf("translate match: %v\n", match)
 	}
 
 	if match {
@@ -492,26 +474,13 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 			return "", fmt.Errorf("getting CPE for: %s: %w", software.Name, err)
 		}
 
-		if isPowershellTemp {
-			fmt.Println("1111111")
-		}
-
 		if result.ID != 0 {
 			if translation.Part != "" {
 				result.Part = translation.Part
 			}
-			if isPowershellTemp {
-				fmt.Printf("result.FmtStr: %+v\n", result.FmtStr(software))
-			}
 			return result.FmtStr(software), nil
 		}
-		if isPowershellTemp {
-			fmt.Println("2222222")
-		}
 	} else {
-		if isPowershellTemp {
-			fmt.Println("3333333")
-		}
 		stm, args, err := cpeGeneralSearchQuery(software)
 		if err != nil {
 			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
@@ -527,13 +496,6 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 
 		if err != nil {
 			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
-		}
-		if isPowershellTemp {
-			for _, v := range productVariations(software) {
-				fmt.Printf("Variation: %s\n", v)
-			}
-			fmt.Println("44444444")
-			fmt.Printf("Size results: %d\n", len(results))
 		}
 
 		for i, item := range results {
@@ -553,15 +515,9 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 				if sVendor != "" {
 					hasAllTerms = hasAllTerms && strings.Contains(sVendor, sV)
 				}
-				if isPowershellTemp {
-					fmt.Printf("hasAllTerms sVendor: %t\n", hasAllTerms)
-				}
 
 				if sBundle != "" {
 					hasAllTerms = hasAllTerms && strings.Contains(sBundle, sV)
-				}
-				if isPowershellTemp {
-					fmt.Printf("hasAllTerms sBundle: %t\n", hasAllTerms)
 				}
 			}
 
@@ -576,10 +532,6 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 
 		if match != nil {
 			if !match.Deprecated {
-				// fmt.Println(match.FmtStr(software))
-				if isPowershellTemp {
-					fmt.Printf("match.FmtStr: %+v\n", match.FmtStr(software))
-				}
 				return match.FmtStr(software), nil
 			}
 
@@ -616,15 +568,9 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 						deprecatedItem = deprecation
 						continue
 					}
-					if isPowershellTemp {
-						fmt.Printf("deprecation.FmtStr: %+v\n", deprecation.FmtStr(software))
-					}
 					return deprecation.FmtStr(software), nil
 				}
 			}
-		}
-		if isPowershellTemp {
-			fmt.Println("66666: the end")
 		}
 	}
 
@@ -786,11 +732,7 @@ func translateSoftwareToCPEWithIterator(
 	logger kitlog.Logger,
 	iterator fleet.SoftwareIterator,
 ) error {
-	fmt.Println("--------------------- translateSoftwareToCPEWithIterator --------------")
-	fmt.Printf("\n\n\n\n\n")
-	// This should be the only function that calls UpsertSoftwareCPEs
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
-	fmt.Printf("db path: %s\n", dbPath)
 
 	db, err := sqliteDB(dbPath)
 	if err != nil {
@@ -811,7 +753,6 @@ func translateSoftwareToCPEWithIterator(
 
 	for iterator.Next() {
 		software, err := iterator.Value()
-		// fmt.Printf("--- GenerateCPE: %s\n", software.GenerateCPE)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting value from iterator")
 		}
@@ -828,9 +769,6 @@ func translateSoftwareToCPEWithIterator(
 			// generated by a previous version of Fleet.
 		} else {
 			cpe, err = CPEFromSoftware(logger, db, software, cpeTranslations, reCache)
-			if strings.Contains(strings.ToLower(software.Name), "powershell") {
-				fmt.Printf("cpe:                      %s\n", cpe)
-			}
 			if err != nil {
 				level.Error(logger).Log(
 					"msg", "error translating to CPE, skipping",
@@ -842,8 +780,6 @@ func translateSoftwareToCPEWithIterator(
 				continue
 			}
 		}
-		// fmt.Println(software.ToUniqueStr())
-		// fmt.Println(cpe)
 		if cpe == software.GenerateCPE {
 			// If the generated CPE hasn't changed from what's already stored in the DB
 			// then we don't need to do anything.

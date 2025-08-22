@@ -1521,7 +1521,6 @@ func (ds *Datastore) AllSoftwareIterator(
 }
 
 func (ds *Datastore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
-	fmt.Println("--------------------- UpsertSoftwareCPEs ---------------------")
 	var args []interface{}
 
 	if len(cpes) == 0 {

@@ -203,11 +203,6 @@ func scanVulnerabilities(
 	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
 
-	fmt.Println("------------------------- PRINTING VULNS ------------------------")
-	for _, val := range vulns {
-		fmt.Println(val.String())
-	}
-
 	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
 	if err != nil {
 		errHandler(ctx, logger, "could not fetch CVE meta", err)
@@ -478,14 +473,12 @@ func checkNVDVulnerabilities(
 		// don't return, continue on ...
 	}
 
-	fmt.Println("--------------------- translateSoftwareToCPE --------------")
 	err := nvd.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: Software->CPE", err)
 		return nil
 	}
 
-	fmt.Println("--------------------- translateCPEToCVE --------------")
 	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, startTime)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)

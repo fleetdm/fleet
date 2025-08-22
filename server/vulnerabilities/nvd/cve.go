@@ -406,7 +406,6 @@ func checkCVEs(
 	jsonFile string,
 	knownNVDBugRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, []fleet.OSVulnerability, error) {
-	// fmt.Println("------------------ checkCVEs -----------------")
 	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
 	if err != nil {
 		return nil, nil, err
@@ -544,7 +543,6 @@ func checkCVEs(
 	level.Debug(logger).Log("msg", "pushing cpes")
 
 	for _, cpe := range cpeItems {
-		// fmt.Printf("pushing cpe: %s\n", cpe.GetMeta().String())
 		CPEItemCh <- cpe
 	}
 	close(CPEItemCh)

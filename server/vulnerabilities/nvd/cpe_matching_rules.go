@@ -225,9 +225,6 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 		// 		"CVE-2025-21171": {},
 		// 	},
 		// 	IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
-		// 		if cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell" && cpeMeta.Update == "" {
-		// 			fmt.Println("-------------------- CPE MATCHING RULES: IGNORE IF -----------------")
-		// 		}
 		// 		return cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell" && cpeMeta.Update == ""
 		// 	},
 		// },
