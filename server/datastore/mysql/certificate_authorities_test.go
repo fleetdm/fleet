@@ -152,7 +152,7 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		APIToken:                      ptr.String("test-api-token"),
 		ProfileID:                     ptr.String("test-profile-id"),
 		CertificateCommonName:         ptr.String("test-common-name $FLEET_VAR_HOST_HARDWARE_SERIAL"),
-		CertificateUserPrincipalNames: []string{"test-upn $FLEET_VAR_HOST_HARDWARE_SERIAL"},
+		CertificateUserPrincipalNames: &[]string{"test-upn $FLEET_VAR_HOST_HARDWARE_SERIAL"},
 		CertificateSeatID:             ptr.String("test-seat-id"),
 	}
 

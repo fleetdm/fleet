@@ -104,17 +104,17 @@ func TestRequestCertificate(t *testing.T) {
 
 	hydrantCA := &fleet.CertificateAuthority{
 		ID:           1,
-		Name:         "TestHydrantCA",
+		Name:         ptr.String("TestHydrantCA"),
 		Type:         string(fleet.CATypeHydrant),
-		URL:          mockHydrantServer.URL,
+		URL:          &mockHydrantServer.URL,
 		ClientID:     ptr.String("test-client-id"),
 		ClientSecret: ptr.String("test-client-secret"),
 	}
 	digicertCA := &fleet.CertificateAuthority{
 		ID:        2,
-		Name:      "TestDigiCertCA",
+		Name:      ptr.String("TestDigiCertCA"),
 		Type:      string(fleet.CATypeDigiCert),
-		URL:       "https://api.digicert.com",
+		URL:       ptr.String("https://api.digicert.com"),
 		APIToken:  ptr.String("test-api-token"),
 		ProfileID: ptr.String("test-profile-id"),
 	}

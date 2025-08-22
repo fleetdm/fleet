@@ -42,7 +42,7 @@ func TestGetCertificateAuthorityByID(t *testing.T) {
 				APIToken:                      ptr.String(fleet.MaskedPassword),
 				ProfileID:                     ptr.String("digicert-profile-id"),
 				CertificateCommonName:         ptr.String("digicert-common-name"),
-				CertificateUserPrincipalNames: []string{"digicert-upn1"},
+				CertificateUserPrincipalNames: &[]string{"digicert-upn1"},
 				CertificateSeatID:             ptr.String("digicert-seat-id"),
 			}, nil
 		}

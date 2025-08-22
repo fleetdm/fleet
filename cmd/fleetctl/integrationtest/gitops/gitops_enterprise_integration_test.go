@@ -479,20 +479,20 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	certSeatID := "digicert_seat_id"
 	_, err = s.DS.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
 		Type:                          string(fleet.CATypeDigiCert),
-		Name:                          "DigiCert",
-		URL:                           digiCertServer.URL,
+		Name:                          ptr.String("DigiCert"),
+		URL:                           &digiCertServer.URL,
 		APIToken:                      &apiToken,
 		ProfileID:                     &profileID,
 		CertificateCommonName:         &certCN,
-		CertificateUserPrincipalNames: []string{"digicert_upn"},
+		CertificateUserPrincipalNames: &[]string{"digicert_upn"},
 		CertificateSeatID:             &certSeatID,
 	})
 	require.NoError(t, err)
 	challenge := "challenge"
 	_, err = s.DS.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      "CustomScepProxy",
-		URL:       scepServer.URL,
+		Name:      ptr.String("CustomScepProxy"),
+		URL:       &scepServer.URL,
 		Challenge: &challenge,
 	})
 	require.NoError(t, err)
