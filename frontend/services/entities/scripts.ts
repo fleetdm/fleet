@@ -312,7 +312,12 @@ export default {
     //   `${endpoints.SCRIPT_RUN_BATCH_SUMMARY_V2(batch_execution_id)}`
     // );
     // TODO - remove
-    return Promise.resolve(createMockBatchScriptSummary({ canceled: true }));
+    return Promise.resolve(
+      createMockBatchScriptSummary({
+        status: "started",
+        finished_at: null,
+      })
+    );
   },
   getRunScriptBatchSummaries(
     params: IScriptBatchSummariesParams

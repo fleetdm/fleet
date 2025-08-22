@@ -1,19 +1,23 @@
-import { render } from "@testing-library/react";
-import { AxiosError } from "axios";
-import BackLink from "components/BackLink";
-import MainContent from "components/MainContent";
-import SectionHeader from "components/SectionHeader";
-import Spinner from "components/Spinner";
-import { IScript } from "interfaces/script";
 import React from "react";
 import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
-import paths from "router/paths";
+import { AxiosError } from "axios";
+
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
   IScriptBatchSummaryV2,
 } from "services/entities/scripts";
+
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
+import paths from "router/paths";
+
+import BackLink from "components/BackLink";
+import MainContent from "components/MainContent";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
+
 import getWhen from "../helpers";
 
 const baseClass = "script-batch-details-page";
@@ -51,6 +55,9 @@ const ScriptBatchDetailsPage = ({
     }
 
     const {
+      script_name,
+      status,
+
       targeted_host_count: targeted,
       ran_host_count: ran,
       errored_host_count: errored,
@@ -79,21 +86,36 @@ const ScriptBatchDetailsPage = ({
 
         <SectionHeader
           wrapperCustomClass={`${baseClass}__header`}
-          title={scriptBatchDetails.script_name}
+          title={script_name}
           subTitle={subTitle}
           details={
-            <span>
-              {/* TODO */}
-              <button>Show script</button>
-              {/* TODO */}
-              <button>Cancel</button>
-            </span>
+            <ActionButtons
+              baseClass={baseClass}
+              actions={[
+                {
+                  type: "secondary",
+                  label: "Show script",
+                  buttonVariant: "text-icon",
+                  iconName: "eye",
+                  onClick: () => {
+                    // TODO - implement script viewing logic
+                  },
+                },
+                {
+                  type: "secondary",
+                  label: "Cancel",
+                  onClick: () => {
+                    // TODO - implement cancel logic
+                  },
+                  hideAction: status === "finished",
+                  buttonVariant: "alert",
+                },
+              ]}
+            />
           }
           alignLeftHeaderVertically
           greySubtitle
         />
-        {/* show script button */}
-        {/* cancel button */}
         {/* tabs */}
       </div>
     );
