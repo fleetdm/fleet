@@ -120,6 +120,18 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "creating new Android device")
 		}
+
+		// insert storage data into host_disks table for API consumption
+		if host.Host.GigsTotalDiskSpace > 0 || host.Host.GigsDiskSpaceAvailable > 0 {
+			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
+				host.Host.GigsDiskSpaceAvailable,
+				host.Host.PercentDiskSpaceAvailable,
+				host.Host.GigsTotalDiskSpace)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "setting Android host disk space")
+			}
+		}
+
 		return nil
 	})
 	return host, err
@@ -195,6 +207,18 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android device")
 		}
+
+		// update storage data in host_disks table for API consumption
+		if host.Host.GigsTotalDiskSpace > 0 || host.Host.GigsDiskSpaceAvailable > 0 {
+			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
+				host.Host.GigsDiskSpaceAvailable,
+				host.Host.PercentDiskSpaceAvailable,
+				host.Host.GigsTotalDiskSpace)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "updating Android host disk space")
+			}
+		}
+
 		return nil
 	})
 	return err
