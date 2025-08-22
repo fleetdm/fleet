@@ -1173,11 +1173,11 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent), nil, fleet.LabelsIncludeAll)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll)
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent), nil, fleet.LabelsIncludeAll)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll)
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 
 			// test authz delete config profile (no team)
@@ -1276,7 +1276,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 				}, nil
 			}
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile), nil, fleet.LabelsIncludeAll)
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", []byte(c.profile), nil, fleet.LabelsIncludeAll)
 			if c.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, c.wantErr)
@@ -2390,6 +2390,67 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 				if tt.errContains != "" {
 					require.Contains(t, err.Error(), tt.errContains)
 				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestDetermineJSONConfigType(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		profileJSON string
+		wantApple   bool
+		wantAndroid bool
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "Apple profile",
+			profileJSON: `{"Payload": "Yes", "Type": "Sample"}`,
+			wantApple:   true,
+		},
+		{
+			name:        "Android profile",
+			profileJSON: `{"payload": "Yes", "type": "Sample"}`,
+			wantApple:   false,
+			wantAndroid: true,
+		},
+		{
+			name:        "invalid json",
+			profileJSON: `{"payload": "Yes"`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "hmm revisit this",
+		},
+		{
+			name:        "empty json",
+			profileJSON: `{}`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "hmm revisit this",
+		},
+		{
+			name:        "no json",
+			profileJSON: ``,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "hmm revisit this",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			gotApple, gotAndroid, err := determineJSONConfigType([]byte(tt.profileJSON))
+			assert.Equal(t, tt.wantApple, gotApple)
+			assert.Equal(t, tt.wantAndroid, gotAndroid)
+			if tt.wantErr {
+				require.ErrorContains(t, err, tt.errContains)
 			} else {
 				require.NoError(t, err)
 			}

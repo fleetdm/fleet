@@ -1335,6 +1335,11 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 	defer ff.Close()
 
+	data, err := io.ReadAll(ff)
+	if err != nil {
+		return &newMDMConfigProfileResponse{Err: err}, nil
+	}
+
 	fileExt := filepath.Ext(req.Profile.Filename)
 	profileName := strings.TrimSuffix(filepath.Base(req.Profile.Filename), fileExt)
 	isMobileConfig := strings.EqualFold(fileExt, ".mobileconfig")
@@ -1355,10 +1360,14 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		labelsMode = fleet.LabelsIncludeAll
 	}
 
+	if isJSON {
+		// TODO EJM Figure out if it's android or Apple
+	}
+
 	if isMobileConfig || isJSON {
 		// Then it's an Apple configuration file
 		if isJSON {
-			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, ff, labels, profileName, labelsMode)
+			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode)
 			if err != nil {
 				errStr := err.Error()
 				if strings.Contains(errStr, "MDMAppleDeclaration.Name") && strings.Contains(errStr, "already exists") {
@@ -1375,7 +1384,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 		}
 
-		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, labels, labelsMode)
+		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, labels, labelsMode)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1385,7 +1394,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isWindows := strings.EqualFold(fileExt, ".xml"); isWindows {
-		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff, labels, labelsMode)
+		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1396,6 +1405,79 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 	err = svc.NewMDMUnsupportedConfigProfile(ctx, req.TeamID, req.Profile.Filename)
 	return &newMDMConfigProfileResponse{Err: err}, nil
+}
+
+// determineJSONConfigType checks the JSON data to determine if it is an Apple or Android profile.
+// Returns isApple, isAndroid, error.
+func determineJSONConfigType(data []byte) (bool, bool, error) {
+	/*
+		Ensure that if the user uploads a .json profile with keys that all start with uppercase letters, and it includes Type and Payload keys, it is uploaded as a macOS/iOS/iPadOS profile.
+		Ensure that if the user uploads a .json profile with keys that all start with lowercase letters, and
+		it includes keys that use only lowercase and uppercase letters, it is uploaded as an Android
+		profile.
+		Verify that users get an error if they try to upload a .json profile that is empty (includes only {}).
+		Verify that users get an error if they try to upload a .json profile that includes invalid JSON.
+
+		Not in this code but endpoint code maybe:
+		Verify that users get an error if they try to upload a profile with a name that already exists (across all platforms). Add Restrictions.json Android profile, then try to add macOS profile (.mobileconfig) that has PayloadDisplayName = Restrictions.
+		Verify that users get an error if they try to upload an Android profile with specific settings that
+		are restricted (specified in Figma).
+		statusReportingSettings
+		applications
+		appFunctiosn
+		playStoreMode
+		installAppsDisabled
+		uninstallAppsDisabled
+		blockApplicationsEnabled
+		appAutoUpdatePolicy
+		systemUpdate
+		kioskCustomLauncherEnabled
+		kioskCustomization
+		setupActions
+		encryptionPolicy
+	*/
+	type jsonObj map[string]interface{}
+	var profileKeyMap jsonObj
+	err := json.Unmarshal(data, &profileKeyMap)
+	if err != nil {
+		// TODO invalid profile err
+		return false, false, err
+	}
+	if len(profileKeyMap) == 0 {
+		return false, false, errors.New("empty profile")
+	}
+	hasTypeKey := false
+	hasPayloadKey := false
+	hasKeysStartingInUpper := false
+	hasKeysStartingInLower := false
+	hasKeysContainingNonLetters := false
+	for k := range profileKeyMap {
+		if k == "Type" {
+			hasTypeKey = true
+		}
+		if k == "Payload" {
+			hasPayloadKey = true
+		}
+	}
+
+	// It's an Apple declaration or at least looks like one
+	if hasKeysStartingInUpper && !hasKeysStartingInLower {
+		if hasTypeKey && hasPayloadKey {
+			return true, false, nil
+		}
+		if !hasTypeKey {
+			// TODO err
+			return false, false, errors.New("apple declaration missing Type")
+		}
+		// TODO this err
+		return false, false, errors.New("apple declaration missing Payload")
+	}
+	// Android declaration
+	if !hasKeysStartingInUpper && hasKeysStartingInLower && !hasKeysContainingNonLetters {
+		return false, true, nil
+	}
+	// Didn't match either one
+	return false, false, errors.New("could not determine profile type from JSON keys")
 }
 
 func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error {
@@ -1409,7 +1491,7 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 	return &fleet.BadRequestError{Message: "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file."}
 }
 
-func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error) {
+func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1430,18 +1512,10 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		teamName = tm.Name
 	}
 
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "failed to read Windows config profile",
-			InternalErr: err,
-		})
-	}
-
 	cp := fleet.MDMWindowsConfigProfile{
 		TeamID: &teamID,
 		Name:   profileName,
-		SyncML: b,
+		SyncML: data,
 	}
 	if err := cp.ValidateUserProvided(); err != nil {
 		msg := err.Error()
