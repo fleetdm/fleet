@@ -1,5 +1,0 @@
-url: https://slack.com/api/desktop.latestRelease?redirect=1&variant=pkg&arch=universal
-self_service: true
-categories:
-  - Communication
-  - Productivity

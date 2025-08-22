@@ -77,7 +77,7 @@ controls:
       - package_path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
       - package_path: ../lib/macos/software/zoom.yml # Zoom for macOS
       - package_path: ../lib/macos/software/1password.yml # 1Password for macOS
-      - package_path: ../lib/macos/software/slack.yml # Slack for macOS
+      - app_store_id: '803453959' # Slack Desktop
   macos_updates:
     deadline: "2025-08-31"
     minimum_version: "15.6"
@@ -129,7 +129,6 @@ software:
     - path: ../lib/macos/software/santa.yml # Santa for macOS
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
-    - path: ../lib/macos/software/slack.yml # Slack for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
@@ -141,6 +140,11 @@ software:
     - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
+    - app_store_id: '803453959' # Slack Desktop
+      self_service: true
+      categories:
+        - Communication
+        - Productivity
     - app_store_id: '409183694' # Keynote
       self_service: true
   fleet_maintained_apps:
