@@ -14,6 +14,8 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import paths from "router/paths";
 
+import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
+
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
 import SectionHeader from "components/SectionHeader";
@@ -42,6 +44,7 @@ const ScriptBatchDetailsPage = ({
   const { batch_execution_id } = routeParams;
 
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showScriptDetails, setShowScriptDetails] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
 
   const { renderFlash } = useContext(NotificationContext);
@@ -128,7 +131,7 @@ const ScriptBatchDetailsPage = ({
                   buttonVariant: "text-icon",
                   iconName: "eye",
                   onClick: () => {
-                    // TODO - implement script viewing logic
+                    setShowScriptDetails(true);
                   },
                 },
                 {
@@ -153,15 +156,26 @@ const ScriptBatchDetailsPage = ({
 
   return (
     <>
+      <MainContent className={baseClass}>{renderContent()}</MainContent>
       {showCancelModal && (
         <CancelScriptBatchModal
           onSubmit={onCancelBatch}
-          onExit={() => setShowCancelModal(false)}
+          onExit={() => {
+            setShowCancelModal(false);
+          }}
           scriptName={batchDetails?.script_name}
           isCanceling={isCanceling}
         />
       )}
-      <MainContent className={baseClass}>{renderContent()}</MainContent>
+      {showScriptDetails && (
+        <ScriptDetailsModal
+          selectedScriptId={batchDetails?.script_id}
+          onCancel={() => {
+            setShowScriptDetails(false);
+          }}
+          suppressSecondaryActions
+        />
+      )}
     </>
   );
 };
