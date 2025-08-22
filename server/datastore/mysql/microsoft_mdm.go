@@ -468,7 +468,11 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		sb.WriteString("(?, ?, ?, ?, ?, command_uuid, ?),")
 	}
 
-	stmt = fmt.Sprintf(updateHostProfilesStmt, strings.TrimSuffix(sb.String(), ","))
+	values := strings.TrimSuffix(sb.String(), ",")
+	if len(values) == 0 {
+		return nil
+	}
+	stmt = fmt.Sprintf(updateHostProfilesStmt, values)
 	_, err = tx.ExecContext(ctx, stmt, args...)
 	return ctxerr.Wrap(ctx, err, "updating host profiles")
 }
