@@ -1555,7 +1555,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 				}, "\n\n"))
 			}
 
-			fmt.Println(strings.Join(data, "\n---\n\n"))
+			fmt.Fprint(c.App.Writer, strings.Join(data, "\n---\n\n"))
 
 			return nil
 		},
