@@ -1588,7 +1588,7 @@ func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, t
 		var opts []execuser.Option
 		opts = append(opts, execuser.WithUser(*loggedInUser))
 		opts = append(opts, execuser.WithArg(browserURL, ""))
-		if _, err := execuser.Run("firefox", opts...); err != nil {
+		if _, err := execuser.Run("/usr/bin/firefox", opts...); err != nil {
 			return fmt.Errorf("opening firefox: %w", err)
 		}
 	} else {
