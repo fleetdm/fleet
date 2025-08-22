@@ -241,7 +241,7 @@ By default, this will set up a Redis pool for that configuration and execute a
 
 For the address of the Redis server that Fleet should connect to, include the hostname and port.
 
-If an AWS ElastiCache endpoint is specified and `redis_password` isn't specified, Identity and Access Management (IAM) authentication is automatically used.
+If an AWS ElastiCache endpoint is specified and `redis_password` isn't specified, Fleet will first attempt to use Identity and Access Management (IAM) authentication before falling back to authentication without a password.
 
 - Default value: `localhost:6379`
 - Environment variable: `FLEET_REDIS_ADDRESS`
