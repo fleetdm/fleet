@@ -3,6 +3,8 @@ import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
+import { NotificationContext } from "context/notification";
+
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
   IScriptBatchSummaryV2,
@@ -20,7 +22,6 @@ import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 
 import getWhen from "../helpers";
 import CancelScriptBatchModal from "../components/CancelScriptBatchModal";
-import { NotificationContext } from "context/notification";
 
 const baseClass = "script-batch-details-page";
 
@@ -56,32 +57,28 @@ const ScriptBatchDetailsPage = ({
     { ...DEFAULT_USE_QUERY_OPTIONS, enabled: !!batch_execution_id }
   );
 
-  const onCancelBatch = useCallback(
-    async (batchExecutionId: string) => {
-      setIsCanceling(true);
+  const onCancelBatch = useCallback(async () => {
+    setIsCanceling(true);
 
-      try {
-        await scriptsAPI.cancelScriptBatch(batchExecutionId);
-        renderFlash(
-          "success",
-          <span className={`${baseClass}__success-message`}>
-            <span>Successfully canceled script.</span>
-          </span>
-        );
-        setShowCancelModal(false);
-        // TODO - navigate back to script progress page at status that this script was under
-        router.push(
-          paths.CONTROLS_SCRIPTS_BATCH_PROGRESS +
-            (batchDetails?.status ? `?status=${batchDetails?.status}` : "")
-        );
-      } catch (error) {
-        renderFlash("error", "Could not cancel script. Please try again.");
-      } finally {
-        setIsCanceling(false);
-      }
-    },
-    [batchDetails?.status, renderFlash, router]
-  );
+    try {
+      await scriptsAPI.cancelScriptBatch(batch_execution_id);
+      renderFlash(
+        "success",
+        <span className={`${baseClass}__success-message`}>
+          <span>Successfully canceled script.</span>
+        </span>
+      );
+      setShowCancelModal(false);
+      router.push(
+        paths.CONTROLS_SCRIPTS_BATCH_PROGRESS +
+          (batchDetails?.status ? `?status=${batchDetails?.status}` : "")
+      );
+    } catch (error) {
+      renderFlash("error", "Could not cancel script. Please try again.");
+    } finally {
+      setIsCanceling(false);
+    }
+  }, [batchDetails?.status, batch_execution_id, renderFlash, router]);
 
   const renderContent = () => {
     if (isLoading || !batchDetails) {

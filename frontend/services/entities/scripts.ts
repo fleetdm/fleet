@@ -6,6 +6,8 @@ import {
 } from "interfaces/script";
 import sendRequest from "services";
 
+import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
+
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 import { ListEntitiesMeta } from "./common";
@@ -312,8 +314,9 @@ export default {
     // TODO - remove
     return Promise.resolve(
       createMockBatchScriptSummary({
-        status: "started",
-        finished_at: null,
+        // status: "finished",
+        status: "scheduled",
+        // finished_at: null,
       })
     );
   },
