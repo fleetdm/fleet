@@ -381,12 +381,13 @@ var (
 				isSpecificVer := parts[0] == "7" && parts[1] == "5"
 				var newVersion string
 
-				if isSpecificVer && (strings.Contains(parts[2], "-") ||
-					strings.Contains(strings.ToLower(s.Name), "preview")) {
+				switch {
+				case isSpecificVer && (strings.Contains(parts[2], "-") ||
+					strings.Contains(strings.ToLower(s.Name), "preview")):
 					newVersion = fmt.Sprintf("%s.%s", parts[0], parts[1])
-				} else if isSpecificVer {
+				case isSpecificVer:
 					newVersion = fmt.Sprintf("%s.%s.%s", parts[0], parts[1], parts[2])
-				} else {
+				default:
 					return
 				}
 
