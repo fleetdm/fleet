@@ -1637,8 +1637,7 @@ func (c *Client) DoGitOps(
 	logf func(format string, args ...interface{}),
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
-	appConfig *fleet.EnrichedAppConfig,
-// pass-by-ref to build lists
+	appConfig *fleet.EnrichedAppConfig, // pass-by-ref to build lists
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
