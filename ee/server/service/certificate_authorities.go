@@ -552,20 +552,22 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 		if err := validateURL(*ndesSCEP.URL, "NDES SCEP", errPrefix); err != nil {
 			return err
 		}
+		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *ndesSCEP.URL); err != nil {
+			level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP URL", "err", err)
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+		}
 	}
-	if err := svc.scepConfigService.ValidateSCEPURL(ctx, *ndesSCEP.URL); err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP URL", "err", err)
-		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
-	}
-	if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, NDESProxy); err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP admin URL", "err", err)
-		switch {
-		case errors.As(err, &NDESPasswordCacheFullError{}):
-			return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
-		case errors.As(err, &NDESInsufficientPermissionsError{}):
-			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInsufficient permissions for NDES SCEP admin URL. Please correct and try again.", errPrefix)}
-		default:
-			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL or credentials. Please correct and try again.", errPrefix)}
+	if ndesSCEP.AdminURL != nil {
+		if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, NDESProxy); err != nil {
+			level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP admin URL", "err", err)
+			switch {
+			case errors.As(err, &NDESPasswordCacheFullError{}):
+				return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
+			case errors.As(err, &NDESInsufficientPermissionsError{}):
+				return &fleet.BadRequestError{Message: fmt.Sprintf("%sInsufficient permissions for NDES SCEP admin URL. Please correct and try again.", errPrefix)}
+			default:
+				return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL or credentials. Please correct and try again.", errPrefix)}
+			}
 		}
 	}
 	return nil
@@ -581,15 +583,15 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 		if err := validateURL(*customSCEP.URL, "SCEP", errPrefix); err != nil {
 			return err
 		}
+		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *customSCEP.URL); err != nil {
+			level.Error(svc.logger).Log("msg", "Failed to validate custom SCEP URL", "err", err)
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+		}
 	}
 	if customSCEP.Challenge != nil && *customSCEP.Challenge == "" {
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("%sCustom SCEP Proxy challenge cannot be empty", errPrefix),
 		}
-	}
-	if err := svc.scepConfigService.ValidateSCEPURL(ctx, *customSCEP.URL); err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to validate custom SCEP URL", "err", err)
-		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 	}
 
 	return nil
