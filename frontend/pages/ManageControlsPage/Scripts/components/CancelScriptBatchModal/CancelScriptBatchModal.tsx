@@ -8,15 +8,16 @@ const baseClass = "cancel-script-batch-modal";
 interface ICancelScriptBatchModal {
   onExit: () => void;
   onSubmit: () => void;
-  scriptName: string;
+  scriptName?: string;
+  isCanceling: boolean;
 }
 
 const CancelScriptBatchModal = ({
   onSubmit,
   onExit,
   scriptName,
+  isCanceling,
 }: ICancelScriptBatchModal) => {
-  const [isCanceling, setIsCanceling] = useState(false);
   return (
     <Modal
       title="Cancel script?"
@@ -27,7 +28,8 @@ const CancelScriptBatchModal = ({
       <>
         <div className={`${baseClass}__content`}>
           <p>
-            This will cancel any pending script runs for <b>{scriptName}</b>.
+            This will cancel any pending script runs for{" "}
+            {scriptName ? <b>{scriptName}</b> : "this batch"}.
           </p>
           <p>
             If this script is currently running on a host, it will complete, but
@@ -39,7 +41,6 @@ const CancelScriptBatchModal = ({
               isLoading={isCanceling}
               disabled={isCanceling}
               onClick={onSubmit}
-              // onClick={() => onConfirmCancel(details.batch_execution_id || "")}
               variant="alert"
             >
               Cancel script

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
@@ -19,6 +19,8 @@ import Spinner from "components/Spinner";
 import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 
 import getWhen from "../helpers";
+import CancelScriptBatchModal from "../components/CancelScriptBatchModal";
+import { NotificationContext } from "context/notification";
 
 const baseClass = "script-batch-details-page";
 
@@ -38,7 +40,12 @@ const ScriptBatchDetailsPage = ({
 }: IScriptBatchDetailsProps) => {
   const { batch_execution_id } = routeParams;
 
-  const { data: scriptBatchDetails, isLoading, isError, refetch } = useQuery<
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+
+  const { renderFlash } = useContext(NotificationContext);
+
+  const { data: batchDetails, isLoading, isError, refetch } = useQuery<
     IScriptBatchSummaryV2,
     AxiosError,
     IScriptBatchSummaryV2,
@@ -49,11 +56,37 @@ const ScriptBatchDetailsPage = ({
     { ...DEFAULT_USE_QUERY_OPTIONS, enabled: !!batch_execution_id }
   );
 
+  const onCancelBatch = useCallback(
+    async (batchExecutionId: string) => {
+      setIsCanceling(true);
+
+      try {
+        await scriptsAPI.cancelScriptBatch(batchExecutionId);
+        renderFlash(
+          "success",
+          <span className={`${baseClass}__success-message`}>
+            <span>Successfully canceled script.</span>
+          </span>
+        );
+        setShowCancelModal(false);
+        // TODO - navigate back to script progress page at status that this script was under
+        router.push(
+          paths.CONTROLS_SCRIPTS_BATCH_PROGRESS +
+            (batchDetails?.status ? `?status=${batchDetails?.status}` : "")
+        );
+      } catch (error) {
+        renderFlash("error", "Could not cancel script. Please try again.");
+      } finally {
+        setIsCanceling(false);
+      }
+    },
+    [batchDetails?.status, renderFlash, router]
+  );
+
   const renderContent = () => {
-    if (isLoading || !scriptBatchDetails) {
+    if (isLoading || !batchDetails) {
       return <Spinner />;
     }
-
     const {
       script_name,
       status,
@@ -64,7 +97,7 @@ const ScriptBatchDetailsPage = ({
       pending_host_count: pending,
       incompatible_host_count: incompatible,
       canceled_host_count: canceled,
-    } = scriptBatchDetails;
+    } = batchDetails || {};
 
     const subTitle = (
       <>
@@ -72,7 +105,7 @@ const ScriptBatchDetailsPage = ({
           <b>{targeted}</b> hosts targeted (
           {Math.ceil((ran + errored) / targeted)}% responded)
         </span>
-        <span className="when">{getWhen(scriptBatchDetails)}</span>
+        <span className="when">{getWhen(batchDetails)}</span>
       </>
     );
 
@@ -105,7 +138,7 @@ const ScriptBatchDetailsPage = ({
                   type: "secondary",
                   label: "Cancel",
                   onClick: () => {
-                    // TODO - implement cancel logic
+                    setShowCancelModal(true);
                   },
                   hideAction: status === "finished",
                   buttonVariant: "alert",
@@ -121,7 +154,19 @@ const ScriptBatchDetailsPage = ({
     );
   };
 
-  return <MainContent className={baseClass}>{renderContent()}</MainContent>;
+  return (
+    <>
+      {showCancelModal && (
+        <CancelScriptBatchModal
+          onSubmit={onCancelBatch}
+          onExit={() => setShowCancelModal(false)}
+          scriptName={batchDetails?.script_name}
+          isCanceling={isCanceling}
+        />
+      )}
+      <MainContent className={baseClass}>{renderContent()}</MainContent>
+    </>
+  );
 };
 
 export default ScriptBatchDetailsPage;
