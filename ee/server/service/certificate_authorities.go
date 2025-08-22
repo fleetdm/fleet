@@ -469,6 +469,10 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.Challenge = p.CustomSCEPProxyCAUpdatePayload.Challenge
 	}
 
+	if oldCA.Type == caToUpdate.Type {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe certificate authority types must be the same.", errPrefix)}
+	}
+
 	if err := svc.ds.UpdateCertificateAuthorityByID(ctx, id, &caToUpdate); err != nil {
 		return err
 	}

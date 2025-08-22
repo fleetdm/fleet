@@ -329,19 +329,12 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 	WHERE id = ?
 	`, setStmt)
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, updateArgs...)
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, updateArgs...)
 	if err != nil {
 		if strings.Contains(err.Error(), "idx_ca_type_name") {
 			return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
 		}
 		return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
-	}
-
-	// RowsAffected will still return 0 if the name was the same and the update did not occure
-	// so we need to check if the name was the same before returning the not found error.
-	rows, _ := res.RowsAffected()
-	if rows == 0 && !sameName {
-		return common_mysql.NotFound(fmt.Sprintf("certificate authority with id %d", certificateAuthorityID))
 	}
 
 	return nil
