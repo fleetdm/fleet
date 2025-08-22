@@ -37,8 +37,6 @@
 				<false/>
 				<key>enforceMinorUpdates</key>
 				<true/>
-				<key>honorFocusModes</key>
-				<true/>
 				<key>utilizeSOFAFeed</key>
 				<true/>
 			</dict>
@@ -153,8 +151,6 @@ If you have any questions or need any assistance, please reach out via #help-it-
 						<string>One Hour</string>
 						<key>primaryQuitButtonText</key>
 						<string>Later</string>
-						<key>secondaryQuitButtonText</key>
-						<string>I Understand</string>
 						<key>subHeader</key>
 						<string>A friendly reminder from the IT &amp; Enablement team</string>
 					</dict>
