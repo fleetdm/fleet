@@ -645,6 +645,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	}
 
 	t.Run("find_vulns_on_cpes", func(t *testing.T) {
+		t.Skip("Skipped due to NVD changing things see: https://github.com/fleetdm/fleet/issues/30118#issuecomment-3213366453 for more info.")
 		t.Parallel()
 
 		ds := new(mock.Store)
