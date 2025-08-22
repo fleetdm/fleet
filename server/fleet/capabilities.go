@@ -101,6 +101,7 @@ func GetServerOrbitCapabilities() CapabilityMap {
 		CapabilityEscrowBuddy:               {},
 		CapabilityLinuxDiskEncryptionEscrow: {},
 		CapabilitySetupExperience:           {},
+		CapabilityWebSetupExperience:        {},
 	}
 }
 

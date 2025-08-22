@@ -1554,7 +1554,7 @@ func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, t
 	}
 
 	// Setup experience has been completed
-	if exp != nil {
+	if exp != nil && exp.TimeInitiated != nil {
 		return nil
 	}
 
@@ -1590,8 +1590,9 @@ func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, t
 	}
 
 	// Even if it wasn't enabled, mark it as complete so we don't start it again later
+	initTime := time.Now()
 	if err := writeSetupExperienceStatusFile(setupExperienceStatusPath, &SetupExperienceInfo{
-		TimeInitiated: time.Now(),
+		TimeInitiated: &initTime,
 	}); err != nil {
 		return fmt.Errorf("writing setup experience file: %w", err)
 	}
@@ -1600,7 +1601,7 @@ func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, t
 }
 
 type SetupExperienceInfo struct {
-	TimeInitiated time.Time `json:"time"`
+	TimeInitiated *time.Time `json:"time,omitempty"`
 }
 
 // Returns the time setup experience was completed, or nil if it hasn't
