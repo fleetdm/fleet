@@ -401,14 +401,26 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 		// end of CVE-2023-48795 checks
 		// CVE-2025-21171 handling
-		// Temporary commented out until we have a proper fix for this CVE
 		// https://github.com/fleetdm/fleet/pull/30767
-		// NVD lists this CVE for version 7.5:* and not 7.5.0
+		// NVD lists this CVE for version 7.5 and not 7.5.0
 		"cpe:2.3:a:microsoft:powershell:7.5.0:*:*:*:*:macos:*:*": {
 			excludedCVEs:      []string{"CVE-2025-21171"},
 			continuesToUpdate: true,
 		},
-		"cpe:2.3:a:microsoft:powershell:7.5:rc.1:*:*:*:macos:*:*": {
+		"cpe:2.3:a:microsoft:powershell:7.5.0:*:*:*:*:windows:*:*": {
+			excludedCVEs:      []string{"CVE-2025-21171"},
+			includedCVEs:      []cve{{ID: "CVE-2025-30399"}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:powershell:7.5.2:*:*:*:*:windows:*:*": {
+			excludedCVEs:      []string{"CVE-2025-21171", "CVE-2025-30399"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:powershell:7.5:*:*:*:*:macos:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2025-21171"}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:powershell:7.5:*:*:*:*:windows:*:*": {
 			includedCVEs:      []cve{{ID: "CVE-2025-21171"}},
 			continuesToUpdate: true,
 		},
