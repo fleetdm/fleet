@@ -24,6 +24,7 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 			"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/log",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit",
+			"github.com/fleetdm/fleet/v4/server/mdm/android/tests...", // Android functionality moved to main datastore
 		).
 		ShouldNotDependOn(
 			"github.com/fleetdm/fleet/v4/server/service...",

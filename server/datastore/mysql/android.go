@@ -116,7 +116,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			return ctxerr.Wrap(ctx, err, "new Android host MDM info")
 		}
 
-		host.Device, err = ds.Datastore.CreateDeviceTx(ctx, tx, host.Device)
+		host.Device, err = ds.CreateDeviceTx(ctx, tx, host.Device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "creating new Android device")
 		}
@@ -203,7 +203,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			}
 		}
 
-		err = ds.Datastore.UpdateDeviceTx(ctx, tx, host.Device)
+		err = ds.UpdateDeviceTx(ctx, tx, host.Device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android device")
 		}

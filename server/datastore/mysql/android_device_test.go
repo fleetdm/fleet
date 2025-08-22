@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHosts(t *testing.T) {
+func TestAndroidDevices(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	cases := []struct {
@@ -26,6 +26,7 @@ func TestHosts(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"CreateGetDevice", testCreateGetDevice},
+		{"UpdateDevice", testUpdateDevice},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -74,8 +75,48 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 	assert.EqualValues(t, device2, result2)
 }
 
+func testUpdateDevice(t *testing.T, ds *Datastore) {
+	// Create initial device
+	device := &android.Device{
+		HostID:               1,
+		DeviceID:             "deviceID",
+		EnterpriseSpecificID: ptr.String("enterpriseSpecificID"),
+		AndroidPolicyID:      nil,
+		LastPolicySyncTime:   nil,
+	}
+	created, err := ds.createDevice(testCtx(), device)
+	require.NoError(t, err)
+
+	// Update device
+	created.AndroidPolicyID = ptr.Uint(5)
+	created.LastPolicySyncTime = ptr.Time(time.Now().UTC().Truncate(time.Millisecond))
+
+	err = ds.updateDevice(testCtx(), created)
+	require.NoError(t, err)
+
+	// Verify update
+	result, err := ds.getDeviceByDeviceID(testCtx(), created.DeviceID)
+	require.NoError(t, err)
+	assert.Equal(t, created, result)
+}
+
+// Helper functions that use the Android datastore methods through the main datastore
 func (ds *Datastore) createDevice(ctx context.Context, device *android.Device) (*android.Device, error) {
-	return ds.CreateDeviceTx(ctx, ds.Writer(ctx), device)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		device, err = ds.CreateDeviceTx(ctx, tx, device)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return device, nil
+}
+
+func (ds *Datastore) updateDevice(ctx context.Context, device *android.Device) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.UpdateDeviceTx(ctx, tx, device)
+	})
 }
 
 func (ds *Datastore) getDeviceByDeviceID(ctx context.Context, deviceID string) (*android.Device, error) {

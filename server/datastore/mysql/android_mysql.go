@@ -12,16 +12,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Datastore is an implementation of android.Datastore interface backed by MySQL
-type Datastore struct {
+// AndroidDatastore is an implementation of android.Datastore interface backed by MySQL
+type AndroidDatastore struct {
 	logger  log.Logger
 	primary *sqlx.DB
 	replica fleet.DBReader // so it cannot be used to perform writes
 }
 
-// New creates a new Datastore
-func New(logger log.Logger, primary *sqlx.DB, replica fleet.DBReader) android.Datastore {
-	return &Datastore{
+// NewAndroidDatastore creates a new Android Datastore
+func NewAndroidDatastore(logger log.Logger, primary *sqlx.DB, replica fleet.DBReader) android.Datastore {
+	return &AndroidDatastore{
 		logger:  logger,
 		primary: primary,
 		replica: replica,
@@ -31,7 +31,7 @@ func New(logger log.Logger, primary *sqlx.DB, replica fleet.DBReader) android.Da
 // reader returns the DB instance to use for read-only statements, which is the
 // replica unless the primary has been explicitly required via
 // ctxdb.RequirePrimary.
-func (ds *Datastore) reader(ctx context.Context) fleet.DBReader {
+func (ds *AndroidDatastore) reader(ctx context.Context) fleet.DBReader {
 	if ctxdb.IsPrimaryRequired(ctx) {
 		return ds.primary
 	}
@@ -40,10 +40,10 @@ func (ds *Datastore) reader(ctx context.Context) fleet.DBReader {
 
 // Writer returns the DB instance to use for write statements, which is always
 // the primary.
-func (ds *Datastore) Writer(_ context.Context) *sqlx.DB {
+func (ds *AndroidDatastore) Writer(_ context.Context) *sqlx.DB {
 	return ds.primary
 }
 
-func (ds *Datastore) WithRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
+func (ds *AndroidDatastore) WithRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
 	return common_mysql.WithRetryTxx(ctx, ds.Writer(ctx), fn, ds.logger)
 }
