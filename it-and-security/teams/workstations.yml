@@ -77,7 +77,7 @@ controls:
       - package_path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
       - package_path: ../lib/macos/software/zoom.yml # Zoom for macOS
       - package_path: ../lib/macos/software/1password.yml # 1Password for macOS
-      - app_store_id: '803453959' # Slack Desktop
+      - package_path: ../lib/macos/software/slack.yml # Slack for macOS
   macos_updates:
     deadline: "2025-08-31"
     minimum_version: "15.6"
