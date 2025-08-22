@@ -1287,3 +1287,147 @@ func TestInvalidSoftwareInstallerHash(t *testing.T) {
 	_, err := GitOpsFromFile("testdata/team_config_invalid_sha.yml", "./testdata", appConfig, nopLogf)
 	assert.ErrorContains(t, err, "must be a valid lower-case hex-encoded (64-character) SHA-256 hash value")
 }
+
+func TestWebhookPolicyIDsValidation(t *testing.T) {
+	t.Parallel()
+
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+
+	t.Run("no_team_invalid_policy_ids_as_number", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "team_settings"})
+		config += `name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: 567
+      host_batch_size: 0
+software:
+  packages: []
+policies: []
+`
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		_, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "policy_ids' must be an array")
+	})
+
+	t.Run("no_team_invalid_policy_ids_as_string", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "team_settings"})
+		config += `name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: "567"
+      host_batch_size: 0
+software:
+  packages: []
+policies: []
+`
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		_, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "policy_ids' must be an array")
+	})
+
+	t.Run("no_team_valid_policy_ids_as_array", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "team_settings"})
+		config += `name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: [567, 890]
+      host_batch_size: 0
+software:
+  packages: []
+policies: []
+`
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
+		assert.NoError(t, err)
+		assert.NotNil(t, gitops)
+		assert.True(t, gitops.IsNoTeam())
+	})
+
+	t.Run("no_team_valid_policy_ids_as_empty_array", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "team_settings"})
+		config += `name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: []
+      host_batch_size: 0
+software:
+  packages: []
+policies: []
+`
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
+		assert.NoError(t, err)
+		assert.NotNil(t, gitops)
+	})
+
+	t.Run("no_team_valid_policy_ids_as_yaml_list", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "team_settings"})
+		config += `name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids:
+        - 567
+        - 890
+      host_batch_size: 0
+software:
+  packages: []
+policies: []
+`
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
+		assert.NoError(t, err)
+		assert.NotNil(t, gitops)
+	})
+
+	t.Run("regular_team_invalid_policy_ids_as_number", func(t *testing.T) {
+		config := getTeamConfig([]string{"team_settings"})
+		config += `team_settings:
+  secrets:
+    - secret: test123
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: 567
+      host_batch_size: 0
+`
+		_, err := gitOpsFromString(t, config)
+		assert.ErrorContains(t, err, "policy_ids' must be an array")
+	})
+
+	t.Run("regular_team_valid_policy_ids_as_array", func(t *testing.T) {
+		config := getTeamConfig([]string{"team_settings"})
+		config += `team_settings:
+  secrets:
+    - secret: test123
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://webhook.site/test
+      policy_ids: [567, 890]
+      host_batch_size: 0
+`
+		gitops, err := gitOpsFromString(t, config)
+		assert.NoError(t, err)
+		assert.NotNil(t, gitops)
+		assert.NotNil(t, gitops.TeamSettings["webhook_settings"])
+	})
+}

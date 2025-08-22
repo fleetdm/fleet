@@ -408,9 +408,52 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"team_settings"}, err))
 		} else {
 			multiError = parseSecrets(result, multiError)
+			// Validate webhook settings for regular teams
+			multiError = validateTeamWebhookSettings(result.TeamSettings, multiError)
 		}
 	}
 	return multiError
+}
+
+// validateTeamWebhookSettings validates webhook settings for regular teams
+func validateTeamWebhookSettings(teamSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	if webhookSettings, hasWebhook := teamSettings["webhook_settings"]; hasWebhook && webhookSettings != nil {
+		webhookMap, ok := webhookSettings.(map[string]any)
+		if !ok {
+			return multierror.Append(multiError, errors.New("'team_settings.webhook_settings' must be an object or null"))
+		}
+
+		// Validate failing_policies_webhook if present
+		if fpw, hasFPW := webhookMap["failing_policies_webhook"]; hasFPW && fpw != nil {
+			fpwMap, ok := fpw.(map[string]any)
+			if !ok {
+				multiError = multierror.Append(multiError, errors.New("'team_settings.webhook_settings.failing_policies_webhook' must be an object or null"))
+			} else {
+				// Validate failing_policies_webhook structure
+				if err := validateFailingPoliciesWebhook(fpwMap, "team_settings.webhook_settings.failing_policies_webhook"); err != nil {
+					multiError = multierror.Append(multiError, err)
+				}
+			}
+		}
+
+		// Could add validation for other webhook types here in the future
+		// e.g., host_status_webhook, vulnerabilities_webhook, etc.
+	}
+	return multiError
+}
+
+// validateFailingPoliciesWebhook validates the failing_policies_webhook configuration.
+// It ensures policy_ids is an array if present.
+func validateFailingPoliciesWebhook(fpwMap map[string]any, keyPath string) error {
+	// Validate policy_ids is an array if present
+	if policyIDs, hasPolicyIDs := fpwMap["policy_ids"]; hasPolicyIDs && policyIDs != nil {
+		// Check if it's an array
+		_, isArray := policyIDs.([]any)
+		if !isArray {
+			return fmt.Errorf("'%s.policy_ids' must be an array, got %T", keyPath, policyIDs)
+		}
+	}
+	return nil
 }
 
 // parseNoTeamSettings parses team_settings for "No Team" files, but only processes webhook_settings
@@ -442,7 +485,7 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 			// Store as nil to indicate webhook settings should be cleared
 			result.TeamSettings["webhook_settings"] = nil
 		} else {
-			webhookMap, ok := webhookRaw.(map[string]interface{})
+			webhookMap, ok := webhookRaw.(map[string]any)
 			if !ok {
 				return multierror.Append(multiError, errors.New("'team_settings.webhook_settings' must be an object or null"))
 			}
@@ -454,8 +497,14 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 			}
 			// If present, ensure failing_policies_webhook is an object or null
 			if fpw, ok := webhookMap["failing_policies_webhook"]; ok && fpw != nil {
-				if _, ok := fpw.(map[string]interface{}); !ok {
+				fpwMap, ok := fpw.(map[string]any)
+				if !ok {
 					multiError = multierror.Append(multiError, errors.New("'team_settings.webhook_settings.failing_policies_webhook' must be an object or null"))
+				} else {
+					// Validate failing_policies_webhook structure
+					if err := validateFailingPoliciesWebhook(fpwMap, "team_settings.webhook_settings.failing_policies_webhook"); err != nil {
+						multiError = multierror.Append(multiError, err)
+					}
 				}
 			}
 			// Store the webhook settings for later processing
