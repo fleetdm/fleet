@@ -60,6 +60,10 @@ const ScriptBatchDetailsPage = ({
     { ...DEFAULT_USE_QUERY_OPTIONS, enabled: !!batch_execution_id }
   );
 
+  const pathToProgress =
+    paths.CONTROLS_SCRIPTS_BATCH_PROGRESS +
+    (batchDetails?.status ? `?status=${batchDetails?.status}` : "");
+
   const onCancelBatch = useCallback(async () => {
     setIsCanceling(true);
 
@@ -72,16 +76,13 @@ const ScriptBatchDetailsPage = ({
         </span>
       );
       setShowCancelModal(false);
-      router.push(
-        paths.CONTROLS_SCRIPTS_BATCH_PROGRESS +
-          (batchDetails?.status ? `?status=${batchDetails?.status}` : "")
-      );
+      router.push(pathToProgress);
     } catch (error) {
       renderFlash("error", "Could not cancel script. Please try again.");
     } finally {
       setIsCanceling(false);
     }
-  }, [batchDetails?.status, batch_execution_id, renderFlash, router]);
+  }, [batch_execution_id, pathToProgress, renderFlash, router]);
 
   const renderContent = () => {
     if (isLoading || !batchDetails) {
@@ -112,10 +113,7 @@ const ScriptBatchDetailsPage = ({
     return (
       <div className={`${baseClass}`}>
         {/* TODO - may need to preserve team, selected batch run state here */}
-        <BackLink
-          text="Back to script activity"
-          path={paths.CONTROLS_SCRIPTS_BATCH_PROGRESS}
-        />
+        <BackLink text="Back to script activity" path={pathToProgress} />
 
         <SectionHeader
           wrapperCustomClass={`${baseClass}__header`}
