@@ -132,13 +132,13 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 			if caToCreate.Type == string(fleet.CATypeNDESSCEPProxy) {
 				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%s. Only a single NDES CA can be added.", errPrefix)}
 			}
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%s\"%s\" name is already used by another %s certificate authority. Please choose a different name and try again.", errPrefix, caToCreate.Name, caDisplayType)}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%s\"%s\" name is already used by another %s certificate authority. Please choose a different name and try again.", errPrefix, *caToCreate.Name, caDisplayType)}
 		}
 		return nil, err
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
-		return nil, fmt.Errorf("recording activity for new %s certificate authority %s: %w", caToCreate.Type, caToCreate.Name, err)
+		return nil, fmt.Errorf("recording activity for new %s certificate authority %s: %w", caToCreate.Type, *caToCreate.Name, err)
 	}
 
 	return createdCA, nil
