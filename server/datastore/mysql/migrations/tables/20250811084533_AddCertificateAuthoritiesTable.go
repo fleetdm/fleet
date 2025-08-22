@@ -199,7 +199,7 @@ INSERT INTO certificate_authorities (
 		if ca.CertificateUserPrincipalNames != nil {
 			upns, err = json.Marshal(ca.CertificateUserPrincipalNames)
 			if err != nil {
-				return fmt.Errorf("failed to marshal certificate user principal names for %s: %w", ca.Name, err)
+				return fmt.Errorf("failed to marshal certificate user principal names for %s: %w", *ca.Name, err)
 			}
 		}
 		args := []interface{}{
@@ -220,7 +220,7 @@ INSERT INTO certificate_authorities (
 		}
 		_, err = txx.Exec(insertStmt, args...)
 		if err != nil {
-			return fmt.Errorf("failed to insert certificate authority %s: %w", ca.Name, err)
+			return fmt.Errorf("failed to insert certificate authority %s: %w", *ca.Name, err)
 		}
 	}
 
