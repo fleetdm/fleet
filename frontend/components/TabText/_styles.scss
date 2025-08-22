@@ -16,8 +16,11 @@
     font-weight: $bold;
     font-size: $xx-small;
 
-    &--error {
+    &__red {
       background-color: $core-vibrant-red;
+    }
+    &__grey {
+      background-color: $ui-fleet-black-50;
     }
   }
 }

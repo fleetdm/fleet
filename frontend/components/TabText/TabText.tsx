@@ -6,7 +6,9 @@ interface ITabTextProps {
   children: React.ReactNode;
   count?: number;
   /** Changes count badge from default purple to red */
-  isErrorCount?: boolean;
+  redCount?: boolean;
+  /** Changes count badge from default purple to grey */
+  greyCount?: boolean;
 }
 
 /*
@@ -19,12 +21,14 @@ const TabText = ({
   className,
   children,
   count,
-  isErrorCount = false,
+  redCount = false,
+  greyCount = false,
 }: ITabTextProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
   const countClassNames = classnames(`${baseClass}__count`, {
-    [`${baseClass}__count--error`]: isErrorCount,
+    [`${baseClass}__count__red`]: redCount,
+    [`${baseClass}__count__grey`]: greyCount,
   });
 
   const renderCount = () => {
