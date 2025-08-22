@@ -116,6 +116,8 @@
 				<true/>
 				<key>simpleMode</key>
 				<false/>
+				<key>singleQuitButton</key>
+				<true/>
 				<key>updateElements</key>
 				<array>
 					<dict>
