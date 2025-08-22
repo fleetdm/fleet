@@ -42,11 +42,19 @@ export const isValidScriptBatchStatus = (
   return SCRIPT_BATCH_STATUSES.includes((status ?? "") as ScriptBatchStatus);
 };
 
-const SCRIPT_BATCH_HOST_STATUSES = [
+export const SCRIPT_BATCH_HOST_STATUSES = [
   "ran",
-  "pending",
   "errored",
+  "pending",
   "incompatible",
   "canceled",
 ];
 export type ScriptBatchHostStatus = typeof SCRIPT_BATCH_HOST_STATUSES[number];
+
+export const isValidScriptBatchHostStatus = (
+  status: string | null | undefined
+): status is ScriptBatchHostStatus => {
+  return SCRIPT_BATCH_HOST_STATUSES.includes(
+    (status ?? "") as ScriptBatchHostStatus
+  );
+};

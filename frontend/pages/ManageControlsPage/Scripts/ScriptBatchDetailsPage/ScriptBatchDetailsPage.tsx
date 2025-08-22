@@ -1,7 +1,14 @@
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -14,6 +21,11 @@ import scriptsAPI, {
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
+import {
+  isValidScriptBatchHostStatus,
+  ScriptBatchHostStatus,
+} from "interfaces/script";
+
 import paths from "router/paths";
 
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
@@ -24,11 +36,21 @@ import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import DataError from "components/DataError";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 
 import getWhen from "../helpers";
 import CancelScriptBatchModal from "../components/CancelScriptBatchModal";
 
 const baseClass = "script-batch-details-page";
+
+const STATUS_BY_INDEX: ScriptBatchHostStatus[] = [
+  "ran",
+  "errored",
+  "pending",
+  "incompatible",
+  "canceled",
+];
 
 interface IScriptBatchDetailsRouteParams {
   batch_execution_id: string;
@@ -45,6 +67,8 @@ const ScriptBatchDetailsPage = ({
   location,
 }: IScriptBatchDetailsProps) => {
   const { batch_execution_id } = routeParams;
+  const statusParam = location?.query.status;
+  const selectedStatus = statusParam as ScriptBatchHostStatus;
 
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showScriptDetails, setShowScriptDetails] = useState(false);
@@ -92,6 +116,35 @@ const ScriptBatchDetailsPage = ({
     }
   }, [batch_execution_id, pathToProgress, renderFlash, router]);
 
+  const handleTabChange = useCallback(
+    (index: number) => {
+      const newStatus = STATUS_BY_INDEX[index];
+
+      const newParams = new URLSearchParams(location?.search);
+      newParams.set("status", newStatus);
+      const newQuery = newParams.toString();
+
+      router.push(
+        paths
+          .CONTROLS_SCRIPTS_BATCH_DETAILS(batch_execution_id)
+          .concat(newQuery ? `?${newQuery}` : "")
+      );
+    },
+    [batch_execution_id, location?.search, router]
+  );
+
+  // Reset to first tab if status is invalid.
+  useEffect(() => {
+    if (!isValidScriptBatchHostStatus(selectedStatus)) {
+      handleTabChange(0);
+    }
+  }, [handleTabChange, selectedStatus]);
+
+  const renderTabContent = (status: ScriptBatchHostStatus) => {
+    // TODO
+    return <></>;
+  };
+
   const renderContent = () => {
     if (isLoading || !batchDetails) {
       return <Spinner />;
@@ -123,7 +176,6 @@ const ScriptBatchDetailsPage = ({
 
     return (
       <div className={`${baseClass}`}>
-        {/* TODO - may need to preserve team, selected batch run state here */}
         <BackLink text="Back to script activity" path={pathToProgress} />
 
         <SectionHeader
@@ -158,7 +210,35 @@ const ScriptBatchDetailsPage = ({
           alignLeftHeaderVertically
           greySubtitle
         />
-        {/* tabs */}
+        <TabNav>
+          <Tabs
+            selectedIndex={STATUS_BY_INDEX.indexOf(selectedStatus)}
+            onSelect={handleTabChange}
+          >
+            <TabList>
+              <Tab>
+                <TabText>Ran</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Errored</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Pending</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Incompatible</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Cancelled</TabText>
+              </Tab>
+            </TabList>
+            <TabPanel>{renderTabContent(STATUS_BY_INDEX[0])}</TabPanel>
+            <TabPanel>{renderTabContent(STATUS_BY_INDEX[1])}</TabPanel>
+            <TabPanel>{renderTabContent(STATUS_BY_INDEX[2])}</TabPanel>
+            <TabPanel>{renderTabContent(STATUS_BY_INDEX[3])}</TabPanel>
+            <TabPanel>{renderTabContent(STATUS_BY_INDEX[4])}</TabPanel>
+          </Tabs>
+        </TabNav>
       </div>
     );
   };
