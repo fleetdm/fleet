@@ -18,7 +18,6 @@ import TabText from "components/TabText";
 import PaginatedList from "components/PaginatedList";
 import Icon from "components/Icon/Icon";
 
-import ScriptBatchSummaryModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptBatchSummaryModal";
 import { IScriptBatchDetailsForSummary } from "pages/DashboardPage/cards/ActivityFeed/components/ScriptBatchSummaryModal/ScriptBatchSummaryModal";
 
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
@@ -59,10 +58,6 @@ const ScriptBatchProgress = ({
   router,
   teamId,
 }: IScriptBatchProgressProps) => {
-  const [
-    batchDetailsForSummary,
-    setShowBatchDetailsForSummary,
-  ] = useState<IScriptBatchDetailsForSummary | null>(null);
   const [batchCount, setBatchCount] = useState<number | null>(null);
   const [updating, setUpdating] = useState(false);
 
@@ -125,11 +120,7 @@ const ScriptBatchProgress = ({
   );
 
   const onClickRow = (r: IScriptBatchSummaryV2) => {
-    setShowBatchDetailsForSummary({
-      batch_execution_id: r.batch_execution_id,
-      script_name: r.script_name,
-      host_count: r.targeted_host_count,
-    });
+    router.push(PATHS.CONTROLS_SCRIPTS_BATCH_DETAILS(r.batch_execution_id));
     // return satisfies caller expectations, not used in this case
     return r;
   };
@@ -255,15 +246,6 @@ const ScriptBatchProgress = ({
           </Tabs>
         </TabNav>
       </div>
-      {batchDetailsForSummary && (
-        <ScriptBatchSummaryModal
-          scriptBatchExecutionDetails={{ ...batchDetailsForSummary }}
-          onCancel={() => {
-            setShowBatchDetailsForSummary(null);
-          }}
-          router={router}
-        />
-      )}
     </>
   );
 };
