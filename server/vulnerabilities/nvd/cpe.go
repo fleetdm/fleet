@@ -20,7 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	// "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -370,15 +370,7 @@ var (
 			// Powershell preview versions 7.5* all have CVE-2025-21171
 			// Non-preview 7.5* do not
 			matches: func(s *fleet.Software) bool {
-				nameLower := strings.ToLower(s.Name)
-				if strings.Contains(nameLower, "powershell") {
-					fmt.Println("=======================================")
-					fmt.Printf("mutate match: %s | %t\n",
-						nameLower,
-						(strings.Contains(nameLower, "powershell") && strings.Contains(nameLower, "preview")),
-					)
-				}
-				return (strings.Contains(nameLower, "powershell") && strings.Contains(nameLower, "preview"))
+				return strings.Contains(strings.ToLower(s.Name), "powershell")
 			},
 			mutate: func(s *fleet.Software, logger log.Logger) {
 				// if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
@@ -386,17 +378,25 @@ var (
 				// }
 				// MAKE SURE it only mutates 7.5
 				parts := strings.Split(s.Version, ".")
-				if len(parts) < 2 {
+				if len(parts) < 3 {
 					return
 				}
 
-				newVersion := fmt.Sprintf("%s.%s", parts[0], parts[1])
-				if newVersion != "7.5" {
+				isSpecificVer := parts[0] == "7" && parts[1] == "5"
+				var newVersion string
+
+				if isSpecificVer && strings.Contains(parts[2], "-") {
+					newVersion = fmt.Sprintf("%s.%s", parts[0], parts[1])
+				} else if isSpecificVer && strings.Contains(strings.ToLower(s.Name), "preview") {
+					newVersion = fmt.Sprintf("%s.%s", parts[0], parts[1])
+				} else if isSpecificVer {
+					newVersion = fmt.Sprintf("%s.%s.%s", parts[0], parts[1], parts[2])
+				} else {
 					return
 				}
 
 				fmt.Printf("New Version: %s\n", newVersion)
-				s.Name = "powershell-preview"
+				s.Name = "powershell"
 				s.Version = newVersion
 			},
 		},
@@ -737,7 +737,7 @@ func TranslateSoftwareToCPE(
 		ctx,
 		fleet.SoftwareIterQueryOptions{
 			// Also exclude iOS and iPadOS apps until we enable vulnerabilities support for them.
-			// ---------------- ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps"),
+			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps"),
 		},
 	)
 	if err != nil {
