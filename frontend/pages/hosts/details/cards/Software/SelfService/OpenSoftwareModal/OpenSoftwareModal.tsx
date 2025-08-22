@@ -13,7 +13,7 @@ const getOpenSoftwareInstructions = (
   if (softwareSource === "apps")
     return (
       <p>
-        Find <b>{softwareName}</b> in <b>Finder Applications</b> and
+        Find <b>{softwareName}</b> in <b>Finder &gt; Applications</b> and
         double-click it, or search <b>{softwareName}</b> in <b>Spotlight</b>.
       </p>
     );

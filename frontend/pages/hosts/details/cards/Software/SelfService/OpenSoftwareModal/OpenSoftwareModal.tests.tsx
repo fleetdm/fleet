@@ -15,7 +15,7 @@ describe("OpenSoftwareModal", () => {
     );
 
     expect(screen.getAllByText(/Slack/i)).toHaveLength(2); // Says Slack twice
-    expect(screen.getByText(/Finder Applications/i)).toBeVisible();
+    expect(screen.getByText(/Finder > Applications/i)).toBeVisible();
     expect(screen.getByText(/and double-click it/i)).toBeVisible();
 
     expect(screen.getByRole("button", { name: /Done/i })).toBeVisible();

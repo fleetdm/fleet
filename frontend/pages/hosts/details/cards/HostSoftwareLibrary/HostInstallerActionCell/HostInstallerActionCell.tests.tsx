@@ -832,7 +832,7 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
     expect(moreDropdown).toBeDisabled();
   });
 
-  it('does not render "How to open" option for non-"app"/"program" sources like "pkg_packages"', async () => {
+  it('does not render "How to open" option for non-"app"/"program" sources like "pkg_packages" but does renders "Uninstall"', async () => {
     const { user } = renderWithSetup(
       <HostInstallerActionCell
         software={{
@@ -851,6 +851,31 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
 
     const moreDropdown = screen.getByText("More");
     await user.click(moreDropdown);
+    expect(screen.queryByText("Uninstall")).toBeInTheDocument();
     expect(screen.queryByText("How to open")).not.toBeInTheDocument();
+  });
+  it('does not render "Uninstall" option for VPP apps but does renders "How to Open"', async () => {
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{
+          ...createMockHostSoftware({
+            software_package: null,
+            app_store_app: createMockHostAppStoreApp(),
+          }),
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const moreDropdown = screen.getByText("More");
+    await user.click(moreDropdown);
+    expect(screen.queryByText("Uninstall")).not.toBeInTheDocument();
+    expect(screen.queryByText("How to open")).toBeInTheDocument();
   });
 });
