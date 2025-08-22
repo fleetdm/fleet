@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -232,6 +234,12 @@ func (svc *Service) DeleteSecretVariable(ctx context.Context, id uint) error {
 	}
 	deletedSecretVariableName, err := svc.ds.DeleteSecretVariable(ctx, id)
 	if err != nil {
+		var secretUsedErr *fleet.SecretUsedError
+		if errors.As(err, &secretUsedErr) {
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{
+				Message: fmt.Sprintf("Couldn't delete. %s", secretUsedErr.Error()),
+			}, "delete secret variable")
+		}
 		return ctxerr.Wrap(ctx, err, "delete secret variable")
 	}
 	if err := svc.NewActivity(

@@ -38,7 +38,6 @@ const MainContent = ({
   const {
     config,
     isPremiumTier,
-    isAndroidEnterpriseDeleted,
     isApplePnsExpired,
     isAppleBmExpired,
     isVppExpired,
