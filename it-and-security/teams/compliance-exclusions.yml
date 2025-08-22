@@ -44,6 +44,12 @@ software:
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
     - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/slack-rpm.yml # Zoom for RHEL
+  app_store_apps:
+    - app_store_id: '803453959' # Slack Desktop
+      self_service: true
+      categories:
+        - Communication
+        - Productivity
   fleet_maintained_apps:
     # macOS apps
     - slug: santa/darwin # Santa for macOS
