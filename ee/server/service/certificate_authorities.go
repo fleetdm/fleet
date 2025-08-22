@@ -417,7 +417,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			return err
 		}
 		p.DigiCertCAUpdatePayload.Preprocess()
-		if err := svc.validateDigicertUpdate(p.DigiCertCAUpdatePayload, errPrefix); err != nil {
+		if err := svc.validateDigicertUpdate(ctx, p.DigiCertCAUpdatePayload, oldCA, errPrefix); err != nil {
 			return err
 		}
 		caToUpdate.Type = string(fleet.CATypeDigiCert)
@@ -512,7 +512,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 	return nil
 }
 
-func (svc *Service) validateDigicertUpdate(digicert *fleet.DigiCertCAUpdatePayload, errPrefix string) error {
+func (svc *Service) validateDigicertUpdate(ctx context.Context, digicert *fleet.DigiCertCAUpdatePayload, oldCA *fleet.CertificateAuthority, errPrefix string) error {
 	if digicert.Name != nil {
 		if err := validateCAName(*digicert.Name, errPrefix); err != nil {
 			return err
@@ -528,9 +528,31 @@ func (svc *Service) validateDigicertUpdate(digicert *fleet.DigiCertCAUpdatePaylo
 			Message: fmt.Sprintf("%sInvalid DigiCert API token. Please correct and try again.", errPrefix),
 		}
 	}
-	if digicert.ProfileID != nil && *digicert.ProfileID == "" {
-		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("%sInvalid profile GUID. Please correct and try again.", errPrefix),
+	if digicert.ProfileID != nil {
+		if *digicert.ProfileID == "" {
+			return &fleet.BadRequestError{
+				Message: fmt.Sprintf("%sInvalid profile GUID. Please correct and try again.", errPrefix),
+			}
+		}
+
+		// We want to generate a DigiCertCA struct with all required fields to verify the profile ID.
+		// If URL or APIToken are not being updated we use the existing values from oldCA
+		digicertCA := fleet.DigiCertCA{
+			ProfileID: *digicert.ProfileID,
+		}
+		if digicert.URL != nil {
+			digicertCA.URL = *digicert.URL
+		} else {
+			digicertCA.URL = *oldCA.URL
+		}
+		if digicert.APIToken != nil {
+			digicertCA.APIToken = *digicert.APIToken
+		} else {
+			digicertCA.APIToken = *oldCA.APIToken
+		}
+		if err := svc.digiCertService.VerifyProfileID(ctx, digicertCA); err != nil {
+			level.Error(svc.logger).Log("msg", "Failed to validate DigiCert profile GUID", "err", err)
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCould not verify DigiCert profile ID: %s. Please correct and try again.", errPrefix, err.Error())}
 		}
 	}
 	if digicert.CertificateCommonName != nil {
