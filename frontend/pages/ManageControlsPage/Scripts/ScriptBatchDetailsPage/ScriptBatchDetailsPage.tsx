@@ -44,6 +44,24 @@ import CancelScriptBatchModal from "../components/CancelScriptBatchModal";
 
 const baseClass = "script-batch-details-page";
 
+export const EMPTY_STATE_DETAILS: Record<ScriptBatchHostStatus, string> = {
+  ran: "Hosts with successful script results appear here.",
+  errored: "Hosts with error results appear here. ",
+  pending: "Compatible hosts that haven't run the script appear here.",
+  incompatible:
+    "Targeted hosts with incompatible operating systems appear here.",
+  canceled: "Hosts where this script run was cancelled appear here.",
+};
+
+const getEmptyState = (status: ScriptBatchHostStatus) => {
+  return (
+    <div className={`${baseClass}__empty`}>
+      <b>No hosts with this status</b>
+      <p>{EMPTY_STATE_DETAILS[status]}</p>
+    </div>
+  );
+};
+
 const STATUS_BY_INDEX: ScriptBatchHostStatus[] = [
   "ran",
   "errored",
@@ -140,8 +158,14 @@ const ScriptBatchDetailsPage = ({
     }
   }, [handleTabChange, selectedStatus]);
 
-  const renderTabContent = (status: ScriptBatchHostStatus) => {
-    // TODO
+  // const renderTabContent = (status: ScriptBatchHostStatus, statusCount: number) => {
+  const renderTabContent = ([status, statusCount]: [
+    ScriptBatchHostStatus,
+    number
+  ]) => {
+    if (statusCount === 0) {
+      return getEmptyState(status);
+    }
     return <></>;
   };
 
@@ -163,6 +187,15 @@ const ScriptBatchDetailsPage = ({
       incompatible_host_count: incompatible,
       canceled_host_count: canceled,
     } = batchDetails || {};
+
+    const getStatusAndCountByIndex = (i: number) =>
+      ([
+        ["ran", ran],
+        ["errored", errored],
+        ["pending", pending],
+        ["incompatible", incompatible],
+        ["canceled", canceled],
+      ] as [ScriptBatchHostStatus, number][])[i];
 
     const subTitle = (
       <>
@@ -240,11 +273,11 @@ const ScriptBatchDetailsPage = ({
                 </TabText>
               </Tab>
             </TabList>
-            <TabPanel>{renderTabContent(STATUS_BY_INDEX[0])}</TabPanel>
-            <TabPanel>{renderTabContent(STATUS_BY_INDEX[1])}</TabPanel>
-            <TabPanel>{renderTabContent(STATUS_BY_INDEX[2])}</TabPanel>
-            <TabPanel>{renderTabContent(STATUS_BY_INDEX[3])}</TabPanel>
-            <TabPanel>{renderTabContent(STATUS_BY_INDEX[4])}</TabPanel>
+            <TabPanel>{renderTabContent(getStatusAndCountByIndex(0))}</TabPanel>
+            <TabPanel>{renderTabContent(getStatusAndCountByIndex(1))}</TabPanel>
+            <TabPanel>{renderTabContent(getStatusAndCountByIndex(2))}</TabPanel>
+            <TabPanel>{renderTabContent(getStatusAndCountByIndex(3))}</TabPanel>
+            <TabPanel>{renderTabContent(getStatusAndCountByIndex(4))}</TabPanel>
           </Tabs>
         </TabNav>
       </div>

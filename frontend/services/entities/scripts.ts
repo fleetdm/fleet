@@ -317,6 +317,11 @@ export default {
         // status: "finished",
         status: "scheduled",
         // finished_at: null,
+        ran_host_count: 0,
+        pending_host_count: 0,
+        errored_host_count: 0,
+        incompatible_host_count: 0,
+        canceled_host_count: 0,
       })
     );
   },
